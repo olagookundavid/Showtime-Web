@@ -1,0 +1,37 @@
+# Binaries for programs and plugins
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binaries
+*_test
+
+# Delve debug binaries (VS Code Go extension)
+__debug_bin*
+
+# macOS specific files
+.DS_Store
+
+# IDE-specific files (e.g., for VS Code)
+.vscode/
+
+# Build artifacts
+/bin/
+/obj/
+
+# Local environment variables (sensitive)
+.env
+
+# Secrets and credentials
+*.json
+secrets/
+# (or to be more strict: secrets/*.json)
+
+# Swagger docs (optional)
+/docs
+
+# go.mod
+# go.sum
+
+Makefile

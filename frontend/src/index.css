@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@theme {
+    --color-sffl-red: #E31837;
+    --color-sffl-navy: #002244;
+    --color-sffl-white: #FFFFFF;
+    --color-sffl-gray: #F5F5F5;
+
+    --font-sans: 'Inter', system-ui, sans-serif;
+}
+
+body {
+    @apply bg-sffl-gray text-sffl-navy font-sans;
+}

@@ -1,0 +1,14 @@
+
+# Root gitignore
+
+.DS_Store
+.idea
+.vscode
+*.log
+
+# Ignore sub-project dependencies
+node_modules
+dist
+bin
+tmp
+coverage
