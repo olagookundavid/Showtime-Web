@@ -8,8 +8,15 @@ export const Navbar = () => {
         <nav className="bg-sffl-navy p-4 sticky top-0 z-50 shadow-lg border-b-4 border-sffl-red">
             <div className="container mx-auto flex justify-between items-center text-white">
                 {/* Logo Area */}
-                <Link to="/" className="text-2xl font-black italic tracking-tighter hover:text-gray-200 transition">
-                    SHOWTIME<span className="text-sffl-red">WEB</span>
+                <Link to="/" className="flex items-center gap-2 group">
+                    <img
+                        src="https://images.leaguerepublic.com/data/images/738010788/107.png"
+                        alt="SFFL Logo"
+                        className="w-12 h-12 object-contain bg-white rounded-full p-1 transition-transform group-hover:scale-105"
+                    />
+                    <span className="text-2xl font-black italic tracking-tighter group-hover:text-gray-200 transition">
+                        SHOWTIME<span className="text-sffl-red">WEB</span>
+                    </span>
                 </Link>
 
                 {/* Desktop Menu */}
@@ -19,6 +26,7 @@ export const Navbar = () => {
                     <Link to="/standings" className="hover:text-sffl-red transition-colors duration-300">Standings</Link>
                     <Link to="/news" className="hover:text-sffl-red transition-colors duration-300">News</Link>
                     <Link to="/gallery" className="hover:text-sffl-red transition-colors duration-300">Gallery</Link>
+                    <Link to="/tickets" className="hover:text-sffl-red transition-colors duration-300">Tickets</Link>
 
                     {/* About Us Dropdown */}
                     <div

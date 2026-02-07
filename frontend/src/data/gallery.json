@@ -1,0 +1,37 @@
+[
+    {
+        "id": "1",
+        "gameWeek": "Week 12 - Playoffs",
+        "date": "December 7, 2024",
+        "playersPhotoUrl": "https://drive.google.com/drive/folders/1VYMkGWLbXUji4Q8g0BfsGUNBsG7Af2bp?usp=drive_link",
+        "fansPhotoUrl": "https://drive.google.com/drive/folders/1VYMkGWLbXUji4Q8g0BfsGUNBsG7Af2bp?usp=drive_link"
+    },
+    {
+        "id": "2",
+        "gameWeek": "Week 11",
+        "date": "November 30, 2024",
+        "playersPhotoUrl": "https://drive.google.com/drive/folders/example-week-11-players",
+        "fansPhotoUrl": "https://drive.google.com/drive/folders/example-week-11-fans"
+    },
+    {
+        "id": "3",
+        "gameWeek": "Week 10",
+        "date": "November 23, 2024",
+        "playersPhotoUrl": "https://drive.google.com/drive/folders/example-week-10-players",
+        "fansPhotoUrl": "https://drive.google.com/drive/folders/example-week-10-fans"
+    },
+    {
+        "id": "4",
+        "gameWeek": "Week 9",
+        "date": "November 16, 2024",
+        "playersPhotoUrl": "https://drive.google.com/drive/folders/example-week-9-players",
+        "fansPhotoUrl": "https://drive.google.com/drive/folders/example-week-9-fans"
+    },
+    {
+        "id": "5",
+        "gameWeek": "Week 8",
+        "date": "November 9, 2024",
+        "playersPhotoUrl": "https://drive.google.com/drive/folders/example-week-8-players",
+        "fansPhotoUrl": "https://drive.google.com/drive/folders/example-week-8-fans"
+    }
+]

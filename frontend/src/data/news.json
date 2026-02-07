@@ -1,0 +1,35 @@
+[
+    {
+        "id": "1",
+        "title": "Showtime Streetz Iyana Ipaja - The Late Bloom",
+        "slug": "showtime-streetz-iyana-ipaja-the-late-bloom",
+        "excerpt": "From underdogs to playoff contenders, the Showtime Streetz Iyana Ipaja story is one of grit, determination, and late-season heroics.",
+        "content": "The 2024 season has been a rollercoaster for Showtime Streetz Iyana Ipaja. After a slow start to the campaign, many had written them off as playoff contenders. But this team had other plans.\n\nLed by their dynamic quarterback and a defense that grew stronger with each passing week, the Streetz turned their season around in spectacular fashion. Their Week 8 victory against the previously undefeated Titans was a statement game that sent shockwaves through the league.\n\nCoach Adebayo credits the turnaround to team chemistry and perseverance: 'We never stopped believing. We knew we had the talent, it was just about putting it all together at the right time.'\n\nNow, as we head into the playoffs, the Streetz are one of the most feared teams in the competition. Their late bloom might just carry them all the way to the championship.",
+        "author": "SFFL Media",
+        "publishedAt": "2024-12-15",
+        "category": "Team Spotlight",
+        "featuredImage": "https://images.unsplash.com/photo-1577223625816-7546f1ab698b?w=800&q=80"
+    },
+    {
+        "id": "2",
+        "title": "Playoff Picture: Who's In, Who's Out?",
+        "slug": "playoff-picture-breakdown",
+        "excerpt": "With just two weeks remaining in the regular season, the playoff race is heating up. Here's where each team stands.",
+        "content": "The race for the top 8 playoff spots is coming down to the wire. Currently, the Titans and Eagles have secured their spots, but positions 3-10 are separated by just 2 games.\n\nKey matchups this week include:\n- Streetz vs Warriors (both 6-4)\n- Panthers vs Lions (fighting for 8th seed)\n- Falcons vs Ravens (must-win for both)\n\nThe bottom 4 teams will compete in the Community Cup, a separate bracket that ensures competitive football for everyone through the end of the season.\n\nStay tuned as we break down each scenario and what needs to happen for your team to make the playoffs!",
+        "author": "SFFL Analytics",
+        "publishedAt": "2024-12-10",
+        "category": "League News",
+        "featuredImage": "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=800&q=80"
+    },
+    {
+        "id": "3",
+        "title": "Commissioner's Update: New Rules for 2025",
+        "slug": "new-rules-2025-season",
+        "excerpt": "The league has announced several rule changes that will take effect in the 2025 season to improve game flow and safety.",
+        "content": "After consultation with coaches, players, and officials, the SFFL is implementing the following rule changes for the 2025 season:\n\n1. **Overtime Format**: Games tied after regulation will now play a 5-minute sudden death overtime period.\n\n2. **Flag Guarding**: Stricter enforcement of the flag guarding rule to reduce injuries and promote fair play.\n\n3. **Roster Size**: Teams can now carry up to 15 players (up from 12) to account for injuries and ensure competitive games.\n\n4. **Media Timeout**: One media timeout per half will be added to allow for better broadcast coverage.\n\nThese changes are designed to enhance the game experience for players and fans alike. Full details are available in the updated rulebook.",
+        "author": "Commissioner Azeez Amida",
+        "publishedAt": "2024-12-01",
+        "category": "League Updates",
+        "featuredImage": "https://images.unsplash.com/photo-1459865264687-595d652de67e?w=800&q=80"
+    }
+]

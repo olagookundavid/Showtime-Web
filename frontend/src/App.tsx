@@ -11,6 +11,10 @@ import { ShowtimeArena } from './pages/about/ShowtimeArena';
 import { Education } from './pages/about/Education';
 import { FAQ } from './pages/about/FAQ';
 import { Whistleblower } from './pages/about/Whistleblower';
+import { NewsList } from './pages/news/NewsList';
+import { NewsDetail } from './pages/news/NewsDetail';
+import { GalleryPage } from './pages/gallery/GalleryPage';
+import { TicketsPage } from './pages/tickets/TicketsPage';
 import './index.css';
 
 function App() {
@@ -21,11 +25,13 @@ function App() {
           {/* Home */}
           <Route path="/" element={<LandingPage />} />
 
-          {/* Main Features (Placeholders for now) */}
+          {/* Main Features */}
           <Route path="/schedule" element={<PlaceholderPage title="Match Hub" />} />
           <Route path="/standings" element={<PlaceholderPage title="Standings" />} />
-          <Route path="/news" element={<PlaceholderPage title="News" />} />
-          <Route path="/gallery" element={<PlaceholderPage title="Gallery" />} />
+          <Route path="/news" element={<NewsList />} />
+          <Route path="/news/:slug" element={<NewsDetail />} />
+          <Route path="/gallery" element={<GalleryPage />} />
+          <Route path="/tickets" element={<TicketsPage />} />
 
           {/* Static Pages */}
           <Route path="/commissioners-note" element={<CommissionersNote />} />

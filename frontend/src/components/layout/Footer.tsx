@@ -3,11 +3,19 @@ export const Footer = () => {
         <footer className="bg-sffl-navy text-white p-8 mt-auto">
             <div className="container mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-center md:text-left">
                 {/* Branding */}
-                <div>
-                    <h3 className="text-xl font-bold italic mb-4">SHOWTIME WEB</h3>
-                    <p className="text-gray-400 text-sm">
-                        The premier flag football league.
-                        Experience the intensity, the passion, and the glory.
+                <div className="flex flex-col items-center md:items-start text-center md:text-left">
+                    <div className="flex items-center gap-3 mb-4">
+                        <img
+                            src="https://images.leaguerepublic.com/data/images/738010788/107.png"
+                            alt="SFFL Logo"
+                            className="w-16 h-16 object-contain bg-white rounded-full p-1"
+                        />
+                        <span className="text-3xl font-black italic tracking-tighter">
+                            SHOWTIME<span className="text-sffl-red">WEB</span>
+                        </span>
+                    </div>
+                    <p className="text-gray-400 text-sm leading-relaxed max-w-xs">
+                        The premier flag football league in Lagos. Building community through sport.
                     </p>
                 </div>
 
