@@ -3,27 +3,53 @@ export const ShowtimeArena = () => {
         <div className="max-w-4xl mx-auto space-y-8">
             <div className="bg-sffl-navy text-white p-8 rounded-2xl shadow-xl">
                 <h1 className="text-4xl font-black italic">SHOWTIME ARENA</h1>
-                <p className="text-gray-300 mt-2">Our home field</p>
+                <p className="text-gray-300 mt-2">Home of the SFFL</p>
             </div>
 
             <section className="bg-white p-8 rounded-xl shadow-md space-y-6">
-                <h2 className="text-2xl font-bold text-sffl-red">Venue Information</h2>
-                <p className="text-gray-700 leading-relaxed">
-                    Showtime Arena is the premier flag football facility in Lagos, featuring a
-                    regulation-size field, professional lighting, and spectator seating. All SFFL
-                    league matches are held at this state-of-the-art venue.
+                <h2 className="text-2xl font-bold text-sffl-red">Experience the Game Night</h2>
+                <p className="text-gray-700 leading-relaxed text-lg">
+                    Located at <strong>Meadow Hall Way, Alma Beach Estate, Lekki</strong>, the Showtime Arena
+                    is the premier destination for flag football in Lagos.
                 </p>
 
-                <div className="bg-gray-100 p-6 rounded-lg space-y-4">
-                    <h3 className="font-bold text-xl text-sffl-navy">Facilities</h3>
-                    <ul className="text-gray-700 space-y-2 list-disc list-inside">
-                        <li>Regulation flag football field</li>
-                        <li>Professional lighting for evening games</li>
-                        <li>Covered spectator area</li>
-                        <li>Player locker rooms</li>
-                        <li>Refreshment stands</li>
-                        <li>Ample parking</li>
-                    </ul>
+                <p className="text-gray-700 leading-relaxed">
+                    Designed for both high-performance sports and entertainment, the arena offers a unique
+                    atmosphere where fans can enjoy evening games under the stars.
+                </p>
+
+                <div className="grid md:grid-cols-2 gap-6 mt-6">
+                    <div className="bg-gray-100 p-6 rounded-xl">
+                        <h3 className="font-bold text-xl text-sffl-navy mb-3">🏟️ World-Class Pitch</h3>
+                        <p className="text-gray-700">
+                            A professional-grade turf field with floodlights, allowing for exciting
+                            night games and excellent visibility for players and spectators.
+                        </p>
+                    </div>
+
+                    <div className="bg-gray-100 p-6 rounded-xl">
+                        <h3 className="font-bold text-xl text-sffl-navy mb-3">🍻 Showtime Bar & Food</h3>
+                        <p className="text-gray-700">
+                            Enjoy food and drinks at our dedicated vendor area. The Showtime Bar
+                            ensures you stay refreshed while cheering for your team.
+                        </p>
+                    </div>
+
+                    <div className="bg-gray-100 p-6 rounded-xl">
+                        <h3 className="font-bold text-xl text-sffl-navy mb-3">🚗 Ample Parking</h3>
+                        <p className="text-gray-700">
+                            Spacious and secure parking facilities are available for all attendees,
+                            making your game day experience stress-free.
+                        </p>
+                    </div>
+
+                    <div className="bg-gray-100 p-6 rounded-xl">
+                        <h3 className="font-bold text-xl text-sffl-navy mb-3">🎥 Media Ready</h3>
+                        <p className="text-gray-700">
+                            Dedicated zones for media coverage, photographers, and content creators
+                            to capture every highlight.
+                        </p>
+                    </div>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-6 mt-8">
@@ -34,11 +60,11 @@ export const ShowtimeArena = () => {
                         className="bg-sffl-red hover:bg-red-700 text-white font-bold py-4 px-6 rounded-xl text-center transition transform hover:scale-105 shadow-lg flex items-center justify-center gap-2"
                     >
                         <span>📍</span>
-                        <span>View on Google Maps</span>
+                        <span>Navigate to Arena</span>
                     </a>
 
                     <a
-                        href="https://docs.google.com/forms/d/e/1FAIpQLSfXTuLAF4_Nis1rlqBU7nlOH_7Mh_rRlj6yT0Hnu_kSc1N0-w/viewform"
+                        href="https://docs.google.com/forms/d/e/1FAIpQLSfXTuLAF4_Nis1rlqBU7nlOH_7Mh_rRlj6yT0Hnu_kSc1N0-w/viewform?usp=dialog"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="bg-sffl-navy hover:bg-blue-900 text-white font-bold py-4 px-6 rounded-xl text-center transition transform hover:scale-105 shadow-lg flex items-center justify-center gap-2"
@@ -46,14 +72,6 @@ export const ShowtimeArena = () => {
                         <span>📝</span>
                         <span>Book the Arena</span>
                     </a>
-                </div>
-
-                <div className="bg-sffl-navy text-white p-6 rounded-xl mt-8">
-                    <h3 className="font-bold text-xl mb-3">Rental & Events</h3>
-                    <p className="text-gray-300">
-                        Showtime Arena is available for private events, training sessions, and
-                        tournaments. Click the "Book the Arena" button above to submit a booking request.
-                    </p>
                 </div>
             </section>
         </div>

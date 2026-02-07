@@ -1,42 +1,56 @@
 export const AboutShowtimeFlag = () => {
     return (
         <div className="max-w-4xl mx-auto space-y-8">
-            <div className="bg-sffl-navy text-white p-8 rounded-2xl shadow-xl">
-                <h1 className="text-4xl font-black italic">ABOUT SHOWTIME FLAG</h1>
-                <p className="text-gray-300 mt-2">The premier flag football league</p>
+            <div className="bg-sffl-navy text-white p-8 rounded-2xl shadow-xl flex flex-col md:flex-row items-center gap-6">
+                <img
+                    src="https://images.leaguerepublic.com/data/images/738010788/107.png"
+                    alt="SFFL Logo"
+                    className="w-32 h-32 object-contain bg-white rounded-full p-2"
+                />
+                <div>
+                    <h1 className="text-4xl font-black italic">ABOUT SHOWTIME FLAG</h1>
+                    <p className="text-gray-300 mt-2">The Community League</p>
+                </div>
             </div>
 
-            <section className="bg-white p-8 rounded-xl shadow-md prose prose-lg max-w-none">
-                <h2 className="text-2xl font-bold text-sffl-red">Our Mission</h2>
-                <p className="text-gray-700">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Showtime Flag Football
-                    League (SFFL) is dedicated to promoting competitive, safe, and exciting flag football
-                    across Lagos and beyond. We provide a platform for athletes to showcase their skills,
-                    build camaraderie, and experience the thrill of the game.
+            <section className="bg-white p-8 rounded-xl shadow-md prose prose-lg max-w-none text-gray-700 leading-relaxed">
+                <p>
+                    Showtime Flag is more than just a flag football league; it is a vibrant community-building
+                    initiative based in Lagos, Nigeria.
+                </p>
+                <p>
+                    Founded in mid-2023 as "The Lagos Flag Football League" by Azeez Amida, the league was
+                    rebranded in 2024 to better reflect its growing ambition and cultural impact.
                 </p>
 
-                <h2 className="text-2xl font-bold text-sffl-red mt-8">League History</h2>
-                <p className="text-gray-700">
-                    Founded in [YEAR], SFFL has grown from a small community league to one of the
-                    most recognized flag football organizations in Nigeria. Our commitment to excellence,
-                    fair play, and community engagement has made us the league of choice for players
-                    and fans alike.
+                <h2 className="text-2xl font-bold text-sffl-red mt-8">Our Mission</h2>
+                <p>
+                    Our mission is to create a platform that fosters athleticism, teamwork, and community
+                    engagement through the sport of flag football. We aim to bring people together,
+                    providing an exciting and safe environment for players and fans alike.
                 </p>
 
-                <h2 className="text-2xl font-bold text-sffl-red mt-8">What We Offer</h2>
-                <ul className="text-gray-700 space-y-2">
-                    <li>Competitive league play with multiple divisions</li>
-                    <li>Professional officiating and rule enforcement</li>
-                    <li>State-of-the-art facilities at Showtime Arena</li>
-                    <li>Player development programs and clinics</li>
-                    <li>Community events and fan engagement</li>
+                <h2 className="text-2xl font-bold text-sffl-red mt-8">The Showtime Bowl Series</h2>
+                <p>
+                    The league operates the <strong>Showtime Bowl Series</strong>, a competitive season featuring
+                    12 teams battling for supremacy.
+                </p>
+                <ul className="list-disc pl-5 space-y-2 mt-4">
+                    <li>
+                        <strong>Regular Season:</strong> All 12 teams compete for seeding.
+                    </li>
+                    <li>
+                        <strong>The Playoffs:</strong> The top 8 teams advance to the knockout stages to fight for the championship.
+                    </li>
+                    <li>
+                        <strong>The Community Cup:</strong> The remaining 4 teams compete in a separate bracket, ensuring competitive games for everyone throughout the season.
+                    </li>
                 </ul>
 
-                <h2 className="text-2xl font-bold text-sffl-red mt-8">Join Us</h2>
-                <p className="text-gray-700">
-                    Whether you're a seasoned athlete or new to flag football, SFFL welcomes you.
-                    Contact us to learn about team registration, player recruitment, or sponsorship
-                    opportunities.
+                <h2 className="text-2xl font-bold text-sffl-red mt-8">Join the Community</h2>
+                <p>
+                    Whether you are a player, fan, or partner, Showtime Flag welcomes you. Join us at the
+                    Showtime Arena for our next game day and experience the energy of Lagos flag football!
                 </p>
             </section>
         </div>

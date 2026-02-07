@@ -2,55 +2,69 @@ export const MediaGuidelines = () => {
     return (
         <div className="max-w-4xl mx-auto space-y-8">
             <div className="bg-sffl-navy text-white p-8 rounded-2xl shadow-xl">
-                <h1 className="text-4xl font-black italic">MEDIA & CONTENT GUIDELINES</h1>
-                <p className="text-gray-300 mt-2">For creators, photographers, and media partners</p>
+                <h1 className="text-4xl font-black italic">MEDIA & CONTENT CREATOR GUIDELINES</h1>
+                <p className="text-gray-300 mt-2">Accreditation Framework</p>
             </div>
 
-            <section className="bg-white p-8 rounded-xl shadow-md prose prose-lg max-w-none">
-                <h2 className="text-2xl font-bold text-sffl-red">Photography & Videography</h2>
-                <p className="text-gray-700">
-                    We welcome media coverage and content creation at SFFL events. All photographers
-                    and videographers must register with league officials before the event begins.
+            <section className="bg-white p-8 rounded-xl shadow-md space-y-6 text-gray-700 leading-relaxed">
+                <div className="bg-gray-100 p-6 rounded-lg border-l-4 border-sffl-red">
+                    <h2 className="text-xl font-bold text-sffl-navy mb-2">Purpose</h2>
+                    <p>
+                        The SFFL Media Accreditation Framework ensures a professional and organized environment for
+                        journalists, photographers, and content creators coverage of league events.
+                    </p>
+                </div>
+
+                <h2 className="text-2xl font-bold text-sffl-navy mt-6">Accreditation Requirement</h2>
+                <p>
+                    All media personnel and content creators wishing to cover SFFL games for commercial or
+                    public distribution must be accredited by the league. Accreditation provides access to
+                    designated media zones and post-game interview areas.
                 </p>
 
-                <h3 className="text-xl font-bold text-sffl-navy mt-6">Guidelines:</h3>
-                <ul className="text-gray-700 space-y-2">
-                    <li>All media personnel must check in at the registration desk</li>
-                    <li>Media badges will be provided and must be worn at all times</li>
-                    <li>Respect player and official privacy during breaks</li>
-                    <li>Do not interfere with gameplay or officials</li>
-                    <li>Designated media zones will be marked on the field</li>
+                <h3 className="text-xl font-bold text-sffl-navy mt-6">Usage Rules</h3>
+                <ul className="list-disc list-inside space-y-2 ml-4">
+                    <li>
+                        <strong>Identification:</strong> Accredited media must wear provided bibs or media passes
+                        at all times while on the field level.
+                    </li>
+                    <li>
+                        <strong>Zones:</strong> Photography and videography are restricted to designated media zones.
+                        Do not enter the team bench areas or the playing field during live action.
+                    </li>
+                    <li>
+                        <strong>Privacy:</strong> Respect the privacy of players and officials during injury timeouts
+                        or private team discussions.
+                    </li>
                 </ul>
 
-                <h2 className="text-2xl font-bold text-sffl-red mt-8">Social Media Policy</h2>
-                <p className="text-gray-700">
-                    When posting content from SFFL games, please tag @showtimeflag and use the
-                    official hashtag #ShowtimeFlag. We encourage sharing and celebrating our players
-                    and the excitement of the game.
-                </p>
-
-                <h3 className="text-xl font-bold text-sffl-navy mt-6">Content Usage:</h3>
-                <ul className="text-gray-700 space-y-2">
-                    <li>Tag SFFL official accounts in all posts</li>
-                    <li>Use hashtag #ShowtimeFlag</li>
-                    <li>Respect player image rights</li>
-                    <li>No unauthorized commercial use of league content</li>
-                </ul>
-
-                <h2 className="text-2xl font-bold text-sffl-red mt-8">Press & Interviews</h2>
-                <p className="text-gray-700">
-                    Media requests for player and coach interviews should be coordinated through
-                    the league office. Contact us at media@sffl.football to arrange interviews.
-                </p>
+                <h3 className="text-xl font-bold text-sffl-navy mt-6">Content Restrictions</h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                        <strong className="block text-sffl-red mb-1">Game Footage</strong>
+                        <p className="text-sm">
+                            External media are permitted to record game highlights but cannot broadcast full matches live.
+                            Individual clips should not exceed 10 minutes without prior written consent.
+                        </p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                        <strong className="block text-sffl-red mb-1">Commercial Use</strong>
+                        <p className="text-sm">
+                            Images and video captured at SFFL events cannot be sold or used for commercial
+                            advertising without a licensing agreement from the league.
+                        </p>
+                    </div>
+                </div>
 
                 <div className="bg-sffl-navy text-white p-6 rounded-xl mt-8">
-                    <h3 className="font-bold text-xl mb-2">Contact</h3>
-                    <p className="text-gray-300">
-                        For media inquiries and partnerships: <br />
-                        <a href="mailto:media@sffl.football" className="text-sffl-red hover:underline">
-                            media@sffl.football
-                        </a>
+                    <h3 className="font-bold text-xl mb-2">Apply for Accreditation</h3>
+                    <p className="text-gray-300 mb-4">
+                        To request media credentials for upcoming games, please contact our media department
+                        at least 48 hours before kickoff.
                     </p>
+                    <a href="mailto:media@sffl.football" className="inline-flex items-center gap-2 text-sffl-red font-bold hover:underline bg-white px-4 py-2 rounded-lg">
+                        ✉️ media@sffl.football
+                    </a>
                 </div>
             </section>
         </div>
