@@ -84,19 +84,12 @@ export const Navbar = () => {
                 </div>
             </div>
 
-            {/* Bottom Row - Primary Navigation */}
+            {/* Bottom Row - Navigation (Two Rows) */}
             <div className="hidden lg:block">
                 <div className="container mx-auto px-4">
-                    <div className="flex items-center justify-center gap-6 py-3 text-white uppercase font-bold text-xs tracking-wide">
+                    {/* Top Navigation Row: General Pages */}
+                    <div className="flex items-center justify-center gap-8 py-3 text-white uppercase font-bold text-sm tracking-wide border-b border-gray-700">
                         <Link to="/" className="hover:text-sffl-red transition-all duration-300 hover:scale-110">Home</Link>
-                        <Link to="/schedule" className="hover:text-sffl-red transition-all duration-300 hover:scale-110">Matches</Link>
-                        <Link to="/standings" className="hover:text-sffl-red transition-all duration-300 hover:scale-110">Standings</Link>
-                        <Link to="/players" className="hover:text-sffl-red transition-all duration-300 hover:scale-110">Players</Link>
-                        <Link to="/news" className="hover:text-sffl-red transition-all duration-300 hover:scale-110">News</Link>
-                        <Link to="/gallery" className="hover:text-sffl-red transition-all duration-300 hover:scale-110">Gallery</Link>
-
-                        <span className="text-gray-600">|</span>
-
                         <Link to="/tickets" className="hover:text-sffl-red transition-all duration-300 hover:scale-110">Tickets</Link>
                         <Link to="/store" className="hover:text-sffl-red transition-all duration-300 hover:scale-110">Store</Link>
 
@@ -128,6 +121,15 @@ export const Navbar = () => {
                                 </div>
                             )}
                         </div>
+                    </div>
+
+                    {/* Bottom Navigation Row: Sport/League Pages */}
+                    <div className="flex items-center justify-center gap-8 py-3 text-white uppercase font-bold text-sm tracking-wide">
+                        <Link to="/schedule" className="hover:text-sffl-red transition-all duration-300 hover:scale-110">Matches</Link>
+                        <Link to="/standings" className="hover:text-sffl-red transition-all duration-300 hover:scale-110">Standings</Link>
+                        <Link to="/players" className="hover:text-sffl-red transition-all duration-300 hover:scale-110">Players</Link>
+                        <Link to="/news" className="hover:text-sffl-red transition-all duration-300 hover:scale-110">News</Link>
+                        <Link to="/gallery" className="hover:text-sffl-red transition-all duration-300 hover:scale-110">Gallery</Link>
                     </div>
                 </div>
             </div>
