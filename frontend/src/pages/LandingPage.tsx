@@ -1,31 +1,10 @@
+import { HeroCarousel } from '../components/HeroCarousel';
+
 export const LandingPage = () => {
     return (
         <div className="space-y-12">
-            {/* Hero Section */}
-            <section className="relative bg-sffl-navy text-white py-20 px-6 rounded-3xl overflow-hidden shadow-2xl">
-                <div className="absolute inset-0 bg-gradient-to-r from-sffl-navy to-transparent opacity-90 z-10"></div>
-                {/* Placeholder for background image */}
-                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=2069&auto=format&fit=crop')] bg-cover bg-center opacity-40"></div>
-
-                <div className="relative z-20 max-w-2xl">
-                    <h1 className="text-5xl md:text-7xl font-black italic tracking-tighter mb-6">
-                        THIS IS <br />
-                        <span className="text-sffl-red">SHOWTIME</span>
-                    </h1>
-                    <p className="text-xl md:text-2xl text-gray-200 mb-8 font-light">
-                        The elite flag football league. <br />
-                        Witness the speed, strategy, and spectacle.
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-4">
-                        <button className="bg-sffl-red hover:bg-red-700 text-white font-bold py-3 px-8 rounded-full transition transform hover:scale-105 shadow-lg uppercase tracking-wide">
-                            View Schedule
-                        </button>
-                        <button className="bg-white hover:bg-gray-100 text-sffl-navy font-bold py-3 px-8 rounded-full transition transform hover:scale-105 shadow-lg uppercase tracking-wide">
-                            Latest Standings
-                        </button>
-                    </div>
-                </div>
-            </section>
+            {/* Hero Carousel */}
+            <HeroCarousel />
 
             {/* Latest Scores Mockup */}
             <section>

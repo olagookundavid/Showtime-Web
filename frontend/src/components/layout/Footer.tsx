@@ -3,14 +3,14 @@ export const Footer = () => {
         <footer className="bg-sffl-navy text-white p-8 mt-auto">
             <div className="container mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-center md:text-left">
                 {/* Branding */}
-                <div className="flex flex-col items-center md:items-start text-center md:text-left">
+                <div className="flex flex-col items-center md:items-start text-center md:text-left group cursor-pointer">
                     <div className="flex items-center gap-3 mb-4">
                         <img
                             src="https://images.leaguerepublic.com/data/images/738010788/107.png"
                             alt="SFFL Logo"
-                            className="w-16 h-16 object-contain bg-white rounded-full p-1"
+                            className="w-16 h-16 object-contain bg-white rounded-full p-1 transition-all duration-300 group-hover:scale-125 group-hover:rotate-6 group-hover:shadow-xl"
                         />
-                        <span className="text-3xl font-black italic tracking-tighter">
+                        <span className="text-3xl font-black italic tracking-tighter transition-all duration-300 group-hover:scale-110 group-hover:drop-shadow-[0_0_10px_rgba(220,38,38,0.8)]">
                             SHOWTIME<span className="text-sffl-red">WEB</span>
                         </span>
                     </div>
@@ -36,7 +36,7 @@ export const Footer = () => {
                             href="https://web.facebook.com/Showtimeffl"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="w-10 h-10 bg-gray-700 hover:bg-sffl-red rounded-full flex items-center justify-center transition-colors"
+                            className="w-10 h-10 bg-gray-700 hover:bg-[#1877F2] rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-lg"
                             aria-label="Facebook"
                         >
                             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -47,7 +47,7 @@ export const Footer = () => {
                             href="https://twitter.com/showtimeffl"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="w-10 h-10 bg-gray-700 hover:bg-sffl-red rounded-full flex items-center justify-center transition-colors"
+                            className="w-10 h-10 bg-gray-700 hover:bg-black rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-lg"
                             aria-label="X (Twitter)"
                         >
                             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -58,7 +58,7 @@ export const Footer = () => {
                             href="https://www.instagram.com/showtimeffl/"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="w-10 h-10 bg-gray-700 hover:bg-sffl-red rounded-full flex items-center justify-center transition-colors"
+                            className="w-10 h-10 bg-gray-700 hover:bg-gradient-to-br hover:from-[#833AB4] hover:via-[#FD1D1D] hover:to-[#F77737] rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-lg"
                             aria-label="Instagram"
                         >
                             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
