@@ -4,9 +4,6 @@ import { Link } from 'react-router-dom';
 export const LandingPage = () => {
     return (
         <div className="space-y-12">
-            {/* Promotional Carousel */}
-            <HeroCarousel />
-
             {/* Main Hero Section */}
             <section className="relative bg-gradient-to-r from-sffl-navy to-sffl-red text-white p-12 md:p-20 rounded-3xl shadow-2xl overflow-hidden">
                 <div className="absolute inset-0 opacity-10">
@@ -36,6 +33,9 @@ export const LandingPage = () => {
                     </div>
                 </div>
             </section>
+
+            {/* Promotional Carousel */}
+            <HeroCarousel />
 
             {/* Latest Scores Mockup */}
             <section>
