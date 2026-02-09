@@ -36,6 +36,7 @@ export const Navbar = () => {
                     <Link to="/news" className="hover:text-sffl-red transition-all duration-300 hover:scale-110 hover:font-black hover:drop-shadow-lg">News</Link>
                     <Link to="/gallery" className="hover:text-sffl-red transition-all duration-300 hover:scale-110 hover:font-black hover:drop-shadow-lg">Gallery</Link>
                     <Link to="/tickets" className="hover:text-sffl-red transition-all duration-300 hover:scale-110 hover:font-black hover:drop-shadow-lg">Tickets</Link>
+                    <Link to="/store" className="hover:text-sffl-red transition-all duration-300 hover:scale-110 hover:font-black hover:drop-shadow-lg">Store</Link>
 
                     {/* About Us Dropdown */}
                     <div
@@ -44,7 +45,7 @@ export const Navbar = () => {
                         onMouseLeave={() => setAboutDropdownOpen(false)}
                     >
                         <button className="hover:text-sffl-red transition-all duration-300 hover:scale-110 hover:font-black hover:drop-shadow-lg flex items-center gap-1">
-                            About
+                            About Us
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                             </svg>
@@ -65,8 +66,6 @@ export const Navbar = () => {
                             </div>
                         )}
                     </div>
-
-                    <Link to="/store" className="hover:text-sffl-red transition-all duration-300 hover:scale-110 hover:font-black hover:drop-shadow-lg">Store</Link>
 
                     {/* Auth Buttons */}
                     {isAuthenticated ? (
