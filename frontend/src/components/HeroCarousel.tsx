@@ -14,39 +14,30 @@ interface Slide {
 const slides: Slide[] = [
     {
         id: 1,
-        title: 'Join the SFFL Family',
-        subtitle: 'Register as a fan and enjoy exclusive ticket discounts',
-        ctaText: 'Sign Up Now',
-        ctaLink: '/signup',
+        title: 'Get Your Tickets Now!',
+        subtitle: 'Secure your spot for the next thrilling SFFL match',
+        ctaText: 'Buy Tickets',
+        ctaLink: '/tickets',
         bgColor: 'from-sffl-red to-red-800',
         image: 'https://images.unsplash.com/photo-1560272564-c83b66b1ad12?w=1200&q=80',
     },
     {
         id: 2,
-        title: 'Relive the Action',
-        subtitle: 'Watch game highlights and top plays from every match',
-        ctaText: 'Watch Now',
-        ctaLink: '/highlights',
+        title: 'Join As A Fan',
+        subtitle: 'Register now and get exclusive discounts on tickets',
+        ctaText: 'Sign Up Free',
+        ctaLink: '/signup',
         bgColor: 'from-sffl-navy to-blue-900',
         image: 'https://images.unsplash.com/photo-1566577739112-5180d4bf9390?w=1200&q=80',
     },
     {
         id: 3,
-        title: 'Game Day Memories',
-        subtitle: 'Check out photos from recent matches and celebrations',
-        ctaText: 'View Gallery',
+        title: 'View Gallery',
+        subtitle: 'Check out photos from our recent matches',
+        ctaText: 'See Photos',
         ctaLink: '/gallery',
         bgColor: 'from-purple-600 to-purple-900',
         image: 'https://images.unsplash.com/photo-1511886929837-354d827aae26?w=1200&q=80',
-    },
-    {
-        id: 4,
-        title: "Don't Miss Out",
-        subtitle: 'Get your tickets for the next big game at Showtime Arena',
-        ctaText: 'Buy Tickets',
-        ctaLink: '/tickets',
-        bgColor: 'from-green-600 to-green-900',
-        image: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=1200&q=80',
     },
 ];
 
@@ -75,7 +66,7 @@ export const HeroCarousel = () => {
     };
 
     return (
-        <div className="relative h-[500px] md:h-[600px] overflow-hidden rounded-2xl shadow-2xl">
+        <div className="relative h-[250px] md:h-[300px] overflow-hidden rounded-xl shadow-xl">
             {/* Slides */}
             {slides.map((slide, index) => (
                 <div
@@ -93,16 +84,16 @@ export const HeroCarousel = () => {
 
                     {/* Content */}
                     <div className="relative h-full flex items-center justify-center text-center text-white px-4">
-                        <div className="max-w-3xl">
-                            <h2 className="text-5xl md:text-6xl font-black italic mb-4 drop-shadow-lg animate-fade-in">
+                        <div className="max-w-2xl">
+                            <h2 className="text-3xl md:text-4xl font-black italic mb-2 drop-shadow-lg">
                                 {slide.title}
                             </h2>
-                            <p className="text-xl md:text-2xl mb-8 drop-shadow-md">
+                            <p className="text-base md:text-lg mb-4 drop-shadow-md">
                                 {slide.subtitle}
                             </p>
                             <Link
                                 to={slide.ctaLink}
-                                className="inline-block bg-white text-sffl-navy font-black text-lg px-8 py-4 rounded-full hover:bg-gray-100 transition-all transform hover:scale-110 shadow-xl"
+                                className="inline-block bg-white text-sffl-navy font-black text-sm px-6 py-2 rounded-full hover:bg-gray-100 transition-all transform hover:scale-105 shadow-lg"
                             >
                                 {slide.ctaText}
                             </Link>
@@ -138,8 +129,8 @@ export const HeroCarousel = () => {
                         key={index}
                         onClick={() => goToSlide(index)}
                         className={`w-3 h-3 rounded-full transition-all ${index === currentSlide
-                                ? 'bg-white w-8'
-                                : 'bg-white/50 hover:bg-white/75'
+                            ? 'bg-white w-8'
+                            : 'bg-white/50 hover:bg-white/75'
                             }`}
                         aria-label={`Go to slide ${index + 1}`}
                     />

@@ -28,9 +28,9 @@ export const Navbar = () => {
                 </Link>
 
                 {/* Desktop Menu */}
-                <div className="hidden lg:flex items-center space-x-6 uppercase font-bold text-sm tracking-wide">
+                <div className="hidden lg:flex items-center space-x-4 uppercase font-bold text-xs tracking-wide">
                     <Link to="/" className="hover:text-sffl-red transition-all duration-300 hover:scale-110 hover:font-black hover:drop-shadow-lg">Home</Link>
-                    <Link to="/schedule" className="hover:text-sffl-red transition-all duration-300 hover:scale-110 hover:font-black hover:drop-shadow-lg">Match Hub</Link>
+                    <Link to="/schedule" className="hover:text-sffl-red transition-all duration-300 hover:scale-110 hover:font-black hover:drop-shadow-lg">Matches</Link>
                     <Link to="/standings" className="hover:text-sffl-red transition-all duration-300 hover:scale-110 hover:font-black hover:drop-shadow-lg">Standings</Link>
                     <Link to="/news" className="hover:text-sffl-red transition-all duration-300 hover:scale-110 hover:font-black hover:drop-shadow-lg">News</Link>
                     <Link to="/gallery" className="hover:text-sffl-red transition-all duration-300 hover:scale-110 hover:font-black hover:drop-shadow-lg">Gallery</Link>
@@ -43,61 +43,57 @@ export const Navbar = () => {
                         onMouseLeave={() => setAboutDropdownOpen(false)}
                     >
                         <button className="hover:text-sffl-red transition-all duration-300 hover:scale-110 hover:font-black hover:drop-shadow-lg flex items-center gap-1">
-                            About Us
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            About
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                             </svg>
                         </button>
 
                         {aboutDropdownOpen && (
-                            <div className="absolute top-full left-0 pt-2 w-64">
+                            <div className="absolute top-full left-0 pt-2 w-56">
                                 <div className="bg-white text-sffl-navy rounded-lg shadow-2xl py-2 normal-case font-semibold text-sm">
-                                    <Link to="/about/showtime-flag" className="block px-4 py-2 hover:bg-gray-100 hover:text-sffl-red transition-colors">About Showtime Flag</Link>
-                                    <Link to="/about/media-guidelines" className="block px-4 py-2 hover:bg-gray-100 hover:text-sffl-red transition-colors">Media Guidelines</Link>
-                                    <Link to="/about/rules" className="block px-4 py-2 hover:bg-gray-100 hover:text-sffl-red transition-colors">Gameplay Rules</Link>
-                                    <Link to="/about/byelaws" className="block px-4 py-2 hover:bg-gray-100 hover:text-sffl-red transition-colors">Showtime Byelaws</Link>
-                                    <Link to="/about/arena" className="block px-4 py-2 hover:bg-gray-100 hover:text-sffl-red transition-colors">Showtime Arena</Link>
-                                    <Link to="/about/education" className="block px-4 py-2 hover:bg-gray-100 hover:text-sffl-red transition-colors">Education</Link>
+                                    <Link to="/about/showtime-flag" className="block px-4 py-2 hover:bg-gray-100 hover:text-sffl-red transition-colors">About Showtime</Link>
+                                    <Link to="/about/media-guidelines" className="block px-4 py-2 hover:bg-gray-100 hover:text-sffl-red transition-colors">Media</Link>
+                                    <Link to="/about/rules" className="block px-4 py-2 hover:bg-gray-100 hover:text-sffl-red transition-colors">Rules</Link>
+                                    <Link to="/about/arena" className="block px-4 py-2 hover:bg-gray-100 hover:text-sffl-red transition-colors">Arena</Link>
                                     <Link to="/about/faq" className="block px-4 py-2 hover:bg-gray-100 hover:text-sffl-red transition-colors">FAQ</Link>
-                                    <Link to="/about/whistleblower" className="block px-4 py-2 hover:bg-gray-100 hover:text-sffl-red transition-colors">Whistleblower</Link>
                                 </div>
                             </div>
                         )}
                     </div>
 
-                    <Link to="/commissioners-note" className="hover:text-sffl-red transition-colors duration-300">Commissioner's Note</Link>
-                    <Link to="/store" className="hover:text-sffl-red transition-colors duration-300">Store</Link>
+                    <Link to="/store" className="hover:text-sffl-red transition-all duration-300 hover:scale-110 hover:font-black hover:drop-shadow-lg">Store</Link>
 
                     {/* Auth Buttons */}
                     {isAuthenticated ? (
-                        <div className="flex items-center gap-4 ml-6 border-l border-gray-600 pl-6">
-                            <span className="text-sm">Hi, <span className="font-bold">{user?.name}</span></span>
+                        <div className="flex items-center gap-2 ml-4 border-l border-gray-600 pl-4">
+                            <span className="text-xs normal-case">Hi, <span className="font-bold">{user?.name}</span></span>
                             {user?.role === 'admin' && (
                                 <Link
                                     to="/admin"
-                                    className="bg-sffl-red hover:bg-red-700 text-white font-bold px-4 py-2 rounded-lg transition text-xs"
+                                    className="bg-sffl-red hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded transition text-xs"
                                 >
-                                    Admin Panel
+                                    Admin
                                 </Link>
                             )}
                             <button
                                 onClick={handleLogout}
-                                className="bg-white text-sffl-navy hover:bg-gray-100 font-bold px-4 py-2 rounded-lg transition text-xs"
+                                className="bg-white text-sffl-navy hover:bg-gray-100 font-bold px-3 py-1.5 rounded transition text-xs"
                             >
                                 Logout
                             </button>
                         </div>
                     ) : (
-                        <div className="flex items-center gap-3 ml-6 border-l border-gray-600 pl-6">
+                        <div className="flex items-center gap-2 ml-4 border-l border-gray-600 pl-4">
                             <Link
                                 to="/login?role=fan"
-                                className="bg-white text-sffl-navy hover:bg-gray-100 font-bold px-4 py-2 rounded-lg transition text-xs"
+                                className="bg-white text-sffl-navy hover:bg-gray-100 font-bold px-3 py-1.5 rounded transition text-xs"
                             >
                                 Login
                             </Link>
                             <Link
                                 to="/signup"
-                                className="bg-sffl-red hover:bg-red-700 text-white font-bold px-4 py-2 rounded-lg transition text-xs"
+                                className="bg-sffl-red hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded transition text-xs"
                             >
                                 Sign Up
                             </Link>

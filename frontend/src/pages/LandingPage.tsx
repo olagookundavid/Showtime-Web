@@ -1,10 +1,41 @@
 import { HeroCarousel } from '../components/HeroCarousel';
+import { Link } from 'react-router-dom';
 
 export const LandingPage = () => {
     return (
         <div className="space-y-12">
-            {/* Hero Carousel */}
+            {/* Promotional Carousel */}
             <HeroCarousel />
+
+            {/* Main Hero Section */}
+            <section className="relative bg-gradient-to-r from-sffl-navy to-sffl-red text-white p-12 md:p-20 rounded-3xl shadow-2xl overflow-hidden">
+                <div className="absolute inset-0 opacity-10">
+                    <div className="absolute top-10 left-10 w-32 h-32 bg-white rounded-full blur-3xl"></div>
+                    <div className="absolute bottom-10 right-10 w-48 h-48 bg-white rounded-full blur-3xl"></div>
+                </div>
+                <div className="relative z-10 max-w-3xl">
+                    <h1 className="text-5xl md:text-7xl font-black italic mb-6 tracking-tight leading-tight">
+                        WELCOME TO SHOWTIME FLAG FOOTBALL
+                    </h1>
+                    <p className="text-xl md:text-2xl text-gray-100 mb-8 leading-relaxed">
+                        Experience the thrill of flag football in Lagos. Fast-paced action, fierce competition, and unforgettable moments.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-4">
+                        <Link
+                            to="/schedule"
+                            className="bg-sffl-red hover:bg-red-700 text-white font-bold py-3 px-8 rounded-full transition transform hover:scale-105 shadow-lg uppercase tracking-wide text-center"
+                        >
+                            View Schedule
+                        </Link>
+                        <Link
+                            to="/standings"
+                            className="bg-white hover:bg-gray-100 text-sffl-navy font-bold py-3 px-8 rounded-full transition transform hover:scale-105 shadow-lg uppercase tracking-wide text-center"
+                        >
+                            Latest Standings
+                        </Link>
+                    </div>
+                </div>
+            </section>
 
             {/* Latest Scores Mockup */}
             <section>
@@ -62,7 +93,7 @@ export const LandingPage = () => {
                     <p className="text-gray-300 mb-4">
                         "Week 5 showed us that the competition is fiercer than ever. New regulations regarding defensive setups will be enforced starting Week 6 to ensure fair play..."
                     </p>
-                    <button className="text-sffl-red font-bold hover:text-white transition">Read Full Update</button>
+                    <Link to="/commissioners-note" className="text-sffl-red font-bold hover:text-white transition">Read Full Update</Link>
                 </div>
                 <div className="bg-white p-8 rounded-2xl shadow-xl">
                     <h3 className="text-2xl font-bold italic text-sffl-navy mb-4">PLAYER OF THE WEEK</h3>
