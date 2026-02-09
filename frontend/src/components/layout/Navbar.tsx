@@ -45,7 +45,7 @@ export const Navbar = () => {
                         onMouseLeave={() => setAboutDropdownOpen(false)}
                     >
                         <button className="hover:text-sffl-red transition-all duration-300 hover:scale-110 hover:font-black hover:drop-shadow-lg flex items-center gap-1">
-                            About Us
+                            ABOUT US
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                             </svg>
@@ -129,10 +129,11 @@ export const Navbar = () => {
                         <Link to="/news" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red font-bold py-2">News</Link>
                         <Link to="/gallery" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red font-bold py-2">Gallery</Link>
                         <Link to="/tickets" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red font-bold py-2">Tickets</Link>
+                        <Link to="/store" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red font-bold py-2">Store</Link>
 
                         {/* About Section */}
                         <div className="border-t border-gray-700 pt-3 mt-2">
-                            <div className="text-sffl-red font-bold mb-2 text-sm">About</div>
+                            <div className="text-sffl-red font-bold mb-2 text-sm">ABOUT US</div>
                             <Link to="/about/showtime-flag" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red py-2 pl-4 block text-sm">About Showtime</Link>
                             <Link to="/about/media-guidelines" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red py-2 pl-4 block text-sm">Media Guidelines</Link>
                             <Link to="/about/rules" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red py-2 pl-4 block text-sm">Gameplay Rules</Link>
@@ -142,8 +143,6 @@ export const Navbar = () => {
                             <Link to="/about/whistleblower" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red py-2 pl-4 block text-sm">Whistleblower</Link>
                             <Link to="/about/faq" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red py-2 pl-4 block text-sm">FAQ</Link>
                         </div>
-
-                        <Link to="/store" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red font-bold py-2 border-t border-gray-700 pt-3 mt-2">Store</Link>
 
                         {/* Mobile Auth */}
                         {isAuthenticated ? (
