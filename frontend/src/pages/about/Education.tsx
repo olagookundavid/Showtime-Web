@@ -6,18 +6,18 @@ export const Education = () => {
                 <p className="text-gray-300 mt-2">Master the game</p>
             </div>
 
-            <section className="bg-white p-8 rounded-xl shadow-md space-y-6">
+            <section className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-md space-y-6">
                 <h2 className="text-2xl font-bold text-sffl-red">Routes and Strategy</h2>
-                <p className="text-gray-700">
+                <p className="text-gray-700 dark:text-gray-100">
                     Understanding the route tree is essential for every receiver and quarterback.
                     We have provided an official guide to the standard flag football route tree to help
                     teams and players improve their offensive execution.
                 </p>
 
-                <div className="bg-gray-100 p-8 rounded-xl flex flex-col md:flex-row items-center justify-between gap-6 mt-4">
+                <div className="bg-gray-100 dark:bg-gray-700 p-8 rounded-xl flex flex-col md:flex-row items-center justify-between gap-6 mt-4">
                     <div>
-                        <h3 className="text-xl font-bold text-sffl-navy mb-2">🏈 Flag Football Route Tree</h3>
-                        <p className="text-gray-600">
+                        <h3 className="text-xl font-bold text-sffl-navy dark:text-white mb-2">🏈 Flag Football Route Tree</h3>
+                        <p className="text-gray-600 dark:text-gray-200">
                             Download the official visual guide to all standard passing routes.
                         </p>
                     </div>
@@ -32,8 +32,8 @@ export const Education = () => {
                 </div>
 
                 <div className="mt-8">
-                    <h3 className="text-xl font-bold text-sffl-navy mb-4">Coming Soon</h3>
-                    <ul className="list-disc list-inside space-y-2 text-gray-700">
+                    <h3 className="text-xl font-bold text-sffl-navy dark:text-white mb-4">Coming Soon</h3>
+                    <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-100">
                         <li>Video Drills Library</li>
                         <li>Coaching Seminars</li>
                         <li>Officiating Certification Courses</li>

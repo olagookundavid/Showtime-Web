@@ -10,8 +10,8 @@ export const GalleryPage = () => {
             </div>
 
             {/* Description */}
-            <div className="bg-white p-6 rounded-xl shadow-md">
-                <p className="text-gray-700 leading-relaxed">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
                     Relive the excitement of SFFL game days! Browse through our collection of photos
                     featuring players in action and fans bringing the energy. All photos are hosted on
                     Google Drive for easy access and sharing.
@@ -19,7 +19,7 @@ export const GalleryPage = () => {
             </div>
 
             {/* Gallery Table */}
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead className="bg-sffl-navy text-white">
@@ -34,12 +34,12 @@ export const GalleryPage = () => {
                             {galleryData.map((entry, index) => (
                                 <tr
                                     key={entry.id}
-                                    className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-gray-100 transition`}
+                                    className={`${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-700' : 'bg-white dark:bg-gray-800'} hover:bg-gray-100 dark:hover:bg-gray-600 transition`}
                                 >
-                                    <td className="px-6 py-4 font-bold text-sffl-navy">
+                                    <td className="px-6 py-4 font-bold text-sffl-navy dark:text-white">
                                         {entry.gameWeek}
                                     </td>
-                                    <td className="px-6 py-4 text-gray-700">
+                                    <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
                                         {entry.date}
                                     </td>
                                     <td className="px-6 py-4 text-center">
@@ -47,10 +47,10 @@ export const GalleryPage = () => {
                                             href={entry.playersPhotoUrl}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-2 bg-sffl-red hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition shadow-md"
+                                            className="group inline-flex items-center gap-2 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white font-semibold py-2.5 px-5 rounded-full transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
                                         >
-                                            <span>📸</span>
-                                            <span>View Photos</span>
+                                            <span className="text-lg">🏈</span>
+                                            <span className="text-sm">Players</span>
                                         </a>
                                     </td>
                                     <td className="px-6 py-4 text-center">
@@ -58,10 +58,10 @@ export const GalleryPage = () => {
                                             href={entry.fansPhotoUrl}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-2 bg-sffl-navy hover:bg-blue-900 text-white font-bold py-2 px-4 rounded-lg transition shadow-md"
+                                            className="group inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-2.5 px-5 rounded-full transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
                                         >
-                                            <span>🎉</span>
-                                            <span>View Photos</span>
+                                            <span className="text-lg">⚡</span>
+                                            <span className="text-sm">Fans</span>
                                         </a>
                                     </td>
                                 </tr>
@@ -72,8 +72,8 @@ export const GalleryPage = () => {
             </div>
 
             {/* Info Box */}
-            <div className="bg-gray-100 border-l-4 border-sffl-red p-6 rounded-lg">
-                <p className="text-sm text-gray-700">
+            <div className="bg-gray-100 dark:bg-gray-800 border-l-4 border-sffl-red p-6 rounded-lg">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
                     <strong>Note:</strong> Photos are stored in Google Drive. Click the buttons to access
                     each folder. You can download, share, and tag yourself in the photos!
                 </p>

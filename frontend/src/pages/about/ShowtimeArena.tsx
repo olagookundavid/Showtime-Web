@@ -6,46 +6,46 @@ export const ShowtimeArena = () => {
                 <p className="text-gray-300 mt-2">Home of the SFFL</p>
             </div>
 
-            <section className="bg-white p-8 rounded-xl shadow-md space-y-6">
+            <section className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-md space-y-6">
                 <h2 className="text-2xl font-bold text-sffl-red">Experience the Game Night</h2>
-                <p className="text-gray-700 leading-relaxed text-lg">
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-lg">
                     Located at <strong>Meadow Hall Way, Alma Beach Estate, Lekki</strong>, the Showtime Arena
                     is the premier destination for flag football in Lagos.
                 </p>
 
-                <p className="text-gray-700 leading-relaxed">
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
                     Designed for both high-performance sports and entertainment, the arena offers a unique
                     atmosphere where fans can enjoy evening games under the stars.
                 </p>
 
                 <div className="grid md:grid-cols-2 gap-6 mt-6">
-                    <div className="bg-gray-100 p-6 rounded-xl">
+                    <div className="bg-gray-100 dark:bg-gray-700 p-6 rounded-xl">
                         <h3 className="font-bold text-xl text-sffl-navy mb-3">🏟️ World-Class Pitch</h3>
-                        <p className="text-gray-700">
+                        <p className="text-gray-700 dark:text-gray-300">
                             A professional-grade turf field with floodlights, allowing for exciting
                             night games and excellent visibility for players and spectators.
                         </p>
                     </div>
 
-                    <div className="bg-gray-100 p-6 rounded-xl">
+                    <div className="bg-gray-100 dark:bg-gray-700 p-6 rounded-xl">
                         <h3 className="font-bold text-xl text-sffl-navy mb-3">🍻 Showtime Bar & Food</h3>
-                        <p className="text-gray-700">
+                        <p className="text-gray-700 dark:text-gray-300">
                             Enjoy food and drinks at our dedicated vendor area. The Showtime Bar
                             ensures you stay refreshed while cheering for your team.
                         </p>
                     </div>
 
-                    <div className="bg-gray-100 p-6 rounded-xl">
+                    <div className="bg-gray-100 dark:bg-gray-700 p-6 rounded-xl">
                         <h3 className="font-bold text-xl text-sffl-navy mb-3">🚗 Ample Parking</h3>
-                        <p className="text-gray-700">
+                        <p className="text-gray-700 dark:text-gray-300">
                             Spacious and secure parking facilities are available for all attendees,
                             making your game day experience stress-free.
                         </p>
                     </div>
 
-                    <div className="bg-gray-100 p-6 rounded-xl">
+                    <div className="bg-gray-100 dark:bg-gray-700 p-6 rounded-xl">
                         <h3 className="font-bold text-xl text-sffl-navy mb-3">🎥 Media Ready</h3>
-                        <p className="text-gray-700">
+                        <p className="text-gray-700 dark:text-gray-300">
                             Dedicated zones for media coverage, photographers, and content creators
                             to capture every highlight.
                         </p>

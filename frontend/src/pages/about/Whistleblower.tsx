@@ -6,9 +6,9 @@ export const Whistleblower = () => {
                 <p className="text-gray-300 mt-2">Ensuring a safe environment for all</p>
             </div>
 
-            <section className="bg-white p-8 rounded-xl shadow-md space-y-6">
+            <section className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-md space-y-6">
                 <h2 className="text-2xl font-bold text-sffl-red">Sexual Harassment Policy</h2>
-                <div className="bg-red-50 border-l-4 border-sffl-red p-6 text-gray-800 leading-relaxed">
+                <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-sffl-red p-6 text-gray-800 dark:text-gray-100 leading-relaxed">
                     <p className="font-bold mb-4">Zero Tolerance Statement</p>
                     <p>
                         The Showtime Flag Football League (SFFL) adheres to a strict <strong>ZERO TOLERANCE</strong> policy
@@ -17,11 +17,11 @@ export const Whistleblower = () => {
                     </p>
                 </div>
 
-                <h3 className="text-xl font-bold text-sffl-navy mt-6">What Constitutes Harassment?</h3>
-                <p className="text-gray-700">
+                <h3 className="text-xl font-bold text-sffl-navy dark:text-white mt-6">What Constitutes Harassment?</h3>
+                <p className="text-gray-700 dark:text-gray-100">
                     Sexual harassment includes, but is not limited to:
                 </p>
-                <ul className="list-disc list-inside space-y-2 text-gray-700 ml-4">
+                <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-100 ml-4">
                     <li>Unwelcome sexual advances or requests for sexual favors.</li>
                     <li>Verbal or physical conduct of a sexual nature.</li>
                     <li>Inappropriate touching or physical contact.</li>
@@ -29,15 +29,15 @@ export const Whistleblower = () => {
                     <li>Displaying sexually offensive materials.</li>
                 </ul>
 
-                <h3 className="text-xl font-bold text-sffl-navy mt-6">Reporting a Violation</h3>
-                <p className="text-gray-700">
+                <h3 className="text-xl font-bold text-sffl-navy dark:text-white mt-6">Reporting a Violation</h3>
+                <p className="text-gray-700 dark:text-gray-100">
                     If you experience or witness any form of harassment, we urge you to report it immediately.
                     Your safety and well-being are our top priority.
                 </p>
 
-                <div className="bg-gray-100 p-6 rounded-xl mt-4">
-                    <h4 className="font-bold text-lg mb-2">Confidential Reporting Channel</h4>
-                    <p className="text-gray-700 mb-4">
+                <div className="bg-gray-100 dark:bg-gray-700 p-6 rounded-xl mt-4">
+                    <h4 className="font-bold text-lg mb-2 dark:text-white">Confidential Reporting Channel</h4>
+                    <p className="text-gray-700 dark:text-gray-300 mb-4">
                         You can report incidents directly to the league's disciplinary committee via email.
                         All reports will be handled with the utmost confidentiality and urgency.
                     </p>
@@ -46,8 +46,8 @@ export const Whistleblower = () => {
                     </a>
                 </div>
 
-                <h3 className="text-xl font-bold text-sffl-navy mt-6">Consequences</h3>
-                <p className="text-gray-700">
+                <h3 className="text-xl font-bold text-sffl-navy dark:text-white mt-6">Consequences</h3>
+                <p className="text-gray-700 dark:text-gray-100">
                     Any individual found to have violated this policy will face immediate disciplinary action,
                     which may include suspension, permanent ban from the league, and legal action where appropriate.
                 </p>

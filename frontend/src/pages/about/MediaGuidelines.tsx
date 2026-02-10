@@ -6,23 +6,23 @@ export const MediaGuidelines = () => {
                 <p className="text-gray-300 mt-2">Accreditation Framework</p>
             </div>
 
-            <section className="bg-white p-8 rounded-xl shadow-md space-y-6 text-gray-700 leading-relaxed">
-                <div className="bg-gray-100 p-6 rounded-lg border-l-4 border-sffl-red">
-                    <h2 className="text-xl font-bold text-sffl-navy mb-2">Purpose</h2>
+            <section className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-md space-y-6 text-gray-700 dark:text-gray-300 leading-relaxed">
+                <div className="bg-gray-100 dark:bg-gray-700 p-6 rounded-lg border-l-4 border-sffl-red">
+                    <h2 className="text-xl font-bold text-sffl-navy dark:text-white mb-2">Purpose</h2>
                     <p>
                         The SFFL Media Accreditation Framework ensures a professional and organized environment for
                         journalists, photographers, and content creators coverage of league events.
                     </p>
                 </div>
 
-                <h2 className="text-2xl font-bold text-sffl-navy mt-6">Accreditation Requirement</h2>
+                <h2 className="text-2xl font-bold text-sffl-navy dark:text-white mt-6">Accreditation Requirement</h2>
                 <p>
                     All media personnel and content creators wishing to cover SFFL games for commercial or
                     public distribution must be accredited by the league. Accreditation provides access to
                     designated media zones and post-game interview areas.
                 </p>
 
-                <h3 className="text-xl font-bold text-sffl-navy mt-6">Usage Rules</h3>
+                <h3 className="text-xl font-bold text-sffl-navy dark:text-white mt-6">Usage Rules</h3>
                 <ul className="list-disc list-inside space-y-2 ml-4">
                     <li>
                         <strong>Identification:</strong> Accredited media must wear provided bibs or media passes
@@ -38,16 +38,16 @@ export const MediaGuidelines = () => {
                     </li>
                 </ul>
 
-                <h3 className="text-xl font-bold text-sffl-navy mt-6">Content Restrictions</h3>
+                <h3 className="text-xl font-bold text-sffl-navy dark:text-white mt-6">Content Restrictions</h3>
                 <div className="grid md:grid-cols-2 gap-4">
-                    <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                         <strong className="block text-sffl-red mb-1">Game Footage</strong>
                         <p className="text-sm">
                             External media are permitted to record game highlights but cannot broadcast full matches live.
                             Individual clips should not exceed 10 minutes without prior written consent.
                         </p>
                     </div>
-                    <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                         <strong className="block text-sffl-red mb-1">Commercial Use</strong>
                         <p className="text-sm">
                             Images and video captured at SFFL events cannot be sold or used for commercial

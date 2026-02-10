@@ -13,7 +13,7 @@ export const AboutShowtimeFlag = () => {
                 </div>
             </div>
 
-            <section className="bg-white p-8 rounded-xl shadow-md prose prose-lg max-w-none text-gray-700 leading-relaxed">
+            <section className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-md prose prose-lg max-w-none text-gray-700 dark:text-gray-300 leading-relaxed">
                 <p>
                     Showtime Flag is more than just a flag football league; it is a vibrant community-building
                     initiative based in Lagos, Nigeria.
@@ -32,7 +32,7 @@ export const AboutShowtimeFlag = () => {
 
                 <h2 className="text-2xl font-bold text-sffl-red mt-8">The Showtime Bowl Series</h2>
                 <p>
-                    The league operates the <strong>Showtime Bowl Series</strong>, a competitive season featuring
+                    The <strong>Showtime Bowl Series</strong>, a competitive season featuring
                     12 teams battling for supremacy.
                 </p>
                 <ul className="list-disc pl-5 space-y-2 mt-4">
