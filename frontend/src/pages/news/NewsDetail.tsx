@@ -7,7 +7,7 @@ export const NewsDetail = () => {
 
     if (!article) {
         return (
-            <div className="max-w-4xl mx-auto text-center py-20">
+            <div className="max-w-6xl mx-auto text-center py-20">
                 <h1 className="text-4xl font-black text-sffl-navy mb-4">Article Not Found</h1>
                 <Link to="/news" className="text-sffl-red hover:underline">← Back to News</Link>
             </div>
@@ -15,14 +15,14 @@ export const NewsDetail = () => {
     }
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-6xl mx-auto space-y-6">
             {/* Back Button */}
-            <Link to="/news" className="inline-flex items-center text-sffl-navy hover:text-sffl-red font-bold transition">
+            <Link to="/news" className="inline-flex items-center text-sffl-navy dark:text-white hover:text-sffl-red font-bold transition">
                 <span className="mr-2">←</span> Back to News
             </Link>
 
             {/* Article Header */}
-            <div className="bg-white rounded-2xl overflow-hidden shadow-xl">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-xl">
                 {/* Featured Image */}
                 <div className="h-96 overflow-hidden">
                     <img
@@ -40,19 +40,19 @@ export const NewsDetail = () => {
                     </div>
 
                     {/* Title */}
-                    <h1 className="text-4xl md:text-5xl font-black text-sffl-navy mb-4 leading-tight">
+                    <h1 className="text-4xl md:text-5xl font-black text-sffl-navy dark:text-white mb-4 leading-tight">
                         {article.title}
                     </h1>
 
                     {/* Meta */}
-                    <div className="flex items-center gap-4 text-gray-600 mb-8 pb-6 border-b">
+                    <div className="flex items-center gap-4 text-gray-600 dark:text-gray-400 mb-8 pb-6 border-b dark:border-gray-700">
                         <span className="font-semibold">{article.author}</span>
                         <span>•</span>
                         <span>{new Date(article.publishedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
                     </div>
 
                     {/* Article Body */}
-                    <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed space-y-4">
+                    <div className="prose prose-lg max-w-none text-gray-700 dark:text-gray-300 leading-relaxed space-y-4">
                         {article.content.split('\n\n').map((paragraph, index) => (
                             <p key={index}>{paragraph}</p>
                         ))}
@@ -61,8 +61,8 @@ export const NewsDetail = () => {
             </div>
 
             {/* Related Articles */}
-            <div className="bg-gray-50 p-6 rounded-xl">
-                <h3 className="font-bold text-xl text-sffl-navy mb-4">More News</h3>
+            <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-xl">
+                <h3 className="font-bold text-xl text-sffl-navy dark:text-white mb-4">More News</h3>
                 <div className="space-y-3">
                     {newsData
                         .filter(a => a.id !== article.id)
@@ -71,12 +71,12 @@ export const NewsDetail = () => {
                             <Link
                                 key={relatedArticle.id}
                                 to={`/news/${relatedArticle.slug}`}
-                                className="block hover:bg-white p-3 rounded-lg transition"
+                                className="block hover:bg-white dark:hover:bg-gray-700 p-3 rounded-lg transition"
                             >
-                                <div className="font-bold text-sffl-navy hover:text-sffl-red line-clamp-1">
+                                <div className="font-bold text-sffl-navy dark:text-white hover:text-sffl-red line-clamp-1">
                                     {relatedArticle.title}
                                 </div>
-                                <div className="text-sm text-gray-500">{relatedArticle.category}</div>
+                                <div className="text-sm text-gray-500 dark:text-gray-400">{relatedArticle.category}</div>
                             </Link>
                         ))}
                 </div>

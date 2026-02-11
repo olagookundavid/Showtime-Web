@@ -1,6 +1,6 @@
 export const AboutShowtimeFlag = () => {
     return (
-        <div className="max-w-4xl mx-auto space-y-8">
+        <div className="max-w-6xl mx-auto space-y-8">
             <div className="bg-sffl-navy text-white p-8 rounded-2xl shadow-xl flex flex-col md:flex-row items-center gap-6">
                 <img
                     src="https://images.leaguerepublic.com/data/images/738010788/107.png"

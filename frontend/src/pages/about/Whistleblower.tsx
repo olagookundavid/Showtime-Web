@@ -1,6 +1,6 @@
 export const Whistleblower = () => {
     return (
-        <div className="max-w-4xl mx-auto space-y-8">
+        <div className="max-w-6xl mx-auto space-y-8">
             <div className="bg-sffl-navy text-white p-8 rounded-2xl shadow-xl">
                 <h1 className="text-4xl font-black italic">POLICIES & CONDUCT</h1>
                 <p className="text-gray-300 mt-2">Ensuring a safe environment for all</p>
