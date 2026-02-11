@@ -9,6 +9,8 @@
     --font-sans: 'Inter', system-ui, sans-serif;
 }
 
+@variant dark (.dark &);
+
 body {
     @apply bg-sffl-gray text-sffl-navy font-sans;
 }

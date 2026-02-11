@@ -16,10 +16,10 @@ export const NewsList = () => {
                     <Link
                         key={article.id}
                         to={`/news/${article.slug}`}
-                        className="group bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
+                        className="group bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
                     >
                         {/* Featured Image */}
-                        <div className="h-48 overflow-hidden bg-gray-200">
+                        <div className="h-48 overflow-hidden bg-gray-200 dark:bg-gray-700">
                             <img
                                 src={article.featuredImage}
                                 alt={article.title}
@@ -35,17 +35,17 @@ export const NewsList = () => {
                             </div>
 
                             {/* Title */}
-                            <h2 className="font-black text-xl text-sffl-navy mb-2 group-hover:text-sffl-red transition-colors line-clamp-2">
+                            <h2 className="font-black text-xl text-sffl-navy dark:text-white mb-2 group-hover:text-sffl-red transition-colors line-clamp-2">
                                 {article.title}
                             </h2>
 
                             {/* Excerpt */}
-                            <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+                            <p className="text-gray-600 dark:text-gray-300 text-sm mb-4 line-clamp-3">
                                 {article.excerpt}
                             </p>
 
                             {/* Meta */}
-                            <div className="flex items-center justify-between text-xs text-gray-500">
+                            <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                                 <span>{article.author}</span>
                                 <span>{new Date(article.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                             </div>
