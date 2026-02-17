@@ -1,6 +1,43 @@
-import galleryData from '../../data/gallery.json';
+import { useEffect, useState } from 'react';
+import { getGallery, type Gallery } from '../../services/api';
+import { Loader } from '../../components/ui/Loader';
+import { Pagination } from '../../components/ui/Pagination';
 
 export const GalleryPage = () => {
+    const [gallery, setGallery] = useState<Gallery[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const LIMIT = 10;
+
+    useEffect(() => {
+        const fetchGallery = async () => {
+            setLoading(true);
+            try {
+                const data = await getGallery(currentPage, LIMIT);
+                setGallery(data.data);
+                setTotalPages(data.total_pages);
+            } catch (error) {
+                console.error("Failed to fetch gallery:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchGallery();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, [currentPage]);
+
+    const ensureAbsoluteUrl = (url: string) => {
+        if (!url) return '#';
+        if (url.startsWith('http://') || url.startsWith('https://')) return url;
+        return `https://${url}`;
+    };
+
+    if (loading) {
+        return <Loader />;
+    }
+
     return (
         <div className="max-w-6xl mx-auto space-y-8">
             {/* Header */}
@@ -31,20 +68,20 @@ export const GalleryPage = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {galleryData.map((entry, index) => (
+                            {gallery.map((entry, index) => (
                                 <tr
                                     key={entry.id}
-                                    className={`${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-700' : 'bg-white dark:bg-gray-800'} hover:bg-gray-100 dark:hover:bg-gray-600 transition`}
+                                    className={`${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-700' : 'bg-white dark:bg-gray-800'} hover:bg-gray-100 dark:hover:bg-gray-600 transition duration-150`}
                                 >
                                     <td className="px-6 py-4 font-bold text-sffl-navy dark:text-white">
-                                        {entry.gameWeek}
+                                        {entry.game_week}
                                     </td>
                                     <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
                                         {entry.date}
                                     </td>
                                     <td className="px-6 py-4 text-center">
                                         <a
-                                            href={entry.playersPhotoUrl}
+                                            href={ensureAbsoluteUrl(entry.players_photo_url)}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="group inline-flex items-center gap-2 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white font-semibold py-2.5 px-5 rounded-full transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
@@ -55,7 +92,7 @@ export const GalleryPage = () => {
                                     </td>
                                     <td className="px-6 py-4 text-center">
                                         <a
-                                            href={entry.fansPhotoUrl}
+                                            href={ensureAbsoluteUrl(entry.fans_photo_url)}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="group inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-2.5 px-5 rounded-full transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
@@ -70,6 +107,13 @@ export const GalleryPage = () => {
                     </table>
                 </div>
             </div>
+
+            {/* Pagination */}
+            <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+            />
 
             {/* Info Box */}
             <div className="bg-gray-100 dark:bg-gray-800 border-l-4 border-sffl-red p-6 rounded-lg">

@@ -1,9 +1,39 @@
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import newsData from '../../data/news.json';
+import { getNewsBySlug, getNews, type News } from '../../services/api';
+import { Loader } from '../../components/ui/Loader';
 
 export const NewsDetail = () => {
     const { slug } = useParams<{ slug: string }>();
-    const article = newsData.find(a => a.slug === slug);
+    const [article, setArticle] = useState<News | null>(null);
+    const [relatedNews, setRelatedNews] = useState<News[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            if (!slug) return;
+            setLoading(true);
+            try {
+                // Fetch Article
+                const articleData = await getNewsBySlug(slug);
+                setArticle(articleData);
+
+                // Fetch Related News (simple approach: fetch latest)
+                const newsResponse = await getNews(1, 4);
+                setRelatedNews(newsResponse.data);
+            } catch (error) {
+                console.error("Failed to fetch data:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [slug]);
+
+    if (loading) {
+        return <Loader />;
+    }
 
     if (!article) {
         return (
@@ -25,11 +55,15 @@ export const NewsDetail = () => {
             <div className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-xl">
                 {/* Featured Image */}
                 <div className="h-96 overflow-hidden">
-                    <img
-                        src={article.featuredImage}
-                        alt={article.title}
-                        className="w-full h-full object-cover"
-                    />
+                    {article.featured_image ? (
+                        <img
+                            src={article.featured_image}
+                            alt={article.title}
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <div className="w-full h-full bg-gray-200 flex items-center justify-center">No Image</div>
+                    )}
                 </div>
 
                 {/* Content */}
@@ -48,7 +82,7 @@ export const NewsDetail = () => {
                     <div className="flex items-center gap-4 text-gray-600 dark:text-gray-400 mb-8 pb-6 border-b dark:border-gray-700">
                         <span className="font-semibold">{article.author}</span>
                         <span>•</span>
-                        <span>{new Date(article.publishedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+                        <span>{new Date(article.published_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
                     </div>
 
                     {/* Article Body */}
@@ -64,7 +98,7 @@ export const NewsDetail = () => {
             <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-xl">
                 <h3 className="font-bold text-xl text-sffl-navy dark:text-white mb-4">More News</h3>
                 <div className="space-y-3">
-                    {newsData
+                    {relatedNews
                         .filter(a => a.id !== article.id)
                         .slice(0, 3)
                         .map(relatedArticle => (

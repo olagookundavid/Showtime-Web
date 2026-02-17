@@ -6,14 +6,17 @@ import (
 
 type Handlers struct {
 	// AuthHandler       transport.IAdminAuthHandler
-	ExampleHandler transport.IExampleHandler
+	NewsHandler    transport.INewsHandler
+	GalleryHandler transport.IGalleryHandler
 }
 
 func NewHandlers(
-	exampleHandler transport.IExampleHandler,
+	newsHandler transport.INewsHandler,
+	galleryHandler transport.IGalleryHandler,
 ) Handlers {
 	return Handlers{
 		// AuthHandler:       authHandler,
-		ExampleHandler: exampleHandler,
+		NewsHandler:    newsHandler,
+		GalleryHandler: galleryHandler,
 	}
 }

@@ -30,7 +30,7 @@ service/swag:
 	@cd backend/ && swag init -g cmd/main/main.go -o docs
 
 ## run/service: run the service application (generates mocks and docs first)
-run/service: service/mocks service/swag
+run/service: service/swag
 	@echo 'Starting server...'
 	@cd backend/ && go run ./cmd/main
 
@@ -38,6 +38,11 @@ run/service: service/mocks service/swag
 test: service/mocks
 	@echo 'Running tests...'
 	@cd backend/ && go test -v ./tests/...
+
+## run/frontend: run the frontend application
+run/frontend:
+	@echo 'Starting frontend...'
+	@cd frontend/ && npm run dev
 
 # ==================================================================================== # 
 # DATABASE MIGRATIONS 

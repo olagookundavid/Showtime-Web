@@ -1,7 +1,39 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import newsData from '../../data/news.json';
+import { getNews, type News } from '../../services/api';
+import { Loader } from '../../components/ui/Loader';
+import { Pagination } from '../../components/ui/Pagination';
 
 export const NewsList = () => {
+    const [news, setNews] = useState<News[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const LIMIT = 9; // Grid 3x3
+
+    useEffect(() => {
+        const fetchNews = async () => {
+            setLoading(true);
+            try {
+                const data = await getNews(currentPage, LIMIT);
+                setNews(data.data);
+                setTotalPages(data.total_pages);
+            } catch (error) {
+                console.error("Failed to fetch news:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchNews();
+        // Scroll to top on page change
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, [currentPage]);
+
+    if (loading) {
+        return <Loader />;
+    }
+
     return (
         <div className="max-w-6xl mx-auto space-y-8">
             {/* Header */}
@@ -12,7 +44,7 @@ export const NewsList = () => {
 
             {/* News Grid */}
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {newsData.map((article) => (
+                {news.map((article) => (
                     <Link
                         key={article.id}
                         to={`/news/${article.slug}`}
@@ -20,11 +52,17 @@ export const NewsList = () => {
                     >
                         {/* Featured Image */}
                         <div className="h-48 overflow-hidden bg-gray-200 dark:bg-gray-700">
-                            <img
-                                src={article.featuredImage}
-                                alt={article.title}
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                            />
+                            {article.featured_image ? (
+                                <img
+                                    src={article.featured_image}
+                                    alt={article.title}
+                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                    No Image
+                                </div>
+                            )}
                         </div>
 
                         {/* Content */}
@@ -47,12 +85,19 @@ export const NewsList = () => {
                             {/* Meta */}
                             <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                                 <span>{article.author}</span>
-                                <span>{new Date(article.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                <span>{new Date(article.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                             </div>
                         </div>
                     </Link>
                 ))}
             </div>
+
+            {/* Pagination Controls */}
+            <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+            />
         </div>
     );
 };

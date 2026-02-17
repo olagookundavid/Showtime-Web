@@ -57,20 +57,29 @@ func Routes(app *api.Application) *gin.Engine {
 	}
 
 	// Register all subroutes
-	SetupExampleRoutes(v1_api, app)
+	SetupNewsRoutes(v1_api, app)
+	SetupGalleryRoutes(v1_api, app)
 	return r
 }
 
-func SetupExampleRoutes(r *gin.RouterGroup, app *api.Application) {
-	exampleRoutes := r.Group("/example")
+func SetupNewsRoutes(r *gin.RouterGroup, app *api.Application) {
+	newsRoutes := r.Group("/news")
 	{
-		exampleRoutes.POST("", app.Handlers.ExampleHandler.CreateExample)
+		newsRoutes.POST("", app.Handlers.NewsHandler.CreateNews)
+		newsRoutes.GET("", app.Handlers.NewsHandler.GetNews)
+		newsRoutes.GET("/:id", app.Handlers.NewsHandler.GetNewsByID)
+		newsRoutes.PUT("/:id", app.Handlers.NewsHandler.UpdateNews)
+		newsRoutes.DELETE("/:id", app.Handlers.NewsHandler.DeleteNews)
 	}
 }
 
-// routes.go
-func SetupRoutes(r *gin.RouterGroup, app *api.Application) {
-
+func SetupGalleryRoutes(r *gin.RouterGroup, app *api.Application) {
+	galleryRoutes := r.Group("/gallery")
 	{
+		galleryRoutes.POST("", app.Handlers.GalleryHandler.CreateGallery)
+		galleryRoutes.GET("", app.Handlers.GalleryHandler.GetGallery)
+		galleryRoutes.GET("/:id", app.Handlers.GalleryHandler.GetGalleryByID)
+		galleryRoutes.PUT("/:id", app.Handlers.GalleryHandler.UpdateGallery)
+		galleryRoutes.DELETE("/:id", app.Handlers.GalleryHandler.DeleteGallery)
 	}
 }

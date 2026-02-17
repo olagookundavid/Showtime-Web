@@ -75,6 +75,7 @@ func main() {
 	tokenDeets := loadTokenDetails(log)
 
 	cfg := flagSetup(dbUrl, tokenDeets)
+	fmt.Println("DB URL", dbUrl)
 	runMigrations(dbUrl, log)
 
 	ctx := context.Background()

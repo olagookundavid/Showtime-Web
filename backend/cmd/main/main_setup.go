@@ -68,7 +68,6 @@ func displayVersion(flagStr string) {
 func loadDbUrl(log *logger.Logger) string {
 	godotenv.Load()
 	dbUrl := os.Getenv("DB_URL")
-
 	if dbUrl == "" {
 		log.Fatal("DB_URL env variable missing", nil)
 	}
@@ -186,13 +185,16 @@ func ExampleQueueProducer(log *logger.Logger) queue.MessagePublisher {
 // returning the fully assembled Handlers struct.
 func wireDependencies(pool *pgxpool.Pool) handlers.Handlers {
 	// Infrastructure
-	exampleRepo := ports.NewExampleRepository(pool)
+	newsRepo := ports.NewNewsRepository(pool)
+	galleryRepo := ports.NewGalleryRepository(pool)
 
 	// Services
-	exampleService := services.NewExampleService(exampleRepo)
+	newsService := services.NewNewsService(newsRepo)
+	galleryService := services.NewGalleryService(galleryRepo)
 
 	// Transport / Handlers
-	exampleHandler := transport.NewExampleHandler(exampleService)
+	newsHandler := transport.NewNewsHandler(newsService)
+	galleryHandler := transport.NewGalleryHandler(galleryService)
 
-	return handlers.NewHandlers(exampleHandler)
+	return handlers.NewHandlers(newsHandler, galleryHandler)
 }

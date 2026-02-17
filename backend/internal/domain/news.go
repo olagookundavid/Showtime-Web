@@ -1,0 +1,17 @@
+package domain
+
+import "time"
+
+type News struct {
+	ID            string    `json:"id"`
+	Title         string    `json:"title"`
+	Slug          string    `json:"slug"`
+	Excerpt       string    `json:"excerpt"`
+	Content       string    `json:"content"`
+	FeaturedImage string    `json:"featured_image"`
+	Author        string    `json:"author"`
+	Category      string    `json:"category"`
+	PublishedAt   time.Time `json:"published_at"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
