@@ -144,7 +144,7 @@ export const Navbar = () => {
                     <div className="relative flex items-center justify-center py-3 text-white">
                         {/* Sport/League Navigation - Centered */}
                         <div className="flex items-center gap-8 uppercase font-bold text-sm tracking-wide">
-                            <Link to="/schedule" className="hover:text-sffl-red transition-all duration-300 hover:scale-110">Matches</Link>
+                            <Link to="/matches" className="hover:text-sffl-red transition-all duration-300 hover:scale-110">Matches</Link>
                             <Link to="/standings" className="hover:text-sffl-red transition-all duration-300 hover:scale-110">Standings</Link>
                             <Link to="/players" className="hover:text-sffl-red transition-all duration-300 hover:scale-110">Players</Link>
                             <Link to="/news" className="hover:text-sffl-red transition-all duration-300 hover:scale-110">News</Link>
@@ -177,7 +177,7 @@ export const Navbar = () => {
                     <div className="container mx-auto px-4 py-4">
                         <div className="flex flex-col space-y-3">
                             <Link to="/" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red font-bold py-2">Home</Link>
-                            <Link to="/schedule" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red font-bold py-2">Matches</Link>
+                            <Link to="/matches" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red font-bold py-2">Matches</Link>
                             <Link to="/standings" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red font-bold py-2">Standings</Link>
                             <Link to="/players" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red font-bold py-2">Players</Link>
                             <Link to="/news" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red font-bold py-2">News</Link>
@@ -197,6 +197,8 @@ export const Navbar = () => {
                                 <Link to="/about/whistleblower" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red py-2 pl-4 block text-sm">Whistleblower</Link>
                                 <Link to="/about/faq" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red py-2 pl-4 block text-sm">FAQ</Link>
                             </div>
+
+
 
                             {/* Mobile Auth */}
                             {isAuthenticated ? (

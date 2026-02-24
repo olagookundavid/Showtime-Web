@@ -48,19 +48,23 @@ run/frontend:
 # DATABASE MIGRATIONS 
 # ==================================================================================== #
 
+include backend/.env
+
 ## db/status: check migration status
 db/status:
-	@cd backend/ && goose -dir internal/sql/migrations postgres $(DB_DSN) status
+	@cd backend/ && goose -dir internal/sql/migrations postgres $(DB_URL) status
 
 ## db/up: run up migrations
 db/up:
-	@cd backend/ && goose -dir internal/sql/migrations postgres $(DB_DSN) up
+	@cd backend/ && goose -dir internal/sql/migrations postgres $(DB_URL) up
 
 ## db/down: run down migrations
 db/down:
-	@cd backend/ && goose -dir internal/sql/migrations postgres $(DB_DSN) down
+	@cd backend/ && goose -dir internal/sql/migrations postgres $(DB_URL) down
 
-## db/create name=$1: create a new migration
-db/create:
-	@echo 'Creating migration file for ${name}...'
 	@cd backend/ && goose -dir internal/sql/migrations create ${name} sql
+
+## seed/match-hub: seed match hub data
+seed/match-hub:
+	@echo 'Seeding Match Hub data...'
+	@go run backend/cmd/seeder/main.go

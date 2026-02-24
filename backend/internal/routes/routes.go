@@ -59,6 +59,9 @@ func Routes(app *api.Application) *gin.Engine {
 	// Register all subroutes
 	SetupNewsRoutes(v1_api, app)
 	SetupGalleryRoutes(v1_api, app)
+	SetupMatchRoutes(v1_api, app)
+	SetupPlayerRoutes(v1_api, app)
+	SetupTicketRoutes(v1_api, app)
 	return r
 }
 
@@ -81,5 +84,44 @@ func SetupGalleryRoutes(r *gin.RouterGroup, app *api.Application) {
 		galleryRoutes.GET("/:id", app.Handlers.GalleryHandler.GetGalleryByID)
 		galleryRoutes.PUT("/:id", app.Handlers.GalleryHandler.UpdateGallery)
 		galleryRoutes.DELETE("/:id", app.Handlers.GalleryHandler.DeleteGallery)
+	}
+}
+
+func SetupMatchRoutes(r *gin.RouterGroup, app *api.Application) {
+	matchRoutes := r.Group("/matches")
+	{
+		matchRoutes.GET("/competitions", app.Handlers.MatchHandler.GetCompetitions)
+		matchRoutes.GET("", app.Handlers.MatchHandler.GetMatches)
+		matchRoutes.GET("/standings", app.Handlers.MatchHandler.GetStandings)
+		matchRoutes.GET("/teams", app.Handlers.MatchHandler.GetTeams)
+		matchRoutes.POST("", app.Handlers.MatchHandler.CreateMatch)
+		matchRoutes.PUT("/:id", app.Handlers.MatchHandler.UpdateMatch)
+		matchRoutes.DELETE("/:id", app.Handlers.MatchHandler.DeleteMatch)
+		matchRoutes.POST("/standings", app.Handlers.MatchHandler.CreateStanding)
+		matchRoutes.PUT("/standings/:id", app.Handlers.MatchHandler.UpdateStanding)
+		matchRoutes.DELETE("/standings/:id", app.Handlers.MatchHandler.DeleteStanding)
+	}
+}
+
+func SetupPlayerRoutes(r *gin.RouterGroup, app *api.Application) {
+	playerRoutes := r.Group("/players")
+	{
+		playerRoutes.GET("", app.Handlers.PlayerHandler.GetPlayers)
+		playerRoutes.GET("/:id", app.Handlers.PlayerHandler.GetPlayerByID)
+		playerRoutes.POST("", app.Handlers.PlayerHandler.CreatePlayer)
+		playerRoutes.PUT("/:id", app.Handlers.PlayerHandler.UpdatePlayer)
+		playerRoutes.DELETE("/:id", app.Handlers.PlayerHandler.DeletePlayer)
+	}
+}
+
+func SetupTicketRoutes(r *gin.RouterGroup, app *api.Application) {
+	ticketRoutes := r.Group("/tickets")
+	{
+		ticketRoutes.POST("/purchase", app.Handlers.TicketHandler.Purchase)
+		ticketRoutes.POST("/webhook", app.Handlers.TicketHandler.Webhook)
+		ticketRoutes.GET("/:reference", app.Handlers.TicketHandler.GetTicket)
+		ticketRoutes.GET("/lookup/:code", app.Handlers.TicketHandler.LookupByCode)
+		ticketRoutes.GET("", app.Handlers.TicketHandler.ListTickets)
+		ticketRoutes.POST("/:id/checkin", app.Handlers.TicketHandler.Checkin)
 	}
 }

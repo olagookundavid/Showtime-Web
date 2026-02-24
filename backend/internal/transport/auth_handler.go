@@ -30,7 +30,7 @@ func NewAuthHandler(service services.IAuthService) *AuthHandler {
 // Register godoc
 // @Summary      Register a new user
 // @Description  Creates a user and sends OTP for email verification
-// @Tags         merchant-auth
+// @Tags         auth
 // @Accept       json
 // @Produce      json
 // @Param        request body dto.RegisterRequest true "Register Payload"
@@ -66,7 +66,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 // ResetPassword godoc
 // @Summary      Reset user password
-// @Tags         merchant-auth
+// @Tags         auth
 // @Accept       json
 // @Produce      json
 // @Param        request body dto.ResetPasswordRequest true "Reset Password Payload"
@@ -97,7 +97,7 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 
 // Login godoc
 // @Summary      Login with email and password
-// @Tags         merchant-auth
+// @Tags         auth
 // @Accept       json
 // @Produce      json
 // @Param        request body dto.LoginRequest true "Login Payload"
@@ -131,7 +131,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 // User Profile godoc
 // @Summary      Get Profile
-// @Tags         merchant-auth
+// @Tags         auth
 // @Security     BearerAuth
 // @Accept       json
 // @Produce      json
@@ -162,7 +162,7 @@ func (h *AuthHandler) ReturnUserProfile(c *gin.Context) {
 
 // Logout godoc
 // @Summary      Logout for merchant
-// @Tags         merchant-auth
+// @Tags         auth
 // @Produce      json
 // @Success      200 {object} map[string]string
 // @Failure      400 {object} map[string]string

@@ -15,9 +15,12 @@ import { Education } from './pages/about/Education';
 import { FAQ } from './pages/about/FAQ';
 import { Whistleblower } from './pages/about/Whistleblower';
 import { NewsList } from './pages/news/NewsList';
+import { MatchHub } from './pages/matches/MatchHub';
+import { StandingsPage } from './pages/matches/StandingsPage';
 import { NewsDetail } from './pages/news/NewsDetail';
 import { GalleryPage } from './pages/gallery/GalleryPage';
 import { TicketsPage } from './pages/tickets/TicketsPage';
+import { TicketConfirmation } from './pages/tickets/TicketConfirmation';
 import { LoginPage } from './pages/auth/LoginPage';
 import { SignupPage } from './pages/auth/SignupPage';
 import { HighlightsPage } from './pages/HighlightsPage';
@@ -25,6 +28,12 @@ import { PlayersPage } from './pages/players/PlayersPage';
 import { PlayerDetail } from './pages/players/PlayerDetail';
 import { AdminLayout } from './pages/admin/AdminLayout';
 import { Dashboard } from './pages/admin/Dashboard';
+import { AdminMatches } from './pages/admin/AdminMatches';
+import { AdminNews } from './pages/admin/AdminNews';
+import { AdminGallery } from './pages/admin/AdminGallery';
+import { AdminPlayers } from './pages/admin/AdminPlayers';
+import { AdminStandings } from './pages/admin/AdminStandings';
+import { AdminTickets } from './pages/admin/AdminTickets';
 import './index.css';
 
 function App() {
@@ -42,12 +51,15 @@ function App() {
               <Route path="/signup" element={<SignupPage />} />
 
               {/* Main Features */}
-              <Route path="/schedule" element={<PlaceholderPage title="Match Hub" />} />
-              <Route path="/standings" element={<PlaceholderPage title="Standings" />} />
+// ...
+              <Route path="/matches" element={<MatchHub />} />
+              <Route path="/standings" element={<StandingsPage />} />
+              // ...
               <Route path="/news" element={<NewsList />} />
               <Route path="/news/:slug" element={<NewsDetail />} />
               <Route path="/gallery" element={<GalleryPage />} />
               <Route path="/tickets" element={<TicketsPage />} />
+              <Route path="/tickets/confirm" element={<TicketConfirmation />} />
               <Route path="/highlights" element={<HighlightsPage />} />
 
               {/* Player Profiles */}
@@ -76,10 +88,12 @@ function App() {
               </ProtectedRoute>
             }>
               <Route index element={<Dashboard />} />
-              <Route path="matches" element={<PlaceholderPage title="Match Management" />} />
-              <Route path="news" element={<PlaceholderPage title="News Management" />} />
-              <Route path="gallery" element={<PlaceholderPage title="Gallery Management" />} />
-              <Route path="users" element={<PlaceholderPage title="User Management" />} />
+              <Route path="matches" element={<AdminMatches />} />
+              <Route path="news" element={<AdminNews />} />
+              <Route path="gallery" element={<AdminGallery />} />
+              <Route path="players" element={<AdminPlayers />} />
+              <Route path="standings" element={<AdminStandings />} />
+              <Route path="tickets" element={<AdminTickets />} />
             </Route>
           </Routes>
         </BrowserRouter>
@@ -88,12 +102,6 @@ function App() {
   );
 }
 
-// Temporary placeholder component
-const PlaceholderPage = ({ title }: { title: string }) => (
-  <div className="text-center py-20">
-    <h1 className="text-5xl font-black italic text-sffl-navy mb-4">{title}</h1>
-    <p className="text-xl text-gray-600">Coming Soon - Backend Integration Required</p>
-  </div>
-);
+
 
 export default App;

@@ -116,7 +116,7 @@ func flagSetup(dbUrl string, tokenDeets map[string]string) *config.Config {
 	flag.StringVar(&cfg.Db.Dsn, "db-dsn", dbUrl, "PostgreSQL DSN")
 	flag.Float64Var(&cfg.Limiter.Rps, "limiter-rps", 2, "Rate limiter maximum requests per second")
 	flag.IntVar(&cfg.Limiter.Burst, "limiter-burst", 4, "Rate limiter maximum burst")
-	flag.BoolVar(&cfg.Limiter.Enabled, "limiter-enabled", true, "Enable rate limiter")
+	flag.BoolVar(&cfg.Limiter.Enabled, "limiter-enabled", false, "Enable rate limiter")
 
 	//tokenDeets
 	flag.StringVar(&cfg.Token.TokenKey, "token-key", tokenDeets["token_key"], "Token Key")
@@ -187,14 +187,26 @@ func wireDependencies(pool *pgxpool.Pool) handlers.Handlers {
 	// Infrastructure
 	newsRepo := ports.NewNewsRepository(pool)
 	galleryRepo := ports.NewGalleryRepository(pool)
+	matchRepo := ports.NewMatchRepository(pool)
+	playerRepo := ports.NewPlayerRepository(pool)
+	ticketRepo := ports.NewTicketRepository(pool)
+
+	// External Clients
+	paystackClient := services.NewPaystackClient()
 
 	// Services
 	newsService := services.NewNewsService(newsRepo)
 	galleryService := services.NewGalleryService(galleryRepo)
+	matchService := services.NewMatchService(matchRepo)
+	playerService := services.NewPlayerService(playerRepo)
+	ticketService := services.NewTicketService(ticketRepo, paystackClient)
 
 	// Transport / Handlers
 	newsHandler := transport.NewNewsHandler(newsService)
 	galleryHandler := transport.NewGalleryHandler(galleryService)
+	matchHandler := transport.NewMatchHandler(matchService)
+	playerHandler := transport.NewPlayerHandler(playerService)
+	ticketHandler := transport.NewTicketHandler(ticketService, paystackClient)
 
-	return handlers.NewHandlers(newsHandler, galleryHandler)
+	return handlers.NewHandlers(newsHandler, galleryHandler, matchHandler, playerHandler, ticketHandler)
 }

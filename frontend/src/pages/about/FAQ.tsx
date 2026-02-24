@@ -46,8 +46,7 @@ export const FAQ = () => {
                                 <span className="text-sffl-red text-xl group-open:rotate-45 transition-transform">+</span>
                             </summary>
                             <p className="mt-2 text-gray-700 dark:text-gray-100">
-                                All games are played at the <a href="/about/arena" className="text-sffl-red hover:underline">Showtime Arena</a>
-                                in Lekki, Lagos.
+                                All games are played at the <a href="/about/arena" className="text-sffl-red hover:underline">Showtime Arena</a> in Lekki, Lagos.
                             </p>
                         </details>
 

@@ -9,6 +9,16 @@ const api = axios.create({
     },
 });
 
+// ─── Generic Paginated Response ───────────────────────────────────────────────
+export interface PaginatedResponse<T> {
+    data: T[];
+    total: number;
+    page: number;
+    limit: number;
+    total_pages: number;
+}
+
+// ─── News ─────────────────────────────────────────────────────────────────────
 export interface News {
     id: string;
     title: string;
@@ -22,31 +32,11 @@ export interface News {
     created_at: string;
 }
 
-export interface Gallery {
-    id: string;
-    game_week: string;
-    date: string;
-    players_photo_url: string;
-    fans_photo_url: string;
-    created_at: string;
-}
-
-export interface PaginatedResponse<T> {
-    data: T[];
-    total: number;
-    page: number;
-    limit: number;
-    total_pages: number;
-}
-
-// News Service
 export const getNews = async (page = 1, limit = 10) => {
     const response = await api.get<PaginatedResponse<News>>(`/news?page=${page}&limit=${limit}`);
     return response.data;
 };
 
-// Hack: Fetch all (or many) and filter by slug since backend doesn't support getBySlug yet.
-// TODO: Implement getBySlug in backend for better performance.
 export const getNewsBySlug = async (slug: string) => {
     try {
         const response = await api.get<PaginatedResponse<News>>(`/news?page=1&limit=100`);
@@ -63,9 +53,321 @@ export const getNewsById = async (id: string) => {
     return response.data;
 };
 
-// Gallery Service
+// ─── Gallery ──────────────────────────────────────────────────────────────────
+export interface Gallery {
+    id: string;
+    game_week: string;
+    date: string;
+    players_photo_url: string;
+    fans_photo_url: string;
+    created_at: string;
+}
+
 export const getGallery = async (page = 1, limit = 10) => {
     const response = await api.get<PaginatedResponse<Gallery>>(`/gallery?page=${page}&limit=${limit}`);
+    return response.data;
+};
+
+// ─── Match Hub Types ──────────────────────────────────────────────────────────
+export interface Competition {
+    id: string;
+    name: string;
+    logo: string;
+}
+
+export interface Team {
+    id: string;
+    name: string;
+    short_name: string;
+    logo: string;
+}
+
+export interface Match {
+    id: string;
+    competition: Competition;
+    home_team: Team;
+    away_team: Team;
+    date: string;
+    start_time: string;
+    venue: string;
+    status: 'SCHEDULED' | 'LIVE' | 'FINISHED' | 'POSTPONED';
+    home_score?: number;
+    away_score?: number;
+    highlights_url?: string;
+    ticket_url?: string;
+}
+
+export interface Standing {
+    id: string;
+    team: Team;
+    position: number;
+    played: number;
+    won: number;
+    drawn: number;
+    lost: number;
+    goals_for: number;
+    goals_against: number;
+    goal_diff: number;
+    points: number;
+}
+
+// ─── Match Hub Service ────────────────────────────────────────────────────────
+export const getCompetitions = async (): Promise<Competition[]> => {
+    const response = await api.get<{ data: Competition[] }>('/matches/competitions');
+    return response.data.data;
+};
+
+export const getMatches = async (
+    competitionId?: string,
+    page: number = 1,
+    limit: number = 10,
+    status?: string
+): Promise<PaginatedResponse<Match>> => {
+    let url = `/matches?page=${page}&limit=${limit}`;
+    if (competitionId) {
+        url += `&competition_id=${competitionId}`;
+    }
+    if (status) {
+        url += `&status=${status}`;
+    }
+    const response = await api.get<PaginatedResponse<Match>>(url);
+    return response.data;
+};
+
+export const getStandings = async (competitionId: string): Promise<Standing[]> => {
+    const response = await api.get<{ data: Standing[] }>(`/matches/standings?competition_id=${competitionId}`);
+    return response.data.data;
+};
+
+// ─── Teams ────────────────────────────────────────────────────────────────────
+export const getTeams = async (): Promise<Team[]> => {
+    const response = await api.get<{ data: Team[] }>('/matches/teams');
+    return response.data.data;
+};
+
+// ─── Players ──────────────────────────────────────────────────────────────────
+export interface Player {
+    id: string;
+    name: string;
+    jersey_number: number;
+    position: string;
+    team: Team;
+    bio: string;
+    image: string;
+    touchdowns: number;
+    yards: number;
+    interceptions: number;
+    tackles: number;
+}
+
+export const getPlayers = async (teamId?: string): Promise<Player[]> => {
+    let url = '/players';
+    if (teamId) {
+        url += `?team_id=${teamId}`;
+    }
+    const response = await api.get<{ data: Player[] }>(url);
+    return response.data.data;
+};
+
+export const getPlayerById = async (id: string): Promise<Player> => {
+    const response = await api.get<{ data: Player }>(`/players/${id}`);
+    return response.data.data;
+};
+
+// ─── Admin Mutation Types ─────────────────────────────────────────────────────
+
+export interface CreateNewsPayload {
+    title: string;
+    slug: string;
+    excerpt?: string;
+    content: string;
+    featured_image?: string;
+    author?: string;
+    category?: string;
+    published_at?: string;
+}
+
+export interface CreateGalleryPayload {
+    game_week: string;
+    date: string;
+    players_photo_url: string;
+    fans_photo_url: string;
+}
+
+export interface CreateMatchPayload {
+    competition_id: string;
+    home_team_id: string;
+    away_team_id: string;
+    date: string;
+    start_time: string;
+    venue?: string;
+    status?: string;
+    home_score?: number | null;
+    away_score?: number | null;
+    highlights_url?: string;
+    ticket_url?: string;
+}
+
+export interface CreatePlayerPayload {
+    name: string;
+    jersey_number?: number;
+    position?: string;
+    team_id: string;
+    bio?: string;
+    image?: string;
+    touchdowns?: number;
+    yards?: number;
+    interceptions?: number;
+    tackles?: number;
+}
+
+// ─── News Mutations ───────────────────────────────────────────────────────────
+export const createNews = async (payload: CreateNewsPayload) => {
+    const response = await api.post('/news', payload);
+    return response.data;
+};
+
+export const updateNews = async (id: string, payload: Partial<CreateNewsPayload>) => {
+    const response = await api.put(`/news/${id}`, payload);
+    return response.data;
+};
+
+export const deleteNews = async (id: string) => {
+    const response = await api.delete(`/news/${id}`);
+    return response.data;
+};
+
+// ─── Gallery Mutations ────────────────────────────────────────────────────────
+export const createGallery = async (payload: CreateGalleryPayload) => {
+    const response = await api.post('/gallery', payload);
+    return response.data;
+};
+
+export const updateGallery = async (id: string, payload: Partial<CreateGalleryPayload>) => {
+    const response = await api.put(`/gallery/${id}`, payload);
+    return response.data;
+};
+
+export const deleteGallery = async (id: string) => {
+    const response = await api.delete(`/gallery/${id}`);
+    return response.data;
+};
+
+// ─── Match Mutations ──────────────────────────────────────────────────────────
+export const createMatch = async (payload: CreateMatchPayload) => {
+    const response = await api.post('/matches', payload);
+    return response.data;
+};
+
+export const updateMatch = async (id: string, payload: Partial<CreateMatchPayload>) => {
+    const response = await api.put(`/matches/${id}`, payload);
+    return response.data;
+};
+
+export const deleteMatch = async (id: string) => {
+    const response = await api.delete(`/matches/${id}`);
+    return response.data;
+};
+
+// ─── Player Mutations ─────────────────────────────────────────────────────────
+export const createPlayer = async (payload: CreatePlayerPayload) => {
+    const response = await api.post('/players', payload);
+    return response.data;
+};
+
+export const updatePlayer = async (id: string, payload: Partial<CreatePlayerPayload>) => {
+    const response = await api.put(`/players/${id}`, payload);
+    return response.data;
+};
+
+export const deletePlayer = async (id: string) => {
+    const response = await api.delete(`/players/${id}`);
+    return response.data;
+};
+
+// ─── Standing Mutations ───────────────────────────────────────────────────────
+export interface CreateStandingPayload {
+    competition_id: string;
+    team_id: string;
+    position: number;
+    played?: number;
+    won?: number;
+    drawn?: number;
+    lost?: number;
+    goals_for?: number;
+    goals_against?: number;
+    points?: number;
+}
+
+export const createStanding = async (payload: CreateStandingPayload) => {
+    const response = await api.post('/matches/standings', payload);
+    return response.data;
+};
+
+export const updateStanding = async (id: string, payload: Partial<CreateStandingPayload>) => {
+    const response = await api.put(`/matches/standings/${id}`, payload);
+    return response.data;
+};
+
+export const deleteStanding = async (id: string) => {
+    const response = await api.delete(`/matches/standings/${id}`);
+    return response.data;
+};
+
+// ─── Tickets ──────────────────────────────────────────────────────────────────
+export interface TicketResponse {
+    id: string;
+    match_id: string;
+    email: string;
+    quantity: number;
+    unit_price: number;
+    total_amount: number;
+    status: string;
+    paystack_reference?: string;
+    ticket_code?: string;
+    checked_in_at?: string;
+    checked_in_by?: string;
+    authorization_url?: string;
+    match_title?: string;
+    match_date?: string;
+    match_venue?: string;
+    home_team?: string;
+    away_team?: string;
+    created_at: string;
+}
+
+export interface PurchaseTicketPayload {
+    match_id: string;
+    email: string;
+    quantity: number;
+    unit_price: number;
+}
+
+export const purchaseTicket = async (payload: PurchaseTicketPayload): Promise<TicketResponse> => {
+    const response = await api.post<TicketResponse>('/tickets/purchase', payload);
+    return response.data;
+};
+
+export const getTicketByReference = async (reference: string): Promise<TicketResponse> => {
+    const response = await api.get<TicketResponse>(`/tickets/${reference}`);
+    return response.data;
+};
+
+export const adminListTickets = async (page = 1, limit = 10, matchId?: string, status?: string) => {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (matchId) params.append('match_id', matchId);
+    if (status) params.append('status', status);
+    const response = await api.get<PaginatedResponse<TicketResponse>>(`/tickets?${params}`);
+    return response.data;
+};
+
+export const checkinTicket = async (id: string, checkedInBy: string) => {
+    const response = await api.post(`/tickets/${id}/checkin`, { checked_in_by: checkedInBy });
+    return response.data;
+};
+
+export const lookupTicketByCode = async (code: string): Promise<TicketResponse> => {
+    const response = await api.get<TicketResponse>(`/tickets/lookup/${code}`);
     return response.data;
 };
 

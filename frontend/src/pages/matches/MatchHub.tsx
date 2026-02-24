@@ -1,0 +1,219 @@
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { getCompetitions, getMatches, getStandings, type Competition, type Match, type Standing, type PaginatedResponse } from '../../services/api';
+import { Loader } from '../../components/ui/Loader';
+import { MatchCard } from '../../components/matches/MatchCard';
+import { StandingsTable } from '../../components/matches/StandingsTable';
+
+export const MatchHub = () => {
+    const [competitions, setCompetitions] = useState<Competition[]>([]);
+    const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>('');
+    const [matches, setMatches] = useState<Match[]>([]);
+    const [standings, setStandings] = useState<Standing[]>([]);
+    const [loading, setLoading] = useState(true); // Initial load
+    const [matchesLoading, setMatchesLoading] = useState(false); // Pagination load
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+
+    // Intersection Observer callback ref
+    const observer = useRef<IntersectionObserver | null>(null);
+    const lastMatchElementRef = useCallback((node: HTMLDivElement) => {
+        if (matchesLoading) return;
+
+        if (observer.current) observer.current.disconnect();
+        observer.current = new IntersectionObserver(entries => {
+            if (entries[0].isIntersecting && hasMore) {
+                setPage(prevPage => prevPage + 1);
+            }
+        });
+
+        if (node) observer.current.observe(node);
+    }, [matchesLoading, hasMore]);
+
+    // Fetch Competitions on Mount
+    useEffect(() => {
+        const fetchCompetitions = async () => {
+            try {
+                const data = await getCompetitions();
+                setCompetitions(data);
+                if (data.length > 0) {
+                    setSelectedCompetitionId(data[0].id);
+                } else {
+                    setLoading(false);
+                }
+            } catch (error) {
+                console.error("Failed to fetch competitions:", error);
+                setLoading(false);
+            }
+        };
+        fetchCompetitions();
+    }, []);
+
+    // Reset state when competition changes
+    const handleCompetitionChange = (compId: string) => {
+        if (compId === selectedCompetitionId) return;
+        setSelectedCompetitionId(compId);
+        setMatches([]);
+        setPage(1);
+        setHasMore(true);
+        // Standings will fetch via the effect below
+    };
+
+    // Fetch Matches when page or competition changes
+    useEffect(() => {
+        if (!selectedCompetitionId) return;
+
+        const fetchMatchesData = async () => {
+            setMatchesLoading(true);
+            try {
+                // If page 1, we might also want to fetch standings
+                if (page === 1) {
+                    const standingsData = await getStandings(selectedCompetitionId);
+                    setStandings(standingsData || []);
+                }
+
+                // Fetch matches
+                const result: PaginatedResponse<Match> = await getMatches(selectedCompetitionId, page, 5); // Fetch 5 at a time for infinite scroll demo
+
+                setMatches(prev => {
+                    if (page === 1) return result.data || [];
+                    return [...prev, ...(result.data || [])];
+                });
+
+                // Check if we have more pages
+                const totalPages = result.total_pages || 1;
+                setHasMore(page < totalPages);
+
+            } catch (error) {
+                console.error("Failed to fetch matches:", error);
+            } finally {
+                setLoading(false);
+                setMatchesLoading(false);
+            }
+        };
+
+        fetchMatchesData();
+    }, [selectedCompetitionId, page]);
+
+    if (loading && competitions.length === 0) return <Loader />;
+
+    return (
+        <div className="max-w-6xl mx-auto space-y-10 min-h-screen p-4">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row justify-between items-center bg-sffl-navy text-white p-8 rounded-2xl shadow-xl">
+                <div>
+                    <h1 className="text-4xl md:text-5xl font-black italic tracking-tighter">MATCH HUB</h1>
+                    <p className="text-gray-300 mt-2 text-lg">Scores, Fixtures & Standings</p>
+                </div>
+
+                {/* Competition Selector */}
+                {competitions.length > 0 && (
+                    <div className="mt-4 md:mt-0">
+                        <label className="block text-xs uppercase text-gray-400 font-bold mb-1 tracking-wider">Competition</label>
+                        <div className="relative">
+                            <select
+                                value={selectedCompetitionId}
+                                onChange={(e) => handleCompetitionChange(e.target.value)}
+                                className="appearance-none bg-white/10 border border-white/20 text-white py-3 px-6 pr-12 rounded-xl focus:outline-none focus:ring-2 focus:ring-sffl-red font-bold text-lg min-w-[260px] cursor-pointer hover:bg-white/20 transition-colors"
+                            >
+                                {competitions.map((c) => (
+                                    <option key={c.id} value={c.id} className="text-black bg-white">
+                                        {c.name}
+                                    </option>
+                                ))}
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-white">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Main Content Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+                {/* Left Column: Matches (2/3 width) */}
+                <div className="lg:col-span-2 space-y-6">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-2xl font-bold text-sffl-navy dark:text-white flex items-center gap-2">
+                            <span className="text-sffl-red">●</span> Fixtures & Results
+                        </h2>
+                    </div>
+
+                    {matches.length === 0 && !matchesLoading ? (
+                        <div className="bg-gray-100 dark:bg-gray-800 p-12 rounded-xl text-center">
+                            <div className="text-4xl mb-3">⚽</div>
+                            <p className="text-gray-500 text-lg font-semibold">No matches found for this competition.</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 gap-4">
+                            {matches.map((match, index) => {
+                                if (matches.length === index + 1) {
+                                    // Last element ref for infinite scroll
+                                    return (
+                                        <div ref={lastMatchElementRef} key={match.id}>
+                                            <MatchCard
+                                                match={match}
+                                                onClick={() => { }}
+                                            />
+                                        </div>
+                                    );
+                                } else {
+                                    return (
+                                        <MatchCard
+                                            key={match.id}
+                                            match={match}
+                                            onClick={() => { }}
+                                        />
+                                    );
+                                }
+                            })}
+                        </div>
+                    )}
+
+                    {/* Infinite Scroll Loader */}
+                    {matchesLoading && (
+                        <div className="flex justify-center items-center py-6">
+                            <div className="flex items-center gap-2 text-gray-500 font-semibold">
+                                <div className="w-6 h-6 border-2 border-sffl-red border-t-transparent rounded-full animate-spin"></div>
+                                Loading more matches...
+                            </div>
+                        </div>
+                    )}
+
+                    {!hasMore && matches.length > 0 && (
+                        <div className="text-center py-6 text-gray-400 font-medium">
+                            No more matches to load.
+                        </div>
+                    )}
+                </div>
+
+                {/* Right Column: Standings (1/3 width) */}
+                <div className="lg:col-span-1 space-y-6">
+                    <h2 className="text-2xl font-bold text-sffl-navy dark:text-white flex items-center gap-2">
+                        <span className="text-yellow-500">🏆</span> Standings
+                    </h2>
+                    {standings.length > 0 ? (
+                        <div className="sticky top-24 space-y-6">
+                            <StandingsTable standings={standings} />
+
+                            <div className="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-xl p-6 text-white shadow-lg">
+                                <h3 className="text-xl font-bold mb-2">Join the Action!</h3>
+                                <p className="text-sm text-purple-100 mb-4">Don't miss a single moment of the SFFL season.</p>
+                                <button className="w-full py-2 bg-white text-indigo-700 font-bold rounded-lg hover:bg-purple-50 transition-colors">
+                                    Get Tickets
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="bg-gray-100 dark:bg-gray-800 p-8 rounded-xl text-center text-gray-500">
+                            No standings available.
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
