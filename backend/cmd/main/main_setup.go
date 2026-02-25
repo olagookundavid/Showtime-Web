@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"pkg-common/infrastructure/queue"
+	"pkg-common/token"
 	"pkg-common/vcs"
 	"showtime-backend/cmd/api"
 	"showtime-backend/config"
@@ -183,30 +184,35 @@ func ExampleQueueProducer(log *logger.Logger) queue.MessagePublisher {
 
 // wireDependencies initializes and injects all dependencies (Repository -> Service -> Handler)
 // returning the fully assembled Handlers struct.
-func wireDependencies(pool *pgxpool.Pool) handlers.Handlers {
+func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker) handlers.Handlers {
 	// Infrastructure
+	authRepo := ports.NewAuthRepository(pool)
 	newsRepo := ports.NewNewsRepository(pool)
 	galleryRepo := ports.NewGalleryRepository(pool)
 	matchRepo := ports.NewMatchRepository(pool)
 	playerRepo := ports.NewPlayerRepository(pool)
+	eventDayRepo := ports.NewEventDayRepository(pool)
+	tierRepo := ports.NewTicketTierRepository(pool)
 	ticketRepo := ports.NewTicketRepository(pool)
 
 	// External Clients
 	paystackClient := services.NewPaystackClient()
 
 	// Services
+	authService := services.NewAuthService(authRepo, tokenMaker)
 	newsService := services.NewNewsService(newsRepo)
 	galleryService := services.NewGalleryService(galleryRepo)
 	matchService := services.NewMatchService(matchRepo)
 	playerService := services.NewPlayerService(playerRepo)
-	ticketService := services.NewTicketService(ticketRepo, paystackClient)
+	ticketService := services.NewTicketService(eventDayRepo, tierRepo, ticketRepo, matchRepo, paystackClient)
 
 	// Transport / Handlers
+	authHandler := transport.NewAuthHandler(authService)
 	newsHandler := transport.NewNewsHandler(newsService)
 	galleryHandler := transport.NewGalleryHandler(galleryService)
 	matchHandler := transport.NewMatchHandler(matchService)
 	playerHandler := transport.NewPlayerHandler(playerService)
 	ticketHandler := transport.NewTicketHandler(ticketService, paystackClient)
 
-	return handlers.NewHandlers(newsHandler, galleryHandler, matchHandler, playerHandler, ticketHandler)
+	return handlers.NewHandlers(authHandler, newsHandler, galleryHandler, matchHandler, playerHandler, ticketHandler)
 }

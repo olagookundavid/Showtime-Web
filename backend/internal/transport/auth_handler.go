@@ -29,15 +29,13 @@ func NewAuthHandler(service services.IAuthService) *AuthHandler {
 
 // Register godoc
 // @Summary      Register a new user
-// @Description  Creates a user and sends OTP for email verification
 // @Tags         auth
 // @Accept       json
 // @Produce      json
 // @Param        request body dto.RegisterRequest true "Register Payload"
 // @Success      201 {object} map[string]string
 // @Failure      400 {object} map[string]string
-// @Failure      500 {object} map[string]string
-// @Router       /api/v1/merchant/register [post]
+// @Router       /api/v1/auth/register [post]
 func (h *AuthHandler) Register(c *gin.Context) {
 
 	var req dto.RegisterRequest
@@ -46,22 +44,17 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	status, err := h.AuthService.Register(c, req)
+	err := h.AuthService.Register(c, req)
 	if err != nil {
 		switch {
 		case errors.Is(err, appErrors.ErrServerError):
 			helpers.ServerErrorResponse(c, err)
 		default:
-			if status == nil {
-				helpers.BadResponse(c, err.Error())
-			} else {
-				helpers.RegisterErrorWithStatusResponse(c, err, *status)
-			}
-
+			helpers.BadResponse(c, err.Error())
 		}
 		return
 	}
-	helpers.SuccessCreated(c, "OTP sent to email. Please verify.", nil)
+	helpers.SuccessCreated(c, "Registration successful", nil)
 }
 
 // ResetPassword godoc
@@ -70,10 +63,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Param        request body dto.ResetPasswordRequest true "Reset Password Payload"
-// @Success      201 {object} map[string]string
-// @Failure      400 {object} map[string]string
-// @Failure      500 {object} map[string]string
-// @Router       /api/v1/merchant/reset_password [post]
+// @Success      200 {object} map[string]string
+// @Router       /api/v1/auth/reset-password [post]
 func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	var req dto.ResetPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -92,7 +83,7 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 		return
 	}
 
-	helpers.SuccessOK(c, "Password reset sucessful", nil)
+	helpers.SuccessOK(c, "Password reset successful", nil)
 }
 
 // Login godoc
@@ -101,10 +92,8 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Param        request body dto.LoginRequest true "Login Payload"
-// @Success      201 {object} dto.LoginResponse
-// @Failure      400 {object} map[string]string
-// @Failure      500 {object} map[string]string
-// @Router       /api/v1/merchant/login [post]
+// @Success      200 {object} dto.LoginResponse
+// @Router       /api/v1/auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req dto.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -133,12 +122,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 // @Summary      Get Profile
 // @Tags         auth
 // @Security     BearerAuth
-// @Accept       json
 // @Produce      json
-// @Success      201 {object} dto.LoginResponse
-// @Failure      400 {object} map[string]string
-// @Failure      500 {object} map[string]string
-// @Router       /api/v1/merchant/profile [get]
+// @Success      200 {object} dto.LoginResponse
+// @Router       /api/v1/auth/profile [get]
 func (h *AuthHandler) ReturnUserProfile(c *gin.Context) {
 	tokenPayload, err := helpers.GetTokenPayloadFromContext(c)
 	if err != nil {
@@ -157,17 +143,15 @@ func (h *AuthHandler) ReturnUserProfile(c *gin.Context) {
 		return
 	}
 
-	helpers.SuccessOK(c, "Login successful", userRes)
+	helpers.SuccessOK(c, "Profile retrieved", userRes)
 }
 
 // Logout godoc
-// @Summary      Logout for merchant
+// @Summary      Logout
 // @Tags         auth
 // @Produce      json
 // @Success      200 {object} map[string]string
-// @Failure      400 {object} map[string]string
-// @Failure      500 {object} map[string]string
-// @Router       /api/v1/merchant/logout [post]
+// @Router       /api/v1/auth/logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
 	userHelper.RemoveTokensInCookie(c)
 

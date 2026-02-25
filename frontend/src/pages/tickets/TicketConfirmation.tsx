@@ -87,18 +87,22 @@ export const TicketConfirmation = () => {
                     <div className="p-6 space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <span className="text-xs text-gray-500 uppercase font-bold">Match</span>
-                                <p className="font-bold text-sffl-navy dark:text-white">{ticket.match_title || `${ticket.home_team} vs ${ticket.away_team}`}</p>
+                                <span className="text-xs text-gray-500 uppercase font-bold">Event</span>
+                                <p className="font-bold text-sffl-navy dark:text-white">{ticket.event_title || '—'}</p>
                             </div>
                             <div>
                                 <span className="text-xs text-gray-500 uppercase font-bold">Venue</span>
-                                <p className="font-bold text-sffl-navy dark:text-white">{ticket.match_venue || '—'}</p>
+                                <p className="font-bold text-sffl-navy dark:text-white">{ticket.event_venue || '—'}</p>
                             </div>
                             <div>
                                 <span className="text-xs text-gray-500 uppercase font-bold">Date</span>
                                 <p className="font-bold text-sffl-navy dark:text-white">
-                                    {ticket.match_date ? new Date(ticket.match_date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : '—'}
+                                    {ticket.event_date ? new Date(ticket.event_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : '—'}
                                 </p>
+                            </div>
+                            <div>
+                                <span className="text-xs text-gray-500 uppercase font-bold">Tier</span>
+                                <p className="font-bold text-sffl-navy dark:text-white">{ticket.tier_name || '—'}</p>
                             </div>
                             <div>
                                 <span className="text-xs text-gray-500 uppercase font-bold">Email</span>

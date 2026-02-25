@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 )
@@ -47,7 +48,7 @@ type PaystackVerifyResponse struct {
 func NewPaystackClient() *PaystackClient {
 	key := os.Getenv("PAYSTACK_SECRET_KEY")
 	if key == "" {
-		key = "sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx" // dummy test key
+		log.Fatal("Couldn't load paystack secret key")
 	}
 	return &PaystackClient{
 		secretKey: key,
@@ -59,11 +60,13 @@ func NewPaystackClient() *PaystackClient {
 func (p *PaystackClient) InitializeTransaction(req PaystackInitRequest) (*PaystackInitResponse, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
+		println(err.Error())
 		return nil, err
 	}
 
 	httpReq, err := http.NewRequest("POST", p.baseURL+"/transaction/initialize", bytes.NewBuffer(body))
 	if err != nil {
+		println(err.Error())
 		return nil, err
 	}
 	httpReq.Header.Set("Authorization", "Bearer "+p.secretKey)
@@ -71,21 +74,25 @@ func (p *PaystackClient) InitializeTransaction(req PaystackInitRequest) (*Paysta
 
 	resp, err := p.client.Do(httpReq)
 	if err != nil {
+		println(err.Error())
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
+		println(err.Error())
 		return nil, err
 	}
 
 	var result PaystackInitResponse
 	if err := json.Unmarshal(respBody, &result); err != nil {
+		println(err.Error())
 		return nil, err
 	}
 
 	if !result.Status {
+		println(result.Message)
 		return nil, fmt.Errorf("paystack error: %s", result.Message)
 	}
 

@@ -28,10 +28,10 @@ func NewAuthRepository(Db *pgxpool.Pool) *AuthRepository {
 }
 
 func (m AuthRepository) Register(ctx context.Context, user domain.User) (*string, error) {
-	query := ` INSERT INTO users (full_name, email, password_hash) 
-		VALUES ($1, $2, $3) 
+	query := ` INSERT INTO users (full_name, email, password_hash, role, phone) 
+		VALUES ($1, $2, $3, $4, $5) 
 		RETURNING id`
-	args := []any{user.FullName, user.Email, user.Password.Hash}
+	args := []any{user.FullName, user.Email, user.Password.Hash, user.Role, user.Phone}
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	var id string
@@ -48,7 +48,7 @@ func (m AuthRepository) Register(ctx context.Context, user domain.User) (*string
 }
 
 func (m AuthRepository) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
-	query := ` SELECT id, full_name, email, email_verified, auth_provider, enabled,  password_hash, created_at, updated_at FROM users WHERE email = $1`
+	query := `SELECT id, full_name, email, password_hash, role, phone, created_at, updated_at FROM users WHERE email = $1`
 	var user domain.User
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
@@ -57,6 +57,8 @@ func (m AuthRepository) GetUserByEmail(ctx context.Context, email string) (*doma
 		&user.FullName,
 		&user.Email,
 		&user.Password.Hash,
+		&user.Role,
+		&user.Phone,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -73,7 +75,7 @@ func (m AuthRepository) GetUserByEmail(ctx context.Context, email string) (*doma
 }
 
 func (m AuthRepository) GetUserByID(ctx context.Context, id string) (*domain.User, error) {
-	query := ` SELECT id, full_name, email, email_verified, auth_provider, enabled,  password_hash, created_at, updated_at FROM users WHERE id = $1`
+	query := `SELECT id, full_name, email, password_hash, role, phone, created_at, updated_at FROM users WHERE id = $1`
 	var user domain.User
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
@@ -82,6 +84,8 @@ func (m AuthRepository) GetUserByID(ctx context.Context, id string) (*domain.Use
 		&user.FullName,
 		&user.Email,
 		&user.Password.Hash,
+		&user.Role,
+		&user.Phone,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -98,7 +102,7 @@ func (m AuthRepository) GetUserByID(ctx context.Context, id string) (*domain.Use
 }
 
 func (m AuthRepository) updatePassword(ctx context.Context, user domain.User) error {
-	query := `UPDATE users SET password_hash = $1 WHERE email = $2;`
+	query := `UPDATE users SET password_hash = $1, updated_at = NOW() WHERE email = $2;`
 	args := []any{user.Password.Hash, user.Email}
 
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)

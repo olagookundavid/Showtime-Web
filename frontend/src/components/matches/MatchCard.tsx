@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import type { Match } from '../../services/api';
 import { generateGoogleCalendarLink } from '../../utils/calendarUtils';
 
@@ -73,9 +74,13 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
                     </button>
                 ) : (
                     <>
-                        <button className="px-4 py-2 bg-sffl-navy text-white text-sm font-bold rounded-lg hover:bg-blue-900 transition-colors w-full">
-                            Get Tickets
-                        </button>
+                        <Link
+                            to={`/tickets?date=${match.date.split('T')[0]}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="px-4 py-2 bg-sffl-navy text-white text-sm font-bold rounded-lg hover:bg-blue-900 transition-colors w-full text-center block"
+                        >
+                            🎟️ Get Tickets
+                        </Link>
                         <button
                             className="px-4 py-2 bg-white text-sffl-navy border border-gray-300 text-sm font-bold rounded-lg hover:bg-gray-50 dark:bg-gray-800 dark:text-white dark:border-gray-600 dark:hover:bg-gray-700 transition-colors w-full"
                             onClick={(e) => {

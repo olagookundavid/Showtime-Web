@@ -57,12 +57,30 @@ func Routes(app *api.Application) *gin.Engine {
 	}
 
 	// Register all subroutes
+	SetupAuthRoutes(v1_api, app)
 	SetupNewsRoutes(v1_api, app)
 	SetupGalleryRoutes(v1_api, app)
 	SetupMatchRoutes(v1_api, app)
 	SetupPlayerRoutes(v1_api, app)
 	SetupTicketRoutes(v1_api, app)
 	return r
+}
+
+func SetupAuthRoutes(r *gin.RouterGroup, app *api.Application) {
+	authRoutes := r.Group("/auth")
+	{
+		authRoutes.POST("/register", app.Handlers.AuthHandler.Register)
+		authRoutes.POST("/login", app.Handlers.AuthHandler.Login)
+		authRoutes.POST("/logout", app.Handlers.AuthHandler.Logout)
+		authRoutes.POST("/reset-password", app.Handlers.AuthHandler.ResetPassword)
+	}
+
+	// Authenticated routes
+	authProtected := r.Group("/auth")
+	authProtected.Use(commonAuth.TokenMiddleware(app.TokenMaker))
+	{
+		authProtected.GET("/profile", app.Handlers.AuthHandler.ReturnUserProfile)
+	}
 }
 
 func SetupNewsRoutes(r *gin.RouterGroup, app *api.Application) {
@@ -115,10 +133,27 @@ func SetupPlayerRoutes(r *gin.RouterGroup, app *api.Application) {
 }
 
 func SetupTicketRoutes(r *gin.RouterGroup, app *api.Application) {
+	// Event Day routes
+	eventDayRoutes := r.Group("/event-days")
+	{
+		eventDayRoutes.GET("", app.Handlers.TicketHandler.ListEventDays)
+		eventDayRoutes.GET("/all", app.Handlers.TicketHandler.ListAllEventDays)
+		eventDayRoutes.GET("/:id", app.Handlers.TicketHandler.GetEventDay)
+		eventDayRoutes.GET("/by-date/:date", app.Handlers.TicketHandler.GetEventDayByDate)
+		eventDayRoutes.POST("", app.Handlers.TicketHandler.CreateEventDay)
+		eventDayRoutes.PUT("/:id", app.Handlers.TicketHandler.UpdateEventDay)
+		eventDayRoutes.DELETE("/:id", app.Handlers.TicketHandler.DeleteEventDay)
+		eventDayRoutes.POST("/:id/tiers", app.Handlers.TicketHandler.CreateTier)
+	}
+
+	// Ticket routes
 	ticketRoutes := r.Group("/tickets")
 	{
 		ticketRoutes.POST("/purchase", app.Handlers.TicketHandler.Purchase)
 		ticketRoutes.POST("/webhook", app.Handlers.TicketHandler.Webhook)
+		ticketRoutes.GET("/search", app.Handlers.TicketHandler.SearchByEmail)
+		ticketRoutes.POST("/verify/:reference", app.Handlers.TicketHandler.VerifyTicket)
+		ticketRoutes.POST("/:id/admin-checkin", app.Handlers.TicketHandler.AdminCheckin)
 		ticketRoutes.GET("/:reference", app.Handlers.TicketHandler.GetTicket)
 		ticketRoutes.GET("/lookup/:code", app.Handlers.TicketHandler.LookupByCode)
 		ticketRoutes.GET("", app.Handlers.TicketHandler.ListTickets)

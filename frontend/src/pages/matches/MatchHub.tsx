@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { getCompetitions, getMatches, getStandings, type Competition, type Match, type Standing, type PaginatedResponse } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { MatchCard } from '../../components/matches/MatchCard';
@@ -202,9 +203,9 @@ export const MatchHub = () => {
                             <div className="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-xl p-6 text-white shadow-lg">
                                 <h3 className="text-xl font-bold mb-2">Join the Action!</h3>
                                 <p className="text-sm text-purple-100 mb-4">Don't miss a single moment of the SFFL season.</p>
-                                <button className="w-full py-2 bg-white text-indigo-700 font-bold rounded-lg hover:bg-purple-50 transition-colors">
+                                <Link to="/tickets" className="w-full py-2 bg-white text-indigo-700 font-bold rounded-lg hover:bg-purple-50 transition-colors block text-center">
                                     Get Tickets
-                                </button>
+                                </Link>
                             </div>
                         </div>
                     ) : (

@@ -1,25 +1,30 @@
 import { useState, useEffect, useCallback } from 'react';
-import { adminListTickets, checkinTicket, lookupTicketByCode, getMatches, type TicketResponse, type Match } from '../../services/api';
+import { adminListTickets, checkinTicket, adminCheckinTicket, verifyTicket, lookupTicketByCode, searchTicketsByEmail, getEventDays, type TicketResponse, type EventDayResponse } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
 export const AdminTickets = () => {
     const { user } = useAuth();
     const [tickets, setTickets] = useState<TicketResponse[]>([]);
-    const [matches, setMatches] = useState<Match[]>([]);
+    const [eventDays, setEventDays] = useState<EventDayResponse[]>([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const [filterMatch, setFilterMatch] = useState('');
+    const [filterEventDay, setFilterEventDay] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
-    const [searchCode, setSearchCode] = useState('');
-    const [searchResult, setSearchResult] = useState<TicketResponse | null>(null);
+
+    // Search
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchMode, setSearchMode] = useState<'code' | 'email'>('code');
+    const [searchResults, setSearchResults] = useState<TicketResponse[]>([]);
     const [searchError, setSearchError] = useState('');
-    const [checkinLoading, setCheckinLoading] = useState<string | null>(null);
+    const [searching, setSearching] = useState(false);
+
+    const [actionLoading, setActionLoading] = useState<string | null>(null);
 
     const fetchTickets = useCallback(async () => {
         setLoading(true);
         try {
-            const data = await adminListTickets(page, 10, filterMatch || undefined, filterStatus || undefined);
+            const data = await adminListTickets(page, 10, filterEventDay || undefined, filterStatus || undefined);
             setTickets(data.data || []);
             setTotalPages(data.total_pages || 1);
         } catch (err) {
@@ -27,47 +32,97 @@ export const AdminTickets = () => {
         } finally {
             setLoading(false);
         }
-    }, [page, filterMatch, filterStatus]);
+    }, [page, filterEventDay, filterStatus]);
+
+    useEffect(() => { fetchTickets(); }, [fetchTickets]);
 
     useEffect(() => {
-        fetchTickets();
-    }, [fetchTickets]);
-
-    useEffect(() => {
-        const fetchMatches = async () => {
-            try {
-                const data = await getMatches(undefined, 1, 50);
-                setMatches(data.data || []);
-            } catch (_) { }
+        const fetchEventDays = async () => {
+            try { setEventDays(await getEventDays()); } catch (_) { }
         };
-        fetchMatches();
+        fetchEventDays();
     }, []);
 
     const handleSearch = async () => {
-        if (!searchCode.trim()) return;
+        const q = searchQuery.trim();
+        if (!q) return;
         setSearchError('');
-        setSearchResult(null);
+        setSearchResults([]);
+        setSearching(true);
+
         try {
-            const result = await lookupTicketByCode(searchCode.trim().toUpperCase());
-            setSearchResult(result);
+            if (searchMode === 'code') {
+                const result = await lookupTicketByCode(q.toUpperCase());
+                setSearchResults([result]);
+            } else {
+                const results = await searchTicketsByEmail(q);
+                if (results.length === 0) {
+                    setSearchError('No tickets found for this email.');
+                } else {
+                    setSearchResults(results);
+                }
+            }
         } catch (err) {
-            setSearchError('Ticket not found. Check the code and try again.');
+            setSearchError(searchMode === 'code' ? 'Ticket not found.' : 'No tickets found for this email.');
+        } finally {
+            setSearching(false);
         }
     };
 
+    // Verify a PENDING ticket via Paystack
+    const handleVerify = async (ticket: TicketResponse) => {
+        if (!ticket.paystack_reference) {
+            alert('No Paystack reference found for this ticket.');
+            return;
+        }
+        setActionLoading(ticket.id);
+        try {
+            const updated = await verifyTicket(ticket.paystack_reference);
+            // Update in search results
+            setSearchResults(prev => prev.map(t => t.id === ticket.id ? { ...t, status: updated.status } : t));
+            // Update in table
+            setTickets(prev => prev.map(t => t.id === ticket.id ? { ...t, status: updated.status } : t));
+
+            if (updated.status === 'PAID') {
+                alert('✅ Payment verified! Ticket is now PAID.');
+            } else {
+                alert(`Payment status: ${updated.status}`);
+            }
+        } catch (err: any) {
+            alert(err.response?.data?.error || 'Verification failed');
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    // Regular check-in (PAID → USED)
     const handleCheckin = async (ticketId: string) => {
         if (!user) return;
-        setCheckinLoading(ticketId);
+        setActionLoading(ticketId);
         try {
             await checkinTicket(ticketId, user.name || user.email);
-            await fetchTickets();
-            if (searchResult?.id === ticketId) {
-                setSearchResult({ ...searchResult, status: 'USED' });
-            }
+            setSearchResults(prev => prev.map(t => t.id === ticketId ? { ...t, status: 'USED' } : t));
+            setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: 'USED' } : t));
         } catch (err: any) {
             alert(err.response?.data?.error || 'Check-in failed');
         } finally {
-            setCheckinLoading(null);
+            setActionLoading(null);
+        }
+    };
+
+    // Admin force check-in (any status → USED)
+    const handleAdminCheckin = async (ticketId: string) => {
+        if (!user) return;
+        if (!confirm('Force check-in this ticket? This will verify payment first if pending.')) return;
+        setActionLoading(ticketId);
+        try {
+            await adminCheckinTicket(ticketId, user.name || user.email);
+            setSearchResults(prev => prev.map(t => t.id === ticketId ? { ...t, status: 'USED' } : t));
+            setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: 'USED' } : t));
+        } catch (err: any) {
+            alert(err.response?.data?.error || 'Check-in failed');
+        } finally {
+            setActionLoading(null);
         }
     };
 
@@ -77,82 +132,152 @@ export const AdminTickets = () => {
             case 'PENDING': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
             case 'USED': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
             case 'FAILED': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
-            case 'CANCELLED': return 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400';
             default: return 'bg-gray-100 text-gray-600';
         }
+    };
+
+    const ActionButtons = ({ t }: { t: TicketResponse }) => {
+        const isLoading = actionLoading === t.id;
+
+        if (t.status === 'USED') {
+            return <span className="text-xs text-blue-500 font-semibold">✅ Checked In</span>;
+        }
+
+        if (t.status === 'PAID') {
+            return (
+                <button
+                    onClick={() => handleCheckin(t.id)}
+                    disabled={isLoading}
+                    className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-700 transition disabled:opacity-50"
+                >
+                    {isLoading ? '...' : '✅ Check In'}
+                </button>
+            );
+        }
+
+        if (t.status === 'PENDING') {
+            return (
+                <div className="flex gap-1.5">
+                    <button
+                        onClick={() => handleVerify(t)}
+                        disabled={isLoading}
+                        className="bg-blue-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition disabled:opacity-50"
+                        title="Verify payment with Paystack"
+                    >
+                        {isLoading ? '...' : '🔍 Verify'}
+                    </button>
+                    <button
+                        onClick={() => handleAdminCheckin(t.id)}
+                        disabled={isLoading}
+                        className="bg-orange-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold hover:bg-orange-700 transition disabled:opacity-50"
+                        title="Force check-in (verifies payment first)"
+                    >
+                        {isLoading ? '...' : '⚡ Force'}
+                    </button>
+                </div>
+            );
+        }
+
+        return <span className="text-xs text-gray-400">—</span>;
     };
 
     return (
         <div className="space-y-6">
             <h1 className="text-3xl font-black text-sffl-navy dark:text-white">🎟️ Ticket Management</h1>
 
-            {/* Ticket Lookup / Scanner */}
+            {/* ── Search / Check-in Section ─────────────────────────────────── */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
-                <h2 className="text-lg font-bold text-sffl-navy dark:text-white mb-4">🔍 Ticket Lookup / Check-in</h2>
+                <h2 className="text-lg font-bold text-sffl-navy dark:text-white mb-4">🔍 Ticket Search & Check-in</h2>
+
+                {/* Search Mode Toggle */}
+                <div className="flex gap-2 mb-3">
+                    <button
+                        onClick={() => { setSearchMode('code'); setSearchQuery(''); setSearchResults([]); setSearchError(''); }}
+                        className={`px-4 py-2 rounded-lg text-sm font-bold transition ${searchMode === 'code' ? 'bg-sffl-navy text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}
+                    >🔢 Search by Code</button>
+                    <button
+                        onClick={() => { setSearchMode('email'); setSearchQuery(''); setSearchResults([]); setSearchError(''); }}
+                        className={`px-4 py-2 rounded-lg text-sm font-bold transition ${searchMode === 'email' ? 'bg-sffl-navy text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}
+                    >📧 Search by Email</button>
+                </div>
+
+                {/* Search Input */}
                 <div className="flex gap-3">
                     <input
-                        type="text"
-                        value={searchCode}
-                        onChange={(e) => setSearchCode(e.target.value)}
+                        type={searchMode === 'email' ? 'email' : 'text'}
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                        placeholder="Enter ticket code (e.g. SFFL-A3K9X2)"
-                        className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none uppercase"
+                        placeholder={searchMode === 'code' ? 'Enter ticket code (e.g. SFFL-A3K9X2)' : 'Enter email address'}
+                        className={`flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none ${searchMode === 'code' ? 'uppercase' : ''}`}
                     />
                     <button
                         onClick={handleSearch}
-                        className="bg-sffl-navy text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-900 transition"
-                    >Search</button>
+                        disabled={searching || !searchQuery.trim()}
+                        className="bg-sffl-navy text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-900 transition disabled:opacity-50"
+                    >{searching ? 'Searching...' : 'Search'}</button>
                 </div>
 
                 {searchError && (
-                    <p className="text-red-500 text-sm mt-2 font-medium">{searchError}</p>
+                    <p className="text-red-500 text-sm mt-3 font-medium">❌ {searchError}</p>
                 )}
 
-                {searchResult && (
-                    <div className="mt-4 bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <p className="font-black text-lg text-sffl-navy dark:text-white">{searchResult.ticket_code}</p>
-                                <p className="text-sm text-gray-600 dark:text-gray-300">{searchResult.match_title || `${searchResult.home_team} vs ${searchResult.away_team}`}</p>
-                                <p className="text-sm text-gray-500">{searchResult.email} • Qty: {searchResult.quantity}</p>
-                                <p className="text-xs text-gray-400 mt-1">₦{searchResult.total_amount?.toLocaleString()}</p>
-                            </div>
-                            <div className="text-right">
-                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusColor(searchResult.status)}`}>
-                                    {searchResult.status}
-                                </span>
-                                {searchResult.status === 'PAID' && (
-                                    <button
-                                        onClick={() => handleCheckin(searchResult.id)}
-                                        disabled={checkinLoading === searchResult.id}
-                                        className="block mt-3 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition disabled:opacity-50"
-                                    >
-                                        {checkinLoading === searchResult.id ? 'Checking in...' : '✅ Check In'}
-                                    </button>
-                                )}
-                                {searchResult.status === 'USED' && (
-                                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-2 font-semibold">
-                                        Already used{searchResult.checked_in_at ? ` at ${new Date(searchResult.checked_in_at).toLocaleString()}` : ''}
-                                    </p>
-                                )}
-                            </div>
+                {/* Search Results */}
+                {searchResults.length > 0 && (
+                    <div className="mt-4">
+                        <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 mb-2">
+                            {searchResults.length} ticket{searchResults.length > 1 ? 's' : ''} found
+                        </h3>
+                        <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-600">
+                            <table className="w-full text-sm">
+                                <thead className="bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 uppercase text-xs">
+                                    <tr>
+                                        <th className="px-4 py-2 text-left">Code</th>
+                                        <th className="px-4 py-2 text-left">Event</th>
+                                        <th className="px-4 py-2 text-left">Tier</th>
+                                        <th className="px-4 py-2 text-left">Email</th>
+                                        <th className="px-4 py-2 text-center">Qty</th>
+                                        <th className="px-4 py-2 text-right">Amount</th>
+                                        <th className="px-4 py-2 text-center">Status</th>
+                                        <th className="px-4 py-2 text-center">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                                    {searchResults.map(t => (
+                                        <tr key={t.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                            <td className="px-4 py-3 font-mono font-bold text-sffl-navy dark:text-white text-sm">{t.ticket_code || '—'}</td>
+                                            <td className="px-4 py-3 dark:text-gray-300 text-sm">{t.event_title || '—'}</td>
+                                            <td className="px-4 py-3 dark:text-gray-300 text-sm">{t.tier_name || '—'}</td>
+                                            <td className="px-4 py-3 dark:text-gray-300 text-sm">{t.email}</td>
+                                            <td className="px-4 py-3 text-center dark:text-gray-300">{t.quantity}</td>
+                                            <td className="px-4 py-3 text-right font-semibold dark:text-white">₦{t.total_amount?.toLocaleString()}</td>
+                                            <td className="px-4 py-3 text-center">
+                                                <span className={`px-2 py-1 rounded-full text-xs font-bold ${statusColor(t.status)}`}>{t.status}</span>
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <ActionButtons t={t} />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 )}
             </div>
 
+            {/* ── All Tickets Table ─────────────────────────────────────────── */}
+
             {/* Filters */}
             <div className="flex flex-wrap gap-4">
                 <select
-                    value={filterMatch}
-                    onChange={(e) => { setFilterMatch(e.target.value); setPage(1); }}
+                    value={filterEventDay}
+                    onChange={(e) => { setFilterEventDay(e.target.value); setPage(1); }}
                     className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
-                    <option value="">All Matches</option>
-                    {matches.map(m => (
-                        <option key={m.id} value={m.id}>
-                            {m.home_team?.short_name || m.home_team?.name} vs {m.away_team?.short_name || m.away_team?.name}
-                        </option>
+                    <option value="">All Event Days</option>
+                    {eventDays.map(ed => (
+                        <option key={ed.id} value={ed.id}>{ed.title} — {ed.date}</option>
                     ))}
                 </select>
                 <select
@@ -165,11 +290,9 @@ export const AdminTickets = () => {
                     <option value="PAID">Paid</option>
                     <option value="USED">Used</option>
                     <option value="FAILED">Failed</option>
-                    <option value="CANCELLED">Cancelled</option>
                 </select>
             </div>
 
-            {/* Tickets Table */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-100 dark:border-gray-700">
                 {loading ? (
                     <div className="flex justify-center py-12">
@@ -181,7 +304,8 @@ export const AdminTickets = () => {
                             <thead className="bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 uppercase text-xs">
                                 <tr>
                                     <th className="px-4 py-3 text-left">Code</th>
-                                    <th className="px-4 py-3 text-left">Match</th>
+                                    <th className="px-4 py-3 text-left">Event</th>
+                                    <th className="px-4 py-3 text-left">Tier</th>
                                     <th className="px-4 py-3 text-left">Email</th>
                                     <th className="px-4 py-3 text-center">Qty</th>
                                     <th className="px-4 py-3 text-right">Amount</th>
@@ -192,33 +316,22 @@ export const AdminTickets = () => {
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                                 {tickets.length > 0 ? tickets.map(t => (
                                     <tr key={t.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                        <td className="px-4 py-3 font-mono font-bold text-sffl-navy dark:text-white">{t.ticket_code || '—'}</td>
-                                        <td className="px-4 py-3 dark:text-gray-300">{t.home_team && t.away_team ? `${t.home_team} vs ${t.away_team}` : '—'}</td>
-                                        <td className="px-4 py-3 dark:text-gray-300">{t.email}</td>
+                                        <td className="px-4 py-3 font-mono font-bold text-sffl-navy dark:text-white text-sm">{t.ticket_code || '—'}</td>
+                                        <td className="px-4 py-3 dark:text-gray-300 text-sm">{t.event_title || '—'}</td>
+                                        <td className="px-4 py-3 dark:text-gray-300 text-sm">{t.tier_name || '—'}</td>
+                                        <td className="px-4 py-3 dark:text-gray-300 text-sm">{t.email}</td>
                                         <td className="px-4 py-3 text-center dark:text-gray-300">{t.quantity}</td>
                                         <td className="px-4 py-3 text-right font-semibold dark:text-white">₦{t.total_amount?.toLocaleString()}</td>
                                         <td className="px-4 py-3 text-center">
                                             <span className={`px-2 py-1 rounded-full text-xs font-bold ${statusColor(t.status)}`}>{t.status}</span>
                                         </td>
                                         <td className="px-4 py-3 text-center">
-                                            {t.status === 'PAID' ? (
-                                                <button
-                                                    onClick={() => handleCheckin(t.id)}
-                                                    disabled={checkinLoading === t.id}
-                                                    className="bg-green-600 text-white px-3 py-1 rounded text-xs font-bold hover:bg-green-700 transition disabled:opacity-50"
-                                                >
-                                                    {checkinLoading === t.id ? '...' : 'Check In'}
-                                                </button>
-                                            ) : t.status === 'USED' ? (
-                                                <span className="text-xs text-gray-400">✅ Done</span>
-                                            ) : (
-                                                <span className="text-xs text-gray-400">—</span>
-                                            )}
+                                            <ActionButtons t={t} />
                                         </td>
                                     </tr>
                                 )) : (
                                     <tr>
-                                        <td colSpan={7} className="px-4 py-12 text-center text-gray-400">No tickets found</td>
+                                        <td colSpan={8} className="px-4 py-12 text-center text-gray-400">No tickets found</td>
                                     </tr>
                                 )}
                             </tbody>
@@ -226,20 +339,11 @@ export const AdminTickets = () => {
                     </div>
                 )}
 
-                {/* Pagination */}
                 {totalPages > 1 && (
                     <div className="flex items-center justify-between p-4 border-t dark:border-gray-700">
-                        <button
-                            onClick={() => setPage(p => Math.max(1, p - 1))}
-                            disabled={page === 1}
-                            className="px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-300 disabled:opacity-30"
-                        >← Prev</button>
+                        <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-300 disabled:opacity-30">← Prev</button>
                         <span className="text-sm text-gray-500">Page {page} of {totalPages}</span>
-                        <button
-                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                            disabled={page === totalPages}
-                            className="px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-300 disabled:opacity-30"
-                        >Next →</button>
+                        <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-300 disabled:opacity-30">Next →</button>
                     </div>
                 )}
             </div>

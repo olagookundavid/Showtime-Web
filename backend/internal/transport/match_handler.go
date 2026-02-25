@@ -11,11 +11,24 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type IMatchHandler interface {
+	GetCompetitions(c *gin.Context)
+	GetMatches(c *gin.Context)
+	GetTeams(c *gin.Context)
+	CreateMatch(c *gin.Context)
+	UpdateMatch(c *gin.Context)
+	DeleteMatch(c *gin.Context)
+	GetStandings(c *gin.Context)
+	CreateStanding(c *gin.Context)
+	UpdateStanding(c *gin.Context)
+	DeleteStanding(c *gin.Context)
+}
+
 type MatchHandler struct {
 	service services.IMatchService
 }
 
-func NewMatchHandler(service services.IMatchService) *MatchHandler {
+func NewMatchHandler(service services.IMatchService) IMatchHandler {
 	return &MatchHandler{service: service}
 }
 

@@ -95,7 +95,7 @@ func main() {
 	// examplePub := ExampleQueueProducer(log)
 	// defer examplePub.Close()
 
-	appHandlers := wireDependencies(pool)
+	appHandlers := wireDependencies(pool, tokenMaker)
 	app := &api.Application{
 		Wg:         sync.WaitGroup{},
 		Config:     *cfg,

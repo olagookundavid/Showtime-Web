@@ -7,7 +7,44 @@ const api = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
+    withCredentials: true, // Send cookies with requests (auth token)
 });
+
+// ─── Auth Types ───────────────────────────────────────────────────────────────
+export interface AuthUser {
+    id: string;
+    full_name: string;
+    email: string;
+    phone?: string;
+    user_type: string; // 'admin' | 'user' | 'team_head'
+    created_at: string;
+    updated_at: string;
+    access_token?: string;
+}
+
+interface AuthApiResponse {
+    message: string;
+    data: AuthUser;
+}
+
+// Auth API functions
+export const loginUser = async (email: string, password: string): Promise<AuthUser> => {
+    const response = await api.post<AuthApiResponse>('/auth/login', { email, password });
+    return response.data.data;
+};
+
+export const registerUser = async (fullname: string, email: string, password: string): Promise<void> => {
+    await api.post('/auth/register', { fullname, email, password: password });
+};
+
+export const logoutUser = async (): Promise<void> => {
+    await api.post('/auth/logout');
+};
+
+export const getUserProfile = async (): Promise<AuthUser> => {
+    const response = await api.get<AuthApiResponse>('/auth/profile');
+    return response.data.data;
+};
 
 // ─── Generic Paginated Response ───────────────────────────────────────────────
 export interface PaginatedResponse<T> {
@@ -314,10 +351,42 @@ export const deleteStanding = async (id: string) => {
     return response.data;
 };
 
-// ─── Tickets ──────────────────────────────────────────────────────────────────
+// ─── Event Days & Tickets ─────────────────────────────────────────────────────
+export interface TicketTierResponse {
+    id: string;
+    event_day_id: string;
+    name: string;
+    price: number;
+    capacity: number;
+    sold_count: number;
+    available: number;
+    description: string;
+}
+
+export interface EventDayMatch {
+    id: string;
+    home_team: string;
+    away_team: string;
+    start_time: string;
+    status: string;
+    venue: string;
+}
+
+export interface EventDayResponse {
+    id: string;
+    title: string;
+    date: string;
+    venue: string;
+    is_active: boolean;
+    tiers: TicketTierResponse[];
+    matches: EventDayMatch[];
+    created_at: string;
+}
+
 export interface TicketResponse {
     id: string;
-    match_id: string;
+    event_day_id: string;
+    tier_id: string;
     email: string;
     quantity: number;
     unit_price: number;
@@ -328,21 +397,37 @@ export interface TicketResponse {
     checked_in_at?: string;
     checked_in_by?: string;
     authorization_url?: string;
-    match_title?: string;
-    match_date?: string;
-    match_venue?: string;
-    home_team?: string;
-    away_team?: string;
+    tier_name?: string;
+    event_title?: string;
+    event_date?: string;
+    event_venue?: string;
     created_at: string;
 }
 
 export interface PurchaseTicketPayload {
-    match_id: string;
+    event_day_id: string;
+    tier_id: string;
     email: string;
     quantity: number;
-    unit_price: number;
 }
 
+// Event Day endpoints
+export const getEventDays = async (): Promise<EventDayResponse[]> => {
+    const response = await api.get<{ data: EventDayResponse[] }>('/event-days');
+    return response.data.data || [];
+};
+
+export const getEventDayByDate = async (date: string): Promise<EventDayResponse> => {
+    const response = await api.get<EventDayResponse>(`/event-days/by-date/${date}`);
+    return response.data;
+};
+
+export const getEventDayById = async (id: string): Promise<EventDayResponse> => {
+    const response = await api.get<EventDayResponse>(`/event-days/${id}`);
+    return response.data;
+};
+
+// Ticket endpoints
 export const purchaseTicket = async (payload: PurchaseTicketPayload): Promise<TicketResponse> => {
     const response = await api.post<TicketResponse>('/tickets/purchase', payload);
     return response.data;
@@ -353,9 +438,9 @@ export const getTicketByReference = async (reference: string): Promise<TicketRes
     return response.data;
 };
 
-export const adminListTickets = async (page = 1, limit = 10, matchId?: string, status?: string) => {
+export const adminListTickets = async (page = 1, limit = 10, eventDayId?: string, status?: string) => {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
-    if (matchId) params.append('match_id', matchId);
+    if (eventDayId) params.append('event_day_id', eventDayId);
     if (status) params.append('status', status);
     const response = await api.get<PaginatedResponse<TicketResponse>>(`/tickets?${params}`);
     return response.data;
@@ -366,8 +451,49 @@ export const checkinTicket = async (id: string, checkedInBy: string) => {
     return response.data;
 };
 
+export const verifyTicket = async (reference: string): Promise<TicketResponse> => {
+    const response = await api.post<TicketResponse>(`/tickets/verify/${reference}`);
+    return response.data;
+};
+
+export const adminCheckinTicket = async (id: string, checkedInBy: string) => {
+    const response = await api.post(`/tickets/${id}/admin-checkin`, { checked_in_by: checkedInBy });
+    return response.data;
+};
+
 export const lookupTicketByCode = async (code: string): Promise<TicketResponse> => {
     const response = await api.get<TicketResponse>(`/tickets/lookup/${code}`);
+    return response.data;
+};
+
+export const searchTicketsByEmail = async (email: string): Promise<TicketResponse[]> => {
+    const response = await api.get<{ data: TicketResponse[] }>(`/tickets/search?email=${encodeURIComponent(email)}`);
+    return response.data.data || [];
+};
+
+// Admin Event Day endpoints
+export const getAllEventDays = async (): Promise<EventDayResponse[]> => {
+    const response = await api.get<{ data: EventDayResponse[] }>('/event-days/all');
+    return response.data.data || [];
+};
+
+export const createEventDay = async (payload: { title: string; date: string; venue?: string; is_active?: boolean }): Promise<EventDayResponse> => {
+    const response = await api.post<EventDayResponse>('/event-days', payload);
+    return response.data;
+};
+
+export const updateEventDay = async (id: string, payload: { title?: string; venue?: string; is_active?: boolean }) => {
+    const response = await api.put(`/event-days/${id}`, payload);
+    return response.data;
+};
+
+export const deleteEventDay = async (id: string) => {
+    const response = await api.delete(`/event-days/${id}`);
+    return response.data;
+};
+
+export const createTier = async (eventDayId: string, payload: { name: string; price: number; capacity?: number; description?: string }): Promise<TicketTierResponse> => {
+    const response = await api.post<TicketTierResponse>(`/event-days/${eventDayId}/tiers`, payload);
     return response.data;
 };
 

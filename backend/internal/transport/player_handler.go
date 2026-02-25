@@ -9,11 +9,19 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type IPlayerHandler interface {
+	GetPlayers(c *gin.Context)
+	GetPlayerByID(c *gin.Context)
+	CreatePlayer(c *gin.Context)
+	UpdatePlayer(c *gin.Context)
+	DeletePlayer(c *gin.Context)
+}
+
 type PlayerHandler struct {
 	service services.IPlayerService
 }
 
-func NewPlayerHandler(service services.IPlayerService) *PlayerHandler {
+func NewPlayerHandler(service services.IPlayerService) IPlayerHandler {
 	return &PlayerHandler{service: service}
 }
 

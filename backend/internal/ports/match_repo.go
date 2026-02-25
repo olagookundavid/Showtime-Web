@@ -19,7 +19,7 @@ type MatchRepository interface {
 	GetTeamByID(ctx context.Context, id string) (*domain.Team, error)
 
 	// Matches
-	GetMatches(ctx context.Context, competitionID string, status string, page, limit int) ([]domain.Match, int64, error)
+	GetMatches(ctx context.Context, competitionID string, status string, page, limit int, date ...string) ([]domain.Match, int64, error)
 	GetMatchByID(ctx context.Context, id string) (*domain.Match, error)
 	CreateMatch(ctx context.Context, match *domain.Match) error
 	UpdateMatch(ctx context.Context, match *domain.Match) error
@@ -101,7 +101,7 @@ func (r *PostgresMatchRepository) GetTeamByID(ctx context.Context, id string) (*
 }
 
 // --- Matches ---
-func (r *PostgresMatchRepository) GetMatches(ctx context.Context, competitionID string, status string, page, limit int) ([]domain.Match, int64, error) {
+func (r *PostgresMatchRepository) GetMatches(ctx context.Context, competitionID string, status string, page, limit int, date ...string) ([]domain.Match, int64, error) {
 	offset := (page - 1) * limit
 
 	// Base query
@@ -129,6 +129,14 @@ func (r *PostgresMatchRepository) GetMatches(ctx context.Context, competitionID 
 	if status != "" {
 		args = append(args, status)
 		whereClause += fmt.Sprintf(" AND m.status = $%d", len(args))
+	}
+
+	if len(date) > 0 && date[0] != "" {
+		parsedDate, parseErr := time.Parse("2006-01-02", date[0])
+		if parseErr == nil {
+			args = append(args, parsedDate)
+			whereClause += fmt.Sprintf(" AND m.date = $%d", len(args))
+		}
 	}
 
 	// Get Total Count

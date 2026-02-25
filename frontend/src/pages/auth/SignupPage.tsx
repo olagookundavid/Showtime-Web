@@ -28,12 +28,12 @@ export const SignupPage = () => {
         }
 
         setLoading(true);
-        const success = await signup(name, email, password);
+        const result = await signup(name, email, password);
 
-        if (success) {
+        if (result.success) {
             navigate('/');
         } else {
-            setError('Signup failed. Please try again.');
+            setError(result.error || 'Signup failed. Please try again.');
         }
 
         setLoading(false);
@@ -140,7 +140,7 @@ export const SignupPage = () => {
                 {/* Login Link */}
                 <p className="text-center text-sm text-gray-600 mt-6">
                     Already have an account?{' '}
-                    <Link to="/login?role=fan" className="text-sffl-red font-bold hover:underline">
+                    <Link to="/login" className="text-sffl-red font-bold hover:underline">
                         Sign in
                     </Link>
                 </p>

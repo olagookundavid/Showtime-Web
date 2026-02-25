@@ -16,7 +16,7 @@ import (
 )
 
 type IAuthService interface {
-	Register(ctx context.Context, req dto.RegisterRequest) (*bool, error)
+	Register(ctx context.Context, req dto.RegisterRequest) error
 	Login(ctx context.Context, req dto.LoginRequest) (*dto.LoginResponse, error)
 	ResetPassword(ctx context.Context, req dto.ResetPasswordRequest) error
 	ReturnUserProfile(ctx context.Context, id string) (*dto.LoginResponse, error)
@@ -61,6 +61,8 @@ func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest) err
 	user := domain.User{
 		FullName: req.FullName,
 		Email:    email,
+		Role:     "user", // Default role
+		Phone:    req.Phone,
 	}
 
 	err = user.Password.Set(req.Password)
@@ -126,6 +128,8 @@ func (s *AuthService) ReturnUserProfile(ctx context.Context, id string) (*dto.Lo
 		ID:        user.ID,
 		FullName:  user.FullName,
 		Email:     user.Email,
+		Phone:     user.Phone,
+		UserType:  user.Role,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 	}, nil
@@ -142,10 +146,11 @@ func loginUserWithTokens(ctx context.Context, s *AuthService, user *domain.User)
 		ID:          user.ID,
 		FullName:    user.FullName,
 		Email:       user.Email,
+		Phone:       user.Phone,
 		CreatedAt:   user.CreatedAt,
 		UpdatedAt:   user.UpdatedAt,
 		AccessToken: accessToken,
-		UserType:    "merchant",
+		UserType:    user.Role,
 	}, nil
 }
 

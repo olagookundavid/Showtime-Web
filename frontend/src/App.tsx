@@ -34,6 +34,7 @@ import { AdminGallery } from './pages/admin/AdminGallery';
 import { AdminPlayers } from './pages/admin/AdminPlayers';
 import { AdminStandings } from './pages/admin/AdminStandings';
 import { AdminTickets } from './pages/admin/AdminTickets';
+import { AdminEventDays } from './pages/admin/AdminEventDays';
 import './index.css';
 
 function App() {
@@ -94,6 +95,7 @@ function App() {
               <Route path="players" element={<AdminPlayers />} />
               <Route path="standings" element={<AdminStandings />} />
               <Route path="tickets" element={<AdminTickets />} />
+              <Route path="event-days" element={<AdminEventDays />} />
             </Route>
           </Routes>
         </BrowserRouter>

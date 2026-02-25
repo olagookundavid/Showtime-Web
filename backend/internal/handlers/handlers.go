@@ -5,23 +5,24 @@ import (
 )
 
 type Handlers struct {
-	// AuthHandler       transport.IAdminAuthHandler
+	AuthHandler    transport.IAuthHandler
 	NewsHandler    transport.INewsHandler
 	GalleryHandler transport.IGalleryHandler
-	MatchHandler   *transport.MatchHandler
-	PlayerHandler  *transport.PlayerHandler
-	TicketHandler  *transport.TicketHandler
+	MatchHandler   transport.IMatchHandler
+	PlayerHandler  transport.IPlayerHandler
+	TicketHandler  transport.ITicketHandler
 }
 
 func NewHandlers(
+	authHandler transport.IAuthHandler,
 	newsHandler transport.INewsHandler,
 	galleryHandler transport.IGalleryHandler,
-	matchHandler *transport.MatchHandler,
-	playerHandler *transport.PlayerHandler,
-	ticketHandler *transport.TicketHandler,
+	matchHandler transport.IMatchHandler,
+	playerHandler transport.IPlayerHandler,
+	ticketHandler transport.ITicketHandler,
 ) Handlers {
 	return Handlers{
-		// AuthHandler:       authHandler,
+		AuthHandler:    authHandler,
 		NewsHandler:    newsHandler,
 		GalleryHandler: galleryHandler,
 		MatchHandler:   matchHandler,

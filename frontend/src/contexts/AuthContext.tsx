@@ -1,83 +1,88 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { loginUser, registerUser, logoutUser, getUserProfile, type AuthUser } from '../services/api';
 
 interface User {
     id: string;
     name: string;
     email: string;
-    role: 'fan' | 'admin';
+    phone?: string;
+    role: 'admin' | 'user' | 'team_head';
 }
 
 interface AuthContextType {
     user: User | null;
     isAuthenticated: boolean;
-    login: (email: string, password: string, role: 'fan' | 'admin') => Promise<boolean>;
-    signup: (name: string, email: string, password: string) => Promise<boolean>;
-    logout: () => void;
+    isLoading: boolean;
+    login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+    signup: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+    logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function mapAuthUser(authUser: AuthUser): User {
+    return {
+        id: authUser.id,
+        name: authUser.full_name,
+        email: authUser.email,
+        phone: authUser.phone,
+        role: authUser.user_type as User['role'],
+    };
+}
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // Load user from localStorage on mount
+    // On mount, try to get user profile (cookie-based session)
     useEffect(() => {
-        const storedUser = localStorage.getItem('sffl_user');
-        if (storedUser) {
-            setUser(JSON.parse(storedUser));
-        }
+        const checkSession = async () => {
+            try {
+                const profile = await getUserProfile();
+                setUser(mapAuthUser(profile));
+            } catch {
+                // No valid session — that's fine
+                setUser(null);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        checkSession();
     }, []);
 
-    const login = async (email: string, password: string, role: 'fan' | 'admin'): Promise<boolean> => {
-        // Mock authentication - in production, this would be an API call
-        // Admin credentials: admin@sffl.football / admin123
-        // Fan credentials: any email with password: fan123
-
-        if (role === 'admin' && email === 'admin@sffl.football' && password === 'admin123') {
-            const adminUser: User = {
-                id: '1',
-                name: 'Admin User',
-                email: 'admin@sffl.football',
-                role: 'admin',
-            };
-            setUser(adminUser);
-            localStorage.setItem('sffl_user', JSON.stringify(adminUser));
-            return true;
-        } else if (role === 'fan' && password === 'fan123') {
-            const fanUser: User = {
-                id: Math.random().toString(36).substr(2, 9),
-                name: email.split('@')[0],
-                email,
-                role: 'fan',
-            };
-            setUser(fanUser);
-            localStorage.setItem('sffl_user', JSON.stringify(fanUser));
-            return true;
+    const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+        try {
+            const authUser = await loginUser(email, password);
+            setUser(mapAuthUser(authUser));
+            return { success: true };
+        } catch (err: any) {
+            const message = err.response?.data?.message || err.response?.data?.error || 'Login failed';
+            return { success: false, error: message };
         }
-
-        return false;
     };
 
-    const signup = async (name: string, email: string, _password: string): Promise<boolean> => {
-        // Mock signup - in production, this would be an API call
-        const newUser: User = {
-            id: Math.random().toString(36).substr(2, 9),
-            name,
-            email,
-            role: 'fan',
-        };
-        setUser(newUser);
-        localStorage.setItem('sffl_user', JSON.stringify(newUser));
-        return true;
+    const signup = async (name: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+        try {
+            await registerUser(name, email, password);
+            // Auto-login after registration
+            return await login(email, password);
+        } catch (err: any) {
+            const message = err.response?.data?.message || err.response?.data?.error || 'Registration failed';
+            return { success: false, error: message };
+        }
     };
 
-    const logout = () => {
+    const logout = async () => {
+        try {
+            await logoutUser();
+        } catch {
+            // Ignore errors — clear local state anyway
+        }
         setUser(null);
-        localStorage.removeItem('sffl_user');
     };
 
     return (
-        <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, signup, logout }}>
+        <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, signup, logout }}>
             {children}
         </AuthContext.Provider>
     );

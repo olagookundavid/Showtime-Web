@@ -31,6 +31,7 @@ export const AdminLayout = () => {
                     <Link to="/admin/players" className={linkClass('/admin/players')}>🏃 Players</Link>
                     <Link to="/admin/standings" className={linkClass('/admin/standings')}>🏆 Standings</Link>
                     <Link to="/admin/tickets" className={linkClass('/admin/tickets')}>🎟️ Tickets</Link>
+                    <Link to="/admin/event-days" className={linkClass('/admin/event-days')}>📅 Event Days</Link>
                     <Link to="/admin/news" className={linkClass('/admin/news')}>📰 News</Link>
                     <Link to="/admin/gallery" className={linkClass('/admin/gallery')}>📸 Gallery</Link>
                 </nav>

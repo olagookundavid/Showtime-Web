@@ -1,12 +1,8 @@
 import { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
 export const LoginPage = () => {
-    const [searchParams] = useSearchParams();
-    const initialRole = (searchParams.get('role') as 'fan' | 'admin') || 'fan';
-
-    const [role, setRole] = useState<'fan' | 'admin'>(initialRole);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -20,12 +16,12 @@ export const LoginPage = () => {
         setError('');
         setLoading(true);
 
-        const success = await login(email, password, role);
+        const result = await login(email, password);
 
-        if (success) {
-            navigate(role === 'admin' ? '/admin' : '/');
+        if (result.success) {
+            navigate('/');
         } else {
-            setError('Invalid credentials. Try admin@sffl.football/admin123 or any email with fan123');
+            setError(result.error || 'Invalid credentials');
         }
 
         setLoading(false);
@@ -42,31 +38,7 @@ export const LoginPage = () => {
                         className="w-20 h-20 mx-auto mb-4 bg-white rounded-full p-2"
                     />
                     <h1 className="text-3xl font-black text-sffl-navy">Welcome Back</h1>
-                    <p className="text-gray-600 mt-2">Sign in to continue</p>
-                </div>
-
-                {/* Role Toggle */}
-                <div className="flex bg-gray-100 rounded-lg p-1 mb-6">
-                    <button
-                        type="button"
-                        onClick={() => setRole('fan')}
-                        className={`flex-1 py-2 px-4 rounded-md font-bold transition-all ${role === 'fan'
-                                ? 'bg-sffl-red text-white shadow-md'
-                                : 'text-gray-600 hover:text-gray-900'
-                            }`}
-                    >
-                        Fan Login
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setRole('admin')}
-                        className={`flex-1 py-2 px-4 rounded-md font-bold transition-all ${role === 'admin'
-                                ? 'bg-sffl-navy text-white shadow-md'
-                                : 'text-gray-600 hover:text-gray-900'
-                            }`}
-                    >
-                        Admin Login
-                    </button>
+                    <p className="text-gray-600 mt-2">Sign in to your account</p>
                 </div>
 
                 {/* Error Message */}
@@ -115,22 +87,13 @@ export const LoginPage = () => {
                     </button>
                 </form>
 
-                {/* Demo Credentials */}
-                <div className="mt-6 p-4 bg-gray-50 rounded-lg text-sm text-gray-600">
-                    <p className="font-bold mb-2">Demo Credentials:</p>
-                    <p>Admin: admin@sffl.football / admin123</p>
-                    <p>Fan: any email / fan123</p>
-                </div>
-
                 {/* Sign Up Link */}
-                {role === 'fan' && (
-                    <p className="text-center text-sm text-gray-600 mt-6">
-                        Don't have an account?{' '}
-                        <Link to="/signup" className="text-sffl-red font-bold hover:underline">
-                            Sign up for free
-                        </Link>
-                    </p>
-                )}
+                <p className="text-center text-sm text-gray-600 mt-6">
+                    Don't have an account?{' '}
+                    <Link to="/signup" className="text-sffl-red font-bold hover:underline">
+                        Sign up for free
+                    </Link>
+                </p>
             </div>
         </div>
     );
