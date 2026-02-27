@@ -11,6 +11,7 @@ import (
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/ports"
+	"showtime-backend/pkg/email"
 
 	"github.com/google/uuid"
 )
@@ -312,7 +313,9 @@ func (s *TicketService) HandleWebhook(ctx context.Context, reference string) err
 			return err
 		}
 		// Increment sold count on tier
-		return s.tierRepo.IncrementSoldCount(ctx, ticket.TierID, ticket.Quantity)
+		err = s.tierRepo.IncrementSoldCount(ctx, ticket.TierID, ticket.Quantity)
+		s.sendPurchaseEmail(ticket)
+		return err
 	}
 
 	return s.ticketRepo.UpdateStatus(ctx, ticket.ID, domain.TicketStatusFailed)
@@ -335,7 +338,26 @@ func (s *TicketService) GetByCode(ctx context.Context, code string) (*dto.Ticket
 }
 
 func (s *TicketService) Checkin(ctx context.Context, id string, checkedInBy string) error {
-	return s.ticketRepo.Checkin(ctx, id, checkedInBy)
+	err := s.ticketRepo.Checkin(ctx, id, checkedInBy)
+	return err
+
+	//Test Send EMAIl
+	// s.sendPurchaseEmail(&domain.Ticket{
+	// 	Email:       "erijesudo@gmail.com",
+	// 	Quantity:    10,
+	// 	UnitPrice:   3000,
+	// 	TotalAmount: 30000,
+	// 	TicketCode:  "ticket code",
+	// 	EventDay: &domain.EventDay{
+	// 		Title: "SFFL",
+	// 		Venue: "Venue",
+	// 	},
+	// 	Tier: &domain.TicketTier{
+	// 		Name:  "VIP",
+	// 		Price: 3000,
+	// 	},
+	// })
+	// return nil
 }
 
 func (s *TicketService) VerifyAndUpdate(ctx context.Context, reference string) (*dto.TicketResponse, error) {
@@ -363,6 +385,7 @@ func (s *TicketService) VerifyAndUpdate(ctx context.Context, reference string) (
 		}
 		_ = s.tierRepo.IncrementSoldCount(ctx, ticket.TierID, ticket.Quantity)
 		ticket.Status = domain.TicketStatusPaid
+		s.sendPurchaseEmail(ticket)
 	} else {
 		if err := s.ticketRepo.UpdateStatus(ctx, ticket.ID, domain.TicketStatusFailed); err != nil {
 			return nil, err
@@ -385,7 +408,8 @@ func (s *TicketService) AdminCheckin(ctx context.Context, id string, checkedInBy
 
 	// If already paid, go straight to check-in
 	if ticket.Status == domain.TicketStatusPaid {
-		return s.ticketRepo.AdminCheckin(ctx, id, checkedInBy)
+		err := s.ticketRepo.AdminCheckin(ctx, id, checkedInBy)
+		return err
 	}
 
 	// If pending, try to verify payment first
@@ -394,7 +418,10 @@ func (s *TicketService) AdminCheckin(ctx context.Context, id string, checkedInBy
 		if verifyErr == nil && verifyResp.Data.Status == "success" {
 			_ = s.ticketRepo.UpdateStatus(ctx, ticket.ID, domain.TicketStatusPaid)
 			_ = s.tierRepo.IncrementSoldCount(ctx, ticket.TierID, ticket.Quantity)
-			return s.ticketRepo.AdminCheckin(ctx, id, checkedInBy)
+			s.sendPurchaseEmail(ticket)
+
+			err := s.ticketRepo.AdminCheckin(ctx, id, checkedInBy)
+			return err
 		}
 		return fmt.Errorf("could not verify that this ticket has been paid for")
 	}
@@ -418,6 +445,47 @@ func (s *TicketService) List(ctx context.Context, eventDayID string, status stri
 // ═══════════════════════════════════════════════════════════════════════════════
 // Helpers
 // ═══════════════════════════════════════════════════════════════════════════════
+
+func (s *TicketService) sendPurchaseEmail(ticket *domain.Ticket) {
+	if s.email == nil || ticket.EventDay == nil || ticket.Tier == nil {
+		return
+	}
+	subject := fmt.Sprintf("IT'S SHOWTIME 🏈, Your Ticket for %s", ticket.EventDay.Title)
+	body := email.PurchaseEmailHTML(
+		ticket.EventDay.Title,
+		ticket.EventDay.Date.Format("Mon, Jan 02 2006"),
+		ticket.EventDay.Venue,
+		ticket.Tier.Name,
+		ticket.Quantity,
+		ticket.TotalAmount,
+		ticket.TicketCode,
+	)
+
+	go func() {
+		if err := s.email.SendEmail(ticket.Email, subject, body); err != nil {
+			fmt.Printf("Failed to send purchase email to %s: %v\n", ticket.Email, err)
+		}
+	}()
+}
+
+func (s *TicketService) sendCheckinEmail(ticket *domain.Ticket) {
+	if s.email == nil || ticket.EventDay == nil {
+		return
+	}
+	subject := fmt.Sprintf("IT'S SHOWTIME ✅ Checked In — %s", ticket.EventDay.Title)
+	body := email.CheckinEmailHTML(
+		ticket.EventDay.Title,
+		ticket.EventDay.Date.Format("Mon, Jan 02 2006"),
+		ticket.EventDay.Venue,
+		ticket.TicketCode,
+	)
+
+	go func() {
+		if err := s.email.SendEmail(ticket.Email, subject, body); err != nil {
+			fmt.Printf("Failed to send checkin email to %s: %v\n", ticket.Email, err)
+		}
+	}()
+}
 
 func eventDayToResponse(ed *domain.EventDay, tiers []domain.TicketTier, matches []domain.Match) *dto.EventDayResponse {
 	res := &dto.EventDayResponse{

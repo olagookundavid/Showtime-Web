@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 )
@@ -15,7 +16,6 @@ type ResendService struct {
 
 // NewResendService creates a new instance of ResendService
 func NewResendService() *ResendService {
-	// API key will be provided by environment variable
 	apiKey := os.Getenv("RESEND_API_KEY")
 	return &ResendService{
 		APIKey: apiKey,
@@ -34,13 +34,17 @@ type SendEmailRequest struct {
 // SendEmail sends an email using the Resend API
 func (s *ResendService) SendEmail(to, subject, htmlBody string) error {
 	if s.APIKey == "" {
-		fmt.Println("⚠️ RESEND_API_KEY not set. Skipping email send:")
-		fmt.Printf("To: %s\nSubject: %s\n", to, subject)
-		return nil // Don't fail the whole request if email isn't configured yet
+		fmt.Printf("⚠️ RESEND_API_KEY not set. Skipping email to: %s | Subject: %s\n", to, subject)
+		return nil
+	}
+
+	fromEmail := os.Getenv("RESEND_FROM_EMAIL")
+	if fromEmail == "" {
+		fromEmail = "Showtime <showtime@sffl.football>"
 	}
 
 	reqBody := SendEmailRequest{
-		From:    "Showtime <tickets@showtime.example.com>", // TODO: Update domain once verified
+		From:    fromEmail,
 		To:      []string{to},
 		Subject: subject,
 		HTML:    htmlBody,
@@ -67,8 +71,10 @@ func (s *ResendService) SendEmail(to, subject, htmlBody string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 300 {
-		return fmt.Errorf("resend API returned status code: %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("resend API error (status %d): %s", resp.StatusCode, string(body))
 	}
 
+	fmt.Printf("✅ Email sent successfully to %s\n", to)
 	return nil
 }

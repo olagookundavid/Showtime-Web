@@ -242,15 +242,12 @@ func (h *TicketHandler) Purchase(c *gin.Context) {
 // @Success 200
 // @Router /api/v1/tickets/webhook [post]
 func (h *TicketHandler) Webhook(c *gin.Context) {
-	println("Received webhook payload:")
 
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "cannot read body"})
 		return
 	}
-
-	println("Received webhook payload:", string(body))
 
 	// Verify Paystack HMAC signature (REQUIRED)
 	signature := c.GetHeader("x-paystack-signature")

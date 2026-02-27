@@ -117,7 +117,7 @@ func (s *AuthService) Login(ctx context.Context, req dto.LoginRequest) (*dto.Log
 		return nil, appErrors.ErrNoUserRecordExist
 	}
 
-	return loginUserWithTokens(ctx, s, user)
+	return loginUserWithTokens(s, user)
 }
 
 func (s *AuthService) ReturnUserProfile(ctx context.Context, id string) (*dto.LoginResponse, error) {
@@ -138,7 +138,7 @@ func (s *AuthService) ReturnUserProfile(ctx context.Context, id string) (*dto.Lo
 	}, nil
 }
 
-func loginUserWithTokens(ctx context.Context, s *AuthService, user *domain.User) (*dto.LoginResponse, error) {
+func loginUserWithTokens(s *AuthService, user *domain.User) (*dto.LoginResponse, error) {
 
 	accessToken, err := s.getTokenPair(user.ID)
 	if err != nil {

@@ -33,6 +33,7 @@ service/swag:
 run/service: service/swag
 	@echo 'Starting server...'
 	@cd backend/ && go run ./cmd/main
+# 	kill $(lsof -t -i :8089) 2>/dev/null; cd "/Users/davidoh/Go_Projects/Showtime Web" && make run/service
 
 ## test: run all tests
 test: service/mocks
