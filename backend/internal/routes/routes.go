@@ -5,6 +5,7 @@ import (
 	"pkg-common/commonAuth"
 
 	"showtime-backend/cmd/api"
+	"showtime-backend/internal/middlewares"
 
 	"pkg-common/helpers"
 
@@ -51,19 +52,69 @@ func Routes(app *api.Application) *gin.Engine {
 		Rps:            int(app.Config.Limiter.Rps),
 		Burst:          app.Config.Limiter.Burst,
 	}
-	v1_api := r.Group("/api/v1", commonAuth.RecoverPanic(), commonAuth.RateLimit(rls), commonAuth.Metrics())
+	v1_api := r.Group("/api/v1", commonAuth.RecoverPanic(), commonAuth.RateLimit(rls), commonAuth.Metrics(), middlewares.AuditLoggerMiddleware(app.AuditService))
 	{
 		v1_api.GET("/healthcheck", helpers.HealthcheckHandler(app.Config.Env))
 	}
 
 	// Register all subroutes
 	SetupAuthRoutes(v1_api, app)
+	SetupAdminRoutes(v1_api, app)
+	SetupTeamHeadRoutes(v1_api, app)
 	SetupNewsRoutes(v1_api, app)
 	SetupGalleryRoutes(v1_api, app)
 	SetupMatchRoutes(v1_api, app)
 	SetupPlayerRoutes(v1_api, app)
 	SetupTicketRoutes(v1_api, app)
 	return r
+}
+
+func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
+	adminRoutes := r.Group("/admin")
+	// Require valid token AND admin role
+	adminRoutes.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.AdminOnlyMiddleware(app.AuthService))
+
+	usersGroup := adminRoutes.Group("/users")
+	{
+		usersGroup.GET("", app.Handlers.AuthHandler.GetUsers)
+		usersGroup.PUT("/:id", app.Handlers.AuthHandler.UpdateUserInfo)
+		usersGroup.PUT("/:id/role", app.Handlers.AuthHandler.UpdateUserRole)
+	}
+
+	teamsGroup := adminRoutes.Group("/teams")
+	{
+		teamsGroup.GET("", app.Handlers.MatchHandler.GetTeams)
+		teamsGroup.GET("/by-competition", app.Handlers.MatchHandler.GetTeamsByCompetition)
+		teamsGroup.POST("", app.Handlers.MatchHandler.CreateTeam)
+		teamsGroup.PUT("/:id", app.Handlers.MatchHandler.UpdateTeam)
+		teamsGroup.DELETE("/:id", app.Handlers.MatchHandler.DeleteTeam)
+		teamsGroup.GET("/:id/managers", app.Handlers.TeamManagerHandler.GetManagersForTeam)
+		teamsGroup.POST("/:id/manager", app.Handlers.TeamManagerHandler.AssignManager)
+		teamsGroup.DELETE("/:id/manager/:user_id", app.Handlers.TeamManagerHandler.RemoveManager)
+	}
+
+	compGroup := adminRoutes.Group("/competitions")
+	{
+		compGroup.GET("", app.Handlers.MatchHandler.GetCompetitions)
+		compGroup.POST("", app.Handlers.MatchHandler.CreateCompetition)
+		compGroup.PUT("/:id", app.Handlers.MatchHandler.UpdateCompetition)
+		compGroup.DELETE("/:id", app.Handlers.MatchHandler.DeleteCompetition)
+	}
+}
+
+func SetupTeamHeadRoutes(r *gin.RouterGroup, app *api.Application) {
+	thRoutes := r.Group("/team-head")
+	thRoutes.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.TeamHeadOrAdminMiddleware(app.AuthService, app.TeamManagerService))
+
+	// Get the team head's own team info
+	thRoutes.GET("/my-team", app.Handlers.TeamManagerHandler.GetMyTeam)
+
+	// Scoped player management (middleware injects team_id for team_heads)
+	thRoutes.GET("/players", app.Handlers.PlayerHandler.GetPlayers)
+	thRoutes.GET("/players/:id", app.Handlers.PlayerHandler.GetPlayerByID)
+	thRoutes.POST("/players", app.Handlers.PlayerHandler.CreatePlayer)
+	thRoutes.PUT("/players/:id", app.Handlers.PlayerHandler.UpdatePlayer)
+	thRoutes.DELETE("/players/:id", app.Handlers.PlayerHandler.DeletePlayer)
 }
 
 func SetupAuthRoutes(r *gin.RouterGroup, app *api.Application) {
@@ -111,7 +162,7 @@ func SetupMatchRoutes(r *gin.RouterGroup, app *api.Application) {
 		matchRoutes.GET("/competitions", app.Handlers.MatchHandler.GetCompetitions)
 		matchRoutes.GET("", app.Handlers.MatchHandler.GetMatches)
 		matchRoutes.GET("/standings", app.Handlers.MatchHandler.GetStandings)
-		matchRoutes.GET("/teams", app.Handlers.MatchHandler.GetTeams)
+		matchRoutes.GET("/teams", app.Handlers.MatchHandler.GetAllTeams)
 		matchRoutes.POST("", app.Handlers.MatchHandler.CreateMatch)
 		matchRoutes.PUT("/:id", app.Handlers.MatchHandler.UpdateMatch)
 		matchRoutes.DELETE("/:id", app.Handlers.MatchHandler.DeleteMatch)

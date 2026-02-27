@@ -95,13 +95,16 @@ func main() {
 	// examplePub := ExampleQueueProducer(log)
 	// defer examplePub.Close()
 
-	appHandlers := wireDependencies(pool, tokenMaker)
+	appHandlers, auditService, authService, tmService := wireDependencies(pool, tokenMaker)
 	app := &api.Application{
-		Wg:         sync.WaitGroup{},
-		Config:     *cfg,
-		Logger:     log,
-		TokenMaker: tokenMaker,
-		Handlers:   appHandlers,
+		Wg:                 sync.WaitGroup{},
+		Config:             *cfg,
+		Logger:             log,
+		TokenMaker:         tokenMaker,
+		Handlers:           appHandlers,
+		AuditService:       auditService,
+		AuthService:        authService,
+		TeamManagerService: tmService,
 	}
 	cronjobs(app)
 

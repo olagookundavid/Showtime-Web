@@ -10,7 +10,7 @@ export const FAQ = () => {
 
             <section className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-md space-y-8 text-center">
                 <div className="max-w-2xl mx-auto">
-                    <h2 className="text-2xl font-bold text-sffl-navy dark:text-white mb-4">2025 Season Guide</h2>
+                    <h2 className="text-2xl font-bold text-sffl-navy dark:text-white mb-4">2026 Season Guide</h2>
                     <p className="text-gray-700 dark:text-gray-300 mb-8">
                         We have compiled a comprehensive FAQ document "We Are Back" that covers all details
                         regarding the new season, team registration, rules, and what to expect.

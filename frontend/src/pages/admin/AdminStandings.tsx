@@ -7,15 +7,24 @@ import {
 
 interface FormData {
     competition_id: string; team_id: string; position: string;
-    played: string; won: string; drawn: string; lost: string;
-    goals_for: string; goals_against: string; points: string;
+    won: string; drawn: string; lost: string;
+    goals_for: string; goals_against: string;
+    l5_1: string; l5_2: string; l5_3: string; l5_4: string; l5_5: string;
 }
 
 const emptyForm: FormData = {
     competition_id: '', team_id: '', position: '1',
-    played: '0', won: '0', drawn: '0', lost: '0',
-    goals_for: '0', goals_against: '0', points: '0',
+    won: '0', drawn: '0', lost: '0',
+    goals_for: '0', goals_against: '0',
+    l5_1: '', l5_2: '', l5_3: '', l5_4: '', l5_5: '',
 };
+
+const L5_OPTIONS = [
+    { value: '', label: '-' },
+    { value: 'W', label: 'W' },
+    { value: 'D', label: 'D' },
+    { value: 'L', label: 'L' },
+];
 
 export const AdminStandings = () => {
     const [standings, setStandings] = useState<Standing[]>([]);
@@ -47,7 +56,6 @@ export const AdminStandings = () => {
             setLoading(true);
             try {
                 const data = await getStandings(selectedComp);
-                // Bug fix: guard against null/undefined data
                 setStandings(Array.isArray(data) ? data : []);
             } catch (err) {
                 console.error(err);
@@ -64,21 +72,31 @@ export const AdminStandings = () => {
         setShowModal(true);
     };
 
+    const parseL5 = (l5: string): [string, string, string, string, string] => {
+        const parts = l5 ? l5.split('-') : [];
+        return [parts[0] || '', parts[1] || '', parts[2] || '', parts[3] || '', parts[4] || ''];
+    };
+
     const openEdit = (s: Standing) => {
+        const [l5_1, l5_2, l5_3, l5_4, l5_5] = parseL5(s.l5);
         setEditingId(s.id);
         setForm({
             competition_id: selectedComp,
             team_id: s.team?.id || '',
             position: s.position?.toString() || '1',
-            played: s.played?.toString() || '0',
             won: s.won?.toString() || '0',
             drawn: s.drawn?.toString() || '0',
             lost: s.lost?.toString() || '0',
             goals_for: s.goals_for?.toString() || '0',
             goals_against: s.goals_against?.toString() || '0',
-            points: s.points?.toString() || '0',
+            l5_1, l5_2, l5_3, l5_4, l5_5,
         });
         setShowModal(true);
+    };
+
+    const buildL5 = (): string => {
+        const parts = [form.l5_1, form.l5_2, form.l5_3, form.l5_4, form.l5_5].filter(p => p !== '');
+        return parts.join('-');
     };
 
     const handleSave = async () => {
@@ -88,18 +106,16 @@ export const AdminStandings = () => {
                 competition_id: form.competition_id || selectedComp,
                 team_id: form.team_id,
                 position: parseInt(form.position) || 1,
-                played: parseInt(form.played) || 0,
                 won: parseInt(form.won) || 0,
                 drawn: parseInt(form.drawn) || 0,
                 lost: parseInt(form.lost) || 0,
                 goals_for: parseInt(form.goals_for) || 0,
                 goals_against: parseInt(form.goals_against) || 0,
-                points: parseInt(form.points) || 0,
+                l5: buildL5(),
             };
             if (editingId) await updateStanding(editingId, payload);
             else await createStanding(payload);
             setShowModal(false);
-            // Refresh standings
             const data = await getStandings(selectedComp);
             setStandings(Array.isArray(data) ? data : []);
         } catch (err) { console.error(err); alert('Failed to save standing'); }
@@ -116,6 +132,13 @@ export const AdminStandings = () => {
     };
 
     const set = (field: keyof FormData, v: string) => setForm(p => ({ ...p, [field]: v }));
+
+    const l5Color = (v: string) => {
+        if (v === 'W') return 'bg-green-500 text-white';
+        if (v === 'D') return 'bg-yellow-400 text-gray-900';
+        if (v === 'L') return 'bg-red-500 text-white';
+        return '';
+    };
 
     return (
         <div className="space-y-6">
@@ -142,10 +165,11 @@ export const AdminStandings = () => {
                                 <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-center">W</th>
                                 <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-center">D</th>
                                 <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-center">L</th>
-                                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-center">GF</th>
-                                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-center">GA</th>
-                                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-center">GD</th>
-                                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-center">Pts</th>
+                                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-center">PF</th>
+                                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-center">PA</th>
+                                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-center">PD</th>
+                                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-center">PCT</th>
+                                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-center">L5</th>
                                 <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-right">Actions</th>
                             </tr>
                         </thead>
@@ -166,14 +190,15 @@ export const AdminStandings = () => {
                                     <td className="px-4 py-3 text-center text-sm">{s.goals_for ?? 0}</td>
                                     <td className="px-4 py-3 text-center text-sm">{s.goals_against ?? 0}</td>
                                     <td className="px-4 py-3 text-center text-sm font-semibold">{(s.goal_diff ?? 0) > 0 ? '+' : ''}{s.goal_diff ?? 0}</td>
-                                    <td className="px-4 py-3 text-center font-black text-sffl-navy">{s.points ?? 0}</td>
+                                    <td className="px-4 py-3 text-center text-sm">{s.pct != null ? `${s.pct}%` : '-'}</td>
+                                    <td className="px-4 py-3 text-center text-xs font-mono">{s.l5 || '-'}</td>
                                     <td className="px-4 py-3 text-right space-x-2">
                                         <button onClick={() => openEdit(s)} className="text-blue-600 hover:text-blue-800 font-bold text-sm">Edit</button>
                                         <button onClick={() => setDeleteConfirm(s.id)} className="text-red-600 hover:text-red-800 font-bold text-sm">Delete</button>
                                     </td>
                                 </tr>
                             ))}
-                            {standings.length === 0 && <tr><td colSpan={11} className="px-4 py-12 text-center text-gray-400">No standings data for this competition</td></tr>}
+                            {standings.length === 0 && <tr><td colSpan={12} className="px-4 py-12 text-center text-gray-400">No standings data for this competition</td></tr>}
                         </tbody>
                     </table>
                 </div>
@@ -195,16 +220,35 @@ export const AdminStandings = () => {
                                     <input type="number" value={form.position} onChange={e => set('position', e.target.value)} className="w-full border rounded-lg px-3 py-2" min="1" />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-4 gap-4">
-                                <div><label className="block text-sm font-bold text-gray-700 mb-1">P</label><input type="number" value={form.played} onChange={e => set('played', e.target.value)} className="w-full border rounded-lg px-3 py-2" min="0" /></div>
+                            <div className="grid grid-cols-3 gap-4">
                                 <div><label className="block text-sm font-bold text-gray-700 mb-1">W</label><input type="number" value={form.won} onChange={e => set('won', e.target.value)} className="w-full border rounded-lg px-3 py-2" min="0" /></div>
                                 <div><label className="block text-sm font-bold text-gray-700 mb-1">D</label><input type="number" value={form.drawn} onChange={e => set('drawn', e.target.value)} className="w-full border rounded-lg px-3 py-2" min="0" /></div>
                                 <div><label className="block text-sm font-bold text-gray-700 mb-1">L</label><input type="number" value={form.lost} onChange={e => set('lost', e.target.value)} className="w-full border rounded-lg px-3 py-2" min="0" /></div>
                             </div>
-                            <div className="grid grid-cols-3 gap-4">
-                                <div><label className="block text-sm font-bold text-gray-700 mb-1">GF</label><input type="number" value={form.goals_for} onChange={e => set('goals_for', e.target.value)} className="w-full border rounded-lg px-3 py-2" min="0" /></div>
-                                <div><label className="block text-sm font-bold text-gray-700 mb-1">GA</label><input type="number" value={form.goals_against} onChange={e => set('goals_against', e.target.value)} className="w-full border rounded-lg px-3 py-2" min="0" /></div>
-                                <div><label className="block text-sm font-bold text-gray-700 mb-1">Points</label><input type="number" value={form.points} onChange={e => set('points', e.target.value)} className="w-full border rounded-lg px-3 py-2" min="0" /></div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div><label className="block text-sm font-bold text-gray-700 mb-1">PF (Points For)</label><input type="number" value={form.goals_for} onChange={e => set('goals_for', e.target.value)} className="w-full border rounded-lg px-3 py-2" min="0" /></div>
+                                <div><label className="block text-sm font-bold text-gray-700 mb-1">PA (Points Against)</label><input type="number" value={form.goals_against} onChange={e => set('goals_against', e.target.value)} className="w-full border rounded-lg px-3 py-2" min="0" /></div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">Last 5 Games</label>
+                                <div className="flex gap-2">
+                                    {(['l5_1', 'l5_2', 'l5_3', 'l5_4', 'l5_5'] as const).map((field, i) => (
+                                        <select
+                                            key={i}
+                                            value={form[field]}
+                                            onChange={e => set(field, e.target.value)}
+                                            className={`w-14 h-10 border rounded-lg text-center font-black text-sm cursor-pointer transition ${l5Color(form[field])}`}
+                                        >
+                                            {L5_OPTIONS.map(opt => (
+                                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                            ))}
+                                        </select>
+                                    ))}
+                                </div>
+                                <p className="text-xs text-gray-400 mt-1">Select result for each of the last 5 games (most recent first)</p>
+                            </div>
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+                                <strong>Auto-computed:</strong> P (W+D+L), PD (PF−PA), PCT (W÷P × 100)
                             </div>
                         </div>
                         <div className="p-6 border-t flex justify-end gap-3">

@@ -64,7 +64,8 @@ type Standing struct {
 	GoalsFor      int       `json:"goals_for"`
 	GoalsAgainst  int       `json:"goals_against"`
 	GoalDiff      int       `json:"goal_diff"`
-	Points        int       `json:"points"`
+	PCT           float64   `json:"pct"`
+	L5            string    `json:"l5"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 

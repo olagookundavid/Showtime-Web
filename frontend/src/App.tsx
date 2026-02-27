@@ -35,6 +35,12 @@ import { AdminPlayers } from './pages/admin/AdminPlayers';
 import { AdminStandings } from './pages/admin/AdminStandings';
 import { AdminTickets } from './pages/admin/AdminTickets';
 import { AdminEventDays } from './pages/admin/AdminEventDays';
+import AdminUsers from './pages/admin/AdminUsers';
+import AdminTeams from './pages/admin/AdminTeams';
+import AdminCompetitions from './pages/admin/AdminCompetitions';
+import TeamHeadLayout from './pages/team-head/TeamHeadLayout';
+import TeamHeadOverview from './pages/team-head/TeamHeadOverview';
+import TeamHeadPlayers from './pages/team-head/TeamHeadPlayers';
 import './index.css';
 
 function App() {
@@ -96,6 +102,19 @@ function App() {
               <Route path="standings" element={<AdminStandings />} />
               <Route path="tickets" element={<AdminTickets />} />
               <Route path="event-days" element={<AdminEventDays />} />
+              <Route path="users" element={<AdminUsers />} />
+              <Route path="teams" element={<AdminTeams />} />
+              <Route path="competitions" element={<AdminCompetitions />} />
+            </Route>
+
+            {/* Team Head Routes */}
+            <Route path="/team-head" element={
+              <ProtectedRoute requireRole={['team_head', 'admin']}>
+                <TeamHeadLayout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<TeamHeadOverview />} />
+              <Route path="players" element={<TeamHeadPlayers />} />
             </Route>
           </Routes>
         </BrowserRouter>

@@ -126,8 +126,8 @@ export default function Home() {
                                     <th className="px-4 py-3 text-center">W</th>
                                     <th className="px-4 py-3 text-center">D</th>
                                     <th className="px-4 py-3 text-center">L</th>
-                                    <th className="px-4 py-3 text-center">GD</th>
-                                    <th className="px-4 py-3 text-center font-black">Pts</th>
+                                    <th className="px-4 py-3 text-center">PD</th>
+                                    <th className="px-4 py-3 text-center font-black">PCT</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -145,7 +145,7 @@ export default function Home() {
                                         <td className="px-4 py-3 text-center text-sm dark:text-gray-300">{s.drawn ?? 0}</td>
                                         <td className="px-4 py-3 text-center text-sm dark:text-gray-300">{s.lost ?? 0}</td>
                                         <td className="px-4 py-3 text-center text-sm font-semibold dark:text-gray-300">{(s.goal_diff ?? 0) > 0 ? '+' : ''}{s.goal_diff ?? 0}</td>
-                                        <td className="px-4 py-3 text-center font-black text-sffl-navy dark:text-white">{s.points ?? 0}</td>
+                                        <td className="px-4 py-3 text-center font-black text-sffl-navy dark:text-white">{s.pct != null ? `${s.pct}%` : '-'}</td>
                                     </tr>
                                 )) : (
                                     <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No standings data available</td></tr>

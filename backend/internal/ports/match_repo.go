@@ -13,10 +13,18 @@ type MatchRepository interface {
 	// Competitions
 	GetCompetitions(ctx context.Context) ([]domain.Competition, error)
 	GetCompetitionByID(ctx context.Context, id string) (*domain.Competition, error)
+	CreateCompetition(ctx context.Context, comp *domain.Competition) error
+	UpdateCompetition(ctx context.Context, comp *domain.Competition) error
+	DeleteCompetition(ctx context.Context, id string) error
 
 	// Teams
-	GetTeams(ctx context.Context) ([]domain.Team, error)
+	GetTeams(ctx context.Context, page, limit int, search string) ([]domain.Team, int64, error)
+	GetAllTeams(ctx context.Context) ([]domain.Team, error)
 	GetTeamByID(ctx context.Context, id string) (*domain.Team, error)
+	CreateTeam(ctx context.Context, team *domain.Team) error
+	UpdateTeam(ctx context.Context, team *domain.Team) error
+	DeleteTeam(ctx context.Context, id string) error
+	GetTeamsByCompetition(ctx context.Context, competitionID string) ([]domain.Team, error)
 
 	// Matches
 	GetMatches(ctx context.Context, competitionID string, status string, page, limit int, date ...string) ([]domain.Match, int64, error)
@@ -70,9 +78,69 @@ func (r *PostgresMatchRepository) GetCompetitionByID(ctx context.Context, id str
 	return &c, nil
 }
 
+func (r *PostgresMatchRepository) CreateCompetition(ctx context.Context, comp *domain.Competition) error {
+	query := `INSERT INTO competitions (name, logo) VALUES ($1, $2) RETURNING id, created_at, updated_at`
+	return r.db.QueryRow(ctx, query, comp.Name, comp.Logo).Scan(&comp.ID, &comp.CreatedAt, &comp.UpdatedAt)
+}
+
+func (r *PostgresMatchRepository) UpdateCompetition(ctx context.Context, comp *domain.Competition) error {
+	query := `UPDATE competitions SET name=$1, logo=$2, updated_at=NOW() WHERE id=$3`
+	_, err := r.db.Exec(ctx, query, comp.Name, comp.Logo, comp.ID)
+	return err
+}
+
+func (r *PostgresMatchRepository) DeleteCompetition(ctx context.Context, id string) error {
+	query := `DELETE FROM competitions WHERE id = $1`
+	_, err := r.db.Exec(ctx, query, id)
+	return err
+}
+
 // --- Teams ---
-func (r *PostgresMatchRepository) GetTeams(ctx context.Context) ([]domain.Team, error) {
-	query := `SELECT id, name, short_name, logo, created_at, updated_at FROM teams`
+func (r *PostgresMatchRepository) GetTeams(ctx context.Context, page, limit int, search string) ([]domain.Team, int64, error) {
+	offset := (page - 1) * limit
+
+	countQuery := `SELECT COUNT(*) FROM teams WHERE 1=1`
+	query := `SELECT id, name, short_name, logo, created_at, updated_at FROM teams WHERE 1=1`
+
+	args := []interface{}{}
+	argIndex := 1
+
+	if search != "" {
+		filter := "%" + search + "%"
+		countQuery += ` AND (name ILIKE $` + fmt.Sprint(argIndex) + ` OR short_name ILIKE $` + fmt.Sprint(argIndex) + `)`
+		query += ` AND (name ILIKE $` + fmt.Sprint(argIndex) + ` OR short_name ILIKE $` + fmt.Sprint(argIndex) + `)`
+		args = append(args, filter)
+		argIndex++
+	}
+
+	var total int64
+	err := r.db.QueryRow(ctx, countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	query += ` ORDER BY name ASC LIMIT $` + fmt.Sprint(argIndex) + ` OFFSET $` + fmt.Sprint(argIndex+1)
+	args = append(args, limit, offset)
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var teams []domain.Team
+	for rows.Next() {
+		var t domain.Team
+		if err := rows.Scan(&t.ID, &t.Name, &t.ShortName, &t.Logo, &t.CreatedAt, &t.UpdatedAt); err != nil {
+			return nil, 0, err
+		}
+		teams = append(teams, t)
+	}
+	return teams, total, nil
+}
+
+func (r *PostgresMatchRepository) GetAllTeams(ctx context.Context) ([]domain.Team, error) {
+	query := `SELECT id, name, short_name, logo, created_at, updated_at FROM teams ORDER BY name ASC`
 	rows, err := r.db.Query(ctx, query)
 	if err != nil {
 		return nil, err
@@ -98,6 +166,46 @@ func (r *PostgresMatchRepository) GetTeamByID(ctx context.Context, id string) (*
 		return nil, err
 	}
 	return &t, nil
+}
+
+func (r *PostgresMatchRepository) CreateTeam(ctx context.Context, team *domain.Team) error {
+	query := `INSERT INTO teams (name, short_name, logo) VALUES ($1, $2, $3) RETURNING id, created_at, updated_at`
+	return r.db.QueryRow(ctx, query, team.Name, team.ShortName, team.Logo).Scan(&team.ID, &team.CreatedAt, &team.UpdatedAt)
+}
+
+func (r *PostgresMatchRepository) UpdateTeam(ctx context.Context, team *domain.Team) error {
+	query := `UPDATE teams SET name=$1, short_name=$2, logo=$3, updated_at=NOW() WHERE id=$4`
+	_, err := r.db.Exec(ctx, query, team.Name, team.ShortName, team.Logo, team.ID)
+	return err
+}
+
+func (r *PostgresMatchRepository) DeleteTeam(ctx context.Context, id string) error {
+	query := `DELETE FROM teams WHERE id = $1`
+	_, err := r.db.Exec(ctx, query, id)
+	return err
+}
+
+func (r *PostgresMatchRepository) GetTeamsByCompetition(ctx context.Context, competitionID string) ([]domain.Team, error) {
+	query := `SELECT DISTINCT t.id, t.name, t.short_name, t.logo, t.created_at, t.updated_at
+		FROM teams t
+		INNER JOIN standings s ON s.team_id = t.id
+		WHERE s.competition_id = $1
+		ORDER BY t.name ASC`
+	rows, err := r.db.Query(ctx, query, competitionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var teams []domain.Team
+	for rows.Next() {
+		var t domain.Team
+		if err := rows.Scan(&t.ID, &t.Name, &t.ShortName, &t.Logo, &t.CreatedAt, &t.UpdatedAt); err != nil {
+			return nil, err
+		}
+		teams = append(teams, t)
+	}
+	return teams, nil
 }
 
 // --- Matches ---
@@ -216,12 +324,12 @@ func (r *PostgresMatchRepository) DeleteMatch(ctx context.Context, id string) er
 func (r *PostgresMatchRepository) GetStandings(ctx context.Context, competitionID string) ([]domain.Standing, error) {
 	query := `
         SELECT 
-            s.id, s.competition_id, s.team_id, s.position, s.played, s.won, s.drawn, s.lost, s.goals_for, s.goals_against, s.goal_difference, s.points,
+            s.id, s.competition_id, s.team_id, s.position, s.played, s.won, s.drawn, s.lost, s.goals_for, s.goals_against, s.goal_difference, s.pct, s.l5,
             t.id, t.name, t.short_name, t.logo
         FROM standings s
         JOIN teams t ON s.team_id = t.id
         WHERE s.competition_id = $1
-        ORDER BY s.position ASC
+        ORDER BY s.pct DESC, s.goals_for DESC, s.goal_difference DESC, s.position ASC
     `
 	rows, err := r.db.Query(ctx, query, competitionID)
 	if err != nil {
@@ -234,7 +342,7 @@ func (r *PostgresMatchRepository) GetStandings(ctx context.Context, competitionI
 		var s domain.Standing
 		s.Team = &domain.Team{}
 		err := rows.Scan(
-			&s.ID, &s.CompetitionID, &s.TeamID, &s.Position, &s.Played, &s.Won, &s.Drawn, &s.Lost, &s.GoalsFor, &s.GoalsAgainst, &s.GoalDiff, &s.Points,
+			&s.ID, &s.CompetitionID, &s.TeamID, &s.Position, &s.Played, &s.Won, &s.Drawn, &s.Lost, &s.GoalsFor, &s.GoalsAgainst, &s.GoalDiff, &s.PCT, &s.L5,
 			&s.Team.ID, &s.Team.Name, &s.Team.ShortName, &s.Team.Logo,
 		)
 		if err != nil {
@@ -247,22 +355,22 @@ func (r *PostgresMatchRepository) GetStandings(ctx context.Context, competitionI
 
 func (r *PostgresMatchRepository) CreateStanding(ctx context.Context, standing *domain.Standing) error {
 	query := `
-		INSERT INTO standings (competition_id, team_id, position, played, won, drawn, lost, goals_for, goals_against, goal_difference, points)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		INSERT INTO standings (competition_id, team_id, position, played, won, drawn, lost, goals_for, goals_against, goal_difference, pct, l5)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		RETURNING id, created_at, updated_at
 	`
 	return r.db.QueryRow(ctx, query,
-		standing.CompetitionID, standing.TeamID, standing.Position, standing.Played, standing.Won, standing.Drawn, standing.Lost, standing.GoalsFor, standing.GoalsAgainst, standing.GoalDiff, standing.Points,
+		standing.CompetitionID, standing.TeamID, standing.Position, standing.Played, standing.Won, standing.Drawn, standing.Lost, standing.GoalsFor, standing.GoalsAgainst, standing.GoalDiff, standing.PCT, standing.L5,
 	).Scan(&standing.ID, &standing.CreatedAt, &standing.UpdatedAt)
 }
 
 func (r *PostgresMatchRepository) UpdateStanding(ctx context.Context, standing *domain.Standing) error {
 	query := `
-		UPDATE standings SET competition_id=$1, team_id=$2, position=$3, played=$4, won=$5, drawn=$6, lost=$7, goals_for=$8, goals_against=$9, points=$10, updated_at=NOW()
-		WHERE id=$11
+		UPDATE standings SET competition_id=$1, team_id=$2, position=$3, played=$4, won=$5, drawn=$6, lost=$7, goals_for=$8, goals_against=$9, pct=$10, l5=$11, updated_at=NOW()
+		WHERE id=$12
 	`
 	_, err := r.db.Exec(ctx, query,
-		standing.CompetitionID, standing.TeamID, standing.Position, standing.Played, standing.Won, standing.Drawn, standing.Lost, standing.GoalsFor, standing.GoalsAgainst, standing.Points, standing.ID,
+		standing.CompetitionID, standing.TeamID, standing.Position, standing.Played, standing.Won, standing.Drawn, standing.Lost, standing.GoalsFor, standing.GoalsAgainst, standing.PCT, standing.L5, standing.ID,
 	)
 	return err
 }

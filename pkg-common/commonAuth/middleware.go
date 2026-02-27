@@ -23,7 +23,7 @@ const (
 	authorizationHeaderKey  = "authorization"
 	authorizationTypeBearer = "bearer"
 	authorizationPayloadKey = "authorization_payload"
-	authorizationCookieKey  = "access_token"
+	authorizationCookieKey  = "Showtime_AccessToken"
 )
 
 func RecoverPanic() gin.HandlerFunc {

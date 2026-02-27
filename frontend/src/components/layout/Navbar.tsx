@@ -96,6 +96,14 @@ export const Navbar = () => {
                                             Admin
                                         </Link>
                                     )}
+                                    {user?.role === 'team_head' && (
+                                        <Link
+                                            to="/team-head"
+                                            className="bg-green-600 hover:bg-green-700 text-white font-bold px-3 py-1.5 rounded transition text-xs"
+                                        >
+                                            My Team
+                                        </Link>
+                                    )}
                                     <button
                                         onClick={handleLogout}
                                         className="bg-white dark:bg-gray-700 text-sffl-navy dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600 font-bold px-3 py-1.5 rounded transition text-xs"
@@ -207,6 +215,11 @@ export const Navbar = () => {
                                     {user?.role === 'admin' && (
                                         <Link to="/admin" onClick={() => setMobileMenuOpen(false)} className="block bg-sffl-red hover:bg-red-700 text-white font-bold px-4 py-2 rounded text-center">
                                             Admin Panel
+                                        </Link>
+                                    )}
+                                    {user?.role === 'team_head' && (
+                                        <Link to="/team-head" onClick={() => setMobileMenuOpen(false)} className="block bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2 rounded text-center">
+                                            My Team Panel
                                         </Link>
                                     )}
                                     <button

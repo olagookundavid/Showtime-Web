@@ -47,6 +47,7 @@ type TicketService struct {
 	ticketRepo   ports.TicketRepository
 	matchRepo    ports.MatchRepository
 	paystack     *PaystackClient
+	email        ports.EmailService
 }
 
 func NewTicketService(
@@ -55,6 +56,7 @@ func NewTicketService(
 	ticketRepo ports.TicketRepository,
 	matchRepo ports.MatchRepository,
 	paystack *PaystackClient,
+	emailService ports.EmailService,
 ) *TicketService {
 	return &TicketService{
 		eventDayRepo: eventDayRepo,
@@ -62,6 +64,7 @@ func NewTicketService(
 		ticketRepo:   ticketRepo,
 		matchRepo:    matchRepo,
 		paystack:     paystack,
+		email:        emailService,
 	}
 }
 

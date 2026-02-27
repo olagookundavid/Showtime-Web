@@ -145,7 +145,8 @@ export interface Standing {
     goals_for: number;
     goals_against: number;
     goal_diff: number;
-    points: number;
+    pct: number;
+    l5: string;
 }
 
 // ─── Match Hub Service ────────────────────────────────────────────────────────
@@ -327,13 +328,12 @@ export interface CreateStandingPayload {
     competition_id: string;
     team_id: string;
     position: number;
-    played?: number;
     won?: number;
     drawn?: number;
     lost?: number;
     goals_for?: number;
     goals_against?: number;
-    points?: number;
+    l5?: string;
 }
 
 export const createStanding = async (payload: CreateStandingPayload) => {
@@ -494,6 +494,84 @@ export const deleteEventDay = async (id: string) => {
 
 export const createTier = async (eventDayId: string, payload: { name: string; price: number; capacity?: number; description?: string }): Promise<TicketTierResponse> => {
     const response = await api.post<TicketTierResponse>(`/event-days/${eventDayId}/tiers`, payload);
+    return response.data;
+};
+
+// -------- ADMIN USER MANAGEMENT API -------- //
+export const getAdminUsers = async (params?: { page?: number; limit?: number; search?: string }) => {
+    const response = await api.get('/admin/users', { params });
+    return response.data;
+};
+
+export const updateUserRole = async (userId: string, role: string) => {
+    const response = await api.put(`/admin/users/${userId}/role`, { role });
+    return response.data;
+};
+
+export const updateUserInfo = async (userId: string, payload: { fullname: string; phone: string }) => {
+    const response = await api.put(`/admin/users/${userId}`, payload);
+    return response.data;
+};
+
+// -------- ADMIN TEAM MANAGEMENT API -------- //
+export const getAdminTeams = async (params?: { page?: number; limit?: number; search?: string }) => {
+    const response = await api.get('/admin/teams', { params });
+    return response.data;
+};
+
+export const getTeamsByCompetition = async (competitionId: string) => {
+    const response = await api.get('/admin/teams/by-competition', { params: { competition_id: competitionId } });
+    return response.data;
+};
+
+export const createTeam = async (payload: { name: string; short_name: string; logo: string }) => {
+    const response = await api.post('/admin/teams', payload);
+    return response.data;
+};
+
+export const updateTeam = async (id: string, payload: { name: string; short_name: string; logo: string }) => {
+    const response = await api.put(`/admin/teams/${id}`, payload);
+    return response.data;
+};
+
+export const deleteTeam = async (id: string) => {
+    const response = await api.delete(`/admin/teams/${id}`);
+    return response.data;
+};
+
+export const getTeamManagers = async (teamId: string) => {
+    const response = await api.get(`/admin/teams/${teamId}/managers`);
+    return response.data;
+};
+
+export const assignTeamManager = async (teamId: string, userId: string) => {
+    const response = await api.post(`/admin/teams/${teamId}/manager`, { user_id: userId });
+    return response.data;
+};
+
+export const removeTeamManager = async (teamId: string, userId: string) => {
+    const response = await api.delete(`/admin/teams/${teamId}/manager/${userId}`);
+    return response.data;
+};
+
+// -------- ADMIN COMPETITION MANAGEMENT API -------- //
+export const getAdminCompetitions = async () => {
+    const response = await api.get('/admin/competitions');
+    return response.data;
+};
+
+export const createCompetition = async (payload: { name: string; logo: string }) => {
+    const response = await api.post('/admin/competitions', payload);
+    return response.data;
+};
+
+export const updateCompetition = async (id: string, payload: { name: string; logo: string }) => {
+    const response = await api.put(`/admin/competitions/${id}`, payload);
+    return response.data;
+};
+
+export const deleteCompetition = async (id: string) => {
+    const response = await api.delete(`/admin/competitions/${id}`);
     return response.data;
 };
 

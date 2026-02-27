@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"math"
 	"net/http"
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
@@ -13,8 +14,16 @@ import (
 
 type IMatchHandler interface {
 	GetCompetitions(c *gin.Context)
+	CreateCompetition(c *gin.Context)
+	UpdateCompetition(c *gin.Context)
+	DeleteCompetition(c *gin.Context)
 	GetMatches(c *gin.Context)
 	GetTeams(c *gin.Context)
+	GetAllTeams(c *gin.Context)
+	GetTeamsByCompetition(c *gin.Context)
+	CreateTeam(c *gin.Context)
+	UpdateTeam(c *gin.Context)
+	DeleteTeam(c *gin.Context)
 	CreateMatch(c *gin.Context)
 	UpdateMatch(c *gin.Context)
 	DeleteMatch(c *gin.Context)
@@ -71,13 +80,35 @@ func (h *MatchHandler) GetMatches(c *gin.Context) {
 }
 
 // GetTeams godoc
-// @Summary      Get all teams
+// @Summary      Get all teams (paginated, searchable)
+// @Tags         admin
+// @Param        search query string false "Search by name/short_name"
+// @Param        page query int false "Page number"
+// @Param        limit query int false "Items per page"
+// @Produce      json
+// @Success      200  {object}  map[string]string
+// @Router       /api/v1/admin/teams [get]
+func (h *MatchHandler) GetTeams(c *gin.Context) {
+	search := c.Query("search")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "12"))
+
+	result, err := h.service.GetTeams(c.Request.Context(), page, limit, search)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+// GetAllTeams godoc
+// @Summary      Get all teams (no pagination)
 // @Tags         match-hub
 // @Produce      json
 // @Success      200  {object}  []dto.TeamResponse
 // @Router       /api/v1/matches/teams [get]
-func (h *MatchHandler) GetTeams(c *gin.Context) {
-	teams, err := h.service.GetTeams(c.Request.Context())
+func (h *MatchHandler) GetAllTeams(c *gin.Context) {
+	teams, err := h.service.GetAllTeams(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -242,18 +273,25 @@ func (h *MatchHandler) CreateStanding(c *gin.Context) {
 		return
 	}
 
+	played := req.Won + req.Drawn + req.Lost
+	var pct float64
+	if played > 0 {
+		pct = math.Round(float64(req.Won)/float64(played)*1000) / 10 // 1 decimal
+	}
+
 	standing := &domain.Standing{
 		CompetitionID: req.CompetitionID,
 		TeamID:        req.TeamID,
 		Position:      req.Position,
-		Played:        req.Played,
+		Played:        played,
 		Won:           req.Won,
 		Drawn:         req.Drawn,
 		Lost:          req.Lost,
 		GoalsFor:      req.GoalsFor,
 		GoalsAgainst:  req.GoalsAgainst,
 		GoalDiff:      req.GoalsFor - req.GoalsAgainst,
-		Points:        req.Points,
+		PCT:           pct,
+		L5:            req.L5,
 	}
 
 	if err := h.service.CreateStanding(c.Request.Context(), standing); err != nil {
@@ -279,19 +317,26 @@ func (h *MatchHandler) UpdateStanding(c *gin.Context) {
 		return
 	}
 
+	played := req.Won + req.Drawn + req.Lost
+	var pct float64
+	if played > 0 {
+		pct = math.Round(float64(req.Won)/float64(played)*1000) / 10
+	}
+
 	standing := &domain.Standing{
 		ID:            id,
 		CompetitionID: req.CompetitionID,
 		TeamID:        req.TeamID,
 		Position:      req.Position,
-		Played:        req.Played,
+		Played:        played,
 		Won:           req.Won,
 		Drawn:         req.Drawn,
 		Lost:          req.Lost,
 		GoalsFor:      req.GoalsFor,
 		GoalsAgainst:  req.GoalsAgainst,
 		GoalDiff:      req.GoalsFor - req.GoalsAgainst,
-		Points:        req.Points,
+		PCT:           pct,
+		L5:            req.L5,
 	}
 
 	if err := h.service.UpdateStanding(c.Request.Context(), standing); err != nil {
@@ -322,4 +367,174 @@ func stringPtr(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+// GetTeamsByCompetition godoc
+// @Summary      Get teams for a competition
+// @Tags         match-hub
+// @Param        competition_id query string true "Competition ID"
+// @Produce      json
+// @Success      200 {array} dto.TeamResponse
+// @Router       /api/v1/admin/teams/by-competition [get]
+func (h *MatchHandler) GetTeamsByCompetition(c *gin.Context) {
+	competitionID := c.Query("competition_id")
+	if competitionID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "competition_id is required"})
+		return
+	}
+
+	teams, err := h.service.GetTeamsByCompetition(c.Request.Context(), competitionID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": teams})
+}
+
+// CreateTeam godoc
+// @Summary      Create a team
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.CreateTeamRequest true "Team"
+// @Success      201 {object} map[string]string
+// @Router       /api/v1/admin/teams [post]
+func (h *MatchHandler) CreateTeam(c *gin.Context) {
+	var req dto.CreateTeamRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	team := &domain.Team{
+		Name:      req.Name,
+		ShortName: req.ShortName,
+		Logo:      req.Logo,
+	}
+
+	if err := h.service.CreateTeam(c.Request.Context(), team); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"message": "Team created", "data": gin.H{"id": team.ID, "name": team.Name}})
+}
+
+// UpdateTeam godoc
+// @Summary      Update a team
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "Team ID"
+// @Param        request body dto.CreateTeamRequest true "Team"
+// @Success      200 {object} map[string]string
+// @Router       /api/v1/admin/teams/{id} [put]
+func (h *MatchHandler) UpdateTeam(c *gin.Context) {
+	id := c.Param("id")
+	var req dto.CreateTeamRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	team := &domain.Team{
+		ID:        id,
+		Name:      req.Name,
+		ShortName: req.ShortName,
+		Logo:      req.Logo,
+	}
+
+	if err := h.service.UpdateTeam(c.Request.Context(), team); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Team updated"})
+}
+
+// DeleteTeam godoc
+// @Summary      Delete a team
+// @Tags         admin
+// @Produce      json
+// @Param        id path string true "Team ID"
+// @Success      200 {object} map[string]string
+// @Router       /api/v1/admin/teams/{id} [delete]
+func (h *MatchHandler) DeleteTeam(c *gin.Context) {
+	id := c.Param("id")
+	if err := h.service.DeleteTeam(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Team deleted"})
+}
+
+// CreateCompetition godoc
+// @Summary      Create a competition
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.CreateCompetitionRequest true "Competition"
+// @Success      201 {object} map[string]string
+// @Router       /api/v1/admin/competitions [post]
+func (h *MatchHandler) CreateCompetition(c *gin.Context) {
+	var req dto.CreateCompetitionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	comp := &domain.Competition{
+		Name: req.Name,
+		Logo: req.Logo,
+	}
+
+	if err := h.service.CreateCompetition(c.Request.Context(), comp); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"message": "Competition created", "data": gin.H{"id": comp.ID, "name": comp.Name}})
+}
+
+// UpdateCompetition godoc
+// @Summary      Update a competition
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "Competition ID"
+// @Param        request body dto.CreateCompetitionRequest true "Competition"
+// @Success      200 {object} map[string]string
+// @Router       /api/v1/admin/competitions/{id} [put]
+func (h *MatchHandler) UpdateCompetition(c *gin.Context) {
+	id := c.Param("id")
+	var req dto.CreateCompetitionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	comp := &domain.Competition{
+		ID:   id,
+		Name: req.Name,
+		Logo: req.Logo,
+	}
+
+	if err := h.service.UpdateCompetition(c.Request.Context(), comp); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Competition updated"})
+}
+
+// DeleteCompetition godoc
+// @Summary      Delete a competition
+// @Tags         admin
+// @Produce      json
+// @Param        id path string true "Competition ID"
+// @Success      200 {object} map[string]string
+// @Router       /api/v1/admin/competitions/{id} [delete]
+func (h *MatchHandler) DeleteCompetition(c *gin.Context) {
+	id := c.Param("id")
+	if err := h.service.DeleteCompetition(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Competition deleted"})
 }

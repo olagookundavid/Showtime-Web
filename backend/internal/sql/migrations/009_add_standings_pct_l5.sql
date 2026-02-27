@@ -1,0 +1,7 @@
+-- +goose Up
+ALTER TABLE standings ADD COLUMN pct DECIMAL(5,1) DEFAULT 0;
+ALTER TABLE standings ADD COLUMN l5 VARCHAR(20) DEFAULT '';
+
+-- +goose Down
+ALTER TABLE standings DROP COLUMN IF EXISTS l5;
+ALTER TABLE standings DROP COLUMN IF EXISTS pct;

@@ -9,7 +9,12 @@ import (
 
 type IMatchService interface {
 	GetCompetitions(ctx context.Context) ([]dto.CompetitionResponse, error)
-	GetTeams(ctx context.Context) ([]dto.TeamResponse, error)
+	CreateCompetition(ctx context.Context, comp *domain.Competition) error
+	UpdateCompetition(ctx context.Context, comp *domain.Competition) error
+	DeleteCompetition(ctx context.Context, id string) error
+	GetTeams(ctx context.Context, page, limit int, search string) (dto.PaginatedResult[dto.TeamResponse], error)
+	GetAllTeams(ctx context.Context) ([]dto.TeamResponse, error)
+	GetTeamsByCompetition(ctx context.Context, competitionID string) ([]dto.TeamResponse, error)
 	GetMatches(ctx context.Context, competitionID string, status string, page, limit int) (dto.PaginatedResult[dto.MatchResponse], error)
 	GetStandings(ctx context.Context, competitionID string) ([]dto.StandingResponse, error)
 	CreateMatch(ctx context.Context, match *domain.Match) error
@@ -18,6 +23,9 @@ type IMatchService interface {
 	CreateStanding(ctx context.Context, standing *domain.Standing) error
 	UpdateStanding(ctx context.Context, standing *domain.Standing) error
 	DeleteStanding(ctx context.Context, id string) error
+	CreateTeam(ctx context.Context, team *domain.Team) error
+	UpdateTeam(ctx context.Context, team *domain.Team) error
+	DeleteTeam(ctx context.Context, id string) error
 }
 
 type MatchService struct {
@@ -45,8 +53,38 @@ func (s *MatchService) GetCompetitions(ctx context.Context) ([]dto.CompetitionRe
 	return res, nil
 }
 
-func (s *MatchService) GetTeams(ctx context.Context) ([]dto.TeamResponse, error) {
-	teams, err := s.repo.GetTeams(ctx)
+func (s *MatchService) GetTeams(ctx context.Context, page, limit int, search string) (dto.PaginatedResult[dto.TeamResponse], error) {
+	teams, total, err := s.repo.GetTeams(ctx, page, limit, search)
+	if err != nil {
+		return dto.PaginatedResult[dto.TeamResponse]{}, err
+	}
+
+	var res []dto.TeamResponse
+	for _, t := range teams {
+		res = append(res, dto.TeamResponse{
+			ID:        t.ID,
+			Name:      t.Name,
+			ShortName: t.ShortName,
+			Logo:      t.Logo,
+		})
+	}
+
+	totalPages := 0
+	if limit > 0 {
+		totalPages = int((total + int64(limit) - 1) / int64(limit))
+	}
+
+	return dto.PaginatedResult[dto.TeamResponse]{
+		Data:       res,
+		Total:      int(total),
+		Page:       page,
+		Limit:      limit,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func (s *MatchService) GetAllTeams(ctx context.Context) ([]dto.TeamResponse, error) {
+	teams, err := s.repo.GetAllTeams(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +196,8 @@ func (s *MatchService) GetStandings(ctx context.Context, competitionID string) (
 			GoalsFor:     st.GoalsFor,
 			GoalsAgainst: st.GoalsAgainst,
 			GoalDiff:     st.GoalDiff,
-			Points:       st.Points,
+			PCT:          st.PCT,
+			L5:           st.L5,
 		})
 	}
 	return res, nil
@@ -174,4 +213,46 @@ func (s *MatchService) UpdateStanding(ctx context.Context, standing *domain.Stan
 
 func (s *MatchService) DeleteStanding(ctx context.Context, id string) error {
 	return s.repo.DeleteStanding(ctx, id)
+}
+
+func (s *MatchService) GetTeamsByCompetition(ctx context.Context, competitionID string) ([]dto.TeamResponse, error) {
+	teams, err := s.repo.GetTeamsByCompetition(ctx, competitionID)
+	if err != nil {
+		return nil, err
+	}
+
+	var res []dto.TeamResponse
+	for _, t := range teams {
+		res = append(res, dto.TeamResponse{
+			ID:        t.ID,
+			Name:      t.Name,
+			ShortName: t.ShortName,
+			Logo:      t.Logo,
+		})
+	}
+	return res, nil
+}
+
+func (s *MatchService) CreateTeam(ctx context.Context, team *domain.Team) error {
+	return s.repo.CreateTeam(ctx, team)
+}
+
+func (s *MatchService) UpdateTeam(ctx context.Context, team *domain.Team) error {
+	return s.repo.UpdateTeam(ctx, team)
+}
+
+func (s *MatchService) DeleteTeam(ctx context.Context, id string) error {
+	return s.repo.DeleteTeam(ctx, id)
+}
+
+func (s *MatchService) CreateCompetition(ctx context.Context, comp *domain.Competition) error {
+	return s.repo.CreateCompetition(ctx, comp)
+}
+
+func (s *MatchService) UpdateCompetition(ctx context.Context, comp *domain.Competition) error {
+	return s.repo.UpdateCompetition(ctx, comp)
+}
+
+func (s *MatchService) DeleteCompetition(ctx context.Context, id string) error {
+	return s.repo.DeleteCompetition(ctx, id)
 }

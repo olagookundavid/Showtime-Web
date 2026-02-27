@@ -1,0 +1,224 @@
+import { useEffect, useState, useCallback } from 'react';
+import { useOutletContext } from 'react-router-dom';
+import api from '../../services/api';
+
+interface TeamInfo {
+    id: string;
+    name: string;
+    short_name: string;
+    logo: string;
+}
+
+interface Player {
+    id: string;
+    first_name: string;
+    last_name: string;
+    position: string;
+    jersey_number: number;
+    image: string;
+    team_id: string;
+}
+
+const TeamHeadPlayers = () => {
+    const { team } = useOutletContext<{ team: TeamInfo | null }>();
+    const [players, setPlayers] = useState<Player[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    // Modal
+    const [showModal, setShowModal] = useState(false);
+    const [editing, setEditing] = useState<Player | null>(null);
+    const [form, setForm] = useState({
+        first_name: '', last_name: '', position: '', jersey_number: 0, image: ''
+    });
+    const [saving, setSaving] = useState(false);
+
+    const fetchPlayers = useCallback(async () => {
+        if (!team) return;
+        setLoading(true);
+        try {
+            const res = await api.get('/team-head/players', { params: { team_id: team.id } });
+            setPlayers(res.data.data || []);
+        } catch (err: any) {
+            setError(err.response?.data?.error || 'Failed to fetch players.');
+        } finally {
+            setLoading(false);
+        }
+    }, [team]);
+
+    useEffect(() => { fetchPlayers(); }, [fetchPlayers]);
+
+    const openCreate = () => {
+        setEditing(null);
+        setForm({ first_name: '', last_name: '', position: '', jersey_number: 0, image: '' });
+        setShowModal(true);
+    };
+
+    const openEdit = (p: Player) => {
+        setEditing(p);
+        setForm({
+            first_name: p.first_name, last_name: p.last_name,
+            position: p.position, jersey_number: p.jersey_number, image: p.image
+        });
+        setShowModal(true);
+    };
+
+    const handleSave = async () => {
+        if (!team) return;
+        setSaving(true);
+        try {
+            const payload = { ...form, team_id: team.id };
+            if (editing) {
+                await api.put(`/team-head/players/${editing.id}`, payload);
+            } else {
+                await api.post('/team-head/players', payload);
+            }
+            setShowModal(false);
+            fetchPlayers();
+        } catch (err: any) {
+            alert(err.response?.data?.error || 'Failed to save player.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleDelete = async (id: string) => {
+        if (!confirm('Delete this player?')) return;
+        try {
+            await api.delete(`/team-head/players/${id}`);
+            fetchPlayers();
+        } catch (err: any) {
+            alert(err.response?.data?.error || 'Failed to delete player.');
+        }
+    };
+
+    if (!team) {
+        return (
+            <div className="text-center py-20">
+                <p className="text-2xl font-black text-gray-400 dark:text-gray-500">No team assigned</p>
+                <p className="text-gray-500 mt-2">Contact an admin to get assigned to a team.</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-black text-sffl-navy dark:text-white">{team.name} — Players</h1>
+                    <p className="text-gray-600 dark:text-gray-400">Manage your team's roster.</p>
+                </div>
+                <button onClick={openCreate} className="bg-sffl-red hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
+                    + Add Player
+                </button>
+            </div>
+
+            {error && (
+                <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-4 rounded-lg border border-red-200 dark:border-red-800/30">
+                    {error}
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {loading ? (
+                    <div className="col-span-full flex justify-center py-12">
+                        <div className="w-10 h-10 border-4 border-sffl-red border-t-transparent rounded-full animate-spin" />
+                    </div>
+                ) : players.length === 0 ? (
+                    <div className="col-span-full text-center py-12 text-gray-500">No players yet. Add your first player!</div>
+                ) : (
+                    players.map(player => (
+                        <div key={player.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-all hover:shadow-lg">
+                            <div className="p-6">
+                                <div className="flex items-center gap-4 mb-4">
+                                    {player.image ? (
+                                        <img src={player.image} alt={`${player.first_name} ${player.last_name}`}
+                                            className="w-14 h-14 rounded-full object-cover border-2 border-gray-200" />
+                                    ) : (
+                                        <div className="w-14 h-14 rounded-full bg-sffl-navy/10 flex items-center justify-center text-xl font-black text-sffl-navy">
+                                            #{player.jersey_number || '?'}
+                                        </div>
+                                    )}
+                                    <div>
+                                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                                            {player.first_name} {player.last_name}
+                                        </h3>
+                                        <div className="flex gap-2 items-center text-sm text-gray-500 dark:text-gray-400">
+                                            <span className="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded text-xs font-bold">{player.position || 'N/A'}</span>
+                                            {player.jersey_number > 0 && (
+                                                <span className="text-xs">#{player.jersey_number}</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
+                                    <button onClick={() => openEdit(player)}
+                                        className="flex-1 text-sm font-bold text-blue-600 hover:text-blue-800 dark:text-blue-400 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                                        Edit
+                                    </button>
+                                    <button onClick={() => handleDelete(player.id)}
+                                        className="flex-1 text-sm font-bold text-red-600 hover:text-red-800 dark:text-red-400 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+
+            {/* Create/Edit Modal */}
+            {showModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md">
+                        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                            <h2 className="text-2xl font-black text-sffl-navy dark:text-white">
+                                {editing ? 'Edit Player' : 'Add Player'}
+                            </h2>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">First Name *</label>
+                                    <input type="text" value={form.first_name} onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))}
+                                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Last Name *</label>
+                                    <input type="text" value={form.last_name} onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))}
+                                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red" />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Position</label>
+                                    <input type="text" value={form.position} onChange={e => setForm(f => ({ ...f, position: e.target.value }))}
+                                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red" placeholder="QB, WR, etc." />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Jersey #</label>
+                                    <input type="number" value={form.jersey_number} onChange={e => setForm(f => ({ ...f, jersey_number: parseInt(e.target.value) || 0 }))}
+                                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Image URL</label>
+                                <input type="text" value={form.image} onChange={e => setForm(f => ({ ...f, image: e.target.value }))}
+                                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red" placeholder="https://..." />
+                            </div>
+                        </div>
+                        <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+                            <button onClick={() => setShowModal(false)} className="px-5 py-2 border border-gray-300 dark:border-gray-600 rounded-lg font-bold hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300">Cancel</button>
+                            <button onClick={handleSave} disabled={saving || !form.first_name.trim() || !form.last_name.trim()}
+                                className="px-5 py-2 bg-sffl-red text-white font-bold rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                {saving ? 'Saving...' : editing ? 'Update' : 'Add'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default TeamHeadPlayers;

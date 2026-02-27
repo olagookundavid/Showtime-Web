@@ -28,12 +28,15 @@ export const AdminLayout = () => {
                 <nav className="flex-1 p-4 space-y-1">
                     <Link to="/admin" className={linkClass('/admin')}>📊 Dashboard</Link>
                     <Link to="/admin/matches" className={linkClass('/admin/matches')}>🏈 Matches</Link>
+                    <Link to="/admin/teams" className={linkClass('/admin/teams')}>🛡️ Teams</Link>
+                    <Link to="/admin/competitions" className={linkClass('/admin/competitions')}>🏆 Competitions</Link>
                     <Link to="/admin/players" className={linkClass('/admin/players')}>🏃 Players</Link>
                     <Link to="/admin/standings" className={linkClass('/admin/standings')}>🏆 Standings</Link>
                     <Link to="/admin/tickets" className={linkClass('/admin/tickets')}>🎟️ Tickets</Link>
                     <Link to="/admin/event-days" className={linkClass('/admin/event-days')}>📅 Event Days</Link>
                     <Link to="/admin/news" className={linkClass('/admin/news')}>📰 News</Link>
                     <Link to="/admin/gallery" className={linkClass('/admin/gallery')}>📸 Gallery</Link>
+                    <Link to="/admin/users" className={linkClass('/admin/users')}>👥 Users</Link>
                 </nav>
 
                 <div className="p-4 border-t border-gray-700">

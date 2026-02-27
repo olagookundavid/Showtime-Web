@@ -77,26 +77,24 @@ type CreateStandingRequest struct {
 	CompetitionID string `json:"competition_id" binding:"required"`
 	TeamID        string `json:"team_id" binding:"required"`
 	Position      int    `json:"position" binding:"required"`
-	Played        int    `json:"played"`
 	Won           int    `json:"won"`
 	Drawn         int    `json:"drawn"`
 	Lost          int    `json:"lost"`
 	GoalsFor      int    `json:"goals_for"`
 	GoalsAgainst  int    `json:"goals_against"`
-	Points        int    `json:"points"`
+	L5            string `json:"l5"`
 }
 
 type UpdateStandingRequest struct {
 	CompetitionID string `json:"competition_id"`
 	TeamID        string `json:"team_id"`
 	Position      int    `json:"position"`
-	Played        int    `json:"played"`
 	Won           int    `json:"won"`
 	Drawn         int    `json:"drawn"`
 	Lost          int    `json:"lost"`
 	GoalsFor      int    `json:"goals_for"`
 	GoalsAgainst  int    `json:"goals_against"`
-	Points        int    `json:"points"`
+	L5            string `json:"l5"`
 }
 
 type StandingResponse struct {
@@ -110,5 +108,6 @@ type StandingResponse struct {
 	GoalsFor     int           `json:"goals_for"`
 	GoalsAgainst int           `json:"goals_against"`
 	GoalDiff     int           `json:"goal_diff"`
-	Points       int           `json:"points"`
+	PCT          float64       `json:"pct"`
+	L5           string        `json:"l5"`
 }

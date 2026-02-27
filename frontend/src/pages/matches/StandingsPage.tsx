@@ -106,6 +106,35 @@ export const StandingsPage = () => {
                             {selectedCompetition?.name || 'League'} Table
                         </h2>
                     </div>
+
+                    {/* Abbreviation Legend — above the table for context */}
+                    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-600 px-6 py-5 shadow-sm">
+                        <div className="flex items-center gap-2 mb-4">
+                            <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Legend</span>
+                        </div>
+                        <div className="flex flex-wrap gap-3">
+                            {[
+                                { abbr: 'P', full: 'Played', color: 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-100' },
+                                { abbr: 'W', full: 'Win', color: 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100' },
+                                { abbr: 'D', full: 'Draw', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-100' },
+                                { abbr: 'L', full: 'Loss', color: 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100' },
+                                { abbr: 'PF', full: 'Points For', color: 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100' },
+                                { abbr: 'PA', full: 'Points Against', color: 'bg-orange-100 text-orange-800 dark:bg-orange-800 dark:text-orange-100' },
+                                { abbr: 'PD', full: 'Points Diff', color: 'bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100' },
+                                { abbr: 'PCT', full: 'Win %', color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-800 dark:text-indigo-100' },
+                                { abbr: 'L5', full: 'Last 5', color: 'bg-teal-100 text-teal-800 dark:bg-teal-800 dark:text-teal-100' },
+                            ].map(item => (
+                                <div key={item.abbr} className="flex items-center gap-1.5">
+                                    <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-md text-xs font-black ${item.color}`}>
+                                        {item.abbr}
+                                    </span>
+                                    <span className="text-xs text-gray-600 dark:text-gray-300">{item.full}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
                     <StandingsTable standings={standings} />
                 </div>
             ) : !dataLoading ? (

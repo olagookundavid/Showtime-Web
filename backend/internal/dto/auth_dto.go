@@ -30,3 +30,22 @@ type LoginResponse struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 	AccessToken string    `json:"access_token,omitempty"`
 }
+
+type UpdateUserRoleRequest struct {
+	Role string `json:"role" binding:"required"`
+}
+
+type UpdateUserInfoRequest struct {
+	FullName string `json:"fullname" binding:"required"`
+	Phone    string `json:"phone"`
+}
+
+type UserResponse struct {
+	ID        string    `json:"id"`
+	FullName  string    `json:"fullname"`
+	Email     string    `json:"email"`
+	Phone     string    `json:"phone,omitempty"`
+	Role      string    `json:"role"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}

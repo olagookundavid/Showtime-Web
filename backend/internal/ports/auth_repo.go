@@ -2,7 +2,9 @@ package ports
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"fmt"
 	"showtime-backend/internal/domain"
 	appErrors "showtime-backend/internal/errors"
 	"strings"
@@ -17,13 +19,16 @@ type IAuthRepository interface {
 	GetUserByEmail(ctx context.Context, email string) (*domain.User, error)
 	GetUserByID(ctx context.Context, id string) (*domain.User, error)
 	ResetPassword(ctx context.Context, user domain.User) error
+	ListUsers(ctx context.Context, page, limit int, searchFilter string) ([]domain.User, int, error)
+	UpdateUserRole(ctx context.Context, userID, newRole string) error
+	UpdateUserInfo(ctx context.Context, userID, fullName, phone string) error
 }
 
 type AuthRepository struct {
 	Db *pgxpool.Pool
 }
 
-func NewAuthRepository(Db *pgxpool.Pool) *AuthRepository {
+func NewAuthRepository(Db *pgxpool.Pool) IAuthRepository {
 	return &AuthRepository{Db: Db}
 }
 
@@ -50,15 +55,18 @@ func (m AuthRepository) Register(ctx context.Context, user domain.User) (*string
 func (m AuthRepository) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
 	query := `SELECT id, full_name, email, password_hash, role, phone, created_at, updated_at FROM users WHERE email = $1`
 	var user domain.User
+	var phone sql.NullString
+
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
+
 	err := m.Db.QueryRow(ctx, query, email).Scan(
 		&user.ID,
 		&user.FullName,
 		&user.Email,
 		&user.Password.Hash,
 		&user.Role,
-		&user.Phone,
+		&phone,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -71,21 +79,29 @@ func (m AuthRepository) GetUserByEmail(ctx context.Context, email string) (*doma
 			return nil, appErrors.ErrServerError
 		}
 	}
+
+	if phone.Valid {
+		user.Phone = phone.String
+	}
+
 	return &user, nil
 }
 
 func (m AuthRepository) GetUserByID(ctx context.Context, id string) (*domain.User, error) {
 	query := `SELECT id, full_name, email, password_hash, role, phone, created_at, updated_at FROM users WHERE id = $1`
 	var user domain.User
+	var phone sql.NullString
+
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
+
 	err := m.Db.QueryRow(ctx, query, id).Scan(
 		&user.ID,
 		&user.FullName,
 		&user.Email,
 		&user.Password.Hash,
 		&user.Role,
-		&user.Phone,
+		&phone,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -98,6 +114,11 @@ func (m AuthRepository) GetUserByID(ctx context.Context, id string) (*domain.Use
 			return nil, appErrors.ErrServerError
 		}
 	}
+
+	if phone.Valid {
+		user.Phone = phone.String
+	}
+
 	return &user, nil
 }
 
@@ -116,4 +137,102 @@ func (m AuthRepository) updatePassword(ctx context.Context, user domain.User) er
 
 func (m AuthRepository) ResetPassword(ctx context.Context, user domain.User) error {
 	return m.updatePassword(ctx, user)
+}
+
+func (m AuthRepository) ListUsers(ctx context.Context, page, limit int, searchFilter string) ([]domain.User, int, error) {
+	offset := (page - 1) * limit
+	var users []domain.User
+
+	countQuery := `SELECT COUNT(*) FROM users WHERE 1=1`
+	query := `SELECT id, full_name, email, role, phone, created_at, updated_at FROM users WHERE 1=1`
+
+	args := []interface{}{}
+	argIndex := 1
+
+	if searchFilter != "" {
+		filter := "%" + searchFilter + "%"
+		countQuery += ` AND (email ILIKE $` + fmt.Sprint(argIndex) + ` OR full_name ILIKE $` + fmt.Sprint(argIndex) + `)`
+		query += ` AND (email ILIKE $` + fmt.Sprint(argIndex) + ` OR full_name ILIKE $` + fmt.Sprint(argIndex) + `)`
+		args = append(args, filter)
+		argIndex++
+	}
+
+	// Get total count
+	var total int
+	err := m.Db.QueryRow(ctx, countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Get paginated users
+	query += ` ORDER BY created_at DESC LIMIT $` + fmt.Sprint(argIndex) + ` OFFSET $` + fmt.Sprint(argIndex+1)
+	args = append(args, limit, offset)
+
+	rows, err := m.Db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var user domain.User
+		var phone sql.NullString
+
+		err := rows.Scan(
+			&user.ID,
+			&user.FullName,
+			&user.Email,
+			&user.Role,
+			&phone,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+		)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		if phone.Valid {
+			user.Phone = phone.String
+		}
+
+		users = append(users, user)
+	}
+
+	return users, total, nil
+}
+
+func (m AuthRepository) UpdateUserRole(ctx context.Context, userID, newRole string) error {
+	query := `UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2`
+
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	result, err := m.Db.Exec(ctx, query, newRole, userID)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected() == 0 {
+		return appErrors.ErrNoUserRecordExist
+	}
+
+	return nil
+}
+
+func (m AuthRepository) UpdateUserInfo(ctx context.Context, userID, fullName, phone string) error {
+	query := `UPDATE users SET full_name = $1, phone = $2, updated_at = NOW() WHERE id = $3`
+
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	result, err := m.Db.Exec(ctx, query, fullName, phone, userID)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected() == 0 {
+		return appErrors.ErrNoUserRecordExist
+	}
+
+	return nil
 }

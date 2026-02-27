@@ -20,6 +20,9 @@ type IAuthService interface {
 	Login(ctx context.Context, req dto.LoginRequest) (*dto.LoginResponse, error)
 	ResetPassword(ctx context.Context, req dto.ResetPasswordRequest) error
 	ReturnUserProfile(ctx context.Context, id string) (*dto.LoginResponse, error)
+	ListUsers(ctx context.Context, page, limit int, searchFilter string) ([]dto.UserResponse, int, error)
+	UpdateUserRole(ctx context.Context, userID, newRole string) error
+	UpdateUserInfo(ctx context.Context, userID, fullName, phone string) error
 }
 
 type AuthService struct {
@@ -182,4 +185,43 @@ func (s *AuthService) getTokenPair(userId string) (string, error) {
 	}
 
 	return accessToken, nil
+}
+
+func (s *AuthService) ListUsers(ctx context.Context, page, limit int, searchFilter string) ([]dto.UserResponse, int, error) {
+	users, total, err := s.AuthRepository.ListUsers(ctx, page, limit, searchFilter)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	responses := make([]dto.UserResponse, len(users))
+	for i, u := range users {
+		responses[i] = dto.UserResponse{
+			ID:        u.ID,
+			FullName:  u.FullName,
+			Email:     u.Email,
+			Phone:     u.Phone,
+			Role:      u.Role,
+			CreatedAt: u.CreatedAt,
+			UpdatedAt: u.UpdatedAt,
+		}
+	}
+
+	return responses, total, nil
+}
+
+func (s *AuthService) UpdateUserRole(ctx context.Context, userID, newRole string) error {
+	// Validate role
+	validRoles := map[string]bool{"admin": true, "user": true, "team_head": true}
+	if !validRoles[newRole] {
+		return fmt.Errorf("invalid role: %s. Allowed roles are admin, user, team_head", newRole)
+	}
+
+	return s.AuthRepository.UpdateUserRole(ctx, userID, newRole)
+}
+
+func (s *AuthService) UpdateUserInfo(ctx context.Context, userID, fullName, phone string) error {
+	if fullName == "" {
+		return fmt.Errorf("full name must not be empty")
+	}
+	return s.AuthRepository.UpdateUserInfo(ctx, userID, fullName, phone)
 }

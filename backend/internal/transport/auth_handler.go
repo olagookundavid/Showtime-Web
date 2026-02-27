@@ -2,11 +2,13 @@ package transport
 
 import (
 	"errors"
+	"net/http"
 	"pkg-common/helpers"
 	"showtime-backend/internal/dto"
 	appErrors "showtime-backend/internal/errors"
 	userHelper "showtime-backend/internal/helpers"
 	"showtime-backend/internal/services"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,6 +19,9 @@ type IAuthHandler interface {
 	ResetPassword(c *gin.Context)
 	ReturnUserProfile(c *gin.Context)
 	Logout(c *gin.Context)
+	GetUsers(c *gin.Context)
+	UpdateUserRole(c *gin.Context)
+	UpdateUserInfo(c *gin.Context)
 }
 
 type AuthHandler struct {
@@ -156,4 +161,97 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	userHelper.RemoveTokensInCookie(c)
 
 	helpers.SuccessOK(c, "Logout successfully", nil)
+}
+
+// GetUsers godoc
+// @Summary      Get users (search by email or name)
+// @Tags         admin
+// @Security     BearerAuth
+// @Param        search query string false "Search by email or name"
+// @Param        page query int false "Page number"
+// @Param        limit query int false "Items per page"
+// @Produce      json
+// @Success      200 {object} map[string]string
+// @Router       /api/v1/admin/users [get]
+func (h *AuthHandler) GetUsers(c *gin.Context) {
+	search := c.Query("search")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+
+	users, total, err := h.AuthService.ListUsers(c.Request.Context(), page, limit, search)
+	if err != nil {
+		helpers.ServerErrorResponse(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": users,
+		"meta": gin.H{
+			"total": total,
+			"page":  page,
+			"limit": limit,
+		},
+	})
+}
+
+// UpdateUserRole godoc
+// @Summary      Update user role
+// @Tags         admin
+// @Security     BearerAuth
+// @Param        id path string true "User ID"
+// @Param        request body dto.UpdateUserRoleRequest true "Update Role Payload"
+// @Produce      json
+// @Success      200 {object} map[string]string
+// @Router       /api/v1/admin/users/{id}/role [put]
+func (h *AuthHandler) UpdateUserRole(c *gin.Context) {
+	id := c.Param("id")
+	var req dto.UpdateUserRoleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helpers.BadResponse(c, err.Error())
+		return
+	}
+
+	err := h.AuthService.UpdateUserRole(c.Request.Context(), id, req.Role)
+	if err != nil {
+		switch {
+		case errors.Is(err, appErrors.ErrNoUserRecordExist):
+			helpers.BadResponse(c, "User not found")
+		default:
+			helpers.ServerErrorResponse(c, err)
+		}
+		return
+	}
+
+	helpers.SuccessOK(c, "User role updated successfully", nil)
+}
+
+// UpdateUserInfo godoc
+// @Summary      Update user info (fullname, phone)
+// @Tags         admin
+// @Security     BearerAuth
+// @Param        id path string true "User ID"
+// @Param        request body dto.UpdateUserInfoRequest true "Update Info Payload"
+// @Produce      json
+// @Success      200 {object} map[string]string
+// @Router       /api/v1/admin/users/{id} [put]
+func (h *AuthHandler) UpdateUserInfo(c *gin.Context) {
+	id := c.Param("id")
+	var req dto.UpdateUserInfoRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helpers.BadResponse(c, err.Error())
+		return
+	}
+
+	err := h.AuthService.UpdateUserInfo(c.Request.Context(), id, req.FullName, req.Phone)
+	if err != nil {
+		switch {
+		case errors.Is(err, appErrors.ErrNoUserRecordExist):
+			helpers.BadResponse(c, "User not found")
+		default:
+			helpers.ServerErrorResponse(c, err)
+		}
+		return
+	}
+
+	helpers.SuccessOK(c, "User info updated successfully", nil)
 }
