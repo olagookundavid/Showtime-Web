@@ -1,40 +1,37 @@
-# Use the official Golang Alpine image as a builder
 FROM golang:alpine AS builder
 
-# Set the working directory inside the container
 WORKDIR /app
+RUN apk add --no-cache git ca-certificates tzdata
 
-# Install git and required build tools
-RUN apk add --no-cache git tzdata ca-certificates
+# Install swag for Swagger generation
+RUN go install github.com/swaggo/swag/cmd/swag@latest
 
-# Copy the Go workspace files
 COPY go.work go.work.sum ./
 
-# Copy the backend and the local shared package dependencies
-COPY backend/ ./backend/
-COPY pkg-common/ ./pkg-common/
+COPY backend/go.mod backend/go.sum ./backend/
+COPY pkg-common/go.mod pkg-common/go.sum ./pkg-common/
 
-# Build the application from the backend directory
 WORKDIR /app/backend
-# Download module dependencies
 RUN go mod download
 
-# Compile the Go application statically
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/server ./cmd/main
+WORKDIR /app
+COPY backend/ backend/
+COPY pkg-common/ pkg-common/
 
-# Use a minimal alpine image for the final stage
+WORKDIR /app/backend
+RUN swag init -g cmd/main/main.go
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -ldflags="-s -w" -o /app/server ./cmd/main
+
 FROM alpine:latest
-
-# Add CA certificates (needed for external API calls like Resend/Paystack)
-RUN apk --no-cache add ca-certificates tzdata
 
 WORKDIR /app
 
-# Copy the compiled binary from the builder stage
-COPY --from=builder /app/server /app/server
+RUN apk add --no-cache ca-certificates tzdata
 
-# Expose the default port
-EXPOSE 8089
+COPY --from=builder /app/server .
 
-# Run the binary execution command
-CMD ["/app/server"]
+EXPOSE 8080
+
+CMD ["./server"]
