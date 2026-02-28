@@ -96,6 +96,7 @@ func loadTokenDetails(log *logger.Logger) map[string]string {
 	accessTokenDuration := os.Getenv("ACCESS_TOKEN_DURATION")
 
 	if tokenKey == "" || accessTokenDuration == "" {
+		println("Couldn't load token details", tokenKey, accessTokenDuration)
 		log.Fatal("Couldn't load token details", nil)
 	}
 	tokenMap := map[string]string{

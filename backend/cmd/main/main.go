@@ -72,6 +72,7 @@ func main() {
 	defer log.Sync()
 
 	dbUrl := loadDbUrl(log)
+	fmt.Println("DB URL", dbUrl)
 	tokenDeets := loadTokenDetails(log)
 
 	cfg := flagSetup(dbUrl, tokenDeets)
