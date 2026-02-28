@@ -17,7 +17,7 @@ func SetTokensInCookie(c *gin.Context, authUser *dto.LoginResponse) {
 	mode := loadModeEnv()
 
 	if mode {
-		cookieDomain = ".dev.tradia.store"
+		cookieDomain = os.Getenv("COOKIE_DOMAIN")
 	} else {
 		cookieDomain = "localhost"
 	}
@@ -46,7 +46,7 @@ func RemoveTokensInCookie(c *gin.Context) {
 	mode := loadModeEnv()
 
 	if mode {
-		cookieDomain = ".dev.tradia.store"
+		cookieDomain = os.Getenv("COOKIE_DOMAIN")
 	} else {
 		cookieDomain = "localhost"
 	}

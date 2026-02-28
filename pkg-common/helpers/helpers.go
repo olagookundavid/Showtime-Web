@@ -273,7 +273,6 @@ func GetEnvSlice(fallback []string) []string {
 		p = strings.TrimSpace(p)
 		if p != "" {
 			out = append(out, p)
-			println(p)
 		}
 	}
 	return out
