@@ -94,15 +94,13 @@ func loadTokenDetails(log *logger.Logger) map[string]string {
 	godotenv.Load()
 	tokenKey := os.Getenv("TOKEN_KEY")
 	accessTokenDuration := os.Getenv("ACCESS_TOKEN_DURATION")
-	refreshTokenDuration := os.Getenv("REFRESH_TOKEN_DURATION")
 
-	if tokenKey == "" || accessTokenDuration == "" || refreshTokenDuration == "" {
+	if tokenKey == "" || accessTokenDuration == "" {
 		log.Fatal("Couldn't load token details", nil)
 	}
 	tokenMap := map[string]string{
-		"token_key":              tokenKey,
-		"access_token_duration":  accessTokenDuration,
-		"refresh_token_duration": refreshTokenDuration,
+		"token_key":             tokenKey,
+		"access_token_duration": accessTokenDuration,
 	}
 	return tokenMap
 }
