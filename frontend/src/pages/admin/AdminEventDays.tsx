@@ -97,7 +97,7 @@ export const AdminEventDays = () => {
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-black text-sffl-navy dark:text-white">📅 Event Days</h1>
+                <h1 className="text-3xl font-black text-sffl-navy">Event Days</h1>
                 <button
                     onClick={() => setShowCreateForm(!showCreateForm)}
                     className="bg-sffl-red text-white px-6 py-3 rounded-lg font-bold hover:bg-red-700 transition"

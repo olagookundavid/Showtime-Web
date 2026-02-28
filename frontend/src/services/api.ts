@@ -7,7 +7,16 @@ const api = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
-    withCredentials: true, // Send cookies with requests (auth token)
+    // Remove withCredentials since we are using Bearer tokens now
+});
+
+// Interceptor to attach the token to every request
+api.interceptors.request.use((config) => {
+    const token = localStorage.getItem('showtime_access_token');
+    if (token && config.headers) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
 });
 
 // ─── Auth Types ───────────────────────────────────────────────────────────────

@@ -183,7 +183,7 @@ export const AdminTickets = () => {
 
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-black text-sffl-navy dark:text-white">🎟️ Ticket Management</h1>
+            <h1 className="text-3xl font-black text-sffl-navy">Ticket Management</h1>
 
             {/* ── Search / Check-in Section ─────────────────────────────────── */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">

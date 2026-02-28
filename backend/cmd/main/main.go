@@ -26,8 +26,6 @@ func init() {
 		docs.SwaggerInfo.Schemes = append(docs.SwaggerInfo.Schemes, "http")
 	}
 
-	docs.SwaggerInfo.Schemes = append(docs.SwaggerInfo.Schemes, "http", "https")
-
 	if dynamicHost == "" {
 		fmt.Println("No Swagger Host set ")
 		return
@@ -72,11 +70,9 @@ func main() {
 	defer log.Sync()
 
 	dbUrl := loadDbUrl(log)
-	fmt.Println("DB URL", dbUrl)
 	tokenDeets := loadTokenDetails(log)
 
 	cfg := flagSetup(dbUrl, tokenDeets)
-	fmt.Println("DB URL", dbUrl)
 	runMigrations(dbUrl, log)
 
 	ctx := context.Background()

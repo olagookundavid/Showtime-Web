@@ -53,6 +53,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
         try {
             const authUser = await loginUser(email, password);
+            if (authUser.access_token) {
+                localStorage.setItem('showtime_access_token', authUser.access_token);
+            }
             setUser(mapAuthUser(authUser));
             return { success: true };
         } catch (err: any) {
@@ -78,6 +81,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } catch {
             // Ignore errors — clear local state anyway
         }
+        localStorage.removeItem('showtime_access_token');
         setUser(null);
     };
 
