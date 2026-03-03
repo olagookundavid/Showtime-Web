@@ -1,53 +1,32 @@
 import { useEffect, useState } from 'react';
-import { getCompetitions, getStandings, type Competition, type Standing } from '../../services/api';
+import { useQuery } from '@tanstack/react-query';
+import { getCompetitions, getStandings } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { StandingsTable } from '../../components/matches/StandingsTable';
 
 export const StandingsPage = () => {
-    const [competitions, setCompetitions] = useState<Competition[]>([]);
     const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>('');
-    const [standings, setStandings] = useState<Standing[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [dataLoading, setDataLoading] = useState(false);
 
-    // Fetch Competitions on Mount
+    const { data: competitionsData, isLoading: compLoading } = useQuery({
+        queryKey: ['publicCompetitions'],
+        queryFn: getCompetitions,
+    });
+    const competitions = competitionsData || [];
+
     useEffect(() => {
-        const fetchCompetitions = async () => {
-            try {
-                const data = await getCompetitions();
-                setCompetitions(data);
-                if (data.length > 0) {
-                    setSelectedCompetitionId(data[0].id);
-                } else {
-                    setLoading(false);
-                }
-            } catch (error) {
-                console.error("Failed to fetch competitions:", error);
-                setLoading(false);
-            }
-        };
-        fetchCompetitions();
-    }, []);
+        if (competitions.length > 0 && !selectedCompetitionId) {
+            setSelectedCompetitionId(competitions[0].id);
+        }
+    }, [competitions, selectedCompetitionId]);
 
-    // Fetch Standings when Competition Changes
-    useEffect(() => {
-        if (!selectedCompetitionId) return;
+    const { data: standingsData, isLoading: dataLoading } = useQuery({
+        queryKey: ['publicStandings', selectedCompetitionId],
+        queryFn: () => getStandings(selectedCompetitionId),
+        enabled: !!selectedCompetitionId,
+    });
+    const standings = standingsData || [];
 
-        const fetchStandings = async () => {
-            setDataLoading(true);
-            try {
-                const data = await getStandings(selectedCompetitionId);
-                setStandings(data || []);
-            } catch (error) {
-                console.error("Failed to fetch standings:", error);
-            } finally {
-                setLoading(false);
-                setDataLoading(false);
-            }
-        };
-
-        fetchStandings();
-    }, [selectedCompetitionId]);
+    const loading = compLoading;
 
     if (loading && competitions.length === 0) return <Loader />;
 
@@ -108,12 +87,9 @@ export const StandingsPage = () => {
                     </div>
 
                     {/* Abbreviation Legend — above the table for context */}
-                    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-600 px-6 py-5 shadow-sm">
-                        <div className="flex items-center gap-2 mb-4">
-                            <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Legend</span>
-                        </div>
-                        <div className="flex flex-wrap gap-3">
+                    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-600 px-6 py-4 shadow-sm">
+                        <div className="flex flex-wrap items-center gap-3">
+                            <svg className="w-5 h-5 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                             {[
                                 { abbr: 'P', full: 'Played', color: 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-100' },
                                 { abbr: 'W', full: 'Win', color: 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100' },

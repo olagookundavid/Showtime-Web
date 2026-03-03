@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react';
+import { Loader } from '../../components/ui/Loader';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getAdminUsers, updateUserRole, updateUserInfo } from '../../services/api';
 
 interface UserResponse {
@@ -12,42 +14,33 @@ interface UserResponse {
 }
 
 const AdminUsers = () => {
-    const [users, setUsers] = useState<UserResponse[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
+    const queryClient = useQueryClient();
     const [searchFilter, setSearchFilter] = useState('');
     const [searchTrigger, setSearchTrigger] = useState(0);
 
     // Pagination
     const [page, setPage] = useState(1);
     const [limit] = useState(10);
-    const [total, setTotal] = useState(0);
+
+    const {
+        data: usersData,
+        isLoading: loading,
+        error: queryError,
+    } = useQuery({
+        queryKey: ['adminUsers', { page, searchTrigger }],
+        queryFn: () => getAdminUsers({ page, limit, search: searchFilter }),
+    });
+
+    const users: UserResponse[] = usersData?.data || [];
+    const total = usersData?.meta?.total || 0;
+    const error = queryError ? (queryError as any).response?.data?.message || (queryError as any).response?.data?.error || 'Failed to fetch users.' : '';
 
     // Edit modal
     const [editingUser, setEditingUser] = useState<UserResponse | null>(null);
     const [editForm, setEditForm] = useState({ fullname: '', phone: '' });
     const [saving, setSaving] = useState(false);
 
-    useEffect(() => {
-        fetchUsers();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [page, searchTrigger]);
 
-    const fetchUsers = async () => {
-        setLoading(true);
-        setError('');
-        try {
-            const res = await getAdminUsers({ page, limit, search: searchFilter });
-            setUsers(res.data || []);
-            if (res.meta) {
-                setTotal(res.meta.total);
-            }
-        } catch (err: any) {
-            setError(err.response?.data?.message || err.response?.data?.error || 'Failed to fetch users.');
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -58,9 +51,7 @@ const AdminUsers = () => {
     const handleRoleChange = async (userId: string, newRole: string) => {
         try {
             await updateUserRole(userId, newRole);
-            setUsers(prev =>
-                prev.map(u => (u.id === userId ? { ...u, role: newRole } : u))
-            );
+            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
         } catch (err: any) {
             alert(err.response?.data?.message || err.response?.data?.error || 'Failed to update user role.');
         }
@@ -76,14 +67,7 @@ const AdminUsers = () => {
         setSaving(true);
         try {
             await updateUserInfo(editingUser.id, editForm);
-            // Reflect changes locally
-            setUsers(prev =>
-                prev.map(u =>
-                    u.id === editingUser.id
-                        ? { ...u, fullname: editForm.fullname, phone: editForm.phone }
-                        : u
-                )
-            );
+            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
             setEditingUser(null);
         } catch (err: any) {
             alert(err.response?.data?.message || err.response?.data?.error || 'Failed to update user info.');
@@ -98,7 +82,7 @@ const AdminUsers = () => {
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-sffl-navy">User Management</h1>
+                    <h1 className="text-3xl font-black text-sffl-navy dark:text-white">User Management</h1>
                     <p className="text-gray-600 dark:text-gray-400">Search users and manage roles & info.</p>
                 </div>
             </div>
@@ -120,7 +104,7 @@ const AdminUsers = () => {
                     </div>
                     <button
                         type="submit"
-                        className="bg-sffl-red hover:bg-red-700 text-white font-bold py-3 px-6 xl:px-8 rounded-lg transition-colors focus:ring-4 focus:ring-red-500 focus:ring-opacity-50"
+                        className="bg-sffl-red hover:bg-red-700 text-white font-bold py-2 px-4 xl:px-6 rounded-xl shadow-md hover:shadow-lg transition-all focus:ring-4 focus:ring-red-500 focus:ring-opacity-50"
                     >
                         Search
                     </button>
@@ -161,9 +145,7 @@ const AdminUsers = () => {
                             {loading ? (
                                 <tr>
                                     <td colSpan={5} className="px-6 py-10 text-center text-gray-500 dark:text-gray-400">
-                                        <div className="flex justify-center py-4">
-                                            <div className="w-10 h-10 border-4 border-sffl-red border-t-transparent rounded-full animate-spin" />
-                                        </div>
+                                        <Loader />
                                         Loading users...
                                     </td>
                                 </tr>
@@ -202,7 +184,7 @@ const AdminUsers = () => {
                                         <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                                             <button
                                                 onClick={() => openEdit(user)}
-                                                className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-bold transition-colors"
+                                                className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 font-bold text-sm rounded-xl shadow-sm hover:shadow-md transition-all"
                                             >
                                                 Edit
                                             </button>
@@ -228,14 +210,14 @@ const AdminUsers = () => {
                         <button
                             disabled={page <= 1}
                             onClick={() => setPage(page - 1)}
-                            className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 rounded-lg shadow-sm font-bold hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 rounded-xl shadow-sm font-bold hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
                             ← Prev
                         </button>
                         <button
                             disabled={page >= totalPages}
                             onClick={() => setPage(page + 1)}
-                            className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 rounded-lg shadow-sm font-bold hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 rounded-xl shadow-sm font-bold hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
                             Next →
                         </button>
@@ -276,14 +258,14 @@ const AdminUsers = () => {
                         <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
                             <button
                                 onClick={() => setEditingUser(null)}
-                                className="px-5 py-2 border border-gray-300 dark:border-gray-600 rounded-lg font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors dark:text-gray-300"
+                                className="px-4 py-1.5 border border-gray-300 dark:border-gray-600 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all dark:text-gray-300"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleEditSave}
                                 disabled={saving || !editForm.fullname.trim()}
-                                className="px-5 py-2 bg-sffl-red text-white font-bold rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-4 py-1.5 bg-sffl-red text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:bg-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {saving ? 'Saving...' : 'Save Changes'}
                             </button>

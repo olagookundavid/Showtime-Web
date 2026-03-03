@@ -1,30 +1,22 @@
 import { useEffect, useState } from 'react';
-import { getGallery, type Gallery } from '../../services/api';
+import { useQuery } from '@tanstack/react-query';
+import { getGallery } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { Pagination } from '../../components/ui/Pagination';
 
 export const GalleryPage = () => {
-    const [gallery, setGallery] = useState<Gallery[]>([]);
-    const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
     const LIMIT = 10;
 
-    useEffect(() => {
-        const fetchGallery = async () => {
-            setLoading(true);
-            try {
-                const data = await getGallery(currentPage, LIMIT);
-                setGallery(data.data);
-                setTotalPages(data.total_pages);
-            } catch (error) {
-                console.error("Failed to fetch gallery:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
+    const { data: galleryData, isLoading: loading } = useQuery({
+        queryKey: ['publicGallery', currentPage],
+        queryFn: () => getGallery(currentPage, LIMIT),
+    });
 
-        fetchGallery();
+    const gallery = galleryData?.data || [];
+    const totalPages = galleryData?.total_pages || 1;
+
+    useEffect(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }, [currentPage]);
 

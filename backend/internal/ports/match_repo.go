@@ -50,7 +50,7 @@ func NewMatchRepository(db *pgxpool.Pool) *PostgresMatchRepository {
 
 // --- Competitions ---
 func (r *PostgresMatchRepository) GetCompetitions(ctx context.Context) ([]domain.Competition, error) {
-	query := `SELECT id, name, logo, created_at, updated_at FROM competitions`
+	query := `SELECT id, name, logo, created_at, updated_at FROM competitions ORDER BY created_at DESC`
 	rows, err := r.db.Query(ctx, query)
 	if err != nil {
 		return nil, err
@@ -324,12 +324,14 @@ func (r *PostgresMatchRepository) DeleteMatch(ctx context.Context, id string) er
 func (r *PostgresMatchRepository) GetStandings(ctx context.Context, competitionID string) ([]domain.Standing, error) {
 	query := `
         SELECT 
-            s.id, s.competition_id, s.team_id, s.position, s.played, s.won, s.drawn, s.lost, s.goals_for, s.goals_against, s.goal_difference, s.pct, s.l5,
+            s.id, s.competition_id, s.team_id, 
+            ROW_NUMBER() OVER (ORDER BY s.pct DESC, s.goals_for DESC, s.goal_difference DESC, t.name ASC) as position, 
+            s.played, s.won, s.drawn, s.lost, s.goals_for, s.goals_against, s.goal_difference, s.pct, s.l5,
             t.id, t.name, t.short_name, t.logo
         FROM standings s
         JOIN teams t ON s.team_id = t.id
         WHERE s.competition_id = $1
-        ORDER BY s.pct DESC, s.goals_for DESC, s.goal_difference DESC, s.position ASC
+        ORDER BY position ASC
     `
 	rows, err := r.db.Query(ctx, query, competitionID)
 	if err != nil {

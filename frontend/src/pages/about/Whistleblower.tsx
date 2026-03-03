@@ -1,3 +1,5 @@
+import { CopyableEmail } from '../../components/common/CopyableEmail';
+
 export const Whistleblower = () => {
     return (
         <div className="max-w-6xl mx-auto space-y-8">
@@ -41,9 +43,9 @@ export const Whistleblower = () => {
                         You can report incidents directly to the league's disciplinary committee via email.
                         All reports will be handled with the utmost confidentiality and urgency.
                     </p>
-                    <a href="mailto:whistleblower@sffl.football" className="inline-flex items-center gap-2 text-sffl-red font-bold hover:underline text-lg">
-                        ✉️ whistleblower@sffl.football
-                    </a>
+                    <div className="mt-2 pb-2">
+                        <CopyableEmail email="whistleblowers@sffl.football" label="✉️" className="text-sffl-red font-bold text-lg" />
+                    </div>
                 </div>
 
                 <h3 className="text-xl font-bold text-sffl-navy dark:text-white mt-6">Consequences</h3>

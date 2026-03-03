@@ -1,34 +1,29 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
-import { getNewsBySlug, getNews, type News } from '../../services/api';
+import { getNewsBySlug, getNews } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 
 export const NewsDetail = () => {
     const { slug } = useParams<{ slug: string }>();
-    const [article, setArticle] = useState<News | null>(null);
-    const [relatedNews, setRelatedNews] = useState<News[]>([]);
-    const [loading, setLoading] = useState(true);
+
+    const { data: articleData, isLoading: loadingArticle } = useQuery({
+        queryKey: ['publicNews', slug],
+        queryFn: () => getNewsBySlug(slug!),
+        enabled: !!slug,
+    });
+
+    const { data: relatedNewsData, isLoading: loadingRelated } = useQuery({
+        queryKey: ['publicNews', 'related', 4],
+        queryFn: () => getNews(1, 4),
+    });
+
+    const article = articleData || null;
+    const relatedNews = relatedNewsData?.data || [];
+    const loading = loadingArticle || loadingRelated;
 
     useEffect(() => {
-        const fetchData = async () => {
-            if (!slug) return;
-            setLoading(true);
-            try {
-                // Fetch Article
-                const articleData = await getNewsBySlug(slug);
-                setArticle(articleData);
-
-                // Fetch Related News (simple approach: fetch latest)
-                const newsResponse = await getNews(1, 4);
-                setRelatedNews(newsResponse.data);
-            } catch (error) {
-                console.error("Failed to fetch data:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchData();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }, [slug]);
 
     if (loading) {

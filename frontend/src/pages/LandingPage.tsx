@@ -1,7 +1,26 @@
 import { HeroCarousel } from '../components/HeroCarousel';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { getMatches, getNews } from '../services/api';
+import { MatchCard } from '../components/matches/MatchCard';
+import { Loader } from '../components/ui/Loader';
 
 export const LandingPage = () => {
+    const { data: finishedMatchesData, isLoading: loadingFinished } = useQuery({
+        queryKey: ['publicMatches', 'FINISHED', 3],
+        queryFn: () => getMatches(undefined, 1, 3, 'FINISHED'),
+    });
+
+    const { data: newsData, isLoading: loadingNews } = useQuery({
+        queryKey: ['publicNews', 'commissioners-note'],
+        queryFn: () => getNews(1, 10), // We'll fetch the recent 10 and filter by category
+    });
+
+    const latestResults = finishedMatchesData?.data || [];
+
+    // Find the latest commissioner's note
+    const commissionerNotes = (newsData?.data || []).filter(n => n.category === "Commissioner's Note");
+    const latestNote = commissionerNotes.length > 0 ? commissionerNotes[0] : null;
     return (
         <div className="space-y-12">
             {/* Main Hero Section */}
@@ -19,7 +38,7 @@ export const LandingPage = () => {
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4">
                         <Link
-                            to="/schedule"
+                            to="/matches"
                             className="bg-sffl-red hover:bg-red-700 text-white font-bold py-3 px-8 rounded-full transition transform hover:scale-105 shadow-lg uppercase tracking-wide text-center"
                         >
                             View Schedule
@@ -41,59 +60,45 @@ export const LandingPage = () => {
             <section>
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-3xl font-bold italic text-sffl-navy">LATEST RESULTS</h2>
-                    <a href="/schedule" className="text-sffl-red font-semibold hover:underline">View All &rarr;</a>
+                    <Link to="/matches" className="text-sffl-red font-semibold hover:underline">View All &rarr;</Link>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {/* Mock Score Card 1 */}
-                    <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-sffl-red hover:shadow-xl transition">
-                        <div className="text-gray-500 text-xs font-bold uppercase mb-2">Week 5 - Finished</div>
-                        <div className="flex justify-between items-center mb-2">
-                            <span className="font-bold text-xl">Outlaws</span>
-                            <span className="font-black text-2xl text-sffl-navy">24</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <span className="font-bold text-xl text-gray-600">Dragons</span>
-                            <span className="font-black text-2xl text-gray-600">18</span>
-                        </div>
+                {loadingFinished ? (
+                    <Loader />
+                ) : latestResults.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {latestResults.map(match => (
+                            <MatchCard key={match.id} match={match} onClick={() => { }} />
+                        ))}
                     </div>
-
-                    {/* Mock Score Card 2 */}
-                    <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-sffl-navy hover:shadow-xl transition">
-                        <div className="text-gray-500 text-xs font-bold uppercase mb-2">Week 5 - Finished</div>
-                        <div className="flex justify-between items-center mb-2">
-                            <span className="font-bold text-xl">Spartans</span>
-                            <span className="font-black text-2xl text-sffl-navy">30</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <span className="font-bold text-xl text-gray-600">Titans</span>
-                            <span className="font-black text-2xl text-gray-600">30</span>
-                        </div>
-                        <div className="mt-2 text-xs text-sffl-red font-bold uppercase text-right">Overtime</div>
+                ) : (
+                    <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-2xl">
+                        <p className="text-gray-500 font-medium">No recent results available.</p>
                     </div>
-
-                    {/* Mock Score Card 3 */}
-                    <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-sffl-red hover:shadow-xl transition">
-                        <div className="text-gray-500 text-xs font-bold uppercase mb-2">Week 5 - Finished</div>
-                        <div className="flex justify-between items-center mb-2">
-                            <span className="font-bold text-xl">Vipers</span>
-                            <span className="font-black text-2xl text-sffl-navy">12</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <span className="font-bold text-xl text-gray-600">Rebels</span>
-                            <span className="font-black text-2xl text-gray-600">6</span>
-                        </div>
-                    </div>
-                </div>
+                )}
             </section>
 
             {/* News/Engagement Placeholder */}
             <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="bg-sffl-navy text-white p-8 rounded-2xl shadow-xl">
-                    <h3 className="text-2xl font-bold italic mb-4">COMMISSIONER'S NOTE</h3>
-                    <p className="text-gray-300 mb-4">
-                        "Week 5 showed us that the competition is fiercer than ever. New regulations regarding defensive setups will be enforced starting Week 6 to ensure fair play..."
-                    </p>
-                    <Link to="/commissioners-note" className="text-sffl-red font-bold hover:text-white transition">Read Full Update</Link>
+                <div className="bg-sffl-navy dark:bg-gray-800 text-white p-8 rounded-2xl shadow-xl border border-transparent dark:border-gray-700 flex flex-col h-full">
+                    <h3 className="text-2xl font-bold italic mb-4 uppercase">Commissioner's Note</h3>
+                    {loadingNews ? (
+                        <div className="flex-1 flex justify-center items-center py-8">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                        </div>
+                    ) : latestNote ? (
+                        <>
+                            <p className="text-gray-300 dark:text-gray-300 mb-6 italic flex-1 relative z-10 before:content-['\201C'] before:absolute before:-top-4 before:-left-2 before:text-5xl before:text-sffl-red/30 before:-z-10 after:content-['\201D'] after:relative after:-bottom-4 after:text-5xl after:text-sffl-red/30 after:leading-none">
+                                {latestNote.excerpt || latestNote.content.substring(0, 150) + '...'}
+                            </p>
+                            <Link to={`/news/${latestNote.slug}`} className="text-sffl-red font-bold hover:text-white dark:hover:text-red-400 transition mt-auto inline-flex items-center gap-1">
+                                Read Note <span className="text-lg leading-none">&rarr;</span>
+                            </Link>
+                        </>
+                    ) : (
+                        <div className="flex-1 flex items-center justify-center">
+                            <p className="text-gray-400 dark:text-gray-500 italic font-medium">No commissioner's note at this time.</p>
+                        </div>
+                    )}
                 </div>
                 <div className="bg-white p-8 rounded-2xl shadow-xl">
                     <h3 className="text-2xl font-bold italic text-sffl-navy mb-4">PLAYER OF THE WEEK</h3>

@@ -76,7 +76,6 @@ type MatchResponse struct {
 type CreateStandingRequest struct {
 	CompetitionID string `json:"competition_id" binding:"required"`
 	TeamID        string `json:"team_id" binding:"required"`
-	Position      int    `json:"position" binding:"required"`
 	Won           int    `json:"won"`
 	Drawn         int    `json:"drawn"`
 	Lost          int    `json:"lost"`
@@ -88,7 +87,6 @@ type CreateStandingRequest struct {
 type UpdateStandingRequest struct {
 	CompetitionID string `json:"competition_id"`
 	TeamID        string `json:"team_id"`
-	Position      int    `json:"position"`
 	Won           int    `json:"won"`
 	Drawn         int    `json:"drawn"`
 	Lost          int    `json:"lost"`

@@ -336,7 +336,6 @@ export const deletePlayer = async (id: string) => {
 export interface CreateStandingPayload {
     competition_id: string;
     team_id: string;
-    position: number;
     won?: number;
     drawn?: number;
     lost?: number;
@@ -451,7 +450,7 @@ export const adminListTickets = async (page = 1, limit = 10, eventDayId?: string
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (eventDayId) params.append('event_day_id', eventDayId);
     if (status) params.append('status', status);
-    const response = await api.get<PaginatedResponse<TicketResponse>>(`/tickets?${params}`);
+    const response = await api.get<PaginatedResponse<TicketResponse>>(`/admin/tickets?${params}`);
     return response.data;
 };
 
@@ -466,7 +465,7 @@ export const verifyTicket = async (reference: string): Promise<TicketResponse> =
 };
 
 export const adminCheckinTicket = async (id: string, checkedInBy: string) => {
-    const response = await api.post(`/tickets/${id}/admin-checkin`, { checked_in_by: checkedInBy });
+    const response = await api.post(`/admin/tickets/${id}/admin-checkin`, { checked_in_by: checkedInBy });
     return response.data;
 };
 
@@ -482,27 +481,27 @@ export const searchTicketsByEmail = async (email: string): Promise<TicketRespons
 
 // Admin Event Day endpoints
 export const getAllEventDays = async (): Promise<EventDayResponse[]> => {
-    const response = await api.get<{ data: EventDayResponse[] }>('/event-days/all');
+    const response = await api.get<{ data: EventDayResponse[] }>('/admin/event-days/all');
     return response.data.data || [];
 };
 
 export const createEventDay = async (payload: { title: string; date: string; venue?: string; is_active?: boolean }): Promise<EventDayResponse> => {
-    const response = await api.post<EventDayResponse>('/event-days', payload);
+    const response = await api.post<EventDayResponse>('/admin/event-days', payload);
     return response.data;
 };
 
 export const updateEventDay = async (id: string, payload: { title?: string; venue?: string; is_active?: boolean }) => {
-    const response = await api.put(`/event-days/${id}`, payload);
+    const response = await api.put(`/admin/event-days/${id}`, payload);
     return response.data;
 };
 
 export const deleteEventDay = async (id: string) => {
-    const response = await api.delete(`/event-days/${id}`);
+    const response = await api.delete(`/admin/event-days/${id}`);
     return response.data;
 };
 
 export const createTier = async (eventDayId: string, payload: { name: string; price: number; capacity?: number; description?: string }): Promise<TicketTierResponse> => {
-    const response = await api.post<TicketTierResponse>(`/event-days/${eventDayId}/tiers`, payload);
+    const response = await api.post<TicketTierResponse>(`/admin/event-days/${eventDayId}/tiers`, payload);
     return response.data;
 };
 
@@ -581,6 +580,31 @@ export const updateCompetition = async (id: string, payload: { name: string; log
 
 export const deleteCompetition = async (id: string) => {
     const response = await api.delete(`/admin/competitions/${id}`);
+    return response.data;
+};
+
+export interface GenericApiResponse<T> {
+    message: string;
+    data: T;
+}
+
+export interface SalesByTier {
+    tier_name: string;
+    total_amount: number;
+    quantity: number;
+}
+
+export interface AdminAnalyticsResponse {
+    total_revenue: number;
+    total_tickets_sold: number;
+    total_users: number;
+    recent_sales: TicketResponse[];
+    users_by_role: Record<string, number>;
+    sales_by_tier: SalesByTier[];
+}
+
+export const getAdminAnalytics = async (): Promise<GenericApiResponse<AdminAnalyticsResponse>> => {
+    const response = await api.get<GenericApiResponse<AdminAnalyticsResponse>>('/admin/analytics');
     return response.data;
 };
 

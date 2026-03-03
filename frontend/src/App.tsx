@@ -1,10 +1,9 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { Layout } from './components/layout/Layout';
 import { LandingPage } from './pages/LandingPage';
-import { CommissionersNote } from './pages/CommissionersNote';
 import { StorePage } from './pages/StorePage';
 import { AboutShowtimeFlag } from './pages/about/AboutShowtimeFlag';
 import { MediaGuidelines } from './pages/about/MediaGuidelines';
@@ -38,6 +37,7 @@ import { AdminEventDays } from './pages/admin/AdminEventDays';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminTeams from './pages/admin/AdminTeams';
 import AdminCompetitions from './pages/admin/AdminCompetitions';
+import { AdminAnalytics } from './pages/admin/AdminAnalytics';
 import TeamHeadLayout from './pages/team-head/TeamHeadLayout';
 import TeamHeadOverview from './pages/team-head/TeamHeadOverview';
 import TeamHeadPlayers from './pages/team-head/TeamHeadPlayers';
@@ -74,7 +74,6 @@ function App() {
               <Route path="/players/:id" element={<PlayerDetail />} />
 
               {/* Static Pages */}
-              <Route path="/commissioners-note" element={<CommissionersNote />} />
               <Route path="/store" element={<StorePage />} />
 
               {/* About Us Pages */}
@@ -95,6 +94,7 @@ function App() {
               </ProtectedRoute>
             }>
               <Route index element={<Dashboard />} />
+              <Route path="analytics" element={<AdminAnalytics />} />
               <Route path="matches" element={<AdminMatches />} />
               <Route path="news" element={<AdminNews />} />
               <Route path="gallery" element={<AdminGallery />} />
@@ -116,6 +116,9 @@ function App() {
               <Route index element={<TeamHeadOverview />} />
               <Route path="players" element={<TeamHeadPlayers />} />
             </Route>
+
+            {/* Catch-all route to redirect back to home automatically */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>

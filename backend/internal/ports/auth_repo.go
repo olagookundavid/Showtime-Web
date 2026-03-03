@@ -22,6 +22,7 @@ type IAuthRepository interface {
 	ListUsers(ctx context.Context, page, limit int, searchFilter string) ([]domain.User, int, error)
 	UpdateUserRole(ctx context.Context, userID, newRole string) error
 	UpdateUserInfo(ctx context.Context, userID, fullName, phone string) error
+	CountTotalUsers(ctx context.Context) (int, error)
 }
 
 type AuthRepository struct {
@@ -235,4 +236,11 @@ func (m AuthRepository) UpdateUserInfo(ctx context.Context, userID, fullName, ph
 	}
 
 	return nil
+}
+
+func (m AuthRepository) CountTotalUsers(ctx context.Context) (int, error) {
+	query := `SELECT COUNT(*) FROM users`
+	var total int
+	err := m.Db.QueryRow(ctx, query).Scan(&total)
+	return total, err
 }

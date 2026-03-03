@@ -129,10 +129,14 @@ func flagSetup(dbUrl string, tokenDeets map[string]string) *config.Config {
 func cronjobs(app *api.Application) {
 	c := cron.New()
 
-	// Run every sat at 12noon
-	c.AddFunc("0 12 * * 6", func() {
-
+	// Run every day at midnight (00:00)
+	c.AddFunc("0 0 * * *", func() {
+		app.Logger.Info("Running daily ticket expiration job...", nil)
+		if err := app.TicketService.ExpirePastTickets(context.Background()); err != nil {
+			app.Logger.Error(fmt.Sprintf("Ticket expiration failed: %v", err), nil)
+		}
 	})
+
 	app.Logger.Info("Starting scheduler...", nil)
 	c.Start()
 }
@@ -182,8 +186,8 @@ func ExampleQueueProducer(log *logger.Logger) queue.MessagePublisher {
 }
 
 // wireDependencies initializes and injects all dependencies (Repository -> Service -> Handler)
-// returning the fully assembled Handlers struct and the AuditService.
-func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker) (handlers.Handlers, services.IAuditService, services.IAuthService, services.ITeamManagerService) {
+// returning the fully assembled Handlers struct, the AuditService, and the TicketService.
+func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker) (handlers.Handlers, services.IAuditService, services.IAuthService, services.ITeamManagerService, *services.TicketService) {
 	// Infrastructure
 	auditRepo := ports.NewAuditRepository(pool)
 	authRepo := ports.NewAuthRepository(pool)
@@ -195,6 +199,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker) (handlers.Hand
 	tierRepo := ports.NewTicketTierRepository(pool)
 	ticketRepo := ports.NewTicketRepository(pool)
 	tmRepo := ports.NewTeamManagerRepository(pool)
+	analyticsRepo := ports.NewAnalyticsRepository(pool)
 
 	// External Clients
 	paystackClient := services.NewPaystackClient()
@@ -209,6 +214,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker) (handlers.Hand
 	emailService := email.NewResendService()
 	ticketService := services.NewTicketService(eventDayRepo, tierRepo, ticketRepo, matchRepo, paystackClient, emailService)
 	tmService := services.NewTeamManagerService(tmRepo, authRepo)
+	analyticsService := services.NewAnalyticsService(authRepo, ticketRepo, analyticsRepo)
 
 	// Transport / Handlers
 	authHandler := transport.NewAuthHandler(authService)
@@ -218,7 +224,8 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker) (handlers.Hand
 	playerHandler := transport.NewPlayerHandler(playerService)
 	ticketHandler := transport.NewTicketHandler(ticketService, paystackClient)
 	tmHandler := transport.NewTeamManagerHandler(tmService, matchService)
+	analyticsHandler := transport.NewAnalyticsHandler(analyticsService)
 
-	h := handlers.NewHandlers(authHandler, newsHandler, galleryHandler, matchHandler, playerHandler, ticketHandler, tmHandler)
-	return h, auditService, authService, tmService
+	h := handlers.NewHandlers(authHandler, newsHandler, galleryHandler, matchHandler, playerHandler, ticketHandler, tmHandler, analyticsHandler)
+	return h, auditService, authService, tmService, ticketService
 }

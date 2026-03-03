@@ -20,4 +20,5 @@ type Application struct {
 	AuditService       services.IAuditService
 	AuthService        services.IAuthService
 	TeamManagerService services.ITeamManagerService
+	TicketService      *services.TicketService
 }

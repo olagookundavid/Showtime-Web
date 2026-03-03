@@ -1,30 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
-import { getPlayerById, type Player } from '../../services/api';
+import { getPlayerById } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 
 export const PlayerDetail = () => {
     const { id } = useParams<{ id: string }>();
-    const [player, setPlayer] = useState<Player | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(false);
 
-    useEffect(() => {
-        if (!id) return;
-
-        const fetchPlayer = async () => {
-            try {
-                const data = await getPlayerById(id);
-                setPlayer(data);
-            } catch (err) {
-                console.error("Failed to fetch player:", err);
-                setError(true);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchPlayer();
-    }, [id]);
+    const { data: player, isLoading: loading, isError: error } = useQuery({
+        queryKey: ['publicPlayer', id],
+        queryFn: () => getPlayerById(id!),
+        enabled: !!id,
+    });
 
     if (loading) return <Loader />;
 

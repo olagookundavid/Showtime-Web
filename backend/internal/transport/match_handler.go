@@ -282,7 +282,7 @@ func (h *MatchHandler) CreateStanding(c *gin.Context) {
 	standing := &domain.Standing{
 		CompetitionID: req.CompetitionID,
 		TeamID:        req.TeamID,
-		Position:      req.Position,
+		Position:      0, // Position is now dynamically calculated by SQL
 		Played:        played,
 		Won:           req.Won,
 		Drawn:         req.Drawn,
@@ -327,7 +327,7 @@ func (h *MatchHandler) UpdateStanding(c *gin.Context) {
 		ID:            id,
 		CompetitionID: req.CompetitionID,
 		TeamID:        req.TeamID,
-		Position:      req.Position,
+		Position:      0, // Position is now dynamically calculated by SQL
 		Played:        played,
 		Won:           req.Won,
 		Drawn:         req.Drawn,

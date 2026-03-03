@@ -1,51 +1,42 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useSearchParams, Link } from 'react-router-dom';
 import { getEventDays, getEventDayByDate, purchaseTicket, type EventDayResponse, type TicketTierResponse, type PurchaseTicketPayload } from '../../services/api';
-import { useAuth } from '../../contexts/AuthContext';
 
 export const TicketsPage = () => {
-    const { user } = useAuth();
     const [searchParams] = useSearchParams();
-    const [eventDays, setEventDays] = useState<EventDayResponse[]>([]);
+    const dateParam = searchParams.get('date');
+
+    const { data: specificDay, isError: specificDayError } = useQuery({
+        queryKey: ['publicEventDay', dateParam],
+        queryFn: () => getEventDayByDate(dateParam!),
+        enabled: !!dateParam,
+        retry: false,
+    });
+
+    const fetchAllDays = !dateParam || specificDayError;
+
+    const { data: allDaysData, isLoading: loadingAll } = useQuery({
+        queryKey: ['publicEventDays'],
+        queryFn: getEventDays,
+        enabled: fetchAllDays,
+    });
+
     const [selectedEventDay, setSelectedEventDay] = useState<EventDayResponse | null>(null);
-    const [loading, setLoading] = useState(true);
     const [selectedTier, setSelectedTier] = useState<TicketTierResponse | null>(null);
     const [quantity, setQuantity] = useState(1);
-    const [email, setEmail] = useState(user?.email || '');
+    const [email, setEmail] = useState('');
     const [purchasing, setPurchasing] = useState(false);
     const [error, setError] = useState('');
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const dateParam = searchParams.get('date');
-                if (dateParam) {
-                    // Fetch specific event day by date
-                    try {
-                        const eventDay = await getEventDayByDate(dateParam);
-                        setSelectedEventDay(eventDay);
-                        setEventDays([eventDay]);
-                    } catch {
-                        // No event day for this date, fetch all
-                        const allDays = await getEventDays();
-                        setEventDays(allDays);
-                    }
-                } else {
-                    const allDays = await getEventDays();
-                    setEventDays(allDays);
-                }
-            } catch (err) {
-                console.error('Failed to fetch event days:', err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchData();
-    }, [searchParams]);
+    const eventDays = specificDay && !specificDayError ? [specificDay] : (allDaysData || []);
+    const loading = (!!dateParam && specificDay === undefined && !specificDayError) || (fetchAllDays && loadingAll);
 
     useEffect(() => {
-        if (user?.email) setEmail(user.email);
-    }, [user]);
+        if (specificDay && !specificDayError) {
+            setSelectedEventDay(specificDay);
+        }
+    }, [specificDay, specificDayError]);
 
     const handlePurchase = async () => {
         if (!selectedEventDay || !selectedTier || !email) return;
@@ -235,7 +226,7 @@ export const TicketsPage = () => {
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="you@example.com"
+                                    placeholder="e.g. example@mail.com"
                                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
                                     required
                                 />

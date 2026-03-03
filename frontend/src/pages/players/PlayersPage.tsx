@@ -1,44 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { getPlayers, getTeams, type Player, type Team } from '../../services/api';
+import { getPlayers, getTeams } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 
 export const PlayersPage = () => {
-    const [teams, setTeams] = useState<Team[]>([]);
     const [selectedTeamId, setSelectedTeamId] = useState<string>('');
-    const [players, setPlayers] = useState<Player[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [dataLoading, setDataLoading] = useState(false);
 
-    // Fetch Teams on Mount
-    useEffect(() => {
-        const fetchTeams = async () => {
-            try {
-                const data = await getTeams();
-                setTeams(data);
-            } catch (error) {
-                console.error("Failed to fetch teams:", error);
-            }
-        };
-        fetchTeams();
-    }, []);
+    const { data: teamsData, isLoading: loadingTeams } = useQuery({
+        queryKey: ['publicTeams'],
+        queryFn: getTeams,
+    });
+    const teams = teamsData || [];
 
-    // Fetch Players (all or filtered by team)
-    useEffect(() => {
-        const fetchPlayers = async () => {
-            setDataLoading(true);
-            try {
-                const data = await getPlayers(selectedTeamId || undefined);
-                setPlayers(data || []);
-            } catch (error) {
-                console.error("Failed to fetch players:", error);
-            } finally {
-                setLoading(false);
-                setDataLoading(false);
-            }
-        };
-        fetchPlayers();
-    }, [selectedTeamId]);
+    const { data: playersData, isLoading: dataLoading } = useQuery({
+        queryKey: ['publicPlayers', selectedTeamId],
+        queryFn: () => getPlayers(selectedTeamId || undefined),
+    });
+    const players = playersData || [];
+
+    const loading = loadingTeams;
 
     if (loading) return <Loader />;
 

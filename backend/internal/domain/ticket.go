@@ -42,6 +42,7 @@ const (
 	TicketStatusFailed    TicketStatus = "FAILED"
 	TicketStatusUsed      TicketStatus = "USED"
 	TicketStatusCancelled TicketStatus = "CANCELLED"
+	TicketStatusExpired   TicketStatus = "EXPIRED"
 )
 
 type Ticket struct {

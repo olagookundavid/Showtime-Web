@@ -40,6 +40,10 @@ type TicketRepository interface {
 	Checkin(ctx context.Context, id string, checkedInBy string) error
 	AdminCheckin(ctx context.Context, id string, checkedInBy string) error
 	List(ctx context.Context, eventDayID string, status string, page int, limit int) ([]domain.Ticket, int, error)
+	ExpirePastTickets(ctx context.Context) (int64, error)
+	GetTotalRevenue(ctx context.Context) (int, error)
+	GetTotalTicketsSold(ctx context.Context) (int, error)
+	GetRecentSales(ctx context.Context, limit int) ([]domain.Ticket, error)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -505,4 +509,73 @@ func (r *PostgresTicketRepository) List(ctx context.Context, eventDayID string, 
 		tickets = append(tickets, t)
 	}
 	return tickets, total, nil
+}
+
+func (r *PostgresTicketRepository) ExpirePastTickets(ctx context.Context) (int64, error) {
+	query := `
+		UPDATE tickets 
+		SET status = 'EXPIRED', updated_at = NOW() 
+		FROM event_days 
+		WHERE tickets.event_day_id = event_days.id 
+		  AND event_days.date < NOW() 
+		  AND tickets.status NOT IN ('USED', 'CANCELLED', 'EXPIRED')
+	`
+	res, err := r.db.Exec(ctx, query)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected(), nil
+}
+
+func (r *PostgresTicketRepository) GetTotalRevenue(ctx context.Context) (int, error) {
+	query := `SELECT COALESCE(SUM(total_amount), 0) FROM tickets WHERE status IN ('PAID', 'USED')`
+	var total int
+	err := r.db.QueryRow(ctx, query).Scan(&total)
+	return total, err
+}
+
+func (r *PostgresTicketRepository) GetTotalTicketsSold(ctx context.Context) (int, error) {
+	query := `SELECT COALESCE(SUM(quantity), 0) FROM tickets WHERE status IN ('PAID', 'USED')`
+	var total int
+	err := r.db.QueryRow(ctx, query).Scan(&total)
+	return total, err
+}
+
+func (r *PostgresTicketRepository) GetRecentSales(ctx context.Context, limit int) ([]domain.Ticket, error) {
+	query := `
+		SELECT t.id, t.event_day_id, t.tier_id, t.email, t.user_id, t.quantity, t.unit_price, t.total_amount,
+			t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code,
+			t.checked_in_at, t.checked_in_by, t.created_at, t.updated_at,
+			ed.title, tt.name
+		FROM tickets t
+		JOIN event_days ed ON t.event_day_id = ed.id
+		JOIN ticket_tiers tt ON t.tier_id = tt.id
+		WHERE t.status IN ('PAID', 'USED')
+		ORDER BY t.created_at DESC
+		LIMIT $1
+	`
+	rows, err := r.db.Query(ctx, query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tickets []domain.Ticket
+	for rows.Next() {
+		var t domain.Ticket
+		var edTitle, tierName string
+		if err := rows.Scan(
+			&t.ID, &t.EventDayID, &t.TierID, &t.Email, &t.UserID,
+			&t.Quantity, &t.UnitPrice, &t.TotalAmount,
+			&t.Status, &t.PaystackReference, &t.PaystackAccessCode, &t.TicketCode,
+			&t.CheckedInAt, &t.CheckedInBy, &t.CreatedAt, &t.UpdatedAt,
+			&edTitle, &tierName,
+		); err != nil {
+			return nil, err
+		}
+		t.EventDay = &domain.EventDay{ID: t.EventDayID, Title: edTitle}
+		t.Tier = &domain.TicketTier{ID: t.TierID, Name: tierName}
+		tickets = append(tickets, t)
+	}
+	return tickets, nil
 }

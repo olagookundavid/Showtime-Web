@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Loader } from '../../components/ui/Loader';
 import { getAdminCompetitions, createCompetition, updateCompetition, deleteCompetition } from '../../services/api';
 
 interface Competition {
@@ -8,9 +10,19 @@ interface Competition {
 }
 
 const AdminCompetitions = () => {
-    const [competitions, setCompetitions] = useState<Competition[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
+    const queryClient = useQueryClient();
+
+    const {
+        data,
+        isLoading: loading,
+        error: queryError,
+    } = useQuery({
+        queryKey: ['adminCompetitionsData'],
+        queryFn: getAdminCompetitions,
+    });
+
+    const competitions: Competition[] = data?.data || [];
+    const error = queryError ? (queryError as any).response?.data?.message || (queryError as any).response?.data?.error || 'Failed to fetch competitions.' : '';
 
     // Modal
     const [showModal, setShowModal] = useState(false);
@@ -18,20 +30,7 @@ const AdminCompetitions = () => {
     const [form, setForm] = useState({ name: '', logo: '' });
     const [saving, setSaving] = useState(false);
 
-    useEffect(() => { fetchCompetitions(); }, []);
 
-    const fetchCompetitions = async () => {
-        setLoading(true);
-        setError('');
-        try {
-            const res = await getAdminCompetitions();
-            setCompetitions(res.data || []);
-        } catch (err: any) {
-            setError(err.response?.data?.message || err.response?.data?.error || 'Failed to fetch competitions.');
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const openCreate = () => {
         setEditing(null);
@@ -50,11 +49,10 @@ const AdminCompetitions = () => {
         try {
             if (editing) {
                 await updateCompetition(editing.id, form);
-                setCompetitions(prev => prev.map(c => c.id === editing.id ? { ...c, ...form } : c));
             } else {
                 await createCompetition(form);
-                await fetchCompetitions();
             }
+            queryClient.invalidateQueries({ queryKey: ['adminCompetitionsData'] });
             setShowModal(false);
         } catch (err: any) {
             alert(err.response?.data?.message || err.response?.data?.error || 'Failed to save competition.');
@@ -67,7 +65,7 @@ const AdminCompetitions = () => {
         if (!confirm('Delete this competition? This may affect related matches and standings.')) return;
         try {
             await deleteCompetition(id);
-            setCompetitions(prev => prev.filter(c => c.id !== id));
+            queryClient.invalidateQueries({ queryKey: ['adminCompetitionsData'] });
         } catch (err: any) {
             alert(err.response?.data?.message || err.response?.data?.error || 'Failed to delete competition.');
         }
@@ -77,10 +75,10 @@ const AdminCompetitions = () => {
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-sffl-navy">Competitions</h1>
+                    <h1 className="text-3xl font-black text-sffl-navy dark:text-white">Competitions</h1>
                     <p className="text-gray-600 dark:text-gray-400">Manage leagues, tournaments, and competitions.</p>
                 </div>
-                <button onClick={openCreate} className="bg-sffl-red hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
+                <button onClick={openCreate} className="bg-sffl-red hover:bg-red-700 text-white font-bold px-4 py-1.5 rounded-xl shadow-md hover:shadow-lg transition-all">
                     + New Competition
                 </button>
             </div>
@@ -93,9 +91,7 @@ const AdminCompetitions = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {loading ? (
-                    <div className="col-span-full flex justify-center py-12">
-                        <div className="w-10 h-10 border-4 border-sffl-red border-t-transparent rounded-full animate-spin" />
-                    </div>
+                    <Loader />
                 ) : competitions.length === 0 ? (
                     <div className="col-span-full text-center py-12 text-gray-500">No competitions found.</div>
                 ) : (
@@ -106,7 +102,7 @@ const AdminCompetitions = () => {
                                     {comp.logo ? (
                                         <img src={comp.logo} alt={comp.name} className="w-14 h-14 rounded-lg object-contain bg-gray-50 p-1" />
                                     ) : (
-                                        <div className="w-14 h-14 rounded-lg bg-sffl-navy/10 flex items-center justify-center text-2xl font-black text-sffl-navy">
+                                        <div className="w-14 h-14 rounded-lg bg-sffl-navy/10 flex items-center justify-center text-2xl font-black text-sffl-navy dark:text-white">
                                             🏆
                                         </div>
                                     )}
@@ -114,11 +110,11 @@ const AdminCompetitions = () => {
                                 </div>
                                 <div className="flex gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
                                     <button onClick={() => openEdit(comp)}
-                                        className="flex-1 text-sm font-bold text-blue-600 hover:text-blue-800 dark:text-blue-400 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                                        className="flex-1 text-sm font-bold bg-blue-50 text-blue-600 hover:text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 py-2 rounded-xl shadow-sm hover:shadow-md hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all">
                                         Edit
                                     </button>
                                     <button onClick={() => handleDelete(comp.id)}
-                                        className="flex-1 text-sm font-bold text-red-600 hover:text-red-800 dark:text-red-400 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                                        className="flex-1 text-sm font-bold bg-red-50 text-red-600 hover:text-red-800 dark:bg-red-900/30 dark:text-red-400 py-2 rounded-xl shadow-sm hover:shadow-md hover:bg-red-100 dark:hover:bg-red-900/50 transition-all">
                                         Delete
                                     </button>
                                 </div>
@@ -150,16 +146,17 @@ const AdminCompetitions = () => {
                             </div>
                         </div>
                         <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
-                            <button onClick={() => setShowModal(false)} className="px-5 py-2 border border-gray-300 dark:border-gray-600 rounded-lg font-bold hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300">Cancel</button>
+                            <button onClick={() => setShowModal(false)} className="px-4 py-1.5 border border-gray-300 dark:border-gray-600 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300 transition-all">Cancel</button>
                             <button onClick={handleSave} disabled={saving || !form.name.trim()}
-                                className="px-5 py-2 bg-sffl-red text-white font-bold rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                className="px-4 py-1.5 bg-sffl-red text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
                                 {saving ? 'Saving...' : editing ? 'Update' : 'Create'}
                             </button>
                         </div>
                     </div>
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 };
 

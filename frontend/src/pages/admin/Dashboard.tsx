@@ -1,111 +1,135 @@
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
+import { Loader } from '../../components/ui/Loader';
+import { getAdminAnalytics } from '../../services/api';
+
+// Simple Nigerian Naira formatter
+const formatNaira = (amount: number) => {
+    return new Intl.NumberFormat('en-NG', {
+        style: 'currency',
+        currency: 'NGN',
+        minimumFractionDigits: 0,
+    }).format(amount);
+};
 
 export const Dashboard = () => {
+    const {
+        data: analytics,
+        isLoading: loading,
+        error: queryError,
+    } = useQuery({
+        queryKey: ['adminAnalytics'], // reuse the same key to share cache with AdminAnalytics
+        queryFn: async () => {
+            const res = await getAdminAnalytics();
+            return res.data;
+        }
+    });
+
+    const error = queryError ? (queryError as any).response?.data?.error || 'Failed to load dashboard data' : '';
+
+    if (loading) {
+        return <Loader />;
+    }
+
+    if (error) {
+        return (
+            <div className="bg-red-50 text-red-600 p-4 rounded-lg my-4">
+                <strong>Error:</strong> {error}
+            </div>
+        );
+    }
+
+    const {
+        total_revenue = 0,
+        total_tickets_sold = 0,
+        total_users = 0
+    } = analytics || {};
+
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 animate-fade-in">
             {/* Header */}
             <div>
-                <h1 className="text-4xl font-black text-sffl-navy mb-2">Dashboard</h1>
-                <p className="text-gray-600">Welcome back! Here's what's happening with SFFL.</p>
+                <h1 className="text-4xl font-black text-sffl-navy dark:text-white mb-2">Dashboard</h1>
+                <p className="text-gray-600 dark:text-gray-400">Welcome back! Here's a quick overview of SFFL performance.</p>
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-sffl-red">
-                    <div className="text-gray-500 text-sm font-bold mb-1">Total Matches</div>
-                    <div className="text-4xl font-black text-sffl-navy">24</div>
-                    <div className="text-xs text-gray-500 mt-2">Current Season</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border-l-4 border-sffl-red hover:shadow-lg transition">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-red-50 dark:bg-red-900/30 text-sffl-red rounded-lg text-xl">💰</div>
+                        <div className="text-gray-500 dark:text-gray-400 text-sm font-bold">Total Revenue</div>
+                    </div>
+                    <div className="text-4xl font-black text-sffl-navy dark:text-white">{formatNaira(total_revenue)}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">All time ticket sales</div>
                 </div>
 
-                <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-sffl-navy">
-                    <div className="text-gray-500 text-sm font-bold mb-1">Registered Fans</div>
-                    <div className="text-4xl font-black text-sffl-navy">1,247</div>
-                    <div className="text-xs text-green-600 mt-2">+12% this week</div>
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border-l-4 border-sffl-navy hover:shadow-lg transition">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-blue-50 dark:bg-blue-900/30 text-sffl-navy dark:text-blue-400 rounded-lg text-xl">🎟️</div>
+                        <div className="text-gray-500 dark:text-gray-400 text-sm font-bold">Tickets Sold</div>
+                    </div>
+                    <div className="text-4xl font-black text-sffl-navy dark:text-white">{total_tickets_sold.toLocaleString()}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">Paid and checked-in tickets</div>
                 </div>
 
-                <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-green-500">
-                    <div className="text-gray-500 text-sm font-bold mb-1">Tickets Sold</div>
-                    <div className="text-4xl font-black text-sffl-navy">892</div>
-                    <div className="text-xs text-gray-500 mt-2">Next Match</div>
-                </div>
-
-                <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-purple-500">
-                    <div className="text-gray-500 text-sm font-bold mb-1">News Articles</div>
-                    <div className="text-4xl font-black text-sffl-navy">18</div>
-                    <div className="text-xs text-gray-500 mt-2">Published</div>
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border-l-4 border-green-500 hover:shadow-lg transition">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-green-50 dark:bg-green-900/30 text-green-600 rounded-lg text-xl">👥</div>
+                        <div className="text-gray-500 dark:text-gray-400 text-sm font-bold">Registered Users</div>
+                    </div>
+                    <div className="text-4xl font-black text-sffl-navy dark:text-white">{total_users.toLocaleString()}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">Total platform signups</div>
                 </div>
             </div>
 
             {/* Quick Actions */}
-            <div className="bg-white rounded-xl shadow-md p-6">
-                <h2 className="text-2xl font-black text-sffl-navy mb-4">Quick Actions</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+                <h2 className="text-2xl font-black text-sffl-navy dark:text-white mb-4">Quick Actions</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <Link
                         to="/admin/matches"
-                        className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-sffl-red hover:bg-red-50 transition"
+                        className="flex items-center gap-3 p-4 border-2 border-gray-100 dark:border-gray-700 rounded-lg hover:border-sffl-red dark:hover:border-sffl-red hover:bg-red-50 dark:hover:bg-gray-700 transition"
                     >
                         <div className="text-3xl">🏈</div>
                         <div>
-                            <div className="font-bold text-sffl-navy">Add New Match</div>
-                            <div className="text-sm text-gray-500">Schedule a game</div>
+                            <div className="font-bold text-sffl-navy dark:text-white">Add Match</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">Schedule game</div>
                         </div>
                     </Link>
 
                     <Link
                         to="/admin/news"
-                        className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-sffl-navy hover:bg-blue-50 transition"
+                        className="flex items-center gap-3 p-4 border-2 border-gray-100 dark:border-gray-700 rounded-lg hover:border-sffl-navy dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-gray-700 transition"
                     >
                         <div className="text-3xl">📰</div>
                         <div>
-                            <div className="font-bold text-sffl-navy">Publish News</div>
-                            <div className="text-sm text-gray-500">Write an article</div>
+                            <div className="font-bold text-sffl-navy dark:text-white">Publish News</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">Write article</div>
+                        </div>
+                    </Link>
+
+                    <Link
+                        to="/admin/event-days"
+                        className="flex items-center gap-3 p-4 border-2 border-gray-100 dark:border-gray-700 rounded-lg hover:border-green-500 dark:hover:border-green-500 hover:bg-green-50 dark:hover:bg-gray-700 transition"
+                    >
+                        <div className="text-3xl">📅</div>
+                        <div>
+                            <div className="font-bold text-sffl-navy dark:text-white">Event Day</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">Create event</div>
                         </div>
                     </Link>
 
                     <Link
                         to="/admin/gallery"
-                        className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition"
+                        className="flex items-center gap-3 p-4 border-2 border-gray-100 dark:border-gray-700 rounded-lg hover:border-purple-500 dark:hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-gray-700 transition"
                     >
                         <div className="text-3xl">📸</div>
                         <div>
-                            <div className="font-bold text-sffl-navy">Upload Photos</div>
-                            <div className="text-sm text-gray-500">Add to gallery</div>
+                            <div className="font-bold text-sffl-navy dark:text-white">Upload Photos</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">Add to gallery</div>
                         </div>
                     </Link>
-                </div>
-            </div>
-
-            {/* Recent Activity */}
-            <div className="bg-white rounded-xl shadow-md p-6">
-                <h2 className="text-2xl font-black text-sffl-navy mb-4">Recent Activity</h2>
-                <div className="space-y-3">
-                    <div className="flex items-center justify-between py-3 border-b">
-                        <div className="flex items-center gap-3">
-                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                            <div>
-                                <div className="font-semibold">Match Added: Outlaws vs Dragons</div>
-                                <div className="text-sm text-gray-500">2 hours ago</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="flex items-center justify-between py-3 border-b">
-                        <div className="flex items-center gap-3">
-                            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                            <div>
-                                <div className="font-semibold">News Published: Season 2026 Kickoff</div>
-                                <div className="text-sm text-gray-500">5 hours ago</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="flex items-center justify-between py-3">
-                        <div className="flex items-center gap-3">
-                            <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                            <div>
-                                <div className="font-semibold">Gallery Updated: Week 5 Photos</div>
-                                <div className="text-sm text-gray-500">1 day ago</div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>

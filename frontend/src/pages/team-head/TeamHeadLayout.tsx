@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 
@@ -11,28 +11,23 @@ interface TeamInfo {
 
 const TeamHeadLayout = () => {
     const location = useLocation();
-    const [team, setTeam] = useState<TeamInfo | null>(null);
-    const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchMyTeam = async () => {
-            try {
-                const res = await api.get('/team-head/my-team');
-                setTeam(res.data.data);
-            } catch {
-                setTeam(null);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchMyTeam();
-    }, []);
+    const { data: teamData, isLoading: loading } = useQuery({
+        queryKey: ['myTeamHead'],
+        queryFn: async () => {
+            const res = await api.get('/team-head/my-team');
+            return res.data.data as TeamInfo;
+        },
+        retry: false,
+    });
+
+    const team = teamData || null;
 
     const linkClass = (path: string) => {
         const isActive = location.pathname === path || (path !== '/team-head' && location.pathname.startsWith(path));
         return `block px-4 py-2.5 rounded-lg font-bold text-sm transition-all duration-200 ${isActive
-                ? 'bg-sffl-red text-white shadow-md'
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+            ? 'bg-sffl-red text-white shadow-md'
+            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
             }`;
     };
 

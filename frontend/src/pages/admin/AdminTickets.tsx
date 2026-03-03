@@ -1,17 +1,33 @@
-import { useState, useEffect, useCallback } from 'react';
+import { Loader } from '../../components/ui/Loader';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminListTickets, checkinTicket, adminCheckinTicket, verifyTicket, lookupTicketByCode, searchTicketsByEmail, getEventDays, type TicketResponse, type EventDayResponse } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
 export const AdminTickets = () => {
     const { user } = useAuth();
-    const [tickets, setTickets] = useState<TicketResponse[]>([]);
-    const [eventDays, setEventDays] = useState<EventDayResponse[]>([]);
-    const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient();
     const [page, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
     const [filterEventDay, setFilterEventDay] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
 
+    const { data: eventDaysData, isLoading: loadingEventDays } = useQuery({
+        queryKey: ['adminEventDaysList'],
+        queryFn: getEventDays,
+    });
+
+    const { data: ticketsData, isLoading: loadingTickets } = useQuery({
+        queryKey: ['adminTickets', { page, eventDay: filterEventDay, status: filterStatus }],
+        queryFn: async () => {
+            const data = await adminListTickets(page, 10, filterEventDay || undefined, filterStatus || undefined);
+            return data;
+        },
+    });
+
+    const eventDays: EventDayResponse[] = eventDaysData || [];
+    const tickets: TicketResponse[] = ticketsData?.data || [];
+    const totalPages = ticketsData?.total_pages || 1;
+    const loading = loadingEventDays || loadingTickets;
     // Search
     const [searchQuery, setSearchQuery] = useState('');
     const [searchMode, setSearchMode] = useState<'code' | 'email'>('code');
@@ -21,27 +37,7 @@ export const AdminTickets = () => {
 
     const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-    const fetchTickets = useCallback(async () => {
-        setLoading(true);
-        try {
-            const data = await adminListTickets(page, 10, filterEventDay || undefined, filterStatus || undefined);
-            setTickets(data.data || []);
-            setTotalPages(data.total_pages || 1);
-        } catch (err) {
-            console.error('Failed to fetch tickets:', err);
-        } finally {
-            setLoading(false);
-        }
-    }, [page, filterEventDay, filterStatus]);
 
-    useEffect(() => { fetchTickets(); }, [fetchTickets]);
-
-    useEffect(() => {
-        const fetchEventDays = async () => {
-            try { setEventDays(await getEventDays()); } catch (_) { }
-        };
-        fetchEventDays();
-    }, []);
 
     const handleSearch = async () => {
         const q = searchQuery.trim();
@@ -80,8 +76,8 @@ export const AdminTickets = () => {
             const updated = await verifyTicket(ticket.paystack_reference);
             // Update in search results
             setSearchResults(prev => prev.map(t => t.id === ticket.id ? { ...t, status: updated.status } : t));
-            // Update in table
-            setTickets(prev => prev.map(t => t.id === ticket.id ? { ...t, status: updated.status } : t));
+            // Trigger table refetch
+            queryClient.invalidateQueries({ queryKey: ['adminTickets'] });
 
             if (updated.status === 'PAID') {
                 alert('✅ Payment verified! Ticket is now PAID.');
@@ -102,7 +98,7 @@ export const AdminTickets = () => {
         try {
             await checkinTicket(ticketId, user.name || user.email);
             setSearchResults(prev => prev.map(t => t.id === ticketId ? { ...t, status: 'USED' } : t));
-            setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: 'USED' } : t));
+            queryClient.invalidateQueries({ queryKey: ['adminTickets'] });
         } catch (err: any) {
             alert(err.response?.data?.error || 'Check-in failed');
         } finally {
@@ -118,7 +114,7 @@ export const AdminTickets = () => {
         try {
             await adminCheckinTicket(ticketId, user.name || user.email);
             setSearchResults(prev => prev.map(t => t.id === ticketId ? { ...t, status: 'USED' } : t));
-            setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: 'USED' } : t));
+            queryClient.invalidateQueries({ queryKey: ['adminTickets'] });
         } catch (err: any) {
             alert(err.response?.data?.error || 'Check-in failed');
         } finally {
@@ -161,7 +157,7 @@ export const AdminTickets = () => {
                     <button
                         onClick={() => handleVerify(t)}
                         disabled={isLoading}
-                        className="bg-blue-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition disabled:opacity-50"
+                        className="bg-blue-600 text-white px-2.5 py-1.5 rounded-xl shadow-sm hover:shadow-md text-xs font-bold hover:bg-blue-700 transition-all disabled:opacity-50"
                         title="Verify payment with Paystack"
                     >
                         {isLoading ? '...' : '🔍 Verify'}
@@ -169,7 +165,7 @@ export const AdminTickets = () => {
                     <button
                         onClick={() => handleAdminCheckin(t.id)}
                         disabled={isLoading}
-                        className="bg-orange-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold hover:bg-orange-700 transition disabled:opacity-50"
+                        className="bg-orange-600 text-white px-2.5 py-1.5 rounded-xl shadow-sm hover:shadow-md text-xs font-bold hover:bg-orange-700 transition-all disabled:opacity-50"
                         title="Force check-in (verifies payment first)"
                     >
                         {isLoading ? '...' : '⚡ Force'}
@@ -183,7 +179,7 @@ export const AdminTickets = () => {
 
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-black text-sffl-navy">Ticket Management</h1>
+            <h1 className="text-3xl font-black text-sffl-navy dark:text-white">Ticket Management</h1>
 
             {/* ── Search / Check-in Section ─────────────────────────────────── */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
@@ -193,11 +189,11 @@ export const AdminTickets = () => {
                 <div className="flex gap-2 mb-3">
                     <button
                         onClick={() => { setSearchMode('code'); setSearchQuery(''); setSearchResults([]); setSearchError(''); }}
-                        className={`px-4 py-2 rounded-lg text-sm font-bold transition ${searchMode === 'code' ? 'bg-sffl-navy text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}
+                        className={`px-4 py-2 rounded-xl shadow-sm hover:shadow-md text-sm font-bold transition-all ${searchMode === 'code' ? 'bg-sffl-navy text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}
                     >🔢 Search by Code</button>
                     <button
                         onClick={() => { setSearchMode('email'); setSearchQuery(''); setSearchResults([]); setSearchError(''); }}
-                        className={`px-4 py-2 rounded-lg text-sm font-bold transition ${searchMode === 'email' ? 'bg-sffl-navy text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}
+                        className={`px-4 py-2 rounded-xl shadow-sm hover:shadow-md text-sm font-bold transition-all ${searchMode === 'email' ? 'bg-sffl-navy text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}
                     >📧 Search by Email</button>
                 </div>
 
@@ -214,7 +210,7 @@ export const AdminTickets = () => {
                     <button
                         onClick={handleSearch}
                         disabled={searching || !searchQuery.trim()}
-                        className="bg-sffl-navy text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-900 transition disabled:opacity-50"
+                        className="bg-sffl-navy text-white px-4 py-1.5 rounded-xl shadow-md hover:shadow-lg font-bold hover:bg-blue-900 transition-all disabled:opacity-50"
                     >{searching ? 'Searching...' : 'Search'}</button>
                 </div>
 
@@ -295,9 +291,7 @@ export const AdminTickets = () => {
 
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-100 dark:border-gray-700">
                 {loading ? (
-                    <div className="flex justify-center py-12">
-                        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                    </div>
+                    <Loader />
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
@@ -341,9 +335,9 @@ export const AdminTickets = () => {
 
                 {totalPages > 1 && (
                     <div className="flex items-center justify-between p-4 border-t dark:border-gray-700">
-                        <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-300 disabled:opacity-30">← Prev</button>
+                        <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-4 py-2 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-300 disabled:opacity-30 hover:bg-gray-50 dark:hover:bg-gray-700 transition">← Prev</button>
                         <span className="text-sm text-gray-500">Page {page} of {totalPages}</span>
-                        <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-300 disabled:opacity-30">Next →</button>
+                        <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-4 py-2 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-300 disabled:opacity-30 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Next →</button>
                     </div>
                 )}
             </div>

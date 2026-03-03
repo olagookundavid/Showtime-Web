@@ -1,9 +1,17 @@
-import { useState, useEffect } from 'react';
+import { Loader } from '../../components/ui/Loader';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getAllEventDays, createEventDay, createTier, deleteEventDay, updateEventDay, type EventDayResponse, type TicketTierResponse } from '../../services/api';
 
 export const AdminEventDays = () => {
-    const [eventDays, setEventDays] = useState<EventDayResponse[]>([]);
-    const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient();
+
+    const { data, isLoading: loading } = useQuery({
+        queryKey: ['adminEventDaysList'],
+        queryFn: getAllEventDays,
+    });
+
+    const eventDays: EventDayResponse[] = data || [];
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [addTierFor, setAddTierFor] = useState<string | null>(null);
 
@@ -20,19 +28,7 @@ export const AdminEventDays = () => {
     const [tierDesc, setTierDesc] = useState('');
     const [creatingTier, setCreatingTier] = useState(false);
 
-    const fetchEventDays = async () => {
-        setLoading(true);
-        try {
-            const data = await getAllEventDays();
-            setEventDays(data);
-        } catch (err) {
-            console.error('Failed to fetch event days:', err);
-        } finally {
-            setLoading(false);
-        }
-    };
 
-    useEffect(() => { fetchEventDays(); }, []);
 
     const handleCreateEventDay = async () => {
         if (!newTitle || !newDate) return;
@@ -41,7 +37,7 @@ export const AdminEventDays = () => {
             await createEventDay({ title: newTitle, date: newDate, venue: newVenue || undefined });
             setNewTitle(''); setNewDate(''); setNewVenue('');
             setShowCreateForm(false);
-            fetchEventDays();
+            queryClient.invalidateQueries({ queryKey: ['adminEventDaysList'] });
         } catch (err: any) {
             alert(err.response?.data?.error || 'Failed to create event day');
         } finally {
@@ -61,7 +57,7 @@ export const AdminEventDays = () => {
             });
             setTierName(''); setTierPrice(''); setTierCapacity(''); setTierDesc('');
             setAddTierFor(null);
-            fetchEventDays();
+            queryClient.invalidateQueries({ queryKey: ['adminEventDaysList'] });
         } catch (err: any) {
             alert(err.response?.data?.error || 'Failed to create tier');
         } finally {
@@ -73,7 +69,7 @@ export const AdminEventDays = () => {
         if (!confirm(`Delete "${title}" and all its tiers? This cannot be undone.`)) return;
         try {
             await deleteEventDay(id);
-            fetchEventDays();
+            queryClient.invalidateQueries({ queryKey: ['adminEventDaysList'] });
         } catch (err: any) {
             alert(err.response?.data?.error || 'Failed to delete');
         }
@@ -82,7 +78,7 @@ export const AdminEventDays = () => {
     const handleToggleActive = async (id: string, currentActive: boolean) => {
         try {
             await updateEventDay(id, { is_active: !currentActive });
-            fetchEventDays();
+            queryClient.invalidateQueries({ queryKey: ['adminEventDaysList'] });
         } catch (err: any) {
             alert(err.response?.data?.error || 'Failed to update');
         }
@@ -97,10 +93,10 @@ export const AdminEventDays = () => {
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-black text-sffl-navy">Event Days</h1>
+                <h1 className="text-3xl font-black text-sffl-navy dark:text-white">Event Days</h1>
                 <button
                     onClick={() => setShowCreateForm(!showCreateForm)}
-                    className="bg-sffl-red text-white px-6 py-3 rounded-lg font-bold hover:bg-red-700 transition"
+                    className="bg-sffl-red text-white px-4 py-2 rounded-xl shadow-md hover:shadow-lg font-bold hover:bg-red-700 transition-all"
                 >
                     {showCreateForm ? '✕ Cancel' : '+ New Event Day'}
                 </button>
@@ -144,7 +140,7 @@ export const AdminEventDays = () => {
                     <button
                         onClick={handleCreateEventDay}
                         disabled={creating || !newTitle || !newDate}
-                        className="mt-4 bg-sffl-navy text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-900 transition disabled:opacity-50"
+                        className="mt-4 bg-sffl-navy text-white px-5 py-2 rounded-xl shadow-md hover:shadow-lg font-bold hover:bg-blue-900 transition-all disabled:opacity-50"
                     >
                         {creating ? 'Creating...' : '✅ Create Event Day'}
                     </button>
@@ -153,9 +149,7 @@ export const AdminEventDays = () => {
 
             {/* Event Days List */}
             {loading ? (
-                <div className="flex justify-center py-12">
-                    <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                </div>
+                <Loader />
             ) : eventDays.length === 0 ? (
                 <div className="bg-white dark:bg-gray-800 rounded-xl p-12 text-center shadow-lg">
                     <p className="text-6xl mb-4">📅</p>
@@ -167,7 +161,7 @@ export const AdminEventDays = () => {
                     {eventDays.map((ed) => {
                         const isPast = new Date(ed.date + 'T23:59:59') < new Date();
                         return (
-                            <div key={ed.id} className={`bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border ${isPast ? 'border-gray-300 dark:border-gray-600 opacity-75' : 'border-gray-100 dark:border-gray-700'}`}>
+                            <div key={ed.id} className={`bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border ${isPast ? 'border-gray-300 dark:border-gray-600' : 'border-gray-100 dark:border-gray-700'}`}>
                                 {/* Header */}
                                 <div className="bg-sffl-navy text-white p-5 flex items-center justify-between">
                                     <div>
@@ -186,20 +180,20 @@ export const AdminEventDays = () => {
                                     <div className="flex gap-2">
                                         <button
                                             onClick={() => handleToggleActive(ed.id, ed.is_active)}
-                                            className="px-3 py-2 text-xs font-bold rounded-lg bg-white/10 hover:bg-white/20 transition"
+                                            className="px-3 py-2 text-xs font-bold rounded-xl shadow-sm hover:shadow-md bg-white/10 hover:bg-white/20 transition-all"
                                         >
                                             {ed.is_active ? '🔴 Deactivate' : '🟢 Activate'}
                                         </button>
                                         <button
                                             onClick={() => setAddTierFor(addTierFor === ed.id ? null : ed.id)}
-                                            className="px-3 py-2 text-xs font-bold rounded-lg bg-white/10 hover:bg-white/20 transition"
+                                            className="px-3 py-2 text-xs font-bold rounded-xl shadow-sm hover:shadow-md bg-white/10 hover:bg-white/20 transition-all"
                                         >
                                             + Add Tier
                                         </button>
                                         {isPast && (
                                             <button
                                                 onClick={() => handleDelete(ed.id, ed.title)}
-                                                className="px-3 py-2 text-xs font-bold rounded-lg bg-red-600 hover:bg-red-700 transition"
+                                                className="px-3 py-2 text-xs font-bold rounded-xl shadow-sm hover:shadow-md bg-red-600 hover:bg-red-700 transition-all"
                                             >
                                                 🗑️ Delete
                                             </button>
@@ -248,7 +242,7 @@ export const AdminEventDays = () => {
                                                     <button
                                                         key={p.name}
                                                         onClick={() => { setTierName(p.name); setTierPrice(String(p.price)); setTierDesc(p.desc); }}
-                                                        className="px-3 py-1 text-xs font-bold bg-white dark:bg-gray-600 text-gray-700 dark:text-white border border-gray-300 dark:border-gray-500 rounded-full hover:bg-gray-100 transition"
+                                                        className="px-3 py-1 text-xs font-bold bg-white dark:bg-gray-600 text-gray-700 dark:text-white border border-gray-300 dark:border-gray-500 rounded-full shadow-sm hover:shadow-md hover:bg-gray-100 transition-all"
                                                     >
                                                         {p.name}
                                                     </button>
@@ -265,13 +259,13 @@ export const AdminEventDays = () => {
                                                 <button
                                                     onClick={handleCreateTier}
                                                     disabled={creatingTier || !tierName || !tierPrice}
-                                                    className="bg-sffl-navy text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-blue-900 transition disabled:opacity-50"
+                                                    className="bg-sffl-navy text-white px-4 py-1.5 rounded-xl shadow-md hover:shadow-lg text-sm font-bold hover:bg-blue-900 transition-all disabled:opacity-50"
                                                 >
                                                     {creatingTier ? 'Creating...' : '✅ Add Tier'}
                                                 </button>
                                                 <button
                                                     onClick={() => { setAddTierFor(null); setTierName(''); setTierPrice(''); setTierCapacity(''); setTierDesc(''); }}
-                                                    className="px-6 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 transition"
+                                                    className="px-4 py-1.5 text-sm font-bold text-gray-500 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-all"
                                                 >Cancel</button>
                                             </div>
                                         </div>

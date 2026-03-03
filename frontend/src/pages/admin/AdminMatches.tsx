@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react';
+import { Loader } from '../../components/ui/Loader';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     getMatches, getCompetitions, getTeams,
     createMatch, updateMatch, deleteMatch,
@@ -28,10 +30,7 @@ const emptyForm: FormData = {
 const PAGE_SIZE = 10;
 
 export const AdminMatches = () => {
-    const [matches, setMatches] = useState<Match[]>([]);
-    const [competitions, setCompetitions] = useState<Competition[]>([]);
-    const [teams, setTeams] = useState<Team[]>([]);
-    const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient();
     const [showModal, setShowModal] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [form, setForm] = useState<FormData>(emptyForm);
@@ -41,26 +40,30 @@ export const AdminMatches = () => {
     // Filters & Pagination
     const [filterComp, setFilterComp] = useState('');
     const [page, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
 
-    const fetchAll = async (p = page, comp = filterComp) => {
-        setLoading(true);
-        try {
-            const [matchData, compData, teamData] = await Promise.all([
-                getMatches(comp || undefined, p, PAGE_SIZE),
-                competitions.length ? Promise.resolve(competitions) : getCompetitions(),
-                teams.length ? Promise.resolve(teams) : getTeams(),
-            ]);
-            const result = Array.isArray(matchData) ? { data: matchData, total_pages: 1 } : matchData;
-            setMatches(result.data || []);
-            setTotalPages(result.total_pages || 1);
-            if (!competitions.length) setCompetitions(compData as Competition[]);
-            if (!teams.length) setTeams(teamData as Team[]);
-        } catch (err) { console.error(err); }
-        setLoading(false);
-    };
+    const { data: compsData, isLoading: loadingComps } = useQuery({
+        queryKey: ['adminCompetitions'],
+        queryFn: getCompetitions,
+    });
 
-    useEffect(() => { fetchAll(page, filterComp); }, [page, filterComp]);
+    const { data: teamsData, isLoading: loadingTeams } = useQuery({
+        queryKey: ['adminTeamsList'],
+        queryFn: getTeams,
+    });
+
+    const { data: matchesData, isLoading: loadingMatches } = useQuery({
+        queryKey: ['adminMatches', { page, comp: filterComp, limit: PAGE_SIZE }],
+        queryFn: async () => {
+            const data = await getMatches(filterComp || undefined, page, PAGE_SIZE);
+            return Array.isArray(data) ? { data, total_pages: 1 } : data;
+        },
+    });
+
+    const competitions: Competition[] = compsData || [];
+    const teams: Team[] = teamsData || [];
+    const matches: Match[] = matchesData?.data || [];
+    const totalPages = matchesData?.total_pages || 1;
+    const loading = loadingComps || loadingTeams || loadingMatches;
 
     const handleFilterChange = (compId: string) => {
         setFilterComp(compId);
@@ -103,80 +106,83 @@ export const AdminMatches = () => {
                 highlights_url: form.highlights_url,
                 ticket_url: form.ticket_url,
             };
-            if (editingId) await updateMatch(editingId, payload);
-            else await createMatch(payload);
+            if (editingId) {
+                await updateMatch(editingId, payload);
+            } else {
+                await createMatch(payload);
+            }
+            queryClient.invalidateQueries({ queryKey: ['adminMatches'] });
             setShowModal(false);
-            await fetchAll(page, filterComp);
-        } catch (err) { console.error(err); alert('Failed to save match'); }
+        } catch (err: any) { console.error(err); alert('Failed to save match'); }
         setSaving(false);
     };
 
     const handleDelete = async (id: string) => {
         try {
             await deleteMatch(id);
+            queryClient.invalidateQueries({ queryKey: ['adminMatches'] });
             setDeleteConfirm(null);
-            await fetchAll(page, filterComp);
-        } catch (err) { console.error(err); alert('Failed to delete'); }
+        } catch (err: any) { console.error(err); alert('Failed to delete'); }
     };
 
     const set = (field: keyof FormData, value: string) => setForm(p => ({ ...p, [field]: value }));
 
     const statusColors: Record<string, string> = {
-        SCHEDULED: 'bg-blue-100 text-blue-800',
-        LIVE: 'bg-red-100 text-red-800',
-        FINISHED: 'bg-green-100 text-green-800',
-        POSTPONED: 'bg-yellow-100 text-yellow-800',
+        SCHEDULED: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+        LIVE: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+        FINISHED: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+        POSTPONED: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
     };
 
     return (
         <div className="space-y-6">
             {/* Header with filter */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <h1 className="text-3xl font-black text-sffl-navy">Match Management</h1>
+                <h1 className="text-3xl font-black text-sffl-navy dark:text-white">Match Management</h1>
                 <div className="flex items-center gap-3">
                     <select
                         value={filterComp}
                         onChange={e => handleFilterChange(e.target.value)}
-                        className="border rounded-lg px-3 py-2 font-semibold text-sm"
+                        className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 font-semibold text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
                         <option value="">All Competitions</option>
                         {competitions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
-                    <button onClick={openCreate} className="px-6 py-2.5 bg-sffl-red text-white font-bold rounded-lg hover:bg-red-700 transition whitespace-nowrap">+ Add Match</button>
+                    <button onClick={openCreate} className="px-4 py-1.5 bg-sffl-red text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:bg-red-700 transition-all whitespace-nowrap">+ Add Match</button>
                 </div>
             </div>
 
             {loading ? (
-                <div className="flex justify-center py-20"><div className="w-10 h-10 border-4 border-sffl-red border-t-transparent rounded-full animate-spin" /></div>
+                <Loader />
             ) : (
                 <>
-                    <div className="bg-white rounded-xl shadow-md overflow-hidden">
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border-gray-200 dark:border-gray-700 border">
                         <table className="w-full text-left">
-                            <thead className="bg-gray-50 border-b">
+                            <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
                                 <tr>
-                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Date</th>
-                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Match</th>
-                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Score</th>
-                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Status</th>
-                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase">Competition</th>
-                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase text-right">Actions</th>
+                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Date</th>
+                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Match</th>
+                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Score</th>
+                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Competition</th>
+                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase text-right">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y">
+                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                                 {matches.map(m => (
-                                    <tr key={m.id} className="hover:bg-gray-50 transition">
-                                        <td className="px-4 py-3 text-sm">{m.date}</td>
-                                        <td className="px-4 py-3 font-semibold text-sm">{m.home_team?.short_name || 'TBD'} vs {m.away_team?.short_name || 'TBD'}</td>
-                                        <td className="px-4 py-3 text-sm font-bold">{m.status === 'FINISHED' ? `${m.home_score} - ${m.away_score}` : '—'}</td>
-                                        <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-bold ${statusColors[m.status] || 'bg-gray-100'}`}>{m.status}</span></td>
-                                        <td className="px-4 py-3 text-sm">{m.competition?.name || '—'}</td>
+                                    <tr key={m.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                                        <td className="px-4 py-3 text-sm dark:text-gray-300">{m.date}</td>
+                                        <td className="px-4 py-3 font-semibold text-sm text-gray-900 dark:text-white">{m.home_team?.short_name || 'TBD'} vs {m.away_team?.short_name || 'TBD'}</td>
+                                        <td className="px-4 py-3 text-sm font-bold dark:text-gray-300">{m.status === 'FINISHED' ? `${m.home_score} - ${m.away_score}` : '—'}</td>
+                                        <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-bold ${statusColors[m.status] || 'bg-gray-100 dark:bg-gray-600 dark:text-gray-300'}`}>{m.status}</span></td>
+                                        <td className="px-4 py-3 text-sm dark:text-gray-300">{m.competition?.name || '—'}</td>
                                         <td className="px-4 py-3 text-right space-x-2">
-                                            <button onClick={() => openEdit(m)} className="text-blue-600 hover:text-blue-800 font-bold text-sm">Edit</button>
-                                            <button onClick={() => setDeleteConfirm(m.id)} className="text-red-600 hover:text-red-800 font-bold text-sm">Delete</button>
+                                            <button onClick={() => openEdit(m)} className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 font-bold text-sm rounded-xl shadow-sm hover:shadow-md transition-all">Edit</button>
+                                            <button onClick={() => setDeleteConfirm(m.id)} className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-bold text-sm rounded-xl shadow-sm hover:shadow-md transition-all">Delete</button>
                                         </td>
                                     </tr>
                                 ))}
-                                {matches.length === 0 && <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-400">No matches found</td></tr>}
+                                {matches.length === 0 && <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-400 dark:text-gray-500">No matches found</td></tr>}
                             </tbody>
                         </table>
                     </div>
@@ -184,12 +190,12 @@ export const AdminMatches = () => {
                     {/* Pagination */}
                     {totalPages > 1 && (
                         <div className="flex items-center justify-between">
-                            <p className="text-sm text-gray-500">Page {page} of {totalPages}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Page {page} of {totalPages}</p>
                             <div className="flex gap-2">
                                 <button
                                     onClick={() => setPage(p => Math.max(1, p - 1))}
                                     disabled={page <= 1}
-                                    className="px-4 py-2 border rounded-lg font-bold text-sm disabled:opacity-40 hover:bg-gray-50 transition"
+                                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl font-bold text-sm disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300 transition-all"
                                 >← Prev</button>
                                 {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
                                     const start = Math.max(1, Math.min(page - 2, totalPages - 4));
@@ -199,14 +205,14 @@ export const AdminMatches = () => {
                                         <button
                                             key={p}
                                             onClick={() => setPage(p)}
-                                            className={`px-3 py-2 rounded-lg font-bold text-sm transition ${p === page ? 'bg-sffl-red text-white' : 'border hover:bg-gray-50'}`}
+                                            className={`px-3 py-2 rounded-xl font-bold text-sm transition-all ${p === page ? 'bg-sffl-red text-white shadow-md border-transparent' : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300'}`}
                                         >{p}</button>
                                     );
                                 })}
                                 <button
                                     onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                                     disabled={page >= totalPages}
-                                    className="px-4 py-2 border rounded-lg font-bold text-sm disabled:opacity-40 hover:bg-gray-50 transition"
+                                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl font-bold text-sm disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300 transition-all"
                                 >Next →</button>
                             </div>
                         </div>
@@ -217,37 +223,37 @@ export const AdminMatches = () => {
             {/* Create/Edit Modal */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                        <div className="p-6 border-b">
-                            <h2 className="text-2xl font-black text-sffl-navy">{editingId ? 'Edit Match' : 'Add Match'}</h2>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                            <h2 className="text-2xl font-black text-sffl-navy dark:text-white">{editingId ? 'Edit Match' : 'Add Match'}</h2>
                         </div>
                         <div className="p-6 space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">Competition *</label>
-                                    <select value={form.competition_id} onChange={e => set('competition_id', e.target.value)} className="w-full border rounded-lg px-3 py-2">
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Competition *</label>
+                                    <select value={form.competition_id} onChange={e => set('competition_id', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2">
                                         <option value="">Select...</option>
                                         {competitions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">Status</label>
-                                    <select value={form.status} onChange={e => set('status', e.target.value)} className="w-full border rounded-lg px-3 py-2">
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Status</label>
+                                    <select value={form.status} onChange={e => set('status', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2">
                                         {['SCHEDULED', 'LIVE', 'FINISHED', 'POSTPONED'].map(s => <option key={s} value={s}>{s}</option>)}
                                     </select>
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">Home Team *</label>
-                                    <select value={form.home_team_id} onChange={e => set('home_team_id', e.target.value)} className="w-full border rounded-lg px-3 py-2">
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Home Team *</label>
+                                    <select value={form.home_team_id} onChange={e => set('home_team_id', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2">
                                         <option value="">Select...</option>
                                         {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">Away Team *</label>
-                                    <select value={form.away_team_id} onChange={e => set('away_team_id', e.target.value)} className="w-full border rounded-lg px-3 py-2">
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Away Team *</label>
+                                    <select value={form.away_team_id} onChange={e => set('away_team_id', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2">
                                         <option value="">Select...</option>
                                         {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                     </select>
@@ -255,40 +261,40 @@ export const AdminMatches = () => {
                             </div>
                             <div className="grid grid-cols-3 gap-4">
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">Date *</label>
-                                    <input type="date" value={form.date} onChange={e => set('date', e.target.value)} className="w-full border rounded-lg px-3 py-2" />
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Date *</label>
+                                    <input type="date" value={form.date} onChange={e => set('date', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">Kick-off Time *</label>
-                                    <input type="datetime-local" value={form.start_time} onChange={e => set('start_time', e.target.value)} className="w-full border rounded-lg px-3 py-2" />
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Kick-off Time *</label>
+                                    <input type="datetime-local" value={form.start_time} onChange={e => set('start_time', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">Venue</label>
-                                    <input type="text" value={form.venue} onChange={e => set('venue', e.target.value)} className="w-full border rounded-lg px-3 py-2" placeholder="e.g. SFFL Arena" />
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Venue</label>
+                                    <input type="text" value={form.venue} onChange={e => set('venue', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="e.g. SFFL Arena" />
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">Home Score</label>
-                                    <input type="number" value={form.home_score} onChange={e => set('home_score', e.target.value)} className="w-full border rounded-lg px-3 py-2" min="0" />
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Home Score</label>
+                                    <input type="number" value={form.home_score} onChange={e => set('home_score', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" min="0" />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">Away Score</label>
-                                    <input type="number" value={form.away_score} onChange={e => set('away_score', e.target.value)} className="w-full border rounded-lg px-3 py-2" min="0" />
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Away Score</label>
+                                    <input type="number" value={form.away_score} onChange={e => set('away_score', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" min="0" />
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Highlights URL</label>
-                                <input type="url" value={form.highlights_url} onChange={e => set('highlights_url', e.target.value)} className="w-full border rounded-lg px-3 py-2" placeholder="https://..." />
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Highlights URL</label>
+                                <input type="url" value={form.highlights_url} onChange={e => set('highlights_url', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="https://..." />
                             </div>
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Ticket URL</label>
-                                <input type="url" value={form.ticket_url} onChange={e => set('ticket_url', e.target.value)} className="w-full border rounded-lg px-3 py-2" placeholder="https://..." />
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Ticket URL</label>
+                                <input type="url" value={form.ticket_url} onChange={e => set('ticket_url', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="https://..." />
                             </div>
                         </div>
-                        <div className="p-6 border-t flex justify-end gap-3">
-                            <button onClick={() => setShowModal(false)} className="px-5 py-2 border rounded-lg font-bold hover:bg-gray-50 transition">Cancel</button>
-                            <button onClick={handleSave} disabled={saving} className="px-5 py-2 bg-sffl-red text-white font-bold rounded-lg hover:bg-red-700 transition disabled:opacity-50">
+                        <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+                            <button onClick={() => setShowModal(false)} className="px-4 py-1.5 border border-gray-300 dark:border-gray-600 rounded-xl font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Cancel</button>
+                            <button onClick={handleSave} disabled={saving} className="px-4 py-1.5 bg-sffl-red text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:bg-red-700 transition-all disabled:opacity-50">
                                 {saving ? 'Saving...' : editingId ? 'Update' : 'Create'}
                             </button>
                         </div>
@@ -299,12 +305,12 @@ export const AdminMatches = () => {
             {/* Delete Confirmation */}
             {deleteConfirm && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-xl p-6 shadow-2xl max-w-sm w-full">
-                        <h3 className="text-lg font-bold text-sffl-navy mb-2">Delete Match?</h3>
-                        <p className="text-gray-600 mb-6">This action cannot be undone.</p>
+                    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-2xl max-w-sm w-full">
+                        <h3 className="text-lg font-bold text-sffl-navy dark:text-white mb-2">Delete Match?</h3>
+                        <p className="text-gray-600 dark:text-gray-400 mb-6">This action cannot be undone.</p>
                         <div className="flex justify-end gap-3">
-                            <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 border rounded-lg font-bold hover:bg-gray-50">Cancel</button>
-                            <button onClick={() => handleDelete(deleteConfirm)} className="px-4 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700">Delete</button>
+                            <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">Cancel</button>
+                            <button onClick={() => handleDelete(deleteConfirm)} className="px-4 py-2 bg-red-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:bg-red-700 transition-all">Delete</button>
                         </div>
                     </div>
                 </div>

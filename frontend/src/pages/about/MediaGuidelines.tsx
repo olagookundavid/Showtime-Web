@@ -1,3 +1,5 @@
+import { CopyableEmail } from '../../components/common/CopyableEmail';
+
 export const MediaGuidelines = () => {
     return (
         <div className="max-w-6xl mx-auto space-y-8">
@@ -62,9 +64,9 @@ export const MediaGuidelines = () => {
                         To request media credentials for upcoming games, please contact our media department
                         at least 48 hours before kickoff.
                     </p>
-                    <a href="mailto:media@sffl.football" className="inline-flex items-center gap-2 text-sffl-red font-bold hover:underline bg-white px-4 py-2 rounded-lg">
-                        ✉️ media@sffl.football
-                    </a>
+                    <div className="mt-2 text-gray-800">
+                        <CopyableEmail email="media@sffl.football" label="✉️" className="text-sffl-red font-bold bg-white px-4 py-2 rounded-lg" />
+                    </div>
                 </div>
             </section>
         </div>

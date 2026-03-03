@@ -1,31 +1,23 @@
 import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { getNews, type News } from '../../services/api';
+import { getNews } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { Pagination } from '../../components/ui/Pagination';
 
 export const NewsList = () => {
-    const [news, setNews] = useState<News[]>([]);
-    const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
     const LIMIT = 9; // Grid 3x3
 
-    useEffect(() => {
-        const fetchNews = async () => {
-            setLoading(true);
-            try {
-                const data = await getNews(currentPage, LIMIT);
-                setNews(data.data);
-                setTotalPages(data.total_pages);
-            } catch (error) {
-                console.error("Failed to fetch news:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
+    const { data: newsData, isLoading: loading } = useQuery({
+        queryKey: ['publicNews', currentPage],
+        queryFn: () => getNews(currentPage, LIMIT),
+    });
 
-        fetchNews();
+    const news = newsData?.data || [];
+    const totalPages = newsData?.total_pages || 1;
+
+    useEffect(() => {
         // Scroll to top on page change
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }, [currentPage]);

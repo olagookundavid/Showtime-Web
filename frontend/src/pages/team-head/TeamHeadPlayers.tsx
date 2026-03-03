@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOutletContext } from 'react-router-dom';
 import api from '../../services/api';
 
@@ -32,30 +33,25 @@ const emptyForm = {
 
 const TeamHeadPlayers = () => {
     const { team } = useOutletContext<{ team: TeamInfo | null }>();
-    const [players, setPlayers] = useState<Player[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
+    const queryClient = useQueryClient();
+
+    const { data: playersData, isLoading: loading, error: queryError } = useQuery({
+        queryKey: ['teamHeadPlayers', team?.id],
+        queryFn: async () => {
+            const res = await api.get('/team-head/players', { params: { team_id: team!.id } });
+            return res.data.data as Player[];
+        },
+        enabled: !!team?.id,
+    });
+
+    const players = playersData || [];
+    const error = queryError ? (queryError as any).response?.data?.error || 'Failed to fetch players.' : '';
 
     // Modal
     const [showModal, setShowModal] = useState(false);
     const [editing, setEditing] = useState<Player | null>(null);
     const [form, setForm] = useState(emptyForm);
     const [saving, setSaving] = useState(false);
-
-    const fetchPlayers = useCallback(async () => {
-        if (!team) return;
-        setLoading(true);
-        try {
-            const res = await api.get('/team-head/players', { params: { team_id: team.id } });
-            setPlayers(res.data.data || []);
-        } catch (err: any) {
-            setError(err.response?.data?.error || 'Failed to fetch players.');
-        } finally {
-            setLoading(false);
-        }
-    }, [team]);
-
-    useEffect(() => { fetchPlayers(); }, [fetchPlayers]);
 
     const openCreate = () => {
         setEditing(null);
@@ -101,7 +97,7 @@ const TeamHeadPlayers = () => {
                 await api.post('/team-head/players', payload);
             }
             setShowModal(false);
-            fetchPlayers();
+            queryClient.invalidateQueries({ queryKey: ['teamHeadPlayers', team.id] });
         } catch (err: any) {
             alert(err.response?.data?.error || 'Failed to save player.');
         } finally {
@@ -113,7 +109,7 @@ const TeamHeadPlayers = () => {
         if (!confirm('Delete this player?')) return;
         try {
             await api.delete(`/team-head/players/${id}`);
-            fetchPlayers();
+            queryClient.invalidateQueries({ queryKey: ['teamHeadPlayers', team!.id] });
         } catch (err: any) {
             alert(err.response?.data?.error || 'Failed to delete player.');
         }

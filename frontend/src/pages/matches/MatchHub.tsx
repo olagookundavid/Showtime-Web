@@ -1,19 +1,53 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { getCompetitions, getMatches, getStandings, type Competition, type Match, type Standing, type PaginatedResponse } from '../../services/api';
+import { getCompetitions, getMatches, getStandings } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { MatchCard } from '../../components/matches/MatchCard';
 import { StandingsTable } from '../../components/matches/StandingsTable';
 
 export const MatchHub = () => {
-    const [competitions, setCompetitions] = useState<Competition[]>([]);
     const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>('');
-    const [matches, setMatches] = useState<Match[]>([]);
-    const [standings, setStandings] = useState<Standing[]>([]);
-    const [loading, setLoading] = useState(true); // Initial load
-    const [matchesLoading, setMatchesLoading] = useState(false); // Pagination load
-    const [page, setPage] = useState(1);
-    const [hasMore, setHasMore] = useState(true);
+
+    const { data: competitionsData, isLoading: loadingComps } = useQuery({
+        queryKey: ['publicCompetitions'],
+        queryFn: getCompetitions,
+    });
+    const competitions = competitionsData || [];
+
+    useEffect(() => {
+        if (competitions.length > 0 && !selectedCompetitionId) {
+            setSelectedCompetitionId(competitions[0].id);
+        }
+    }, [competitions, selectedCompetitionId]);
+
+    const { data: standingsData } = useQuery({
+        queryKey: ['publicStandings', selectedCompetitionId],
+        queryFn: () => getStandings(selectedCompetitionId),
+        enabled: !!selectedCompetitionId,
+    });
+    const standings = standingsData || [];
+
+    const {
+        data: infiniteMatchesData,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage: matchesLoading,
+        isLoading: initialMatchesLoading
+    } = useInfiniteQuery({
+        queryKey: ['publicMatchesInfinite', selectedCompetitionId],
+        queryFn: ({ pageParam = 1 }) => getMatches(selectedCompetitionId, pageParam as number, 5),
+        initialPageParam: 1,
+        getNextPageParam: (lastPage, allPages) => {
+            if (!lastPage.total_pages) return undefined;
+            return allPages.length < lastPage.total_pages ? allPages.length + 1 : undefined;
+        },
+        enabled: !!selectedCompetitionId,
+    });
+
+    const matches = infiniteMatchesData?.pages.flatMap(p => p.data || []) || [];
+    const hasMore = hasNextPage;
+    const loading = loadingComps || initialMatchesLoading;
 
     // Intersection Observer callback ref
     const observer = useRef<IntersectionObserver | null>(null);
@@ -22,78 +56,17 @@ export const MatchHub = () => {
 
         if (observer.current) observer.current.disconnect();
         observer.current = new IntersectionObserver(entries => {
-            if (entries[0].isIntersecting && hasMore) {
-                setPage(prevPage => prevPage + 1);
+            if (entries[0].isIntersecting && hasNextPage) {
+                fetchNextPage();
             }
         });
 
         if (node) observer.current.observe(node);
-    }, [matchesLoading, hasMore]);
+    }, [matchesLoading, hasNextPage, fetchNextPage]);
 
-    // Fetch Competitions on Mount
-    useEffect(() => {
-        const fetchCompetitions = async () => {
-            try {
-                const data = await getCompetitions();
-                setCompetitions(data);
-                if (data.length > 0) {
-                    setSelectedCompetitionId(data[0].id);
-                } else {
-                    setLoading(false);
-                }
-            } catch (error) {
-                console.error("Failed to fetch competitions:", error);
-                setLoading(false);
-            }
-        };
-        fetchCompetitions();
-    }, []);
-
-    // Reset state when competition changes
     const handleCompetitionChange = (compId: string) => {
-        if (compId === selectedCompetitionId) return;
         setSelectedCompetitionId(compId);
-        setMatches([]);
-        setPage(1);
-        setHasMore(true);
-        // Standings will fetch via the effect below
     };
-
-    // Fetch Matches when page or competition changes
-    useEffect(() => {
-        if (!selectedCompetitionId) return;
-
-        const fetchMatchesData = async () => {
-            setMatchesLoading(true);
-            try {
-                // If page 1, we might also want to fetch standings
-                if (page === 1) {
-                    const standingsData = await getStandings(selectedCompetitionId);
-                    setStandings(standingsData || []);
-                }
-
-                // Fetch matches
-                const result: PaginatedResponse<Match> = await getMatches(selectedCompetitionId, page, 5); // Fetch 5 at a time for infinite scroll demo
-
-                setMatches(prev => {
-                    if (page === 1) return result.data || [];
-                    return [...prev, ...(result.data || [])];
-                });
-
-                // Check if we have more pages
-                const totalPages = result.total_pages || 1;
-                setHasMore(page < totalPages);
-
-            } catch (error) {
-                console.error("Failed to fetch matches:", error);
-            } finally {
-                setLoading(false);
-                setMatchesLoading(false);
-            }
-        };
-
-        fetchMatchesData();
-    }, [selectedCompetitionId, page]);
 
     if (loading && competitions.length === 0) return <Loader />;
 

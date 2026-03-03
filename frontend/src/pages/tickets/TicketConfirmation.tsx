@@ -1,44 +1,36 @@
 import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useSearchParams, Link } from 'react-router-dom';
-import { getTicketByReference, type TicketResponse } from '../../services/api';
+import { getTicketByReference } from '../../services/api';
+import { Loader } from '../../components/ui/Loader';
 
 export const TicketConfirmation = () => {
     const [searchParams] = useSearchParams();
-    const [ticket, setTicket] = useState<TicketResponse | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
+    const reference = searchParams.get('reference') || searchParams.get('trxref');
+
+    // We use a small delay state for webhook processing before enabling the query
+    const [delayComplete, setDelayComplete] = useState(false);
 
     useEffect(() => {
-        const reference = searchParams.get('reference') || searchParams.get('trxref');
-        if (!reference) {
-            setError('No payment reference found.');
-            setLoading(false);
-            return;
-        }
-
-        const fetchTicket = async () => {
-            try {
-                const data = await getTicketByReference(reference);
-                setTicket(data);
-            } catch (err) {
-                setError('Could not find your ticket. Please check your email or contact support.');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        // Small delay to let webhook process
-        const timer = setTimeout(fetchTicket, 2000);
+        if (!reference) return;
+        const timer = setTimeout(() => setDelayComplete(true), 2000);
         return () => clearTimeout(timer);
-    }, [searchParams]);
+    }, [reference]);
+
+    const { data: ticketData, isLoading, isError } = useQuery({
+        queryKey: ['publicTicket', reference],
+        queryFn: () => getTicketByReference(reference!),
+        enabled: !!reference && delayComplete,
+        retry: 1, // Retry once if webhook is still processing
+    });
+
+    const ticket = ticketData || null;
+    const loading = (!reference ? false : (!delayComplete || isLoading));
+    const error = !reference ? 'No payment reference found.' : isError ? 'Could not find your ticket. Please check your email or contact support.' : '';
 
     if (loading) {
         return (
-            <div className="max-w-2xl mx-auto text-center py-24">
-                <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
-                <h2 className="text-2xl font-black text-sffl-navy dark:text-white mb-2">Verifying Payment...</h2>
-                <p className="text-gray-500">Please wait while we confirm your transaction</p>
-            </div>
+            <Loader />
         );
     }
 

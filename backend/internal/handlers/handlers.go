@@ -12,6 +12,7 @@ type Handlers struct {
 	PlayerHandler      transport.IPlayerHandler
 	TicketHandler      transport.ITicketHandler
 	TeamManagerHandler transport.ITeamManagerHandler
+	AnalyticsHandler   transport.IAnalyticsHandler
 }
 
 func NewHandlers(
@@ -22,6 +23,7 @@ func NewHandlers(
 	playerHandler transport.IPlayerHandler,
 	ticketHandler transport.ITicketHandler,
 	teamManagerHandler transport.ITeamManagerHandler,
+	analyticsHandler transport.IAnalyticsHandler,
 ) Handlers {
 	return Handlers{
 		AuthHandler:        authHandler,
@@ -31,5 +33,6 @@ func NewHandlers(
 		PlayerHandler:      playerHandler,
 		TicketHandler:      ticketHandler,
 		TeamManagerHandler: teamManagerHandler,
+		AnalyticsHandler:   analyticsHandler,
 	}
 }

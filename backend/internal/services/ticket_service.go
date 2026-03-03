@@ -40,6 +40,7 @@ type ITicketService interface {
 	Checkin(ctx context.Context, id string, checkedInBy string) error
 	AdminCheckin(ctx context.Context, id string, checkedInBy string) error
 	List(ctx context.Context, eventDayID string, status string, page int, limit int) ([]dto.TicketResponse, int, error)
+	ExpirePastTickets(ctx context.Context) error
 }
 
 type TicketService struct {
@@ -440,6 +441,17 @@ func (s *TicketService) List(ctx context.Context, eventDayID string, status stri
 		responses = append(responses, *ticketToResponse(&tickets[i]))
 	}
 	return responses, total, nil
+}
+
+func (s *TicketService) ExpirePastTickets(ctx context.Context) error {
+	count, err := s.ticketRepo.ExpirePastTickets(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to expire past tickets: %w", err)
+	}
+	if count > 0 {
+		fmt.Printf("Successfully expired %d old tickets\n", count)
+	}
+	return nil
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

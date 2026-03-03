@@ -100,6 +100,58 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		compGroup.PUT("/:id", app.Handlers.MatchHandler.UpdateCompetition)
 		compGroup.DELETE("/:id", app.Handlers.MatchHandler.DeleteCompetition)
 	}
+
+	analyticsGroup := adminRoutes.Group("/analytics")
+	{
+		analyticsGroup.GET("", app.Handlers.AnalyticsHandler.GetAnalytics)
+	}
+
+	newsGroup := adminRoutes.Group("/news")
+	{
+		newsGroup.POST("", app.Handlers.NewsHandler.CreateNews)
+		newsGroup.PUT("/:id", app.Handlers.NewsHandler.UpdateNews)
+		newsGroup.DELETE("/:id", app.Handlers.NewsHandler.DeleteNews)
+	}
+
+	galleryGroup := adminRoutes.Group("/gallery")
+	{
+		galleryGroup.POST("", app.Handlers.GalleryHandler.CreateGallery)
+		galleryGroup.PUT("/:id", app.Handlers.GalleryHandler.UpdateGallery)
+		galleryGroup.DELETE("/:id", app.Handlers.GalleryHandler.DeleteGallery)
+	}
+
+	matchesGroup := adminRoutes.Group("/matches")
+	{
+		matchesGroup.POST("", app.Handlers.MatchHandler.CreateMatch)
+		matchesGroup.PUT("/:id", app.Handlers.MatchHandler.UpdateMatch)
+		matchesGroup.DELETE("/:id", app.Handlers.MatchHandler.DeleteMatch)
+		matchesGroup.POST("/standings", app.Handlers.MatchHandler.CreateStanding)
+		matchesGroup.PUT("/standings/:id", app.Handlers.MatchHandler.UpdateStanding)
+		matchesGroup.DELETE("/standings/:id", app.Handlers.MatchHandler.DeleteStanding)
+	}
+
+	playersGroup := adminRoutes.Group("/players")
+	{
+		playersGroup.POST("", app.Handlers.PlayerHandler.CreatePlayer)
+		playersGroup.PUT("/:id", app.Handlers.PlayerHandler.UpdatePlayer)
+		playersGroup.DELETE("/:id", app.Handlers.PlayerHandler.DeletePlayer)
+	}
+
+	eventDaysGroup := adminRoutes.Group("/event-days")
+	{
+		eventDaysGroup.GET("/all", app.Handlers.TicketHandler.ListAllEventDays)
+		eventDaysGroup.POST("", app.Handlers.TicketHandler.CreateEventDay)
+		eventDaysGroup.PUT("/:id", app.Handlers.TicketHandler.UpdateEventDay)
+		eventDaysGroup.DELETE("/:id", app.Handlers.TicketHandler.DeleteEventDay)
+		eventDaysGroup.POST("/:id/tiers", app.Handlers.TicketHandler.CreateTier)
+	}
+
+	ticketsGroup := adminRoutes.Group("/tickets")
+	{
+		ticketsGroup.POST("/:id/admin-checkin", app.Handlers.TicketHandler.AdminCheckin)
+		ticketsGroup.POST("/:id/checkin", app.Handlers.TicketHandler.Checkin)
+		ticketsGroup.GET("", app.Handlers.TicketHandler.ListTickets)
+	}
 }
 
 func SetupTeamHeadRoutes(r *gin.RouterGroup, app *api.Application) {
@@ -120,8 +172,17 @@ func SetupTeamHeadRoutes(r *gin.RouterGroup, app *api.Application) {
 func SetupAuthRoutes(r *gin.RouterGroup, app *api.Application) {
 	authRoutes := r.Group("/auth")
 	{
-		authRoutes.POST("/register", app.Handlers.AuthHandler.Register)
-		authRoutes.POST("/login", app.Handlers.AuthHandler.Login)
+		rls := commonAuth.RateLimitStruct{
+			LimiterEnabled: true,
+			Rps:            5,
+			Burst:          10,
+		}
+		limitedAuth := authRoutes.Group("", commonAuth.RateLimit(rls))
+		{
+			limitedAuth.POST("/register", app.Handlers.AuthHandler.Register)
+			limitedAuth.POST("/login", app.Handlers.AuthHandler.Login)
+		}
+
 		authRoutes.POST("/logout", app.Handlers.AuthHandler.Logout)
 		authRoutes.POST("/reset-password", app.Handlers.AuthHandler.ResetPassword)
 	}
@@ -137,22 +198,16 @@ func SetupAuthRoutes(r *gin.RouterGroup, app *api.Application) {
 func SetupNewsRoutes(r *gin.RouterGroup, app *api.Application) {
 	newsRoutes := r.Group("/news")
 	{
-		newsRoutes.POST("", app.Handlers.NewsHandler.CreateNews)
 		newsRoutes.GET("", app.Handlers.NewsHandler.GetNews)
 		newsRoutes.GET("/:id", app.Handlers.NewsHandler.GetNewsByID)
-		newsRoutes.PUT("/:id", app.Handlers.NewsHandler.UpdateNews)
-		newsRoutes.DELETE("/:id", app.Handlers.NewsHandler.DeleteNews)
 	}
 }
 
 func SetupGalleryRoutes(r *gin.RouterGroup, app *api.Application) {
 	galleryRoutes := r.Group("/gallery")
 	{
-		galleryRoutes.POST("", app.Handlers.GalleryHandler.CreateGallery)
 		galleryRoutes.GET("", app.Handlers.GalleryHandler.GetGallery)
 		galleryRoutes.GET("/:id", app.Handlers.GalleryHandler.GetGalleryByID)
-		galleryRoutes.PUT("/:id", app.Handlers.GalleryHandler.UpdateGallery)
-		galleryRoutes.DELETE("/:id", app.Handlers.GalleryHandler.DeleteGallery)
 	}
 }
 
@@ -163,12 +218,6 @@ func SetupMatchRoutes(r *gin.RouterGroup, app *api.Application) {
 		matchRoutes.GET("", app.Handlers.MatchHandler.GetMatches)
 		matchRoutes.GET("/standings", app.Handlers.MatchHandler.GetStandings)
 		matchRoutes.GET("/teams", app.Handlers.MatchHandler.GetAllTeams)
-		matchRoutes.POST("", app.Handlers.MatchHandler.CreateMatch)
-		matchRoutes.PUT("/:id", app.Handlers.MatchHandler.UpdateMatch)
-		matchRoutes.DELETE("/:id", app.Handlers.MatchHandler.DeleteMatch)
-		matchRoutes.POST("/standings", app.Handlers.MatchHandler.CreateStanding)
-		matchRoutes.PUT("/standings/:id", app.Handlers.MatchHandler.UpdateStanding)
-		matchRoutes.DELETE("/standings/:id", app.Handlers.MatchHandler.DeleteStanding)
 	}
 }
 
@@ -177,37 +226,36 @@ func SetupPlayerRoutes(r *gin.RouterGroup, app *api.Application) {
 	{
 		playerRoutes.GET("", app.Handlers.PlayerHandler.GetPlayers)
 		playerRoutes.GET("/:id", app.Handlers.PlayerHandler.GetPlayerByID)
-		playerRoutes.POST("", app.Handlers.PlayerHandler.CreatePlayer)
-		playerRoutes.PUT("/:id", app.Handlers.PlayerHandler.UpdatePlayer)
-		playerRoutes.DELETE("/:id", app.Handlers.PlayerHandler.DeletePlayer)
 	}
 }
 
 func SetupTicketRoutes(r *gin.RouterGroup, app *api.Application) {
-	// Event Day routes
+	// Event Day routes (Public)
 	eventDayRoutes := r.Group("/event-days")
 	{
 		eventDayRoutes.GET("", app.Handlers.TicketHandler.ListEventDays)
-		eventDayRoutes.GET("/all", app.Handlers.TicketHandler.ListAllEventDays)
 		eventDayRoutes.GET("/:id", app.Handlers.TicketHandler.GetEventDay)
 		eventDayRoutes.GET("/by-date/:date", app.Handlers.TicketHandler.GetEventDayByDate)
-		eventDayRoutes.POST("", app.Handlers.TicketHandler.CreateEventDay)
-		eventDayRoutes.PUT("/:id", app.Handlers.TicketHandler.UpdateEventDay)
-		eventDayRoutes.DELETE("/:id", app.Handlers.TicketHandler.DeleteEventDay)
-		eventDayRoutes.POST("/:id/tiers", app.Handlers.TicketHandler.CreateTier)
 	}
 
 	// Ticket routes
 	ticketRoutes := r.Group("/tickets")
 	{
-		ticketRoutes.POST("/purchase", app.Handlers.TicketHandler.Purchase)
+		rls := commonAuth.RateLimitStruct{
+			LimiterEnabled: true,
+			Rps:            5,
+			Burst:          10,
+		}
+
+		limitedTickets := ticketRoutes.Group("", commonAuth.RateLimit(rls))
+		{
+			limitedTickets.POST("/purchase", app.Handlers.TicketHandler.Purchase)
+		}
+
 		ticketRoutes.POST("/webhook", app.Handlers.TicketHandler.Webhook)
 		ticketRoutes.GET("/search", app.Handlers.TicketHandler.SearchByEmail)
 		ticketRoutes.POST("/verify/:reference", app.Handlers.TicketHandler.VerifyTicket)
-		ticketRoutes.POST("/:id/admin-checkin", app.Handlers.TicketHandler.AdminCheckin)
 		ticketRoutes.GET("/:reference", app.Handlers.TicketHandler.GetTicket)
 		ticketRoutes.GET("/lookup/:code", app.Handlers.TicketHandler.LookupByCode)
-		ticketRoutes.GET("", app.Handlers.TicketHandler.ListTickets)
-		ticketRoutes.POST("/:id/checkin", app.Handlers.TicketHandler.Checkin)
 	}
 }
