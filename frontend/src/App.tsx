@@ -41,12 +41,14 @@ import { AdminAnalytics } from './pages/admin/AdminAnalytics';
 import TeamHeadLayout from './pages/team-head/TeamHeadLayout';
 import TeamHeadOverview from './pages/team-head/TeamHeadOverview';
 import TeamHeadPlayers from './pages/team-head/TeamHeadPlayers';
+import { Toaster } from 'react-hot-toast';
 import './index.css';
 
 function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
+        <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
         <BrowserRouter>
           <Routes>
             {/* Public Routes with Layout */}

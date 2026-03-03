@@ -6,7 +6,9 @@ import (
 )
 
 var ErrDuplicateEmail = fmt.Errorf("duplicate email, please use another email")
-var ErrNoUserRecordExist = fmt.Errorf("incorrect credentials")
+var ErrNoUserRecordExist = fmt.Errorf("incorrect email or password") // General catch-all
+var ErrAccountNotFound = fmt.Errorf("account not found")
+var ErrIncorrectPassword = fmt.Errorf("incorrect password")
 var ErrNoAuthHeader = fmt.Errorf("authorization header is not provided")
 
 var ErrWrongAuthFormat = fmt.Errorf("authorization header format is wrong")

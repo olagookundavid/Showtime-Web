@@ -1,6 +1,8 @@
 import { Loader } from '../../components/ui/Loader';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
+import { DataTable, type Column } from '../../components/ui/DataTable';
 import { getAdminUsers, updateUserRole, updateUserInfo } from '../../services/api';
 
 interface UserResponse {
@@ -15,24 +17,16 @@ interface UserResponse {
 
 const AdminUsers = () => {
     const queryClient = useQueryClient();
-    const [searchFilter, setSearchFilter] = useState('');
-    const [searchTrigger, setSearchTrigger] = useState(0);
-
-    // Pagination
-    const [page, setPage] = useState(1);
-    const [limit] = useState(10);
-
     const {
         data: usersData,
         isLoading: loading,
         error: queryError,
     } = useQuery({
-        queryKey: ['adminUsers', { page, searchTrigger }],
-        queryFn: () => getAdminUsers({ page, limit, search: searchFilter }),
+        queryKey: ['adminUsers'],
+        queryFn: () => getAdminUsers({ page: 1, limit: 1000, search: '' }),
     });
 
     const users: UserResponse[] = usersData?.data || [];
-    const total = usersData?.meta?.total || 0;
     const error = queryError ? (queryError as any).response?.data?.message || (queryError as any).response?.data?.error || 'Failed to fetch users.' : '';
 
     // Edit modal
@@ -40,20 +34,14 @@ const AdminUsers = () => {
     const [editForm, setEditForm] = useState({ fullname: '', phone: '' });
     const [saving, setSaving] = useState(false);
 
-
-
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault();
-        setPage(1);
-        setSearchTrigger(prev => prev + 1);
-    };
-
     const handleRoleChange = async (userId: string, newRole: string) => {
         try {
             await updateUserRole(userId, newRole);
             queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+            toast.success('User role updated');
         } catch (err: any) {
-            alert(err.response?.data?.message || err.response?.data?.error || 'Failed to update user role.');
+            console.error(err);
+            toast.error(err.response?.data?.message || err.response?.data?.error || 'Failed to update user role.');
         }
     };
 
@@ -69,14 +57,72 @@ const AdminUsers = () => {
             await updateUserInfo(editingUser.id, editForm);
             queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
             setEditingUser(null);
+            toast.success('User info updated');
         } catch (err: any) {
-            alert(err.response?.data?.message || err.response?.data?.error || 'Failed to update user info.');
+            console.error(err);
+            toast.error(err.response?.data?.message || err.response?.data?.error || 'Failed to update user info.');
         } finally {
             setSaving(false);
         }
     };
 
-    const totalPages = Math.ceil(total / limit);
+    const columns: Column<UserResponse>[] = [
+        {
+            header: 'User Details',
+            sortable: true,
+            sortValue: (u) => u.fullname || '',
+            className: "px-6 py-4",
+            cell: (u) => (
+                <div>
+                    <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">{u.fullname || 'No Name'}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">{u.email}</div>
+                </div>
+            )
+        },
+        {
+            header: 'Phone',
+            accessor: 'phone',
+            sortable: true,
+            className: "px-6 py-4 text-sm text-gray-500 dark:text-gray-400",
+            cell: (u) => u.phone || '—'
+        },
+        {
+            header: 'Role',
+            sortable: true,
+            sortValue: (u) => u.role,
+            className: "px-6 py-4",
+            cell: (u) => (
+                <select
+                    value={u.role}
+                    onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-sffl-red focus:border-sffl-red p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors cursor-pointer min-w-[120px]"
+                >
+                    <option value="user">User</option>
+                    <option value="team_head">Team Head</option>
+                    <option value="admin">Admin</option>
+                </select>
+            )
+        },
+        {
+            header: 'Joined',
+            sortable: true,
+            sortValue: (u) => u.created_at,
+            className: "px-6 py-4 text-sm text-gray-500 dark:text-gray-400",
+            cell: (u) => new Date(u.created_at).toLocaleDateString()
+        },
+        {
+            header: 'Actions',
+            className: "px-6 py-4 text-center",
+            cell: (u) => (
+                <button
+                    onClick={() => openEdit(u)}
+                    className="px-4 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 font-bold text-sm rounded-xl shadow-sm transition-all"
+                >
+                    Edit
+                </button>
+            )
+        }
+    ];
 
     return (
         <div className="space-y-6">
@@ -87,30 +133,6 @@ const AdminUsers = () => {
                 </div>
             </div>
 
-            {/* Search */}
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-200">
-                <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4">
-                    <div className="flex-1">
-                        <label htmlFor="search" className="sr-only">Search by email or name</label>
-                        <input
-                            type="text"
-                            id="search"
-                            placeholder="Search by email or name..."
-                            value={searchFilter}
-                            onChange={(e) => setSearchFilter(e.target.value)}
-                            className="w-full px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-sffl-red focus:border-sffl-red dark:text-gray-100 transition-colors"
-                            autoComplete="off"
-                        />
-                    </div>
-                    <button
-                        type="submit"
-                        className="bg-sffl-red hover:bg-red-700 text-white font-bold py-2 px-4 xl:px-6 rounded-xl shadow-md hover:shadow-lg transition-all focus:ring-4 focus:ring-red-500 focus:ring-opacity-50"
-                    >
-                        Search
-                    </button>
-                </form>
-            </div>
-
             {/* Error State */}
             {error && (
                 <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-4 rounded-lg border border-red-200 dark:border-red-800/30">
@@ -119,110 +141,16 @@ const AdminUsers = () => {
             )}
 
             {/* Users Table */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors duration-200">
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead className="bg-gray-50 dark:bg-gray-700/50">
-                            <tr>
-                                <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                    User Details
-                                </th>
-                                <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                    Phone
-                                </th>
-                                <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                    Role
-                                </th>
-                                <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                    Joined
-                                </th>
-                                <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                    Actions
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                            {loading ? (
-                                <tr>
-                                    <td colSpan={5} className="px-6 py-10 text-center text-gray-500 dark:text-gray-400">
-                                        <Loader />
-                                        Loading users...
-                                    </td>
-                                </tr>
-                            ) : users.length === 0 ? (
-                                <tr>
-                                    <td colSpan={5} className="px-6 py-10 text-center text-gray-500 dark:text-gray-400">
-                                        No users found.
-                                    </td>
-                                </tr>
-                            ) : (
-                                users.map((user) => (
-                                    <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div>
-                                                <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">{user.fullname || 'No Name'}</div>
-                                                <div className="text-sm text-gray-500 dark:text-gray-400">{user.email}</div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                            {user.phone || '—'}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <select
-                                                value={user.role}
-                                                onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                                                className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-sffl-red focus:border-sffl-red p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors cursor-pointer min-w-[120px]"
-                                            >
-                                                <option value="user">User</option>
-                                                <option value="team_head">Team Head</option>
-                                                <option value="admin">Admin</option>
-                                            </select>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                            {new Date(user.created_at).toLocaleDateString()}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                                            <button
-                                                onClick={() => openEdit(user)}
-                                                className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 font-bold text-sm rounded-xl shadow-sm hover:shadow-md transition-all"
-                                            >
-                                                Edit
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {/* Pagination */}
-            {!loading && users.length > 0 && (
-                <div className="flex items-center justify-between px-2">
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                        Showing <span className="font-semibold text-gray-900 dark:text-white">{(page - 1) * limit + 1}</span> to{' '}
-                        <span className="font-semibold text-gray-900 dark:text-white">{Math.min(page * limit, total)}</span> of{' '}
-                        <span className="font-semibold text-gray-900 dark:text-white">{total}</span> results
-                    </div>
-
-                    <div className="flex gap-2">
-                        <button
-                            disabled={page <= 1}
-                            onClick={() => setPage(page - 1)}
-                            className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 rounded-xl shadow-sm font-bold hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                        >
-                            ← Prev
-                        </button>
-                        <button
-                            disabled={page >= totalPages}
-                            onClick={() => setPage(page + 1)}
-                            className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 rounded-xl shadow-sm font-bold hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                        >
-                            Next →
-                        </button>
-                    </div>
-                </div>
+            {loading ? (
+                <Loader />
+            ) : (
+                <DataTable
+                    data={users}
+                    columns={columns}
+                    searchable={true}
+                    searchPlaceholder="Search users by email or name..."
+                    itemsPerPage={10}
+                />
             )}
 
             {/* Edit User Modal */}

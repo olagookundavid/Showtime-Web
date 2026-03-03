@@ -1,6 +1,7 @@
 import { Loader } from '../../components/ui/Loader';
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import {
     getAdminTeams, createTeam, updateTeam, deleteTeam,
     getTeamManagers, assignTeamManager, removeTeamManager,
@@ -81,13 +82,16 @@ const AdminTeams = () => {
         try {
             if (editingTeam) {
                 await updateTeam(editingTeam.id, form);
+                toast.success('Team updated successfully');
             } else {
                 await createTeam(form);
+                toast.success('Team created successfully');
             }
             setShowModal(false);
             queryClient.invalidateQueries({ queryKey: ['adminTeams'] });
         } catch (err: any) {
-            alert(err.response?.data?.message || err.response?.data?.error || 'Failed to save team.');
+            console.error(err);
+            toast.error(err.response?.data?.message || err.response?.data?.error || 'Failed to save team.');
         } finally {
             setSaving(false);
         }
@@ -98,8 +102,10 @@ const AdminTeams = () => {
         try {
             await deleteTeam(id);
             queryClient.invalidateQueries({ queryKey: ['adminTeams'] });
+            toast.success('Team deleted successfully');
         } catch (err: any) {
-            alert(err.response?.data?.message || err.response?.data?.error || 'Failed to delete team.');
+            console.error(err);
+            toast.error(err.response?.data?.message || err.response?.data?.error || 'Failed to delete team.');
         }
     };
 
@@ -114,8 +120,9 @@ const AdminTeams = () => {
             setManagers(managersRes.data || []);
             const allUsers = usersRes.data || [];
             setTeamHeadUsers(allUsers.filter((u: any) => u.role === 'team_head'));
-        } catch {
-            alert('Failed to load managers');
+        } catch (err: any) {
+            console.error(err);
+            toast.error('Failed to load managers');
         } finally {
             setLoadingManagers(false);
         }
@@ -128,8 +135,10 @@ const AdminTeams = () => {
             setSelectedUserId('');
             const res = await getTeamManagers(managerModal.teamId);
             setManagers(res.data || []);
+            toast.success('Manager assigned globally');
         } catch (err: any) {
-            alert(err.response?.data?.message || err.response?.data?.error || 'Failed to assign manager.');
+            console.error(err);
+            toast.error(err.response?.data?.message || err.response?.data?.error || 'Failed to assign manager.');
         }
     };
 
@@ -138,8 +147,10 @@ const AdminTeams = () => {
         try {
             await removeTeamManager(managerModal.teamId, userId);
             setManagers(prev => prev.filter(m => m.user_id !== userId));
+            toast.success('Manager removed globally');
         } catch (err: any) {
-            alert(err.response?.data?.message || err.response?.data?.error || 'Failed to remove manager.');
+            console.error(err);
+            toast.error(err.response?.data?.message || err.response?.data?.error || 'Failed to remove manager.');
         }
     };
 

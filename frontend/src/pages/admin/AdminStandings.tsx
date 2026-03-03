@@ -1,6 +1,7 @@
 import { Loader } from '../../components/ui/Loader';
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import {
     getStandings, getCompetitions, getTeams,
     createStanding, updateStanding, deleteStanding,
@@ -114,13 +115,18 @@ export const AdminStandings = () => {
             };
             if (editingId) {
                 await updateStanding(editingId, payload);
+                toast.success('Standing updated successfully');
             } else {
                 await createStanding(payload);
+                toast.success('Standing created successfully');
             }
             queryClient.invalidateQueries({ queryKey: ['adminStandings', selectedComp] });
             setShowModal(false);
             setEditingId(null);
-        } catch (err: any) { console.error(err); alert('Failed to save standing'); }
+        } catch (err: any) {
+            console.error(err);
+            toast.error(err.response?.data?.message || err.response?.data?.error || 'Failed to save standing');
+        }
         setSaving(false);
     };
 
@@ -129,7 +135,11 @@ export const AdminStandings = () => {
             await deleteStanding(id);
             queryClient.invalidateQueries({ queryKey: ['adminStandings', selectedComp] });
             setDeleteConfirm(null);
-        } catch (err: any) { console.error(err); alert('Failed to delete'); }
+            toast.success('Standing deleted successfully');
+        } catch (err: any) {
+            console.error(err);
+            toast.error(err.response?.data?.message || err.response?.data?.error || 'Failed to delete standing');
+        }
     };
 
     const set = (field: keyof FormData, v: string) => setForm(p => ({ ...p, [field]: v }));

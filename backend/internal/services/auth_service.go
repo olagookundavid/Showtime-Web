@@ -102,7 +102,7 @@ func (s *AuthService) Login(ctx context.Context, req dto.LoginRequest) (*dto.Log
 
 	user, err := s.AuthRepository.GetUserByEmail(ctx, req.Email)
 	if err != nil {
-		return nil, err
+		return nil, appErrors.ErrAccountNotFound
 	}
 
 	if user.Password.Hash == nil {
@@ -114,7 +114,7 @@ func (s *AuthService) Login(ctx context.Context, req dto.LoginRequest) (*dto.Log
 		return nil, err
 	}
 	if !match {
-		return nil, appErrors.ErrNoUserRecordExist
+		return nil, appErrors.ErrIncorrectPassword
 	}
 
 	return loginUserWithTokens(s, user)

@@ -1,6 +1,8 @@
 import { Loader } from '../../components/ui/Loader';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
+import { DataTable, type Column } from '../../components/ui/DataTable';
 import {
     getMatches, getCompetitions, getTeams,
     createMatch, updateMatch, deleteMatch,
@@ -27,8 +29,6 @@ const emptyForm: FormData = {
     home_score: '', away_score: '', highlights_url: '', ticket_url: '',
 };
 
-const PAGE_SIZE = 10;
-
 export const AdminMatches = () => {
     const queryClient = useQueryClient();
     const [showModal, setShowModal] = useState(false);
@@ -37,9 +37,8 @@ export const AdminMatches = () => {
     const [saving, setSaving] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
-    // Filters & Pagination
+    // Filters
     const [filterComp, setFilterComp] = useState('');
-    const [page, setPage] = useState(1);
 
     const { data: compsData, isLoading: loadingComps } = useQuery({
         queryKey: ['adminCompetitions'],
@@ -52,9 +51,9 @@ export const AdminMatches = () => {
     });
 
     const { data: matchesData, isLoading: loadingMatches } = useQuery({
-        queryKey: ['adminMatches', { page, comp: filterComp, limit: PAGE_SIZE }],
+        queryKey: ['adminMatches', { comp: filterComp }],
         queryFn: async () => {
-            const data = await getMatches(filterComp || undefined, page, PAGE_SIZE);
+            const data = await getMatches(filterComp || undefined, 1, 1000);
             return Array.isArray(data) ? { data, total_pages: 1 } : data;
         },
     });
@@ -62,12 +61,10 @@ export const AdminMatches = () => {
     const competitions: Competition[] = compsData || [];
     const teams: Team[] = teamsData || [];
     const matches: Match[] = matchesData?.data || [];
-    const totalPages = matchesData?.total_pages || 1;
     const loading = loadingComps || loadingTeams || loadingMatches;
 
     const handleFilterChange = (compId: string) => {
         setFilterComp(compId);
-        setPage(1);
     };
 
     const openCreate = () => { setEditingId(null); setForm(emptyForm); setShowModal(true); };
@@ -108,12 +105,17 @@ export const AdminMatches = () => {
             };
             if (editingId) {
                 await updateMatch(editingId, payload);
+                toast.success('Match updated successfully');
             } else {
                 await createMatch(payload);
+                toast.success('Match created successfully');
             }
             queryClient.invalidateQueries({ queryKey: ['adminMatches'] });
             setShowModal(false);
-        } catch (err: any) { console.error(err); alert('Failed to save match'); }
+        } catch (err: any) {
+            console.error(err);
+            toast.error(err.response?.data?.message || err.response?.data?.error || 'Failed to save match');
+        }
         setSaving(false);
     };
 
@@ -122,7 +124,11 @@ export const AdminMatches = () => {
             await deleteMatch(id);
             queryClient.invalidateQueries({ queryKey: ['adminMatches'] });
             setDeleteConfirm(null);
-        } catch (err: any) { console.error(err); alert('Failed to delete'); }
+            toast.success('Match deleted successfully');
+        } catch (err: any) {
+            console.error(err);
+            toast.error(err.response?.data?.message || err.response?.data?.error || 'Failed to delete match');
+        }
     };
 
     const set = (field: keyof FormData, value: string) => setForm(p => ({ ...p, [field]: value }));
@@ -133,6 +139,44 @@ export const AdminMatches = () => {
         FINISHED: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
         POSTPONED: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
     };
+
+    const columns: Column<Match>[] = [
+        { header: 'Date', accessor: 'date', sortable: true, className: "px-4 py-3 text-sm dark:text-gray-300 w-24" },
+        {
+            header: 'Match',
+            sortable: true,
+            sortValue: (m) => `${m.home_team?.short_name} vs ${m.away_team?.short_name}`,
+            cell: (m) => <span className="font-semibold text-sm text-gray-900 dark:text-white">{m.home_team?.short_name || 'TBD'} vs {m.away_team?.short_name || 'TBD'}</span>
+        },
+        {
+            header: 'Score',
+            sortable: true,
+            sortValue: (m) => `${m.home_score} - ${m.away_score}`,
+            cell: (m) => <span className="text-sm font-bold dark:text-gray-300">{m.status === 'FINISHED' ? `${m.home_score} - ${m.away_score}` : '—'}</span>
+        },
+        {
+            header: 'Status',
+            accessor: 'status',
+            sortable: true,
+            cell: (m) => <span className={`px-2 py-1 rounded-full text-xs font-bold ${statusColors[m.status] || 'bg-gray-100 dark:bg-gray-600 dark:text-gray-300'}`}>{m.status}</span>
+        },
+        {
+            header: 'Competition',
+            sortable: true,
+            sortValue: (m) => m.competition?.name || '',
+            cell: (m) => <span className="text-sm dark:text-gray-300">{m.competition?.name || '—'}</span>
+        },
+        {
+            header: 'Actions',
+            className: "px-4 py-3 text-right space-x-2 w-48",
+            cell: (m) => (
+                <div className="flex justify-end gap-2">
+                    <button onClick={() => openEdit(m)} className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 font-bold text-sm rounded-xl shadow-sm hover:shadow-md transition-all">Edit</button>
+                    <button onClick={() => setDeleteConfirm(m.id)} className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-bold text-sm rounded-xl shadow-sm hover:shadow-md transition-all">Delete</button>
+                </div>
+            )
+        }
+    ];
 
     return (
         <div className="space-y-6">
@@ -155,69 +199,7 @@ export const AdminMatches = () => {
             {loading ? (
                 <Loader />
             ) : (
-                <>
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border-gray-200 dark:border-gray-700 border">
-                        <table className="w-full text-left">
-                            <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
-                                <tr>
-                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Date</th>
-                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Match</th>
-                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Score</th>
-                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Status</th>
-                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Competition</th>
-                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                {matches.map(m => (
-                                    <tr key={m.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
-                                        <td className="px-4 py-3 text-sm dark:text-gray-300">{m.date}</td>
-                                        <td className="px-4 py-3 font-semibold text-sm text-gray-900 dark:text-white">{m.home_team?.short_name || 'TBD'} vs {m.away_team?.short_name || 'TBD'}</td>
-                                        <td className="px-4 py-3 text-sm font-bold dark:text-gray-300">{m.status === 'FINISHED' ? `${m.home_score} - ${m.away_score}` : '—'}</td>
-                                        <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-bold ${statusColors[m.status] || 'bg-gray-100 dark:bg-gray-600 dark:text-gray-300'}`}>{m.status}</span></td>
-                                        <td className="px-4 py-3 text-sm dark:text-gray-300">{m.competition?.name || '—'}</td>
-                                        <td className="px-4 py-3 text-right space-x-2">
-                                            <button onClick={() => openEdit(m)} className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 font-bold text-sm rounded-xl shadow-sm hover:shadow-md transition-all">Edit</button>
-                                            <button onClick={() => setDeleteConfirm(m.id)} className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-bold text-sm rounded-xl shadow-sm hover:shadow-md transition-all">Delete</button>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {matches.length === 0 && <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-400 dark:text-gray-500">No matches found</td></tr>}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {/* Pagination */}
-                    {totalPages > 1 && (
-                        <div className="flex items-center justify-between">
-                            <p className="text-sm text-gray-500 dark:text-gray-400">Page {page} of {totalPages}</p>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                                    disabled={page <= 1}
-                                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl font-bold text-sm disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300 transition-all"
-                                >← Prev</button>
-                                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                                    const start = Math.max(1, Math.min(page - 2, totalPages - 4));
-                                    const p = start + i;
-                                    if (p > totalPages) return null;
-                                    return (
-                                        <button
-                                            key={p}
-                                            onClick={() => setPage(p)}
-                                            className={`px-3 py-2 rounded-xl font-bold text-sm transition-all ${p === page ? 'bg-sffl-red text-white shadow-md border-transparent' : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300'}`}
-                                        >{p}</button>
-                                    );
-                                })}
-                                <button
-                                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                                    disabled={page >= totalPages}
-                                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl font-bold text-sm disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300 transition-all"
-                                >Next →</button>
-                            </div>
-                        </div>
-                    )}
-                </>
+                <DataTable data={matches} columns={columns} searchable={true} searchPlaceholder="Search matches..." itemsPerPage={10} />
             )}
 
             {/* Create/Edit Modal */}
