@@ -35,19 +35,20 @@ export const AdminStandings = () => {
 
     const { data: compsData, isLoading: loadingComps } = useQuery({
         queryKey: ['adminCompetitions'],
-        queryFn: getCompetitions,
+        queryFn: () => getCompetitions(1, 20),
     });
 
     // Auto-select first competition when loaded
     useEffect(() => {
-        if (compsData && compsData.length > 0 && !selectedComp) {
-            setSelectedComp(compsData[0].id);
+        const comps = compsData?.data || [];
+        if (comps.length > 0 && !selectedComp) {
+            setSelectedComp(comps[0].id);
         }
     }, [compsData, selectedComp]);
 
     const { data: teamsData, isLoading: loadingTeams } = useQuery({
         queryKey: ['adminTeamsList'],
-        queryFn: getTeams,
+        queryFn: () => getTeams(1, 20),
     });
 
     const { data: standingsData, isLoading: loadingStandings } = useQuery({
@@ -56,8 +57,8 @@ export const AdminStandings = () => {
         enabled: !!selectedComp,
     });
 
-    const competitions: Competition[] = compsData || [];
-    const teams: Team[] = teamsData || [];
+    const competitions: Competition[] = compsData?.data || [];
+    const teams: Team[] = teamsData?.data || [];
     const standings: Standing[] = Array.isArray(standingsData) ? standingsData : [];
     const loading = loadingComps || loadingTeams || (!!selectedComp && loadingStandings);
     const [showModal, setShowModal] = useState(false);

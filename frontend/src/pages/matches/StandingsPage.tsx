@@ -9,9 +9,9 @@ export const StandingsPage = () => {
 
     const { data: competitionsData, isLoading: compLoading } = useQuery({
         queryKey: ['publicCompetitions'],
-        queryFn: getCompetitions,
+        queryFn: () => getCompetitions(1, 100),
     });
-    const competitions = competitionsData || [];
+    const competitions = competitionsData?.data || [];
 
     useEffect(() => {
         if (competitions.length > 0 && !selectedCompetitionId) {

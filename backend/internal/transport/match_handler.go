@@ -44,16 +44,23 @@ func NewMatchHandler(service services.IMatchService) IMatchHandler {
 // GetCompetitions godoc
 // @Summary      Get all competitions
 // @Tags         match-hub
+// @Param        search query string false "Search by name"
+// @Param        page query int false "Page number"
+// @Param        limit query int false "Items per page"
 // @Produce      json
-// @Success      200  {array}   dto.CompetitionResponse
+// @Success      200  {object}  map[string]interface{}
 // @Router       /api/v1/matches/competitions [get]
 func (h *MatchHandler) GetCompetitions(c *gin.Context) {
-	competitions, err := h.service.GetCompetitions(c.Request.Context())
+	search := c.Query("search")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+
+	result, err := h.service.GetCompetitions(c.Request.Context(), page, limit, search)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": competitions})
+	c.JSON(http.StatusOK, result)
 }
 
 // GetMatches godoc

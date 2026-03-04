@@ -144,7 +144,7 @@ export const AdminTickets = () => {
                 <button
                     onClick={() => handleCheckin(t.id)}
                     disabled={isLoading}
-                    className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-700 transition disabled:opacity-50"
+                    className="bg-green-600 text-white px-2.5 py-1.5 rounded-md text-xs font-bold hover:bg-green-700 transition disabled:opacity-50"
                 >
                     {isLoading ? '...' : '✅ Check In'}
                 </button>
@@ -153,11 +153,11 @@ export const AdminTickets = () => {
 
         if (t.status === 'PENDING') {
             return (
-                <div className="flex gap-1.5">
+                <div className="flex justify-center gap-1.5">
                     <button
                         onClick={() => handleVerify(t)}
                         disabled={isLoading}
-                        className="bg-blue-600 text-white px-2.5 py-1.5 rounded-xl shadow-sm hover:shadow-md text-xs font-bold hover:bg-blue-700 transition-all disabled:opacity-50"
+                        className="bg-blue-600 text-white px-2.5 py-1.5 rounded-md shadow-sm hover:shadow-md text-xs font-bold hover:bg-blue-700 transition-all disabled:opacity-50"
                         title="Verify payment with Paystack"
                     >
                         {isLoading ? '...' : '🔍 Verify'}
@@ -165,7 +165,7 @@ export const AdminTickets = () => {
                     <button
                         onClick={() => handleAdminCheckin(t.id)}
                         disabled={isLoading}
-                        className="bg-orange-600 text-white px-2.5 py-1.5 rounded-xl shadow-sm hover:shadow-md text-xs font-bold hover:bg-orange-700 transition-all disabled:opacity-50"
+                        className="bg-orange-600 text-white px-2.5 py-1.5 rounded-md shadow-sm hover:shadow-md text-xs font-bold hover:bg-orange-700 transition-all disabled:opacity-50"
                         title="Force check-in (verifies payment first)"
                     >
                         {isLoading ? '...' : '⚡ Force'}
@@ -189,28 +189,43 @@ export const AdminTickets = () => {
                 <div className="flex gap-2 mb-3">
                     <button
                         onClick={() => { setSearchMode('code'); setSearchQuery(''); setSearchResults([]); setSearchError(''); }}
-                        className={`px-4 py-2 rounded-xl shadow-sm hover:shadow-md text-sm font-bold transition-all ${searchMode === 'code' ? 'bg-sffl-navy text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}
+                        className={`px-3 py-1.5 rounded-lg shadow-sm hover:shadow-md text-sm font-bold transition-all ${searchMode === 'code' ? 'bg-sffl-navy text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}
                     >🔢 Search by Code</button>
                     <button
                         onClick={() => { setSearchMode('email'); setSearchQuery(''); setSearchResults([]); setSearchError(''); }}
-                        className={`px-4 py-2 rounded-xl shadow-sm hover:shadow-md text-sm font-bold transition-all ${searchMode === 'email' ? 'bg-sffl-navy text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}
+                        className={`px-3 py-1.5 rounded-lg shadow-sm hover:shadow-md text-sm font-bold transition-all ${searchMode === 'email' ? 'bg-sffl-navy text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}
                     >📧 Search by Email</button>
                 </div>
 
                 {/* Search Input */}
                 <div className="flex gap-3">
-                    <input
-                        type={searchMode === 'email' ? 'email' : 'text'}
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                        placeholder={searchMode === 'code' ? 'Enter ticket code (e.g. SFFL-A3K9X2)' : 'Enter email address'}
-                        className={`flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none ${searchMode === 'code' ? 'uppercase' : ''}`}
-                    />
+                    <div className="relative flex-1">
+                        <input
+                            type={searchMode === 'email' ? 'email' : 'text'}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                            placeholder={searchMode === 'code' ? 'Enter ticket code (e.g. SFFL-A3K9X2)' : 'Enter email address'}
+                            className={`w-full pl-3 pr-8 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none ${searchMode === 'code' ? 'uppercase' : ''}`}
+                        />
+                        {searchQuery && (
+                            <button
+                                onClick={() => {
+                                    setSearchQuery('');
+                                    setSearchResults([]);
+                                }}
+                                className="absolute right-2 top-2 text-gray-400 hover:text-gray-600 transition"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        )}
+                    </div>
                     <button
                         onClick={handleSearch}
                         disabled={searching || !searchQuery.trim()}
-                        className="bg-sffl-navy text-white px-4 py-1.5 rounded-xl shadow-md hover:shadow-lg font-bold hover:bg-blue-900 transition-all disabled:opacity-50"
+                        className="bg-sffl-navy text-white text-xs px-2.5 py-1.5 rounded-lg shadow-sm hover:shadow-md font-bold hover:bg-blue-900 transition-all disabled:opacity-50"
                     >{searching ? 'Searching...' : 'Search'}</button>
                 </div>
 
@@ -269,7 +284,7 @@ export const AdminTickets = () => {
                 <select
                     value={filterEventDay}
                     onChange={(e) => { setFilterEventDay(e.target.value); setPage(1); }}
-                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="px-3 py-1.5 border mb-2 text-sm border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
                     <option value="">All Event Days</option>
                     {eventDays.map(ed => (
@@ -279,7 +294,7 @@ export const AdminTickets = () => {
                 <select
                     value={filterStatus}
                     onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
-                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="px-3 py-1.5 border mb-2 text-sm border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
                     <option value="">All Statuses</option>
                     <option value="PENDING">Pending</option>
@@ -335,9 +350,9 @@ export const AdminTickets = () => {
 
                 {totalPages > 1 && (
                     <div className="flex items-center justify-between p-4 border-t dark:border-gray-700">
-                        <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-4 py-2 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-300 disabled:opacity-30 hover:bg-gray-50 dark:hover:bg-gray-700 transition">← Prev</button>
-                        <span className="text-sm text-gray-500">Page {page} of {totalPages}</span>
-                        <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-4 py-2 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-300 disabled:opacity-30 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Next →</button>
+                        <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 dark:text-gray-300 disabled:opacity-30 hover:bg-gray-50 dark:hover:bg-gray-700 transition">← Prev</button>
+                        <span className="text-xs text-gray-500">Page {page} of {totalPages}</span>
+                        <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 dark:text-gray-300 disabled:opacity-30 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Next →</button>
                     </div>
                 )}
             </div>

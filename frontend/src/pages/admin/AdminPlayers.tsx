@@ -30,19 +30,25 @@ const POSITIONS = ['QB', 'RB', 'WR', 'TE', 'OL', 'DL', 'LB', 'CB', 'S', 'K', 'P'
 
 export const AdminPlayers = () => {
     const queryClient = useQueryClient();
+    const [page, setPage] = useState(1);
+    const [searchTerm, setSearchTerm] = useState('');
+
+    // Filters
+    const [filterTeam, setFilterTeam] = useState('');
 
     const { data: allPlayersData, isLoading: loadingPlayers } = useQuery({
-        queryKey: ['adminPlayers'],
-        queryFn: () => getPlayers(),
+        queryKey: ['adminPlayers', { page, search: searchTerm, team: filterTeam }],
+        queryFn: () => getPlayers(filterTeam || undefined, page, 20, searchTerm),
     });
 
     const { data: teamsData, isLoading: loadingTeams } = useQuery({
         queryKey: ['adminTeamsList'], // distinct from paginated adminTeams
-        queryFn: getTeams,
+        queryFn: () => getTeams(1, 20),
     });
 
-    const allPlayers: Player[] = allPlayersData || [];
-    const teams: Team[] = teamsData || [];
+    const allPlayers: Player[] = allPlayersData?.data || [];
+    const totalPages = allPlayersData?.total_pages || 1;
+    const teams: Team[] = teamsData?.data || [];
     const loading = loadingPlayers || loadingTeams;
     const [showModal, setShowModal] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -50,16 +56,9 @@ export const AdminPlayers = () => {
     const [saving, setSaving] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
-    // Filters (client-side)
-    const [filterTeam, setFilterTeam] = useState('');
-
-    // Client-side filter
-    const filtered = filterTeam
-        ? allPlayers.filter(p => p.team?.id === filterTeam)
-        : allPlayers;
-
     const handleFilterChange = (teamId: string) => {
         setFilterTeam(teamId);
+        setPage(1);
     };
 
     const openCreate = () => { setEditingId(null); setForm(emptyForm); setShowModal(true); };
@@ -158,8 +157,8 @@ export const AdminPlayers = () => {
             className: "px-4 py-3 text-right space-x-2 w-48",
             cell: (p) => (
                 <div className="flex justify-end gap-2">
-                    <button onClick={() => openEdit(p)} className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 font-bold text-sm rounded-lg transition-colors">Edit</button>
-                    <button onClick={() => setDeleteConfirm(p.id)} className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-400 font-bold text-sm rounded-lg transition-colors">Delete</button>
+                    <button onClick={() => openEdit(p)} className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 font-bold text-xs rounded-md transition-colors">Edit</button>
+                    <button onClick={() => setDeleteConfirm(p.id)} className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-400 font-bold text-xs rounded-md transition-colors">Delete</button>
                 </div>
             )
         },
@@ -173,19 +172,32 @@ export const AdminPlayers = () => {
                     <select
                         value={filterTeam}
                         onChange={e => handleFilterChange(e.target.value)}
-                        className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 font-semibold text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 font-semibold text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
                         <option value="">All Teams</option>
                         {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                     </select>
-                    <button onClick={openCreate} className="px-4 py-1.5 bg-sffl-red text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:bg-red-700 transition whitespace-nowrap">+ Add Player</button>
+                    <button onClick={openCreate} className="px-3 py-1.5 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition whitespace-nowrap">+ Add Player</button>
                 </div>
             </div>
 
             {loading ? (
                 <Loader />
             ) : (
-                <DataTable data={filtered} columns={columns} searchable={true} searchPlaceholder="Search players..." itemsPerPage={15} />
+                <DataTable
+                    data={allPlayers}
+                    columns={columns}
+                    searchable={true}
+                    searchPlaceholder="Search players..."
+                    itemsPerPage={20}
+                    serverPage={page}
+                    totalServerPages={totalPages}
+                    onPageChange={setPage}
+                    onSearchSubmit={(term) => {
+                        setSearchTerm(term);
+                        setPage(1);
+                    }}
+                />
             )}
 
             {/* Create/Edit Modal */}
@@ -249,9 +261,9 @@ export const AdminPlayers = () => {
                                 </div>
                             </div>
                         </div>
-                        <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
-                            <button onClick={() => setShowModal(false)} className="px-4 py-1.5 border border-gray-300 dark:border-gray-600 rounded-xl font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Cancel</button>
-                            <button onClick={handleSave} disabled={saving} className="px-4 py-1.5 bg-sffl-red text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:bg-red-700 transition disabled:opacity-50">
+                        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
+                            <button onClick={() => setShowModal(false)} className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-gray-700 text-sm dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Cancel</button>
+                            <button onClick={handleSave} disabled={saving} className="px-3 py-1.5 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition disabled:opacity-50">
                                 {saving ? 'Saving...' : editingId ? 'Update' : 'Create'}
                             </button>
                         </div>
@@ -265,9 +277,9 @@ export const AdminPlayers = () => {
                     <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-2xl max-w-sm w-full">
                         <h3 className="text-lg font-bold text-sffl-navy dark:text-white mb-2">Delete Player?</h3>
                         <p className="text-gray-600 dark:text-gray-400 mb-6">This action cannot be undone.</p>
-                        <div className="flex justify-end gap-3">
-                            <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Cancel</button>
-                            <button onClick={() => handleDelete(deleteConfirm)} className="px-4 py-2 bg-red-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:bg-red-700 transition">Delete</button>
+                        <div className="flex justify-end gap-2">
+                            <button onClick={() => setDeleteConfirm(null)} className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Cancel</button>
+                            <button onClick={() => handleDelete(deleteConfirm)} className="px-3 py-1.5 bg-red-600 text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition">Delete</button>
                         </div>
                     </div>
                 </div>

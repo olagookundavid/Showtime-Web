@@ -78,8 +78,19 @@ export interface News {
     created_at: string;
 }
 
-export const getNews = async (page = 1, limit = 10) => {
-    const response = await api.get<PaginatedResponse<News>>(`/news?page=${page}&limit=${limit}`);
+export const getNews = async (
+    page = 1,
+    limit = 10,
+    search?: string,
+    category?: string,
+    author?: string
+) => {
+    let url = `/news?page=${page}&limit=${limit}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+    if (category) url += `&category=${encodeURIComponent(category)}`;
+    if (author) url += `&author=${encodeURIComponent(author)}`;
+
+    const response = await api.get<PaginatedResponse<News>>(url);
     return response.data;
 };
 
@@ -159,9 +170,9 @@ export interface Standing {
 }
 
 // ─── Match Hub Service ────────────────────────────────────────────────────────
-export const getCompetitions = async (): Promise<Competition[]> => {
-    const response = await api.get<{ data: Competition[] }>('/matches/competitions');
-    return response.data.data;
+export const getCompetitions = async (page: number = 1, limit: number = 20): Promise<PaginatedResponse<Competition>> => {
+    const response = await api.get<PaginatedResponse<Competition>>(`/matches/competitions?page=${page}&limit=${limit}`);
+    return response.data;
 };
 
 export const getMatches = async (
@@ -187,9 +198,9 @@ export const getStandings = async (competitionId: string): Promise<Standing[]> =
 };
 
 // ─── Teams ────────────────────────────────────────────────────────────────────
-export const getTeams = async (): Promise<Team[]> => {
-    const response = await api.get<{ data: Team[] }>('/matches/teams');
-    return response.data.data;
+export const getTeams = async (page: number = 1, limit: number = 20): Promise<PaginatedResponse<Team>> => {
+    const response = await api.get<PaginatedResponse<Team>>(`/matches/teams?page=${page}&limit=${limit}`);
+    return response.data;
 };
 
 // ─── Players ──────────────────────────────────────────────────────────────────
@@ -207,13 +218,16 @@ export interface Player {
     tackles: number;
 }
 
-export const getPlayers = async (teamId?: string): Promise<Player[]> => {
-    let url = '/players';
+export const getPlayers = async (teamId?: string, page: number = 1, limit: number = 20, search?: string): Promise<PaginatedResponse<Player>> => {
+    let url = `/players?page=${page}&limit=${limit}`;
     if (teamId) {
-        url += `?team_id=${teamId}`;
+        url += `&team_id=${teamId}`;
     }
-    const response = await api.get<{ data: Player[] }>(url);
-    return response.data.data;
+    if (search) {
+        url += `&search=${encodeURIComponent(search)}`;
+    }
+    const response = await api.get<PaginatedResponse<Player>>(url);
+    return response.data;
 };
 
 export const getPlayerById = async (id: string): Promise<Player> => {
@@ -231,7 +245,6 @@ export interface CreateNewsPayload {
     featured_image?: string;
     author?: string;
     category?: string;
-    published_at?: string;
 }
 
 export interface CreateGalleryPayload {
@@ -563,8 +576,12 @@ export const removeTeamManager = async (teamId: string, userId: string) => {
 };
 
 // -------- ADMIN COMPETITION MANAGEMENT API -------- //
-export const getAdminCompetitions = async () => {
-    const response = await api.get('/admin/competitions');
+export const getAdminCompetitions = async (page: number = 1, limit: number = 20, search?: string): Promise<PaginatedResponse<Competition>> => {
+    let url = `/matches/competitions?page=${page}&limit=${limit}`;
+    if (search) {
+        url += `&search=${encodeURIComponent(search)}`;
+    }
+    const response = await api.get<PaginatedResponse<Competition>>(url);
     return response.data;
 };
 

@@ -55,7 +55,7 @@ export default function Home() {
 
     const { data: competitionsData, isLoading: loadingComps } = useQuery({
         queryKey: ['publicCompetitions'],
-        queryFn: getCompetitions,
+        queryFn: () => getCompetitions(1, 100),
     });
 
     const { data: newsData, isLoading: loadingNews } = useQuery({
@@ -63,7 +63,8 @@ export default function Home() {
         queryFn: () => getNews(1, 3),
     });
 
-    const firstCompId = competitionsData?.[0]?.id;
+    const competitions = competitionsData?.data || [];
+    const firstCompId = competitions?.[0]?.id;
 
     const { data: standingsDataRaw, isLoading: loadingStandings } = useQuery({
         queryKey: ['publicStandings', firstCompId],

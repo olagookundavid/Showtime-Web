@@ -35,7 +35,7 @@ func (s *NewsService) CreateNews(ctx context.Context, req dto.CreateNewsRequest)
 		FeaturedImage: req.FeaturedImage,
 		Author:        req.Author,
 		Category:      req.Category,
-		PublishedAt:   req.PublishedAt,
+		PublishedAt:   time.Now(),
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),
 	}
@@ -43,8 +43,7 @@ func (s *NewsService) CreateNews(ctx context.Context, req dto.CreateNewsRequest)
 }
 
 func (s *NewsService) GetNews(ctx context.Context, query dto.PaginationQuery) (*dto.PaginatedResponse, error) {
-	offset := (query.Page - 1) * query.Limit
-	newsList, total, err := s.repo.FindAll(ctx, query.Limit, offset)
+	newsList, total, err := s.repo.FindAll(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +116,6 @@ func (s *NewsService) UpdateNews(ctx context.Context, id string, req dto.CreateN
 	existingNews.FeaturedImage = req.FeaturedImage
 	existingNews.Author = req.Author
 	existingNews.Category = req.Category
-	existingNews.PublishedAt = req.PublishedAt
 	existingNews.UpdatedAt = time.Now()
 
 	return s.repo.Update(ctx, existingNews)

@@ -96,7 +96,7 @@ export const AdminEventDays = () => {
                 <h1 className="text-3xl font-black text-sffl-navy dark:text-white">Event Days</h1>
                 <button
                     onClick={() => setShowCreateForm(!showCreateForm)}
-                    className="bg-sffl-red text-white px-4 py-2 rounded-xl shadow-md hover:shadow-lg font-bold hover:bg-red-700 transition-all"
+                    className="bg-sffl-red text-white px-3 py-1.5 rounded-lg text-sm shadow-sm hover:shadow-md font-bold hover:bg-red-700 transition-all"
                 >
                     {showCreateForm ? '✕ Cancel' : '+ New Event Day'}
                 </button>
@@ -140,7 +140,7 @@ export const AdminEventDays = () => {
                     <button
                         onClick={handleCreateEventDay}
                         disabled={creating || !newTitle || !newDate}
-                        className="mt-4 bg-sffl-navy text-white px-5 py-2 rounded-xl shadow-md hover:shadow-lg font-bold hover:bg-blue-900 transition-all disabled:opacity-50"
+                        className="mt-4 bg-sffl-navy text-white px-3 py-1.5 text-sm rounded-lg shadow-sm hover:shadow-md font-bold hover:bg-blue-900 transition-all disabled:opacity-50"
                     >
                         {creating ? 'Creating...' : '✅ Create Event Day'}
                     </button>
@@ -180,20 +180,20 @@ export const AdminEventDays = () => {
                                     <div className="flex gap-2">
                                         <button
                                             onClick={() => handleToggleActive(ed.id, ed.is_active)}
-                                            className="px-3 py-2 text-xs font-bold rounded-xl shadow-sm hover:shadow-md bg-white/10 hover:bg-white/20 transition-all"
+                                            className="px-2.5 py-1.5 text-xs font-bold rounded-md shadow-sm hover:shadow-md bg-white/10 hover:bg-white/20 transition-all"
                                         >
                                             {ed.is_active ? '🔴 Deactivate' : '🟢 Activate'}
                                         </button>
                                         <button
                                             onClick={() => setAddTierFor(addTierFor === ed.id ? null : ed.id)}
-                                            className="px-3 py-2 text-xs font-bold rounded-xl shadow-sm hover:shadow-md bg-white/10 hover:bg-white/20 transition-all"
+                                            className="px-2.5 py-1.5 text-xs font-bold rounded-md shadow-sm hover:shadow-md bg-white/10 hover:bg-white/20 transition-all"
                                         >
                                             + Add Tier
                                         </button>
                                         {isPast && (
                                             <button
                                                 onClick={() => handleDelete(ed.id, ed.title)}
-                                                className="px-3 py-2 text-xs font-bold rounded-xl shadow-sm hover:shadow-md bg-red-600 hover:bg-red-700 transition-all"
+                                                className="px-2.5 py-1.5 text-xs font-bold rounded-md shadow-sm hover:shadow-md bg-red-600 hover:bg-red-700 transition-all"
                                             >
                                                 🗑️ Delete
                                             </button>
@@ -259,13 +259,13 @@ export const AdminEventDays = () => {
                                                 <button
                                                     onClick={handleCreateTier}
                                                     disabled={creatingTier || !tierName || !tierPrice}
-                                                    className="bg-sffl-navy text-white px-4 py-1.5 rounded-xl shadow-md hover:shadow-lg text-sm font-bold hover:bg-blue-900 transition-all disabled:opacity-50"
+                                                    className="bg-sffl-navy text-white px-3 py-1.5 rounded-lg shadow-sm hover:shadow-md text-sm font-bold hover:bg-blue-900 transition-all disabled:opacity-50"
                                                 >
                                                     {creatingTier ? 'Creating...' : '✅ Add Tier'}
                                                 </button>
                                                 <button
                                                     onClick={() => { setAddTierFor(null); setTierName(''); setTierPrice(''); setTierCapacity(''); setTierDesc(''); }}
-                                                    className="px-4 py-1.5 text-sm font-bold text-gray-500 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-all"
+                                                    className="px-3 py-1.5 text-sm font-bold text-gray-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-all"
                                                 >Cancel</button>
                                             </div>
                                         </div>

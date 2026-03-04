@@ -9,15 +9,15 @@ export const PlayersPage = () => {
 
     const { data: teamsData, isLoading: loadingTeams } = useQuery({
         queryKey: ['publicTeams'],
-        queryFn: getTeams,
+        queryFn: () => getTeams(1, 100),
     });
-    const teams = teamsData || [];
+    const teams: any[] = (teamsData as any)?.data || teamsData || [];
 
     const { data: playersData, isLoading: dataLoading } = useQuery({
         queryKey: ['publicPlayers', selectedTeamId],
         queryFn: () => getPlayers(selectedTeamId || undefined),
     });
-    const players = playersData || [];
+    const players: any[] = (playersData as any)?.data || playersData || [];
 
     const loading = loadingTeams;
 
@@ -43,7 +43,7 @@ export const PlayersPage = () => {
                                 className="appearance-none bg-white/10 border border-white/20 text-white py-3 px-6 pr-12 rounded-xl focus:outline-none focus:ring-2 focus:ring-sffl-red font-bold text-lg min-w-[260px] cursor-pointer hover:bg-white/20 transition-colors"
                             >
                                 <option value="" className="text-black bg-white">All Teams</option>
-                                {teams.map((t) => (
+                                {teams.map((t: any) => (
                                     <option key={t.id} value={t.id} className="text-black bg-white">
                                         {t.name}
                                     </option>
@@ -76,7 +76,7 @@ export const PlayersPage = () => {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {players.map(player => (
+                    {players.map((player: any) => (
                         <Link
                             key={player.id}
                             to={`/players/${player.id}`}

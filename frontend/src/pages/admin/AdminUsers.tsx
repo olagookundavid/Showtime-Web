@@ -17,13 +17,15 @@ interface UserResponse {
 
 const AdminUsers = () => {
     const queryClient = useQueryClient();
+    const [searchTerm, setSearchTerm] = useState('');
+
     const {
         data: usersData,
         isLoading: loading,
         error: queryError,
     } = useQuery({
-        queryKey: ['adminUsers'],
-        queryFn: () => getAdminUsers({ page: 1, limit: 1000, search: '' }),
+        queryKey: ['adminUsers', { search: searchTerm }],
+        queryFn: () => getAdminUsers({ page: 1, limit: 20, search: searchTerm }),
     });
 
     const users: UserResponse[] = usersData?.data || [];
@@ -116,7 +118,7 @@ const AdminUsers = () => {
             cell: (u) => (
                 <button
                     onClick={() => openEdit(u)}
-                    className="px-4 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 font-bold text-sm rounded-xl shadow-sm transition-all"
+                    className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 font-bold text-sm rounded-lg shadow-sm transition-all"
                 >
                     Edit
                 </button>
@@ -149,7 +151,8 @@ const AdminUsers = () => {
                     columns={columns}
                     searchable={true}
                     searchPlaceholder="Search users by email or name..."
-                    itemsPerPage={10}
+                    itemsPerPage={20}
+                    onSearchSubmit={(term) => setSearchTerm(term)}
                 />
             )}
 
@@ -183,17 +186,17 @@ const AdminUsers = () => {
                                 />
                             </div>
                         </div>
-                        <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+                        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
                             <button
                                 onClick={() => setEditingUser(null)}
-                                className="px-4 py-1.5 border border-gray-300 dark:border-gray-600 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all dark:text-gray-300"
+                                className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-all dark:text-gray-300"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleEditSave}
                                 disabled={saving || !editForm.fullname.trim()}
-                                className="px-4 py-1.5 bg-sffl-red text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:bg-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-3 py-1.5 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {saving ? 'Saving...' : 'Save Changes'}
                             </button>

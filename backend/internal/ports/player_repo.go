@@ -4,11 +4,13 @@ import (
 	"context"
 	"showtime-backend/internal/domain"
 
+	"strconv"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type PlayerRepository interface {
-	GetPlayers(ctx context.Context, teamID string) ([]domain.Player, error)
+	GetPlayers(ctx context.Context, teamID string, search string) ([]domain.Player, error)
 	GetPlayerByID(ctx context.Context, id string) (*domain.Player, error)
 	CreatePlayer(ctx context.Context, player *domain.Player) error
 	UpdatePlayer(ctx context.Context, player *domain.Player) error
@@ -23,7 +25,7 @@ func NewPlayerRepository(db *pgxpool.Pool) *PostgresPlayerRepository {
 	return &PostgresPlayerRepository{db: db}
 }
 
-func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string) ([]domain.Player, error) {
+func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string, search string) ([]domain.Player, error) {
 	query := `
 		SELECT
 			p.id, p.name, p.jersey_number, p.position, p.team_id, p.bio, p.image,
@@ -32,12 +34,21 @@ func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string
 			t.name, t.short_name, t.logo
 		FROM players p
 		LEFT JOIN teams t ON p.team_id = t.id
+		WHERE 1=1
 	`
 	args := []any{}
+	argCount := 1
 
 	if teamID != "" {
-		query += ` WHERE p.team_id = $1`
+		query += ` AND p.team_id = $` + strconv.Itoa(argCount)
 		args = append(args, teamID)
+		argCount++
+	}
+
+	if search != "" {
+		query += ` AND (p.name ILIKE $` + strconv.Itoa(argCount) + ` OR p.position ILIKE $` + strconv.Itoa(argCount) + `)`
+		args = append(args, "%"+search+"%")
+		argCount++
 	}
 
 	query += ` ORDER BY p.jersey_number ASC`

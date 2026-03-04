@@ -8,7 +8,7 @@ import (
 )
 
 type IPlayerService interface {
-	GetPlayers(ctx context.Context, teamID string) ([]dto.PlayerResponse, error)
+	GetPlayers(ctx context.Context, teamID string, search string) ([]dto.PlayerResponse, error)
 	GetPlayerByID(ctx context.Context, id string) (*dto.PlayerResponse, error)
 	CreatePlayer(ctx context.Context, player *domain.Player) error
 	UpdatePlayer(ctx context.Context, player *domain.Player) error
@@ -23,8 +23,8 @@ func NewPlayerService(repo ports.PlayerRepository) IPlayerService {
 	return &PlayerService{repo: repo}
 }
 
-func (s *PlayerService) GetPlayers(ctx context.Context, teamID string) ([]dto.PlayerResponse, error) {
-	players, err := s.repo.GetPlayers(ctx, teamID)
+func (s *PlayerService) GetPlayers(ctx context.Context, teamID string, search string) ([]dto.PlayerResponse, error) {
+	players, err := s.repo.GetPlayers(ctx, teamID, search)
 	if err != nil {
 		return nil, err
 	}

@@ -8,7 +8,7 @@ import (
 )
 
 type IMatchService interface {
-	GetCompetitions(ctx context.Context) ([]dto.CompetitionResponse, error)
+	GetCompetitions(ctx context.Context, page, limit int, search string) (dto.PaginatedResult[dto.CompetitionResponse], error)
 	CreateCompetition(ctx context.Context, comp *domain.Competition) error
 	UpdateCompetition(ctx context.Context, comp *domain.Competition) error
 	DeleteCompetition(ctx context.Context, id string) error
@@ -36,10 +36,10 @@ func NewMatchService(repo ports.MatchRepository) IMatchService {
 	return &MatchService{repo: repo}
 }
 
-func (s *MatchService) GetCompetitions(ctx context.Context) ([]dto.CompetitionResponse, error) {
-	competitions, err := s.repo.GetCompetitions(ctx)
+func (s *MatchService) GetCompetitions(ctx context.Context, page, limit int, search string) (dto.PaginatedResult[dto.CompetitionResponse], error) {
+	competitions, total, err := s.repo.GetCompetitions(ctx, page, limit, search)
 	if err != nil {
-		return nil, err
+		return dto.PaginatedResult[dto.CompetitionResponse]{}, err
 	}
 
 	var res []dto.CompetitionResponse
@@ -50,7 +50,19 @@ func (s *MatchService) GetCompetitions(ctx context.Context) ([]dto.CompetitionRe
 			Logo: c.Logo,
 		})
 	}
-	return res, nil
+
+	totalPages := 0
+	if limit > 0 {
+		totalPages = int((total + int64(limit) - 1) / int64(limit))
+	}
+
+	return dto.PaginatedResult[dto.CompetitionResponse]{
+		Data:       res,
+		Total:      int(total),
+		Page:       page,
+		Limit:      limit,
+		TotalPages: totalPages,
+	}, nil
 }
 
 func (s *MatchService) GetTeams(ctx context.Context, page, limit int, search string) (dto.PaginatedResult[dto.TeamResponse], error) {

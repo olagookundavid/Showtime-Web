@@ -11,17 +11,22 @@ interface Competition {
 
 const AdminCompetitions = () => {
     const queryClient = useQueryClient();
+    const [page, setPage] = useState(1);
+    const [search, setSearch] = useState('');
+    const [searchInput, setSearchInput] = useState('');
+    const limit = 12;
 
     const {
         data,
         isLoading: loading,
         error: queryError,
     } = useQuery({
-        queryKey: ['adminCompetitionsData'],
-        queryFn: getAdminCompetitions,
+        queryKey: ['adminCompetitionsData', { page, limit, search }],
+        queryFn: () => getAdminCompetitions(page, limit, search),
     });
 
     const competitions: Competition[] = data?.data || [];
+    const totalPages = data?.total_pages || 1;
     const error = queryError ? (queryError as any).response?.data?.message || (queryError as any).response?.data?.error || 'Failed to fetch competitions.' : '';
 
     // Modal
@@ -73,14 +78,67 @@ const AdminCompetitions = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-black text-sffl-navy dark:text-white">Competitions</h1>
-                    <p className="text-gray-600 dark:text-gray-400">Manage leagues, tournaments, and competitions.</p>
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <h1 className="text-3xl font-black text-sffl-navy dark:text-white">Competitions</h1>
+                <button onClick={openCreate} className="px-3 py-1.5 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition">+ Add Competition</button>
+            </div>
+
+            {/* Search bar */}
+            <div className="flex gap-2 w-full md:w-auto mb-2">
+                <div className="relative w-full md:w-96">
+                    <input
+                        type="text"
+                        value={searchInput}
+                        onChange={e => setSearchInput(e.target.value)}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                                setSearch(searchInput);
+                                setPage(1);
+                            }
+                        }}
+                        placeholder="Search competitions by name..."
+                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg pl-8 pr-8 py-1.5 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red transition-all"
+                    />
+                    <svg className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    {searchInput && (
+                        <button
+                            onClick={() => {
+                                setSearchInput('');
+                                setSearch('');
+                                setPage(1);
+                            }}
+                            className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 transition"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    )}
                 </div>
-                <button onClick={openCreate} className="bg-sffl-red hover:bg-red-700 text-white font-bold px-4 py-1.5 rounded-xl shadow-md hover:shadow-lg transition-all">
-                    + New Competition
+                <button
+                    onClick={() => {
+                        setSearch(searchInput);
+                        setPage(1);
+                    }}
+                    className="px-2.5 py-1.5 bg-sffl-red text-white text-xs font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition"
+                >
+                    Search
                 </button>
+                {search && (
+                    <button
+                        onClick={() => {
+                            setSearch('');
+                            setSearchInput('');
+                            setPage(1);
+                        }}
+                        title="Clear Filters"
+                        className="p-1.5 bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 rounded-lg transition-colors border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-center"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h16v2H4V4zm2 4h12v12H6V8z" /></svg>
+                    </button>
+                )}
             </div>
 
             {error && (
@@ -93,7 +151,9 @@ const AdminCompetitions = () => {
                 {loading ? (
                     <Loader />
                 ) : competitions.length === 0 ? (
-                    <div className="col-span-full text-center py-12 text-gray-500">No competitions found.</div>
+                    <div className="col-span-full text-center py-12 text-gray-500">
+                        {search ? `No competitions matching "${search}".` : 'No competitions found.'}
+                    </div>
                 ) : (
                     competitions.map(comp => (
                         <div key={comp.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-all hover:shadow-lg">
@@ -110,11 +170,11 @@ const AdminCompetitions = () => {
                                 </div>
                                 <div className="flex gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
                                     <button onClick={() => openEdit(comp)}
-                                        className="flex-1 text-sm font-bold bg-blue-50 text-blue-600 hover:text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 py-2 rounded-xl shadow-sm hover:shadow-md hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all">
+                                        className="flex-1 text-xs font-bold bg-blue-50 text-blue-600 hover:text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 py-1.5 rounded-md shadow-sm hover:shadow-md hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all">
                                         Edit
                                     </button>
                                     <button onClick={() => handleDelete(comp.id)}
-                                        className="flex-1 text-sm font-bold bg-red-50 text-red-600 hover:text-red-800 dark:bg-red-900/30 dark:text-red-400 py-2 rounded-xl shadow-sm hover:shadow-md hover:bg-red-100 dark:hover:bg-red-900/50 transition-all">
+                                        className="flex-1 text-xs font-bold bg-red-50 text-red-600 hover:text-red-800 dark:bg-red-900/30 dark:text-red-400 py-1.5 rounded-md shadow-sm hover:shadow-md hover:bg-red-100 dark:hover:bg-red-900/50 transition-all">
                                         Delete
                                     </button>
                                 </div>
@@ -122,6 +182,25 @@ const AdminCompetitions = () => {
                         </div>
                     ))
                 )}
+            </div>
+
+            {/* Pagination Controls */}
+            <div className="flex items-center justify-center gap-2 pt-4">
+                <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-xs hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed dark:text-gray-300 transition-all">
+                    ← Prev
+                </button>
+                <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">
+                    Page {page} of {totalPages}
+                </span>
+                <button
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-xs hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed dark:text-gray-300 transition-all">
+                    Next →
+                </button>
             </div>
 
             {/* Create/Edit Modal */}
@@ -145,18 +224,16 @@ const AdminCompetitions = () => {
                                     className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red" placeholder="https://..." />
                             </div>
                         </div>
-                        <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
-                            <button onClick={() => setShowModal(false)} className="px-4 py-1.5 border border-gray-300 dark:border-gray-600 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300 transition-all">Cancel</button>
-                            <button onClick={handleSave} disabled={saving || !form.name.trim()}
-                                className="px-4 py-1.5 bg-sffl-red text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
+                            <button onClick={() => setShowModal(false)} className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">Cancel</button>
+                            <button onClick={handleSave} disabled={saving || !form.name.trim()} className="px-3 py-1.5 bg-sffl-red text-white font-bold text-sm rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition disabled:opacity-50">
                                 {saving ? 'Saving...' : editing ? 'Update' : 'Create'}
                             </button>
                         </div>
                     </div>
                 </div>
-            )
-            }
-        </div >
+            )}
+        </div>
     );
 };
 

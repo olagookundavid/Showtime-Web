@@ -3,14 +3,13 @@ package dto
 import "time"
 
 type CreateNewsRequest struct {
-	Title         string    `json:"title" binding:"required"`
-	Slug          string    `json:"slug" binding:"required"`
-	Excerpt       string    `json:"excerpt"`
-	Content       string    `json:"content" binding:"required"`
-	FeaturedImage string    `json:"featured_image"`
-	Author        string    `json:"author"`
-	Category      string    `json:"category"`
-	PublishedAt   time.Time `json:"published_at"`
+	Title         string `json:"title" binding:"required"`
+	Slug          string `json:"slug" binding:"required"`
+	Excerpt       string `json:"excerpt"`
+	Content       string `json:"content" binding:"required"`
+	FeaturedImage string `json:"featured_image"`
+	Author        string `json:"author"`
+	Category      string `json:"category"`
 }
 
 type NewsResponse struct {
@@ -28,8 +27,11 @@ type NewsResponse struct {
 }
 
 type PaginationQuery struct {
-	Page  int `form:"page,default=1" binding:"min=1"`
-	Limit int `form:"limit,default=10" binding:"min=1,max=100"`
+	Page     int    `form:"page,default=1" binding:"min=1"`
+	Limit    int    `form:"limit,default=10" binding:"min=1,max=100"`
+	Search   string `form:"search"`
+	Author   string `form:"author"`
+	Category string `form:"category"`
 }
 
 type PaginatedResponse struct {

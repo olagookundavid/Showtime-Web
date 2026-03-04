@@ -34,8 +34,9 @@ func NewPlayerHandler(service services.IPlayerService) IPlayerHandler {
 // @Router       /api/v1/players [get]
 func (h *PlayerHandler) GetPlayers(c *gin.Context) {
 	teamID := c.Query("team_id")
+	searchTerm := c.Query("search")
 
-	players, err := h.service.GetPlayers(c.Request.Context(), teamID)
+	players, err := h.service.GetPlayers(c.Request.Context(), teamID, searchTerm)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

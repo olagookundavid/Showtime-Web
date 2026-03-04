@@ -42,24 +42,24 @@ export const AdminMatches = () => {
 
     const { data: compsData, isLoading: loadingComps } = useQuery({
         queryKey: ['adminCompetitions'],
-        queryFn: getCompetitions,
+        queryFn: () => getCompetitions(1, 20),
     });
 
     const { data: teamsData, isLoading: loadingTeams } = useQuery({
         queryKey: ['adminTeamsList'],
-        queryFn: getTeams,
+        queryFn: () => getTeams(1, 20),
     });
 
     const { data: matchesData, isLoading: loadingMatches } = useQuery({
         queryKey: ['adminMatches', { comp: filterComp }],
         queryFn: async () => {
-            const data = await getMatches(filterComp || undefined, 1, 1000);
+            const data = await getMatches(filterComp || undefined, 1, 20);
             return Array.isArray(data) ? { data, total_pages: 1 } : data;
         },
     });
 
-    const competitions: Competition[] = compsData || [];
-    const teams: Team[] = teamsData || [];
+    const competitions: Competition[] = compsData?.data || [];
+    const teams: Team[] = teamsData?.data || [];
     const matches: Match[] = matchesData?.data || [];
     const loading = loadingComps || loadingTeams || loadingMatches;
 
@@ -171,8 +171,8 @@ export const AdminMatches = () => {
             className: "px-4 py-3 text-right space-x-2 w-48",
             cell: (m) => (
                 <div className="flex justify-end gap-2">
-                    <button onClick={() => openEdit(m)} className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 font-bold text-sm rounded-xl shadow-sm hover:shadow-md transition-all">Edit</button>
-                    <button onClick={() => setDeleteConfirm(m.id)} className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-bold text-sm rounded-xl shadow-sm hover:shadow-md transition-all">Delete</button>
+                    <button onClick={() => openEdit(m)} className="px-2.5 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 font-bold text-xs rounded-md shadow-sm hover:shadow-md transition-all">Edit</button>
+                    <button onClick={() => setDeleteConfirm(m.id)} className="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-bold text-xs rounded-md shadow-sm hover:shadow-md transition-all">Delete</button>
                 </div>
             )
         }
@@ -187,12 +187,12 @@ export const AdminMatches = () => {
                     <select
                         value={filterComp}
                         onChange={e => handleFilterChange(e.target.value)}
-                        className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 font-semibold text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 font-semibold text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
                         <option value="">All Competitions</option>
                         {competitions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
-                    <button onClick={openCreate} className="px-4 py-1.5 bg-sffl-red text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:bg-red-700 transition-all whitespace-nowrap">+ Add Match</button>
+                    <button onClick={openCreate} className="px-3 py-1.5 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all whitespace-nowrap">+ Add Match</button>
                 </div>
             </div>
 
@@ -274,9 +274,9 @@ export const AdminMatches = () => {
                                 <input type="url" value={form.ticket_url} onChange={e => set('ticket_url', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="https://..." />
                             </div>
                         </div>
-                        <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
-                            <button onClick={() => setShowModal(false)} className="px-4 py-1.5 border border-gray-300 dark:border-gray-600 rounded-xl font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Cancel</button>
-                            <button onClick={handleSave} disabled={saving} className="px-4 py-1.5 bg-sffl-red text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:bg-red-700 transition-all disabled:opacity-50">
+                        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
+                            <button onClick={() => setShowModal(false)} className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Cancel</button>
+                            <button onClick={handleSave} disabled={saving} className="px-3 py-1.5 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition disabled:opacity-50">
                                 {saving ? 'Saving...' : editingId ? 'Update' : 'Create'}
                             </button>
                         </div>
@@ -290,9 +290,9 @@ export const AdminMatches = () => {
                     <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-2xl max-w-sm w-full">
                         <h3 className="text-lg font-bold text-sffl-navy dark:text-white mb-2">Delete Match?</h3>
                         <p className="text-gray-600 dark:text-gray-400 mb-6">This action cannot be undone.</p>
-                        <div className="flex justify-end gap-3">
-                            <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">Cancel</button>
-                            <button onClick={() => handleDelete(deleteConfirm)} className="px-4 py-2 bg-red-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:bg-red-700 transition-all">Delete</button>
+                        <div className="flex justify-end gap-2">
+                            <button onClick={() => setDeleteConfirm(null)} className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Cancel</button>
+                            <button onClick={() => handleDelete(deleteConfirm)} className="px-3 py-1.5 bg-red-600 text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition">Delete</button>
                         </div>
                     </div>
                 </div>

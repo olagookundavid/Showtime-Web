@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"showtime-backend/internal/domain"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -11,7 +12,7 @@ import (
 
 type MatchRepository interface {
 	// Competitions
-	GetCompetitions(ctx context.Context) ([]domain.Competition, error)
+	GetCompetitions(ctx context.Context, page, limit int, search string) ([]domain.Competition, int64, error)
 	GetCompetitionByID(ctx context.Context, id string) (*domain.Competition, error)
 	CreateCompetition(ctx context.Context, comp *domain.Competition) error
 	UpdateCompetition(ctx context.Context, comp *domain.Competition) error
@@ -49,11 +50,31 @@ func NewMatchRepository(db *pgxpool.Pool) *PostgresMatchRepository {
 }
 
 // --- Competitions ---
-func (r *PostgresMatchRepository) GetCompetitions(ctx context.Context) ([]domain.Competition, error) {
-	query := `SELECT id, name, logo, created_at, updated_at FROM competitions ORDER BY created_at DESC`
-	rows, err := r.db.Query(ctx, query)
+func (r *PostgresMatchRepository) GetCompetitions(ctx context.Context, page, limit int, search string) ([]domain.Competition, int64, error) {
+	offset := (page - 1) * limit
+	baseQuery := ` FROM competitions `
+	args := []any{}
+	argCount := 1
+
+	if search != "" {
+		baseQuery += ` WHERE name ILIKE $` + strconv.Itoa(argCount)
+		args = append(args, "%"+search+"%")
+		argCount++
+	}
+
+	countQuery := `SELECT COUNT(*) ` + baseQuery
+	var total int64
+	if err := r.db.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	query := `SELECT id, name, logo, created_at, updated_at ` + baseQuery +
+		` ORDER BY created_at DESC LIMIT $` + strconv.Itoa(argCount) + ` OFFSET $` + strconv.Itoa(argCount+1)
+	args = append(args, limit, offset)
+
+	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -61,11 +82,11 @@ func (r *PostgresMatchRepository) GetCompetitions(ctx context.Context) ([]domain
 	for rows.Next() {
 		var c domain.Competition
 		if err := rows.Scan(&c.ID, &c.Name, &c.Logo, &c.CreatedAt, &c.UpdatedAt); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		competitions = append(competitions, c)
 	}
-	return competitions, nil
+	return competitions, total, nil
 }
 
 func (r *PostgresMatchRepository) GetCompetitionByID(ctx context.Context, id string) (*domain.Competition, error) {

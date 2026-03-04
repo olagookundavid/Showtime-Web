@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"showtime-backend/internal/domain"
+	"showtime-backend/internal/dto"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -13,7 +15,7 @@ import (
 type NewsRepository interface {
 	Create(ctx context.Context, news *domain.News) error
 	Update(ctx context.Context, news *domain.News) error
-	FindAll(ctx context.Context, limit, offset int) ([]*domain.News, int64, error)
+	FindAll(ctx context.Context, query dto.PaginationQuery) ([]*domain.News, int64, error)
 	FindByID(ctx context.Context, id string) (*domain.News, error)
 	Delete(ctx context.Context, id string) error
 }
@@ -67,17 +69,37 @@ func (r *NewsPGRepository) Update(ctx context.Context, news *domain.News) error 
 	return nil
 }
 
-func (r *NewsPGRepository) FindAll(ctx context.Context, limit, offset int) ([]*domain.News, int64, error) {
-	query := `
-		SELECT id, title, slug, excerpt, content, featured_image, author, category, published_at, created_at, updated_at, count(*) OVER()
-		FROM news
-		ORDER BY created_at DESC
-		LIMIT $1 OFFSET $2
-	`
+func (r *NewsPGRepository) FindAll(ctx context.Context, q dto.PaginationQuery) ([]*domain.News, int64, error) {
+	offset := (q.Page - 1) * q.Limit
+	baseQuery := ` FROM news WHERE 1=1 `
+	args := []any{}
+	argCount := 1
+
+	if q.Category != "" {
+		baseQuery += ` AND category ILIKE $` + strconv.Itoa(argCount)
+		args = append(args, q.Category)
+		argCount++
+	}
+	if q.Author != "" {
+		baseQuery += ` AND author ILIKE $` + strconv.Itoa(argCount)
+		args = append(args, q.Author)
+		argCount++
+	}
+	if q.Search != "" {
+		baseQuery += ` AND (title ILIKE $` + strconv.Itoa(argCount) + ` OR content ILIKE $` + strconv.Itoa(argCount) + ` OR category ILIKE $` + strconv.Itoa(argCount) + ` OR author ILIKE $` + strconv.Itoa(argCount) + `)`
+		args = append(args, "%"+q.Search+"%")
+		argCount++
+	}
+
+	query := `SELECT id, title, slug, excerpt, content, featured_image, author, category, published_at, created_at, updated_at, count(*) OVER() ` +
+		baseQuery + ` ORDER BY published_at DESC LIMIT $` + strconv.Itoa(argCount) + ` OFFSET $` + strconv.Itoa(argCount+1)
+
+	args = append(args, q.Limit, offset)
+
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	rows, err := r.db.Query(ctx, query, limit, offset)
+	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to fetch news items: %w", err)
 	}
