@@ -24,8 +24,8 @@ export const AdminTickets = () => {
         },
     });
 
-    const eventDays: EventDayResponse[] = eventDaysData || [];
-    const tickets: TicketResponse[] = ticketsData?.data || [];
+    const eventDays: EventDayResponse[] = (eventDaysData as any)?.data ?? eventDaysData ?? [];
+    const tickets: TicketResponse[] = (ticketsData as any)?.data ?? ticketsData ?? [];
     const totalPages = ticketsData?.total_pages || 1;
     const loading = loadingEventDays || loadingTickets;
     // Search
