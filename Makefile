@@ -35,6 +35,21 @@ run/service: service/swag
 	@cd backend/ && go run ./cmd/main
 # 	kill $(lsof -t -i :8089) 2>/dev/null; cd "/Users/davidoh/Go_Projects/Showtime Web" && make run/service
 
+## debug/backend: run the service application with delve headless debugger
+debug/backend: service/swag
+	@echo 'Starting Delve headless debugger on port 3345...'
+	-kill $$(lsof -t -i :8089) 2>/dev/null || true
+	-kill $$(lsof -t -i :3345) 2>/dev/null || true
+	-rm -f backend/__debug_bin*
+	@cd backend/ && dlv debug --headless --listen=:3345 --api-version=2 --accept-multiclient --continue ./cmd/main
+
+## stop/backend: force kill the backend and delve debugger
+stop/backend:
+	@echo 'Stopping backend and debugger...'
+	-kill -9 $$(lsof -t -i :8089) 2>/dev/null || true
+	-kill -9 $$(lsof -t -i :3345) 2>/dev/null || true
+	-rm -f backend/__debug_bin*
+
 ## test: run all tests
 test: service/mocks
 	@echo 'Running tests...'

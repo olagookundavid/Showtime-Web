@@ -1,15 +1,30 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 
-export const Navbar = () => {
+interface NavbarProps {
+    onMoreClick?: () => void;
+}
+
+export const Navbar = ({ onMoreClick }: NavbarProps) => {
     const [aboutDropdownOpen, setAboutDropdownOpen] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const { isAuthenticated, user, logout } = useAuth();
     const { isDarkMode, toggleDarkMode } = useTheme();
     const navigate = useNavigate();
     const dropdownTimeoutRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        if (mobileMenuOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [mobileMenuOpen]);
 
     const handleDropdownEnter = () => {
         if (dropdownTimeoutRef.current) {
@@ -33,17 +48,17 @@ export const Navbar = () => {
         <nav className="bg-sffl-navy sticky top-0 z-50 shadow-lg border-b-4 border-sffl-red">
             {/* ROW 1: Logo | Main Pages Navigation | Auth */}
             <div className="border-b border-gray-700">
-                <div className="container mx-auto px-4 py-3">
+                <div className="container mx-auto px-4 py-2.5 md:py-3">
                     <div className="flex items-center justify-between text-white">
                         {/* Logo - Left */}
-                        <Link to="/" className="flex items-center gap-2 group">
+                        <Link to="/" className="flex items-center gap-2 group flex-shrink-0">
                             <img
                                 src="https://images.leaguerepublic.com/data/images/738010788/107.png"
                                 alt="SFFL Logo"
-                                className="w-10 h-10 object-contain bg-white rounded-full p-1 transition-all duration-300 group-hover:scale-125 group-hover:rotate-6 group-hover:shadow-xl"
+                                className="w-12 h-12 sm:w-16 sm:h-16 object-contain bg-white rounded-full p-1 transition-all duration-300 group-hover:scale-125 group-hover:rotate-6 shadow-sm"
                             />
-                            <span className="text-xl md:text-2xl font-black italic tracking-tighter transition-all duration-300 group-hover:text-gray-200 group-hover:scale-110 group-hover:drop-shadow-[0_0_10px_rgba(220,38,38,0.8)]">
-                                SHOWTIME<span className="text-sffl-red">WEB</span>
+                            <span className="text-2xl sm:text-3xl md:text-4xl font-black italic tracking-tighter transition-all duration-300 group-hover:text-gray-200">
+                                SHOWTIME<span className="text-sffl-red text-sm sm:text-lg">WEB</span>
                             </span>
                         </Link>
 
@@ -104,6 +119,14 @@ export const Navbar = () => {
                                             My Team
                                         </Link>
                                     )}
+                                    {user?.role === 'ticketer' && (
+                                        <Link
+                                            to="/admin/tickets"
+                                            className="bg-sffl-navy border border-sffl-red hover:bg-sffl-red text-white font-bold px-3 py-1.5 rounded transition text-xs"
+                                        >
+                                            Ticketing Portal
+                                        </Link>
+                                    )}
                                     <button
                                         onClick={handleLogout}
                                         className="bg-white dark:bg-gray-700 text-sffl-navy dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600 font-bold px-3 py-1.5 rounded transition text-xs"
@@ -129,17 +152,13 @@ export const Navbar = () => {
                             )}
                         </div>
 
-                        {/* Mobile Menu Button */}
+                        {/* Mobile Menu Button - REPLACED BY BOTTOM NAV but kept as fallback/trigger if needed */}
                         <button
-                            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                            className="lg:hidden text-white focus:outline-none"
+                            onClick={onMoreClick}
+                            className="lg:hidden text-white focus:outline-none p-1"
                         >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                {mobileMenuOpen ? (
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                ) : (
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                                )}
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                             </svg>
                         </button>
                     </div>
@@ -181,62 +200,69 @@ export const Navbar = () => {
                 </div>
             </div>
 
-            {/* Mobile Menu */}
-            {mobileMenuOpen && (
-                <div className="lg:hidden border-t border-gray-700">
-                    <div className="container mx-auto px-4 py-4">
-                        <div className="flex flex-col space-y-3">
-                            <Link to="/" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red font-bold py-2">Home</Link>
-                            <Link to="/matches" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red font-bold py-2">Matches</Link>
-                            <Link to="/standings" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red font-bold py-2">Standings</Link>
-                            <Link to="/players" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red font-bold py-2">Players</Link>
-                            <Link to="/news" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red font-bold py-2">News</Link>
-                            <Link to="/gallery" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red font-bold py-2">Gallery</Link>
-                            <Link to="/tickets" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red font-bold py-2">Tickets</Link>
-                            <Link to="/store" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red font-bold py-2">Store</Link>
+            {/* Mobile Menu Overlay */}
+            <div
+                className={`lg:hidden fixed inset-0 z-40 bg-sffl-navy/95 backdrop-blur-md transition-all duration-300 overflow-y-auto pt-[72px] ${mobileMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'}`}
+            >
+                <div className="container mx-auto px-6 py-8 pb-32 min-h-full flex flex-col">
+                    <div className="flex flex-col space-y-2 text-center">
+                        <Link to="/" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors">Home</Link>
+                        <Link to="/matches" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors">Matches</Link>
+                        <Link to="/standings" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-lg font-bold py-3 transition-colors">Standings</Link>
+                        <Link to="/players" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors">Players</Link>
+                        <Link to="/news" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors">News</Link>
+                        <Link to="/gallery" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors">Gallery</Link>
+                        <Link to="/tickets" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors">Tickets</Link>
+                        <Link to="/store" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors">Store</Link>
 
-                            {/* About Section */}
-                            <div className="border-t border-gray-700 pt-3 mt-2">
-                                <div className="text-sffl-red font-bold mb-2 text-sm">ABOUT US</div>
-                                <Link to="/about/showtime-flag" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red py-2 pl-4 block text-sm">About Showtime</Link>
-                                <Link to="/about/media-guidelines" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red py-2 pl-4 block text-sm">Media Guidelines</Link>
-                                <Link to="/about/rules" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red py-2 pl-4 block text-sm">Gameplay Rules</Link>
-                                <Link to="/about/byelaws" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red py-2 pl-4 block text-sm">Showtime Byelaws</Link>
-                                <Link to="/about/arena" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red py-2 pl-4 block text-sm">Showtime Arena</Link>
-                                <Link to="/about/education" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red py-2 pl-4 block text-sm">Education</Link>
-                                <Link to="/about/whistleblower" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red py-2 pl-4 block text-sm">Whistleblower</Link>
-                                <Link to="/about/faq" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red py-2 pl-4 block text-sm">FAQ</Link>
+                        {/* About Section */}
+                        <div className="border-t border-gray-700/50 pt-6 mt-4 pb-2">
+                            <div className="text-sffl-red tracking-widest font-black uppercase mb-4 text-sm">ABOUT US</div>
+                            <div className="grid grid-cols-2 gap-y-4 gap-x-2 text-left px-4">
+                                <Link to="/about/showtime-flag" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-sm font-medium">About Showtime</Link>
+                                <Link to="/about/media-guidelines" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-sm font-medium">Media Guidelines</Link>
+                                <Link to="/about/rules" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-sm font-medium">Gameplay Rules</Link>
+                                <Link to="/about/byelaws" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-sm font-medium">Showtime Byelaws</Link>
+                                <Link to="/about/arena" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-sm font-medium">Showtime Arena</Link>
+                                <Link to="/about/education" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-sm font-medium">Education</Link>
+                                <Link to="/about/whistleblower" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-sm font-medium">Whistleblower</Link>
+                                <Link to="/about/faq" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-sm font-medium">FAQ</Link>
                             </div>
+                        </div>
 
-
-
-                            {/* Mobile Auth */}
+                        {/* Mobile Auth */}
+                        <div className="mt-8 pt-8 border-t border-gray-700/50 w-full max-w-sm mx-auto">
                             {isAuthenticated ? (
-                                <div className="border-t border-gray-700 pt-3 mt-2 space-y-2">
-                                    <div className="text-white text-base">Hi, <span className="font-extrabold">{user?.name}</span></div>
+                                <div className="space-y-4">
+                                    <div className="text-gray-300 text-sm">Hi, <span className="text-white font-extrabold text-lg">{user?.name}</span></div>
                                     {user?.role === 'admin' && (
-                                        <Link to="/admin" onClick={() => setMobileMenuOpen(false)} className="block bg-sffl-red hover:bg-red-700 text-white font-bold px-4 py-2 rounded text-center">
+                                        <Link to="/admin" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-sffl-red hover:bg-red-700 text-white font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
                                             Admin Panel
                                         </Link>
                                     )}
                                     {user?.role === 'team_head' && (
-                                        <Link to="/team-head" onClick={() => setMobileMenuOpen(false)} className="block bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2 rounded text-center">
+                                        <Link to="/team-head" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
                                             My Team Panel
+                                        </Link>
+                                    )}
+                                    {user?.role === 'ticketer' && (
+                                        <Link to="/admin/tickets" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-sffl-navy border border-sffl-red hover:bg-sffl-red text-white font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
+                                            Ticketing Portal
                                         </Link>
                                     )}
                                     <button
                                         onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
-                                        className="w-full bg-white text-sffl-navy hover:bg-gray-100 font-bold px-4 py-2 rounded"
+                                        className="w-full bg-white dark:bg-gray-700 text-sffl-navy dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600 font-bold px-6 py-3 min-h-[44px] rounded-xl transition-transform active:scale-95 shadow-lg"
                                     >
                                         Logout
                                     </button>
                                 </div>
                             ) : (
-                                <div className="border-t border-gray-700 pt-3 mt-2 space-y-2">
-                                    <Link to="/login?role=fan" onClick={() => setMobileMenuOpen(false)} className="block bg-white text-sffl-navy hover:bg-gray-100 font-bold px-4 py-2 rounded text-center">
+                                <div className="space-y-4">
+                                    <Link to="/login?role=fan" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-white dark:bg-gray-700 text-sffl-navy dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600 font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
                                         Login
                                     </Link>
-                                    <Link to="/signup" onClick={() => setMobileMenuOpen(false)} className="block bg-sffl-red hover:bg-red-700 text-white font-bold px-4 py-2 rounded text-center">
+                                    <Link to="/signup" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-sffl-red hover:bg-red-700 text-white font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
                                         Sign Up
                                     </Link>
                                 </div>
@@ -244,7 +270,7 @@ export const Navbar = () => {
                         </div>
                     </div>
                 </div>
-            )}
+            </div>
         </nav>
     );
 };

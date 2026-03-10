@@ -55,7 +55,8 @@ func NewTicketHandler(service services.ITicketService, paystack *services.Paysta
 // @Success 200
 // @Router /api/v1/event-days [get]
 func (h *TicketHandler) ListEventDays(c *gin.Context) {
-	eventDays, err := h.service.ListActiveEventDays(c.Request.Context())
+	code := c.Query("code")
+	eventDays, err := h.service.ListActiveEventDays(c.Request.Context(), code)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -72,7 +73,8 @@ func (h *TicketHandler) ListEventDays(c *gin.Context) {
 // @Router /api/v1/event-days/{id} [get]
 func (h *TicketHandler) GetEventDay(c *gin.Context) {
 	id := c.Param("id")
-	eventDay, err := h.service.GetEventDayByID(c.Request.Context(), id)
+	code := c.Query("code")
+	eventDay, err := h.service.GetEventDayByID(c.Request.Context(), id, code)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "event day not found"})
 		return
@@ -89,7 +91,8 @@ func (h *TicketHandler) GetEventDay(c *gin.Context) {
 // @Router /api/v1/event-days/by-date/{date} [get]
 func (h *TicketHandler) GetEventDayByDate(c *gin.Context) {
 	date := c.Param("date")
-	eventDay, err := h.service.GetEventDayByDate(c.Request.Context(), date)
+	code := c.Query("code")
+	eventDay, err := h.service.GetEventDayByDate(c.Request.Context(), date, code)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "no event day found for this date"})
 		return
@@ -146,6 +149,13 @@ func (h *TicketHandler) UpdateEventDay(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "event day updated"})
 }
 
+// DeleteEventDay godoc
+// @Summary Delete an event day (admin)
+// @Tags event-days
+// @Produce json
+// @Param id path string true "Event Day ID"
+// @Success 200
+// @Router /api/v1/event-days/{id} [delete]
 func (h *TicketHandler) DeleteEventDay(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.service.DeleteEventDay(c.Request.Context(), id); err != nil {

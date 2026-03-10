@@ -35,7 +35,7 @@ export const AdminStandings = () => {
 
     const { data: compsData, isLoading: loadingComps } = useQuery({
         queryKey: ['adminCompetitions'],
-        queryFn: () => getCompetitions(1, 20),
+        queryFn: () => getCompetitions(1, 100),
     });
 
     // Auto-select first competition when loaded
@@ -48,7 +48,7 @@ export const AdminStandings = () => {
 
     const { data: teamsData, isLoading: loadingTeams } = useQuery({
         queryKey: ['adminTeamsList'],
-        queryFn: () => getTeams(1, 20),
+        queryFn: () => getTeams(1, 100),
     });
 
     const { data: standingsData, isLoading: loadingStandings } = useQuery({
@@ -157,18 +157,18 @@ export const AdminStandings = () => {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <h1 className="text-3xl font-black text-sffl-navy dark:text-white">Standings Management</h1>
                 <div className="flex items-center gap-3">
-                    <select value={selectedComp} onChange={e => setSelectedComp(e.target.value)} className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 font-semibold text-sm">
-                        {competitions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    <select value={selectedComp} onChange={e => setSelectedComp(e.target.value)} className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-[44px] z-50 font-semibold text-sm">
+                        {competitions.map(c => <option key={c.id} value={c.id} className="truncate">{c.name}</option>)}
                     </select>
-                    <button onClick={openCreate} className="px-4 py-1.5 bg-sffl-red text-white font-bold rounded-lg hover:bg-red-700 transition whitespace-nowrap">+ Add Entry</button>
+                    <button onClick={openCreate} className="px-4 py-2 min-h-[44px] bg-sffl-red text-white text-sm font-bold rounded-lg hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 whitespace-nowrap">+ Add Entry</button>
                 </div>
             </div>
 
             {loading ? (
                 <Loader />
             ) : (
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
-                    <table className="w-full text-left">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-x-auto border border-gray-200 dark:border-gray-700">
+                    <table className="w-full text-left min-w-[800px]">
                         <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
                             <tr>
                                 <th className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase w-12">Pos</th>
@@ -231,9 +231,9 @@ export const AdminStandings = () => {
                         <div className="p-6 space-y-4">
                             <div className="mb-4">
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Team *</label>
-                                <select value={form.team_id} onChange={e => set('team_id', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2">
-                                    <option value="">Select...</option>
-                                    {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                <select value={form.team_id} onChange={e => set('team_id', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-[44px] z-50">
+                                    <option value="" className="truncate">Select...</option>
+                                    {teams.map(t => <option key={t.id} value={t.id} className="truncate">{t.name}</option>)}
                                 </select>
                             </div>
                             <div className="grid grid-cols-3 gap-4">
@@ -253,7 +253,7 @@ export const AdminStandings = () => {
                                             key={i}
                                             value={form[field]}
                                             onChange={e => set(field, e.target.value)}
-                                            className={`w-14 h-10 border rounded-lg text-center font-black text-sm cursor-pointer transition ${l5Color(form[field])}`}
+                                            className={`w-14 h-11 min-h-[44px] z-50 border rounded-lg text-center font-black text-sm cursor-pointer transition ${l5Color(form[field])}`}
                                         >
                                             {L5_OPTIONS.map(opt => (
                                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -291,8 +291,8 @@ export const AdminStandings = () => {
                             </div>
                         </div>
                         <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
-                            <button onClick={() => setShowModal(false)} className="px-4 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Cancel</button>
-                            <button onClick={handleSave} disabled={saving} className="px-4 py-1.5 bg-sffl-red text-white font-bold rounded-lg hover:bg-red-700 transition disabled:opacity-50">{saving ? 'Saving...' : editingId ? 'Update' : 'Create'}</button>
+                            <button onClick={() => setShowModal(false)} className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">Cancel</button>
+                            <button onClick={handleSave} disabled={saving} className="px-4 py-2 min-h-[44px] bg-sffl-red text-white font-bold text-sm rounded-lg hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50">{saving ? 'Saving...' : editingId ? 'Update' : 'Create'}</button>
                         </div>
                     </div>
                 </div>
@@ -304,8 +304,8 @@ export const AdminStandings = () => {
                         <h3 className="text-lg font-bold text-sffl-navy dark:text-white mb-2">Delete Standing?</h3>
                         <p className="text-gray-600 dark:text-gray-400 mb-6">This action cannot be undone.</p>
                         <div className="flex justify-end gap-3">
-                            <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Cancel</button>
-                            <button onClick={() => handleDelete(deleteConfirm)} className="px-4 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700">Delete</button>
+                            <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">Cancel</button>
+                            <button onClick={() => handleDelete(deleteConfirm)} className="px-4 py-2 min-h-[44px] bg-red-600 text-white font-bold text-sm rounded-lg hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">Delete</button>
                         </div>
                     </div>
                 </div>

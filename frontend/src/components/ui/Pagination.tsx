@@ -36,7 +36,7 @@ export const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages,
             <button
                 onClick={() => onPageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className={`px-4 py-2 rounded-lg font-bold transition-colors ${currentPage === 1
+                className={`px-4 py-2 min-h-[44px] rounded-lg font-bold transition-all duration-300 hover:scale-[1.02] active:scale-95 ${currentPage === 1
                     ? 'bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500'
                     : 'bg-white text-sffl-navy hover:bg-sffl-red hover:text-white dark:bg-gray-800 dark:text-white dark:hover:bg-sffl-red border border-gray-300 dark:border-gray-600'
                     }`}
@@ -52,7 +52,7 @@ export const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages,
                     ) : (
                         <button
                             onClick={() => onPageChange(page as number)}
-                            className={`w-10 h-10 rounded-lg font-bold transition-colors ${currentPage === page
+                            className={`w-11 h-11 min-h-[44px] min-w-[44px] rounded-lg font-bold transition-all duration-300 hover:scale-[1.02] active:scale-95 ${currentPage === page
                                 ? 'bg-sffl-red text-white'
                                 : 'bg-white text-sffl-navy hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600'
                                 }`}
@@ -67,7 +67,7 @@ export const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages,
             <button
                 onClick={() => onPageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className={`px-4 py-2 rounded-lg font-bold transition-colors ${currentPage === totalPages
+                className={`px-4 py-2 min-h-[44px] rounded-lg font-bold transition-all duration-300 hover:scale-[1.02] active:scale-95 ${currentPage === totalPages
                     ? 'bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500'
                     : 'bg-white text-sffl-navy hover:bg-sffl-red hover:text-white dark:bg-gray-800 dark:text-white dark:hover:bg-sffl-red border border-gray-300 dark:border-gray-600'
                     }`}

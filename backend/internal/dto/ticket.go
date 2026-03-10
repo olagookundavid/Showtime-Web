@@ -38,21 +38,25 @@ type EventDayMatch struct {
 // ─── Ticket Tier DTOs ─────────────────────────────────────────────────────────
 
 type CreateTicketTierRequest struct {
-	Name        string `json:"name" binding:"required"`
-	Price       int    `json:"price" binding:"required,min=1"`
-	Capacity    int    `json:"capacity"`
-	Description string `json:"description"`
+	Name        string  `json:"name" binding:"required"`
+	Price       int     `json:"price" binding:"min=0"`
+	Capacity    int     `json:"capacity"`
+	Description string  `json:"description"`
+	IsHidden    bool    `json:"is_hidden"`
+	AccessCode  *string `json:"access_code,omitempty"`
 }
 
 type TicketTierResponse struct {
-	ID          string `json:"id"`
-	EventDayID  string `json:"event_day_id"`
-	Name        string `json:"name"`
-	Price       int    `json:"price"`
-	Capacity    int    `json:"capacity"`
-	SoldCount   int    `json:"sold_count"`
-	Available   int    `json:"available"` // computed: capacity - sold_count (0 if unlimited)
-	Description string `json:"description"`
+	ID          string  `json:"id"`
+	EventDayID  string  `json:"event_day_id"`
+	Name        string  `json:"name"`
+	Price       int     `json:"price"`
+	Capacity    int     `json:"capacity"`
+	SoldCount   int     `json:"sold_count"`
+	Available   int     `json:"available"` // computed: capacity - sold_count (0 if unlimited)
+	Description string  `json:"description"`
+	IsHidden    bool    `json:"is_hidden"`
+	AccessCode  *string `json:"access_code,omitempty"`
 }
 
 // ─── Ticket DTOs ──────────────────────────────────────────────────────────────

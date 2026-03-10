@@ -158,7 +158,7 @@ const AdminTeams = () => {
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 <h1 className="text-3xl font-black text-sffl-navy dark:text-white">Teams</h1>
-                <button onClick={openCreate} className="px-3 py-1.5 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition">+ Add Team</button>
+                <button onClick={openCreate} className="px-4 py-2 bg-sffl-red text-white text-sm font-bold min-h-[44px] rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">+ Add Team</button>
             </div>
 
             {/* Search bar */}
@@ -200,7 +200,7 @@ const AdminTeams = () => {
                         setSearch(searchInput);
                         setPage(1);
                     }}
-                    className="px-2.5 py-1.5 bg-sffl-red text-white text-xs font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition"
+                    className="px-4 py-2 min-h-[44px] bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
                 >
                     Search
                 </button>
@@ -212,7 +212,7 @@ const AdminTeams = () => {
                             setPage(1);
                         }}
                         title="Clear Filters"
-                        className="p-1.5 bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 rounded-lg transition-colors border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-center"
+                        className="p-2 min-h-[44px] min-w-[44px] bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 rounded-lg transition-colors border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-center transition-all duration-300 hover:scale-[1.02] active:scale-95"
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h16v2H4V4zm2 4h12v12H6V8z" /></svg>
                     </button>
@@ -312,8 +312,8 @@ const AdminTeams = () => {
                             </div>
                         </div>
                         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
-                            <button onClick={() => setShowModal(false)} className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300 transition-all">Cancel</button>
-                            <button onClick={handleSave} disabled={saving || !form.name.trim()} className="px-3 py-1.5 bg-sffl-red text-white font-bold text-sm rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                            <button onClick={() => setShowModal(false)} className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300 transition-all duration-300 hover:scale-[1.02] active:scale-95">Cancel</button>
+                            <button onClick={handleSave} disabled={saving || !form.name.trim()} className="px-4 py-2 min-h-[44px] bg-sffl-red text-white font-bold text-sm rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-[1.02] active:scale-95">
                                 {saving ? 'Saving...' : editingTeam ? 'Update' : 'Create'}
                             </button>
                         </div>
@@ -357,10 +357,10 @@ const AdminTeams = () => {
                                         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Assign Team Head</label>
                                         <div className="flex gap-2">
                                             <select value={selectedUserId} onChange={e => setSelectedUserId(e.target.value)}
-                                                className="flex-1 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-white">
-                                                <option value="">Select a team_head user...</option>
+                                                className="flex-1 min-h-[44px] z-50 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-white truncate">
+                                                <option value="" className="truncate">Select a team_head user...</option>
                                                 {teamHeadUsers.map((u: any) => (
-                                                    <option key={u.id} value={u.id}>{u.fullname || u.email}</option>
+                                                    <option key={u.id} value={u.id} className="truncate">{u.fullname || u.email}</option>
                                                 ))}
                                             </select>
                                             <button onClick={handleAssign} disabled={!selectedUserId}
@@ -373,7 +373,7 @@ const AdminTeams = () => {
                             )}
                         </div>
                         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
-                            <button onClick={() => setManagerModal(null)} className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300 transition-all">Close</button>
+                            <button onClick={() => setManagerModal(null)} className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300 transition-all duration-300 hover:scale-[1.02] active:scale-95">Close</button>
                         </div>
                     </div>
                 </div>

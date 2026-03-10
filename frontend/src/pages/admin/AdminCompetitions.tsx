@@ -80,7 +80,7 @@ const AdminCompetitions = () => {
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 <h1 className="text-3xl font-black text-sffl-navy dark:text-white">Competitions</h1>
-                <button onClick={openCreate} className="px-3 py-1.5 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition">+ Add Competition</button>
+                <button onClick={openCreate} className="px-4 py-2 min-h-[44px] bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">+ Add Competition</button>
             </div>
 
             {/* Search bar */}
@@ -122,7 +122,7 @@ const AdminCompetitions = () => {
                         setSearch(searchInput);
                         setPage(1);
                     }}
-                    className="px-2.5 py-1.5 bg-sffl-red text-white text-xs font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition"
+                    className="px-4 py-2 min-h-[44px] bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
                 >
                     Search
                 </button>
@@ -134,7 +134,7 @@ const AdminCompetitions = () => {
                             setPage(1);
                         }}
                         title="Clear Filters"
-                        className="p-1.5 bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 rounded-lg transition-colors border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-center"
+                        className="p-2 min-h-[44px] min-w-[44px] bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 rounded-lg transition-all duration-300 hover:scale-[1.02] active:scale-95 border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-center"
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h16v2H4V4zm2 4h12v12H6V8z" /></svg>
                     </button>
@@ -170,11 +170,11 @@ const AdminCompetitions = () => {
                                 </div>
                                 <div className="flex gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
                                     <button onClick={() => openEdit(comp)}
-                                        className="flex-1 text-xs font-bold bg-blue-50 text-blue-600 hover:text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 py-1.5 rounded-md shadow-sm hover:shadow-md hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all">
+                                        className="flex-1 text-xs font-bold bg-blue-50 text-blue-600 hover:text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 py-2 min-h-[44px] rounded-lg shadow-sm hover:shadow-md hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all duration-300 hover:scale-[1.02] active:scale-95">
                                         Edit
                                     </button>
                                     <button onClick={() => handleDelete(comp.id)}
-                                        className="flex-1 text-xs font-bold bg-red-50 text-red-600 hover:text-red-800 dark:bg-red-900/30 dark:text-red-400 py-1.5 rounded-md shadow-sm hover:shadow-md hover:bg-red-100 dark:hover:bg-red-900/50 transition-all">
+                                        className="flex-1 text-xs font-bold bg-red-50 text-red-600 hover:text-red-800 dark:bg-red-900/30 dark:text-red-400 py-2 min-h-[44px] rounded-lg shadow-sm hover:shadow-md hover:bg-red-100 dark:hover:bg-red-900/50 transition-all duration-300 hover:scale-[1.02] active:scale-95">
                                         Delete
                                     </button>
                                 </div>
@@ -189,7 +189,7 @@ const AdminCompetitions = () => {
                 <button
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                     disabled={page === 1}
-                    className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-xs hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed dark:text-gray-300 transition-all">
+                    className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-xs hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed dark:text-gray-300 transition-all duration-300 hover:scale-[1.02] active:scale-95">
                     ← Prev
                 </button>
                 <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">
@@ -198,7 +198,7 @@ const AdminCompetitions = () => {
                 <button
                     onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
-                    className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-xs hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed dark:text-gray-300 transition-all">
+                    className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-xs hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed dark:text-gray-300 transition-all duration-300 hover:scale-[1.02] active:scale-95">
                     Next →
                 </button>
             </div>
@@ -225,8 +225,8 @@ const AdminCompetitions = () => {
                             </div>
                         </div>
                         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
-                            <button onClick={() => setShowModal(false)} className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">Cancel</button>
-                            <button onClick={handleSave} disabled={saving || !form.name.trim()} className="px-3 py-1.5 bg-sffl-red text-white font-bold text-sm rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition disabled:opacity-50">
+                            <button onClick={() => setShowModal(false)} className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">Cancel</button>
+                            <button onClick={handleSave} disabled={saving || !form.name.trim()} className="px-4 py-2 min-h-[44px] bg-sffl-red text-white font-bold text-sm rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50">
                                 {saving ? 'Saving...' : editing ? 'Update' : 'Create'}
                             </button>
                         </div>

@@ -2,17 +2,17 @@ import { CopyableEmail } from '../common/CopyableEmail';
 
 export const Footer = () => {
     return (
-        <footer className="bg-sffl-navy dark:bg-gray-950 text-white p-8 mt-auto border-t border-gray-800 dark:border-gray-700">
+        <footer className="bg-sffl-navy dark:bg-gray-950 text-white p-4 md:p-8 mt-auto border-t border-gray-800 dark:border-gray-700">
             <div className="container mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-center md:text-left">
                 {/* Branding */}
                 <div className="flex flex-col items-center md:items-start text-center md:text-left group cursor-pointer">
-                    <div className="flex items-center gap-3 mb-4">
+                    <div className="flex items-center gap-2 mb-3 md:mb-4">
                         <img
                             src="https://images.leaguerepublic.com/data/images/738010788/107.png"
                             alt="SFFL Logo"
-                            className="w-16 h-16 object-contain bg-white rounded-full p-1 transition-all duration-300 group-hover:scale-125 group-hover:rotate-6 group-hover:shadow-xl"
+                            className="w-8 h-8 md:w-16 md:h-16 object-contain bg-white rounded-full p-0.5 md:p-1 transition-all duration-300 group-hover:scale-125 group-hover:rotate-6 group-hover:shadow-xl"
                         />
-                        <span className="text-3xl font-black italic tracking-tighter transition-all duration-300 group-hover:scale-110 group-hover:drop-shadow-[0_0_10px_rgba(220,38,38,0.8)]">
+                        <span className="text-xl md:text-3xl font-black italic tracking-tighter transition-all duration-300 group-hover:scale-110">
                             SHOWTIME<span className="text-sffl-red">WEB</span>
                         </span>
                     </div>
@@ -22,23 +22,23 @@ export const Footer = () => {
                 </div>
 
                 {/* Links */}
-                <div className="flex flex-col space-y-2">
-                    <h4 className="font-bold uppercase text-sffl-red mb-2">League</h4>
-                    <a href="/about/rules" className="text-gray-300 hover:text-white text-sm">Official Rules</a>
-                    <a href="/about/arena" className="text-gray-300 hover:text-white text-sm">Showtime Arena</a>
-                    <a href="/about/faq" className="text-gray-300 hover:text-white text-sm">FAQs</a>
+                <div className="flex flex-col space-y-1 md:space-y-2">
+                    <h4 className="font-bold uppercase text-sffl-red text-xs md:text-base mb-1 md:mb-2 tracking-widest">League</h4>
+                    <a href="/about/rules" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Official Rules</a>
+                    <a href="/about/arena" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Showtime Arena</a>
+                    <a href="/about/faq" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">FAQs</a>
                 </div>
 
                 {/* Socials / Contact */}
                 <div>
-                    <h4 className="font-bold uppercase text-sffl-red mb-2">Connect</h4>
-                    <p className="text-gray-400 text-sm">Follow us on social media for live updates.</p>
-                    <div className="mt-4 flex justify-center md:justify-start space-x-4">
+                    <h4 className="font-bold uppercase text-sffl-red text-xs md:text-base mb-1 md:mb-2 tracking-widest">Connect</h4>
+                    <p className="text-gray-400 text-[10px] md:text-sm">Follow us on social media for live updates.</p>
+                    <div className="mt-3 md:mt-4 flex justify-center md:justify-start space-x-3 md:space-x-4">
                         <a
                             href="https://www.youtube.com/@ShowtimeFlagFootball"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="w-10 h-10 bg-gray-700 hover:bg-[#FF0000] rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-lg"
+                            className="w-8 h-8 md:w-10 md:h-10 bg-gray-700 hover:bg-[#FF0000] rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110"
                             aria-label="YouTube"
                         >
                             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -79,13 +79,13 @@ export const Footer = () => {
                             </svg>
                         </a>
                     </div>
-                    <div className="mt-6 flex justify-center md:justify-start">
-                        <CopyableEmail email="showtime@sffl.football" label="Contact Us:" className="bg-gray-800 dark:bg-gray-900 border border-gray-700 text-gray-300 hover:text-white px-4 py-2 rounded-xl text-sm transition-colors" />
+                    <div className="mt-4 md:mt-6 flex justify-center md:justify-start">
+                        <CopyableEmail email="showtime@sffl.football" label="Contact Us:" className="bg-gray-800 dark:bg-gray-900 border border-gray-700 text-gray-300 hover:text-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-[10px] md:text-sm transition-colors" />
                     </div>
                 </div>
             </div>
-            <div className="text-center text-gray-600 text-xs mt-8 border-t border-gray-800 pt-4">
-                &copy; 2026 Showtime Flag Football League. All rights reserved.
+            <div className="text-center text-gray-600 text-[10px] mt-6 md:mt-8 border-t border-gray-800 pt-3 md:pt-4">
+                &copy; 2026 Showtime Flag Football League.
             </div>
         </footer>
     );

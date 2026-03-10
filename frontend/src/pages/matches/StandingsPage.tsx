@@ -34,32 +34,32 @@ export const StandingsPage = () => {
     const selectedCompetition = competitions.find(c => c.id === selectedCompetitionId);
 
     return (
-        <div className="max-w-5xl mx-auto space-y-10 min-h-screen p-4">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-center bg-sffl-navy text-white p-8 rounded-2xl shadow-xl">
+        <div className="max-w-5xl mx-auto space-y-4 md:space-y-10 min-h-screen p-2 md:p-4 pb-20">
+            {/* Header - Condensed */}
+            <div className="flex flex-col md:flex-row justify-between items-center bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
                 <div>
-                    <h1 className="text-4xl md:text-5xl font-black italic tracking-tighter">STANDINGS</h1>
-                    <p className="text-gray-300 mt-2 text-lg">League tables & team rankings</p>
+                    <h1 className="text-xl md:text-5xl font-black italic tracking-tighter uppercase">STANDINGS</h1>
+                    <p className="text-gray-300 mt-0.5 text-xs md:text-lg">Rankings & Tables</p>
                 </div>
 
-                {/* Competition Selector */}
+                {/* Competition Selector - Mobile Optimized */}
                 {competitions.length > 0 && (
-                    <div className="mt-4 md:mt-0">
-                        <label className="block text-xs uppercase text-gray-400 font-bold mb-1 tracking-wider">Competition</label>
+                    <div className="mt-3 md:mt-0 w-full md:w-auto">
+                        <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">Competition</label>
                         <div className="relative">
                             <select
                                 value={selectedCompetitionId}
                                 onChange={(e) => setSelectedCompetitionId(e.target.value)}
-                                className="appearance-none bg-white/10 border border-white/20 text-white py-3 px-6 pr-12 rounded-xl focus:outline-none focus:ring-2 focus:ring-sffl-red font-bold text-lg min-w-[260px] cursor-pointer hover:bg-white/20 transition-colors"
+                                className="appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm min-w-full md:min-w-[260px] cursor-pointer hover:bg-white/20 transition-colors"
                             >
-                                {competitions.map((c) => (
+                                {competitions.map((c: any) => (
                                     <option key={c.id} value={c.id} className="text-black bg-white">
                                         {c.name}
                                     </option>
                                 ))}
                             </select>
-                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-white">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-white">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                 </svg>
                             </div>
@@ -76,36 +76,35 @@ export const StandingsPage = () => {
                 </div>
             )}
 
-            {/* Standings Table */}
+            {/* Standings Table with Compact Legend */}
             {!dataLoading && standings.length > 0 ? (
-                <div className="space-y-6">
-                    <div className="flex items-center gap-3">
-                        <span className="text-yellow-500 text-2xl">🏆</span>
-                        <h2 className="text-2xl font-bold text-sffl-navy dark:text-white">
-                            {selectedCompetition?.name || 'League'} Table
+                <div className="space-y-3 md:space-y-6">
+                    <div className="flex items-center gap-2">
+                        <span className="text-base md:text-2xl">🏆</span>
+                        <h2 className="text-sm md:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">
+                            {selectedCompetition?.name || 'League'}
                         </h2>
                     </div>
 
-                    {/* Abbreviation Legend — above the table for context */}
-                    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-600 px-6 py-4 shadow-sm">
-                        <div className="flex flex-wrap items-center gap-3">
-                            <svg className="w-5 h-5 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    {/* Abbreviation Legend - Horizontal Scroll on Mobile */}
+                    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 px-3 py-2 shadow-sm overflow-x-auto scrollbar-hide">
+                        <div className="flex items-center gap-2 whitespace-nowrap min-w-max">
+                            <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
                             {[
-                                { abbr: 'P', full: 'Played', color: 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-100' },
-                                { abbr: 'W', full: 'Win', color: 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100' },
-                                { abbr: 'D', full: 'Draw', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-100' },
-                                { abbr: 'L', full: 'Loss', color: 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100' },
-                                { abbr: 'PF', full: 'Points For', color: 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100' },
-                                { abbr: 'PA', full: 'Points Against', color: 'bg-orange-100 text-orange-800 dark:bg-orange-800 dark:text-orange-100' },
-                                { abbr: 'PD', full: 'Points Diff', color: 'bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100' },
-                                { abbr: 'PCT', full: 'Win %', color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-800 dark:text-indigo-100' },
-                                { abbr: 'L5', full: 'Last 5', color: 'bg-teal-100 text-teal-800 dark:bg-teal-800 dark:text-teal-100' },
+                                { abbr: 'P', full: 'GP' },
+                                { abbr: 'W', full: 'W' },
+                                { abbr: 'D', full: 'D' },
+                                { abbr: 'L', full: 'L' },
+                                { abbr: 'PF', full: 'PF' },
+                                { abbr: 'PA', full: 'PA' },
+                                { abbr: 'PD', full: 'PD' },
+                                { abbr: 'PCT', full: '%' },
                             ].map(item => (
-                                <div key={item.abbr} className="flex items-center gap-1.5">
-                                    <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-md text-xs font-black ${item.color}`}>
-                                        {item.abbr}
-                                    </span>
-                                    <span className="text-xs text-gray-600 dark:text-gray-300">{item.full}</span>
+                                <div key={item.abbr} className="flex items-center gap-1 bg-gray-50 dark:bg-gray-700 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-600">
+                                    <span className="text-[10px] font-black text-sffl-red">{item.abbr}:</span>
+                                    <span className="text-[9px] font-bold text-gray-500 dark:text-gray-400">{item.full}</span>
                                 </div>
                             ))}
                         </div>

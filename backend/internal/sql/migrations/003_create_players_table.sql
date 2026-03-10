@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS players (
     name VARCHAR(255) NOT NULL,
     jersey_number INT,
     position VARCHAR(50),
-    team_id UUID REFERENCES teams(id),
+    team_id UUID REFERENCES teams(id) ON DELETE CASCADE,
     bio TEXT,
     image TEXT,
     touchdowns INT DEFAULT 0,

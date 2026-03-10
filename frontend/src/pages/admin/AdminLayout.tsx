@@ -1,19 +1,49 @@
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { AdminBottomNav } from './AdminBottomNav';
+import {
+    XMarkIcon,
+    ChartBarIcon,
+    ShieldCheckIcon,
+    TrophyIcon,
+    UserGroupIcon,
+    PhotoIcon,
+    UsersIcon,
+    CalendarIcon,
+    TicketIcon,
+    NewspaperIcon
+} from '@heroicons/react/24/outline';
 
 export const AdminLayout = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const { isDarkMode, toggleDarkMode } = useTheme();
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+    // Close sidebar on route change
+    useEffect(() => {
+        setIsSidebarOpen(false);
+    }, [location.pathname]);
+
+    // Prevent body scroll when sidebar is open on mobile
+    useEffect(() => {
+        if (isSidebarOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => { document.body.style.overflow = 'unset'; };
+    }, [isSidebarOpen]);
 
     const linkClass = (path: string) => {
         const isActive = path === '/admin'
             ? location.pathname === '/admin' || location.pathname === '/admin/'
             : location.pathname.startsWith(path);
 
-        const baseClass = "block px-4 py-3 rounded-lg transition font-bold";
+        const baseClass = "block px-3 py-1.5 md:px-4 md:py-2.5 min-h-[36px] md:min-h-[44px] text-[10px] md:text-base rounded-lg transition-all duration-300 font-bold";
         const activeClass = "bg-sffl-red text-white";
         const inactiveClass = "text-gray-300 hover:bg-sffl-red/70 hover:text-white dark:hover:bg-gray-700 dark:text-gray-300";
 
@@ -25,12 +55,51 @@ export const AdminLayout = () => {
         navigate('/');
     };
 
+    const allLinks = [
+        { name: 'Dashboard', path: '/admin', icon: ChartBarIcon },
+        { name: 'Analytics', path: '/admin/analytics', icon: ChartBarIcon },
+        { name: 'Matches', path: '/admin/matches', icon: CalendarIcon },
+        { name: 'Teams', path: '/admin/teams', icon: ShieldCheckIcon },
+        { name: 'Competitions', path: '/admin/competitions', icon: TrophyIcon },
+        { name: 'Players', path: '/admin/players', icon: UserGroupIcon },
+        { name: 'Standings', path: '/admin/standings', icon: TrophyIcon },
+        { name: 'Tickets', path: '/admin/tickets', icon: TicketIcon },
+        { name: 'Event Days', path: '/admin/event-days', icon: CalendarIcon },
+        { name: 'News', path: '/admin/news', icon: NewspaperIcon },
+        { name: 'Gallery', path: '/admin/gallery', icon: PhotoIcon },
+        { name: 'Users', path: '/admin/users', icon: UsersIcon },
+    ];
+
+    const adminLinks = user?.role === 'ticketer'
+        ? allLinks.filter(l => ['Tickets'].includes(l.name))
+        : allLinks;
+
+    // Redirect ticketer away from dashboard if they land on /admin
+    useEffect(() => {
+        if (user?.role === 'ticketer' && (location.pathname === '/admin' || location.pathname === '/admin/')) {
+            navigate('/admin/tickets');
+        }
+    }, [user, location.pathname, navigate]);
+
     return (
-        <div className={`h-screen flex overflow-hidden ${isDarkMode ? 'dark' : ''} relative`}>
-            {/* Absolute Top-Right Dark Mode Toggle */}
+        <div className={`h-screen flex overflow-hidden ${isDarkMode ? 'dark' : ''} bg-gray-100 dark:bg-gray-900 w-full`}>
+            {/* Mobile Admin Header */}
+            <div className="lg:hidden fixed top-0 left-0 right-0 h-20 bg-sffl-navy text-white flex items-center justify-between px-4 z-30 shadow-md border-b border-sffl-red/30">
+                <div className="flex items-center gap-3">
+                    <span className="font-black italic text-2xl tracking-tighter uppercase leading-none">ADMIN <span className="text-sffl-red">MODULE</span></span>
+                </div>
+                <div className="flex items-center gap-3">
+                    <Link to="/" className="text-sm font-bold bg-white/10 px-4 py-2 rounded-xl active:scale-95 transition-transform uppercase">Back to App</Link>
+                    <button onClick={toggleDarkMode} className="p-2 text-gray-400 active:scale-90 transition-transform">
+                        {isDarkMode ? <span className="text-yellow-400 text-2xl">☀️</span> : <span className="text-2xl">🌙</span>}
+                    </button>
+                </div>
+            </div>
+
+            {/* Absolute Top-Right Dark Mode Toggle (Desktop) */}
             <button
                 onClick={toggleDarkMode}
-                className="absolute top-4 right-6 p-2 hover:scale-110 transition-transform focus:outline-none z-50 text-gray-500 dark:text-yellow-400"
+                className="hidden lg:flex absolute top-4 right-6 p-2 min-h-[44px] min-w-[44px] items-center justify-center hover:scale-110 transition-transform focus:outline-none z-50 text-gray-500 dark:text-yellow-400"
                 aria-label="Toggle dark mode"
             >
                 {isDarkMode ? (
@@ -44,47 +113,93 @@ export const AdminLayout = () => {
                 )}
             </button>
 
-            {/* Sidebar */}
-            <aside className="w-64 flex-shrink-0 bg-sffl-navy dark:bg-gray-800 text-white flex flex-col h-full transition-colors duration-200">
-                <div className="p-6 border-b border-sffl-navy-light dark:border-gray-700">
-                    <h1 className="text-2xl font-black italic">ADMIN PANEL</h1>
-                    <div className="flex items-center justify-between mt-1">
-                        <p className="text-sm text-gray-400 truncate" title={user?.name}>{user?.name}</p>
-                        <Link to="/" className="text-[10px] font-bold bg-white/10 hover:bg-white/20 px-2 py-1 rounded text-gray-300 hover:text-white transition whitespace-nowrap ml-2">
-                            ← App
-                        </Link>
+            {/* Mobile Overlay Background */}
+            <div
+                className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'}`}
+                onClick={() => setIsSidebarOpen(false)}
+            />
+
+            {/* Sidebar (Desktop Only or Drawer on More) */}
+            <aside className={`
+                fixed inset-y-0 left-0 z-50 w-[220px] lg:w-64 transform transition-transform duration-300 ease-out
+                lg:relative lg:translate-x-0
+                ${isSidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}
+                flex-shrink-0 bg-sffl-navy dark:bg-gray-800 text-white flex flex-col h-full
+            `}>
+                <div className="p-3 md:p-6 border-b border-sffl-navy-light dark:border-gray-700 flex justify-between items-start">
+                    <div className="w-full">
+                        <h1 className="text-base md:text-2xl font-black italic">ADMIN PANEL</h1>
+                        <div className="flex items-center justify-between mt-2">
+                            <p className="text-xs md:text-sm text-gray-400 truncate max-w-[130px]" title={user?.name}>{user?.name}</p>
+                            <Link to="/" className="text-[10px] md:text-xs font-bold bg-white/10 hover:bg-white/20 px-2 md:px-3 py-1.5 md:py-2 min-h-[32px] md:min-h-[44px] flex items-center justify-center rounded-lg text-gray-300 hover:text-white transition-all ml-2 whitespace-nowrap">
+                                ← App
+                            </Link>
+                        </div>
                     </div>
                 </div>
 
-                <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-                    <Link to="/admin" className={linkClass('/admin')}>📊 Dashboard</Link>
-                    <Link to="/admin/analytics" className={linkClass('/admin/analytics')}>📈 Analytics</Link>
-                    <Link to="/admin/matches" className={linkClass('/admin/matches')}>🏈 Matches</Link>
-                    <Link to="/admin/teams" className={linkClass('/admin/teams')}>🛡️ Teams</Link>
-                    <Link to="/admin/competitions" className={linkClass('/admin/competitions')}>🏆 Competitions</Link>
-                    <Link to="/admin/players" className={linkClass('/admin/players')}>🏃 Players</Link>
-                    <Link to="/admin/standings" className={linkClass('/admin/standings')}>🏆 Standings</Link>
-                    <Link to="/admin/tickets" className={linkClass('/admin/tickets')}>🎟️ Tickets</Link>
-                    <Link to="/admin/event-days" className={linkClass('/admin/event-days')}>📅 Event Days</Link>
-                    <Link to="/admin/news" className={linkClass('/admin/news')}>📰 News</Link>
-                    <Link to="/admin/gallery" className={linkClass('/admin/gallery')}>📸 Gallery</Link>
-                    <Link to="/admin/users" className={linkClass('/admin/users')}>👥 Users</Link>
+                <nav className="flex-1 p-3 md:p-4 space-y-1 overflow-y-auto font-medium">
+                    {adminLinks.map(link => (
+                        <Link key={link.path} to={link.path} className={linkClass(link.path)}>
+                            {link.name}
+                        </Link>
+                    ))}
                 </nav>
 
-                <div className="p-4 border-t border-sffl-navy-light dark:border-gray-700 space-y-3">
+                <div className="p-3 md:p-4 border-t border-sffl-navy-light dark:border-gray-700 space-y-3">
                     <button
                         onClick={handleLogout}
-                        className="w-full px-4 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-bold transition"
+                        className="w-full px-4 py-2 md:py-3 min-h-[40px] md:min-h-[44px] bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-xs md:text-base transition-all duration-300 hover:scale-[1.02] active:scale-95"
                     >
                         Logout
                     </button>
                 </div>
             </aside>
 
-            {/* Main Content */}
-            <main className="flex-1 p-8 overflow-y-auto bg-gray-100 dark:bg-gray-900 transition-colors duration-200">
+            {/* Main Content Area */}
+            <main className="flex-1 w-full min-w-0 p-2 lg:p-8 pt-22 lg:pt-8 overflow-y-auto bg-gray-100 dark:bg-gray-900 pb-20 lg:pb-8">
                 <Outlet />
             </main>
+
+            {/* Admin Bottom Nav */}
+            <AdminBottomNav onMoreClick={() => setIsSidebarOpen(true)} />
+
+            {/* Admin "More" Drawer Mobile */}
+            <div
+                className={`fixed inset-y-0 left-0 z-50 w-[260px] transform transition-transform duration-300 ease-out flex flex-col bg-sffl-navy lg:hidden ${isSidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}`}
+            >
+                <div className="p-4 border-b border-white/10 flex items-center justify-between">
+                    <span className="font-black italic text-white tracking-widest uppercase text-sm">Admin Menu</span>
+                    <button onClick={() => setIsSidebarOpen(false)} className="text-gray-400">
+                        <XMarkIcon className="w-6 h-6" />
+                    </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                    {adminLinks.map(link => {
+                        const active = location.pathname === link.path || (link.path !== '/admin' && location.pathname.startsWith(link.path));
+                        return (
+                            <Link
+                                key={link.path}
+                                to={link.path}
+                                onClick={() => setIsSidebarOpen(false)}
+                                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-colors ${active ? 'bg-sffl-red text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                    }`}
+                            >
+                                <link.icon className="w-5 h-5 flex-shrink-0" />
+                                {link.name}
+                            </Link>
+                        );
+                    })}
+                </div>
+                <div className="p-4 border-t border-white/10">
+                    <button
+                        onClick={handleLogout}
+                        className="w-full py-3 bg-red-600/20 hover:bg-red-600 text-white rounded-xl font-black transition-all text-xs uppercase tracking-widest"
+                    >
+                        Logout
+                    </button>
+                </div>
+            </div>
         </div>
     );
 };

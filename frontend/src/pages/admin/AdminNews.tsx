@@ -44,11 +44,19 @@ export const AdminNews = () => {
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
     const openCreate = () => { setEditingId(null); setForm(emptyForm); setShowModal(true); };
+    const categories = ['General', 'Match Report', 'Transfer News', 'Interview', 'Analysis', 'Commissioner\'s Note', 'Community'];
+
     const openEdit = (n: News) => {
+        console.log('Editing article:', n);
         setEditingId(n.id);
+
+        // Find matching category case-insensitively
+        const dbCategory = n.category || 'General';
+        const matchedCategory = categories.find(c => c.toLowerCase() === dbCategory.toLowerCase()) || 'General';
+
         setForm({
             title: n.title, slug: n.slug, excerpt: n.excerpt || '', content: n.content,
-            featured_image: n.featured_image || '', author: n.author || '', category: n.category || ''
+            featured_image: n.featured_image || '', author: n.author || '', category: matchedCategory
         });
         setShowModal(true);
     };
@@ -84,7 +92,7 @@ export const AdminNews = () => {
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 <h1 className="text-3xl font-black text-sffl-navy dark:text-white">News Management</h1>
-                <button onClick={openCreate} className="px-3 py-1.5 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition">+ Add Article</button>
+                <button onClick={openCreate} className="px-4 py-2 min-h-[44px] bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">+ Add Article</button>
             </div>
 
             <div className="flex flex-col md:flex-row gap-4 mb-4">
@@ -126,7 +134,7 @@ export const AdminNews = () => {
                             setSearch(searchInput);
                             setPage(1);
                         }}
-                        className="px-2.5 py-1.5 bg-sffl-red text-white text-xs font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition"
+                        className="px-4 py-2 min-h-[44px] bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
                     >
                         Search
                     </button>
@@ -140,7 +148,7 @@ export const AdminNews = () => {
                                 setPage(1);
                             }}
                             title="Clear Filters"
-                            className="p-1.5 bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 rounded-lg transition-colors border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-center"
+                            className="p-2 min-h-[44px] min-w-[44px] bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-center transition-all duration-300 hover:scale-[1.02] active:scale-95"
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h16v2H4V4zm2 4h12v12H6V8z" /></svg>
                         </button>
@@ -154,10 +162,10 @@ export const AdminNews = () => {
                             setCategory(e.target.value);
                             setPage(1);
                         }}
-                        className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-1.5 text-sm font-semibold shadow-sm focus:ring-2 focus:ring-sffl-red transition-all w-full md:w-48"
+                        className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-[44px] z-50 text-sm font-semibold shadow-sm focus:ring-2 focus:ring-sffl-red transition-all w-full md:w-48"
                     >
-                        <option value="">All Categories</option>
-                        {['General', 'Match Report', 'Transfer News', 'Interview', 'Analysis', 'Commissioner\'s Note', 'Community'].map(c => <option key={c} value={c}>{c}</option>)}
+                        <option value="" className="truncate">All Categories</option>
+                        {['General', 'Match Report', 'Transfer News', 'Interview', 'Analysis', 'Commissioner\'s Note', 'Community'].map(c => <option key={c} value={c} className="truncate">{c}</option>)}
                     </select>
                 </div>
             </div>
@@ -166,8 +174,8 @@ export const AdminNews = () => {
                 <Loader />
             ) : (
                 <>
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
-                        <table className="w-full text-left">
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-x-auto border border-gray-200 dark:border-gray-700">
+                        <table className="w-full text-left min-w-[600px]">
                             <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
                                 <tr>
                                     <th className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Title</th>
@@ -215,16 +223,16 @@ export const AdminNews = () => {
                             <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Title *</label><input type="text" value={form.title} onChange={e => handleTitleChange(e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="Article title" /></div>
                             <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Slug</label><input type="text" value={form.slug} onChange={e => set('slug', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-400 rounded-lg px-3 py-2" /></div>
                             <div className="grid grid-cols-2 gap-4">
-                                <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Author</label><input type="text" value={form.author} onChange={e => set('author', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="Author name" /></div>
-                                <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Category</label><select value={form.category} onChange={e => set('category', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2"><option value="">Select...</option>{['General', 'Match Report', 'Transfer News', 'Interview', 'Analysis', 'Commissioner\'s Note', 'Community'].map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+                                <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Author</label><input type="text" value={form.author} onChange={e => set('author', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-[44px]" placeholder="Author name" /></div>
+                                <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Category</label><select value={form.category} onChange={e => set('category', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-[44px] z-50"><option value="" className="truncate">Select...</option>{['General', 'Match Report', 'Transfer News', 'Interview', 'Analysis', 'Commissioner\'s Note', 'Community'].map(c => <option key={c} value={c} className="truncate">{c}</option>)}</select></div>
                             </div>
                             <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Excerpt</label><textarea value={form.excerpt} onChange={e => set('excerpt', e.target.value)} rows={2} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="Short summary..." /></div>
                             <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Content *</label><textarea value={form.content} onChange={e => set('content', e.target.value)} rows={8} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="Article content..." /></div>
                             <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Featured Image URL</label><input type="url" value={form.featured_image} onChange={e => set('featured_image', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="https://..." /></div>
                         </div>
                         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
-                            <button onClick={() => setShowModal(false)} className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">Cancel</button>
-                            <button onClick={handleSave} disabled={saving} className="px-3 py-1.5 bg-sffl-red text-white font-bold text-sm rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition disabled:opacity-50">{saving ? 'Saving...' : editingId ? 'Update' : 'Publish'}</button>
+                            <button onClick={() => setShowModal(false)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 min-h-[44px]">Cancel</button>
+                            <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-sffl-red text-white font-bold text-sm rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 min-h-[44px] disabled:opacity-50">{saving ? 'Saving...' : editingId ? 'Update' : 'Publish'}</button>
                         </div>
                     </div>
                 </div>
@@ -236,8 +244,8 @@ export const AdminNews = () => {
                         <h3 className="text-lg font-bold text-sffl-navy dark:text-white mb-2">Delete Article?</h3>
                         <p className="text-gray-600 dark:text-gray-400 mb-6">This action cannot be undone.</p>
                         <div className="flex justify-end gap-2">
-                            <button onClick={() => setDeleteConfirm(null)} className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition">Cancel</button>
-                            <button onClick={() => handleDelete(deleteConfirm)} className="px-3 py-1.5 bg-red-600 text-white font-bold text-sm rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition">Delete</button>
+                            <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 min-h-[44px]">Cancel</button>
+                            <button onClick={() => handleDelete(deleteConfirm)} className="px-4 py-2 bg-red-600 text-white font-bold text-sm rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 min-h-[44px]">Delete</button>
                         </div>
                     </div>
                 </div>

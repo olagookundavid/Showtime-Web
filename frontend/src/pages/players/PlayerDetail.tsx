@@ -24,9 +24,9 @@ export const PlayerDetail = () => {
     }
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-4 md:space-y-8">
             {/* Back Button */}
-            <Link to="/players" className="inline-flex items-center text-sffl-red hover:underline font-semibold">
+            <Link to="/players" className="inline-flex items-center text-sffl-red hover:underline font-bold text-xs uppercase tracking-wider px-2">
                 ← Back to Players
             </Link>
 
@@ -34,57 +34,59 @@ export const PlayerDetail = () => {
             <div className="bg-gradient-to-r from-sffl-navy to-sffl-red rounded-2xl overflow-hidden">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8">
                     {/* Player Image */}
-                    <div className="relative">
+                    <div className="relative group">
                         {player.image ? (
                             <img
                                 src={player.image}
                                 alt={player.name}
-                                className="w-full h-96 object-cover rounded-xl shadow-2xl"
+                                className="w-full h-72 md:h-96 object-cover rounded-xl shadow-2xl transition-transform duration-500 group-hover:scale-[1.02]"
                             />
                         ) : (
-                            <div className="w-full h-96 bg-gray-200 dark:bg-gray-700 rounded-xl flex items-center justify-center">
-                                <div className="text-9xl font-black text-gray-400">#{player.jersey_number}</div>
+                            <div className="w-full h-72 md:h-96 bg-gray-200 dark:bg-gray-700/50 rounded-xl flex items-center justify-center">
+                                <div className="text-9xl font-black text-gray-300 dark:text-gray-600">#{player.jersey_number}</div>
                             </div>
                         )}
-                        <div className="absolute top-4 right-4 bg-white text-sffl-navy font-black px-6 py-3 rounded-full shadow-lg text-2xl">
+                        <div className="absolute top-3 right-3 md:top-4 md:right-4 bg-white dark:bg-gray-900 text-sffl-navy dark:text-white font-black px-4 py-2 md:px-6 md:py-3 rounded-full shadow-2xl text-lg md:text-2xl border-2 border-sffl-red/30">
                             #{player.jersey_number}
                         </div>
                     </div>
 
                     {/* Player Info */}
-                    <div className="text-white flex flex-col justify-center">
-                        <h1 className="text-5xl md:text-6xl font-black mb-4">{player.name}</h1>
-                        <div className="text-2xl font-bold mb-2">{player.position}</div>
-                        <div className="text-xl mb-6">{player.team?.name || 'Free Agent'}</div>
+                    <div className="text-white flex flex-col justify-center gap-1 md:gap-4">
+                        <h1 className="text-3xl md:text-6xl font-black uppercase tracking-tighter leading-none">{player.name}</h1>
+                        <div className="text-lg md:text-2xl font-black text-sffl-red italic">{player.position}</div>
+                        <div className="text-sm md:text-xl font-bold text-gray-100">{player.team?.name || 'Free Agent'}</div>
                         {player.bio && (
-                            <p className="text-lg text-gray-200">{player.bio}</p>
+                            <div className="mt-4 p-4 bg-black/20 dark:bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
+                                <p className="text-xs md:text-lg text-gray-100 leading-relaxed italic">{player.bio}</p>
+                            </div>
                         )}
                     </div>
                 </div>
             </div>
 
             {/* Stats Section */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
-                <h2 className="text-3xl font-black text-sffl-navy dark:text-white mb-6">Season Stats</h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                    <div className="text-center p-6 bg-gray-100 dark:bg-gray-700 rounded-xl">
-                        <div className="text-4xl font-black text-sffl-red mb-2">{player.touchdowns}</div>
-                        <div className="text-gray-600 dark:text-gray-300 font-bold">Touchdowns</div>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 md:p-8 border border-gray-100 dark:border-gray-700">
+                <h2 className="text-xl md:text-3xl font-black text-sffl-navy dark:text-white mb-4 md:mb-6 uppercase tracking-tight">Season Performance</h2>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
+                    <div className="text-center p-4 md:p-6 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <div className="text-2xl md:text-4xl font-black text-sffl-red mb-1 md:mb-2">{player.touchdowns}</div>
+                        <div className="text-[10px] md:text-sm text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest">Touchdowns</div>
                     </div>
-                    <div className="text-center p-6 bg-gray-100 dark:bg-gray-700 rounded-xl">
-                        <div className="text-4xl font-black text-sffl-navy dark:text-white mb-2">{player.yards}</div>
-                        <div className="text-gray-600 dark:text-gray-300 font-bold">Total Yards</div>
+                    <div className="text-center p-4 md:p-6 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <div className="text-2xl md:text-4xl font-black text-sffl-navy dark:text-white mb-1 md:mb-2">{player.yards}</div>
+                        <div className="text-[10px] md:text-sm text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest">Total Yards</div>
                     </div>
                     {player.interceptions > 0 && (
-                        <div className="text-center p-6 bg-gray-100 dark:bg-gray-700 rounded-xl">
-                            <div className="text-4xl font-black text-sffl-red mb-2">{player.interceptions}</div>
-                            <div className="text-gray-600 dark:text-gray-300 font-bold">Interceptions</div>
+                        <div className="text-center p-4 md:p-6 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
+                            <div className="text-2xl md:text-4xl font-black text-sffl-red mb-1 md:mb-2">{player.interceptions}</div>
+                            <div className="text-[10px] md:text-sm text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest">Interceptions</div>
                         </div>
                     )}
                     {player.tackles > 0 && (
-                        <div className="text-center p-6 bg-gray-100 dark:bg-gray-700 rounded-xl">
-                            <div className="text-4xl font-black text-sffl-navy dark:text-white mb-2">{player.tackles}</div>
-                            <div className="text-gray-600 dark:text-gray-300 font-bold">Tackles</div>
+                        <div className="text-center p-4 md:p-6 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
+                            <div className="text-2xl md:text-4xl font-black text-sffl-navy dark:text-white mb-1 md:mb-2">{player.tackles}</div>
+                            <div className="text-[10px] md:text-sm text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest">Tackles</div>
                         </div>
                     )}
                 </div>

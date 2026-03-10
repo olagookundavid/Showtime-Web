@@ -3,6 +3,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { Layout } from './components/layout/Layout';
+import { ScrollToTop } from './components/common/ScrollToTop';
 import { LandingPage } from './pages/LandingPage';
 import { StorePage } from './pages/StorePage';
 import { AboutShowtimeFlag } from './pages/about/AboutShowtimeFlag';
@@ -41,6 +42,7 @@ import { AdminAnalytics } from './pages/admin/AdminAnalytics';
 import TeamHeadLayout from './pages/team-head/TeamHeadLayout';
 import TeamHeadOverview from './pages/team-head/TeamHeadOverview';
 import TeamHeadPlayers from './pages/team-head/TeamHeadPlayers';
+import TeamTickets from './pages/team-head/TeamTickets';
 import { Toaster } from 'react-hot-toast';
 import './index.css';
 
@@ -50,6 +52,7 @@ function App() {
       <AuthProvider>
         <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
         <BrowserRouter>
+          <ScrollToTop />
           <Routes>
             {/* Public Routes with Layout */}
             <Route element={<Layout />}>
@@ -91,7 +94,7 @@ function App() {
 
             {/* Admin Routes (No Layout) */}
             <Route path="/admin" element={
-              <ProtectedRoute requireAdmin>
+              <ProtectedRoute requireRole={['admin', 'ticketer']}>
                 <AdminLayout />
               </ProtectedRoute>
             }>
@@ -117,6 +120,7 @@ function App() {
             }>
               <Route index element={<TeamHeadOverview />} />
               <Route path="players" element={<TeamHeadPlayers />} />
+              <Route path="tickets" element={<TeamTickets />} />
             </Route>
 
             {/* Catch-all route to redirect back to home automatically */}

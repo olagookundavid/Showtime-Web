@@ -13,7 +13,7 @@ export const AdminTickets = () => {
 
     const { data: eventDaysData, isLoading: loadingEventDays } = useQuery({
         queryKey: ['adminEventDaysList'],
-        queryFn: getEventDays,
+        queryFn: () => getEventDays(),
     });
 
     const { data: ticketsData, isLoading: loadingTickets } = useQuery({
@@ -144,7 +144,7 @@ export const AdminTickets = () => {
                 <button
                     onClick={() => handleCheckin(t.id)}
                     disabled={isLoading}
-                    className="bg-green-600 text-white px-2.5 py-1.5 rounded-md text-xs font-bold hover:bg-green-700 transition disabled:opacity-50"
+                    className="bg-green-600 text-white px-3 py-2 min-h-[44px] rounded-lg text-xs font-bold hover:bg-green-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50"
                 >
                     {isLoading ? '...' : '✅ Check In'}
                 </button>
@@ -157,7 +157,7 @@ export const AdminTickets = () => {
                     <button
                         onClick={() => handleVerify(t)}
                         disabled={isLoading}
-                        className="bg-blue-600 text-white px-2.5 py-1.5 rounded-md shadow-sm hover:shadow-md text-xs font-bold hover:bg-blue-700 transition-all disabled:opacity-50"
+                        className="bg-blue-600 text-white px-3 py-2 min-h-[44px] rounded-lg shadow-sm hover:shadow-md text-xs font-bold hover:bg-blue-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50"
                         title="Verify payment with Paystack"
                     >
                         {isLoading ? '...' : '🔍 Verify'}
@@ -165,7 +165,7 @@ export const AdminTickets = () => {
                     <button
                         onClick={() => handleAdminCheckin(t.id)}
                         disabled={isLoading}
-                        className="bg-orange-600 text-white px-2.5 py-1.5 rounded-md shadow-sm hover:shadow-md text-xs font-bold hover:bg-orange-700 transition-all disabled:opacity-50"
+                        className="bg-orange-600 text-white px-3 py-2 min-h-[44px] rounded-lg shadow-sm hover:shadow-md text-xs font-bold hover:bg-orange-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50"
                         title="Force check-in (verifies payment first)"
                     >
                         {isLoading ? '...' : '⚡ Force'}
@@ -189,11 +189,11 @@ export const AdminTickets = () => {
                 <div className="flex gap-2 mb-3">
                     <button
                         onClick={() => { setSearchMode('code'); setSearchQuery(''); setSearchResults([]); setSearchError(''); }}
-                        className={`px-3 py-1.5 rounded-lg shadow-sm hover:shadow-md text-sm font-bold transition-all ${searchMode === 'code' ? 'bg-sffl-navy text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}
+                        className={`px-4 py-2 min-h-[44px] rounded-lg shadow-sm hover:shadow-md text-sm font-bold transition-all duration-300 hover:scale-[1.02] active:scale-95 ${searchMode === 'code' ? 'bg-sffl-navy text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}
                     >🔢 Search by Code</button>
                     <button
                         onClick={() => { setSearchMode('email'); setSearchQuery(''); setSearchResults([]); setSearchError(''); }}
-                        className={`px-3 py-1.5 rounded-lg shadow-sm hover:shadow-md text-sm font-bold transition-all ${searchMode === 'email' ? 'bg-sffl-navy text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}
+                        className={`px-4 py-2 min-h-[44px] rounded-lg shadow-sm hover:shadow-md text-sm font-bold transition-all duration-300 hover:scale-[1.02] active:scale-95 ${searchMode === 'email' ? 'bg-sffl-navy text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}
                     >📧 Search by Email</button>
                 </div>
 
@@ -206,7 +206,7 @@ export const AdminTickets = () => {
                             onChange={(e) => setSearchQuery(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                             placeholder={searchMode === 'code' ? 'Enter ticket code (e.g. SFFL-A3K9X2)' : 'Enter email address'}
-                            className={`w-full pl-3 pr-8 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none ${searchMode === 'code' ? 'uppercase' : ''}`}
+                            className={`w-full pl-3 pr-10 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none ${searchMode === 'code' ? 'uppercase' : ''}`}
                         />
                         {searchQuery && (
                             <button
@@ -214,7 +214,7 @@ export const AdminTickets = () => {
                                     setSearchQuery('');
                                     setSearchResults([]);
                                 }}
-                                className="absolute right-2 top-2 text-gray-400 hover:text-gray-600 transition"
+                                className="absolute right-0 top-0 h-full px-3 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-all duration-300 hover:scale-[1.02] active:scale-95"
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -225,7 +225,7 @@ export const AdminTickets = () => {
                     <button
                         onClick={handleSearch}
                         disabled={searching || !searchQuery.trim()}
-                        className="bg-sffl-navy text-white text-xs px-2.5 py-1.5 rounded-lg shadow-sm hover:shadow-md font-bold hover:bg-blue-900 transition-all disabled:opacity-50"
+                        className="bg-sffl-navy text-white text-xs px-4 py-2 min-h-[44px] rounded-lg shadow-sm hover:shadow-md font-bold hover:bg-blue-900 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50"
                     >{searching ? 'Searching...' : 'Search'}</button>
                 </div>
 
@@ -284,23 +284,23 @@ export const AdminTickets = () => {
                 <select
                     value={filterEventDay}
                     onChange={(e) => { setFilterEventDay(e.target.value); setPage(1); }}
-                    className="px-3 py-1.5 border mb-2 text-sm border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="px-3 py-2 min-h-[44px] z-50 border mb-2 text-sm border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
-                    <option value="">All Event Days</option>
+                    <option value="" className="truncate">All Event Days</option>
                     {eventDays.map(ed => (
-                        <option key={ed.id} value={ed.id}>{ed.title} — {ed.date}</option>
+                        <option key={ed.id} value={ed.id} className="truncate">{ed.title} — {ed.date}</option>
                     ))}
                 </select>
                 <select
                     value={filterStatus}
                     onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
-                    className="px-3 py-1.5 border mb-2 text-sm border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="px-3 py-2 min-h-[44px] z-50 border mb-2 text-sm border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
-                    <option value="">All Statuses</option>
-                    <option value="PENDING">Pending</option>
-                    <option value="PAID">Paid</option>
-                    <option value="USED">Used</option>
-                    <option value="FAILED">Failed</option>
+                    <option value="" className="truncate">All Statuses</option>
+                    <option value="PENDING" className="truncate">Pending</option>
+                    <option value="PAID" className="truncate">Paid</option>
+                    <option value="USED" className="truncate">Used</option>
+                    <option value="FAILED" className="truncate">Failed</option>
                 </select>
             </div>
 
@@ -350,9 +350,9 @@ export const AdminTickets = () => {
 
                 {totalPages > 1 && (
                     <div className="flex items-center justify-between p-4 border-t dark:border-gray-700">
-                        <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 dark:text-gray-300 disabled:opacity-30 hover:bg-gray-50 dark:hover:bg-gray-700 transition">← Prev</button>
+                        <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-4 py-2 min-h-[44px] rounded-lg text-xs font-bold text-gray-700 dark:text-gray-300 disabled:opacity-30 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">← Prev</button>
                         <span className="text-xs text-gray-500">Page {page} of {totalPages}</span>
-                        <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 dark:text-gray-300 disabled:opacity-30 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Next →</button>
+                        <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-4 py-2 min-h-[44px] rounded-lg text-xs font-bold text-gray-700 dark:text-gray-300 disabled:opacity-30 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">Next →</button>
                     </div>
                 )}
             </div>

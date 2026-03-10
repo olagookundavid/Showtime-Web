@@ -28,6 +28,8 @@ type TicketTier struct {
 	Capacity    int       `json:"capacity"`
 	SoldCount   int       `json:"sold_count"`
 	Description string    `json:"description"`
+	IsHidden    bool      `json:"is_hidden"`
+	AccessCode  *string   `json:"access_code,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -58,6 +60,7 @@ type Ticket struct {
 	PaystackReference  string       `json:"paystack_reference"`
 	PaystackAccessCode string       `json:"paystack_access_code"`
 	TicketCode         string       `json:"ticket_code"`
+	TeamID             *string      `json:"team_id,omitempty"`
 	CheckedInAt        *time.Time   `json:"checked_in_at,omitempty"`
 	CheckedInBy        *string      `json:"checked_in_by,omitempty"`
 	CreatedAt          time.Time    `json:"created_at"`
@@ -66,4 +69,5 @@ type Ticket struct {
 	// Relations
 	EventDay *EventDay   `json:"event_day,omitempty"`
 	Tier     *TicketTier `json:"tier,omitempty"`
+	Team     *Team       `json:"team,omitempty"`
 }

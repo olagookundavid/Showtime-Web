@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { getEventDays, getEventDayByDate, purchaseTicket, type EventDayResponse, type TicketTierResponse, type PurchaseTicketPayload } from '../../services/api';
 
 export const TicketsPage = () => {
+    const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const dateParam = searchParams.get('date');
 
+    const [accessCode, setAccessCode] = useState('');
+    const [appliedCode, setAppliedCode] = useState<string | undefined>(undefined);
+
     const { data: specificDay, isError: specificDayError } = useQuery({
-        queryKey: ['publicEventDay', dateParam],
-        queryFn: () => getEventDayByDate(dateParam!),
+        queryKey: ['publicEventDay', dateParam, appliedCode],
+        queryFn: () => getEventDayByDate(dateParam!, appliedCode),
         enabled: !!dateParam,
         retry: false,
     });
@@ -17,8 +21,8 @@ export const TicketsPage = () => {
     const fetchAllDays = !dateParam || specificDayError;
 
     const { data: allDaysData, isLoading: loadingAll } = useQuery({
-        queryKey: ['publicEventDays'],
-        queryFn: getEventDays,
+        queryKey: ['publicEventDays', appliedCode],
+        queryFn: () => getEventDays(appliedCode),
         enabled: fetchAllDays,
     });
 
@@ -55,6 +59,9 @@ export const TicketsPage = () => {
 
             if (result.authorization_url) {
                 window.location.href = result.authorization_url;
+            } else if (result.paystack_reference) {
+                // Free ticket case - redirect to success page
+                navigate(`/tickets/confirm?reference=${result.paystack_reference}`);
             }
         } catch (err: any) {
             setError(err.response?.data?.error || 'Failed to initiate purchase. Please try again.');
@@ -87,11 +94,31 @@ export const TicketsPage = () => {
     };
 
     return (
-        <div className="max-w-6xl mx-auto space-y-8">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-sffl-red to-sffl-navy text-white p-8 rounded-2xl shadow-xl">
-                <h1 className="text-5xl font-black italic">BUY TICKETS</h1>
-                <p className="text-gray-200 mt-2 text-lg">Secure your spot for upcoming game days</p>
+        <div className="max-w-6xl mx-auto space-y-4 md:space-y-8">
+            {/* Header - Compact for Mobile */}
+            <div className="bg-gradient-to-r from-sffl-red to-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="text-center md:text-left">
+                    <h1 className="text-xl md:text-5xl font-black italic tracking-tighter">TICKETS</h1>
+                    <p className="text-gray-200 mt-1 text-xs md:text-lg">Secure your spot</p>
+                </div>
+                <div className="bg-white/10 p-3 md:p-4 rounded-xl backdrop-blur-sm w-full md:w-auto">
+                    <p className="text-[10px] font-bold mb-1.5 uppercase tracking-widest text-gray-200">Access Code?</p>
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            value={accessCode}
+                            onChange={(e) => setAccessCode(e.target.value)}
+                            placeholder="CODE"
+                            className="px-3 py-1.5 rounded-lg bg-white/20 text-white placeholder-gray-400 border border-white/30 focus:outline-none focus:ring-1 focus:ring-white/50 w-full md:w-48 uppercase text-xs"
+                        />
+                        <button
+                            onClick={() => setAppliedCode(accessCode)}
+                            className="bg-white text-sffl-navy font-bold px-4 py-1.5 rounded-lg text-xs hover:bg-gray-100 transition shadow-sm"
+                        >
+                            Apply
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {loading ? (
@@ -113,20 +140,18 @@ export const TicketsPage = () => {
                         <div key={eventDay.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden border border-gray-100 dark:border-gray-700">
                             {/* Event Day Header */}
                             <div className="bg-sffl-navy text-white p-6">
-                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                                     <div>
-                                        <h2 className="text-2xl font-black">{eventDay.title}</h2>
-                                        <div className="flex flex-wrap items-center gap-4 mt-2 text-gray-300 text-sm">
-                                            <span>📅 {new Date(eventDay.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</span>
+                                        <h2 className="text-lg md:text-2xl font-black uppercase tracking-tight">{eventDay.title}</h2>
+                                        <div className="flex flex-wrap items-center gap-3 mt-1 text-gray-400 text-[10px] md:text-sm">
+                                            <span>📅 {new Date(eventDay.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                                             {eventDay.venue && <span>📍 {eventDay.venue}</span>}
                                         </div>
                                     </div>
                                     {eventDay.matches && eventDay.matches.length > 0 && (
-                                        <div className="bg-white/10 px-4 py-2 rounded-lg text-center">
-                                            <div className="text-2xl font-black">{eventDay.matches.length}</div>
-                                            <div className="text-xs uppercase tracking-wider text-gray-300">
-                                                {eventDay.matches.length === 1 ? 'Match' : 'Matches'}
-                                            </div>
+                                        <div className="bg-white/10 px-3 py-1 rounded-lg text-center hidden md:block">
+                                            <div className="text-xl font-black">{eventDay.matches.length}</div>
+                                            <div className="text-[10px] uppercase tracking-wider text-gray-300">Matches</div>
                                         </div>
                                     )}
                                 </div>
@@ -143,9 +168,9 @@ export const TicketsPage = () => {
                                 )}
                             </div>
 
-                            {/* Ticket Tiers */}
-                            <div className="p-6">
-                                <h3 className="text-lg font-bold text-gray-700 dark:text-gray-300 mb-4">Select Your Ticket</h3>
+                            {/* Ticket Tiers - High Density */}
+                            <div className="p-3 md:p-6">
+                                <h3 className="text-[10px] uppercase font-black text-gray-400 mb-3 tracking-widest">Select Ticket</h3>
                                 {(!eventDay.tiers || eventDay.tiers.length === 0) ? (
                                     <div className="text-center py-8 text-gray-500">
                                         <p className="text-lg font-medium">Tickets coming soon!</p>
@@ -160,14 +185,11 @@ export const TicketsPage = () => {
                                                     key={tier.id}
                                                     className={`rounded-xl overflow-hidden shadow-md transition-all duration-300 ${isSoldOut ? 'opacity-60' : 'hover:shadow-xl hover:-translate-y-1'}`}
                                                 >
-                                                    <div className={`bg-gradient-to-br ${getTierGradient(tier.name)} text-white p-5`}>
-                                                        <div className="text-xs font-bold uppercase tracking-wider opacity-80">{tier.name}</div>
-                                                        <div className="text-3xl font-black mt-1">₦{tier.price.toLocaleString()}</div>
-                                                        {tier.description && (
-                                                            <p className="text-sm mt-2 opacity-90">{tier.description}</p>
-                                                        )}
+                                                    <div className={`bg-gradient-to-br ${getTierGradient(tier.name)} text-white p-3 md:p-5`}>
+                                                        <div className="text-[10px] font-bold uppercase tracking-wider opacity-80">{tier.name}</div>
+                                                        <div className="text-xl md:text-3xl font-black mt-0.5 md:mt-1">₦{tier.price.toLocaleString()}</div>
                                                     </div>
-                                                    <div className="p-4 bg-gray-50 dark:bg-gray-700">
+                                                    <div className="p-3 md:p-4 bg-gray-50 dark:bg-gray-700">
                                                         {tier.capacity > 0 && (
                                                             <div className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                                                                 {isSoldOut ? (
@@ -180,9 +202,9 @@ export const TicketsPage = () => {
                                                         <button
                                                             onClick={() => openPurchaseModal(eventDay, tier)}
                                                             disabled={isSoldOut}
-                                                            className="w-full bg-sffl-red hover:bg-red-700 text-white font-black py-3 px-6 rounded-lg transition transform hover:scale-105 shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                                                            className="w-full bg-sffl-red hover:bg-red-700 text-white font-black py-2 md:py-3 rounded-lg text-sm transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                                         >
-                                                            {isSoldOut ? 'Sold Out' : '🎟️ Buy Now'}
+                                                            {isSoldOut ? 'Sold Out' : 'Buy Now'}
                                                         </button>
                                                     </div>
                                                 </div>
@@ -200,7 +222,9 @@ export const TicketsPage = () => {
             {selectedTier && selectedEventDay && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full p-8 shadow-2xl animate-in">
-                        <h3 className="text-2xl font-black text-sffl-navy dark:text-white mb-4">Purchase Tickets</h3>
+                        <h3 className="text-2xl font-black text-sffl-navy dark:text-white mb-4">
+                            Purchase Tickets
+                        </h3>
 
                         <div className="space-y-4 mb-6">
                             {/* Event Info */}
@@ -279,13 +303,15 @@ export const TicketsPage = () => {
                                 {purchasing ? (
                                     <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Processing...</>
                                 ) : (
-                                    '💳 Pay with Paystack'
+                                    selectedTier.price === 0 ? '🎟️ Get Free Ticket' : '💳 Pay with Paystack'
                                 )}
                             </button>
                         </div>
 
                         <p className="text-xs text-gray-500 text-center mt-4">
-                            🔒 You will be redirected to Paystack for secure payment
+                            {selectedTier.price === 0
+                                ? '✨ Your free ticket will be sent instantly'
+                                : '🔒 You will be redirected to Paystack for secure payment'}
                         </p>
                     </div>
                 </div>

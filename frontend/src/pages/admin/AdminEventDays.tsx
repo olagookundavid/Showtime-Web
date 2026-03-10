@@ -2,18 +2,20 @@ import { Loader } from '../../components/ui/Loader';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getAllEventDays, createEventDay, createTier, deleteEventDay, updateEventDay, type EventDayResponse, type TicketTierResponse } from '../../services/api';
+import { AllocationsManager } from '../../components/admin/AllocationsManager';
 
 export const AdminEventDays = () => {
     const queryClient = useQueryClient();
 
     const { data, isLoading: loading } = useQuery({
         queryKey: ['adminEventDaysList'],
-        queryFn: getAllEventDays,
+        queryFn: () => getAllEventDays(),
     });
 
     const eventDays: EventDayResponse[] = data || [];
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [addTierFor, setAddTierFor] = useState<string | null>(null);
+    const [manageAllocationsFor, setManageAllocationsFor] = useState<string | null>(null);
 
     // Create Event Day form
     const [newTitle, setNewTitle] = useState('');
@@ -26,6 +28,8 @@ export const AdminEventDays = () => {
     const [tierPrice, setTierPrice] = useState('');
     const [tierCapacity, setTierCapacity] = useState('');
     const [tierDesc, setTierDesc] = useState('');
+    const [isHidden, setIsHidden] = useState(false);
+    const [accessCode, setAccessCode] = useState('');
     const [creatingTier, setCreatingTier] = useState(false);
 
 
@@ -54,8 +58,10 @@ export const AdminEventDays = () => {
                 price: parseInt(tierPrice),
                 capacity: tierCapacity ? parseInt(tierCapacity) : undefined,
                 description: tierDesc || undefined,
+                is_hidden: isHidden,
+                access_code: isHidden ? accessCode : undefined,
             });
-            setTierName(''); setTierPrice(''); setTierCapacity(''); setTierDesc('');
+            setTierName(''); setTierPrice(''); setTierCapacity(''); setTierDesc(''); setIsHidden(false); setAccessCode('');
             setAddTierFor(null);
             queryClient.invalidateQueries({ queryKey: ['adminEventDaysList'] });
         } catch (err: any) {
@@ -88,6 +94,7 @@ export const AdminEventDays = () => {
         { name: 'Regular', price: 5000, desc: 'General admission' },
         { name: 'VIP', price: 15000, desc: 'VIP seating + refreshments' },
         { name: 'VVIP', price: 30000, desc: 'Premium lounge + meet the players' },
+        { name: 'Free', price: 0, desc: 'Complimentary Access' },
     ];
 
     return (
@@ -96,7 +103,7 @@ export const AdminEventDays = () => {
                 <h1 className="text-3xl font-black text-sffl-navy dark:text-white">Event Days</h1>
                 <button
                     onClick={() => setShowCreateForm(!showCreateForm)}
-                    className="bg-sffl-red text-white px-3 py-1.5 rounded-lg text-sm shadow-sm hover:shadow-md font-bold hover:bg-red-700 transition-all"
+                    className="px-4 py-2 min-h-[44px] bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
                 >
                     {showCreateForm ? '✕ Cancel' : '+ New Event Day'}
                 </button>
@@ -140,7 +147,7 @@ export const AdminEventDays = () => {
                     <button
                         onClick={handleCreateEventDay}
                         disabled={creating || !newTitle || !newDate}
-                        className="mt-4 bg-sffl-navy text-white px-3 py-1.5 text-sm rounded-lg shadow-sm hover:shadow-md font-bold hover:bg-blue-900 transition-all disabled:opacity-50"
+                        className="mt-4 px-4 py-2 min-h-[44px] bg-sffl-navy text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-blue-900 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50"
                     >
                         {creating ? 'Creating...' : '✅ Create Event Day'}
                     </button>
@@ -162,40 +169,54 @@ export const AdminEventDays = () => {
                         const isPast = new Date(ed.date + 'T23:59:59') < new Date();
                         return (
                             <div key={ed.id} className={`bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border ${isPast ? 'border-gray-300 dark:border-gray-600' : 'border-gray-100 dark:border-gray-700'}`}>
-                                {/* Header */}
-                                <div className="bg-sffl-navy text-white p-5 flex items-center justify-between">
-                                    <div>
-                                        <div className="flex items-center gap-3">
-                                            <h3 className="text-xl font-black">{ed.title}</h3>
-                                            <span className={`text-xs font-bold px-2 py-1 rounded-full ${ed.is_active ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}`}>
-                                                {ed.is_active ? '● Active' : '○ Inactive'}
+                                {/* Header - Mobile Optimized */}
+                                <div className="bg-sffl-navy text-white p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <h3 className="text-lg md:text-xl font-black truncate max-w-[200px]">{ed.title}</h3>
+                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ed.is_active ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}`}>
+                                                {ed.is_active ? 'Active' : 'Inactive'}
                                             </span>
-                                            {isPast && <span className="text-xs font-bold px-2 py-1 rounded-full bg-gray-500/20 text-gray-300">Past</span>}
+                                            {isPast && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-500/20 text-gray-300">Past</span>}
                                         </div>
-                                        <p className="text-sm text-gray-300 mt-1">
-                                            📅 {new Date(ed.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-                                            {ed.venue && ` • 📍 ${ed.venue}`}
-                                        </p>
+                                        <div className="flex flex-col gap-0.5 mt-1.5">
+                                            <p className="text-[11px] md:text-sm text-gray-300 font-medium flex items-center gap-1.5">
+                                                <span className="opacity-70">📅</span> {new Date(ed.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                                            </p>
+                                            {ed.venue && (
+                                                <p className="text-[11px] md:text-sm text-gray-300 font-medium flex items-center gap-1.5">
+                                                    <span className="opacity-70">📍</span> {ed.venue}
+                                                </p>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className="flex gap-2">
+
+                                    {/* Action Buttons Grid */}
+                                    <div className="grid grid-cols-2 gap-2 w-full sm:w-auto">
                                         <button
                                             onClick={() => handleToggleActive(ed.id, ed.is_active)}
-                                            className="px-2.5 py-1.5 text-xs font-bold rounded-md shadow-sm hover:shadow-md bg-white/10 hover:bg-white/20 transition-all"
+                                            className="px-2 py-2 min-h-[36px] text-[10px] font-black uppercase tracking-tight rounded-lg shadow-sm border border-white/10 bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-center"
                                         >
-                                            {ed.is_active ? '🔴 Deactivate' : '🟢 Activate'}
+                                            {ed.is_active ? 'Deactivate' : 'Activate'}
                                         </button>
                                         <button
-                                            onClick={() => setAddTierFor(addTierFor === ed.id ? null : ed.id)}
-                                            className="px-2.5 py-1.5 text-xs font-bold rounded-md shadow-sm hover:shadow-md bg-white/10 hover:bg-white/20 transition-all"
+                                            onClick={() => { setAddTierFor(addTierFor === ed.id ? null : ed.id); setManageAllocationsFor(null); }}
+                                            className={`px-2 py-2 min-h-[36px] text-[10px] font-black uppercase tracking-tight rounded-lg shadow-sm border transition-all text-center active:scale-95 ${addTierFor === ed.id ? 'bg-sffl-red text-white border-transparent' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
                                         >
-                                            + Add Tier
+                                            Tiers
+                                        </button>
+                                        <button
+                                            onClick={() => { setManageAllocationsFor(manageAllocationsFor === ed.id ? null : ed.id); setAddTierFor(null); }}
+                                            className={`px-2 py-2 min-h-[36px] text-[10px] font-black uppercase tracking-tight rounded-lg shadow-sm border transition-all text-center active:scale-95 flex items-center justify-center gap-1 ${manageAllocationsFor === ed.id ? 'bg-purple-600 text-white border-transparent' : 'bg-purple-500/30 border-purple-500/30 hover:bg-purple-500/50'}`}
+                                        >
+                                            Allocations
                                         </button>
                                         {isPast && (
                                             <button
                                                 onClick={() => handleDelete(ed.id, ed.title)}
-                                                className="px-2.5 py-1.5 text-xs font-bold rounded-md shadow-sm hover:shadow-md bg-red-600 hover:bg-red-700 transition-all"
+                                                className="px-2 py-2 min-h-[36px] text-[10px] font-black uppercase tracking-tight rounded-lg shadow-sm bg-red-600/80 hover:bg-red-600 active:scale-95 transition-all text-center"
                                             >
-                                                🗑️ Delete
+                                                Delete
                                             </button>
                                         )}
                                     </div>
@@ -242,7 +263,7 @@ export const AdminEventDays = () => {
                                                     <button
                                                         key={p.name}
                                                         onClick={() => { setTierName(p.name); setTierPrice(String(p.price)); setTierDesc(p.desc); }}
-                                                        className="px-3 py-1 text-xs font-bold bg-white dark:bg-gray-600 text-gray-700 dark:text-white border border-gray-300 dark:border-gray-500 rounded-full shadow-sm hover:shadow-md hover:bg-gray-100 transition-all"
+                                                        className="px-4 py-2 min-h-[44px] text-xs font-bold bg-white dark:bg-gray-600 text-gray-700 dark:text-white border border-gray-300 dark:border-gray-500 rounded-full shadow-sm hover:shadow-md hover:bg-gray-100 transition-all duration-300 hover:scale-[1.02] active:scale-95"
                                                     >
                                                         {p.name}
                                                     </button>
@@ -255,20 +276,35 @@ export const AdminEventDays = () => {
                                                 <input type="number" value={tierCapacity} onChange={(e) => setTierCapacity(e.target.value)} placeholder="Capacity (0=unlimited)" className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-600 text-gray-900 dark:text-white text-sm" />
                                                 <input type="text" value={tierDesc} onChange={(e) => setTierDesc(e.target.value)} placeholder="Description" className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-600 text-gray-900 dark:text-white text-sm" />
                                             </div>
+
+                                            <div className="flex items-center gap-4 mt-3">
+                                                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                                                    <input type="checkbox" checked={isHidden} onChange={(e) => setIsHidden(e.target.checked)} className="rounded text-sffl-navy focus:ring-sffl-navy border-gray-300" />
+                                                    Hidden Tier? (Requires Code)
+                                                </label>
+                                                {isHidden && (
+                                                    <input type="text" value={accessCode} onChange={(e) => setAccessCode(e.target.value)} placeholder="Access Code (e.g. SFFLFREE)" className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-600 text-gray-900 dark:text-white text-sm uppercase" />
+                                                )}
+                                            </div>
                                             <div className="flex gap-2 mt-3">
                                                 <button
                                                     onClick={handleCreateTier}
                                                     disabled={creatingTier || !tierName || !tierPrice}
-                                                    className="bg-sffl-navy text-white px-3 py-1.5 rounded-lg shadow-sm hover:shadow-md text-sm font-bold hover:bg-blue-900 transition-all disabled:opacity-50"
+                                                    className="px-4 py-2 min-h-[44px] bg-sffl-navy text-white rounded-lg shadow-sm hover:shadow-md text-sm font-bold hover:bg-blue-900 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50"
                                                 >
                                                     {creatingTier ? 'Creating...' : '✅ Add Tier'}
                                                 </button>
                                                 <button
-                                                    onClick={() => { setAddTierFor(null); setTierName(''); setTierPrice(''); setTierCapacity(''); setTierDesc(''); }}
-                                                    className="px-3 py-1.5 text-sm font-bold text-gray-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-all"
+                                                    onClick={() => { setAddTierFor(null); setTierName(''); setTierPrice(''); setTierCapacity(''); setTierDesc(''); setIsHidden(false); setAccessCode(''); }}
+                                                    className="px-4 py-2 min-h-[44px] text-sm font-bold text-gray-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-300 hover:scale-[1.02] active:scale-95"
                                                 >Cancel</button>
                                             </div>
                                         </div>
+                                    )}
+
+                                    {/* Allocations Manager Form */}
+                                    {manageAllocationsFor === ed.id && (
+                                        <AllocationsManager eventDayId={ed.id} eventDayTitle={ed.title} />
                                     )}
                                 </div>
                             </div>

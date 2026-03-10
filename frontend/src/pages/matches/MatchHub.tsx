@@ -77,6 +77,11 @@ export const MatchHub = () => {
                 <div>
                     <h1 className="text-4xl md:text-5xl font-black italic tracking-tighter">MATCH HUB</h1>
                     <p className="text-gray-300 mt-2 text-lg">Scores, Fixtures & Standings</p>
+                    <div className="mt-4 lg:hidden">
+                        <Link to="/standings" className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full text-xs font-bold transition-all border border-white/20">
+                            <span>🏆</span> View Full Standings
+                        </Link>
+                    </div>
                 </div>
 
                 {/* Competition Selector */}

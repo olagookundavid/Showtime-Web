@@ -90,11 +90,11 @@ export default function Home() {
                     <p className="mx-auto max-w-2xl text-lg sm:text-xl text-gray-300 mb-10 drop-shadow-md">
                         The premier flag football league. Experience the thrill, stats, and glory of SFFL.
                     </p>
-                    <div className="flex justify-center gap-4">
-                        <Link to="/matches" className="rounded-full bg-blue-600 px-8 py-3 text-sm font-bold text-white shadow-lg hover:bg-blue-500 hover:scale-105 transition-all duration-300">
+                    <div className="flex flex-col sm:flex-row justify-center gap-4 w-full px-4 sm:px-0">
+                        <Link to="/matches" className="flex items-center justify-center rounded-full bg-blue-600 px-8 py-3 min-h-[44px] text-sm font-bold text-white shadow-lg hover:bg-blue-500 hover:scale-105 active:scale-95 transition-all duration-300 w-full sm:w-auto">
                             View Schedule
                         </Link>
-                        <Link to="/tickets" className="rounded-full bg-white/10 backdrop-blur-sm px-8 py-3 text-sm font-bold text-white border border-white/20 hover:bg-white/20 hover:scale-105 transition-all duration-300">
+                        <Link to="/tickets" className="flex items-center justify-center rounded-full bg-white/10 backdrop-blur-sm px-8 py-3 min-h-[44px] text-sm font-bold text-white border border-white/20 hover:bg-white/20 hover:scale-105 active:scale-95 transition-all duration-300 w-full sm:w-auto">
                             Get Tickets
                         </Link>
                     </div>
@@ -104,10 +104,10 @@ export default function Home() {
             {/* Latest Results */}
             <RevealSection>
                 <div className="flex items-center justify-between mb-8">
-                    <h2 className="text-3xl font-black italic tracking-tighter text-sffl-navy dark:text-white">
+                    <h2 className="text-3xl font-black italic tracking-tighter text-sffl-navy dark:text-white transition-colors duration-300">
                         <span className="text-sffl-red mr-2">●</span> LATEST RESULTS
                     </h2>
-                    <Link to="/matches" className="text-blue-600 dark:text-blue-400 font-bold hover:underline flex items-center">
+                    <Link to="/matches" className="text-blue-600 dark:text-blue-400 font-bold hover:underline py-2 px-3 -mr-3 rounded-lg flex items-center min-h-[44px] hover:bg-blue-50 dark:hover:bg-blue-900/20 active:scale-95 transition-all duration-300">
                         View All <span className="ml-1">→</span>
                     </Link>
                 </div>
@@ -121,7 +121,7 @@ export default function Home() {
                     </div>
                 ) : (
                     <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-2xl">
-                        <p className="text-gray-500 font-medium">No recent results available.</p>
+                        <p className="text-gray-500 dark:text-gray-300 font-medium">No recent results available.</p>
                     </div>
                 )}
             </RevealSection>
@@ -130,10 +130,10 @@ export default function Home() {
             {upcomingMatches.length > 0 && (
                 <RevealSection>
                     <div className="flex items-center justify-between mb-8">
-                        <h2 className="text-3xl font-black italic tracking-tighter text-sffl-navy dark:text-white">
+                        <h2 className="text-3xl font-black italic tracking-tighter text-sffl-navy dark:text-white transition-colors duration-300">
                             <span className="text-blue-500 mr-2">●</span> UPCOMING MATCHES
                         </h2>
-                        <Link to="/tickets" className="text-blue-600 dark:text-blue-400 font-bold hover:underline flex items-center">
+                        <Link to="/tickets" className="text-blue-600 dark:text-blue-400 font-bold hover:underline py-2 px-3 -mr-3 rounded-lg flex items-center min-h-[44px] hover:bg-blue-50 dark:hover:bg-blue-900/20 active:scale-95 transition-all duration-300">
                             Get Tickets <span className="ml-1">→</span>
                         </Link>
                     </div>
@@ -150,15 +150,15 @@ export default function Home() {
                 {/* League Table */}
                 <RevealSection className="lg:col-span-3">
                     <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-3xl font-black italic tracking-tighter text-sffl-navy dark:text-white">
+                        <h2 className="text-3xl font-black italic tracking-tighter text-sffl-navy dark:text-white transition-colors duration-300">
                             <span className="text-yellow-500 mr-2">●</span> LEAGUE TABLE
                         </h2>
-                        <Link to="/standings" className="text-blue-600 dark:text-blue-400 font-bold hover:underline flex items-center">
+                        <Link to="/standings" className="text-blue-600 dark:text-blue-400 font-bold hover:underline py-2 px-3 -mr-3 rounded-lg flex items-center min-h-[44px] hover:bg-blue-50 dark:hover:bg-blue-900/20 active:scale-95 transition-all duration-300">
                             Full Table <span className="ml-1">→</span>
                         </Link>
                     </div>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden border border-gray-100 dark:border-gray-700">
-                        <table className="w-full">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-x-auto border border-gray-100 dark:border-gray-700">
+                        <table className="w-full min-w-[500px]">
                             <thead>
                                 <tr className="bg-sffl-navy text-white text-xs uppercase">
                                     <th className="px-4 py-3 text-left w-10">#</th>
@@ -199,16 +199,16 @@ export default function Home() {
                 {/* Latest News */}
                 <RevealSection className="lg:col-span-2" delay={200}>
                     <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-3xl font-black italic tracking-tighter text-sffl-navy dark:text-white">
+                        <h2 className="text-3xl font-black italic tracking-tighter text-sffl-navy dark:text-white transition-colors duration-300">
                             <span className="text-green-500 mr-2">●</span> NEWS
                         </h2>
-                        <Link to="/news" className="text-blue-600 dark:text-blue-400 font-bold hover:underline flex items-center">
+                        <Link to="/news" className="text-blue-600 dark:text-blue-400 font-bold hover:underline py-2 px-3 -mr-3 rounded-lg flex items-center min-h-[44px] hover:bg-blue-50 dark:hover:bg-blue-900/20 active:scale-95 transition-all duration-300">
                             All News <span className="ml-1">→</span>
                         </Link>
                     </div>
                     <div className="space-y-4">
                         {latestNews.length > 0 ? latestNews.map(article => (
-                            <Link key={article.id} to={`/news/${article.slug}`} className="block bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border border-gray-100 dark:border-gray-700 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group">
+                            <Link key={article.id} to={`/news/${article.slug}`} className="block bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border border-gray-100 dark:border-gray-700 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-300 group">
                                 <div className="flex">
                                     {article.featured_image && (
                                         <div className="w-24 h-24 flex-shrink-0">
@@ -224,7 +224,7 @@ export default function Home() {
                             </Link>
                         )) : (
                             <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-2xl">
-                                <p className="text-gray-500 font-medium">No news yet.</p>
+                                <p className="text-gray-500 dark:text-gray-300 font-medium">No news yet.</p>
                             </div>
                         )}
                     </div>
@@ -234,21 +234,21 @@ export default function Home() {
             {/* Features Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <RevealSection delay={0}>
-                    <Link to="/matches" className="block w-full h-full p-8 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 transition-all duration-300 group shadow-sm hover:shadow-lg">
+                    <Link to="/matches" className="block w-full h-full p-8 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 transition-all duration-300 group shadow-sm hover:shadow-lg active:scale-[0.98]">
                         <div className="text-4xl mb-4 group-hover:scale-110 transition-transform duration-300">📺</div>
                         <h3 className="text-xl font-bold mb-2 text-sffl-navy dark:text-white">Latest Matches</h3>
                         <p className="text-gray-500 dark:text-gray-400">Catch up on the latest scores and highlights from every game week.</p>
                     </Link>
                 </RevealSection>
                 <RevealSection delay={200}>
-                    <Link to="/standings" className="block w-full h-full p-8 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 hover:border-yellow-500 dark:hover:border-yellow-500 transition-all duration-300 group shadow-sm hover:shadow-lg">
+                    <Link to="/standings" className="block w-full h-full p-8 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 hover:border-yellow-500 dark:hover:border-yellow-500 transition-all duration-300 group shadow-sm hover:shadow-lg active:scale-[0.98]">
                         <div className="text-4xl mb-4 group-hover:scale-110 transition-transform duration-300">🏆</div>
                         <h3 className="text-xl font-bold mb-2 text-sffl-navy dark:text-white">League Standings</h3>
                         <p className="text-gray-500 dark:text-gray-400">See who's leading the race for the championship trophy.</p>
                     </Link>
                 </RevealSection>
                 <RevealSection delay={400}>
-                    <Link to="/players" className="block w-full h-full p-8 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 hover:border-green-500 dark:hover:border-green-500 transition-all duration-300 group shadow-sm hover:shadow-lg">
+                    <Link to="/players" className="block w-full h-full p-8 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 hover:border-green-500 dark:hover:border-green-500 transition-all duration-300 group shadow-sm hover:shadow-lg active:scale-[0.98]">
                         <div className="text-4xl mb-4 group-hover:scale-110 transition-transform duration-300">⚡</div>
                         <h3 className="text-xl font-bold mb-2 text-sffl-navy dark:text-white">MVP Stats</h3>
                         <p className="text-gray-500 dark:text-gray-400">Track the league's top performers and rising stars.</p>
@@ -267,10 +267,10 @@ export default function Home() {
                         Get your tickets now — experience the excitement of SFFL live at the arena, or follow along with real-time updates.
                     </p>
                     <div className="flex flex-col sm:flex-row justify-center gap-4">
-                        <Link to="/tickets" className="rounded-full bg-white text-sffl-navy px-8 py-3 font-bold shadow-lg hover:scale-105 transition-all duration-300">
+                        <Link to="/tickets" className="flex items-center justify-center min-h-[44px] rounded-full bg-white text-sffl-navy px-8 py-3 font-bold shadow-lg hover:scale-105 active:scale-95 transition-all duration-300">
                             🎟️ Buy Tickets
                         </Link>
-                        <Link to="/highlights" className="rounded-full bg-white/10 backdrop-blur-sm text-white px-8 py-3 font-bold border border-white/20 hover:bg-white/20 hover:scale-105 transition-all duration-300">
+                        <Link to="/highlights" className="flex items-center justify-center min-h-[44px] rounded-full bg-white/10 backdrop-blur-sm text-white px-8 py-3 font-bold border border-white/20 hover:bg-white/20 hover:scale-105 active:scale-95 transition-all duration-300">
                             ▶️ Watch Highlights
                         </Link>
                     </div>

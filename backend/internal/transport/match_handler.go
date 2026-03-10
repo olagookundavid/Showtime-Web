@@ -75,10 +75,11 @@ func (h *MatchHandler) GetCompetitions(c *gin.Context) {
 func (h *MatchHandler) GetMatches(c *gin.Context) {
 	competitionID := c.Query("competition_id")
 	status := c.Query("status")
+	search := c.Query("search")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 
-	matches, err := h.service.GetMatches(c.Request.Context(), competitionID, status, page, limit)
+	matches, err := h.service.GetMatches(c.Request.Context(), competitionID, status, page, limit, search)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -143,18 +144,20 @@ func (h *MatchHandler) CreateMatch(c *gin.Context) {
 		return
 	}
 
-	// Parse StartTime (DTO expects RFC3339 string)
-	startTime, err := time.Parse(time.RFC3339, req.StartTime)
-	if err != nil {
-		// Fallback: try convenient formats
-		startTime, err = time.Parse("2006-01-02T15:04:05Z07:00", req.StartTime)
+	// Parse StartTime (DTO expects RFC3339 or HH:MM string)
+	var startTime time.Time
+	if len(req.StartTime) == 5 { // HH:MM
+		startTime, err = time.Parse("15:04", req.StartTime)
+	} else {
+		startTime, err = time.Parse(time.RFC3339, req.StartTime)
 		if err != nil {
-			startTime, err = time.Parse("15:04", req.StartTime) // Just time?
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid start_time format. Use RFC3339"})
-				return
-			}
+			startTime, err = time.Parse("2006-01-02T15:04:05Z07:00", req.StartTime)
 		}
+	}
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid start_time format. Use HH:MM or RFC3339"})
+		return
 	}
 
 	match := &domain.Match{
@@ -210,7 +213,11 @@ func (h *MatchHandler) UpdateMatch(c *gin.Context) {
 		match.Date, _ = time.Parse("2006-01-02", req.Date)
 	}
 	if req.StartTime != "" {
-		match.StartTime, _ = time.Parse(time.RFC3339, req.StartTime)
+		if len(req.StartTime) == 5 {
+			match.StartTime, _ = time.Parse("15:04", req.StartTime)
+		} else {
+			match.StartTime, _ = time.Parse(time.RFC3339, req.StartTime)
+		}
 	}
 	if req.Status != "" {
 		match.Status = domain.MatchStatus(req.Status)

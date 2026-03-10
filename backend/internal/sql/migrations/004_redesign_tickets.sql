@@ -29,8 +29,8 @@ CREATE INDEX IF NOT EXISTS idx_ticket_tiers_event_day ON ticket_tiers(event_day_
 
 CREATE TABLE IF NOT EXISTS tickets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    event_day_id UUID NOT NULL REFERENCES event_days(id),
-    tier_id UUID NOT NULL REFERENCES ticket_tiers(id),
+    event_day_id UUID NOT NULL REFERENCES event_days(id) ON DELETE CASCADE,
+    tier_id UUID NOT NULL REFERENCES ticket_tiers(id) ON DELETE CASCADE,
     email VARCHAR(255) NOT NULL,
     user_id UUID,
     quantity INT NOT NULL DEFAULT 1,

@@ -43,7 +43,7 @@ export const AdminPlayers = () => {
 
     const { data: teamsData, isLoading: loadingTeams } = useQuery({
         queryKey: ['adminTeamsList'], // distinct from paginated adminTeams
-        queryFn: () => getTeams(1, 20),
+        queryFn: () => getTeams(1, 100),
     });
 
     const allPlayers: Player[] = allPlayersData?.data || [];
@@ -172,12 +172,12 @@ export const AdminPlayers = () => {
                     <select
                         value={filterTeam}
                         onChange={e => handleFilterChange(e.target.value)}
-                        className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 font-semibold text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 min-h-[44px] z-50 font-semibold text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
-                        <option value="">All Teams</option>
-                        {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        <option value="" className="truncate">All Teams</option>
+                        {teams.map(t => <option key={t.id} value={t.id} className="truncate">{t.name}</option>)}
                     </select>
-                    <button onClick={openCreate} className="px-3 py-1.5 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition whitespace-nowrap">+ Add Player</button>
+                    <button onClick={openCreate} className="px-4 py-2 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 min-h-[44px] whitespace-nowrap">+ Add Player</button>
                 </div>
             </div>
 
@@ -208,7 +208,7 @@ export const AdminPlayers = () => {
                             <h2 className="text-2xl font-black text-sffl-navy dark:text-white">{editingId ? 'Edit Player' : 'Add Player'}</h2>
                         </div>
                         <div className="p-6 space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Name *</label>
                                     <input type="text" value={form.name} onChange={e => set('name', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="Player name" />
@@ -218,19 +218,19 @@ export const AdminPlayers = () => {
                                     <input type="number" value={form.jersey_number} onChange={e => set('jersey_number', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" min="0" max="99" />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Position</label>
-                                    <select value={form.position} onChange={e => set('position', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2">
-                                        <option value="">Select...</option>
-                                        {POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
+                                    <select value={form.position} onChange={e => set('position', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-[44px] z-50">
+                                        <option value="" className="truncate">Select...</option>
+                                        {POSITIONS.map(p => <option key={p} value={p} className="truncate">{p}</option>)}
                                     </select>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Team *</label>
-                                    <select value={form.team_id} onChange={e => set('team_id', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2">
-                                        <option value="">Select...</option>
-                                        {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                    <select value={form.team_id} onChange={e => set('team_id', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-[44px] z-50">
+                                        <option value="" className="truncate">Select...</option>
+                                        {teams.map(t => <option key={t.id} value={t.id} className="truncate">{t.name}</option>)}
                                     </select>
                                 </div>
                             </div>
@@ -242,7 +242,7 @@ export const AdminPlayers = () => {
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Image URL</label>
                                 <input type="url" value={form.image} onChange={e => set('image', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="https://..." />
                             </div>
-                            <div className="grid grid-cols-4 gap-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">TDs</label>
                                     <input type="number" value={form.touchdowns} onChange={e => set('touchdowns', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" min="0" />
@@ -262,8 +262,8 @@ export const AdminPlayers = () => {
                             </div>
                         </div>
                         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
-                            <button onClick={() => setShowModal(false)} className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-gray-700 text-sm dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Cancel</button>
-                            <button onClick={handleSave} disabled={saving} className="px-3 py-1.5 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition disabled:opacity-50">
+                            <button onClick={() => setShowModal(false)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-gray-700 text-sm dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 min-h-[44px]">Cancel</button>
+                            <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 min-h-[44px] disabled:opacity-50">
                                 {saving ? 'Saving...' : editingId ? 'Update' : 'Create'}
                             </button>
                         </div>
@@ -278,8 +278,8 @@ export const AdminPlayers = () => {
                         <h3 className="text-lg font-bold text-sffl-navy dark:text-white mb-2">Delete Player?</h3>
                         <p className="text-gray-600 dark:text-gray-400 mb-6">This action cannot be undone.</p>
                         <div className="flex justify-end gap-2">
-                            <button onClick={() => setDeleteConfirm(null)} className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Cancel</button>
-                            <button onClick={() => handleDelete(deleteConfirm)} className="px-3 py-1.5 bg-red-600 text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition">Delete</button>
+                            <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 min-h-[44px]">Cancel</button>
+                            <button onClick={() => handleDelete(deleteConfirm)} className="px-4 py-2 bg-red-600 text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 min-h-[44px]">Delete</button>
                         </div>
                     </div>
                 </div>

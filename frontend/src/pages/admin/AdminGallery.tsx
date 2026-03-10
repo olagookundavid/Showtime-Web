@@ -64,7 +64,7 @@ export const AdminGallery = () => {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h1 className="text-3xl font-black text-sffl-navy dark:text-white">Gallery Management</h1>
-                <button onClick={openCreate} className="px-3 py-1.5 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition">+ Add Gallery</button>
+                <button onClick={openCreate} className="px-4 py-2 min-h-[44px] bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">+ Add Gallery</button>
             </div>
 
             {loading ? (
@@ -109,8 +109,8 @@ export const AdminGallery = () => {
                                 </div>
                                 <div className="p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-700">
                                     <div className="flex gap-2">
-                                        <button onClick={() => openEdit(g)} className="flex-1 text-center px-2.5 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 rounded-md shadow-sm hover:shadow-md font-bold text-xs transition-all">Edit</button>
-                                        <button onClick={() => setDeleteConfirm(g.id)} className="flex-1 text-center px-2.5 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 rounded-md shadow-sm hover:shadow-md font-bold text-xs transition-all">Delete</button>
+                                        <button onClick={() => openEdit(g)} className="flex-1 text-center px-4 py-2 min-h-[44px] bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 rounded-lg shadow-sm hover:shadow-md font-bold text-xs transition-all duration-300 hover:scale-[1.02] active:scale-95">Edit</button>
+                                        <button onClick={() => setDeleteConfirm(g.id)} className="flex-1 text-center px-4 py-2 min-h-[44px] bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 rounded-lg shadow-sm hover:shadow-md font-bold text-xs transition-all duration-300 hover:scale-[1.02] active:scale-95">Delete</button>
                                     </div>
                                 </div>
                             </div>
@@ -126,9 +126,9 @@ export const AdminGallery = () => {
                         <div className="flex items-center justify-between">
                             <p className="text-sm text-gray-500 dark:text-gray-400">Page {page} of {totalPages}</p>
                             <div className="flex gap-2">
-                                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1} className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-xs disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300 transition">← Prev</button>
-                                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => { const s = Math.max(1, Math.min(page - 2, totalPages - 4)); const p = s + i; if (p > totalPages) return null; return <button key={p} onClick={() => setPage(p)} className={`px-2.5 py-1.5 rounded-lg font-bold text-xs transition ${p === page ? 'bg-sffl-red text-white shadow-sm border-transparent' : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300'}`}>{p}</button>; })}
-                                <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-xs disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300 transition">Next →</button>
+                                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1} className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-xs disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300 transition-all duration-300 hover:scale-[1.02] active:scale-95">← Prev</button>
+                                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => { const s = Math.max(1, Math.min(page - 2, totalPages - 4)); const p = s + i; if (p > totalPages) return null; return <button key={p} onClick={() => setPage(p)} className={`px-4 py-2 min-h-[44px] rounded-lg font-bold text-xs transition-all duration-300 hover:scale-[1.02] active:scale-95 ${p === page ? 'bg-sffl-red text-white shadow-sm border-transparent' : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300'}`}>{p}</button>; })}
+                                <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-xs disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300 transition-all duration-300 hover:scale-[1.02] active:scale-95">Next →</button>
                             </div>
                         </div>
                     )}
@@ -140,7 +140,7 @@ export const AdminGallery = () => {
                     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg">
                         <div className="p-6 border-b border-gray-200 dark:border-gray-700"><h2 className="text-2xl font-black text-sffl-navy dark:text-white">{editingId ? 'Edit Gallery' : 'New Gallery'}</h2></div>
                         <div className="p-6 space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Game Week *</label><input type="text" value={form.game_week} onChange={e => set('game_week', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="e.g. Week 5" /></div>
                                 <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Date *</label><input type="date" value={form.date} onChange={e => set('date', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" /></div>
                             </div>
@@ -148,8 +148,8 @@ export const AdminGallery = () => {
                             <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Fans Folder Link *</label><input type="url" value={form.fans_photo_url} onChange={e => set('fans_photo_url', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-sffl-red" placeholder="https://drive.google.com/..." /></div>
                         </div>
                         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
-                            <button onClick={() => setShowModal(false)} className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Cancel</button>
-                            <button onClick={handleSave} disabled={saving} className="px-3 py-1.5 bg-sffl-red text-sm text-white font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition disabled:opacity-50">{saving ? 'Saving...' : editingId ? 'Update' : 'Create'}</button>
+                            <button onClick={() => setShowModal(false)} className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">Cancel</button>
+                            <button onClick={handleSave} disabled={saving} className="px-4 py-2 min-h-[44px] bg-sffl-red text-sm text-white font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50">{saving ? 'Saving...' : editingId ? 'Update' : 'Create'}</button>
                         </div>
                     </div>
                 </div>
@@ -161,8 +161,8 @@ export const AdminGallery = () => {
                         <h3 className="text-lg font-bold text-sffl-navy dark:text-white mb-2">Delete Gallery?</h3>
                         <p className="text-gray-600 dark:text-gray-400 mb-6">This action cannot be undone.</p>
                         <div className="flex justify-end gap-2">
-                            <button onClick={() => setDeleteConfirm(null)} className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Cancel</button>
-                            <button onClick={() => handleDelete(deleteConfirm)} className="px-3 py-1.5 bg-red-600 text-white font-bold rounded-lg text-sm shadow-sm hover:shadow-md hover:bg-red-700 transition">Delete</button>
+                            <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">Cancel</button>
+                            <button onClick={() => handleDelete(deleteConfirm)} className="px-4 py-2 min-h-[44px] bg-red-600 text-white font-bold rounded-lg text-sm shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">Delete</button>
                         </div>
                     </div>
                 </div>

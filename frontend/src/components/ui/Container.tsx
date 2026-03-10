@@ -15,7 +15,7 @@ export const Container = ({ children, className = '', size = 'lg' }: ContainerPr
     };
 
     return (
-        <div className={`container mx-auto px-4 ${sizeStyles[size]} ${className}`}>
+        <div className={`container mx-auto px-2 md:px-4 ${sizeStyles[size]} ${className}`}>
             {children}
         </div>
     );

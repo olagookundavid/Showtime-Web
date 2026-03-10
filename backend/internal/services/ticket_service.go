@@ -21,9 +21,9 @@ type ITicketService interface {
 	CreateEventDay(ctx context.Context, req dto.CreateEventDayRequest) (*dto.EventDayResponse, error)
 	UpdateEventDay(ctx context.Context, id string, req dto.UpdateEventDayRequest) error
 	DeleteEventDay(ctx context.Context, id string) error
-	GetEventDayByID(ctx context.Context, id string) (*dto.EventDayResponse, error)
-	GetEventDayByDate(ctx context.Context, date string) (*dto.EventDayResponse, error)
-	ListActiveEventDays(ctx context.Context) ([]dto.EventDayResponse, error)
+	GetEventDayByID(ctx context.Context, id string, code string) (*dto.EventDayResponse, error)
+	GetEventDayByDate(ctx context.Context, date string, code string) (*dto.EventDayResponse, error)
+	ListActiveEventDays(ctx context.Context, code string) ([]dto.EventDayResponse, error)
 	ListAllEventDays(ctx context.Context) ([]dto.EventDayResponse, error)
 
 	// Tiers
@@ -103,31 +103,43 @@ func (s *TicketService) UpdateEventDay(ctx context.Context, id string, req dto.U
 	return s.eventDayRepo.Update(ctx, id, req.Title, req.Venue, req.IsActive)
 }
 
-func (s *TicketService) GetEventDayByID(ctx context.Context, id string) (*dto.EventDayResponse, error) {
+func (s *TicketService) GetEventDayByID(ctx context.Context, id string, code string) (*dto.EventDayResponse, error) {
 	ed, err := s.eventDayRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	tiers, _ := s.tierRepo.ListByEventDay(ctx, ed.ID)
+	allTiers, _ := s.tierRepo.ListByEventDay(ctx, ed.ID)
+	var tiers []domain.TicketTier
+	for _, t := range allTiers {
+		if !t.IsHidden || (t.AccessCode != nil && *t.AccessCode == code) {
+			tiers = append(tiers, t)
+		}
+	}
 	matches := s.getMatchesForDate(ctx, ed.Date)
 
 	return eventDayToResponse(ed, tiers, matches), nil
 }
 
-func (s *TicketService) GetEventDayByDate(ctx context.Context, date string) (*dto.EventDayResponse, error) {
+func (s *TicketService) GetEventDayByDate(ctx context.Context, date string, code string) (*dto.EventDayResponse, error) {
 	ed, err := s.eventDayRepo.GetByDate(ctx, date)
 	if err != nil {
 		return nil, err
 	}
 
-	tiers, _ := s.tierRepo.ListByEventDay(ctx, ed.ID)
+	allTiers, _ := s.tierRepo.ListByEventDay(ctx, ed.ID)
+	var tiers []domain.TicketTier
+	for _, t := range allTiers {
+		if !t.IsHidden || (t.AccessCode != nil && *t.AccessCode == code) {
+			tiers = append(tiers, t)
+		}
+	}
 	matches := s.getMatchesForDate(ctx, ed.Date)
 
 	return eventDayToResponse(ed, tiers, matches), nil
 }
 
-func (s *TicketService) ListActiveEventDays(ctx context.Context) ([]dto.EventDayResponse, error) {
+func (s *TicketService) ListActiveEventDays(ctx context.Context, code string) ([]dto.EventDayResponse, error) {
 	eventDays, err := s.eventDayRepo.ListActive(ctx)
 	if err != nil {
 		return nil, err
@@ -135,7 +147,13 @@ func (s *TicketService) ListActiveEventDays(ctx context.Context) ([]dto.EventDay
 
 	var responses []dto.EventDayResponse
 	for i := range eventDays {
-		tiers, _ := s.tierRepo.ListByEventDay(ctx, eventDays[i].ID)
+		allTiers, _ := s.tierRepo.ListByEventDay(ctx, eventDays[i].ID)
+		var tiers []domain.TicketTier
+		for _, t := range allTiers {
+			if !t.IsHidden || (t.AccessCode != nil && *t.AccessCode == code) {
+				tiers = append(tiers, t)
+			}
+		}
 		matches := s.getMatchesForDate(ctx, eventDays[i].Date)
 		responses = append(responses, *eventDayToResponse(&eventDays[i], tiers, matches))
 	}
@@ -194,6 +212,8 @@ func (s *TicketService) CreateTier(ctx context.Context, eventDayID string, req d
 		Price:       req.Price,
 		Capacity:    req.Capacity,
 		Description: req.Description,
+		IsHidden:    req.IsHidden,
+		AccessCode:  req.AccessCode,
 	}
 
 	if err := s.tierRepo.Create(ctx, tier); err != nil {
@@ -243,20 +263,35 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 	// 4. Generate unique reference
 	reference := "SFFL-" + uuid.New().String()[:12]
 
-	// 5. Initialize Paystack transaction
-	paystackReq := PaystackInitRequest{
-		Email:       req.Email,
-		Amount:      totalAmount * 100, // Convert Naira to kobo
-		Reference:   reference,
-		CallbackURL: callbackURL,
+	var paystackRef string
+	var paystackAccessCode string
+	var authURL string
+	var ticketStatus = domain.TicketStatusPending
+
+	// If the ticket is free, bypass Paystack entirely
+	if totalAmount == 0 {
+		paystackRef = reference
+		ticketStatus = domain.TicketStatusPaid
+	} else {
+		// 5. Initialize Paystack transaction
+		paystackReq := PaystackInitRequest{
+			Email:       req.Email,
+			Amount:      totalAmount * 100, // Convert Naira to kobo
+			Reference:   reference,
+			CallbackURL: callbackURL,
+		}
+
+		paystackResp, err := s.paystack.InitializeTransaction(paystackReq)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize payment: %w", err)
+		}
+
+		paystackRef = paystackResp.Data.Reference
+		paystackAccessCode = paystackResp.Data.AccessCode
+		authURL = paystackResp.Data.AuthorizationURL
 	}
 
-	paystackResp, err := s.paystack.InitializeTransaction(paystackReq)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize payment: %w", err)
-	}
-
-	// 6. Create ticket with PENDING status
+	// 6. Create ticket
 	ticket := &domain.Ticket{
 		EventDayID:         req.EventDayID,
 		TierID:             req.TierID,
@@ -264,14 +299,27 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 		Quantity:           req.Quantity,
 		UnitPrice:          tier.Price,
 		TotalAmount:        totalAmount,
-		Status:             domain.TicketStatusPending,
-		PaystackReference:  paystackResp.Data.Reference,
-		PaystackAccessCode: paystackResp.Data.AccessCode,
+		Status:             ticketStatus,
+		PaystackReference:  paystackRef,
+		PaystackAccessCode: paystackAccessCode,
 		TicketCode:         generateTicketCode(),
 	}
 
 	if err := s.ticketRepo.Create(ctx, ticket); err != nil {
 		return nil, fmt.Errorf("failed to create ticket: %w", err)
+	}
+
+	if ticket.Status == domain.TicketStatusPaid {
+		// Increment sold count on tier
+		_ = s.tierRepo.IncrementSoldCount(ctx, ticket.TierID, ticket.Quantity)
+
+		// Load relations for email dispatch
+		ticket.Tier = tier
+		if ed, err := s.eventDayRepo.GetByID(ctx, ticket.EventDayID); err == nil {
+			ticket.EventDay = ed
+		}
+
+		s.sendPurchaseEmail(ticket)
 	}
 
 	return &dto.TicketResponse{
@@ -284,7 +332,7 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 		TotalAmount:       ticket.TotalAmount,
 		Status:            string(ticket.Status),
 		PaystackReference: ticket.PaystackReference,
-		AuthorizationURL:  paystackResp.Data.AuthorizationURL,
+		AuthorizationURL:  authURL,
 		TierName:          tier.Name,
 		CreatedAt:         ticket.CreatedAt.Format("2006-01-02T15:04:05Z"),
 	}, nil
@@ -550,6 +598,8 @@ func tierToResponse(t *domain.TicketTier) *dto.TicketTierResponse {
 		SoldCount:   t.SoldCount,
 		Available:   available,
 		Description: t.Description,
+		IsHidden:    t.IsHidden,
+		AccessCode:  t.AccessCode,
 	}
 }
 

@@ -106,9 +106,9 @@ export function DataTable<T extends Record<string, any>>({
 
     return (
         <div className="space-y-4">
-            {/* Header Actions & Search */}
-            <div className="flex flex-col sm:flex-row justify-between gap-4 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-                <div className="flex items-center gap-3 w-full sm:w-auto">
+            {/* Header Actions & Search - Condensed */}
+            <div className="flex flex-col sm:flex-row justify-between gap-3 bg-white dark:bg-gray-800 p-2 md:p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
                     {searchable && (
                         <div className="flex gap-2 w-full sm:w-auto">
                             <input
@@ -117,12 +117,12 @@ export function DataTable<T extends Record<string, any>>({
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
                                 onKeyDown={e => e.key === 'Enter' && onSearchSubmit && onSearchSubmit(searchTerm)}
-                                className="w-full sm:w-64 px-3 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-sffl-red/20 outline-none text-gray-900 dark:text-gray-100 transition"
+                                className="w-full sm:w-64 px-4 py-2 min-h-[44px] bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-sffl-red/20 outline-none text-gray-900 dark:text-gray-100 transition-colors"
                             />
                             {onSearchSubmit && (
                                 <button
                                     onClick={() => onSearchSubmit(searchTerm)}
-                                    className="px-2.5 py-1.5 bg-sffl-red text-white text-xs font-bold rounded-lg shadow hover:bg-red-600 transition"
+                                    className="px-4 py-2 min-h-[44px] bg-sffl-red text-white text-xs font-bold rounded-lg shadow hover:bg-red-600 transition-all duration-300 hover:scale-[1.02] active:scale-95"
                                 >
                                     Search
                                 </button>
@@ -182,9 +182,9 @@ export function DataTable<T extends Record<string, any>>({
                 </div>
             </div>
 
-            {/* Pagination Controls */}
-            <div className="flex items-center justify-between mt-4">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+            {/* Pagination Controls - Condensed */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4">
+                <p className="text-[10px] md:text-sm text-gray-500 dark:text-gray-400">
                     {isServerPaginated
                         ? `Page ${currentPage} of ${totalPages}`
                         : `Showing ${(currentPage - 1) * itemsPerPage + 1}–${Math.min(currentPage * itemsPerPage, processData.length)} of ${processData.length}`
@@ -194,9 +194,9 @@ export function DataTable<T extends Record<string, any>>({
                     <button
                         onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                         disabled={currentPage <= 1}
-                        className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl font-bold text-sm disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300 transition"
+                        className="px-3 py-1.5 md:px-4 md:py-2 min-h-[36px] md:min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-xs md:text-sm disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300 transition-all duration-300"
                     >
-                        ← Prev
+                        Prev
                     </button>
                     {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
                         let start = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
@@ -206,7 +206,7 @@ export function DataTable<T extends Record<string, any>>({
                             <button
                                 key={p}
                                 onClick={() => handlePageChange(p)}
-                                className={`px-3 py-2 rounded-xl font-bold text-sm transition ${p === currentPage
+                                className={`px-3 py-1.5 md:px-4 md:py-2 min-h-[36px] md:min-h-[44px] rounded-lg font-bold text-xs md:text-sm transition-all duration-300 ${p === currentPage
                                     ? 'bg-sffl-red text-white shadow-md border-transparent'
                                     : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300'
                                     }`}
@@ -218,9 +218,9 @@ export function DataTable<T extends Record<string, any>>({
                     <button
                         onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
                         disabled={currentPage >= totalPages}
-                        className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl font-bold text-sm disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300 transition"
+                        className="px-3 py-1.5 md:px-4 md:py-2 min-h-[36px] md:min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-xs md:text-sm disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300 transition-all duration-300"
                     >
-                        Next →
+                        Next
                     </button>
                 </div>
             </div>

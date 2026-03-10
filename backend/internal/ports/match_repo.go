@@ -28,7 +28,7 @@ type MatchRepository interface {
 	GetTeamsByCompetition(ctx context.Context, competitionID string) ([]domain.Team, error)
 
 	// Matches
-	GetMatches(ctx context.Context, competitionID string, status string, page, limit int, date ...string) ([]domain.Match, int64, error)
+	GetMatches(ctx context.Context, competitionID string, status string, page, limit int, search string, date ...string) ([]domain.Match, int64, error)
 	GetMatchByID(ctx context.Context, id string) (*domain.Match, error)
 	CreateMatch(ctx context.Context, match *domain.Match) error
 	UpdateMatch(ctx context.Context, match *domain.Match) error
@@ -230,22 +230,28 @@ func (r *PostgresMatchRepository) GetTeamsByCompetition(ctx context.Context, com
 }
 
 // --- Matches ---
-func (r *PostgresMatchRepository) GetMatches(ctx context.Context, competitionID string, status string, page, limit int, date ...string) ([]domain.Match, int64, error) {
+func (r *PostgresMatchRepository) GetMatches(ctx context.Context, competitionID string, status string, page, limit int, search string, date ...string) ([]domain.Match, int64, error) {
 	offset := (page - 1) * limit
 
 	// Base query
 	query := `
 		SELECT 
 			m.id, m.competition_id, m.home_team_id, m.away_team_id, m.date, m.time, m.venue, m.status, m.home_score, m.away_score, m.highlights_url, m.ticket_url, m.created_at, m.updated_at,
-			c.name, c.logo,
-			ht.name, ht.short_name, ht.logo,
-			at.name, at.short_name, at.logo
+			c.id, c.name, c.logo,
+			ht.id, ht.name, ht.short_name, ht.logo,
+			at.id, at.name, at.short_name, at.logo
 		FROM matches m
 		LEFT JOIN competitions c ON m.competition_id = c.id
 		LEFT JOIN teams ht ON m.home_team_id = ht.id
 		LEFT JOIN teams at ON m.away_team_id = at.id
 	`
-	countQuery := `SELECT COUNT(*) FROM matches m`
+	countQuery := `
+		SELECT COUNT(*) 
+		FROM matches m
+		LEFT JOIN competitions c ON m.competition_id = c.id
+		LEFT JOIN teams ht ON m.home_team_id = ht.id
+		LEFT JOIN teams at ON m.away_team_id = at.id
+	`
 
 	args := []any{}
 	whereClause := " WHERE 1=1"
@@ -258,6 +264,11 @@ func (r *PostgresMatchRepository) GetMatches(ctx context.Context, competitionID 
 	if status != "" {
 		args = append(args, status)
 		whereClause += fmt.Sprintf(" AND m.status = $%d", len(args))
+	}
+
+	if search != "" {
+		args = append(args, "%"+search+"%")
+		whereClause += fmt.Sprintf(" AND (ht.name ILIKE $%d OR at.name ILIKE $%d OR c.name ILIKE $%d)", len(args), len(args), len(args))
 	}
 
 	if len(date) > 0 && date[0] != "" {
@@ -294,9 +305,9 @@ func (r *PostgresMatchRepository) GetMatches(ctx context.Context, competitionID 
 		var startTime time.Time
 		err := rows.Scan(
 			&m.ID, &m.CompetitionID, &m.HomeTeamID, &m.AwayTeamID, &m.Date, &startTime, &m.Venue, &m.Status, &m.HomeScore, &m.AwayScore, &m.HighlightsURL, &m.TicketURL, &m.CreatedAt, &m.UpdatedAt,
-			&m.Competition.Name, &m.Competition.Logo,
-			&m.HomeTeam.Name, &m.HomeTeam.ShortName, &m.HomeTeam.Logo,
-			&m.AwayTeam.Name, &m.AwayTeam.ShortName, &m.AwayTeam.Logo,
+			&m.Competition.ID, &m.Competition.Name, &m.Competition.Logo,
+			&m.HomeTeam.ID, &m.HomeTeam.Name, &m.HomeTeam.ShortName, &m.HomeTeam.Logo,
+			&m.AwayTeam.ID, &m.AwayTeam.Name, &m.AwayTeam.ShortName, &m.AwayTeam.Logo,
 		)
 		if err != nil {
 			return nil, 0, err

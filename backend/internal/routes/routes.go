@@ -71,10 +71,11 @@ func Routes(app *api.Application) *gin.Engine {
 
 func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	adminRoutes := r.Group("/admin")
-	// Require valid token AND admin role
-	adminRoutes.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.AdminOnlyMiddleware(app.AuthService))
+	// Require valid token
+	adminRoutes.Use(commonAuth.TokenMiddleware(app.TokenMaker))
 
 	usersGroup := adminRoutes.Group("/users")
+	usersGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
 	{
 		usersGroup.GET("", app.Handlers.AuthHandler.GetUsers)
 		usersGroup.PUT("/:id", app.Handlers.AuthHandler.UpdateUserInfo)
@@ -82,6 +83,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	teamsGroup := adminRoutes.Group("/teams")
+	teamsGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
 	{
 		teamsGroup.GET("", app.Handlers.MatchHandler.GetTeams)
 		teamsGroup.GET("/by-competition", app.Handlers.MatchHandler.GetTeamsByCompetition)
@@ -94,6 +96,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	compGroup := adminRoutes.Group("/competitions")
+	compGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
 	{
 		compGroup.GET("", app.Handlers.MatchHandler.GetCompetitions)
 		compGroup.POST("", app.Handlers.MatchHandler.CreateCompetition)
@@ -102,11 +105,13 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	analyticsGroup := adminRoutes.Group("/analytics")
+	analyticsGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
 	{
 		analyticsGroup.GET("", app.Handlers.AnalyticsHandler.GetAnalytics)
 	}
 
 	newsGroup := adminRoutes.Group("/news")
+	newsGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
 	{
 		newsGroup.POST("", app.Handlers.NewsHandler.CreateNews)
 		newsGroup.PUT("/:id", app.Handlers.NewsHandler.UpdateNews)
@@ -114,6 +119,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	galleryGroup := adminRoutes.Group("/gallery")
+	galleryGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
 	{
 		galleryGroup.POST("", app.Handlers.GalleryHandler.CreateGallery)
 		galleryGroup.PUT("/:id", app.Handlers.GalleryHandler.UpdateGallery)
@@ -121,6 +127,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	matchesGroup := adminRoutes.Group("/matches")
+	matchesGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
 	{
 		matchesGroup.POST("", app.Handlers.MatchHandler.CreateMatch)
 		matchesGroup.PUT("/:id", app.Handlers.MatchHandler.UpdateMatch)
@@ -131,6 +138,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	playersGroup := adminRoutes.Group("/players")
+	playersGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
 	{
 		playersGroup.POST("", app.Handlers.PlayerHandler.CreatePlayer)
 		playersGroup.PUT("/:id", app.Handlers.PlayerHandler.UpdatePlayer)
@@ -138,6 +146,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	eventDaysGroup := adminRoutes.Group("/event-days")
+	eventDaysGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
 	{
 		eventDaysGroup.GET("/all", app.Handlers.TicketHandler.ListAllEventDays)
 		eventDaysGroup.POST("", app.Handlers.TicketHandler.CreateEventDay)
@@ -146,12 +155,24 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		eventDaysGroup.POST("/:id/tiers", app.Handlers.TicketHandler.CreateTier)
 	}
 
+	allocationsGroup := adminRoutes.Group("/allocations")
+	allocationsGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
+	{
+		allocationsGroup.POST("", app.Handlers.TeamTicketAllocationHandler.CreateOrUpdateAllocation)
+		allocationsGroup.GET("/event-day/:id", app.Handlers.TeamTicketAllocationHandler.GetAllocationsByEventDay)
+		allocationsGroup.DELETE("/:id", app.Handlers.TeamTicketAllocationHandler.DeleteAllocation)
+	}
+
 	ticketsGroup := adminRoutes.Group("/tickets")
+	ticketsGroup.Use(middlewares.TicketerOrAdminMiddleware(app.AuthService))
 	{
 		ticketsGroup.POST("/:id/admin-checkin", app.Handlers.TicketHandler.AdminCheckin)
 		ticketsGroup.POST("/:id/checkin", app.Handlers.TicketHandler.Checkin)
 		ticketsGroup.GET("", app.Handlers.TicketHandler.ListTickets)
+		ticketsGroup.GET("/search", app.Handlers.TicketHandler.SearchByEmail)
+		ticketsGroup.GET("/lookup/:code", app.Handlers.TicketHandler.LookupByCode)
 	}
+
 }
 
 func SetupTeamHeadRoutes(r *gin.RouterGroup, app *api.Application) {
@@ -167,6 +188,10 @@ func SetupTeamHeadRoutes(r *gin.RouterGroup, app *api.Application) {
 	thRoutes.POST("/players", app.Handlers.PlayerHandler.CreatePlayer)
 	thRoutes.PUT("/players/:id", app.Handlers.PlayerHandler.UpdatePlayer)
 	thRoutes.DELETE("/players/:id", app.Handlers.PlayerHandler.DeletePlayer)
+
+	// Allocations
+	thRoutes.GET("/allocations", app.Handlers.TeamTicketAllocationHandler.GetTeamAllocations)
+	thRoutes.POST("/allocations/issue", app.Handlers.TeamTicketAllocationHandler.IssueTeamTicket)
 }
 
 func SetupAuthRoutes(r *gin.RouterGroup, app *api.Application) {
@@ -253,9 +278,7 @@ func SetupTicketRoutes(r *gin.RouterGroup, app *api.Application) {
 		}
 
 		ticketRoutes.POST("/webhook", app.Handlers.TicketHandler.Webhook)
-		ticketRoutes.GET("/search", app.Handlers.TicketHandler.SearchByEmail)
 		ticketRoutes.POST("/verify/:reference", app.Handlers.TicketHandler.VerifyTicket)
 		ticketRoutes.GET("/:reference", app.Handlers.TicketHandler.GetTicket)
-		ticketRoutes.GET("/lookup/:code", app.Handlers.TicketHandler.LookupByCode)
 	}
 }

@@ -13,7 +13,7 @@ export const Button = ({
     className = '',
     ...props
 }: ButtonProps) => {
-    const baseStyles = 'font-bold rounded transition-all duration-300 hover:scale-105 focus:outline-none focus:ring-2';
+    const baseStyles = 'font-bold rounded-lg transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center focus:outline-none focus:ring-2 min-h-[44px]';
 
     const variantStyles = {
         primary: 'bg-sffl-red hover:bg-red-700 text-white dark:bg-red-600 dark:hover:bg-red-700 focus:ring-red-500',
@@ -23,9 +23,9 @@ export const Button = ({
     };
 
     const sizeStyles = {
-        sm: 'px-3 py-1.5 text-xs',
-        md: 'px-4 py-2 text-sm',
-        lg: 'px-6 py-3 text-base'
+        sm: 'px-2 py-1 text-[10px] md:px-3 md:py-1.5 md:text-xs',
+        md: 'px-3 py-1.5 text-xs md:px-4 md:py-2 md:text-sm',
+        lg: 'px-4 py-2 text-sm md:px-6 md:py-3 md:text-base'
     };
 
     return (

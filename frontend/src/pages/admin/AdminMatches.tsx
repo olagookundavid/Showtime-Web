@@ -31,6 +31,8 @@ const emptyForm: FormData = {
 
 export const AdminMatches = () => {
     const queryClient = useQueryClient();
+    const [page, setPage] = useState(1);
+    const PAGE_SIZE = 10;
     const [showModal, setShowModal] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [form, setForm] = useState<FormData>(emptyForm);
@@ -39,21 +41,22 @@ export const AdminMatches = () => {
 
     // Filters
     const [filterComp, setFilterComp] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
 
     const { data: compsData, isLoading: loadingComps } = useQuery({
         queryKey: ['adminCompetitions'],
-        queryFn: () => getCompetitions(1, 20),
+        queryFn: () => getCompetitions(1, 100),
     });
 
     const { data: teamsData, isLoading: loadingTeams } = useQuery({
         queryKey: ['adminTeamsList'],
-        queryFn: () => getTeams(1, 20),
+        queryFn: () => getTeams(1, 100),
     });
 
     const { data: matchesData, isLoading: loadingMatches } = useQuery({
-        queryKey: ['adminMatches', { comp: filterComp }],
+        queryKey: ['adminMatches', { comp: filterComp, page, search: searchTerm }],
         queryFn: async () => {
-            const data = await getMatches(filterComp || undefined, 1, 20);
+            const data = await getMatches(filterComp || undefined, page, PAGE_SIZE, undefined, searchTerm);
             return Array.isArray(data) ? { data, total_pages: 1 } : data;
         },
     });
@@ -61,22 +64,43 @@ export const AdminMatches = () => {
     const competitions: Competition[] = compsData?.data || [];
     const teams: Team[] = teamsData?.data || [];
     const matches: Match[] = matchesData?.data || [];
+    const totalPages = matchesData?.total_pages || 1;
     const loading = loadingComps || loadingTeams || loadingMatches;
 
     const handleFilterChange = (compId: string) => {
         setFilterComp(compId);
+        setPage(1);
     };
 
     const openCreate = () => { setEditingId(null); setForm(emptyForm); setShowModal(true); };
 
     const openEdit = (m: Match) => {
+        console.log('Editing match:', m);
         setEditingId(m.id);
+
+        // Smart lookup for IDs if they are missing but names are present
+        const compId = m.competition?.id || (m as any).competition_id ||
+            competitions.find(c => c.name === m.competition?.name)?.id || '';
+
+        const homeId = m.home_team?.id || (m as any).home_team_id ||
+            teams.find(t => t.name === m.home_team?.name)?.id || '';
+
+        const awayId = m.away_team?.id || (m as any).away_team_id ||
+            teams.find(t => t.name === m.away_team?.name)?.id || '';
+
+        // Robust time parsing
+        let displayTime = m.start_time || '';
+        if (displayTime.includes('T')) {
+            // It's a full ISO string
+            displayTime = displayTime.split('T')[1].slice(0, 5);
+        }
+
         setForm({
-            competition_id: m.competition?.id || '',
-            home_team_id: m.home_team?.id || '',
-            away_team_id: m.away_team?.id || '',
+            competition_id: compId,
+            home_team_id: homeId,
+            away_team_id: awayId,
             date: m.date,
-            start_time: m.start_time ? new Date(m.start_time).toISOString().slice(0, 16) : '',
+            start_time: displayTime,
             venue: m.venue || '',
             status: m.status,
             home_score: m.home_score?.toString() ?? '',
@@ -95,7 +119,7 @@ export const AdminMatches = () => {
                 home_team_id: form.home_team_id,
                 away_team_id: form.away_team_id,
                 date: form.date,
-                start_time: form.start_time ? new Date(form.start_time).toISOString() : '',
+                start_time: form.start_time,
                 venue: form.venue,
                 status: form.status,
                 home_score: form.home_score !== '' ? parseInt(form.home_score) : null,
@@ -187,19 +211,32 @@ export const AdminMatches = () => {
                     <select
                         value={filterComp}
                         onChange={e => handleFilterChange(e.target.value)}
-                        className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 font-semibold text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 min-h-[44px] z-50 font-semibold text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
-                        <option value="">All Competitions</option>
-                        {competitions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        <option value="" className="truncate">All Competitions</option>
+                        {competitions.map(c => <option key={c.id} value={c.id} className="truncate">{c.name}</option>)}
                     </select>
-                    <button onClick={openCreate} className="px-3 py-1.5 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all whitespace-nowrap">+ Add Match</button>
+                    <button onClick={openCreate} className="px-4 py-2 min-h-[44px] bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 whitespace-nowrap">+ Add Match</button>
                 </div>
             </div>
 
             {loading ? (
                 <Loader />
             ) : (
-                <DataTable data={matches} columns={columns} searchable={true} searchPlaceholder="Search matches..." itemsPerPage={10} />
+                <DataTable
+                    data={matches}
+                    columns={columns}
+                    searchable={true}
+                    searchPlaceholder="Search matches..."
+                    itemsPerPage={PAGE_SIZE}
+                    serverPage={page}
+                    totalServerPages={totalPages}
+                    onPageChange={(p) => setPage(p)}
+                    onSearchSubmit={(term) => {
+                        setSearchTerm(term);
+                        setPage(1);
+                    }}
+                />
             )}
 
             {/* Create/Edit Modal */}
@@ -210,52 +247,52 @@ export const AdminMatches = () => {
                             <h2 className="text-2xl font-black text-sffl-navy dark:text-white">{editingId ? 'Edit Match' : 'Add Match'}</h2>
                         </div>
                         <div className="p-6 space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Competition *</label>
-                                    <select value={form.competition_id} onChange={e => set('competition_id', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2">
-                                        <option value="">Select...</option>
-                                        {competitions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    <select value={form.competition_id} onChange={e => set('competition_id', e.target.value)} className="w-full min-h-[44px] z-50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-sffl-red">
+                                        <option value="" className="truncate">Select...</option>
+                                        {competitions.map(c => <option key={c.id} value={c.id} className="truncate">{c.name}</option>)}
                                     </select>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Status</label>
-                                    <select value={form.status} onChange={e => set('status', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2">
-                                        {['SCHEDULED', 'LIVE', 'FINISHED', 'POSTPONED'].map(s => <option key={s} value={s}>{s}</option>)}
+                                    <select value={form.status} onChange={e => set('status', e.target.value)} className="w-full min-h-[44px] z-50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2">
+                                        {['SCHEDULED', 'LIVE', 'FINISHED', 'POSTPONED'].map(s => <option key={s} value={s} className="truncate">{s}</option>)}
                                     </select>
                                 </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Home Team *</label>
-                                    <select value={form.home_team_id} onChange={e => set('home_team_id', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2">
-                                        <option value="">Select...</option>
-                                        {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                    <select value={form.home_team_id} onChange={e => set('home_team_id', e.target.value)} className="w-full min-h-[44px] z-50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2">
+                                        <option value="" className="truncate">Select...</option>
+                                        {teams.map(t => <option key={t.id} value={t.id} className="truncate">{t.name}</option>)}
                                     </select>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Away Team *</label>
-                                    <select value={form.away_team_id} onChange={e => set('away_team_id', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2">
-                                        <option value="">Select...</option>
-                                        {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                    <select value={form.away_team_id} onChange={e => set('away_team_id', e.target.value)} className="w-full min-h-[44px] z-50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2">
+                                        <option value="" className="truncate">Select...</option>
+                                        {teams.map(t => <option key={t.id} value={t.id} className="truncate">{t.name}</option>)}
                                     </select>
                                 </div>
                             </div>
-                            <div className="grid grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Date *</label>
                                     <input type="date" value={form.date} onChange={e => set('date', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Kick-off Time *</label>
-                                    <input type="datetime-local" value={form.start_time} onChange={e => set('start_time', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" />
+                                    <input type="time" value={form.start_time} onChange={e => set('start_time', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Venue</label>
                                     <input type="text" value={form.venue} onChange={e => set('venue', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="e.g. SFFL Arena" />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Home Score</label>
                                     <input type="number" value={form.home_score} onChange={e => set('home_score', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" min="0" />
@@ -275,8 +312,8 @@ export const AdminMatches = () => {
                             </div>
                         </div>
                         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
-                            <button onClick={() => setShowModal(false)} className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Cancel</button>
-                            <button onClick={handleSave} disabled={saving} className="px-3 py-1.5 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition disabled:opacity-50">
+                            <button onClick={() => setShowModal(false)} className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">Cancel</button>
+                            <button onClick={handleSave} disabled={saving} className="px-4 py-2 min-h-[44px] bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50">
                                 {saving ? 'Saving...' : editingId ? 'Update' : 'Create'}
                             </button>
                         </div>
@@ -291,8 +328,8 @@ export const AdminMatches = () => {
                         <h3 className="text-lg font-bold text-sffl-navy dark:text-white mb-2">Delete Match?</h3>
                         <p className="text-gray-600 dark:text-gray-400 mb-6">This action cannot be undone.</p>
                         <div className="flex justify-end gap-2">
-                            <button onClick={() => setDeleteConfirm(null)} className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">Cancel</button>
-                            <button onClick={() => handleDelete(deleteConfirm)} className="px-3 py-1.5 bg-red-600 text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition">Delete</button>
+                            <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">Cancel</button>
+                            <button onClick={() => handleDelete(deleteConfirm)} className="px-4 py-2 min-h-[44px] bg-red-600 text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">Delete</button>
                         </div>
                     </div>
                 </div>

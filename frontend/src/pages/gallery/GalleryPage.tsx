@@ -31,11 +31,11 @@ export const GalleryPage = () => {
     }
 
     return (
-        <div className="max-w-6xl mx-auto space-y-8">
-            {/* Header */}
-            <div className="bg-sffl-navy text-white p-8 rounded-2xl shadow-xl">
-                <h1 className="text-5xl font-black italic">SHOWTIME GALLERY</h1>
-                <p className="text-gray-300 mt-2 text-lg">Game day memories</p>
+        <div className="max-w-6xl mx-auto space-y-4 md:space-y-8">
+            {/* Header - High Density */}
+            <div className="bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
+                <h1 className="text-xl md:text-5xl font-black italic">GALLERY</h1>
+                <p className="text-gray-300 mt-1 text-sm md:text-lg">Game day memories</p>
             </div>
 
             {/* Description */}
@@ -47,8 +47,8 @@ export const GalleryPage = () => {
                 </p>
             </div>
 
-            {/* Gallery Table */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+            {/* Gallery Content - Grid for Mobile, Table for Desktop */}
+            <div className="hidden md:block bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead className="bg-sffl-navy text-white">
@@ -60,7 +60,7 @@ export const GalleryPage = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {gallery.map((entry, index) => (
+                            {gallery.map((entry: any, index: number) => (
                                 <tr
                                     key={entry.id}
                                     className={`${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-700' : 'bg-white dark:bg-gray-800'} hover:bg-gray-100 dark:hover:bg-gray-600 transition duration-150`}
@@ -98,6 +98,36 @@ export const GalleryPage = () => {
                         </tbody>
                     </table>
                 </div>
+            </div>
+
+            {/* Mobile View - High Density 2-Col Grid */}
+            <div className="md:hidden grid grid-cols-2 gap-2">
+                {gallery.map((entry: any) => (
+                    <div key={entry.id} className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-2">
+                        <div>
+                            <div className="text-[10px] text-sffl-red font-black uppercase tracking-widest">{entry.date}</div>
+                            <div className="text-sm font-black text-sffl-navy dark:text-white truncate">{entry.game_week}</div>
+                        </div>
+                        <div className="grid grid-cols-1 gap-1.5 mt-auto">
+                            <a
+                                href={ensureAbsoluteUrl(entry.players_photo_url)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-center gap-2 bg-gray-50 dark:bg-gray-700 py-2 rounded-lg text-[10px] font-bold text-sffl-navy dark:text-white"
+                            >
+                                <span>🏈</span> Players
+                            </a>
+                            <a
+                                href={ensureAbsoluteUrl(entry.fans_photo_url)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-center gap-2 bg-gray-50 dark:bg-gray-700 py-2 rounded-lg text-[10px] font-bold text-sffl-navy dark:text-white"
+                            >
+                                <span>⚡</span> Fans
+                            </a>
+                        </div>
+                    </div>
+                ))}
             </div>
 
             {/* Pagination */}

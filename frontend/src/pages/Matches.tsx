@@ -16,14 +16,14 @@ export default function Matches() {
                 <h1 className="text-3xl font-bold mb-4 md:mb-0">Match Schedule</h1>
 
                 {/* Filters */}
-                <div className="bg-gray-800 p-1 rounded-lg flex gap-1">
+                <div className="bg-gray-800 p-1 rounded-lg flex flex-wrap justify-center gap-1 w-full sm:w-auto mt-4 md:mt-0">
                     {(['all', 'scheduled', 'completed'] as const).map(f => (
                         <button
                             key={f}
                             onClick={() => setFilter(f)}
                             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filter === f
-                                    ? 'bg-blue-600 text-white shadow-sm'
-                                    : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                                ? 'bg-blue-600 text-white shadow-sm'
+                                : 'text-gray-400 hover:text-white hover:bg-gray-700'
                                 }`}
                         >
                             {f.charAt(0).toUpperCase() + f.slice(1)}

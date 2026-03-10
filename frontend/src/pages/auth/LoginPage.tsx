@@ -28,8 +28,8 @@ export const LoginPage = () => {
     };
 
     return (
-        <div className="min-h-[80vh] flex items-center justify-center bg-gray-50 px-4">
-            <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
+        <div className="min-h-[80vh] flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4 transition-colors">
+            <div className="max-w-md w-full bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-xl p-8">
                 {/* Header */}
                 <div className="text-center mb-8">
                     <img
@@ -37,14 +37,14 @@ export const LoginPage = () => {
                         alt="SFFL Logo"
                         className="w-20 h-20 mx-auto mb-4 bg-white rounded-full p-2"
                     />
-                    <h1 className="text-3xl font-black text-sffl-navy">Welcome Back</h1>
-                    <p className="text-gray-600 mt-2">Sign in to your account</p>
+                    <h1 className="text-3xl font-black text-sffl-navy dark:text-white">Welcome Back</h1>
+                    <p className="text-gray-600 dark:text-gray-400 mt-2">Sign in to your account</p>
                 </div>
 
                 {/* Login Form */}
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">
+                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
                             Email Address
                         </label>
                         <input
@@ -52,13 +52,13 @@ export const LoginPage = () => {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sffl-red"
+                            className="w-full px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-sffl-red transition-colors"
                             placeholder="you@example.com"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">
+                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
                             Password
                         </label>
                         <input
@@ -66,7 +66,7 @@ export const LoginPage = () => {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sffl-red"
+                            className="w-full px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-sffl-red transition-colors"
                             placeholder="••••••••"
                         />
                     </div>
@@ -81,9 +81,9 @@ export const LoginPage = () => {
                 </form>
 
                 {/* Sign Up Link */}
-                <p className="text-center text-sm text-gray-600 mt-6">
+                <p className="text-center text-sm text-gray-600 dark:text-gray-400 mt-6">
                     Don't have an account?{' '}
-                    <Link to="/signup" className="text-sffl-red font-bold hover:underline">
+                    <Link to="/signup" className="text-sffl-red font-bold hover:text-red-600 dark:hover:text-red-400 hover:underline transition-colors">
                         Sign up for free
                     </Link>
                 </p>

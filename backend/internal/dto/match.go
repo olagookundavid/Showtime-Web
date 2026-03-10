@@ -1,7 +1,5 @@
 package dto
 
-import "time"
-
 // --- Competitions ---
 type CreateCompetitionRequest struct {
 	Name string `json:"name" binding:"required"`
@@ -63,7 +61,7 @@ type MatchResponse struct {
 	HomeTeam      *TeamResponse        `json:"home_team,omitempty"`
 	AwayTeam      *TeamResponse        `json:"away_team,omitempty"`
 	Date          string               `json:"date"`
-	StartTime     time.Time            `json:"start_time"`
+	StartTime     string               `json:"start_time"`
 	Venue         string               `json:"venue"`
 	Status        string               `json:"status"`
 	HomeScore     *int                 `json:"home_score"`

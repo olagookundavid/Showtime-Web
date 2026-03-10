@@ -66,7 +66,7 @@ export const HeroCarousel = () => {
     };
 
     return (
-        <div className="relative h-[250px] md:h-[300px] overflow-hidden rounded-xl shadow-xl">
+        <div className="relative h-[180px] md:h-[300px] overflow-hidden rounded-lg md:rounded-xl shadow-xl">
             {/* Slides */}
             {slides.map((slide, index) => (
                 <div
@@ -84,16 +84,16 @@ export const HeroCarousel = () => {
                         </div>
 
                         {/* Content */}
-                        <div className="relative h-full flex items-center justify-center text-center text-white px-4">
+                        <div className="relative h-full flex items-center justify-center text-center text-white px-3 md:px-4">
                             <div className="max-w-2xl">
-                                <h2 className="text-3xl md:text-4xl font-black italic mb-2 drop-shadow-lg">
+                                <h2 className="text-xl md:text-4xl font-black italic mb-1 drop-shadow-lg">
                                     {slide.title}
                                 </h2>
-                                <p className="text-base md:text-lg mb-4 drop-shadow-md">
+                                <p className="text-xs md:text-lg mb-3 drop-shadow-md">
                                     {slide.subtitle}
                                 </p>
                                 <span
-                                    className="inline-block bg-white text-sffl-navy font-black text-sm px-6 py-2 rounded-full hover:bg-gray-100 transition-all transform hover:scale-105 shadow-lg"
+                                    className="inline-flex items-center justify-center bg-white text-sffl-navy font-black text-[10px] md:text-sm px-4 py-1.5 md:px-6 md:py-2 min-h-[32px] md:min-h-[44px] rounded-full hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg"
                                 >
                                     {slide.ctaText}
                                 </span>
@@ -106,35 +106,34 @@ export const HeroCarousel = () => {
             {/* Navigation Arrows */}
             <button
                 onClick={(e) => { e.preventDefault(); prevSlide(); }}
-                className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/30 hover:bg-white/50 text-white p-3 rounded-full backdrop-blur-sm transition-all z-20"
+                className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-2 md:p-3 min-h-[32px] md:min-h-[44px] min-w-[32px] md:min-w-[44px] flex items-center justify-center rounded-full backdrop-blur-sm transition-all duration-300 hover:scale-[1.02] active:scale-95 z-20"
                 aria-label="Previous slide"
             >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" />
                 </svg>
             </button>
             <button
                 onClick={(e) => { e.preventDefault(); nextSlide(); }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/30 hover:bg-white/50 text-white p-3 rounded-full backdrop-blur-sm transition-all z-20"
+                className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-2 md:p-3 min-h-[32px] md:min-h-[44px] min-w-[32px] md:min-w-[44px] flex items-center justify-center rounded-full backdrop-blur-sm transition-all duration-300 hover:scale-[1.02] active:scale-95 z-20"
                 aria-label="Next slide"
             >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
                 </svg>
             </button>
 
             {/* Dot Indicators */}
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+            <div className="absolute bottom-3 md:bottom-6 left-1/2 -translate-x-1/2 flex gap-1 md:gap-2 z-20">
                 {slides.map((_, index) => (
                     <button
                         key={index}
                         onClick={(e) => { e.preventDefault(); goToSlide(index); }}
-                        className={`w-3 h-3 rounded-full transition-all ${index === currentSlide
-                            ? 'bg-white w-8'
-                            : 'bg-white/50 hover:bg-white/75'
-                            }`}
+                        className="p-1 min-h-[32px] md:min-h-[44px] min-w-[32px] md:min-w-[44px] flex items-center justify-center group"
                         aria-label={`Go to slide ${index + 1}`}
-                    />
+                    >
+                        <span className={`w-2 h-2 md:w-3 md:h-3 rounded-full transition-all duration-300 ${index === currentSlide ? 'bg-white w-6 md:w-8' : 'bg-white/50 group-hover:bg-white/75'}`} />
+                    </button>
                 ))}
             </div>
         </div>

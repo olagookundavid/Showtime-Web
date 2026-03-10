@@ -17,6 +17,8 @@ interface UserResponse {
 
 const AdminUsers = () => {
     const queryClient = useQueryClient();
+    const [page, setPage] = useState(1);
+    const PAGE_SIZE = 10;
     const [searchTerm, setSearchTerm] = useState('');
 
     const {
@@ -24,11 +26,12 @@ const AdminUsers = () => {
         isLoading: loading,
         error: queryError,
     } = useQuery({
-        queryKey: ['adminUsers', { search: searchTerm }],
-        queryFn: () => getAdminUsers({ page: 1, limit: 20, search: searchTerm }),
+        queryKey: ['adminUsers', { page, search: searchTerm }],
+        queryFn: () => getAdminUsers({ page, limit: PAGE_SIZE, search: searchTerm }),
     });
 
     const users: UserResponse[] = usersData?.data || [];
+    const totalPages = usersData?.total_pages || 1;
     const error = queryError ? (queryError as any).response?.data?.message || (queryError as any).response?.data?.error || 'Failed to fetch users.' : '';
 
     // Edit modal
@@ -97,11 +100,12 @@ const AdminUsers = () => {
                 <select
                     value={u.role}
                     onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-sffl-red focus:border-sffl-red p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors cursor-pointer min-w-[120px]"
+                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-sffl-red focus:border-sffl-red px-3 py-2 min-h-[44px] z-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors cursor-pointer min-w-[120px]"
                 >
-                    <option value="user">User</option>
-                    <option value="team_head">Team Head</option>
-                    <option value="admin">Admin</option>
+                    <option value="user" className="truncate">User</option>
+                    <option value="team_head" className="truncate">Team Head</option>
+                    <option value="ticketer" className="truncate">Ticketer</option>
+                    <option value="admin" className="truncate">Admin</option>
                 </select>
             )
         },
@@ -118,7 +122,7 @@ const AdminUsers = () => {
             cell: (u) => (
                 <button
                     onClick={() => openEdit(u)}
-                    className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 font-bold text-sm rounded-lg shadow-sm transition-all"
+                    className="px-4 py-2 min-h-[44px] bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 font-bold text-sm rounded-lg shadow-sm transition-all duration-300 hover:scale-[1.02] active:scale-95"
                 >
                     Edit
                 </button>
@@ -151,8 +155,14 @@ const AdminUsers = () => {
                     columns={columns}
                     searchable={true}
                     searchPlaceholder="Search users by email or name..."
-                    itemsPerPage={20}
-                    onSearchSubmit={(term) => setSearchTerm(term)}
+                    itemsPerPage={PAGE_SIZE}
+                    serverPage={page}
+                    totalServerPages={totalPages}
+                    onPageChange={setPage}
+                    onSearchSubmit={(term) => {
+                        setSearchTerm(term);
+                        setPage(1);
+                    }}
                 />
             )}
 
@@ -171,7 +181,7 @@ const AdminUsers = () => {
                                     type="text"
                                     value={editForm.fullname}
                                     onChange={(e) => setEditForm(prev => ({ ...prev, fullname: e.target.value }))}
-                                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-sffl-red transition-colors"
+                                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 min-h-[44px] bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-sffl-red transition-colors"
                                     placeholder="Full Name"
                                 />
                             </div>
@@ -181,7 +191,7 @@ const AdminUsers = () => {
                                     type="tel"
                                     value={editForm.phone}
                                     onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
-                                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-sffl-red transition-colors"
+                                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 min-h-[44px] bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-sffl-red transition-colors"
                                     placeholder="Phone Number"
                                 />
                             </div>
@@ -189,14 +199,14 @@ const AdminUsers = () => {
                         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
                             <button
                                 onClick={() => setEditingUser(null)}
-                                className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-all dark:text-gray-300"
+                                className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 dark:text-gray-300"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleEditSave}
                                 disabled={saving || !editForm.fullname.trim()}
-                                className="px-3 py-1.5 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-4 py-2 min-h-[44px] bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {saving ? 'Saving...' : 'Save Changes'}
                             </button>

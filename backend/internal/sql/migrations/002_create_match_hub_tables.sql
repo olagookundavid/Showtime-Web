@@ -18,9 +18,9 @@ CREATE TABLE IF NOT EXISTS teams (
 
 CREATE TABLE IF NOT EXISTS matches (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    competition_id UUID REFERENCES competitions(id),
-    home_team_id UUID REFERENCES teams(id),
-    away_team_id UUID REFERENCES teams(id),
+    competition_id UUID REFERENCES competitions(id) ON DELETE CASCADE,
+    home_team_id UUID REFERENCES teams(id) ON DELETE CASCADE,
+    away_team_id UUID REFERENCES teams(id) ON DELETE CASCADE,
     date DATE NOT NULL,
     time TIME NOT NULL,
     venue VARCHAR(255),
@@ -35,8 +35,8 @@ CREATE TABLE IF NOT EXISTS matches (
 
 CREATE TABLE IF NOT EXISTS standings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    competition_id UUID REFERENCES competitions(id),
-    team_id UUID REFERENCES teams(id),
+    competition_id UUID REFERENCES competitions(id) ON DELETE CASCADE,
+    team_id UUID REFERENCES teams(id) ON DELETE CASCADE,
     position INT,
     played INT DEFAULT 0,
     won INT DEFAULT 0,

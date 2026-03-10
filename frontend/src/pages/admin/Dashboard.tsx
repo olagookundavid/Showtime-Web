@@ -89,7 +89,7 @@ export const Dashboard = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <Link
                         to="/admin/matches"
-                        className="flex items-center gap-3 p-4 border-2 border-gray-100 dark:border-gray-700 rounded-lg hover:border-sffl-red dark:hover:border-sffl-red hover:bg-red-50 dark:hover:bg-gray-700 transition"
+                        className="flex items-center gap-3 p-4 min-h-[44px] border-2 border-gray-100 dark:border-gray-700 rounded-lg hover:border-sffl-red dark:hover:border-sffl-red hover:bg-red-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
                     >
                         <div className="text-3xl">🏈</div>
                         <div>
@@ -100,7 +100,7 @@ export const Dashboard = () => {
 
                     <Link
                         to="/admin/news"
-                        className="flex items-center gap-3 p-4 border-2 border-gray-100 dark:border-gray-700 rounded-lg hover:border-sffl-navy dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-gray-700 transition"
+                        className="flex items-center gap-3 p-4 min-h-[44px] border-2 border-gray-100 dark:border-gray-700 rounded-lg hover:border-sffl-navy dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
                     >
                         <div className="text-3xl">📰</div>
                         <div>
@@ -111,7 +111,7 @@ export const Dashboard = () => {
 
                     <Link
                         to="/admin/event-days"
-                        className="flex items-center gap-3 p-4 border-2 border-gray-100 dark:border-gray-700 rounded-lg hover:border-green-500 dark:hover:border-green-500 hover:bg-green-50 dark:hover:bg-gray-700 transition"
+                        className="flex items-center gap-3 p-4 min-h-[44px] border-2 border-gray-100 dark:border-gray-700 rounded-lg hover:border-green-500 dark:hover:border-green-500 hover:bg-green-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
                     >
                         <div className="text-3xl">📅</div>
                         <div>
@@ -122,7 +122,7 @@ export const Dashboard = () => {
 
                     <Link
                         to="/admin/gallery"
-                        className="flex items-center gap-3 p-4 border-2 border-gray-100 dark:border-gray-700 rounded-lg hover:border-purple-500 dark:hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-gray-700 transition"
+                        className="flex items-center gap-3 p-4 min-h-[44px] border-2 border-gray-100 dark:border-gray-700 rounded-lg hover:border-purple-500 dark:hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
                     >
                         <div className="text-3xl">📸</div>
                         <div>

@@ -211,9 +211,9 @@ func (s *AuthService) ListUsers(ctx context.Context, page, limit int, searchFilt
 
 func (s *AuthService) UpdateUserRole(ctx context.Context, userID, newRole string) error {
 	// Validate role
-	validRoles := map[string]bool{"admin": true, "user": true, "team_head": true}
+	validRoles := map[string]bool{"admin": true, "user": true, "team_head": true, "ticketer": true}
 	if !validRoles[newRole] {
-		return fmt.Errorf("invalid role: %s. Allowed roles are admin, user, team_head", newRole)
+		return fmt.Errorf("invalid role: %s. Allowed roles are admin, user, team_head, ticketer", newRole)
 	}
 
 	return s.AuthRepository.UpdateUserRole(ctx, userID, newRole)
