@@ -3,6 +3,7 @@ package routes
 import (
 	"expvar"
 	"pkg-common/commonAuth"
+	"strings"
 
 	"showtime-backend/cmd/api"
 	"showtime-backend/internal/middlewares"
@@ -30,10 +31,19 @@ func Routes(app *api.Application) *gin.Engine {
 	r.Use(cors.New(cors.Config{
 		// 1. We are retaining production/staging domains here
 		AllowOrigins: allowOrigins,
-		// 2. Allow Origin function to handle dynamic localhost ports
-		AllowOriginFunc:  helpers.AllowLocalHost,
-		AllowMethods:     []string{"GET", "POST", "OPTIONS", "PUT", "DELETE"},
-		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		// 2. Allow Origin function to handle dynamic localhost ports and Vercel previews
+		AllowOriginFunc: func(origin string) bool {
+			if helpers.AllowLocalHost(origin) {
+				return true
+			}
+			// Automatically allow Vercel preview environments for staging
+			if strings.HasSuffix(origin, ".vercel.app") {
+				return true
+			}
+			return false
+		},
+		AllowMethods:     []string{"GET", "POST", "OPTIONS", "PUT", "DELETE", "PATCH"},
+		AllowHeaders:     []string{"Content-Type", "Authorization", "X-Requested-With"},
 		AllowCredentials: true,
 	}))
 

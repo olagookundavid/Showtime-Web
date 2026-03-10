@@ -96,9 +96,9 @@ export const TicketsPage = () => {
     return (
         <div className="max-w-6xl mx-auto space-y-4 md:space-y-8">
             {/* Header - Compact for Mobile */}
-            <div className="bg-gradient-to-r from-sffl-red to-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-center gap-4">
                 <div className="text-center md:text-left">
-                    <h1 className="text-xl md:text-5xl font-black italic tracking-tighter">TICKETS</h1>
+                    <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">TICKETS</h1>
                     <p className="text-gray-200 mt-1 text-xs md:text-lg">Secure your spot</p>
                 </div>
                 <div className="bg-white/10 p-3 md:p-4 rounded-xl backdrop-blur-sm w-full md:w-auto">

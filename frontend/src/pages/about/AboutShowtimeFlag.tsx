@@ -14,7 +14,7 @@ export const AboutShowtimeFlag = () => {
                     className="w-40 h-40 object-contain bg-white rounded-full p-4 shadow-xl z-10"
                 />
                 <div className="z-10 text-center md:text-left">
-                    <h1 className="text-5xl md:text-6xl font-black italic tracking-tight">ABOUT SHOWTIME</h1>
+                    <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">ABOUT SHOWTIME</h1>
                     <p className="text-xl text-gray-300 mt-4 font-semibold uppercase tracking-widest">The Standard of Co-Ed Flag Football</p>
                 </div>
             </div>

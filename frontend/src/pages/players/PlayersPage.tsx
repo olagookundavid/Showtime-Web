@@ -28,7 +28,7 @@ export const PlayersPage = () => {
             {/* Header - High Density */}
             <div className="flex flex-col md:flex-row justify-between items-center bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
                 <div>
-                    <h1 className="text-xl md:text-5xl font-black italic tracking-tighter">PLAYERS</h1>
+                    <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">PLAYERS</h1>
                     <p className="text-gray-300 mt-1 text-sm md:text-lg">Meet the stars</p>
                 </div>
 

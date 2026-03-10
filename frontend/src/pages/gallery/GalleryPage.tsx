@@ -34,7 +34,7 @@ export const GalleryPage = () => {
         <div className="max-w-6xl mx-auto space-y-4 md:space-y-8">
             {/* Header - High Density */}
             <div className="bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
-                <h1 className="text-xl md:text-5xl font-black italic">GALLERY</h1>
+                <h1 className="text-3xl md:text-5xl font-black italic">GALLERY</h1>
                 <p className="text-gray-300 mt-1 text-sm md:text-lg">Game day memories</p>
             </div>
 

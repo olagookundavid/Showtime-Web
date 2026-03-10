@@ -2,9 +2,11 @@ export const StorePage = () => {
     return (
         <div className="max-w-6xl mx-auto space-y-8">
             {/* Header - Condensed */}
-            <div className="bg-gradient-to-r from-sffl-red to-sffl-navy text-white p-6 md:p-12 rounded-xl md:rounded-3xl shadow-2xl text-center">
-                <h1 className="text-2xl md:text-5xl font-black italic tracking-tight mb-2">STORE</h1>
-                <p className="text-sm md:text-xl text-gray-200">Official merchandise and gear</p>
+            <div className="bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-center">
+                <div>
+                    <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">STORE</h1>
+                    <p className="text-sm md:text-lg text-gray-300 mt-1">Official merchandise and gear</p>
+                </div>
             </div>
 
             {/* Store Preview - High Density */}

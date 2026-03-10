@@ -1,8 +1,8 @@
 export const ShowtimeArena = () => {
     return (
         <div className="max-w-6xl mx-auto space-y-8">
-            <div className="bg-sffl-navy text-white p-8 rounded-2xl shadow-xl">
-                <h1 className="text-4xl font-black italic">SHOWTIME ARENA</h1>
+            <div className="bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
+                <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">SHOWTIME ARENA</h1>
                 <p className="text-gray-300 mt-2">Home of the SFFL</p>
             </div>
 

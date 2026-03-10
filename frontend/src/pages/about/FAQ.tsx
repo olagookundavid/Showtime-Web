@@ -160,7 +160,7 @@ export const FAQ = () => {
                 <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=2069&auto=format&fit=crop')] bg-cover bg-center opacity-10 mix-blend-overlay"></div>
                 <div className="relative z-10">
                     <span className="inline-block bg-sffl-red text-white text-xs font-black px-3 py-1 rounded-full uppercase tracking-widest mb-4 mt-2">Help Center</span>
-                    <h1 className="text-5xl font-black italic tracking-tight mb-4 text-white">FREQUENTLY ASKED QUESTIONS</h1>
+                    <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter mb-4 text-white">FREQUENTLY ASKED QUESTIONS</h1>
                     <p className="text-xl text-gray-200 font-medium">Everything you need to know about Showtime Flag Football</p>
                 </div>
             </div>

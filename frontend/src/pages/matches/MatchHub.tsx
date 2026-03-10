@@ -73,9 +73,9 @@ export const MatchHub = () => {
     return (
         <div className="max-w-6xl mx-auto space-y-10 min-h-screen p-4">
             {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-center bg-sffl-navy text-white p-8 rounded-2xl shadow-xl">
+            <div className="flex flex-col md:flex-row justify-between items-center bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
                 <div>
-                    <h1 className="text-4xl md:text-5xl font-black italic tracking-tighter">MATCH HUB</h1>
+                    <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">MATCH HUB</h1>
                     <p className="text-gray-300 mt-2 text-lg">Scores, Fixtures & Standings</p>
                     <div className="mt-4 lg:hidden">
                         <Link to="/standings" className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full text-xs font-bold transition-all border border-white/20">
