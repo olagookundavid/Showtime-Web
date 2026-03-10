@@ -45,7 +45,7 @@ export const MatchHub = () => {
         enabled: !!selectedCompetitionId,
     });
 
-    const matches = infiniteMatchesData?.pages.flatMap(p => p.data || []) || [];
+    const matches = infiniteMatchesData?.pages?.reduce((acc: any[], p: any) => acc.concat(p?.data || []), []) || [];
     const hasMore = hasNextPage;
     const loading = loadingComps || initialMatchesLoading;
 

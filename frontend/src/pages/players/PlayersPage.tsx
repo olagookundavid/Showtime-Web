@@ -11,15 +11,13 @@ export const PlayersPage = () => {
         queryKey: ['publicTeams'],
         queryFn: () => getTeams(1, 100),
     });
-    // Safely extract data array, defaulting to empty array if null/undefined
-    const teams: any[] = (teamsData as any)?.data ?? teamsData ?? [];
+    const teams: any[] = Array.isArray(teamsData?.data) ? teamsData.data : Array.isArray(teamsData) ? teamsData : [];
 
     const { data: playersData, isLoading: dataLoading } = useQuery({
         queryKey: ['publicPlayers', selectedTeamId],
         queryFn: () => getPlayers(selectedTeamId || undefined),
     });
-    // Safely extract data array, defaulting to empty array if null/undefined
-    const players: any[] = (playersData as any)?.data ?? playersData ?? [];
+    const players: any[] = Array.isArray(playersData?.data) ? playersData.data : Array.isArray(playersData) ? playersData : [];
 
     const loading = loadingTeams;
 
