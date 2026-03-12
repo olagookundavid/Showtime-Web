@@ -1,18 +1,33 @@
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
-import { getPlayerById } from '../../services/api';
+import { getPlayerById, getPlayerStatById } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
+
+const StatCard = ({ label, value }: { label: string, value: number }) => {
+    return (
+        <div className="text-center p-4 md:p-6 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
+            <div className="text-2xl md:text-4xl font-black text-sffl-navy dark:text-white mb-1 md:mb-2">{value}</div>
+            <div className="text-[10px] md:text-sm text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest">{label}</div>
+        </div>
+    );
+};
 
 export const PlayerDetail = () => {
     const { id } = useParams<{ id: string }>();
 
-    const { data: player, isLoading: loading, isError: error } = useQuery({
+    const { data: player, isLoading: loadingPlayer, isError: error } = useQuery({
         queryKey: ['publicPlayer', id],
         queryFn: () => getPlayerById(id!),
         enabled: !!id,
     });
 
-    if (loading) return <Loader />;
+    const { data: stats, isLoading: loadingStats } = useQuery({
+        queryKey: ['playerStats', id],
+        queryFn: () => getPlayerStatById(id!),
+        enabled: !!id,
+    });
+
+    if (loadingPlayer || loadingStats) return <Loader />;
 
     if (error || !player) {
         return (
@@ -66,31 +81,36 @@ export const PlayerDetail = () => {
             </div>
 
             {/* Stats Section */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 md:p-8 border border-gray-100 dark:border-gray-700">
-                <h2 className="text-xl md:text-3xl font-black text-sffl-navy dark:text-white mb-4 md:mb-6 uppercase tracking-tight">Season Performance</h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
-                    <div className="text-center p-4 md:p-6 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
-                        <div className="text-2xl md:text-4xl font-black text-sffl-red mb-1 md:mb-2">{player.touchdowns}</div>
-                        <div className="text-[10px] md:text-sm text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest">Touchdowns</div>
+            {stats && (
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 md:p-8 border border-gray-100 dark:border-gray-700">
+                    <h2 className="text-xl md:text-3xl font-black text-sffl-navy dark:text-white mb-4 md:mb-6 uppercase tracking-tight">Season Performance</h2>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
+                        <StatCard label="Passing TDs" value={stats.passing_tds} />
+                        <StatCard label="Comp. Passes" value={stats.completed_passes} />
+                        <StatCard label="Pass Attempts" value={stats.passing_attempts} />
+                        <StatCard label="Rushing TDs" value={stats.rushing_tds} />
+                        <StatCard label="Rush Attempts" value={stats.rushing_attempts} />
+                        <StatCard label="Receiving TDs" value={stats.receiving_tds} />
+                        <StatCard label="Receptions" value={stats.receptions} />
+                        <StatCard label="INT Thrown" value={stats.interceptions_thrown} />
+                        <StatCard label="INT Caught" value={stats.interceptions} />
+                        <StatCard label="DEF Sacks" value={stats.def_sacks} />
+                        <StatCard label="QB Sacks" value={stats.qb_sacks} />
+                        <StatCard label="Flag Pulls" value={stats.flag_pulls} />
+                        <StatCard label="DEF TDs" value={stats.defensive_tds} />
+                        <StatCard label="Pass Deflect" value={stats.pass_deflections} />
+                        <StatCard label="Drops" value={stats.drops} />
+                        <StatCard label="Safety" value={stats.safety} />
                     </div>
-                    <div className="text-center p-4 md:p-6 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
-                        <div className="text-2xl md:text-4xl font-black text-sffl-navy dark:text-white mb-1 md:mb-2">{player.yards}</div>
-                        <div className="text-[10px] md:text-sm text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest">Total Yards</div>
-                    </div>
-                    {player.interceptions > 0 && (
-                        <div className="text-center p-4 md:p-6 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
-                            <div className="text-2xl md:text-4xl font-black text-sffl-red mb-1 md:mb-2">{player.interceptions}</div>
-                            <div className="text-[10px] md:text-sm text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest">Interceptions</div>
-                        </div>
-                    )}
-                    {player.tackles > 0 && (
-                        <div className="text-center p-4 md:p-6 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
-                            <div className="text-2xl md:text-4xl font-black text-sffl-navy dark:text-white mb-1 md:mb-2">{player.tackles}</div>
-                            <div className="text-[10px] md:text-sm text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest">Tackles</div>
-                        </div>
-                    )}
                 </div>
-            </div>
+            )}
+
+            {/* If no stats exist, we can just omit or show a quick note */}
+            {!stats && (
+                <div className="text-center py-10 opacity-60">
+                    <p className="text-lg font-bold text-gray-500">No statistics recorded yet.</p>
+                </div>
+            )}
         </div>
     );
 };

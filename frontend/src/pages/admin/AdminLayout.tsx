@@ -62,6 +62,7 @@ export const AdminLayout = () => {
         { name: 'Teams', path: '/admin/teams', icon: ShieldCheckIcon },
         { name: 'Competitions', path: '/admin/competitions', icon: TrophyIcon },
         { name: 'Players', path: '/admin/players', icon: UserGroupIcon },
+        { name: 'Stats', path: '/admin/stats', icon: ChartBarIcon },
         { name: 'Standings', path: '/admin/standings', icon: TrophyIcon },
         { name: 'Tickets', path: '/admin/tickets', icon: TicketIcon },
         { name: 'Event Days', path: '/admin/event-days', icon: CalendarIcon },

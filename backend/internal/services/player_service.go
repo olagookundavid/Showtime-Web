@@ -32,16 +32,12 @@ func (s *PlayerService) GetPlayers(ctx context.Context, teamID string, search st
 	var res []dto.PlayerResponse
 	for _, p := range players {
 		pr := dto.PlayerResponse{
-			ID:            p.ID,
-			Name:          p.Name,
-			JerseyNumber:  p.JerseyNumber,
-			Position:      p.Position,
-			Bio:           p.Bio,
-			Image:         p.Image,
-			Touchdowns:    p.Touchdowns,
-			Yards:         p.Yards,
-			Interceptions: p.Interceptions,
-			Tackles:       p.Tackles,
+			ID:           p.ID,
+			Name:         p.Name,
+			JerseyNumber: p.JerseyNumber,
+			Position:     p.Position,
+			Bio:          p.Bio,
+			Image:        p.Image,
 		}
 		if p.Team != nil {
 			pr.Team = &dto.TeamResponse{
@@ -63,16 +59,12 @@ func (s *PlayerService) GetPlayerByID(ctx context.Context, id string) (*dto.Play
 	}
 
 	pr := &dto.PlayerResponse{
-		ID:            p.ID,
-		Name:          p.Name,
-		JerseyNumber:  p.JerseyNumber,
-		Position:      p.Position,
-		Bio:           p.Bio,
-		Image:         p.Image,
-		Touchdowns:    p.Touchdowns,
-		Yards:         p.Yards,
-		Interceptions: p.Interceptions,
-		Tackles:       p.Tackles,
+		ID:           p.ID,
+		Name:         p.Name,
+		JerseyNumber: p.JerseyNumber,
+		Position:     p.Position,
+		Bio:          p.Bio,
+		Image:        p.Image,
 	}
 	if p.Team != nil {
 		pr.Team = &dto.TeamResponse{

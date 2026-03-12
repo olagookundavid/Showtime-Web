@@ -15,15 +15,11 @@ interface FormData {
     team_id: string;
     bio: string;
     image: string;
-    touchdowns: string;
-    yards: string;
-    interceptions: string;
-    tackles: string;
 }
 
 const emptyForm: FormData = {
     name: '', jersey_number: '', position: '', team_id: '',
-    bio: '', image: '', touchdowns: '0', yards: '0', interceptions: '0', tackles: '0',
+    bio: '', image: ''
 };
 
 const POSITIONS = ['QB', 'RB', 'WR', 'TE', 'OL', 'DL', 'LB', 'CB', 'S', 'K', 'P'];
@@ -72,10 +68,6 @@ export const AdminPlayers = () => {
             team_id: p.team?.id || '',
             bio: p.bio || '',
             image: p.image || '',
-            touchdowns: p.touchdowns?.toString() || '0',
-            yards: p.yards?.toString() || '0',
-            interceptions: p.interceptions?.toString() || '0',
-            tackles: p.tackles?.toString() || '0',
         });
         setShowModal(true);
     };
@@ -90,10 +82,6 @@ export const AdminPlayers = () => {
                 team_id: form.team_id,
                 bio: form.bio,
                 image: form.image,
-                touchdowns: parseInt(form.touchdowns) || 0,
-                yards: parseInt(form.yards) || 0,
-                interceptions: parseInt(form.interceptions) || 0,
-                tackles: parseInt(form.tackles) || 0,
             };
             if (editingId) {
                 await updatePlayer(editingId, payload);
@@ -150,8 +138,6 @@ export const AdminPlayers = () => {
             sortValue: (p) => p.team?.name || '',
             cell: (p) => <span className="text-sm dark:text-gray-300">{p.team?.name || '—'}</span>
         },
-        { header: 'TDs', accessor: 'touchdowns', sortable: true, className: "px-4 py-3 text-sm font-semibold dark:text-gray-300" },
-        { header: 'Yards', accessor: 'yards', sortable: true, className: "px-4 py-3 text-sm font-semibold dark:text-gray-300" },
         {
             header: 'Actions',
             className: "px-4 py-3 text-right space-x-2 w-48",
@@ -241,24 +227,6 @@ export const AdminPlayers = () => {
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Image URL</label>
                                 <input type="url" value={form.image} onChange={e => set('image', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="https://..." />
-                            </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">TDs</label>
-                                    <input type="number" value={form.touchdowns} onChange={e => set('touchdowns', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" min="0" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Yards</label>
-                                    <input type="number" value={form.yards} onChange={e => set('yards', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" min="0" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">INTs</label>
-                                    <input type="number" value={form.interceptions} onChange={e => set('interceptions', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" min="0" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Tackles</label>
-                                    <input type="number" value={form.tackles} onChange={e => set('tackles', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" min="0" />
-                                </div>
                             </div>
                         </div>
                         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">

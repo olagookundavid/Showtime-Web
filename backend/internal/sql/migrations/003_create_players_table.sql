@@ -7,10 +7,6 @@ CREATE TABLE IF NOT EXISTS players (
     team_id UUID REFERENCES teams(id) ON DELETE CASCADE,
     bio TEXT,
     image TEXT,
-    touchdowns INT DEFAULT 0,
-    yards INT DEFAULT 0,
-    interceptions INT DEFAULT 0,
-    tackles INT DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

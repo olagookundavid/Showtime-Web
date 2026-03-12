@@ -76,6 +76,7 @@ func Routes(app *api.Application) *gin.Engine {
 	SetupMatchRoutes(v1_api, app)
 	SetupPlayerRoutes(v1_api, app)
 	SetupTicketRoutes(v1_api, app)
+	SetupStatsRoutes(v1_api, app)
 	return r
 }
 
@@ -153,6 +154,12 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		playersGroup.POST("", app.Handlers.PlayerHandler.CreatePlayer)
 		playersGroup.PUT("/:id", app.Handlers.PlayerHandler.UpdatePlayer)
 		playersGroup.DELETE("/:id", app.Handlers.PlayerHandler.DeletePlayer)
+	}
+
+	statsGroup := adminRoutes.Group("/stats")
+	statsGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
+	{
+		statsGroup.POST("/players", app.Handlers.StatsHandler.UpsertPlayerStat)
 	}
 
 	eventDaysGroup := adminRoutes.Group("/event-days")
@@ -261,6 +268,16 @@ func SetupPlayerRoutes(r *gin.RouterGroup, app *api.Application) {
 	{
 		playerRoutes.GET("", app.Handlers.PlayerHandler.GetPlayers)
 		playerRoutes.GET("/:id", app.Handlers.PlayerHandler.GetPlayerByID)
+	}
+}
+
+func SetupStatsRoutes(r *gin.RouterGroup, app *api.Application) {
+	statsRoutes := r.Group("/stats")
+	{
+		statsRoutes.GET("/players", app.Handlers.StatsHandler.GetPlayerStats)
+		statsRoutes.GET("/players/:id", app.Handlers.StatsHandler.GetPlayerStatByID)
+		statsRoutes.GET("/teams", app.Handlers.StatsHandler.GetTeamStats)
+		statsRoutes.GET("/dates", app.Handlers.StatsHandler.GetStatDates)
 	}
 }
 

@@ -67,6 +67,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                             <Link to="/" className="hover:text-sffl-red transition-all duration-300 hover:scale-110">Home</Link>
                             <Link to="/tickets" className="hover:text-sffl-red transition-all duration-300 hover:scale-110">Tickets</Link>
                             <Link to="/store" className="hover:text-sffl-red transition-all duration-300 hover:scale-110">Store</Link>
+                            <Link to="/stats" className="hover:text-sffl-red transition-all duration-300 hover:scale-110">Stats</Link>
 
                             {/* About Us Dropdown */}
                             <div
@@ -214,6 +215,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                         <Link to="/gallery" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors">Gallery</Link>
                         <Link to="/tickets" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors">Tickets</Link>
                         <Link to="/store" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors">Store</Link>
+                        <Link to="/stats" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors">Stats</Link>
 
                         {/* About Section */}
                         <div className="border-t border-gray-700/50 pt-6 mt-4 pb-2">

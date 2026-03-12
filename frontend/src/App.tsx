@@ -17,6 +17,7 @@ import { Whistleblower } from './pages/about/Whistleblower';
 import { NewsList } from './pages/news/NewsList';
 import { MatchHub } from './pages/matches/MatchHub';
 import { StandingsPage } from './pages/matches/StandingsPage';
+import { StatsPage } from './pages/stats/StatsPage';
 import { NewsDetail } from './pages/news/NewsDetail';
 import { GalleryPage } from './pages/gallery/GalleryPage';
 import { TicketsPage } from './pages/tickets/TicketsPage';
@@ -32,6 +33,7 @@ import { AdminMatches } from './pages/admin/AdminMatches';
 import { AdminNews } from './pages/admin/AdminNews';
 import { AdminGallery } from './pages/admin/AdminGallery';
 import { AdminPlayers } from './pages/admin/AdminPlayers';
+import { AdminStats } from './pages/admin/AdminStats';
 import { AdminStandings } from './pages/admin/AdminStandings';
 import { AdminTickets } from './pages/admin/AdminTickets';
 import { AdminEventDays } from './pages/admin/AdminEventDays';
@@ -66,7 +68,7 @@ function App() {
 // ...
               <Route path="/matches" element={<MatchHub />} />
               <Route path="/standings" element={<StandingsPage />} />
-              // ...
+              <Route path="/stats" element={<StatsPage />} />
               <Route path="/news" element={<NewsList />} />
               <Route path="/news/:slug" element={<NewsDetail />} />
               <Route path="/gallery" element={<GalleryPage />} />
@@ -104,6 +106,7 @@ function App() {
               <Route path="news" element={<AdminNews />} />
               <Route path="gallery" element={<AdminGallery />} />
               <Route path="players" element={<AdminPlayers />} />
+              <Route path="stats" element={<AdminStats />} />
               <Route path="standings" element={<AdminStandings />} />
               <Route path="tickets" element={<AdminTickets />} />
               <Route path="event-days" element={<AdminEventDays />} />

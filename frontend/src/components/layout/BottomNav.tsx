@@ -4,13 +4,15 @@ import {
     TableCellsIcon,
     TicketIcon,
     UserGroupIcon,
-    Bars3Icon
+    Bars3Icon,
+    ChartBarIcon
 } from '@heroicons/react/24/outline';
 import {
     CalendarIcon as CalendarSolid,
     TableCellsIcon as TableSolid,
     TicketIcon as TicketSolid,
     UserGroupIcon as UserGroupSolid,
+    ChartBarIcon as ChartBarSolid,
 } from '@heroicons/react/24/solid';
 
 interface BottomNavProps {
@@ -23,7 +25,7 @@ export const BottomNav = ({ onMoreClick }: BottomNavProps) => {
     const navItems = [
         { name: 'Matches', path: '/matches', icon: CalendarIcon, solidIcon: CalendarSolid },
         { name: 'Standings', path: '/standings', icon: TableCellsIcon, solidIcon: TableSolid },
-        { name: 'Store', path: '/store', icon: TicketIcon, solidIcon: TicketSolid }, // Store uses ticket/bag icons often, keeping icon consistency
+        { name: 'Stats', path: '/stats', icon: ChartBarIcon, solidIcon: ChartBarSolid },
         { name: 'Tickets', path: '/tickets', icon: TicketIcon, solidIcon: TicketSolid },
         { name: 'Players', path: '/players', icon: UserGroupIcon, solidIcon: UserGroupSolid },
     ];

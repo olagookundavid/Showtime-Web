@@ -86,27 +86,30 @@ export const StandingsPage = () => {
                         </h2>
                     </div>
 
-                    {/* Abbreviation Legend - Horizontal Scroll on Mobile */}
-                    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 px-3 py-2 shadow-sm overflow-x-auto scrollbar-hide">
-                        <div className="flex items-center gap-2 whitespace-nowrap min-w-max">
-                            <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            {[
-                                { abbr: 'P', full: 'GP' },
-                                { abbr: 'W', full: 'W' },
-                                { abbr: 'D', full: 'D' },
-                                { abbr: 'L', full: 'L' },
-                                { abbr: 'PF', full: 'PF' },
-                                { abbr: 'PA', full: 'PA' },
-                                { abbr: 'PD', full: 'PD' },
-                                { abbr: 'PCT', full: '%' },
-                            ].map(item => (
-                                <div key={item.abbr} className="flex items-center gap-1 bg-gray-50 dark:bg-gray-700 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-600">
-                                    <span className="text-[10px] font-black text-sffl-red">{item.abbr}:</span>
-                                    <span className="text-[9px] font-bold text-gray-500 dark:text-gray-400">{item.full}</span>
-                                </div>
-                            ))}
+                    {/* Abbreviation Legend - Descriptive and Colorful */}
+                    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4 shadow-sm overflow-x-auto scrollbar-hide">
+                        <div className="flex items-center gap-4 whitespace-nowrap min-w-max text-[10px] md:text-xs">
+                            <div className="flex items-center gap-2 pr-4 border-r border-gray-200 dark:border-gray-700">
+                                <span className="p-1 px-2 bg-sffl-navy text-white font-black rounded box-border leading-none">KEY</span>
+                            </div>
+
+                            <div className="flex items-center gap-4">
+                                {[
+                                    { abbr: 'GP', full: 'Games Played', color: 'bg-blue-50 text-blue-600 border-blue-100' },
+                                    { abbr: 'W', full: 'Wins', color: 'bg-green-50 text-green-600 border-green-100' },
+                                    { abbr: 'D', full: 'Draws', color: 'bg-gray-50 text-gray-600 border-gray-100' },
+                                    { abbr: 'L', full: 'Losses', color: 'bg-red-50 text-red-600 border-red-100' },
+                                    { abbr: 'PF', full: 'Points For', color: 'bg-yellow-50 text-yellow-700 border-yellow-100' },
+                                    { abbr: 'PA', full: 'Points Against', color: 'bg-yellow-50 text-yellow-700 border-yellow-100' },
+                                    { abbr: 'PD', full: 'Point Difference', color: 'bg-purple-50 text-purple-600 border-purple-100' },
+                                    { abbr: 'PCT', full: 'Percentage', color: 'bg-indigo-50 text-indigo-600 border-indigo-100' },
+                                ].map(item => (
+                                    <div key={item.abbr} className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border ${item.color} font-bold`}>
+                                        <span className="opacity-70">{item.abbr}:</span>
+                                        <span>{item.full}</span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
 

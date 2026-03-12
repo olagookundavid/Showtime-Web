@@ -216,10 +216,6 @@ export interface Player {
     team: Team;
     bio: string;
     image: string;
-    touchdowns: number;
-    yards: number;
-    interceptions: number;
-    tackles: number;
 }
 
 export const getPlayers = async (teamId?: string, page: number = 1, limit: number = 20, search?: string): Promise<PaginatedResponse<Player>> => {
@@ -279,10 +275,6 @@ export interface CreatePlayerPayload {
     team_id: string;
     bio?: string;
     image?: string;
-    touchdowns?: number;
-    yards?: number;
-    interceptions?: number;
-    tackles?: number;
 }
 
 // ─── News Mutations ───────────────────────────────────────────────────────────
@@ -669,6 +661,128 @@ export const getTeamAllocations = async (): Promise<TeamTicketAllocation[]> => {
 export const issueTeamTicket = async (payload: { event_day_id: string; name: string; email: string }): Promise<TicketResponse> => {
     const response = await api.post<TicketResponse>('/team-head/allocations/issue', payload);
     return response.data;
+};
+
+// ─── Stats ───────────────────────────────────────────────────────────────────
+
+export interface PlayerStat {
+    player_id: string;
+    player_name: string;
+    player_image: string;
+    player_jersey_number: number;
+    player_position: string;
+    team_id: string;
+    team_name: string;
+    team_short_name: string;
+    team_logo: string;
+    apps: number;
+    passing_attempts: number;
+    rushing_attempts: number;
+    completed_passes: number;
+    passing_tds: number;
+    rushing_tds: number;
+    interceptions_thrown: number;
+    receptions: number;
+    receiving_tds: number;
+    extra_points_tds: number;
+    drops: number;
+    flag_pulls: number;
+    pass_deflections: number;
+    interceptions: number;
+    defensive_tds: number;
+    safety: number;
+    qb_sacks: number;
+    def_sacks: number;
+}
+
+export interface TeamStat {
+    team_id: string;
+    team_name: string;
+    team_short_name: string;
+    team_logo: string;
+    passing_attempts: number;
+    rushing_attempts: number;
+    completed_passes: number;
+    passing_tds: number;
+    rushing_tds: number;
+    interceptions_thrown: number;
+    receptions: number;
+    receiving_tds: number;
+    extra_points_tds: number;
+    drops: number;
+    flag_pulls: number;
+    pass_deflections: number;
+    interceptions: number;
+    defensive_tds: number;
+    safety: number;
+    qb_sacks: number;
+    def_sacks: number;
+}
+
+export interface UpsertPlayerStatPayload {
+    player_id: string;
+    team_id: string;
+    match_id: string;
+    competition_id: string;
+    match_date: string;
+    passing_attempts: number;
+    rushing_attempts: number;
+    completed_passes: number;
+    passing_tds: number;
+    rushing_tds: number;
+    interceptions_thrown: number;
+    receptions: number;
+    receiving_tds: number;
+    extra_points_tds: number;
+    drops: number;
+    flag_pulls: number;
+    pass_deflections: number;
+    interceptions: number;
+    defensive_tds: number;
+    safety: number;
+    qb_sacks: number;
+    def_sacks: number;
+}
+
+export const getPlayerStats = async (compId?: string, eventDay?: string, page = 1, limit = 20): Promise<PaginatedResponse<PlayerStat>> => {
+    let url = '/stats/players';
+    const params = new URLSearchParams();
+    if (compId) params.append('competition_id', compId);
+    if (eventDay) params.append('event_day', eventDay);
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
+    if (params.toString()) url += `?${params.toString()}`;
+    const response = await api.get(url);
+    return response.data;
+};
+
+export const getPlayerStatById = async (id: string): Promise<PlayerStat | null> => {
+    const response = await api.get(`/stats/players/${id}`);
+    return response.data.data;
+};
+
+export const getTeamStats = async (compId?: string, eventDay?: string, page = 1, limit = 20): Promise<PaginatedResponse<TeamStat>> => {
+    let url = '/stats/teams';
+    const params = new URLSearchParams();
+    if (compId) params.append('competition_id', compId);
+    if (eventDay) params.append('event_day', eventDay);
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
+    if (params.toString()) url += `?${params.toString()}`;
+    const response = await api.get(url);
+    return response.data;
+};
+
+export const upsertPlayerStat = async (payload: UpsertPlayerStatPayload) => {
+    const response = await api.post('/admin/stats/players', payload);
+    return response.data;
+};
+
+export const getStatDates = async (compId?: string): Promise<string[]> => {
+    let url = '/stats/dates';
+    if (compId) url += `?competition_id=${compId}`;
+    const response = await api.get(url);
+    return response.data.data || [];
 };
 
 export default api;

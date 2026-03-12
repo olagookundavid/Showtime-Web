@@ -76,16 +76,12 @@ func (h *PlayerHandler) CreatePlayer(c *gin.Context) {
 	}
 
 	player := &domain.Player{
-		Name:          req.Name,
-		JerseyNumber:  req.JerseyNumber,
-		Position:      req.Position,
-		TeamID:        req.TeamID,
-		Bio:           req.Bio,
-		Image:         req.Image,
-		Touchdowns:    req.Touchdowns,
-		Yards:         req.Yards,
-		Interceptions: req.Interceptions,
-		Tackles:       req.Tackles,
+		Name:         req.Name,
+		JerseyNumber: req.JerseyNumber,
+		Position:     req.Position,
+		TeamID:       req.TeamID,
+		Bio:          req.Bio,
+		Image:        req.Image,
 	}
 
 	if err := h.service.CreatePlayer(c.Request.Context(), player); err != nil {
@@ -122,18 +118,6 @@ func (h *PlayerHandler) UpdatePlayer(c *gin.Context) {
 
 	if req.JerseyNumber != nil {
 		player.JerseyNumber = *req.JerseyNumber
-	}
-	if req.Touchdowns != nil {
-		player.Touchdowns = *req.Touchdowns
-	}
-	if req.Yards != nil {
-		player.Yards = *req.Yards
-	}
-	if req.Interceptions != nil {
-		player.Interceptions = *req.Interceptions
-	}
-	if req.Tackles != nil {
-		player.Tackles = *req.Tackles
 	}
 
 	if err := h.service.UpdatePlayer(c.Request.Context(), player); err != nil {
