@@ -28,7 +28,7 @@ func NewPlayerRepository(db *pgxpool.Pool) *PostgresPlayerRepository {
 func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string, search string) ([]domain.Player, error) {
 	query := `
 		SELECT
-			p.id, p.name, p.jersey_number, p.position, p.team_id, p.bio, p.image,
+			p.id, p.name, p.jersey_number, p.position, p.team_id, p.bio, p.image, p.email,
 			p.created_at, p.updated_at,
 			t.name, t.short_name, t.logo
 		FROM players p
@@ -63,7 +63,7 @@ func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string
 		var p domain.Player
 		p.Team = &domain.Team{}
 		err := rows.Scan(
-			&p.ID, &p.Name, &p.JerseyNumber, &p.Position, &p.TeamID, &p.Bio, &p.Image,
+			&p.ID, &p.Name, &p.JerseyNumber, &p.Position, &p.TeamID, &p.Bio, &p.Image, &p.Email,
 			&p.CreatedAt, &p.UpdatedAt,
 			&p.Team.Name, &p.Team.ShortName, &p.Team.Logo,
 		)
@@ -79,7 +79,7 @@ func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string
 func (r *PostgresPlayerRepository) GetPlayerByID(ctx context.Context, id string) (*domain.Player, error) {
 	query := `
 		SELECT
-			p.id, p.name, p.jersey_number, p.position, p.team_id, p.bio, p.image,
+			p.id, p.name, p.jersey_number, p.position, p.team_id, p.bio, p.image, p.email,
 			p.created_at, p.updated_at,
 			t.name, t.short_name, t.logo
 		FROM players p
@@ -89,7 +89,7 @@ func (r *PostgresPlayerRepository) GetPlayerByID(ctx context.Context, id string)
 	var p domain.Player
 	p.Team = &domain.Team{}
 	err := r.db.QueryRow(ctx, query, id).Scan(
-		&p.ID, &p.Name, &p.JerseyNumber, &p.Position, &p.TeamID, &p.Bio, &p.Image,
+		&p.ID, &p.Name, &p.JerseyNumber, &p.Position, &p.TeamID, &p.Bio, &p.Image, &p.Email,
 		&p.CreatedAt, &p.UpdatedAt,
 		&p.Team.Name, &p.Team.ShortName, &p.Team.Logo,
 	)
@@ -102,24 +102,24 @@ func (r *PostgresPlayerRepository) GetPlayerByID(ctx context.Context, id string)
 
 func (r *PostgresPlayerRepository) CreatePlayer(ctx context.Context, player *domain.Player) error {
 	query := `
-		INSERT INTO players (name, jersey_number, position, team_id, bio, image)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO players (name, jersey_number, position, team_id, bio, image, email)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at, updated_at
 	`
 	return r.db.QueryRow(ctx, query,
-		player.Name, player.JerseyNumber, player.Position, player.TeamID, player.Bio, player.Image,
+		player.Name, player.JerseyNumber, player.Position, player.TeamID, player.Bio, player.Image, player.Email,
 	).Scan(&player.ID, &player.CreatedAt, &player.UpdatedAt)
 }
 
 func (r *PostgresPlayerRepository) UpdatePlayer(ctx context.Context, player *domain.Player) error {
 	query := `
 		UPDATE players SET
-			name=$1, jersey_number=$2, position=$3, team_id=$4, bio=$5, image=$6,
+			name=$1, jersey_number=$2, position=$3, team_id=$4, bio=$5, image=$6, email=$7,
 			updated_at=NOW()
-		WHERE id=$7
+		WHERE id=$8
 	`
 	_, err := r.db.Exec(ctx, query,
-		player.Name, player.JerseyNumber, player.Position, player.TeamID, player.Bio, player.Image,
+		player.Name, player.JerseyNumber, player.Position, player.TeamID, player.Bio, player.Image, player.Email,
 		player.ID,
 	)
 	return err

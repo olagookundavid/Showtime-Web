@@ -29,6 +29,7 @@ type ITicketService interface {
 	// Tiers
 	CreateTier(ctx context.Context, eventDayID string, req dto.CreateTicketTierRequest) (*dto.TicketTierResponse, error)
 	ListTiers(ctx context.Context, eventDayID string) ([]dto.TicketTierResponse, error)
+	DeleteTier(ctx context.Context, id string) error
 
 	// Tickets
 	Purchase(ctx context.Context, req dto.PurchaseTicketRequest, callbackURL string) (*dto.TicketResponse, error)
@@ -233,6 +234,10 @@ func (s *TicketService) ListTiers(ctx context.Context, eventDayID string) ([]dto
 		responses = append(responses, *tierToResponse(&tiers[i]))
 	}
 	return responses, nil
+}
+
+func (s *TicketService) DeleteTier(ctx context.Context, id string) error {
+	return s.tierRepo.Delete(ctx, id)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

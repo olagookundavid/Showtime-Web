@@ -10,6 +10,7 @@ type Player struct {
 	TeamID       string    `json:"team_id"`
 	Bio          string    `json:"bio"`
 	Image        string    `json:"image"`
+	Email        string    `json:"email"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 

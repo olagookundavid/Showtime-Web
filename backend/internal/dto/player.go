@@ -8,6 +8,7 @@ type CreatePlayerRequest struct {
 	TeamID       string `json:"team_id" binding:"required"`
 	Bio          string `json:"bio"`
 	Image        string `json:"image"`
+	Email        string `json:"email" binding:"required"`
 }
 
 type UpdatePlayerRequest struct {
@@ -17,6 +18,7 @@ type UpdatePlayerRequest struct {
 	TeamID       string `json:"team_id"`
 	Bio          string `json:"bio"`
 	Image        string `json:"image"`
+	Email        string `json:"email"`
 }
 
 type PlayerResponse struct {
@@ -27,4 +29,5 @@ type PlayerResponse struct {
 	Team         *TeamResponse `json:"team,omitempty"`
 	Bio          string        `json:"bio"`
 	Image        string        `json:"image"`
+	Email        string        `json:"email,omitempty"`
 }

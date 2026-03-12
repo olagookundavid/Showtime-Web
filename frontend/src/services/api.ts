@@ -216,6 +216,7 @@ export interface Player {
     team: Team;
     bio: string;
     image: string;
+    email?: string;
 }
 
 export const getPlayers = async (teamId?: string, page: number = 1, limit: number = 20, search?: string): Promise<PaginatedResponse<Player>> => {
@@ -275,6 +276,7 @@ export interface CreatePlayerPayload {
     team_id: string;
     bio?: string;
     image?: string;
+    email: string;
 }
 
 // ─── News Mutations ───────────────────────────────────────────────────────────
@@ -515,6 +517,11 @@ export const deleteEventDay = async (id: string) => {
 
 export const createTier = async (eventDayId: string, payload: { name: string; price: number; capacity?: number; description?: string; is_hidden?: boolean; access_code?: string; }): Promise<TicketTierResponse> => {
     const response = await api.post<TicketTierResponse>(`/admin/event-days/${eventDayId}/tiers`, payload);
+    return response.data;
+};
+
+export const deleteTicketTier = async (eventDayId: string, tierId: string) => {
+    const response = await api.delete(`/admin/event-days/${eventDayId}/tiers/${tierId}`);
     return response.data;
 };
 

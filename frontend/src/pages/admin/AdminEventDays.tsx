@@ -1,7 +1,7 @@
 import { Loader } from '../../components/ui/Loader';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getAllEventDays, createEventDay, createTier, deleteEventDay, updateEventDay, type EventDayResponse, type TicketTierResponse } from '../../services/api';
+import { getAllEventDays, createEventDay, createTier, deleteEventDay, updateEventDay, deleteTicketTier, type EventDayResponse, type TicketTierResponse } from '../../services/api';
 import { AllocationsManager } from '../../components/admin/AllocationsManager';
 
 export const AdminEventDays = () => {
@@ -87,6 +87,16 @@ export const AdminEventDays = () => {
             queryClient.invalidateQueries({ queryKey: ['adminEventDaysList'] });
         } catch (err: any) {
             alert(err.response?.data?.error || 'Failed to update');
+        }
+    };
+
+    const handleDeleteTier = async (eventDayId: string, tierId: string, tierName: string) => {
+        if (!confirm(`Delete ticket tier "${tierName}"? This only works if zero tickets have been sold.`)) return;
+        try {
+            await deleteTicketTier(eventDayId, tierId);
+            queryClient.invalidateQueries({ queryKey: ['adminEventDaysList'] });
+        } catch (err: any) {
+            alert(err.response?.data?.error || 'Failed to delete tier. Ensure no tickets have been sold for this tier.');
         }
     };
 
@@ -233,15 +243,26 @@ export const AdminEventDays = () => {
                                                             <span className="font-bold text-sffl-navy dark:text-white">{tier.name}</span>
                                                             <p className="text-xl font-black text-sffl-red mt-1">₦{tier.price.toLocaleString()}</p>
                                                         </div>
-                                                        <div className="text-right text-xs text-gray-500">
-                                                            {tier.capacity > 0 ? (
-                                                                <>
-                                                                    <p>{tier.sold_count} / {tier.capacity} sold</p>
-                                                                    <p className="font-bold">{tier.available} left</p>
-                                                                </>
-                                                            ) : (
-                                                                <p>Unlimited</p>
-                                                            )}
+                                                        <div className="flex flex-col items-end gap-2">
+                                                            <div className="text-right text-xs text-gray-500">
+                                                                {tier.capacity > 0 ? (
+                                                                    <>
+                                                                        <p>{tier.sold_count} / {tier.capacity} sold</p>
+                                                                        <p className="font-bold">{tier.available} left</p>
+                                                                    </>
+                                                                ) : (
+                                                                    <p>Unlimited</p>
+                                                                )}
+                                                            </div>
+                                                            <button
+                                                                onClick={() => handleDeleteTier(ed.id, tier.id, tier.name)}
+                                                                className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md transition-colors"
+                                                                title="Delete Tier"
+                                                            >
+                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                </svg>
+                                                            </button>
                                                         </div>
                                                     </div>
                                                     {tier.description && <p className="text-xs text-gray-500 mt-2">{tier.description}</p>}

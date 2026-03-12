@@ -38,6 +38,7 @@ func (s *PlayerService) GetPlayers(ctx context.Context, teamID string, search st
 			Position:     p.Position,
 			Bio:          p.Bio,
 			Image:        p.Image,
+			Email:        p.Email,
 		}
 		if p.Team != nil {
 			pr.Team = &dto.TeamResponse{
@@ -65,6 +66,7 @@ func (s *PlayerService) GetPlayerByID(ctx context.Context, id string) (*dto.Play
 		Position:     p.Position,
 		Bio:          p.Bio,
 		Image:        p.Image,
+		Email:        p.Email,
 	}
 	if p.Team != nil {
 		pr.Team = &dto.TeamResponse{

@@ -24,6 +24,7 @@ type ITicketHandler interface {
 	DeleteEventDay(c *gin.Context)
 	ListAllEventDays(c *gin.Context)
 	CreateTier(c *gin.Context)
+	DeleteTier(c *gin.Context)
 	Purchase(c *gin.Context)
 	Webhook(c *gin.Context)
 	GetTicket(c *gin.Context)
@@ -202,6 +203,15 @@ func (h *TicketHandler) CreateTier(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, result)
+}
+
+func (h *TicketHandler) DeleteTier(c *gin.Context) {
+	id := c.Param("tierId")
+	if err := h.service.DeleteTier(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "tier deleted"})
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

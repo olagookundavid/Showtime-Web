@@ -9,6 +9,7 @@ export const StatsPage = () => {
     const [selectedDate, setSelectedDate] = useState<string>('');
     const [activeTab, setActiveTab] = useState<'players' | 'teams'>('players');
     const [page, setPage] = useState(1);
+    const [showLegend, setShowLegend] = useState(false);
     const limit = 20;
 
     const { data: competitionsData, isLoading: compLoading } = useQuery({
@@ -115,82 +116,94 @@ export const StatsPage = () => {
                 <Loader />
             ) : (
                 <div className="space-y-4">
-                    {/* Legend / Key - Pro Style */}
-                    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4 shadow-sm space-y-4">
-                        <div className="flex items-baseline gap-2 pb-2 border-b border-gray-50 dark:border-gray-700">
-                            <svg className="w-4 h-4 text-sffl-red" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                            </svg>
-                            <h3 className="font-black text-xs md:text-sm text-sffl-navy dark:text-white uppercase tracking-wider">Statistical Key</h3>
+                    {/* Legend / Key - Pro Style (Togglable) */}
+                    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+                        <div
+                            className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                            onClick={() => setShowLegend(!showLegend)}
+                        >
+                            <div className="flex items-center gap-2">
+                                <svg className="w-4 h-4 text-sffl-red" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                </svg>
+                                <h3 className="font-black text-xs md:text-sm text-sffl-navy dark:text-white uppercase tracking-wider">Statistical Key</h3>
+                            </div>
+                            <button className="text-[10px] font-black uppercase tracking-tight text-sffl-red hover:underline">
+                                {showLegend ? 'Close Info ↑' : 'See Info ↓'}
+                            </button>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            {/* Category: General */}
-                            <div className="space-y-2">
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-l-2 border-gray-200 pl-2">General</h4>
-                                <div className="flex flex-wrap gap-2 text-[10px] font-bold">
-                                    <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-gray-700/50 px-2 py-1 rounded-full border border-gray-100 dark:border-gray-600">
-                                        <span className="text-sffl-red">APPS:</span> <span className="text-gray-600 dark:text-gray-300">Appearances</span>
+                        {showLegend && (
+                            <div className="p-6 pt-0 border-t border-gray-50 dark:border-gray-700">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 py-4">
+                                    {/* Category: General */}
+                                    <div className="space-y-2">
+                                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-l-2 border-gray-200 pl-2">General</h4>
+                                        <div className="flex flex-wrap gap-2 text-[10px] font-bold">
+                                            <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-gray-700/50 px-2 py-1 rounded-full border border-gray-100 dark:border-gray-600">
+                                                <span className="text-sffl-red">APPS:</span> <span className="text-gray-600 dark:text-gray-300">Appearances</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Category: Passing */}
+                                    <div className="space-y-2">
+                                        <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest border-l-2 border-blue-200 pl-2">Passing</h4>
+                                        <div className="flex flex-wrap gap-2 text-[10px] font-bold">
+                                            {[
+                                                { a: 'P-ATT', f: 'Pass Attempts' },
+                                                { a: 'P-COM', f: 'Pass Completions' },
+                                                { a: 'P-TD', f: 'Passing TDs' },
+                                                { a: 'P-INT', f: 'Interceptions Thrown' },
+                                                { a: 'QBS', f: 'QB Sacks Accounted' },
+                                            ].map(s => (
+                                                <div key={s.a} className="flex items-center gap-1.5 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-full border border-blue-100 dark:border-blue-800">
+                                                    <span className="text-blue-600"> {s.a}:</span> <span className="text-blue-800/80 dark:text-blue-300/80">{s.f}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Category: Rushing & Receiving */}
+                                    <div className="space-y-2">
+                                        <h4 className="text-[10px] font-black text-green-400 uppercase tracking-widest border-l-2 border-green-200 pl-2">Offense</h4>
+                                        <div className="flex flex-wrap gap-2 text-[10px] font-bold">
+                                            {[
+                                                { a: 'R-ATT', f: 'Rush Attempts', c: 'green' },
+                                                { a: 'R-TD', f: 'Rushing TDs', c: 'green' },
+                                                { a: 'REC', f: 'Receptions', c: 'yellow' },
+                                                { a: 'RC-TD', f: 'Receiving TDs', c: 'yellow' },
+                                                { a: 'DROP', f: 'Drops', c: 'yellow' },
+                                                { a: 'XPT', f: 'Extra Point TDs', c: 'purple' },
+                                            ].map(s => (
+                                                <div key={s.a} className={`flex items-center gap-1.5 bg-${s.c}-50 dark:bg-${s.c}-900/20 px-2 py-1 rounded-full border border-${s.c}-100 dark:border-${s.c}-800`}>
+                                                    <span className={`text-${s.c}-600`}> {s.a}:</span> <span className={`text-${s.c}-800/80 dark:text-${s.c}-300/80`}>{s.f}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Category: Defense */}
+                                    <div className="space-y-2">
+                                        <h4 className="text-[10px] font-black text-red-400 uppercase tracking-widest border-l-2 border-red-200 pl-2">Defense</h4>
+                                        <div className="flex flex-wrap gap-2 text-[10px] font-bold">
+                                            {[
+                                                { a: 'TKL', f: 'Flag Pulls (Tackles)' },
+                                                { a: 'P-DEF', f: 'Pass Deflections' },
+                                                { a: 'INT', f: 'Interceptions Caught' },
+                                                { a: 'DEF-S', f: 'Defensive Sacks' },
+                                                { a: 'D-TD', f: 'Defensive TDs' },
+                                                { a: 'SFTY', f: 'Safeties' },
+                                            ].map(s => (
+                                                <div key={s.a} className="flex items-center gap-1.5 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-full border border-red-100 dark:border-red-800">
+                                                    <span className="text-red-600"> {s.a}:</span> <span className="text-red-800/80 dark:text-red-300/80">{s.f}</span>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-
-                            {/* Category: Passing */}
-                            <div className="space-y-2">
-                                <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest border-l-2 border-blue-200 pl-2">Passing</h4>
-                                <div className="flex flex-wrap gap-2 text-[10px] font-bold">
-                                    {[
-                                        { a: 'P-ATT', f: 'Pass Attempts' },
-                                        { a: 'P-COM', f: 'Pass Completions' },
-                                        { a: 'P-TD', f: 'Passing TDs' },
-                                        { a: 'P-INT', f: 'Interceptions Thrown' },
-                                        { a: 'QBS', f: 'QB Sacks Accounted' },
-                                    ].map(s => (
-                                        <div key={s.a} className="flex items-center gap-1.5 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-full border border-blue-100 dark:border-blue-800">
-                                            <span className="text-blue-600"> {s.a}:</span> <span className="text-blue-800/80 dark:text-blue-300/80">{s.f}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Category: Rushing & Receiving */}
-                            <div className="space-y-2">
-                                <h4 className="text-[10px] font-black text-green-400 uppercase tracking-widest border-l-2 border-green-200 pl-2">Offense</h4>
-                                <div className="flex flex-wrap gap-2 text-[10px] font-bold">
-                                    {[
-                                        { a: 'R-ATT', f: 'Rush Attempts', c: 'green' },
-                                        { a: 'R-TD', f: 'Rushing TDs', c: 'green' },
-                                        { a: 'REC', f: 'Receptions', c: 'yellow' },
-                                        { a: 'RC-TD', f: 'Receiving TDs', c: 'yellow' },
-                                        { a: 'DROP', f: 'Drops', c: 'yellow' },
-                                        { a: 'XPT', f: 'Extra Point TDs', c: 'purple' },
-                                    ].map(s => (
-                                        <div key={s.a} className={`flex items-center gap-1.5 bg-${s.c}-50 dark:bg-${s.c}-900/20 px-2 py-1 rounded-full border border-${s.c}-100 dark:border-${s.c}-800`}>
-                                            <span className={`text-${s.c}-600`}> {s.a}:</span> <span className={`text-${s.c}-800/80 dark:text-${s.c}-300/80`}>{s.f}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Category: Defense */}
-                            <div className="space-y-2">
-                                <h4 className="text-[10px] font-black text-red-400 uppercase tracking-widest border-l-2 border-red-200 pl-2">Defense</h4>
-                                <div className="flex flex-wrap gap-2 text-[10px] font-bold">
-                                    {[
-                                        { a: 'TKL', f: 'Flag Pulls (Tackles)' },
-                                        { a: 'P-DEF', f: 'Pass Deflections' },
-                                        { a: 'INT', f: 'Interceptions Caught' },
-                                        { a: 'DEF-S', f: 'Defensive Sacks' },
-                                        { a: 'D-TD', f: 'Defensive TDs' },
-                                        { a: 'SFTY', f: 'Safeties' },
-                                    ].map(s => (
-                                        <div key={s.a} className="flex items-center gap-1.5 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-full border border-red-100 dark:border-red-800">
-                                            <span className="text-red-600"> {s.a}:</span> <span className="text-red-800/80 dark:text-red-300/80">{s.f}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
+                        )}
                     </div>
 
                     <StatsTable

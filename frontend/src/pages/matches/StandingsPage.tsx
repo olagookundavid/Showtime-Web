@@ -6,6 +6,7 @@ import { StandingsTable } from '../../components/matches/StandingsTable';
 
 export const StandingsPage = () => {
     const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>('');
+    const [showLegend, setShowLegend] = useState(false);
 
     const { data: competitionsData, isLoading: compLoading } = useQuery({
         queryKey: ['publicCompetitions'],
@@ -86,31 +87,42 @@ export const StandingsPage = () => {
                         </h2>
                     </div>
 
-                    {/* Abbreviation Legend - Descriptive and Colorful */}
-                    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4 shadow-sm overflow-x-auto scrollbar-hide">
-                        <div className="flex items-center gap-4 whitespace-nowrap min-w-max text-[10px] md:text-xs">
-                            <div className="flex items-center gap-2 pr-4 border-r border-gray-200 dark:border-gray-700">
-                                <span className="p-1 px-2 bg-sffl-navy text-white font-black rounded box-border leading-none">KEY</span>
+                    {/* Abbreviation Legend - Descriptive and Colorful (Togglable) */}
+                    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden mb-6">
+                        <div
+                            className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                            onClick={() => setShowLegend(!showLegend)}
+                        >
+                            <div className="flex items-center gap-2">
+                                <span className="p-1 px-2 bg-sffl-navy text-white text-[10px] font-black rounded box-border leading-none uppercase">Legend</span>
+                                <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Table Key</h3>
                             </div>
-
-                            <div className="flex items-center gap-4">
-                                {[
-                                    { abbr: 'GP', full: 'Games Played', color: 'bg-blue-50 text-blue-600 border-blue-100' },
-                                    { abbr: 'W', full: 'Wins', color: 'bg-green-50 text-green-600 border-green-100' },
-                                    { abbr: 'D', full: 'Draws', color: 'bg-gray-50 text-gray-600 border-gray-100' },
-                                    { abbr: 'L', full: 'Losses', color: 'bg-red-50 text-red-600 border-red-100' },
-                                    { abbr: 'PF', full: 'Points For', color: 'bg-yellow-50 text-yellow-700 border-yellow-100' },
-                                    { abbr: 'PA', full: 'Points Against', color: 'bg-yellow-50 text-yellow-700 border-yellow-100' },
-                                    { abbr: 'PD', full: 'Point Difference', color: 'bg-purple-50 text-purple-600 border-purple-100' },
-                                    { abbr: 'PCT', full: 'Percentage', color: 'bg-indigo-50 text-indigo-600 border-indigo-100' },
-                                ].map(item => (
-                                    <div key={item.abbr} className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border ${item.color} font-bold`}>
-                                        <span className="opacity-70">{item.abbr}:</span>
-                                        <span>{item.full}</span>
-                                    </div>
-                                ))}
-                            </div>
+                            <button className="text-[10px] font-black uppercase tracking-tight text-sffl-red hover:underline">
+                                {showLegend ? 'Close Info ↑' : 'See Info ↓'}
+                            </button>
                         </div>
+
+                        {showLegend && (
+                            <div className="p-4 pt-0 border-t border-gray-50 dark:border-gray-700 overflow-x-auto scrollbar-hide">
+                                <div className="flex items-center gap-3 whitespace-nowrap min-w-max text-[10px] md:text-xs py-3">
+                                    {[
+                                        { abbr: 'GP', full: 'Games Played', color: 'bg-blue-50 text-blue-600 border-blue-100' },
+                                        { abbr: 'W', full: 'Wins', color: 'bg-green-50 text-green-600 border-green-100' },
+                                        { abbr: 'D', full: 'Draws', color: 'bg-gray-50 text-gray-600 border-gray-100' },
+                                        { abbr: 'L', full: 'Losses', color: 'bg-red-50 text-red-600 border-red-100' },
+                                        { abbr: 'PF', full: 'Points For', color: 'bg-yellow-50 text-yellow-700 border-yellow-100' },
+                                        { abbr: 'PA', full: 'Points Against', color: 'bg-yellow-50 text-yellow-700 border-yellow-100' },
+                                        { abbr: 'PD', full: 'Point Difference', color: 'bg-purple-50 text-purple-600 border-purple-100' },
+                                        { abbr: 'PCT', full: 'Percentage', color: 'bg-indigo-50 text-indigo-600 border-indigo-100' },
+                                    ].map(item => (
+                                        <div key={item.abbr} className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border ${item.color} font-bold`}>
+                                            <span className="opacity-70">{item.abbr}:</span>
+                                            <span>{item.full}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <StandingsTable standings={standings} />

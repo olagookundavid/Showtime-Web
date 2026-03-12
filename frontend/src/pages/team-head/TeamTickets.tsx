@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getTeamAllocations, issueTeamTicket } from '../../services/api';
+import { getTeamAllocations, issueTeamTicket, getPlayers, type Player } from '../../services/api';
 import toast from 'react-hot-toast';
 
 const TeamTickets = () => {
@@ -12,15 +12,45 @@ const TeamTickets = () => {
         queryFn: getTeamAllocations,
     });
 
-    const [issueForms, setIssueForms] = useState<Record<string, { email: string; name: string }>>({});
+    const [issueForms, setIssueForms] = useState<Record<string, { playerId: string; name: string; email: string }>>({});
     const [issuingFor, setIssuingFor] = useState<string | null>(null);
 
-    const handleFormChange = (allocationId: string, field: 'email' | 'name', value: string) => {
+    // Get current team ID from allocations
+    const teamId = allocations.length > 0 ? allocations[0].team_id : undefined;
+
+    // Fetch team players
+    const { data: playersData } = useQuery({
+        queryKey: ['myTeamPlayers', teamId],
+        queryFn: () => getPlayers(teamId, 1, 100),
+        enabled: !!teamId,
+    });
+    const players: Player[] = playersData?.data || [];
+
+    const handlePlayerSelect = (allocationId: string, playerId: string) => {
+        if (!playerId) {
+            setIssueForms(prev => ({ ...prev, [allocationId]: { playerId: '', name: '', email: '' } }));
+            return;
+        }
+
+        const player = players.find(p => p.id === playerId);
+        if (!player) return;
+
+        if (!player.email || player.email.trim() === '') {
+            toast.error(`Player ${player.name} has no email registered. Please update player details in the team section before issuing a ticket.`);
+            // Optionally clear or don't prefill if no email
+            setIssueForms(prev => ({
+                ...prev,
+                [allocationId]: { playerId: '', name: '', email: '' }
+            }));
+            return;
+        }
+
         setIssueForms(prev => ({
             ...prev,
             [allocationId]: {
-                ...(prev[allocationId] || { email: '', name: '' }),
-                [field]: value
+                playerId: player.id,
+                name: player.name,
+                email: player.email || ''
             }
         }));
     };
@@ -28,7 +58,7 @@ const TeamTickets = () => {
     const handleIssueTicket = async (allocationId: string, eventDayId: string) => {
         const form = issueForms[allocationId];
         if (!form || !form.email || !form.name) {
-            toast.error("Please provide both name and email.");
+            toast.error("Please select a player first.");
             return;
         }
 
@@ -39,18 +69,16 @@ const TeamTickets = () => {
                 email: form.email,
                 name: form.name
             });
-            toast.success("Ticket successfully issued and emailed!");
+            toast.success(`Ticket for ${form.name} successfully issued!`);
+            queryClient.invalidateQueries({ queryKey: ['myTeamAllocations'] });
 
-            // Clear form
+            // Clear selection
             setIssueForms(prev => ({
                 ...prev,
-                [allocationId]: { email: '', name: '' }
+                [allocationId]: { playerId: '', name: '', email: '' }
             }));
-
-            // Refresh allocations data (so issued_count increments)
-            queryClient.invalidateQueries({ queryKey: ['myTeamAllocations'] });
         } catch (err: any) {
-            toast.error(err.response?.data?.error || "Failed to issue ticket. Allocation may be exhausted.");
+            toast.error(err.response?.data?.error || "Failed to issue ticket.");
         } finally {
             setIssuingFor(null);
         }
@@ -82,7 +110,6 @@ const TeamTickets = () => {
                     {allocations.map(allocation => {
                         const remaining = allocation.allocated_count - allocation.issued_count;
                         const isExhausted = remaining <= 0;
-                        const form = issueForms[allocation.id] || { email: '', name: '' };
 
                         return (
                             <div key={allocation.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden">
@@ -106,38 +133,60 @@ const TeamTickets = () => {
                                             ⚠️ You have exhausted your ticket allocation for this match day.
                                         </div>
                                     ) : (
-                                        <div className="bg-gray-50 dark:bg-gray-700/50 p-5 rounded-xl border border-gray-200 dark:border-gray-600 grid sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto] gap-4 items-end">
-                                            <div>
-                                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1.5">Recipient Name</label>
-                                                <input
-                                                    type="text"
-                                                    placeholder="e.g. John Doe"
-                                                    value={form.name}
-                                                    onChange={e => handleFormChange(allocation.id, 'name', e.target.value)}
-                                                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-sffl-navy"
-                                                />
+                                        <div className="bg-gray-50 dark:bg-gray-700/50 p-5 rounded-xl border border-gray-200 dark:border-gray-600 space-y-4">
+                                            <div className="w-full">
+                                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1.5">Select Player</label>
+                                                <select
+                                                    value={issueForms[allocation.id]?.playerId || ''}
+                                                    onChange={e => handlePlayerSelect(allocation.id, e.target.value)}
+                                                    disabled={issuingFor === allocation.id}
+                                                    className="w-full h-[46px] px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-sffl-navy font-semibold text-sm cursor-pointer"
+                                                >
+                                                    <option value="">-- Choose a player --</option>
+                                                    {players.map(p => (
+                                                        <option key={p.id} value={p.id}>
+                                                            {p.name} ({p.position || 'N/A'})
+                                                        </option>
+                                                    ))}
+                                                </select>
                                             </div>
-                                            <div>
-                                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1.5">Recipient Email</label>
-                                                <input
-                                                    type="email"
-                                                    placeholder="e.g. player@team.com"
-                                                    value={form.email}
-                                                    onChange={e => handleFormChange(allocation.id, 'email', e.target.value)}
-                                                    className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-sffl-navy"
-                                                />
-                                            </div>
-                                            <button
-                                                onClick={() => handleIssueTicket(allocation.id, allocation.event_day_id)}
-                                                disabled={issuingFor === allocation.id || !form.name || !form.email}
-                                                className="h-[46px] px-6 bg-sffl-red hover:bg-red-700 text-white font-bold rounded-lg shadow transition-colors disabled:opacity-50 flex justify-center items-center"
-                                            >
-                                                {issuingFor === allocation.id ? (
-                                                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                                ) : (
-                                                    'Issue Ticket 📨'
-                                                )}
-                                            </button>
+
+                                            {issueForms[allocation.id]?.playerId && (
+                                                <div className="grid sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto] gap-4 items-end animate-in fade-in slide-in-from-top-2 duration-300">
+                                                    <div>
+                                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1.5">Recipient Name</label>
+                                                        <input
+                                                            type="text"
+                                                            value={issueForms[allocation.id].name}
+                                                            readOnly
+                                                            className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 outline-none cursor-not-allowed"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1.5">Recipient Email</label>
+                                                        <input
+                                                            type="email"
+                                                            value={issueForms[allocation.id].email}
+                                                            readOnly
+                                                            className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 outline-none cursor-not-allowed"
+                                                        />
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleIssueTicket(allocation.id, allocation.event_day_id)}
+                                                        disabled={issuingFor === allocation.id}
+                                                        className="h-[46px] px-6 bg-sffl-red hover:bg-red-700 text-white font-bold rounded-lg shadow transition-colors disabled:opacity-50 flex justify-center items-center gap-2"
+                                                    >
+                                                        {issuingFor === allocation.id ? (
+                                                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                        ) : (
+                                                            <>
+                                                                <span>Issue Ticket</span>
+                                                                <span>📨</span>
+                                                            </>
+                                                        )}
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>

@@ -28,6 +28,7 @@ type TicketTierRepository interface {
 	ListByEventDay(ctx context.Context, eventDayID string) ([]domain.TicketTier, error)
 	GetByID(ctx context.Context, id string) (*domain.TicketTier, error)
 	IncrementSoldCount(ctx context.Context, id string, qty int) error
+	Delete(ctx context.Context, id string) error
 }
 
 type TicketRepository interface {
@@ -257,6 +258,21 @@ func (r *PostgresTicketTierRepository) IncrementSoldCount(ctx context.Context, i
 	return err
 }
 
+func (r *PostgresTicketTierRepository) Delete(ctx context.Context, id string) error {
+	// Check if any tickets have been sold for this tier
+	var soldCount int
+	err := r.db.QueryRow(ctx, "SELECT sold_count FROM ticket_tiers WHERE id = $1", id).Scan(&soldCount)
+	if err != nil {
+		return err
+	}
+	if soldCount > 0 {
+		return fmt.Errorf("cannot delete tier with existing sales")
+	}
+
+	_, err = r.db.Exec(ctx, "DELETE FROM ticket_tiers WHERE id = $1", id)
+	return err
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Ticket Repository Implementation
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -276,11 +292,27 @@ func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ti
 		ON CONFLICT (paystack_reference) DO NOTHING
 		RETURNING id, created_at, updated_at
 	`
-	return r.db.QueryRow(ctx, query,
+
+	// Convert empty strings to nil for the DB to handle as NULL (violates UNIQUE constraint otherwise)
+	var ref, accessCode *string
+	if ticket.PaystackReference != "" {
+		ref = &ticket.PaystackReference
+	}
+	if ticket.PaystackAccessCode != "" {
+		accessCode = &ticket.PaystackAccessCode
+	}
+
+	err := r.db.QueryRow(ctx, query,
 		ticket.EventDayID, ticket.TierID, ticket.Email, ticket.UserID,
 		ticket.Quantity, ticket.UnitPrice, ticket.TotalAmount, ticket.Status,
-		ticket.PaystackReference, ticket.PaystackAccessCode, ticket.TicketCode, ticket.TeamID,
+		ref, accessCode, ticket.TicketCode, ticket.TeamID,
 	).Scan(&ticket.ID, &ticket.CreatedAt, &ticket.UpdatedAt)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (r *PostgresTicketRepository) GetByID(ctx context.Context, id string) (*domain.Ticket, error) {

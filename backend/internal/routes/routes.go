@@ -45,6 +45,7 @@ func Routes(app *api.Application) *gin.Engine {
 		AllowMethods:     []string{"GET", "POST", "OPTIONS", "PUT", "DELETE", "PATCH"},
 		AllowHeaders:     []string{"Content-Type", "Authorization", "X-Requested-With"},
 		AllowCredentials: true,
+		MaxAge:           86400,
 	}))
 
 	r.NoRoute(helpers.NotFoundResponse)
@@ -170,6 +171,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		eventDaysGroup.PUT("/:id", app.Handlers.TicketHandler.UpdateEventDay)
 		eventDaysGroup.DELETE("/:id", app.Handlers.TicketHandler.DeleteEventDay)
 		eventDaysGroup.POST("/:id/tiers", app.Handlers.TicketHandler.CreateTier)
+		eventDaysGroup.DELETE("/:id/tiers/:tierId", app.Handlers.TicketHandler.DeleteTier)
 	}
 
 	allocationsGroup := adminRoutes.Group("/allocations")

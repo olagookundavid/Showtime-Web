@@ -82,6 +82,7 @@ func (h *PlayerHandler) CreatePlayer(c *gin.Context) {
 		TeamID:       req.TeamID,
 		Bio:          req.Bio,
 		Image:        req.Image,
+		Email:        req.Email,
 	}
 
 	if err := h.service.CreatePlayer(c.Request.Context(), player); err != nil {
@@ -114,6 +115,7 @@ func (h *PlayerHandler) UpdatePlayer(c *gin.Context) {
 		TeamID:   req.TeamID,
 		Bio:      req.Bio,
 		Image:    req.Image,
+		Email:    req.Email,
 	}
 
 	if req.JerseyNumber != nil {

@@ -15,11 +15,11 @@ interface FormData {
     team_id: string;
     bio: string;
     image: string;
+    email: string;
 }
-
 const emptyForm: FormData = {
     name: '', jersey_number: '', position: '', team_id: '',
-    bio: '', image: ''
+    bio: '', image: '', email: ''
 };
 
 const POSITIONS = ['QB', 'RB', 'WR', 'TE', 'OL', 'DL', 'LB', 'CB', 'S', 'K', 'P'];
@@ -68,6 +68,7 @@ export const AdminPlayers = () => {
             team_id: p.team?.id || '',
             bio: p.bio || '',
             image: p.image || '',
+            email: p.email || '',
         });
         setShowModal(true);
     };
@@ -82,6 +83,7 @@ export const AdminPlayers = () => {
                 team_id: form.team_id,
                 bio: form.bio,
                 image: form.image,
+                email: form.email,
             };
             if (editingId) {
                 await updatePlayer(editingId, payload);
@@ -218,6 +220,10 @@ export const AdminPlayers = () => {
                                         <option value="" className="truncate">Select...</option>
                                         {teams.map(t => <option key={t.id} value={t.id} className="truncate">{t.name}</option>)}
                                     </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Email *</label>
+                                    <input type="email" value={form.email} onChange={e => set('email', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="player@example.com" required />
                                 </div>
                             </div>
                             <div>
