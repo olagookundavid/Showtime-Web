@@ -2,9 +2,7 @@ package services
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
-	"math/big"
 	"strings"
 	"time"
 
@@ -296,22 +294,42 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 		authURL = paystackResp.Data.AuthorizationURL
 	}
 
-	// 6. Create ticket
-	ticket := &domain.Ticket{
-		EventDayID:         req.EventDayID,
-		TierID:             req.TierID,
-		Email:              req.Email,
-		Quantity:           req.Quantity,
-		UnitPrice:          tier.Price,
-		TotalAmount:        totalAmount,
-		Status:             ticketStatus,
-		PaystackReference:  paystackRef,
-		PaystackAccessCode: paystackAccessCode,
-		TicketCode:         generateTicketCode(),
+	// 6. Create ticket with collision protection
+	var ticket *domain.Ticket
+	maxRetries := 5
+	var lastErr error
+
+	for i := 0; i < maxRetries; i++ {
+		ticket = &domain.Ticket{
+			EventDayID:         req.EventDayID,
+			TierID:             req.TierID,
+			Email:              req.Email,
+			Quantity:           req.Quantity,
+			UnitPrice:          tier.Price,
+			TotalAmount:        totalAmount,
+			Status:             ticketStatus,
+			PaystackReference:  paystackRef,
+			PaystackAccessCode: paystackAccessCode,
+			TicketCode:         GenerateTicketCode(),
+		}
+
+		if err := s.ticketRepo.Create(ctx, ticket); err != nil {
+			// Check if it's a unique constraint violation on ticket_code
+			// If so, loop and try again with a new code
+			if strings.Contains(err.Error(), "tickets_ticket_code_key") || strings.Contains(err.Error(), "duplicate key value") {
+				lastErr = err
+				continue
+			}
+			return nil, fmt.Errorf("failed to create ticket: %w", err)
+		}
+
+		// Success
+		lastErr = nil
+		break
 	}
 
-	if err := s.ticketRepo.Create(ctx, ticket); err != nil {
-		return nil, fmt.Errorf("failed to create ticket: %w", err)
+	if lastErr != nil {
+		return nil, fmt.Errorf("failed to generate unique ticket code after %d attempts: %w", maxRetries, lastErr)
 	}
 
 	if ticket.Status == domain.TicketStatusPaid {
@@ -642,12 +660,7 @@ func ticketToResponse(t *domain.Ticket) *dto.TicketResponse {
 	return res
 }
 
-func generateTicketCode() string {
-	const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-	code := make([]byte, 6)
-	for i := range code {
-		n, _ := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
-		code[i] = chars[n.Int64()]
-	}
-	return "SFFL-" + strings.ToUpper(string(code))
+// generateTicketCode is now legacy, use GenerateTicketCode in ticket_utils.go
+func (s *TicketService) generateTicketCode() string {
+	return GenerateTicketCode()
 }

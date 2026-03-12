@@ -2,9 +2,7 @@ package services
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
-	"math/big"
 	"strings"
 
 	"showtime-backend/internal/domain"
@@ -115,28 +113,40 @@ func (s *TeamTicketAllocationService) IssueTeamTicket(ctx context.Context, req d
 		return nil, fmt.Errorf("no free tier is configured to issue these allocated tickets from")
 	}
 
-	const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-	code := make([]byte, 6)
-	for i := range code {
-		n, _ := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
-		code[i] = chars[n.Int64()]
-	}
-	ticketCode := "SFFL-" + strings.ToUpper(string(code))
+	// Create ticket with collision protection
+	var ticket *domain.Ticket
+	maxRetries := 5
+	var lastErr error
 
-	ticket := &domain.Ticket{
-		EventDayID:  req.EventDayID,
-		TierID:      selectedTier.ID,
-		Email:       req.Email,
-		Quantity:    1,
-		UnitPrice:   0,
-		TotalAmount: 0,
-		Status:      domain.TicketStatusPaid,
-		TicketCode:  ticketCode,
-		TeamID:      &teamID,
+	for i := 0; i < maxRetries; i++ {
+		ticket = &domain.Ticket{
+			EventDayID:  req.EventDayID,
+			TierID:      selectedTier.ID,
+			Email:       req.Email,
+			Quantity:    1,
+			UnitPrice:   0,
+			TotalAmount: 0,
+			Status:      domain.TicketStatusPaid,
+			TicketCode:  GenerateTicketCode(),
+			TeamID:      &teamID,
+		}
+
+		if err := s.ticketRepo.Create(ctx, ticket); err != nil {
+			// Check if it's a unique constraint violation on ticket_code
+			if strings.Contains(err.Error(), "tickets_ticket_code_key") || strings.Contains(err.Error(), "duplicate key value") {
+				lastErr = err
+				continue
+			}
+			return nil, fmt.Errorf("failed to insert ticket: %w", err)
+		}
+
+		// Success
+		lastErr = nil
+		break
 	}
 
-	if err := s.ticketRepo.Create(ctx, ticket); err != nil {
-		return nil, fmt.Errorf("failed to insert ticket: %w", err)
+	if lastErr != nil {
+		return nil, fmt.Errorf("failed to generate unique ticket code after %d attempts: %w", maxRetries, lastErr)
 	}
 
 	_ = s.tierRepo.IncrementSoldCount(ctx, selectedTier.ID, 1)
