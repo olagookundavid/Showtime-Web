@@ -157,8 +157,8 @@ func (s *TicketService) ListActiveEventDays(ctx context.Context, code string) ([
 				tiers = append(tiers, t)
 			}
 		}
-		matches := s.getMatchesForDate(ctx, eventDays[i].Date)
-		responses = append(responses, *eventDayToResponse(&eventDays[i], tiers, matches))
+		// matches := s.getMatchesForDate(ctx, eventDays[i].Date)
+		responses = append(responses, *eventDayToResponse(&eventDays[i], tiers, []domain.Match{}))
 	}
 	return responses, nil
 }

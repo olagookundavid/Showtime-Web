@@ -38,7 +38,7 @@ export const Footer = () => {
                             href="https://www.youtube.com/@ShowtimeFlagFootball"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="w-8 h-8 md:w-10 md:h-10 bg-gray-700 hover:bg-[#FF0000] rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110"
+                            className="w-10 h-10 bg-gray-700 hover:bg-[#FF0000] rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110"
                             aria-label="YouTube"
                         >
                             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">

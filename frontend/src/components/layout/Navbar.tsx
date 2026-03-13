@@ -107,7 +107,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                                     {user?.role === 'admin' && (
                                         <Link
                                             to="/admin"
-                                            className="bg-sffl-red hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded transition text-xs"
+                                            className="bg-sffl-red hover:bg-[#A52323] text-white font-bold px-3 py-1.5 rounded transition text-xs"
                                         >
                                             Admin
                                         </Link>
@@ -145,7 +145,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                                     </Link>
                                     <Link
                                         to="/signup"
-                                        className="bg-sffl-red hover:bg-red-700 dark:hover:bg-red-600 text-white font-bold px-3 py-1.5 rounded transition text-xs"
+                                        className="bg-sffl-red hover:bg-[#A52323] dark:hover:bg-[#A52323] text-white font-bold px-3 py-1.5 rounded transition text-xs"
                                     >
                                         Sign Up
                                     </Link>
@@ -238,7 +238,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                                 <div className="space-y-4">
                                     <div className="text-gray-300 text-sm">Hi, <span className="text-white font-extrabold text-lg">{user?.name}</span></div>
                                     {user?.role === 'admin' && (
-                                        <Link to="/admin" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-sffl-red hover:bg-red-700 text-white font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
+                                        <Link to="/admin" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-sffl-red hover:bg-[#A52323] text-white font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
                                             Admin Panel
                                         </Link>
                                     )}
@@ -264,7 +264,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                                     <Link to="/login?role=fan" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-white dark:bg-gray-700 text-sffl-navy dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600 font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
                                         Login
                                     </Link>
-                                    <Link to="/signup" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-sffl-red hover:bg-red-700 text-white font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
+                                    <Link to="/signup" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-sffl-red hover:bg-[#A52323] text-white font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
                                         Sign Up
                                     </Link>
                                 </div>

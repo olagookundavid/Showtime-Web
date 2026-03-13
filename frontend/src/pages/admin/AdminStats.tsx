@@ -73,15 +73,38 @@ export const AdminStats = () => {
     const [activePlayer, setActivePlayer] = useState<Player | null>(null);
     const [form, setForm] = useState<FormState>(emptyForm);
     const [saving, setSaving] = useState(false);
+    const [loadingExisting, setLoadingExisting] = useState(false);
 
-    const openStatsModal = (p: Player) => {
+    const openStatsModal = async (p: Player) => {
         if (!selectedComp || !selectedDate) {
             toast.error('Please select a Competition and Date first');
             return;
         }
         setActivePlayer(p);
-        setForm(emptyForm);
+        setLoadingExisting(true);
         setShowModal(true);
+
+        try {
+            const existing = await import('../../services/api').then(m =>
+                m.getPlayerStatById(p.id, selectedComp, selectedDate)
+            );
+
+            if (existing) {
+                const loadedForm: any = { ...emptyForm };
+                STAT_FIELDS.forEach(f => {
+                    loadedForm[f.key] = String((existing as any)[f.key] || 0);
+                });
+                setForm(loadedForm);
+                toast.success('Existing stats loaded for editing');
+            } else {
+                setForm(emptyForm);
+            }
+        } catch (err) {
+            console.error('Failed to fetch existing stats:', err);
+            setForm(emptyForm);
+        } finally {
+            setLoadingExisting(false);
+        }
     };
 
     const handleSave = async () => {
@@ -140,9 +163,9 @@ export const AdminStats = () => {
             cell: (p) => (
                 <button
                     onClick={() => openStatsModal(p)}
-                    className="px-3 py-1.5 bg-sffl-red text-white font-bold text-xs rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 whitespace-nowrap"
+                    className="px-3 py-1.5 bg-sffl-navy text-white font-bold text-xs rounded-lg shadow-sm hover:shadow-md hover:bg-sffl-navy-light transition-all duration-300 hover:scale-[1.02] active:scale-95 whitespace-nowrap"
                 >
-                    + Record Stats
+                    Edit Stats
                 </button>
             )
         },
@@ -220,9 +243,15 @@ export const AdminStats = () => {
                             </button>
                         </div>
 
-                        <div className="p-6">
+                        <div className="p-6 relative">
+                            {loadingExisting && (
+                                <div className="absolute inset-0 bg-white/50 dark:bg-gray-800/50 backdrop-blur-[1px] flex items-center justify-center z-20">
+                                    <Loader />
+                                </div>
+                            )}
+
                             <div className="bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 p-4 rounded-xl mb-6 text-sm font-medium border border-blue-100 dark:border-blue-800">
-                                ℹ️ Enter the stats accumulated by the player <b>in this specific match/date</b>. Submitting will incrementally add these values to the database. If correcting a mistake, you can enter negative numbers.
+                                ℹ️ Update the stats for this player. <b>Saving will overwrite existing data</b> for this specific match date.
                             </div>
 
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -245,7 +274,7 @@ export const AdminStats = () => {
                             <button onClick={handleSave} disabled={saving} className="px-8 py-2 bg-sffl-navy hover:bg-sffl-navy-light text-white font-black uppercase tracking-wider text-sm rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 min-h-[44px] disabled:opacity-50 flex items-center gap-2">
                                 {saving ? (
                                     <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Saving...</>
-                                ) : 'Save Stats'}
+                                ) : 'Update Stats'}
                             </button>
                         </div>
                     </div>

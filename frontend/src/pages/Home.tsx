@@ -82,16 +82,16 @@ export default function Home() {
         <div className="space-y-16">
             {/* Hero Section */}
             <RevealSection className="relative overflow-hidden rounded-3xl bg-gray-900 isolate shadow-2xl">
-                <div className="absolute inset-0 -z-10 bg-[url('https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=2069&auto=format&fit=crop')] bg-cover bg-center opacity-20"></div>
+                <div className="absolute inset-0 -z-10 bg-[url('/images/branding/home-bg.png')] bg-cover bg-center opacity-40"></div>
                 <div className="px-6 py-24 sm:px-6 sm:py-32 lg:px-8 text-center relative z-10">
                     <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-7xl mb-6 drop-shadow-lg">
-                        Welcome to the <span className="text-blue-500 italic">Showtime</span>
+                        Welcome to the <span className="text-sffl-red italic">Showtime</span>
                     </h1>
                     <p className="mx-auto max-w-2xl text-lg sm:text-xl text-gray-300 mb-10 drop-shadow-md">
                         The premier flag football league. Experience the thrill, stats, and glory of SFFL.
                     </p>
                     <div className="flex flex-col sm:flex-row justify-center gap-4 w-full px-4 sm:px-0">
-                        <Link to="/matches" className="flex items-center justify-center rounded-full bg-blue-600 px-8 py-3 min-h-[44px] text-sm font-bold text-white shadow-lg hover:bg-blue-500 hover:scale-105 active:scale-95 transition-all duration-300 w-full sm:w-auto">
+                        <Link to="/matches" className="flex items-center justify-center rounded-full bg-sffl-red px-8 py-3 min-h-[44px] text-sm font-bold text-white shadow-lg hover:bg-red-700 hover:scale-105 active:scale-95 transition-all duration-300 w-full sm:w-auto">
                             View Schedule
                         </Link>
                         <Link to="/tickets" className="flex items-center justify-center rounded-full bg-white/10 backdrop-blur-sm px-8 py-3 min-h-[44px] text-sm font-bold text-white border border-white/20 hover:bg-white/20 hover:scale-105 active:scale-95 transition-all duration-300 w-full sm:w-auto">
@@ -107,7 +107,7 @@ export default function Home() {
                     <h2 className="text-3xl font-black italic tracking-tighter text-sffl-navy dark:text-white transition-colors duration-300">
                         <span className="text-sffl-red mr-2">●</span> LATEST RESULTS
                     </h2>
-                    <Link to="/matches" className="text-blue-600 dark:text-blue-400 font-bold hover:underline py-2 px-3 -mr-3 rounded-lg flex items-center min-h-[44px] hover:bg-blue-50 dark:hover:bg-blue-900/20 active:scale-95 transition-all duration-300">
+                    <Link to="/matches" className="text-sffl-red dark:text-red-400 font-bold hover:underline py-2 px-3 -mr-3 rounded-lg flex items-center min-h-[44px] hover:bg-red-50 dark:hover:bg-red-900/20 active:scale-95 transition-all duration-300">
                         View All <span className="ml-1">→</span>
                     </Link>
                 </div>
@@ -131,9 +131,9 @@ export default function Home() {
                 <RevealSection>
                     <div className="flex items-center justify-between mb-8">
                         <h2 className="text-3xl font-black italic tracking-tighter text-sffl-navy dark:text-white transition-colors duration-300">
-                            <span className="text-blue-500 mr-2">●</span> UPCOMING MATCHES
+                            <span className="text-sffl-red mr-2">●</span> UPCOMING MATCHES
                         </h2>
-                        <Link to="/tickets" className="text-blue-600 dark:text-blue-400 font-bold hover:underline py-2 px-3 -mr-3 rounded-lg flex items-center min-h-[44px] hover:bg-blue-50 dark:hover:bg-blue-900/20 active:scale-95 transition-all duration-300">
+                        <Link to="/tickets" className="text-sffl-red dark:text-red-400 font-bold hover:underline py-2 px-3 -mr-3 rounded-lg flex items-center min-h-[44px] hover:bg-red-50 dark:hover:bg-red-900/20 active:scale-95 transition-all duration-300">
                             Get Tickets <span className="ml-1">→</span>
                         </Link>
                     </div>
@@ -153,7 +153,7 @@ export default function Home() {
                         <h2 className="text-3xl font-black italic tracking-tighter text-sffl-navy dark:text-white transition-colors duration-300">
                             <span className="text-yellow-500 mr-2">●</span> LEAGUE TABLE
                         </h2>
-                        <Link to="/standings" className="text-blue-600 dark:text-blue-400 font-bold hover:underline py-2 px-3 -mr-3 rounded-lg flex items-center min-h-[44px] hover:bg-blue-50 dark:hover:bg-blue-900/20 active:scale-95 transition-all duration-300">
+                        <Link to="/standings" className="text-sffl-red dark:text-red-400 font-bold hover:underline py-2 px-3 -mr-3 rounded-lg flex items-center min-h-[44px] hover:bg-red-50 dark:hover:bg-red-900/20 active:scale-95 transition-all duration-300">
                             Full Table <span className="ml-1">→</span>
                         </Link>
                     </div>
@@ -202,7 +202,7 @@ export default function Home() {
                         <h2 className="text-3xl font-black italic tracking-tighter text-sffl-navy dark:text-white transition-colors duration-300">
                             <span className="text-green-500 mr-2">●</span> NEWS
                         </h2>
-                        <Link to="/news" className="text-blue-600 dark:text-blue-400 font-bold hover:underline py-2 px-3 -mr-3 rounded-lg flex items-center min-h-[44px] hover:bg-blue-50 dark:hover:bg-blue-900/20 active:scale-95 transition-all duration-300">
+                        <Link to="/news" className="text-sffl-red dark:text-red-400 font-bold hover:underline py-2 px-3 -mr-3 rounded-lg flex items-center min-h-[44px] hover:bg-red-50 dark:hover:bg-red-900/20 active:scale-95 transition-all duration-300">
                             All News <span className="ml-1">→</span>
                         </Link>
                     </div>
@@ -216,8 +216,8 @@ export default function Home() {
                                         </div>
                                     )}
                                     <div className="p-3 flex-1 min-w-0">
-                                        <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">{article.category || 'News'}</span>
-                                        <h3 className="font-bold text-sm text-sffl-navy dark:text-white leading-tight mt-1 line-clamp-2 group-hover:text-blue-600 transition-colors">{article.title}</h3>
+                                        <span className="text-xs font-bold text-sffl-red dark:text-red-400 uppercase">{article.category || 'News'}</span>
+                                        <h3 className="font-bold text-sm text-sffl-navy dark:text-white leading-tight mt-1 line-clamp-2 group-hover:text-red-600 transition-colors">{article.title}</h3>
                                         <p className="text-xs text-gray-500 mt-1">{article.published_at ? new Date(article.published_at).toLocaleDateString() : ''}</p>
                                     </div>
                                 </div>
@@ -234,7 +234,7 @@ export default function Home() {
             {/* Features Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <RevealSection delay={0}>
-                    <Link to="/matches" className="block w-full h-full p-8 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 transition-all duration-300 group shadow-sm hover:shadow-lg active:scale-[0.98]">
+                    <Link to="/matches" className="block w-full h-full p-8 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 hover:border-red-500 dark:hover:border-red-500 transition-all duration-300 group shadow-sm hover:shadow-lg active:scale-[0.98]">
                         <div className="text-4xl mb-4 group-hover:scale-110 transition-transform duration-300">📺</div>
                         <h3 className="text-xl font-bold mb-2 text-sffl-navy dark:text-white">Latest Matches</h3>
                         <p className="text-gray-500 dark:text-gray-400">Catch up on the latest scores and highlights from every game week.</p>

@@ -763,8 +763,14 @@ export const getPlayerStats = async (compId?: string, eventDay?: string, page = 
     return response.data;
 };
 
-export const getPlayerStatById = async (id: string): Promise<PlayerStat | null> => {
-    const response = await api.get(`/stats/players/${id}`);
+export const getPlayerStatById = async (id: string, compId?: string, matchDate?: string): Promise<PlayerStat | null> => {
+    let url = `/stats/players/${id}`;
+    const params = new URLSearchParams();
+    if (compId) params.append('competition_id', compId);
+    if (matchDate) params.append('match_date', matchDate);
+    if (params.toString()) url += `?${params.toString()}`;
+
+    const response = await api.get(url);
     return response.data.data;
 };
 

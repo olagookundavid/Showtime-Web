@@ -84,7 +84,7 @@ export const TicketsPage = () => {
     };
 
     const tierColorMap: Record<string, string> = {
-        'Regular': 'from-blue-500 to-blue-700',
+        'Regular': 'from-red-500 to-red-700',
         'VIP': 'from-amber-500 to-amber-700',
         'VVIP': 'from-purple-500 to-purple-800',
     };
@@ -123,7 +123,7 @@ export const TicketsPage = () => {
 
             {loading ? (
                 <div className="flex justify-center py-16">
-                    <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-12 h-12 border-4 border-sffl-red border-t-transparent rounded-full animate-spin"></div>
                 </div>
             ) : eventDays.length === 0 ? (
                 <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-2xl shadow-lg">
@@ -202,7 +202,7 @@ export const TicketsPage = () => {
                                                         <button
                                                             onClick={() => openPurchaseModal(eventDay, tier)}
                                                             disabled={isSoldOut}
-                                                            className="w-full bg-sffl-red hover:bg-red-700 text-white font-black py-2 md:py-3 rounded-lg text-sm transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            className="w-full bg-sffl-red hover:bg-[#A52323] text-white font-black py-2 md:py-3 rounded-lg text-sm transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                                         >
                                                             {isSoldOut ? 'Sold Out' : 'Buy Now'}
                                                         </button>
@@ -251,7 +251,7 @@ export const TicketsPage = () => {
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="e.g. example@mail.com"
-                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none"
                                     required
                                 />
                                 <p className="text-xs text-gray-500 mt-1">Your ticket will be sent to this email</p>
@@ -298,7 +298,7 @@ export const TicketsPage = () => {
                             <button
                                 onClick={handlePurchase}
                                 disabled={purchasing || !email}
-                                className="flex-1 bg-sffl-red hover:bg-red-700 text-white font-bold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                className="flex-1 bg-sffl-red hover:bg-[#A52323] text-white font-bold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {purchasing ? (
                                     <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Processing...</>

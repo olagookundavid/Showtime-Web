@@ -29,7 +29,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
             className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden border border-gray-100 dark:border-gray-700 group"
         >
             {/* Header: Date/Time or Status */}
-            <div className={`p-2.5 md:p-3 text-center text-[10px] md:text-sm font-bold uppercase tracking-wider ${isLive ? 'bg-red-600 text-white animate-pulse' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-white'}`}>
+            <div className={`p-2.5 md:p-3 text-center text-[10px] md:text-sm font-bold uppercase tracking-wider ${isLive ? 'bg-sffl-red text-white animate-pulse' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-white'}`}>
                 {isLive ? 'LIVE NOW' : isFinished ? 'Final Score' : `${formatDate(match.date)} • ${formatTime(match.start_time)}`}
             </div>
 

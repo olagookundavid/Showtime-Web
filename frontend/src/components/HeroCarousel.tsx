@@ -18,8 +18,8 @@ const slides: Slide[] = [
         subtitle: 'Secure your spot for the next thrilling SFFL match',
         ctaText: 'Buy Tickets',
         ctaLink: '/tickets',
-        bgColor: 'from-sffl-red to-red-800',
-        image: 'https://images.unsplash.com/photo-1560272564-c83b66b1ad12?w=1200&q=80',
+        bgColor: 'from-sffl-red to-[#8B1C1C]',
+        image: '/images/branding/hero-action.png',
     },
     {
         id: 2,
@@ -28,7 +28,7 @@ const slides: Slide[] = [
         ctaText: 'Sign Up Free',
         ctaLink: '/signup',
         bgColor: 'from-sffl-navy to-blue-900',
-        image: 'https://images.unsplash.com/photo-1566577739112-5180d4bf9390?w=1200&q=80',
+        image: '/images/branding/hero-team.png',
     },
     {
         id: 3,
@@ -37,7 +37,7 @@ const slides: Slide[] = [
         ctaText: 'See Photos',
         ctaLink: '/gallery',
         bgColor: 'from-purple-600 to-purple-900',
-        image: 'https://images.unsplash.com/photo-1511886929837-354d827aae26?w=1200&q=80',
+        image: '/images/branding/hero-qb.png',
     },
 ];
 

@@ -12,15 +12,14 @@ export const LandingPage = () => {
     });
 
     const { data: newsData, isLoading: loadingNews } = useQuery({
-        queryKey: ['publicNews', 'commissioners-note'],
-        queryFn: () => getNews(1, 10), // We'll fetch the recent 10 and filter by category
+        queryKey: ['publicNews', "Commissioner's Note"],
+        queryFn: () => getNews(1, 1, undefined, "Commissioner's Note"),
     });
 
     const latestResults = finishedMatchesData?.data || [];
 
-    // Find the latest commissioner's note
-    const commissionerNotes = (newsData?.data || []).filter(n => n.category === "Commissioner's Note");
-    const latestNote = commissionerNotes.length > 0 ? commissionerNotes[0] : null;
+    // The backend now filters by category, so the first item is our latest note
+    const latestNote = newsData?.data?.[0] || null;
     return (
         <div className="space-y-6 md:space-y-12">
             {/* Hero Section - High Density */}
@@ -40,7 +39,7 @@ export const LandingPage = () => {
                         <div className="flex flex-col sm:flex-row gap-2 justify-center animate-fade-in-delayed">
                             <Link
                                 to="/tickets"
-                                className="bg-sffl-red hover:bg-red-700 text-white font-black py-2 px-6 md:py-4 md:px-10 rounded-full text-xs md:text-xl uppercase tracking-widest transition transform hover:scale-105 shadow-xl"
+                                className="bg-sffl-red hover:bg-[#A52323] text-white font-black py-2 px-6 md:py-4 md:px-10 rounded-full text-xs md:text-xl uppercase tracking-widest transition transform hover:scale-105 shadow-xl"
                             >
                                 Buy Tickets
                             </Link>
@@ -104,7 +103,7 @@ export const LandingPage = () => {
                         </div>
                     )}
                 </div>
-                <div className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-2xl shadow-xl border border-transparent dark:border-gray-700">
+                {/* <div className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-2xl shadow-xl border border-transparent dark:border-gray-700">
                     <h3 className="text-xl md:text-2xl font-bold italic text-sffl-navy dark:text-white transition-colors duration-300 mb-4">PLAYER OF THE WEEK</h3>
                     <div className="flex items-center gap-6">
                         <div className="w-16 h-16 md:w-24 md:h-24 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center font-bold text-gray-400 dark:text-gray-500">IMG</div>
@@ -114,7 +113,7 @@ export const LandingPage = () => {
                             <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">4 TDs, 0 INT, 250 Yds</div>
                         </div>
                     </div>
-                </div>
+                </div> */}
             </section>
         </div>
     );

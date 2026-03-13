@@ -4,7 +4,7 @@ import { getAdminAnalytics, type TicketResponse } from '../../services/api';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useTheme } from '../../contexts/ThemeContext';
 
-const PIE_COLORS = ['#0f172a', '#e11d48', '#22c55e', '#a855f7', '#f59e0b'];
+const PIE_COLORS = ['#001F3F', '#C62828', '#22c55e', '#f59e0b', '#a855f7'];
 
 // Simple Nigerian Naira formatter
 const formatNaira = (amount: number) => {
@@ -109,7 +109,7 @@ export const AdminAnalytics = () => {
                                 <BarChart data={sales_by_tier} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                                     <XAxis dataKey="tier_name" tick={{ fill: isDarkMode ? '#9ca3af' : '#6b7280', fontSize: 12 }} />
                                     <YAxis yAxisId="left" orientation="left" stroke={isDarkMode ? '#e2e8f0' : '#0f172a'} />
-                                    <YAxis yAxisId="right" orientation="right" stroke={isDarkMode ? '#f87171' : '#e11d48'} />
+                                    <YAxis yAxisId="right" orientation="right" stroke={isDarkMode ? '#EF5350' : '#C62828'} />
                                     <Tooltip
                                         formatter={(value, name) => {
                                             if (name === 'Revenue') return [formatNaira(value as number), 'Revenue'];
@@ -120,7 +120,7 @@ export const AdminAnalytics = () => {
                                     />
                                     <Legend />
                                     <Bar yAxisId="left" dataKey="quantity" name="Tickets Sold" fill={isDarkMode ? '#94a3b8' : '#0f172a'} radius={[4, 4, 0, 0]} />
-                                    <Bar yAxisId="right" dataKey="total_amount" name="Revenue" fill={isDarkMode ? '#ef4444' : '#e11d48'} radius={[4, 4, 0, 0]} />
+                                    <Bar yAxisId="right" dataKey="total_amount" name="Revenue" fill={isDarkMode ? '#EF5350' : '#C62828'} radius={[4, 4, 0, 0]} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>

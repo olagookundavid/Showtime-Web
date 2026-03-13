@@ -97,8 +97,18 @@ func (h *StatsHandler) GetPlayerStats(c *gin.Context) {
 // @Router       /api/v1/stats/players/{id} [get]
 func (h *StatsHandler) GetPlayerStatByID(c *gin.Context) {
 	id := c.Param("id")
+	competitionID := c.Query("competition_id")
+	matchDateStr := c.Query("match_date")
+
 	filter := domain.StatsFilter{
-		PlayerID: id,
+		PlayerID:      id,
+		CompetitionID: competitionID,
+	}
+
+	if matchDateStr != "" {
+		if parsed, err := time.Parse("2006-01-02", matchDateStr); err == nil {
+			filter.EventDay = &parsed
+		}
 	}
 
 	stats, _, err := h.service.GetPlayerStats(c.Request.Context(), filter)
@@ -108,7 +118,6 @@ func (h *StatsHandler) GetPlayerStatByID(c *gin.Context) {
 	}
 
 	if len(stats) == 0 {
-		// Return 404 or empty object if player has no stats, empty object is friendlier for front-end
 		c.JSON(http.StatusOK, gin.H{"data": nil})
 		return
 	}
