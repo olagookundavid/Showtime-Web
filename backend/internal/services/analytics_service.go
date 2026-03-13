@@ -33,7 +33,7 @@ func (s *AnalyticsService) GetAdminDashboardMetrics(ctx context.Context) (*dto.A
 
 	wg.Add(6)
 
-	go func() {
+	_ = SubmitJob(func() {
 		defer wg.Done()
 		total, err := s.ticketRepo.GetTotalRevenue(ctx)
 		if err != nil {
@@ -43,9 +43,9 @@ func (s *AnalyticsService) GetAdminDashboardMetrics(ctx context.Context) (*dto.A
 			return
 		}
 		resp.TotalRevenue = total
-	}()
+	})
 
-	go func() {
+	_ = SubmitJob(func() {
 		defer wg.Done()
 		total, err := s.ticketRepo.GetTotalTicketsSold(ctx)
 		if err != nil {
@@ -55,9 +55,9 @@ func (s *AnalyticsService) GetAdminDashboardMetrics(ctx context.Context) (*dto.A
 			return
 		}
 		resp.TotalTicketsSold = total
-	}()
+	})
 
-	go func() {
+	_ = SubmitJob(func() {
 		defer wg.Done()
 		total, err := s.authRepo.CountTotalUsers(ctx)
 		if err != nil {
@@ -67,9 +67,9 @@ func (s *AnalyticsService) GetAdminDashboardMetrics(ctx context.Context) (*dto.A
 			return
 		}
 		resp.TotalUsers = total
-	}()
+	})
 
-	go func() {
+	_ = SubmitJob(func() {
 		defer wg.Done()
 		tickets, err := s.ticketRepo.GetRecentSales(ctx, 10)
 		if err != nil {
@@ -83,9 +83,9 @@ func (s *AnalyticsService) GetAdminDashboardMetrics(ctx context.Context) (*dto.A
 			recent = append(recent, *ticketToResponse(&t))
 		}
 		resp.RecentSales = recent
-	}()
+	})
 
-	go func() {
+	_ = SubmitJob(func() {
 		defer wg.Done()
 		roles, err := s.analyticsRepo.GetUsersByRole(ctx)
 		if err != nil {
@@ -95,9 +95,9 @@ func (s *AnalyticsService) GetAdminDashboardMetrics(ctx context.Context) (*dto.A
 			return
 		}
 		resp.UsersByRole = roles
-	}()
+	})
 
-	go func() {
+	_ = SubmitJob(func() {
 		defer wg.Done()
 		sales, err := s.analyticsRepo.GetSalesByTier(ctx)
 		if err != nil {
@@ -115,7 +115,7 @@ func (s *AnalyticsService) GetAdminDashboardMetrics(ctx context.Context) (*dto.A
 			})
 		}
 		resp.SalesByTier = salesDto
-	}()
+	})
 
 	wg.Wait()
 

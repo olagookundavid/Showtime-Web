@@ -57,8 +57,8 @@ type Ticket struct {
 	UnitPrice          int          `json:"unit_price"`
 	TotalAmount        int          `json:"total_amount"`
 	Status             TicketStatus `json:"status"`
-	PaystackReference  string       `json:"paystack_reference"`
-	PaystackAccessCode string       `json:"paystack_access_code"`
+	PaystackReference  *string      `json:"paystack_reference,omitempty"`
+	PaystackAccessCode *string      `json:"paystack_access_code,omitempty"`
 	TicketCode         string       `json:"ticket_code"`
 	TeamID             *string      `json:"team_id,omitempty"`
 	CheckedInAt        *time.Time   `json:"checked_in_at,omitempty"`

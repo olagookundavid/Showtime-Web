@@ -110,8 +110,9 @@ func (s *TicketService) GetEventDayByID(ctx context.Context, id string, code str
 
 	allTiers, _ := s.tierRepo.ListByEventDay(ctx, ed.ID)
 	var tiers []domain.TicketTier
+	normalizedCode := strings.ToUpper(strings.TrimSpace(code))
 	for _, t := range allTiers {
-		if !t.IsHidden || (t.AccessCode != nil && *t.AccessCode == code) {
+		if !t.IsHidden || (t.AccessCode != nil && strings.ToUpper(strings.TrimSpace(*t.AccessCode)) == normalizedCode) {
 			tiers = append(tiers, t)
 		}
 	}
@@ -128,8 +129,9 @@ func (s *TicketService) GetEventDayByDate(ctx context.Context, date string, code
 
 	allTiers, _ := s.tierRepo.ListByEventDay(ctx, ed.ID)
 	var tiers []domain.TicketTier
+	normalizedCode := strings.ToUpper(strings.TrimSpace(code))
 	for _, t := range allTiers {
-		if !t.IsHidden || (t.AccessCode != nil && *t.AccessCode == code) {
+		if !t.IsHidden || (t.AccessCode != nil && strings.ToUpper(strings.TrimSpace(*t.AccessCode)) == normalizedCode) {
 			tiers = append(tiers, t)
 		}
 	}
@@ -148,8 +150,10 @@ func (s *TicketService) ListActiveEventDays(ctx context.Context, code string) ([
 	for i := range eventDays {
 		allTiers, _ := s.tierRepo.ListByEventDay(ctx, eventDays[i].ID)
 		var tiers []domain.TicketTier
+		normalizedCode := strings.ToUpper(strings.TrimSpace(code))
+
 		for _, t := range allTiers {
-			if !t.IsHidden || (t.AccessCode != nil && *t.AccessCode == code) {
+			if !t.IsHidden || (t.AccessCode != nil && strings.ToUpper(strings.TrimSpace(*t.AccessCode)) == normalizedCode) {
 				tiers = append(tiers, t)
 			}
 		}
@@ -212,7 +216,11 @@ func (s *TicketService) CreateTier(ctx context.Context, eventDayID string, req d
 		Capacity:    req.Capacity,
 		Description: req.Description,
 		IsHidden:    req.IsHidden,
-		AccessCode:  req.AccessCode,
+	}
+
+	if req.AccessCode != nil {
+		code := strings.ToUpper(strings.TrimSpace(*req.AccessCode))
+		tier.AccessCode = &code
 	}
 
 	if err := s.tierRepo.Create(ctx, tier); err != nil {
@@ -266,14 +274,14 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 	// 4. Generate unique reference
 	reference := "SFFL-" + uuid.New().String()[:12]
 
-	var paystackRef string
-	var paystackAccessCode string
+	var paystackRef *string
+	var paystackAccessCode *string
 	var authURL string
 	var ticketStatus = domain.TicketStatusPending
 
 	// If the ticket is free, bypass Paystack entirely
 	if totalAmount == 0 {
-		paystackRef = reference
+		paystackRef = &reference
 		ticketStatus = domain.TicketStatusPaid
 	} else {
 		// 5. Initialize Paystack transaction
@@ -289,8 +297,8 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 			return nil, fmt.Errorf("failed to initialize payment: %w", err)
 		}
 
-		paystackRef = paystackResp.Data.Reference
-		paystackAccessCode = paystackResp.Data.AccessCode
+		paystackRef = &paystackResp.Data.Reference
+		paystackAccessCode = &paystackResp.Data.AccessCode
 		authURL = paystackResp.Data.AuthorizationURL
 	}
 
@@ -345,20 +353,24 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 		s.sendPurchaseEmail(ticket)
 	}
 
-	return &dto.TicketResponse{
-		ID:                ticket.ID,
-		EventDayID:        ticket.EventDayID,
-		TierID:            ticket.TierID,
-		Email:             ticket.Email,
-		Quantity:          ticket.Quantity,
-		UnitPrice:         ticket.UnitPrice,
-		TotalAmount:       ticket.TotalAmount,
-		Status:            string(ticket.Status),
-		PaystackReference: ticket.PaystackReference,
-		AuthorizationURL:  authURL,
-		TierName:          tier.Name,
-		CreatedAt:         ticket.CreatedAt.Format("2006-01-02T15:04:05Z"),
-	}, nil
+	res := &dto.TicketResponse{
+		ID:               ticket.ID,
+		EventDayID:       ticket.EventDayID,
+		TierID:           ticket.TierID,
+		Email:            ticket.Email,
+		Quantity:         ticket.Quantity,
+		UnitPrice:        ticket.UnitPrice,
+		TotalAmount:      ticket.TotalAmount,
+		Status:           string(ticket.Status),
+		AuthorizationURL: authURL,
+		TierName:         tier.Name,
+		CreatedAt:        ticket.CreatedAt.Format("2006-01-02T15:04:05Z"),
+	}
+	if ticket.PaystackReference != nil {
+		res.PaystackReference = *ticket.PaystackReference
+	}
+
+	return res, nil
 }
 
 func (s *TicketService) HandleWebhook(ctx context.Context, reference string) error {
@@ -485,8 +497,8 @@ func (s *TicketService) AdminCheckin(ctx context.Context, id string, checkedInBy
 	}
 
 	// If pending, try to verify payment first
-	if ticket.Status == domain.TicketStatusPending && ticket.PaystackReference != "" {
-		verifyResp, verifyErr := s.paystack.VerifyTransaction(ticket.PaystackReference)
+	if ticket.Status == domain.TicketStatusPending && ticket.PaystackReference != nil {
+		verifyResp, verifyErr := s.paystack.VerifyTransaction(*ticket.PaystackReference)
 		if verifyErr == nil && verifyResp.Data.Status == "success" {
 			_ = s.ticketRepo.UpdateStatus(ctx, ticket.ID, domain.TicketStatusPaid)
 			_ = s.tierRepo.IncrementSoldCount(ctx, ticket.TierID, ticket.Quantity)
@@ -544,11 +556,11 @@ func (s *TicketService) sendPurchaseEmail(ticket *domain.Ticket) {
 		ticket.TicketCode,
 	)
 
-	go func() {
+	_ = SubmitJob(func() {
 		if err := s.email.SendEmail(ticket.Email, subject, body); err != nil {
 			fmt.Printf("Failed to send purchase email to %s: %v\n", ticket.Email, err)
 		}
-	}()
+	})
 }
 
 func (s *TicketService) sendCheckinEmail(ticket *domain.Ticket) {
@@ -563,11 +575,11 @@ func (s *TicketService) sendCheckinEmail(ticket *domain.Ticket) {
 		ticket.TicketCode,
 	)
 
-	go func() {
+	_ = SubmitJob(func() {
 		if err := s.email.SendEmail(ticket.Email, subject, body); err != nil {
 			fmt.Printf("Failed to send checkin email to %s: %v\n", ticket.Email, err)
 		}
-	}()
+	})
 }
 
 func eventDayToResponse(ed *domain.EventDay, tiers []domain.TicketTier, matches []domain.Match) *dto.EventDayResponse {
@@ -628,17 +640,20 @@ func tierToResponse(t *domain.TicketTier) *dto.TicketTierResponse {
 
 func ticketToResponse(t *domain.Ticket) *dto.TicketResponse {
 	res := &dto.TicketResponse{
-		ID:                t.ID,
-		EventDayID:        t.EventDayID,
-		TierID:            t.TierID,
-		Email:             t.Email,
-		Quantity:          t.Quantity,
-		UnitPrice:         t.UnitPrice,
-		TotalAmount:       t.TotalAmount,
-		Status:            string(t.Status),
-		PaystackReference: t.PaystackReference,
-		TicketCode:        t.TicketCode,
-		CreatedAt:         t.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		ID:          t.ID,
+		EventDayID:  t.EventDayID,
+		TierID:      t.TierID,
+		Email:       t.Email,
+		Quantity:    t.Quantity,
+		UnitPrice:   t.UnitPrice,
+		TotalAmount: t.TotalAmount,
+		Status:      string(t.Status),
+		TicketCode:  t.TicketCode,
+		CreatedAt:   t.CreatedAt.Format("2006-01-02T15:04:05Z"),
+	}
+
+	if t.PaystackReference != nil {
+		res.PaystackReference = *t.PaystackReference
 	}
 
 	if t.CheckedInAt != nil {

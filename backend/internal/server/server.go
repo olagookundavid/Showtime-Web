@@ -62,6 +62,11 @@ func shutdown(app *api.Application, srv *http.Server, shutdownError chan error) 
 			}
 			app.Logger.Info("completing background tasks", map[string]interface{}{"addr": srv.Addr})
 
+			// Close audit service to flush batches
+			if app.AuditService != nil {
+				app.AuditService.Close()
+			}
+
 			shutdownError <- nil
 		})
 }

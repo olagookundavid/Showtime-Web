@@ -11,6 +11,7 @@ import (
 	"showtime-backend/cmd/api"
 	"showtime-backend/docs"
 	"showtime-backend/internal/server"
+	"showtime-backend/internal/services"
 
 	"github.com/gin-gonic/gin"
 )
@@ -82,6 +83,12 @@ func main() {
 	}
 	defer pool.Close()
 	log.Info("database connection pool established", nil)
+
+	// Initialize Worker Pool (Global ants pool)
+	if err := services.InitWorkerPool(1000); err != nil {
+		log.Fatal(fmt.Errorf("failed to initialize worker pool: %w", err).Error(), nil)
+	}
+	defer services.CloseWorkerPool()
 
 	expvarSetup()
 

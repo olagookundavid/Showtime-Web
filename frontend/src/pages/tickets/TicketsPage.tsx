@@ -112,7 +112,7 @@ export const TicketsPage = () => {
                             className="px-3 py-1.5 rounded-lg bg-white/20 text-white placeholder-gray-400 border border-white/30 focus:outline-none focus:ring-1 focus:ring-white/50 w-full md:w-48 uppercase text-xs"
                         />
                         <button
-                            onClick={() => setAppliedCode(accessCode)}
+                            onClick={() => setAppliedCode(accessCode.trim())}
                             className="bg-white text-sffl-navy font-bold px-4 py-1.5 rounded-lg text-xs hover:bg-gray-100 transition shadow-sm"
                         >
                             Apply

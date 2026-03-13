@@ -189,9 +189,9 @@ func (s *TeamTicketAllocationService) sendTeamTicketEmail(ticket *domain.Ticket)
 		ticket.TicketCode,
 	)
 
-	go func() {
+	_ = SubmitJob(func() {
 		if err := s.emailService.SendEmail(ticket.Email, subject, body); err != nil {
 			fmt.Printf("Failed to send team ticket email to %s: %v\n", ticket.Email, err)
 		}
-	}()
+	})
 }

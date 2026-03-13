@@ -293,19 +293,10 @@ func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ti
 		RETURNING id, created_at, updated_at
 	`
 
-	// Convert empty strings to nil for the DB to handle as NULL (violates UNIQUE constraint otherwise)
-	var ref, accessCode *string
-	if ticket.PaystackReference != "" {
-		ref = &ticket.PaystackReference
-	}
-	if ticket.PaystackAccessCode != "" {
-		accessCode = &ticket.PaystackAccessCode
-	}
-
 	err := r.db.QueryRow(ctx, query,
 		ticket.EventDayID, ticket.TierID, ticket.Email, ticket.UserID,
 		ticket.Quantity, ticket.UnitPrice, ticket.TotalAmount, ticket.Status,
-		ref, accessCode, ticket.TicketCode, ticket.TeamID,
+		ticket.PaystackReference, ticket.PaystackAccessCode, ticket.TicketCode, ticket.TeamID,
 	).Scan(&ticket.ID, &ticket.CreatedAt, &ticket.UpdatedAt)
 
 	if err != nil {
