@@ -36,6 +36,10 @@ func Routes(app *api.Application) *gin.Engine {
 			if helpers.AllowLocalHost(origin) {
 				return true
 			}
+			// Explicitly allow the specific Vercel app
+			if origin == "https://showtime-web-omega.vercel.app" {
+				return true
+			}
 			// Automatically allow Vercel preview environments for staging
 			if strings.HasSuffix(origin, ".vercel.app") {
 				return true
