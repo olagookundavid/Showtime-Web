@@ -17,10 +17,17 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
         return new Date(dateString).toLocaleDateString(undefined, options);
     };
 
-    const formatTime = (timeString: string) => {
-        // timeString might be full timestamp or just time. 
-        // Logic: new Date(timeString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        return new Date(timeString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const formatTime = (timeString: string, dateString?: string) => {
+        // timeString might be full timestamp or just time.
+        // If it's just a time like '15:00:00', combine it with the date to make it valid for Date constructor
+        let validDateString = timeString;
+        
+        if (dateString && timeString && !timeString.includes('T') && !timeString.includes('-')) {
+            const datePart = dateString.split('T')[0];
+            validDateString = `${datePart}T${timeString}Z`;
+        }
+
+        return new Date(validDateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
     return (
@@ -30,7 +37,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
         >
             {/* Header: Date/Time or Status */}
             <div className={`p-2.5 md:p-3 text-center text-[10px] md:text-sm font-bold uppercase tracking-wider ${isLive ? 'bg-sffl-red text-white animate-pulse' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-white'}`}>
-                {isLive ? 'LIVE NOW' : isFinished ? 'Final Score' : `${formatDate(match.date)} • ${formatTime(match.start_time)}`}
+                {isLive ? 'LIVE NOW' : isFinished ? 'Final Score' : `${formatDate(match.date)} • ${formatTime(match.start_time, match.date)}`}
             </div>
 
             {/* Teams & Score - Condensed for Density */}
