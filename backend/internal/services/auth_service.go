@@ -211,9 +211,17 @@ func (s *AuthService) ListUsers(ctx context.Context, page, limit int, searchFilt
 
 func (s *AuthService) UpdateUserRole(ctx context.Context, userID, newRole string) error {
 	// Validate role
-	validRoles := map[string]bool{"admin": true, "user": true, "team_head": true, "ticketer": true}
-	if !validRoles[newRole] {
-		return fmt.Errorf("invalid role: %s. Allowed roles are admin, user, team_head, ticketer", newRole)
+	allowedRoles := []string{"admin", "user", "team_head", "ticketer", "referee", "stats"}
+	isValid := false
+	for _, role := range allowedRoles {
+		if newRole == role {
+			isValid = true
+			break
+		}
+	}
+
+	if !isValid {
+		return fmt.Errorf("invalid role: %s. Allowed roles are admin, user, team_head, ticketer, referee, stats", newRole)
 	}
 
 	return s.AuthRepository.UpdateUserRole(ctx, userID, newRole)

@@ -71,14 +71,26 @@ export const AdminLayout = () => {
         { name: 'Users', path: '/admin/users', icon: UsersIcon },
     ];
 
-    const adminLinks = user?.role === 'ticketer'
-        ? allLinks.filter(l => ['Tickets'].includes(l.name))
-        : allLinks;
+    const adminLinks = (() => {
+        if (!user) return [];
+        if (user.role === 'admin') return allLinks;
+        if (user.role === 'ticketer') return allLinks.filter(l => ['Tickets'].includes(l.name));
+        if (user.role === 'referee') return allLinks.filter(l => ['Matches', 'Standings', 'Stats', 'Players', 'Teams'].includes(l.name));
+        if (user.role === 'stats') return allLinks.filter(l => ['Matches', 'Standings', 'Stats', 'Teams'].includes(l.name));
+        return [];
+    })();
 
-    // Redirect ticketer away from dashboard if they land on /admin
+    // Redirect users away from Dashboard if they lack permission
     useEffect(() => {
-        if (user?.role === 'ticketer' && (location.pathname === '/admin' || location.pathname === '/admin/')) {
-            navigate('/admin/tickets');
+        if (!user) return;
+        const isDashboard = location.pathname === '/admin' || location.pathname === '/admin/';
+        
+        if (isDashboard) {
+            if (user.role === 'ticketer') {
+                navigate('/admin/tickets');
+            } else if (user.role === 'referee' || user.role === 'stats') {
+                navigate('/admin/matches');
+            }
         }
     }, [user, location.pathname, navigate]);
 

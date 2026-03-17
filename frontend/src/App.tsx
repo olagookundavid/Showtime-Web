@@ -96,7 +96,7 @@ function App() {
 
             {/* Admin Routes (No Layout) */}
             <Route path="/admin" element={
-              <ProtectedRoute requireRole={['admin', 'ticketer']}>
+              <ProtectedRoute requireRole={['admin', 'ticketer', 'referee', 'stats']}>
                 <AdminLayout />
               </ProtectedRoute>
             }>

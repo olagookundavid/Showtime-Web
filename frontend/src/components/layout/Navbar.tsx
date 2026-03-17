@@ -112,6 +112,22 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                                             Admin
                                         </Link>
                                     )}
+                                    {user?.role === 'referee' && (
+                                        <Link
+                                            to="/admin/matches"
+                                            className="bg-sffl-navy border border-sffl-red hover:bg-sffl-red text-white font-bold px-3 py-1.5 rounded transition text-xs"
+                                        >
+                                            Referee Portal
+                                        </Link>
+                                    )}
+                                    {user?.role === 'stats' && (
+                                        <Link
+                                            to="/admin/matches"
+                                            className="bg-purple-600 hover:bg-purple-700 text-white font-bold px-3 py-1.5 rounded transition text-xs"
+                                        >
+                                            Stats Portal
+                                        </Link>
+                                    )}
                                     {user?.role === 'team_head' && (
                                         <Link
                                             to="/team-head"
@@ -240,6 +256,16 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                                     {user?.role === 'admin' && (
                                         <Link to="/admin" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-sffl-red hover:bg-[#A52323] text-white font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
                                             Admin Panel
+                                        </Link>
+                                    )}
+                                    {user?.role === 'referee' && (
+                                        <Link to="/admin/matches" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-sffl-navy border border-sffl-red hover:bg-sffl-red text-white font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
+                                            Referee Portal
+                                        </Link>
+                                    )}
+                                    {user?.role === 'stats' && (
+                                        <Link to="/admin/matches" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-purple-600 hover:bg-purple-700 text-white font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
+                                            Stats Portal
                                         </Link>
                                     )}
                                     {user?.role === 'team_head' && (

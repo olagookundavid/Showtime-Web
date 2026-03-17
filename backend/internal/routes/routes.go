@@ -99,7 +99,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	teamsGroup := adminRoutes.Group("/teams")
-	teamsGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
+	teamsGroup.Use(middlewares.RolesAllowedMiddleware(app.AuthService, "admin", "referee", "stats"))
 	{
 		teamsGroup.GET("", app.Handlers.MatchHandler.GetTeams)
 		teamsGroup.GET("/by-competition", app.Handlers.MatchHandler.GetTeamsByCompetition)
@@ -143,7 +143,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	matchesGroup := adminRoutes.Group("/matches")
-	matchesGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
+	matchesGroup.Use(middlewares.RolesAllowedMiddleware(app.AuthService, "admin", "referee", "stats"))
 	{
 		matchesGroup.POST("", app.Handlers.MatchHandler.CreateMatch)
 		matchesGroup.PUT("/:id", app.Handlers.MatchHandler.UpdateMatch)
@@ -154,7 +154,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	playersGroup := adminRoutes.Group("/players")
-	playersGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
+	playersGroup.Use(middlewares.RolesAllowedMiddleware(app.AuthService, "admin", "referee"))
 	{
 		playersGroup.POST("", app.Handlers.PlayerHandler.CreatePlayer)
 		playersGroup.PUT("/:id", app.Handlers.PlayerHandler.UpdatePlayer)
@@ -162,7 +162,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	statsGroup := adminRoutes.Group("/stats")
-	statsGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
+	statsGroup.Use(middlewares.RolesAllowedMiddleware(app.AuthService, "admin", "referee", "stats"))
 	{
 		statsGroup.POST("/players", app.Handlers.StatsHandler.UpsertPlayerStat)
 	}

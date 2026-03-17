@@ -5,13 +5,19 @@ import {
     CalendarIcon,
     TicketIcon,
     NewspaperIcon,
-    Bars3Icon
+    Bars3Icon,
+    ChartBarIcon,
+    UserGroupIcon,
+    ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import {
     Squares2X2Icon as SquaresSolid,
     CalendarIcon as CalendarSolid,
     TicketIcon as TicketSolid,
     NewspaperIcon as NewspaperSolid,
+    ChartBarIcon as ChartBarSolid,
+    UserGroupIcon as UserGroupSolid,
+    ShieldCheckIcon as ShieldCheckSolid
 } from '@heroicons/react/24/solid';
 
 interface AdminBottomNavProps {
@@ -26,12 +32,29 @@ export const AdminBottomNav = ({ onMoreClick }: AdminBottomNavProps) => {
         return null;
     }
 
-    const navItems = [
-        { name: 'Dash', path: '/admin', exact: true, icon: Squares2X2Icon, solidIcon: SquaresSolid },
-        { name: 'Match', path: '/admin/matches', icon: CalendarIcon, solidIcon: CalendarSolid },
-        { name: 'Ticket', path: '/admin/tickets', icon: TicketIcon, solidIcon: TicketSolid },
-        { name: 'News', path: '/admin/news', icon: NewspaperIcon, solidIcon: NewspaperSolid },
-    ];
+    const navItems = (() => {
+        if (user?.role === 'referee') {
+            return [
+                { name: 'Match', path: '/admin/matches', icon: CalendarIcon, solidIcon: CalendarSolid },
+                { name: 'Stats', path: '/admin/stats', icon: ChartBarIcon, solidIcon: ChartBarSolid },
+                { name: 'Players', path: '/admin/players', icon: UserGroupIcon, solidIcon: UserGroupSolid },
+            ];
+        }
+        if (user?.role === 'stats') {
+            return [
+                { name: 'Match', path: '/admin/matches', icon: CalendarIcon, solidIcon: CalendarSolid },
+                { name: 'Stats', path: '/admin/stats', icon: ChartBarIcon, solidIcon: ChartBarSolid },
+                { name: 'Teams', path: '/admin/teams', icon: ShieldCheckIcon, solidIcon: ShieldCheckSolid },
+            ];
+        }
+        // Admin default
+        return [
+            { name: 'Dash', path: '/admin', exact: true, icon: Squares2X2Icon, solidIcon: SquaresSolid },
+            { name: 'Match', path: '/admin/matches', icon: CalendarIcon, solidIcon: CalendarSolid },
+            { name: 'Ticket', path: '/admin/tickets', icon: TicketIcon, solidIcon: TicketSolid },
+            { name: 'News', path: '/admin/news', icon: NewspaperIcon, solidIcon: NewspaperSolid },
+        ];
+    })();
 
     const isActive = (item: any) => {
         if (item.exact) return location.pathname === item.path || location.pathname === item.path + '/';

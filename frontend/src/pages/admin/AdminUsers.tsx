@@ -105,6 +105,8 @@ const AdminUsers = () => {
                     <option value="user" className="truncate">User</option>
                     <option value="team_head" className="truncate">Team Head</option>
                     <option value="ticketer" className="truncate">Ticketer</option>
+                    <option value="referee" className="truncate">Referee</option>
+                    <option value="stats" className="truncate">Stats Admin</option>
                     <option value="admin" className="truncate">Admin</option>
                 </select>
             )

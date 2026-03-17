@@ -2,7 +2,7 @@ import { Loader } from '../../components/ui/Loader';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { DataTable, type Column } from '../../components/ui/DataTable';
+
 import {
     getMatches, getCompetitions, getTeams,
     createMatch, updateMatch, deleteMatch,
@@ -61,11 +61,27 @@ export const AdminMatches = () => {
         },
     });
 
+    const [collapsedDates, setCollapsedDates] = useState<Record<string, boolean>>({});
+
+    const toggleDateCollapse = (date: string) => {
+        setCollapsedDates(prev => ({
+            ...prev,
+            [date]: !prev[date]
+        }));
+    };
+
     const competitions: Competition[] = compsData?.data || [];
     const teams: Team[] = teamsData?.data || [];
     const matches: Match[] = matchesData?.data || [];
     const totalPages = matchesData?.total_pages || 1;
     const loading = loadingComps || loadingTeams || loadingMatches;
+
+    const groupedMatches = matches.reduce((acc: Record<string, Match[]>, match: Match) => {
+        const dateStr = match.date.substring(0, 10);
+        if (!acc[dateStr]) acc[dateStr] = [];
+        acc[dateStr].push(match);
+        return acc;
+    }, {});
 
     const handleFilterChange = (compId: string) => {
         setFilterComp(compId);
@@ -164,50 +180,27 @@ export const AdminMatches = () => {
         POSTPONED: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
     };
 
-    const columns: Column<Match>[] = [
-        { header: 'Date', accessor: 'date', sortable: true, className: "px-4 py-3 text-sm dark:text-gray-300 w-24" },
-        {
-            header: 'Match',
-            sortable: true,
-            sortValue: (m) => `${m.home_team?.short_name} vs ${m.away_team?.short_name}`,
-            cell: (m) => <span className="font-semibold text-sm text-gray-900 dark:text-white">{m.home_team?.short_name || 'TBD'} vs {m.away_team?.short_name || 'TBD'}</span>
-        },
-        {
-            header: 'Score',
-            sortable: true,
-            sortValue: (m) => `${m.home_score} - ${m.away_score}`,
-            cell: (m) => <span className="text-sm font-bold dark:text-gray-300">{m.status === 'FINISHED' ? `${m.home_score} - ${m.away_score}` : '—'}</span>
-        },
-        {
-            header: 'Status',
-            accessor: 'status',
-            sortable: true,
-            cell: (m) => <span className={`px-2 py-1 rounded-full text-xs font-bold ${statusColors[m.status] || 'bg-gray-100 dark:bg-gray-600 dark:text-gray-300'}`}>{m.status}</span>
-        },
-        {
-            header: 'Competition',
-            sortable: true,
-            sortValue: (m) => m.competition?.name || '',
-            cell: (m) => <span className="text-sm dark:text-gray-300">{m.competition?.name || '—'}</span>
-        },
-        {
-            header: 'Actions',
-            className: "px-4 py-3 text-right space-x-2 w-48",
-            cell: (m) => (
-                <div className="flex justify-end gap-2">
-                    <button onClick={() => openEdit(m)} className="px-2.5 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 font-bold text-xs rounded-md shadow-sm hover:shadow-md transition-all">Edit</button>
-                    <button onClick={() => setDeleteConfirm(m.id)} className="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-bold text-xs rounded-md shadow-sm hover:shadow-md transition-all">Delete</button>
-                </div>
-            )
-        }
-    ];
+
+    const handleSearchSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        setPage(1);
+    };
 
     return (
         <div className="space-y-6">
             {/* Header with filter */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
                 <h1 className="text-3xl font-black text-sffl-navy dark:text-white">Match Management</h1>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                    <form onSubmit={handleSearchSubmit} className="flex gap-2">
+                        <input
+                            type="text"
+                            placeholder="Search matches..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 min-h-[44px] z-50 font-semibold text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white min-w-[200px]"
+                        />
+                    </form>
                     <select
                         value={filterComp}
                         onChange={e => handleFilterChange(e.target.value)}
@@ -222,21 +215,108 @@ export const AdminMatches = () => {
 
             {loading ? (
                 <Loader />
+            ) : matches.length === 0 ? (
+                <div className="bg-white dark:bg-gray-800 p-12 rounded-xl text-center shadow-sm">
+                    <p className="text-gray-500 font-semibold mb-2">No matches found.</p>
+                </div>
             ) : (
-                <DataTable
-                    data={matches}
-                    columns={columns}
-                    searchable={true}
-                    searchPlaceholder="Search matches..."
-                    itemsPerPage={PAGE_SIZE}
-                    serverPage={page}
-                    totalServerPages={totalPages}
-                    onPageChange={(p) => setPage(p)}
-                    onSearchSubmit={(term) => {
-                        setSearchTerm(term);
-                        setPage(1);
-                    }}
-                />
+                <div className="space-y-6">
+                    {Object.entries(groupedMatches).map(([dateStr, dayMatches]) => (
+                        <div key={dateStr} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700">
+                            <button
+                                onClick={() => toggleDateCollapse(dateStr)}
+                                className="w-full flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-600"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <span className="font-bold text-gray-500 dark:text-gray-400 text-lg">
+                                        {new Date(dateStr).getFullYear()}
+                                    </span>
+                                    <div className="bg-sffl-navy text-white w-10 h-10 rounded-lg flex flex-col items-center justify-center font-bold">
+                                        <span className="text-xs tracking-wider uppercase">{new Date(dateStr).toLocaleString('default', { month: 'short' })}</span>
+                                        <span className="text-sm leading-none">{new Date(dateStr).getDate()}</span>
+                                    </div>
+                                    <span className="font-bold text-gray-800 dark:text-gray-200 text-lg">
+                                        {new Date(dateStr).toLocaleDateString('default', { weekday: 'long' })}
+                                    </span>
+                                </div>
+                                <div className="text-gray-400 dark:text-gray-500 bg-white dark:bg-gray-800 w-8 h-8 rounded-full flex items-center justify-center shadow-sm">
+                                    <svg className={`w-5 h-5 transition-transform duration-200 ${collapsedDates[dateStr] ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </div>
+                            </button>
+
+                            {!collapsedDates[dateStr] && (
+                                <div className="p-0 overflow-x-auto">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
+                                                <th className="px-4 py-3 font-semibold w-24">Date</th>
+                                                <th className="px-4 py-3 font-semibold">Match</th>
+                                                <th className="px-4 py-3 font-semibold">Score</th>
+                                                <th className="px-4 py-3 font-semibold">Status</th>
+                                                <th className="px-4 py-3 font-semibold">Competition</th>
+                                                <th className="px-4 py-3 font-semibold text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {dayMatches.map((m: Match) => (
+                                                <tr key={m.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 text-sm">
+                                                    <td className="px-4 py-3 text-gray-600 dark:text-gray-300">
+                                                        {m.start_time?.includes('T') ? m.start_time.split('T')[1].slice(0, 5) : m.start_time}
+                                                    </td>
+                                                    <td className="px-4 py-3 font-bold text-gray-900 dark:text-gray-100">
+                                                        {m.home_team?.short_name || 'TBD'} vs {m.away_team?.short_name || 'TBD'}
+                                                    </td>
+                                                    <td className="px-4 py-3 font-bold text-gray-900 dark:text-gray-100">
+                                                        {m.status === 'FINISHED' ? `${m.home_score} - ${m.away_score}` : '—'}
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold tracking-wide ${statusColors[m.status] || 'bg-gray-100 min-w-16 dark:bg-gray-600 dark:text-gray-300'}`}>
+                                                            {m.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-gray-600 dark:text-gray-300">
+                                                        {m.competition?.name || '—'}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right">
+                                                        <div className="flex justify-end gap-2">
+                                                            <button onClick={() => openEdit(m)} className="px-2.5 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 font-bold text-xs rounded-md shadow-sm transition-all">Edit</button>
+                                                            <button onClick={() => setDeleteConfirm(m.id)} className="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-bold text-xs rounded-md shadow-sm transition-all">Delete</button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                        <div className="flex justify-center items-center gap-4 mt-8 pt-4">
+                            <button
+                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                disabled={page === 1}
+                                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+                            >
+                                Previous
+                            </button>
+                            <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">
+                                Page {page} of {totalPages}
+                            </span>
+                            <button
+                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                disabled={page === totalPages}
+                                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    )}
+                </div>
             )}
 
             {/* Create/Edit Modal */}

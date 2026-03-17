@@ -79,6 +79,18 @@ export const Layout = () => {
                                         <span className="font-black text-sm uppercase italic tracking-wider">Admin Panel</span>
                                     </Link>
                                 )}
+                                {user?.role === 'referee' && (
+                                    <Link to="/admin/matches" onClick={() => setIsMoreMenuOpen(false)} className="flex items-center gap-3 p-4 bg-sffl-navy dark:bg-gray-800 text-white rounded-2xl col-span-2 shadow-lg active:scale-[0.98] transition-all border border-transparent dark:border-gray-700">
+                                        <WrenchIcon className="w-5 h-5 text-sffl-red" />
+                                        <span className="font-black text-sm uppercase italic tracking-wider">Referee Portal</span>
+                                    </Link>
+                                )}
+                                {user?.role === 'stats' && (
+                                    <Link to="/admin/matches" onClick={() => setIsMoreMenuOpen(false)} className="flex items-center gap-3 p-4 bg-sffl-navy dark:bg-gray-800 text-white rounded-2xl col-span-2 shadow-lg active:scale-[0.98] transition-all border border-transparent dark:border-gray-700">
+                                        <WrenchIcon className="w-5 h-5 text-purple-500" />
+                                        <span className="font-black text-sm uppercase italic tracking-wider">Stats Portal</span>
+                                    </Link>
+                                )}
                                 {user?.role === 'ticketer' && (
                                     <Link to="/admin/tickets" onClick={() => setIsMoreMenuOpen(false)} className="flex items-center gap-3 p-4 bg-sffl-navy dark:bg-gray-800 text-white rounded-2xl col-span-2 shadow-lg active:scale-[0.98] transition-all border border-transparent dark:border-gray-700">
                                         <TicketIcon className="w-5 h-5 text-sffl-red" />
