@@ -2,14 +2,22 @@ package dto
 
 // --- Competitions ---
 type CreateCompetitionRequest struct {
-	Name string `json:"name" binding:"required"`
-	Logo string `json:"logo"`
+	Name   string `json:"name" binding:"required"`
+	Logo   string `json:"logo"`
+	Status string `json:"status"` // e.g. active, inactive, archived
+}
+
+type UpdateCompetitionRequest struct {
+	Name   *string `json:"name"`
+	Logo   *string `json:"logo"`
+	Status *string `json:"status"`
 }
 
 type CompetitionResponse struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	Logo string `json:"logo"`
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Logo   string `json:"logo"`
+	Status string `json:"status"`
 }
 
 // --- Teams ---

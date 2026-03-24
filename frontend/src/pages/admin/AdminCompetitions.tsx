@@ -7,6 +7,7 @@ interface Competition {
     id: string;
     name: string;
     logo: string;
+    status?: string;
 }
 
 const AdminCompetitions = () => {
@@ -32,20 +33,20 @@ const AdminCompetitions = () => {
     // Modal
     const [showModal, setShowModal] = useState(false);
     const [editing, setEditing] = useState<Competition | null>(null);
-    const [form, setForm] = useState({ name: '', logo: '' });
+    const [form, setForm] = useState({ name: '', logo: '', status: 'active' });
     const [saving, setSaving] = useState(false);
 
 
 
     const openCreate = () => {
         setEditing(null);
-        setForm({ name: '', logo: '' });
+        setForm({ name: '', logo: '', status: 'active' });
         setShowModal(true);
     };
 
     const openEdit = (c: Competition) => {
         setEditing(c);
-        setForm({ name: c.name, logo: c.logo });
+        setForm({ name: c.name, logo: c.logo, status: c.status || 'active' });
         setShowModal(true);
     };
 
@@ -166,7 +167,16 @@ const AdminCompetitions = () => {
                                             🏆
                                         </div>
                                     )}
-                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">{comp.name}</h3>
+                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white flex-1">{comp.name}</h3>
+                                    {comp.status && (
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                            comp.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                                            comp.status === 'inactive' ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' :
+                                            'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                        }`}>
+                                            {comp.status}
+                                        </span>
+                                    )}
                                 </div>
                                 <div className="flex gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
                                     <button onClick={() => openEdit(comp)}
@@ -222,6 +232,15 @@ const AdminCompetitions = () => {
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Logo URL</label>
                                 <input type="text" value={form.logo} onChange={e => setForm(f => ({ ...f, logo: e.target.value }))}
                                     className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red" placeholder="https://..." />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Status *</label>
+                                <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
+                                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red">
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                    <option value="archived">Archived</option>
+                                </select>
                             </div>
                         </div>
                         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">

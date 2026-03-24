@@ -118,7 +118,7 @@ export const MatchHub = () => {
                             >
                                 {competitions.map((c: Competition) => (
                                     <option key={c.id} value={c.id} className="text-black bg-white">
-                                        {c.name}
+                                        {c.name} {c.status && c.status !== 'active' ? `[${c.status.toUpperCase()}]` : ''}
                                     </option>
                                 ))}
                             </select>

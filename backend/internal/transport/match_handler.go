@@ -52,10 +52,11 @@ func NewMatchHandler(service services.IMatchService) IMatchHandler {
 // @Router       /api/v1/matches/competitions [get]
 func (h *MatchHandler) GetCompetitions(c *gin.Context) {
 	search := c.Query("search")
+	status := c.Query("status")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 
-	result, err := h.service.GetCompetitions(c.Request.Context(), page, limit, search)
+	result, err := h.service.GetCompetitions(c.Request.Context(), page, limit, search, status)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -515,9 +516,15 @@ func (h *MatchHandler) CreateCompetition(c *gin.Context) {
 		return
 	}
 
+	status := req.Status
+	if status == "" {
+		status = "active"
+	}
+
 	comp := &domain.Competition{
-		Name: req.Name,
-		Logo: req.Logo,
+		Name:   req.Name,
+		Logo:   req.Logo,
+		Status: status,
 	}
 
 	if err := h.service.CreateCompetition(c.Request.Context(), comp); err != nil {
@@ -545,9 +552,10 @@ func (h *MatchHandler) UpdateCompetition(c *gin.Context) {
 	}
 
 	comp := &domain.Competition{
-		ID:   id,
-		Name: req.Name,
-		Logo: req.Logo,
+		ID:     id,
+		Name:   req.Name,
+		Logo:   req.Logo,
+		Status: req.Status,
 	}
 
 	if err := h.service.UpdateCompetition(c.Request.Context(), comp); err != nil {

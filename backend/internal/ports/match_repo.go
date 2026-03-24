@@ -12,7 +12,7 @@ import (
 
 type MatchRepository interface {
 	// Competitions
-	GetCompetitions(ctx context.Context, page, limit int, search string) ([]domain.Competition, int64, error)
+	GetCompetitions(ctx context.Context, page, limit int, search string, status string) ([]domain.Competition, int64, error)
 	GetCompetitionByID(ctx context.Context, id string) (*domain.Competition, error)
 	CreateCompetition(ctx context.Context, comp *domain.Competition) error
 	UpdateCompetition(ctx context.Context, comp *domain.Competition) error
@@ -50,15 +50,21 @@ func NewMatchRepository(db *pgxpool.Pool) *PostgresMatchRepository {
 }
 
 // --- Competitions ---
-func (r *PostgresMatchRepository) GetCompetitions(ctx context.Context, page, limit int, search string) ([]domain.Competition, int64, error) {
+func (r *PostgresMatchRepository) GetCompetitions(ctx context.Context, page, limit int, search string, status string) ([]domain.Competition, int64, error) {
 	offset := (page - 1) * limit
-	baseQuery := ` FROM competitions `
+	baseQuery := ` FROM competitions WHERE 1=1 `
 	args := []any{}
 	argCount := 1
 
 	if search != "" {
-		baseQuery += ` WHERE name ILIKE $` + strconv.Itoa(argCount)
+		baseQuery += ` AND name ILIKE $` + strconv.Itoa(argCount)
 		args = append(args, "%"+search+"%")
+		argCount++
+	}
+
+	if status != "" {
+		baseQuery += ` AND status = $` + strconv.Itoa(argCount)
+		args = append(args, status)
 		argCount++
 	}
 
@@ -68,7 +74,7 @@ func (r *PostgresMatchRepository) GetCompetitions(ctx context.Context, page, lim
 		return nil, 0, err
 	}
 
-	query := `SELECT id, name, logo, created_at, updated_at ` + baseQuery +
+	query := `SELECT id, name, logo, status, created_at, updated_at ` + baseQuery +
 		` ORDER BY created_at DESC LIMIT $` + strconv.Itoa(argCount) + ` OFFSET $` + strconv.Itoa(argCount+1)
 	args = append(args, limit, offset)
 
@@ -81,7 +87,7 @@ func (r *PostgresMatchRepository) GetCompetitions(ctx context.Context, page, lim
 	var competitions []domain.Competition
 	for rows.Next() {
 		var c domain.Competition
-		if err := rows.Scan(&c.ID, &c.Name, &c.Logo, &c.CreatedAt, &c.UpdatedAt); err != nil {
+		if err := rows.Scan(&c.ID, &c.Name, &c.Logo, &c.Status, &c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, 0, err
 		}
 		competitions = append(competitions, c)
@@ -90,9 +96,9 @@ func (r *PostgresMatchRepository) GetCompetitions(ctx context.Context, page, lim
 }
 
 func (r *PostgresMatchRepository) GetCompetitionByID(ctx context.Context, id string) (*domain.Competition, error) {
-	query := `SELECT id, name, logo, created_at, updated_at FROM competitions WHERE id = $1`
+	query := `SELECT id, name, logo, status, created_at, updated_at FROM competitions WHERE id = $1`
 	var c domain.Competition
-	err := r.db.QueryRow(ctx, query, id).Scan(&c.ID, &c.Name, &c.Logo, &c.CreatedAt, &c.UpdatedAt)
+	err := r.db.QueryRow(ctx, query, id).Scan(&c.ID, &c.Name, &c.Logo, &c.Status, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -100,13 +106,13 @@ func (r *PostgresMatchRepository) GetCompetitionByID(ctx context.Context, id str
 }
 
 func (r *PostgresMatchRepository) CreateCompetition(ctx context.Context, comp *domain.Competition) error {
-	query := `INSERT INTO competitions (name, logo) VALUES ($1, $2) RETURNING id, created_at, updated_at`
-	return r.db.QueryRow(ctx, query, comp.Name, comp.Logo).Scan(&comp.ID, &comp.CreatedAt, &comp.UpdatedAt)
+	query := `INSERT INTO competitions (name, logo, status) VALUES ($1, $2, $3) RETURNING id, created_at, updated_at`
+	return r.db.QueryRow(ctx, query, comp.Name, comp.Logo, comp.Status).Scan(&comp.ID, &comp.CreatedAt, &comp.UpdatedAt)
 }
 
 func (r *PostgresMatchRepository) UpdateCompetition(ctx context.Context, comp *domain.Competition) error {
-	query := `UPDATE competitions SET name=$1, logo=$2, updated_at=NOW() WHERE id=$3`
-	_, err := r.db.Exec(ctx, query, comp.Name, comp.Logo, comp.ID)
+	query := `UPDATE competitions SET name=$1, logo=$2, status=$3, updated_at=NOW() WHERE id=$4`
+	_, err := r.db.Exec(ctx, query, comp.Name, comp.Logo, comp.Status, comp.ID)
 	return err
 }
 

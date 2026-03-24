@@ -65,7 +65,7 @@ export const StatsPage = () => {
                             <option value="" className="text-black bg-white">All Competitions (YTD)</option>
                             {competitions.map((c: any) => (
                                 <option key={c.id} value={c.id} className="text-black bg-white">
-                                    {c.name}
+                                    {c.name} {c.status && c.status !== 'active' ? `[${c.status.toUpperCase()}]` : ''}
                                 </option>
                             ))}
                         </select>

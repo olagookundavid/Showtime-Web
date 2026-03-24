@@ -130,6 +130,7 @@ export interface Competition {
     id: string;
     name: string;
     logo: string;
+    status: string;
 }
 
 export interface Team {
@@ -170,8 +171,12 @@ export interface Standing {
 }
 
 // ─── Match Hub Service ────────────────────────────────────────────────────────
-export const getCompetitions = async (page: number = 1, limit: number = 100): Promise<PaginatedResponse<Competition>> => {
-    const response = await api.get<PaginatedResponse<Competition>>(`/matches/competitions?page=${page}&limit=${limit}`);
+export const getCompetitions = async (page: number = 1, limit: number = 100, status?: string): Promise<PaginatedResponse<Competition>> => {
+    let url = `/matches/competitions?page=${page}&limit=${limit}`;
+    if (status) {
+        url += `&status=${status}`;
+    }
+    const response = await api.get<PaginatedResponse<Competition>>(url);
     return response.data;
 };
 
@@ -592,12 +597,12 @@ export const getAdminCompetitions = async (page: number = 1, limit: number = 100
     return response.data;
 };
 
-export const createCompetition = async (payload: { name: string; logo: string }) => {
+export const createCompetition = async (payload: { name: string; logo: string; status?: string }) => {
     const response = await api.post('/admin/competitions', payload);
     return response.data;
 };
 
-export const updateCompetition = async (id: string, payload: { name: string; logo: string }) => {
+export const updateCompetition = async (id: string, payload: { name: string; logo: string; status?: string }) => {
     const response = await api.put(`/admin/competitions/${id}`, payload);
     return response.data;
 };

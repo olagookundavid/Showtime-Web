@@ -55,7 +55,7 @@ export const StandingsPage = () => {
                             >
                                 {competitions.map((c: any) => (
                                     <option key={c.id} value={c.id} className="text-black bg-white">
-                                        {c.name}
+                                        {c.name} {c.status && c.status !== 'active' ? `[${c.status.toUpperCase()}]` : ''}
                                     </option>
                                 ))}
                             </select>
@@ -83,6 +83,9 @@ export const StandingsPage = () => {
                         <span className="text-base md:text-2xl">🏆</span>
                         <h2 className="text-sm md:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">
                             {selectedCompetition?.name || 'League'}
+                            {selectedCompetition?.status && selectedCompetition.status !== 'active' && (
+                                <span className="text-red-500 text-sm ml-2 align-middle">[{selectedCompetition.status.toUpperCase()}]</span>
+                            )}
                         </h2>
                     </div>
 

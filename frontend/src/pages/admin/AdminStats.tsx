@@ -51,7 +51,7 @@ export const AdminStats = () => {
     // Queries
     const { data: compData, isLoading: loadingComps } = useQuery({
         queryKey: ['adminCompsList'],
-        queryFn: () => getCompetitions(1, 100),
+        queryFn: () => getCompetitions(1, 100, 'active'),
     });
     const comps: Competition[] = compData?.data || [];
 

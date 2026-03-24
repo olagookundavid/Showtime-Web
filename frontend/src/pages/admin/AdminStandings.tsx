@@ -35,7 +35,7 @@ export const AdminStandings = () => {
 
     const { data: compsData, isLoading: loadingComps } = useQuery({
         queryKey: ['adminCompetitions'],
-        queryFn: () => getCompetitions(1, 100),
+        queryFn: () => getCompetitions(1, 100, 'active'),
     });
 
     // Auto-select first competition when loaded
