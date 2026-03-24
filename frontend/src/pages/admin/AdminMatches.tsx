@@ -1,5 +1,5 @@
 import { Loader } from '../../components/ui/Loader';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 
@@ -61,6 +61,14 @@ export const AdminMatches = () => {
         },
     });
 
+    // Auto-select first competition when loaded
+    useEffect(() => {
+        const comps = compsData?.data || [];
+        if (comps.length > 0 && !filterComp) {
+            setFilterComp(comps[0].id);
+        }
+    }, [compsData, filterComp]);
+
     const [collapsedDates, setCollapsedDates] = useState<Record<string, boolean>>({});
 
     const toggleDateCollapse = (date: string) => {
@@ -88,7 +96,7 @@ export const AdminMatches = () => {
         setPage(1);
     };
 
-    const openCreate = () => { setEditingId(null); setForm(emptyForm); setShowModal(true); };
+    const openCreate = () => { setEditingId(null); setForm({...emptyForm, competition_id: filterComp}); setShowModal(true); };
 
     const openEdit = (m: Match) => {
         console.log('Editing match:', m);
@@ -209,7 +217,6 @@ export const AdminMatches = () => {
                         onChange={e => handleFilterChange(e.target.value)}
                         className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 min-h-[44px] z-50 font-semibold text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
-                        <option value="" className="truncate">All Competitions</option>
                         {competitions.map(c => <option key={c.id} value={c.id} className="truncate">{c.name}</option>)}
                     </select>
                     <button onClick={openCreate} className="px-4 py-2 min-h-[44px] bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 whitespace-nowrap">+ Add Match</button>

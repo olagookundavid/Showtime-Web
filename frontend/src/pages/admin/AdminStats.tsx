@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
@@ -67,6 +67,19 @@ export const AdminStats = () => {
         enabled: !!selectedTeam,
     });
     const players: Player[] = playersData?.data || [];
+
+    // Auto-select latest competition and team
+    useEffect(() => {
+        if (comps.length > 0 && !selectedComp) {
+            setSelectedComp(comps[0].id);
+        }
+    }, [comps, selectedComp]);
+
+    useEffect(() => {
+        if (teams.length > 0 && !selectedTeam) {
+            setSelectedTeam(teams[0].id);
+        }
+    }, [teams, selectedTeam]);
 
     // Modal State
     const [showModal, setShowModal] = useState(false);
@@ -189,7 +202,6 @@ export const AdminStats = () => {
                         onChange={e => setSelectedComp(e.target.value)}
                         className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
-                        <option value="">-- Select Competition --</option>
                         {comps.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                 </div>
@@ -205,7 +217,6 @@ export const AdminStats = () => {
                         onChange={e => setSelectedTeam(e.target.value)}
                         className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
-                        <option value="">-- Select Team --</option>
                         {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                     </select>
                 </div>

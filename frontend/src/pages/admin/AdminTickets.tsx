@@ -1,5 +1,5 @@
 import { Loader } from '../../components/ui/Loader';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminListTickets, checkinTicket, adminCheckinTicket, verifyTicket, lookupTicketByCode, searchTicketsByEmail, getEventDays, type TicketResponse, type EventDayResponse } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -28,6 +28,14 @@ export const AdminTickets = () => {
     const tickets: TicketResponse[] = (ticketsData as any)?.data ?? ticketsData ?? [];
     const totalPages = ticketsData?.total_pages || 1;
     const loading = loadingEventDays || loadingTickets;
+
+    // Default to the latest event day if not set
+    useEffect(() => {
+        if (eventDays.length > 0 && !filterEventDay) {
+            setFilterEventDay(eventDays[0].id);
+        }
+    }, [eventDays, filterEventDay]);
+
     // Search
     const [searchQuery, setSearchQuery] = useState('');
     const [searchMode, setSearchMode] = useState<'code' | 'email'>('code');
@@ -286,7 +294,6 @@ export const AdminTickets = () => {
                     onChange={(e) => { setFilterEventDay(e.target.value); setPage(1); }}
                     className="px-3 py-2 min-h-[44px] z-50 border mb-2 text-sm border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
-                    <option value="" className="truncate">All Event Days</option>
                     {eventDays.map(ed => (
                         <option key={ed.id} value={ed.id} className="truncate">{ed.title} — {ed.date}</option>
                     ))}

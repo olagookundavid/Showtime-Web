@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getCompetitions, getPlayerStats, getTeamStats, getStatDates } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
@@ -23,6 +23,19 @@ export const StatsPage = () => {
         queryFn: () => getStatDates(selectedCompetitionId),
     });
     const statDates = datesData || [];
+
+    // Auto-select latest competition and date
+    useEffect(() => {
+        if (competitions.length > 0 && !selectedCompetitionId) {
+            setSelectedCompetitionId(competitions[0].id);
+        }
+    }, [competitions, selectedCompetitionId]);
+
+    useEffect(() => {
+        if (statDates.length > 0 && !selectedDate) {
+            setSelectedDate(statDates[0]);
+        }
+    }, [statDates, selectedDate]);
 
     const { data: playerStatsPagination, isLoading: loadingPlayers } = useQuery({
         queryKey: ['playerStatsFiltered', selectedCompetitionId, selectedDate, page],
@@ -62,7 +75,6 @@ export const StatsPage = () => {
                             onChange={(e) => setSelectedCompetitionId(e.target.value)}
                             className="bg-white/10 border border-white/20 text-white p-2 rounded-lg font-bold text-sm min-w-full sm:min-w-[200px] cursor-pointer hover:bg-white/20 transition-colors w-full"
                         >
-                            <option value="" className="text-black bg-white">All Competitions (YTD)</option>
                             {competitions.map((c: any) => (
                                 <option key={c.id} value={c.id} className="text-black bg-white">
                                     {c.name} {c.status && c.status !== 'active' ? `[${c.status.toUpperCase()}]` : ''}
@@ -78,7 +90,6 @@ export const StatsPage = () => {
                             onChange={(e) => setSelectedDate(e.target.value)}
                             className="bg-white/10 border border-white/20 text-white p-2 rounded-lg font-bold text-sm min-w-full sm:min-w-[160px] cursor-pointer hover:bg-white/20 transition-colors w-full"
                         >
-                            <option value="" className="text-black bg-white">All Event Days</option>
                             {statDates.map((date: string) => (
                                 <option key={date} value={date} className="text-black bg-white">
                                     {date}
