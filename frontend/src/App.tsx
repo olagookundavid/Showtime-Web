@@ -41,10 +41,13 @@ import AdminUsers from './pages/admin/AdminUsers';
 import AdminTeams from './pages/admin/AdminTeams';
 import AdminCompetitions from './pages/admin/AdminCompetitions';
 import { AdminAnalytics } from './pages/admin/AdminAnalytics';
+import { AdminInventory } from './pages/admin/AdminInventory';
 import TeamHeadLayout from './pages/team-head/TeamHeadLayout';
 import TeamHeadOverview from './pages/team-head/TeamHeadOverview';
 import TeamHeadPlayers from './pages/team-head/TeamHeadPlayers';
 import TeamTickets from './pages/team-head/TeamTickets';
+import { SellerLayout } from './pages/seller/SellerLayout';
+import { SellerPortal } from './pages/seller/SellerPortal';
 import { Toaster } from 'react-hot-toast';
 import './index.css';
 
@@ -113,6 +116,7 @@ function App() {
               <Route path="users" element={<AdminUsers />} />
               <Route path="teams" element={<AdminTeams />} />
               <Route path="competitions" element={<AdminCompetitions />} />
+              <Route path="inventory" element={<AdminInventory />} />
             </Route>
 
             {/* Team Head Routes */}
@@ -124,6 +128,15 @@ function App() {
               <Route index element={<TeamHeadOverview />} />
               <Route path="players" element={<TeamHeadPlayers />} />
               <Route path="tickets" element={<TeamTickets />} />
+            </Route>
+
+            {/* Seller Portal Routes */}
+            <Route path="/seller" element={
+              <ProtectedRoute requireRole={['admin', 'seller']}>
+                <SellerLayout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<SellerPortal />} />
             </Route>
 
             {/* Catch-all route to redirect back to home automatically */}

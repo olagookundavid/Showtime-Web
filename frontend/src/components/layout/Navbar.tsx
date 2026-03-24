@@ -144,6 +144,14 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                                             Ticketing Portal
                                         </Link>
                                     )}
+                                    {user?.role === 'seller' && (
+                                        <Link
+                                            to="/seller"
+                                            className="bg-green-600 border border-green-500 hover:bg-green-700 text-white font-bold px-3 py-1.5 rounded transition text-xs"
+                                        >
+                                            Store Portal
+                                        </Link>
+                                    )}
                                     <button
                                         onClick={handleLogout}
                                         className="bg-white dark:bg-gray-700 text-sffl-navy dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600 font-bold px-3 py-1.5 rounded transition text-xs"
@@ -276,6 +284,11 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                                     {user?.role === 'ticketer' && (
                                         <Link to="/admin/tickets" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-sffl-navy border border-sffl-red hover:bg-sffl-red text-white font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
                                             Ticketing Portal
+                                        </Link>
+                                    )}
+                                    {user?.role === 'seller' && (
+                                        <Link to="/seller" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-green-600 border border-green-500 hover:bg-green-700 text-white font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
+                                            Store Portal
                                         </Link>
                                     )}
                                     <button

@@ -13,7 +13,8 @@ import {
     UsersIcon,
     CalendarIcon,
     TicketIcon,
-    NewspaperIcon
+    NewspaperIcon,
+    BuildingStorefrontIcon
 } from '@heroicons/react/24/outline';
 
 export const AdminLayout = () => {
@@ -69,6 +70,7 @@ export const AdminLayout = () => {
         { name: 'News', path: '/admin/news', icon: NewspaperIcon },
         { name: 'Gallery', path: '/admin/gallery', icon: PhotoIcon },
         { name: 'Users', path: '/admin/users', icon: UsersIcon },
+        { name: 'Inventory', path: '/admin/inventory', icon: BuildingStorefrontIcon },
     ];
 
     const adminLinks = (() => {

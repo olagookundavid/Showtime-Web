@@ -9,6 +9,7 @@ import (
 	userHelper "showtime-backend/internal/helpers"
 	"showtime-backend/internal/services"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -216,6 +217,8 @@ func (h *AuthHandler) UpdateUserRole(c *gin.Context) {
 		switch {
 		case errors.Is(err, appErrors.ErrNoUserRecordExist):
 			helpers.BadResponse(c, "User not found")
+		case strings.Contains(err.Error(), "invalid role"):
+			helpers.BadResponse(c, err.Error())
 		default:
 			helpers.ServerErrorResponse(c, err)
 		}

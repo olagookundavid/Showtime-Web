@@ -538,11 +538,15 @@ func (r *PostgresTicketRepository) List(ctx context.Context, eventDayID string, 
 func (r *PostgresTicketRepository) ExpirePastTickets(ctx context.Context) (int64, error) {
 	query := `
 		UPDATE tickets 
-		SET status = 'EXPIRED', updated_at = NOW() 
+		SET status = CASE 
+			WHEN tickets.status = 'PAID' THEN 'EXPIRED'
+			ELSE 'CANCELLED'
+		END, 
+		updated_at = NOW() 
 		FROM event_days 
 		WHERE tickets.event_day_id = event_days.id 
-		  AND event_days.date < NOW() 
-		  AND tickets.status NOT IN ('USED', 'CANCELLED', 'EXPIRED')
+		  AND event_days.date < CURRENT_DATE 
+		  AND tickets.status IN ('PAID', 'PENDING', 'FAILED')
 	`
 	res, err := r.db.Exec(ctx, query)
 	if err != nil {

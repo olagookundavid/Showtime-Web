@@ -36,10 +36,6 @@ func Routes(app *api.Application) *gin.Engine {
 			if helpers.AllowLocalHost(origin) {
 				return true
 			}
-			// Explicitly allow the specific Vercel app
-			if origin == "https://showtime-web-omega.vercel.app" {
-				return true
-			}
 			// Automatically allow Vercel preview environments for staging
 			if strings.HasSuffix(origin, ".vercel.app") {
 				return true
@@ -82,6 +78,7 @@ func Routes(app *api.Application) *gin.Engine {
 	SetupPlayerRoutes(v1_api, app)
 	SetupTicketRoutes(v1_api, app)
 	SetupStatsRoutes(v1_api, app)
+	SetupSellerRoutes(v1_api, app)
 	return r
 }
 
@@ -140,6 +137,23 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		galleryGroup.POST("", app.Handlers.GalleryHandler.CreateGallery)
 		galleryGroup.PUT("/:id", app.Handlers.GalleryHandler.UpdateGallery)
 		galleryGroup.DELETE("/:id", app.Handlers.GalleryHandler.DeleteGallery)
+	}
+
+	inventoryGroup := adminRoutes.Group("/inventory")
+	inventoryGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
+	{
+		inventoryGroup.GET("/products", app.Handlers.InventoryHandler.ListProducts)
+		inventoryGroup.GET("/products/:id", app.Handlers.InventoryHandler.GetProduct)
+		inventoryGroup.POST("/products", app.Handlers.InventoryHandler.CreateProduct)
+		inventoryGroup.PUT("/products/:id", app.Handlers.InventoryHandler.UpdateProduct)
+		inventoryGroup.DELETE("/products/:id", app.Handlers.InventoryHandler.DeleteProduct)
+		inventoryGroup.GET("/low-stock", app.Handlers.InventoryHandler.GetLowStockAlerts)
+		inventoryGroup.GET("/sales", app.Handlers.InventoryHandler.ListSales)
+		inventoryGroup.GET("/reports", app.Handlers.InventoryHandler.GetSalesReport)
+
+		inventoryGroup.GET("/payment-methods", app.Handlers.InventoryHandler.ListPaymentMethods)
+		inventoryGroup.POST("/payment-methods", app.Handlers.InventoryHandler.CreatePaymentMethod)
+		inventoryGroup.PATCH("/payment-methods/:id/toggle", app.Handlers.InventoryHandler.TogglePaymentMethod)
 	}
 
 	matchesGroup := adminRoutes.Group("/matches")
@@ -313,5 +327,16 @@ func SetupTicketRoutes(r *gin.RouterGroup, app *api.Application) {
 		ticketRoutes.POST("/webhook", app.Handlers.TicketHandler.Webhook)
 		ticketRoutes.POST("/verify/:reference", app.Handlers.TicketHandler.VerifyTicket)
 		ticketRoutes.GET("/:reference", app.Handlers.TicketHandler.GetTicket)
+	}
+}
+
+func SetupSellerRoutes(r *gin.RouterGroup, app *api.Application) {
+	sellerRoutes := r.Group("/seller")
+	sellerRoutes.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.RolesAllowedMiddleware(app.AuthService, "admin", "seller"))
+	{
+		sellerRoutes.POST("/sales", app.Handlers.InventoryHandler.LogSale)
+		sellerRoutes.GET("/sales", app.Handlers.InventoryHandler.ListSales)
+		sellerRoutes.GET("/products", app.Handlers.InventoryHandler.ListProducts)
+		sellerRoutes.GET("/payment-methods", app.Handlers.InventoryHandler.ListPaymentMethods)
 	}
 }

@@ -3,9 +3,9 @@
 CREATE TABLE IF NOT EXISTS audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID,                     -- The user who performed the action (nullable for system actions)
-    action VARCHAR(100) NOT NULL,     -- e.g., 'UPDATE_ROLE', 'CREATE_MATCH'
-    entity_type VARCHAR(100) NOT NULL,-- e.g., 'USER', 'MATCH', 'EVENT_DAY'
-    entity_id VARCHAR(255),           -- The ID of the affected entity
+    action TEXT NOT NULL,     -- e.g., 'UPDATE_ROLE', 'CREATE_MATCH'
+    entity_type TEXT NOT NULL,-- e.g., 'USER', 'MATCH', 'EVENT_DAY'
+    entity_id TEXT,           -- The ID of the affected entity
     details JSONB,                    -- Additional context/diff
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

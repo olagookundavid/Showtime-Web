@@ -137,11 +137,22 @@ func (h *MatchHandler) CreateMatch(c *gin.Context) {
 		return
 	}
 
+	// Validation: Team cannot play itself
+	if req.HomeTeamID == req.AwayTeamID {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Home team and away team cannot be the same"})
+		return
+	}
+
 	// Parse Date
 	date, err := time.Parse("2006-01-02", req.Date)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date format. Use YYYY-MM-DD"})
 		return
+	}
+
+	// Default StartTime if empty
+	if req.StartTime == "" {
+		req.StartTime = "00:00"
 	}
 
 	// Parse StartTime (DTO expects RFC3339 or HH:MM string)
@@ -199,6 +210,12 @@ func (h *MatchHandler) UpdateMatch(c *gin.Context) {
 		return
 	}
 
+	// Validation: Team cannot play itself
+	if req.HomeTeamID != "" && req.AwayTeamID != "" && req.HomeTeamID == req.AwayTeamID {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Home team and away team cannot be the same"})
+		return
+	}
+
 	match := &domain.Match{
 		ID:            id,
 		CompetitionID: req.CompetitionID,
@@ -218,6 +235,9 @@ func (h *MatchHandler) UpdateMatch(c *gin.Context) {
 		} else {
 			match.StartTime, _ = time.Parse(time.RFC3339, req.StartTime)
 		}
+	} else {
+		// Explicitly set to zero-time / midnight placeholder for TBD
+		match.StartTime, _ = time.Parse("15:04", "00:00")
 	}
 	if req.Status != "" {
 		match.Status = domain.MatchStatus(req.Status)

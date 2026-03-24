@@ -110,6 +110,9 @@ export const AdminMatches = () => {
             // It's a full ISO string
             displayTime = displayTime.split('T')[1].slice(0, 5);
         }
+        if (displayTime === '00:00:00' || displayTime === '00:00') {
+            displayTime = '';
+        }
 
         setForm({
             competition_id: compId,
@@ -262,8 +265,10 @@ export const AdminMatches = () => {
                                         <tbody>
                                             {dayMatches.map((m: Match) => (
                                                 <tr key={m.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 text-sm">
-                                                    <td className="px-4 py-3 text-gray-600 dark:text-gray-300">
-                                                        {m.start_time?.includes('T') ? m.start_time.split('T')[1].slice(0, 5) : m.start_time}
+                                                    <td className="px-4 py-3 text-gray-600 dark:text-gray-300 font-medium">
+                                                        {(!m.start_time || m.start_time.includes('T00:00:00') || m.start_time === '00:00:00' || m.start_time === '00:00') 
+                                                            ? 'TBD' 
+                                                            : (m.start_time.includes('T') ? m.start_time.split('T')[1].slice(0, 5) : m.start_time)}
                                                     </td>
                                                     <td className="px-4 py-3 font-bold text-gray-900 dark:text-gray-100">
                                                         {m.home_team?.short_name || 'TBD'} vs {m.away_team?.short_name || 'TBD'}
@@ -364,7 +369,7 @@ export const AdminMatches = () => {
                                     <input type="date" value={form.date} onChange={e => set('date', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Kick-off Time *</label>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Kick-off Time</label>
                                     <input type="time" value={form.start_time} onChange={e => set('start_time', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" />
                                 </div>
                                 <div>

@@ -211,7 +211,7 @@ func (s *AuthService) ListUsers(ctx context.Context, page, limit int, searchFilt
 
 func (s *AuthService) UpdateUserRole(ctx context.Context, userID, newRole string) error {
 	// Validate role
-	allowedRoles := []string{"admin", "user", "team_head", "ticketer", "referee", "stats"}
+	allowedRoles := []string{"admin", "user", "team_head", "ticketer", "referee", "stats", "seller"}
 	isValid := false
 	for _, role := range allowedRoles {
 		if newRole == role {
@@ -221,7 +221,7 @@ func (s *AuthService) UpdateUserRole(ctx context.Context, userID, newRole string
 	}
 
 	if !isValid {
-		return fmt.Errorf("invalid role: %s. Allowed roles are admin, user, team_head, ticketer, referee, stats", newRole)
+		return fmt.Errorf("invalid role: %s. Allowed roles are admin, user, team_head, ticketer, referee, stats, seller", newRole)
 	}
 
 	return s.AuthRepository.UpdateUserRole(ctx, userID, newRole)

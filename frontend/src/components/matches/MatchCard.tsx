@@ -18,6 +18,8 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
     };
 
     const formatTime = (timeString: string, dateString?: string) => {
+        if (!timeString || timeString.includes('T00:00:00') || timeString === '00:00:00' || timeString === '00:00') return 'TBD';
+
         // timeString might be full timestamp or just time.
         // If it's just a time like '15:00:00', combine it with the date to make it valid for Date constructor
         let validDateString = timeString;

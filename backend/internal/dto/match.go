@@ -32,7 +32,7 @@ type CreateMatchRequest struct {
 	HomeTeamID    string `json:"home_team_id" binding:"required"`
 	AwayTeamID    string `json:"away_team_id" binding:"required"`
 	Date          string `json:"date" binding:"required"`       // YYYY-MM-DD
-	StartTime     string `json:"start_time" binding:"required"` // RFC3339
+	StartTime     string `json:"start_time"`                    // RFC3339 or HH:MM, optional
 	Venue         string `json:"venue"`
 	Status        string `json:"status"`
 	HomeScore     *int   `json:"home_score"`

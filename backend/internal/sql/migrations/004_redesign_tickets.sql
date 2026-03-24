@@ -51,8 +51,15 @@ CREATE INDEX IF NOT EXISTS idx_tickets_tier ON tickets(tier_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_email ON tickets(email);
 CREATE INDEX IF NOT EXISTS idx_tickets_reference ON tickets(paystack_reference);
 CREATE INDEX IF NOT EXISTS idx_tickets_code ON tickets(ticket_code);
+CREATE INDEX IF NOT EXISTS idx_tickets_status_event_day ON tickets (status, event_day_id);
 
 -- +goose Down
+DROP INDEX IF EXISTS idx_tickets_status_event_day;
+DROP INDEX IF EXISTS idx_tickets_code;
+DROP INDEX IF EXISTS idx_tickets_reference;
+DROP INDEX IF EXISTS idx_tickets_email;
+DROP INDEX IF EXISTS idx_tickets_tier;
+DROP INDEX IF EXISTS idx_tickets_event_day;
 DROP TABLE IF EXISTS tickets;
 DROP TABLE IF EXISTS ticket_tiers;
 DROP TABLE IF EXISTS event_days;
