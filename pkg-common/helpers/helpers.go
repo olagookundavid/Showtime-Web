@@ -302,7 +302,9 @@ func GetLimitAndOffsetParams(c *gin.Context) (limit, offset int) {
 }
 
 func NormalizeOrigin(origin string) string {
-	return strings.TrimRight(origin, "/")
+	origin = strings.TrimSpace(origin)
+	origin = strings.TrimRight(origin, "/")
+	return origin
 }
 
 func BuildCORSConfig() cors.Config {
