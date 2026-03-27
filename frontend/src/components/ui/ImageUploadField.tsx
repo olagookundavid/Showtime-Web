@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { PhotoIcon, XMarkIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
 import { useImageUpload } from '../../hooks/useImageUpload';
 import toast from 'react-hot-toast';
@@ -10,6 +10,7 @@ interface ImageUploadFieldProps {
   folder: 'players' | 'teams' | 'competitions' | 'news';
   error?: string;
   helperText?: string;
+  isCommitted?: boolean;
 }
 
 export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
@@ -19,14 +20,37 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
   folder,
   error,
   helperText,
+  isCommitted = false,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { uploadImage, isUploading, progress, error: uploadError } = useImageUpload();
+  const { uploadImage, deleteImage, isUploading, progress, error: uploadError } = useImageUpload();
   const [preview, setPreview] = useState<string | null>(value || null);
+  const uncommittedUrlRef = useRef<string | null>(null);
+  const isCommittedRef = useRef(isCommitted);
+
+  useEffect(() => {
+    isCommittedRef.current = isCommitted;
+  }, [isCommitted]);
+
+  useEffect(() => {
+    return () => {
+      // If we unmount and we have an uncommitted upload that wasn't saved, delete it
+      if (uncommittedUrlRef.current && !isCommittedRef.current && uncommittedUrlRef.current !== value) {
+        deleteImage(uncommittedUrlRef.current);
+      }
+    };
+  }, []); // Only on mount/unmount 
+  // wait, I need to check the latest value in the cleanup.
+  // Actually, uncommittedUrlRef and isCommittedRef are refs, so they'll have latest values.
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (file.size > 1 * 1024 * 1024) {
+      toast.error('File size exceeds 1MB limit');
+      return;
+    }
 
     // Local preview
     const objectUrl = URL.createObjectURL(file);
@@ -35,6 +59,11 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
     try {
       const publicUrl = await uploadImage(file, folder);
       if (publicUrl) {
+        // If there was a previous uncommitted upload, delete it
+        if (uncommittedUrlRef.current && uncommittedUrlRef.current !== value) {
+          deleteImage(uncommittedUrlRef.current);
+        }
+        uncommittedUrlRef.current = publicUrl;
         onChange(publicUrl);
         toast.success('Image uploaded successfully');
       } else {
@@ -49,6 +78,10 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
   };
 
   const removeImage = () => {
+    if (uncommittedUrlRef.current && uncommittedUrlRef.current !== value) {
+      deleteImage(uncommittedUrlRef.current);
+      uncommittedUrlRef.current = null;
+    }
     setPreview(null);
     onChange('');
     if (fileInputRef.current) {
@@ -117,7 +150,7 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
           </button>
           
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            {helperText || 'JPG, PNG or WEBP. Max 2MB (will be compressed).'}
+            {helperText || 'JPG, PNG or WEBP. Max 1MB (will be compressed).'}
           </p>
           
           {(error || uploadError) && (

@@ -236,7 +236,8 @@ export const AdminNews = () => {
                                     value={form.featured_image}
                                     onChange={(url) => set('featured_image', url)}
                                     folder="news"
-                                    helperText="Upload a featured image. Will be compressed to WebP."
+                                    helperText="Upload a featured image.  "
+                                    isCommitted={saving}
                                 />
                             </div>
 

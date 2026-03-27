@@ -237,7 +237,8 @@ export const AdminPlayers = () => {
                                     value={form.image}
                                     onChange={(url) => set('image', url)}
                                     folder="players"
-                                    helperText="Upload a profile photo. Will be compressed to WebP."
+                                    helperText="Upload a profile photo.  "
+                                    isCommitted={saving}
                                 />
                             </div>
 

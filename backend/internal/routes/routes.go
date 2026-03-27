@@ -88,6 +88,7 @@ func SetupUploadRoutes(r *gin.RouterGroup, app *api.Application) {
 	uploadRoutes.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.RolesAllowedMiddleware(app.AuthService, "admin", "team_head"))
 	{
 		uploadRoutes.POST("/presign", app.Handlers.UploadHandler.PresignUpload)
+		uploadRoutes.DELETE("", app.Handlers.UploadHandler.DeleteUpload)
 	}
 }
 

@@ -10,3 +10,6 @@ type PresignUploadResponse struct {
 	ObjectKey string `json:"object_key"`
 	PublicURL string `json:"public_url"`
 }
+type DeleteUploadRequest struct {
+	URL string `json:"url" binding:"required"`
+}

@@ -313,7 +313,8 @@ const AdminTeams = () => {
                                     value={form.logo}
                                     onChange={(url) => setForm(f => ({ ...f, logo: url }))}
                                     folder="teams"
-                                    helperText="Upload a logo. Will be compressed to WebP."
+                                    helperText="Upload a logo.  "
+                                    isCommitted={saving}
                                 />
                             </div>
 

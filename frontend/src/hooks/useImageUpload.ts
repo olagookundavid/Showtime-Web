@@ -85,5 +85,21 @@ export const useImageUpload = () => {
     }
   };
 
-  return { uploadImage, isUploading, error, progress };
+  const deleteImage = async (url: string): Promise<boolean> => {
+    try {
+      const token = localStorage.getItem('showtime_access_token');
+      await axios.delete(`${API_URL}/upload`, {
+        data: { url },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      return true;
+    } catch (err: any) {
+      console.error('Delete error:', err);
+      return false;
+    }
+  };
+
+  return { uploadImage, deleteImage, isUploading, error, progress };
 };

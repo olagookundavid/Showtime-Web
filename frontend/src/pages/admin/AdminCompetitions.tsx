@@ -171,11 +171,10 @@ const AdminCompetitions = () => {
                                     )}
                                     <h3 className="text-lg font-bold text-gray-900 dark:text-white flex-1">{comp.name}</h3>
                                     {comp.status && (
-                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                                            comp.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                                            comp.status === 'inactive' ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' :
-                                            'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                                        }`}>
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${comp.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                                                comp.status === 'inactive' ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' :
+                                                    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                            }`}>
                                             {comp.status}
                                         </span>
                                     )}
@@ -236,7 +235,8 @@ const AdminCompetitions = () => {
                                     value={form.logo}
                                     onChange={(url) => setForm(f => ({ ...f, logo: url }))}
                                     folder="competitions"
-                                    helperText="Upload a competition logo. Will be compressed to WebP."
+                                    helperText="Upload a competition logo.  "
+                                    isCommitted={saving}
                                 />
                             </div>
 

@@ -14,6 +14,7 @@ import (
 
 type IUploadHandler interface {
 	PresignUpload(c *gin.Context)
+	DeleteUpload(c *gin.Context)
 }
 
 type UploadHandler struct {
@@ -80,13 +81,50 @@ func (h *UploadHandler) PresignUpload(c *gin.Context) {
 		"object_key": objectKey,
 	})
 
-	println("Upload URL: ", uploadURL)
-	println("Object Key: ", objectKey)
-	println("Public URL: ", publicURL)
-
 	helpers.SuccessOK(c, "Presigned URL generated successfully", dto.PresignUploadResponse{
 		UploadURL: uploadURL,
 		ObjectKey: objectKey,
 		PublicURL: publicURL,
 	})
+}
+
+// DeleteUpload godoc
+// @Summary      Delete an uploaded image
+// @Tags         upload
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.DeleteUploadRequest true "Delete upload request"
+// @Success      204 "No Content"
+// @Router       /api/v1/upload [delete]
+func (h *UploadHandler) DeleteUpload(c *gin.Context) {
+	if h.storage == nil {
+		h.log.Error("Delete attempted but storage service is not initialized", nil)
+		helpers.ServerErrorResponse(c, fmt.Errorf("image storage service is not available"))
+		return
+	}
+
+	var req dto.DeleteUploadRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.log.Error("Failed to bind delete upload request", map[string]any{"error": err.Error()})
+		helpers.BadResponse(c, "Invalid request payload")
+		return
+	}
+
+	if req.URL == "" {
+		helpers.BadResponse(c, "Image URL is required")
+		return
+	}
+
+	h.log.Info("Deleting image from storage", map[string]any{"url": req.URL})
+
+	if err := h.storage.DeleteObject(c.Request.Context(), req.URL); err != nil {
+		h.log.Error("Failed to delete image from storage", map[string]any{
+			"url":   req.URL,
+			"error": err.Error(),
+		})
+		helpers.ServerErrorResponse(c, err)
+		return
+	}
+
+	helpers.SuccessOK(c, "Image deleted successfully", nil)
 }
