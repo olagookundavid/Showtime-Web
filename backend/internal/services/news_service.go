@@ -3,7 +3,9 @@ package services
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
+	"pkg-common/logger"
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/ports"
@@ -19,12 +21,15 @@ type INewsService interface {
 }
 
 type NewsService struct {
-	repo ports.NewsRepository
+	repo    ports.NewsRepository
+	storage ports.StorageService
 }
 
-func NewNewsService(repo ports.NewsRepository) INewsService {
-	return &NewsService{repo: repo}
+func NewNewsService(newsRepo ports.NewsRepository, storage ports.StorageService) INewsService {
+	return &NewsService{repo: newsRepo, storage: storage}
 }
+
+
 
 func (s *NewsService) CreateNews(ctx context.Context, req dto.CreateNewsRequest) error {
 	news := &domain.News{
@@ -101,6 +106,24 @@ func (s *NewsService) GetNewsByID(ctx context.Context, id string) (*dto.NewsResp
 }
 
 func (s *NewsService) UpdateNews(ctx context.Context, id string, req dto.CreateNewsRequest) error {
+	if s.storage != nil {
+		existing, err := s.repo.FindByID(ctx, id)
+		if err == nil && existing != nil && existing.FeaturedImage != "" && existing.FeaturedImage != req.FeaturedImage {
+			oldImage := existing.FeaturedImage
+			log := logger.GetSingletonLogger()
+			log.Info("Scheduling background delete of old news featured image", map[string]any{"old_url": oldImage})
+			if jobErr := SubmitJob(func() {
+				if delErr := s.storage.DeleteObject(context.Background(), oldImage); delErr != nil {
+					logger.GetSingletonLogger().Error("Failed to delete old news image", map[string]any{"url": oldImage, "error": delErr.Error()})
+				} else {
+					logger.GetSingletonLogger().Info("Deleted old news image from R2", map[string]any{"url": oldImage})
+				}
+			}); jobErr != nil {
+				log.Error(fmt.Sprintf("Failed to submit delete job for news image: %v", jobErr), nil)
+			}
+		}
+	}
+
 	existingNews, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return err
@@ -122,5 +145,23 @@ func (s *NewsService) UpdateNews(ctx context.Context, id string, req dto.CreateN
 }
 
 func (s *NewsService) DeleteNews(ctx context.Context, id string) error {
+	if s.storage != nil {
+		existing, err := s.repo.FindByID(ctx, id)
+		if err == nil && existing != nil && existing.FeaturedImage != "" {
+			oldImage := existing.FeaturedImage
+			log := logger.GetSingletonLogger()
+			log.Info("Scheduling background delete of news image on record delete", map[string]any{"url": oldImage})
+			if jobErr := SubmitJob(func() {
+				if delErr := s.storage.DeleteObject(context.Background(), oldImage); delErr != nil {
+					logger.GetSingletonLogger().Error("Failed to delete news image on record delete", map[string]any{"url": oldImage, "error": delErr.Error()})
+				} else {
+					logger.GetSingletonLogger().Info("Deleted news image from R2", map[string]any{"url": oldImage})
+				}
+			}); jobErr != nil {
+				log.Error(fmt.Sprintf("Failed to submit delete job for news image: %v", jobErr), nil)
+			}
+		}
+	}
 	return s.repo.Delete(ctx, id)
 }
+

@@ -16,6 +16,7 @@ type Handlers struct {
 	TeamTicketAllocationHandler transport.ITeamTicketAllocationHandler
 	StatsHandler                transport.IStatsHandler
 	InventoryHandler            transport.IInventoryHandler
+	UploadHandler               transport.IUploadHandler
 }
 
 func NewHandlers(
@@ -30,6 +31,7 @@ func NewHandlers(
 	teamTicketAllocationHandler transport.ITeamTicketAllocationHandler,
 	statsHandler transport.IStatsHandler,
 	inventoryHandler transport.IInventoryHandler,
+	uploadHandler transport.IUploadHandler,
 ) Handlers {
 	return Handlers{
 		AuthHandler:                 authHandler,
@@ -43,5 +45,7 @@ func NewHandlers(
 		TeamTicketAllocationHandler: teamTicketAllocationHandler,
 		StatsHandler:                statsHandler,
 		InventoryHandler:            inventoryHandler,
+		UploadHandler:               uploadHandler,
 	}
 }
+

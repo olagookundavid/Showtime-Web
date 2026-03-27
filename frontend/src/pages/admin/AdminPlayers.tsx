@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { DataTable, type Column } from '../../components/ui/DataTable';
+import { ImageUploadField } from '../../components/ui';
 import {
     getPlayers, getTeams, createPlayer, updatePlayer, deletePlayer,
     type Player, type Team, type CreatePlayerPayload,
@@ -231,9 +232,15 @@ export const AdminPlayers = () => {
                                 <textarea value={form.bio} onChange={e => set('bio', e.target.value)} rows={3} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="Player bio..." />
                             </div>
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Image URL</label>
-                                <input type="url" value={form.image} onChange={e => set('image', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="https://..." />
+                                <ImageUploadField
+                                    label="Player Image"
+                                    value={form.image}
+                                    onChange={(url) => set('image', url)}
+                                    folder="players"
+                                    helperText="Upload a profile photo. Will be compressed to WebP."
+                                />
                             </div>
+
                         </div>
                         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
                             <button onClick={() => setShowModal(false)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-gray-700 text-sm dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 min-h-[44px]">Cancel</button>

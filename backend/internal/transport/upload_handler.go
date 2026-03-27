@@ -1,0 +1,92 @@
+package transport
+
+import (
+	"fmt"
+	"showtime-backend/internal/dto"
+
+	"showtime-backend/internal/ports"
+
+	"pkg-common/helpers"
+	"pkg-common/logger"
+
+	"github.com/gin-gonic/gin"
+)
+
+type IUploadHandler interface {
+	PresignUpload(c *gin.Context)
+}
+
+type UploadHandler struct {
+	storage ports.StorageService
+	log     *logger.Logger
+}
+
+func NewUploadHandler(storage ports.StorageService, log *logger.Logger) IUploadHandler {
+	return &UploadHandler{storage: storage, log: log}
+}
+
+// PresignUpload godoc
+// @Summary      Generate a presigned upload URL
+// @Tags         upload
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.PresignUploadRequest true "Presign upload request"
+// @Success      200 {object} dto.PresignUploadResponse
+// @Router       /api/v1/upload/presign [post]
+func (h *UploadHandler) PresignUpload(c *gin.Context) {
+	if h.storage == nil {
+		h.log.Error("Upload attempted but storage service is not initialized", nil)
+		helpers.ServerErrorResponse(c, fmt.Errorf("image storage service is not available, please contact an administrator"))
+		return
+	}
+
+	var req dto.PresignUploadRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.log.Error("Failed to bind presign upload request", map[string]any{"error": err.Error()})
+		helpers.BadResponse(c, "Invalid request payload")
+		return
+	}
+
+	// Basic validation of content type
+	allowed := map[string]bool{
+		"image/jpeg": true,
+		"image/png":  true,
+		"image/webp": true,
+	}
+	if !allowed[req.ContentType] {
+		h.log.Warn("Invalid content type for upload", map[string]any{"content_type": req.ContentType})
+		helpers.BadResponse(c, "Invalid file type. Only JPEG, PNG, and WebP are allowed.")
+		return
+	}
+
+	h.log.Info("Generating presigned upload URL", map[string]any{
+		"folder":       req.Folder,
+		"content_type": req.ContentType,
+	})
+
+	uploadURL, objectKey, publicURL, err := h.storage.GeneratePresignedPutURL(c.Request.Context(), req.Folder, req.ContentType)
+	if err != nil {
+		h.log.Error("Failed to generate presigned URL", map[string]any{
+			"error":        err.Error(),
+			"folder":       req.Folder,
+			"content_type": req.ContentType,
+		})
+		helpers.ServerErrorResponse(c, err)
+		return
+	}
+
+	h.log.Info("Presigned upload URL generated successfully", map[string]any{
+		"object_key": objectKey,
+	})
+
+	println("Upload URL: ", uploadURL)
+	println("Object Key: ", objectKey)
+	println("Public URL: ", publicURL)
+
+	helpers.SuccessOK(c, "Presigned URL generated successfully", dto.PresignUploadResponse{
+		UploadURL: uploadURL,
+		ObjectKey: objectKey,
+		PublicURL: publicURL,
+	})
+}

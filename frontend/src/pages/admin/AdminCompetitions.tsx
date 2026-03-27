@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader } from '../../components/ui/Loader';
 import { getAdminCompetitions, createCompetition, updateCompetition, deleteCompetition } from '../../services/api';
+import { ImageUploadField } from '../../components/ui';
+
 
 interface Competition {
     id: string;
@@ -229,10 +231,15 @@ const AdminCompetitions = () => {
                                     className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red" placeholder="e.g. SFFL Season 3" />
                             </div>
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Logo URL</label>
-                                <input type="text" value={form.logo} onChange={e => setForm(f => ({ ...f, logo: e.target.value }))}
-                                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red" placeholder="https://..." />
+                                <ImageUploadField
+                                    label="Competition Logo"
+                                    value={form.logo}
+                                    onChange={(url) => setForm(f => ({ ...f, logo: url }))}
+                                    folder="competitions"
+                                    helperText="Upload a competition logo. Will be compressed to WebP."
+                                />
                             </div>
+
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Status *</label>
                                 <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}

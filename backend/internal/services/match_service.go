@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"fmt"
+	"pkg-common/logger"
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/ports"
@@ -29,12 +31,14 @@ type IMatchService interface {
 }
 
 type MatchService struct {
-	repo ports.MatchRepository
+	repo    ports.MatchRepository
+	storage ports.StorageService
 }
 
-func NewMatchService(repo ports.MatchRepository) IMatchService {
-	return &MatchService{repo: repo}
+func NewMatchService(repo ports.MatchRepository, storage ports.StorageService) IMatchService {
+	return &MatchService{repo: repo, storage: storage}
 }
+
 
 func (s *MatchService) GetCompetitions(ctx context.Context, page, limit int, search string, status string) (dto.PaginatedResult[dto.CompetitionResponse], error) {
 	competitions, total, err := s.repo.GetCompetitions(ctx, page, limit, search, status)
@@ -251,10 +255,44 @@ func (s *MatchService) CreateTeam(ctx context.Context, team *domain.Team) error 
 }
 
 func (s *MatchService) UpdateTeam(ctx context.Context, team *domain.Team) error {
+	if s.storage != nil {
+		existing, err := s.repo.GetTeamByID(ctx, team.ID)
+		if err == nil && existing != nil && existing.Logo != "" && existing.Logo != team.Logo {
+			oldImage := existing.Logo
+			log := logger.GetSingletonLogger()
+			log.Info("Scheduling background delete of old team logo", map[string]any{"old_url": oldImage})
+			if jobErr := SubmitJob(func() {
+				if delErr := s.storage.DeleteObject(context.Background(), oldImage); delErr != nil {
+					logger.GetSingletonLogger().Error("Failed to delete old team logo", map[string]any{"url": oldImage, "error": delErr.Error()})
+				} else {
+					logger.GetSingletonLogger().Info("Deleted old team logo from R2", map[string]any{"url": oldImage})
+				}
+			}); jobErr != nil {
+				log.Error(fmt.Sprintf("Failed to submit delete job for team logo: %v", jobErr), nil)
+			}
+		}
+	}
 	return s.repo.UpdateTeam(ctx, team)
 }
 
 func (s *MatchService) DeleteTeam(ctx context.Context, id string) error {
+	if s.storage != nil {
+		existing, err := s.repo.GetTeamByID(ctx, id)
+		if err == nil && existing != nil && existing.Logo != "" {
+			oldImage := existing.Logo
+			log := logger.GetSingletonLogger()
+			log.Info("Scheduling background delete of team logo on record delete", map[string]any{"url": oldImage})
+			if jobErr := SubmitJob(func() {
+				if delErr := s.storage.DeleteObject(context.Background(), oldImage); delErr != nil {
+					logger.GetSingletonLogger().Error("Failed to delete team logo on delete", map[string]any{"url": oldImage, "error": delErr.Error()})
+				} else {
+					logger.GetSingletonLogger().Info("Deleted team logo from R2", map[string]any{"url": oldImage})
+				}
+			}); jobErr != nil {
+				log.Error(fmt.Sprintf("Failed to submit delete job for team logo: %v", jobErr), nil)
+			}
+		}
+	}
 	return s.repo.DeleteTeam(ctx, id)
 }
 
@@ -263,9 +301,44 @@ func (s *MatchService) CreateCompetition(ctx context.Context, comp *domain.Compe
 }
 
 func (s *MatchService) UpdateCompetition(ctx context.Context, comp *domain.Competition) error {
+	if s.storage != nil {
+		existing, err := s.repo.GetCompetitionByID(ctx, comp.ID)
+		if err == nil && existing != nil && existing.Logo != "" && existing.Logo != comp.Logo {
+			oldImage := existing.Logo
+			log := logger.GetSingletonLogger()
+			log.Info("Scheduling background delete of old competition logo", map[string]any{"old_url": oldImage})
+			if jobErr := SubmitJob(func() {
+				if delErr := s.storage.DeleteObject(context.Background(), oldImage); delErr != nil {
+					logger.GetSingletonLogger().Error("Failed to delete old competition logo", map[string]any{"url": oldImage, "error": delErr.Error()})
+				} else {
+					logger.GetSingletonLogger().Info("Deleted old competition logo from R2", map[string]any{"url": oldImage})
+				}
+			}); jobErr != nil {
+				log.Error(fmt.Sprintf("Failed to submit delete job for competition logo: %v", jobErr), nil)
+			}
+		}
+	}
 	return s.repo.UpdateCompetition(ctx, comp)
 }
 
 func (s *MatchService) DeleteCompetition(ctx context.Context, id string) error {
+	if s.storage != nil {
+		existing, err := s.repo.GetCompetitionByID(ctx, id)
+		if err == nil && existing != nil && existing.Logo != "" {
+			oldImage := existing.Logo
+			log := logger.GetSingletonLogger()
+			log.Info("Scheduling background delete of competition logo on record delete", map[string]any{"url": oldImage})
+			if jobErr := SubmitJob(func() {
+				if delErr := s.storage.DeleteObject(context.Background(), oldImage); delErr != nil {
+					logger.GetSingletonLogger().Error("Failed to delete competition logo on delete", map[string]any{"url": oldImage, "error": delErr.Error()})
+				} else {
+					logger.GetSingletonLogger().Info("Deleted competition logo from R2", map[string]any{"url": oldImage})
+				}
+			}); jobErr != nil {
+				log.Error(fmt.Sprintf("Failed to submit delete job for competition logo: %v", jobErr), nil)
+			}
+		}
+	}
 	return s.repo.DeleteCompetition(ctx, id)
 }
+

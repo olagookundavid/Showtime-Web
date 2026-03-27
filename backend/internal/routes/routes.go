@@ -79,8 +79,18 @@ func Routes(app *api.Application) *gin.Engine {
 	SetupTicketRoutes(v1_api, app)
 	SetupStatsRoutes(v1_api, app)
 	SetupSellerRoutes(v1_api, app)
+	SetupUploadRoutes(v1_api, app)
 	return r
 }
+
+func SetupUploadRoutes(r *gin.RouterGroup, app *api.Application) {
+	uploadRoutes := r.Group("/upload")
+	uploadRoutes.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.RolesAllowedMiddleware(app.AuthService, "admin", "team_head"))
+	{
+		uploadRoutes.POST("/presign", app.Handlers.UploadHandler.PresignUpload)
+	}
+}
+
 
 func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	adminRoutes := r.Group("/admin")

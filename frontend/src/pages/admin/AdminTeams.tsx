@@ -7,6 +7,8 @@ import {
     getTeamManagers, assignTeamManager, removeTeamManager,
     getAdminUsers
 } from '../../services/api';
+import { ImageUploadField } from '../../components/ui';
+
 
 interface Team {
     id: string;
@@ -306,10 +308,15 @@ const AdminTeams = () => {
                                     className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red" placeholder="e.g. LGD" />
                             </div>
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Logo URL</label>
-                                <input type="text" value={form.logo} onChange={e => setForm(f => ({ ...f, logo: e.target.value }))}
-                                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red" placeholder="https://..." />
+                                <ImageUploadField
+                                    label="Team Logo"
+                                    value={form.logo}
+                                    onChange={(url) => setForm(f => ({ ...f, logo: url }))}
+                                    folder="teams"
+                                    helperText="Upload a logo. Will be compressed to WebP."
+                                />
                             </div>
+
                         </div>
                         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
                             <button onClick={() => setShowModal(false)} className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300 transition-all duration-300 hover:scale-[1.02] active:scale-95">Cancel</button>

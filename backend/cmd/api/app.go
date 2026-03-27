@@ -6,6 +6,7 @@ import (
 	"pkg-common/token"
 	"showtime-backend/config"
 	"showtime-backend/internal/handlers"
+	"showtime-backend/internal/ports"
 	"showtime-backend/internal/services"
 
 	"pkg-common/logger"
@@ -21,4 +22,5 @@ type Application struct {
 	AuthService        services.IAuthService
 	TeamManagerService services.ITeamManagerService
 	TicketService      *services.TicketService
+	StorageService     ports.StorageService
 }

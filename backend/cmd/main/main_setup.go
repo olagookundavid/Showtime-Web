@@ -16,6 +16,7 @@ import (
 	"showtime-backend/internal/handlers"
 	"showtime-backend/internal/ports"
 	"showtime-backend/internal/services"
+	"showtime-backend/internal/storage"
 	"showtime-backend/internal/transport"
 	"showtime-backend/pkg/email"
 
@@ -187,7 +188,7 @@ func ExampleQueueProducer(log *logger.Logger) queue.MessagePublisher {
 
 // wireDependencies initializes and injects all dependencies (Repository -> Service -> Handler)
 // returning the fully assembled Handlers struct, the AuditService, and the TicketService.
-func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker) (handlers.Handlers, services.IAuditService, services.IAuthService, services.ITeamManagerService, *services.TicketService) {
+func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Logger) (handlers.Handlers, services.IAuditService, services.IAuthService, services.ITeamManagerService, *services.TicketService, ports.StorageService) {
 	// Infrastructure
 	auditRepo := ports.NewAuditRepository(pool)
 	authRepo := ports.NewAuthRepository(pool)
@@ -206,14 +207,19 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker) (handlers.Hand
 
 	// External Clients
 	paystackClient := services.NewPaystackClient()
+	storageService, err := storage.NewR2StorageService()
+	if err != nil {
+		log.Fatal(fmt.Sprintf("FATAL: R2 Storage Service failed to initialize. Check R2 environment variables. Error: %v", err), nil)
+	}
+
 
 	// Services
 	auditService := services.NewAuditService(auditRepo, authRepo)
 	authService := services.NewAuthService(authRepo, tokenMaker)
-	newsService := services.NewNewsService(newsRepo)
+	newsService := services.NewNewsService(newsRepo, storageService)
 	galleryService := services.NewGalleryService(galleryRepo)
-	matchService := services.NewMatchService(matchRepo)
-	playerService := services.NewPlayerService(playerRepo)
+	matchService := services.NewMatchService(matchRepo, storageService)
+	playerService := services.NewPlayerService(playerRepo, storageService)
 	emailService := email.NewResendService()
 	ticketService := services.NewTicketService(eventDayRepo, tierRepo, ticketRepo, matchRepo, paystackClient, emailService)
 	tmService := services.NewTeamManagerService(tmRepo, authRepo)
@@ -234,7 +240,8 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker) (handlers.Hand
 	tmAllocHandler := transport.NewTeamTicketAllocationHandler(tmAllocService)
 	statsHandler := transport.NewStatsHandler(statsService)
 	inventoryHandler := transport.NewInventoryHandler(inventoryService)
+	uploadHandler := transport.NewUploadHandler(storageService, log)
 
-	h := handlers.NewHandlers(authHandler, newsHandler, galleryHandler, matchHandler, playerHandler, ticketHandler, tmHandler, analyticsHandler, tmAllocHandler, statsHandler, inventoryHandler)
-	return h, auditService, authService, tmService, ticketService
+	h := handlers.NewHandlers(authHandler, newsHandler, galleryHandler, matchHandler, playerHandler, ticketHandler, tmHandler, analyticsHandler, tmAllocHandler, statsHandler, inventoryHandler, uploadHandler)
+	return h, auditService, authService, tmService, ticketService, storageService
 }

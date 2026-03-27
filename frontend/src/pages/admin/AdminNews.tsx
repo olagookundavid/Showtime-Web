@@ -5,6 +5,8 @@ import {
     getNews, createNews, updateNews, deleteNews,
     type News, type CreateNewsPayload,
 } from '../../services/api';
+import { ImageUploadField } from '../../components/ui';
+
 
 interface FormData {
     title: string; slug: string; excerpt: string; content: string;
@@ -228,7 +230,16 @@ export const AdminNews = () => {
                             </div>
                             <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Excerpt</label><textarea value={form.excerpt} onChange={e => set('excerpt', e.target.value)} rows={2} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="Short summary..." /></div>
                             <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Content *</label><textarea value={form.content} onChange={e => set('content', e.target.value)} rows={8} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="Article content..." /></div>
-                            <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Featured Image URL</label><input type="url" value={form.featured_image} onChange={e => set('featured_image', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="https://..." /></div>
+                            <div>
+                                <ImageUploadField
+                                    label="Featured Image"
+                                    value={form.featured_image}
+                                    onChange={(url) => set('featured_image', url)}
+                                    folder="news"
+                                    helperText="Upload a featured image. Will be compressed to WebP."
+                                />
+                            </div>
+
                         </div>
                         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
                             <button onClick={() => setShowModal(false)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 min-h-[44px]">Cancel</button>
