@@ -2,13 +2,18 @@ import { HeroCarousel } from '../components/HeroCarousel';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getMatches, getNews } from '../services/api';
-import { MatchCard } from '../components/matches/MatchCard';
+import { CompactMatchCard } from '../components/matches/CompactMatchCard';
 import { Loader } from '../components/ui/Loader';
 
 export const LandingPage = () => {
     const { data: finishedMatchesData, isLoading: loadingFinished } = useQuery({
-        queryKey: ['publicMatches', 'FINISHED', 3],
-        queryFn: () => getMatches(undefined, 1, 3, 'FINISHED'),
+        queryKey: ['publicMatches', 'FINISHED', 5],
+        queryFn: () => getMatches(undefined, 1, 5, 'FINISHED'),
+    });
+
+    const { data: scheduledMatchesData, isLoading: loadingScheduled } = useQuery({
+        queryKey: ['publicMatches', 'SCHEDULED', 5],
+        queryFn: () => getMatches(undefined, 1, 5, 'SCHEDULED'),
     });
 
     const { data: newsData, isLoading: loadingNews } = useQuery({
@@ -17,6 +22,7 @@ export const LandingPage = () => {
     });
 
     const latestResults = finishedMatchesData?.data || [];
+    const upcomingMatches = scheduledMatchesData?.data || [];
 
     // The backend now filters by category, so the first item is our latest note
     const latestNote = newsData?.data?.[0] || null;
@@ -57,7 +63,7 @@ export const LandingPage = () => {
             {/* Promotional Carousel */}
             <HeroCarousel />
 
-            {/* Latest Results - High Density Header */}
+            {/* Latest Results */}
             <section className="container mx-auto px-1">
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-lg md:text-4xl font-black italic text-sffl-navy dark:text-white transition-colors duration-300">
@@ -68,14 +74,41 @@ export const LandingPage = () => {
                 {loadingFinished ? (
                     <Loader />
                 ) : latestResults.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="flex overflow-x-auto gap-4 pb-4 snap-x snap-mandatory no-scrollbar -mx-1 px-1">
                         {latestResults.map(match => (
-                            <MatchCard key={match.id} match={match} onClick={() => { }} />
+                            <CompactMatchCard key={match.id} match={match} />
                         ))}
                     </div>
                 ) : (
-                    <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-2xl">
-                        <p className="text-gray-500 dark:text-gray-300 font-medium">No recent results available.</p>
+                    <div className="flex flex-col items-center justify-center py-16 bg-gradient-to-br from-sffl-navy/5 to-sffl-red/5 dark:from-sffl-navy/30 dark:to-sffl-red/10 rounded-3xl border-2 border-dashed border-sffl-navy/10 dark:border-gray-700">
+                        <span className="text-5xl mb-4">🏈</span>
+                        <h3 className="text-xl font-black italic text-sffl-navy dark:text-white tracking-tight">NO RECENT RESULTS</h3>
+                        <p className="text-gray-500 dark:text-gray-400 font-medium mt-2 text-sm">Results will be posted here right after game day.</p>
+                    </div>
+                )}
+            </section>
+
+            {/* Upcoming Matches */}
+            <section className="container mx-auto px-1">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-lg md:text-4xl font-black italic text-sffl-navy dark:text-white transition-colors duration-300">
+                        UPCOMING <span className="text-sffl-red">MATCHES</span>
+                    </h2>
+                    <Link to="/tickets" className="text-sffl-navy dark:text-gray-300 text-sm font-semibold hover:underline">Get Tickets 🎟️</Link>
+                </div>
+                {loadingScheduled ? (
+                    <Loader />
+                ) : upcomingMatches.length > 0 ? (
+                    <div className="flex overflow-x-auto gap-4 pb-4 snap-x snap-mandatory no-scrollbar -mx-1 px-1">
+                        {upcomingMatches.map(match => (
+                            <CompactMatchCard key={match.id} match={match} />
+                        ))}
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center justify-center py-16 bg-gradient-to-br from-gray-50 to-blue-50/30 dark:from-gray-800/50 dark:to-sffl-navy/20 rounded-3xl border-2 border-dashed border-gray-200 dark:border-gray-700">
+                        <span className="text-5xl mb-4">📅</span>
+                        <h3 className="text-xl font-black italic text-sffl-navy dark:text-white tracking-tight">NO UPCOMING MATCHES</h3>
+                        <p className="text-gray-500 dark:text-gray-400 font-medium mt-2 text-sm">The next game day schedule is being finalized. Stay tuned!</p>
                     </div>
                 )}
             </section>
@@ -103,17 +136,6 @@ export const LandingPage = () => {
                         </div>
                     )}
                 </div>
-                {/* <div className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-2xl shadow-xl border border-transparent dark:border-gray-700">
-                    <h3 className="text-xl md:text-2xl font-bold italic text-sffl-navy dark:text-white transition-colors duration-300 mb-4">PLAYER OF THE WEEK</h3>
-                    <div className="flex items-center gap-6">
-                        <div className="w-16 h-16 md:w-24 md:h-24 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center font-bold text-gray-400 dark:text-gray-500">IMG</div>
-                        <div>
-                            <div className="text-xl md:text-3xl font-black text-sffl-red">J. SMITH</div>
-                            <div className="text-xs md:text-gray-600 dark:text-gray-300 font-bold uppercase">QB - Outlaws</div>
-                            <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">4 TDs, 0 INT, 250 Yds</div>
-                        </div>
-                    </div>
-                </div> */}
             </section>
         </div>
     );

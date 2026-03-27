@@ -7,7 +7,7 @@ import {
     getTeamManagers, assignTeamManager, removeTeamManager,
     getAdminUsers
 } from '../../services/api';
-import { ImageUploadField } from '../../components/ui';
+import { ImageUploadField, LightboxImage } from '../../components/ui';
 
 
 interface Team {
@@ -241,7 +241,11 @@ const AdminTeams = () => {
                             <div className="p-6">
                                 <div className="flex items-center gap-4 mb-4">
                                     {team.logo ? (
-                                        <img src={team.logo} alt={team.name} className="w-14 h-14 rounded-lg object-contain bg-gray-50 p-1" />
+                                        <LightboxImage 
+                                            src={team.logo} 
+                                            alt={team.name} 
+                                            thumbnailClassName="w-14 h-14 rounded-lg object-contain bg-gray-50 p-1" 
+                                        />
                                     ) : (
                                         <div className="w-14 h-14 rounded-lg bg-sffl-navy/10 flex items-center justify-center text-2xl font-black text-sffl-navy dark:text-white">
                                             {team.short_name?.slice(0, 2) || team.name.slice(0, 2)}

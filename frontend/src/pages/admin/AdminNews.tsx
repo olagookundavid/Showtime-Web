@@ -195,6 +195,14 @@ export const AdminNews = () => {
                                         <td className="px-4 py-3"><span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 rounded-full text-xs font-bold">{n.category || 'General'}</span></td>
                                         <td className="px-4 py-3 text-sm dark:text-gray-300">{n.published_at ? new Date(n.published_at).toLocaleDateString() : '—'}</td>
                                         <td className="px-4 py-3 text-right space-x-2">
+                                            <a 
+                                                href={`/news/${n.slug}`} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="px-2.5 py-1 bg-gray-50 hover:bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:hover:bg-gray-900/50 dark:text-gray-400 font-bold text-xs rounded-md transition-colors"
+                                            >
+                                                View
+                                            </a>
                                             <button onClick={() => openEdit(n)} className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 font-bold text-xs rounded-md transition-colors">Edit</button>
                                             <button onClick={() => setDeleteConfirm(n.id)} className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-400 font-bold text-xs rounded-md transition-colors">Delete</button>
                                         </td>

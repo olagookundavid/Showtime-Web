@@ -11,6 +11,7 @@ import {
     type Competition
 } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
+import { LightboxImage } from '../../components/ui';
 import { DataTable, type Column } from '../../components/ui/DataTable';
 import { CalendarPicker } from '../../components/ui/CalendarPicker';
 
@@ -156,7 +157,11 @@ export const AdminStats = () => {
             cell: (p) => (
                 <div className="flex items-center gap-3">
                     {p.image ? (
-                        <img src={p.image} alt={p.name} className="w-8 h-8 rounded-full object-cover" />
+                        <LightboxImage 
+                            src={p.image} 
+                            alt={p.name} 
+                            thumbnailClassName="w-8 h-8 rounded-full shadow-sm border border-gray-100 dark:border-gray-700" 
+                        />
                     ) : (
                         <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-500">#{p.jersey_number}</div>
                     )}

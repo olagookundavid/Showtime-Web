@@ -1,4 +1,5 @@
 import { Loader } from '../../components/ui/Loader';
+import { LightboxImage } from '../../components/ui';
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -191,7 +192,13 @@ export const AdminStandings = () => {
                                     <td className="px-4 py-3 font-black text-sffl-navy dark:text-white">{s.position}</td>
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-3">
-                                            {s.team?.logo && <img src={s.team.logo} alt={s.team?.name} className="w-6 h-6 object-contain" />}
+                                            {s.team?.logo && (
+                                                <LightboxImage 
+                                                    src={s.team.logo} 
+                                                    alt={s.team?.name} 
+                                                    thumbnailClassName="w-6 h-6 object-contain rounded-md" 
+                                                />
+                                            )}
                                             <span className="font-semibold text-sm text-gray-900 dark:text-white">{s.team?.name || '—'}</span>
                                         </div>
                                     </td>

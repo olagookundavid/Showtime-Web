@@ -5,4 +5,6 @@ export { PageHeader } from './PageHeader';
 export { Section } from './Section';
 export { Container } from './Container';
 export { ImageUploadField } from './ImageUploadField';
+export { ImageLightbox } from './ImageLightbox';
+export { LightboxImage } from './LightboxImage';
 

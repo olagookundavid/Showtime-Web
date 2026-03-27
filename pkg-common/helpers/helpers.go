@@ -17,6 +17,7 @@ import (
 
 	"pkg-common/vcs"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -298,4 +299,55 @@ func GetLimitAndOffsetParams(c *gin.Context) (limit, offset int) {
 	}
 
 	return limit, offset
+}
+
+func NormalizeOrigin(origin string) string {
+	return strings.TrimRight(origin, "/")
+}
+
+func BuildCORSConfig() cors.Config {
+	allowed := GetEnvSlice([]string{})
+
+	// Normalize env origins once
+	normalized := make(map[string]struct{}, len(allowed))
+	for _, o := range allowed {
+		normalized[NormalizeOrigin(o)] = struct{}{}
+	}
+
+	return cors.Config{
+		AllowOriginFunc: func(origin string) bool {
+			origin = NormalizeOrigin(origin)
+
+			// Debug log (remove in prod)
+			logger.GetSingletonLogger().Info("CORS check for: "+origin, nil)
+
+			// 1. Exact match (production domains)
+			if _, ok := normalized[origin]; ok {
+				return true
+			}
+
+			// 2. Allow localhost (any port)
+			if AllowLocalHost(origin) {
+				return true
+			}
+
+			// 3. Allow Vercel previews
+			if strings.HasSuffix(origin, ".vercel.app") {
+				return true
+			}
+
+			return false
+		},
+
+		AllowMethods: []string{
+			"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS",
+		},
+		AllowHeaders: []string{
+			"Content-Type", "Authorization", "X-Requested-With",
+		},
+		AllowCredentials: true,
+
+		// Keep short during dev to avoid ghost bugs
+		MaxAge: 300,
+	}
 }

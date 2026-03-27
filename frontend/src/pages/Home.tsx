@@ -3,7 +3,8 @@ import { useEffect, useState, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { getMatches, getStandings, getCompetitions, getNews } from '../services/api';
-import { MatchCard } from '../components/matches/MatchCard';
+import { CompactMatchCard } from '../components/matches/CompactMatchCard';
+import { LightboxImage } from '../components/ui';
 
 // Hook for scroll animations
 function useScrollReveal() {
@@ -44,13 +45,13 @@ function RevealSection({ children, className = '', delay = 0 }: { children: Reac
 
 export default function Home() {
     const { data: finishedMatchesData, isLoading: loadingFinished } = useQuery({
-        queryKey: ['publicMatches', 'FINISHED', 3],
-        queryFn: () => getMatches(undefined, 1, 3, 'FINISHED'),
+        queryKey: ['publicMatches', 'FINISHED', 5],
+        queryFn: () => getMatches(undefined, 1, 5, 'FINISHED'),
     });
 
     const { data: scheduledMatchesData, isLoading: loadingScheduled } = useQuery({
-        queryKey: ['publicMatches', 'SCHEDULED', 3],
-        queryFn: () => getMatches(undefined, 1, 3, 'SCHEDULED'),
+        queryKey: ['publicMatches', 'SCHEDULED', 5],
+        queryFn: () => getMatches(undefined, 1, 5, 'SCHEDULED'),
     });
 
     const { data: competitionsData, isLoading: loadingComps } = useQuery({
@@ -114,36 +115,46 @@ export default function Home() {
                 {loading ? (
                     <Loader />
                 ) : latestResults.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="flex overflow-x-auto gap-4 pb-4 snap-x snap-mandatory no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
                         {latestResults.map(match => (
-                            <MatchCard key={match.id} match={match} onClick={() => { }} />
+                            <CompactMatchCard key={match.id} match={match} />
                         ))}
                     </div>
                 ) : (
-                    <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-2xl">
-                        <p className="text-gray-500 dark:text-gray-300 font-medium">No recent results available.</p>
+                    <div className="flex flex-col items-center justify-center py-16 bg-gradient-to-br from-sffl-navy/5 to-sffl-red/5 dark:from-sffl-navy/30 dark:to-sffl-red/10 rounded-3xl border-2 border-dashed border-sffl-navy/10 dark:border-gray-700">
+                        <span className="text-5xl mb-4">🏈</span>
+                        <h3 className="text-xl font-black italic text-sffl-navy dark:text-white tracking-tight">NO RECENT RESULTS</h3>
+                        <p className="text-gray-500 dark:text-gray-400 font-medium mt-2 text-sm">Results will be posted here right after game day.</p>
                     </div>
                 )}
             </RevealSection>
 
             {/* Upcoming Matches */}
-            {upcomingMatches.length > 0 && (
-                <RevealSection>
-                    <div className="flex items-center justify-between mb-8">
-                        <h2 className="text-3xl font-black italic tracking-tighter text-sffl-navy dark:text-white transition-colors duration-300">
-                            <span className="text-sffl-red mr-2">●</span> UPCOMING MATCHES
-                        </h2>
-                        <Link to="/tickets" className="text-sffl-red dark:text-red-400 font-bold hover:underline py-2 px-3 -mr-3 rounded-lg flex items-center min-h-[44px] hover:bg-red-50 dark:hover:bg-red-900/20 active:scale-95 transition-all duration-300">
-                            Get Tickets <span className="ml-1">→</span>
-                        </Link>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <RevealSection>
+                <div className="flex items-center justify-between mb-8">
+                    <h2 className="text-3xl font-black italic tracking-tighter text-sffl-navy dark:text-white transition-colors duration-300">
+                        <span className="text-sffl-red mr-2">●</span> UPCOMING MATCHES
+                    </h2>
+                    <Link to="/tickets" className="text-sffl-navy dark:text-gray-300 font-bold hover:underline py-2 px-3 -mr-3 rounded-lg flex items-center min-h-[44px] hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95 transition-all duration-300">
+                        Get Tickets <span className="ml-1">🎟️</span>
+                    </Link>
+                </div>
+                {loading ? (
+                    <Loader />
+                ) : upcomingMatches.length > 0 ? (
+                    <div className="flex overflow-x-auto gap-4 pb-4 snap-x snap-mandatory no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
                         {upcomingMatches.map(match => (
-                            <MatchCard key={match.id} match={match} onClick={() => { }} />
+                            <CompactMatchCard key={match.id} match={match} />
                         ))}
                     </div>
-                </RevealSection>
-            )}
+                ) : (
+                    <div className="flex flex-col items-center justify-center py-16 bg-gradient-to-br from-gray-50 to-blue-50/30 dark:from-gray-800/50 dark:to-sffl-navy/20 rounded-3xl border-2 border-dashed border-gray-200 dark:border-gray-700">
+                        <span className="text-5xl mb-4">📅</span>
+                        <h3 className="text-xl font-black italic text-sffl-navy dark:text-white tracking-tight">NO UPCOMING MATCHES</h3>
+                        <p className="text-gray-500 dark:text-gray-400 font-medium mt-2 text-sm">The next game day schedule is being finalized. Stay tuned!</p>
+                    </div>
+                )}
+            </RevealSection>
 
             {/* League Table Mini + Latest News side-by-side */}
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
@@ -177,7 +188,13 @@ export default function Home() {
                                         <td className="px-4 py-3 font-black text-sffl-navy dark:text-white">{s.position}</td>
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-2">
-                                                {s.team?.logo && <img src={s.team.logo} alt="" className="w-5 h-5 object-contain" />}
+                                                {s.team?.logo && (
+                                                    <LightboxImage 
+                                                        src={s.team.logo} 
+                                                        alt={s.team.name} 
+                                                        thumbnailClassName="w-5 h-5 object-contain rounded-md" 
+                                                    />
+                                                )}
                                                 <span className="font-semibold text-sm dark:text-white">{s.team?.name || '—'}</span>
                                             </div>
                                         </td>
@@ -212,7 +229,11 @@ export default function Home() {
                                 <div className="flex">
                                     {article.featured_image && (
                                         <div className="w-24 h-24 flex-shrink-0">
-                                            <img src={article.featured_image} alt="" className="w-full h-full object-cover" />
+                                            <LightboxImage 
+                                                src={article.featured_image} 
+                                                alt={article.title} 
+                                                thumbnailClassName="w-full h-full object-cover" 
+                                            />
                                         </div>
                                     )}
                                     <div className="p-3 flex-1 min-w-0">

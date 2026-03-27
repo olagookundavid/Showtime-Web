@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { getNews } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { Pagination } from '../../components/ui/Pagination';
+import { LightboxImage } from '../../components/ui';
 
 export const NewsList = () => {
     const [currentPage, setCurrentPage] = useState(1);
@@ -43,12 +44,12 @@ export const NewsList = () => {
                         className="group bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
                     >
                         {/* Featured Image */}
-                        <div className="h-48 overflow-hidden bg-gray-200 dark:bg-gray-700">
+                        <div className="h-48 overflow-hidden bg-gray-200 dark:bg-gray-700 relative group-image">
                             {article.featured_image ? (
-                                <img
+                                <LightboxImage
                                     src={article.featured_image}
                                     alt={article.title}
-                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                    thumbnailClassName="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                 />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center text-gray-400">

@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import type { Match } from '../../services/api';
 import { generateGoogleCalendarLink } from '../../utils/calendarUtils';
+import { LightboxImage } from '../ui';
 
 interface MatchCardProps {
     match: Match;
@@ -46,7 +47,11 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
             <div className="p-2 md:p-6 flex items-center w-full gap-2">
                 {/* Home Team */}
                 <div className="flex items-center gap-1.5 w-1/3">
-                    <img src={match.home_team?.logo || 'https://via.placeholder.com/60'} alt={match.home_team?.name} className="w-6 h-6 md:w-16 md:h-16 object-contain group-hover:scale-110 transition-transform" />
+                    <LightboxImage 
+                        src={match.home_team?.logo || 'https://via.placeholder.com/60'} 
+                        alt={match.home_team?.name} 
+                        thumbnailClassName="w-6 h-6 md:w-16 md:h-16 object-contain rounded-md" 
+                    />
                     <span className="font-bold text-[10px] md:text-sm text-sffl-navy dark:text-white leading-tight truncate">{match.home_team?.short_name || match.home_team?.name || 'Home'}</span>
                 </div>
 
@@ -65,7 +70,11 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
                 {/* Away Team */}
                 <div className="flex items-center justify-end gap-1.5 w-1/3 text-right">
                     <span className="font-bold text-[10px] md:text-sm text-sffl-navy dark:text-white leading-tight truncate">{match.away_team?.short_name || match.away_team?.name || 'Away'}</span>
-                    <img src={match.away_team?.logo || 'https://via.placeholder.com/60'} alt={match.away_team?.name} className="w-6 h-6 md:w-16 md:h-16 object-contain group-hover:scale-110 transition-transform" />
+                    <LightboxImage 
+                        src={match.away_team?.logo || 'https://via.placeholder.com/60'} 
+                        alt={match.away_team?.name} 
+                        thumbnailClassName="w-6 h-6 md:w-16 md:h-16 object-contain rounded-md" 
+                    />
                 </div>
             </div>
 

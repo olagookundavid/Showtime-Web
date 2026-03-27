@@ -1,4 +1,5 @@
 import { useOutletContext } from 'react-router-dom';
+import { LightboxImage } from '../../components/ui';
 
 interface TeamInfo {
     id: string;
@@ -30,7 +31,11 @@ const TeamHeadOverview = () => {
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-6">
                     <div className="flex items-center gap-4 mb-4">
                         {team.logo ? (
-                            <img src={team.logo} alt={team.name} className="w-20 h-20 rounded-xl object-contain bg-gray-50 p-2" />
+                            <LightboxImage 
+                                src={team.logo} 
+                                alt={team.name} 
+                                thumbnailClassName="w-20 h-20 rounded-xl object-contain bg-gray-50 dark:bg-gray-700/50 p-2 shadow-sm border border-gray-100 dark:border-gray-700" 
+                            />
                         ) : (
                             <div className="w-20 h-20 rounded-xl bg-sffl-navy/10 flex items-center justify-center text-3xl font-black text-sffl-navy">
                                 {team.short_name?.slice(0, 3) || '🛡️'}

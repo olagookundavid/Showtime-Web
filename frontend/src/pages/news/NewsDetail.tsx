@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
 import { getNewsBySlug, getNews } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
+import { LightboxImage } from '../../components/ui';
 
 export const NewsDetail = () => {
     const { slug } = useParams<{ slug: string }>();
@@ -49,12 +50,12 @@ export const NewsDetail = () => {
             {/* Article Header */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-xl">
                 {/* Featured Image */}
-                <div className="h-96 overflow-hidden">
+                <div className="h-96 overflow-hidden relative">
                     {article.featured_image ? (
-                        <img
+                        <LightboxImage
                             src={article.featured_image}
                             alt={article.title}
-                            className="w-full h-full object-cover"
+                            thumbnailClassName="w-full h-full object-cover"
                         />
                     ) : (
                         <div className="w-full h-full bg-gray-200 flex items-center justify-center">No Image</div>

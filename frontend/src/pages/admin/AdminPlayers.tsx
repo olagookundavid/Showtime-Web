@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { DataTable, type Column } from '../../components/ui/DataTable';
-import { ImageUploadField } from '../../components/ui';
+import { ImageUploadField, LightboxImage } from '../../components/ui';
 import {
     getPlayers, getTeams, createPlayer, updatePlayer, deletePlayer,
     type Player, type Team, type CreatePlayerPayload,
@@ -124,7 +124,13 @@ export const AdminPlayers = () => {
             sortValue: (p) => p.name,
             cell: (p) => (
                 <div className="flex items-center gap-3">
-                    {p.image && <img src={p.image} alt={p.name} className="w-8 h-8 rounded-full object-cover" />}
+                    {p.image && (
+                        <LightboxImage 
+                            src={p.image} 
+                            alt={p.name} 
+                            thumbnailClassName="w-8 h-8 rounded-full object-cover" 
+                        />
+                    )}
                     <span className="font-semibold text-sm text-gray-900 dark:text-white">{p.name}</span>
                 </div>
             )

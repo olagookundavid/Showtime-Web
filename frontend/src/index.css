@@ -14,3 +14,12 @@
 body {
     @apply bg-sffl-gray text-sffl-navy font-sans;
 }
+
+/* Hide scrollbar while keeping scroll functionality */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}

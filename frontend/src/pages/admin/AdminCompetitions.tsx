@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader } from '../../components/ui/Loader';
 import { getAdminCompetitions, createCompetition, updateCompetition, deleteCompetition } from '../../services/api';
-import { ImageUploadField } from '../../components/ui';
+import { ImageUploadField, LightboxImage } from '../../components/ui';
 
 
 interface Competition {
@@ -163,7 +163,11 @@ const AdminCompetitions = () => {
                             <div className="p-6">
                                 <div className="flex items-center gap-4 mb-4">
                                     {comp.logo ? (
-                                        <img src={comp.logo} alt={comp.name} className="w-14 h-14 rounded-lg object-contain bg-gray-50 p-1" />
+                                        <LightboxImage 
+                                            src={comp.logo} 
+                                            alt={comp.name} 
+                                            thumbnailClassName="w-14 h-14 rounded-lg object-contain bg-gray-50 dark:bg-gray-700/50 p-1 shadow-sm border border-gray-100 dark:border-gray-700" 
+                                        />
                                     ) : (
                                         <div className="w-14 h-14 rounded-lg bg-sffl-navy/10 flex items-center justify-center text-2xl font-black text-sffl-navy dark:text-white">
                                             🏆

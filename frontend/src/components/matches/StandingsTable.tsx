@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Standing } from '../../services/api';
+import { LightboxImage } from '../ui';
 
 interface StandingsTableProps {
     standings: Standing[];
@@ -57,8 +58,12 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({ standings }) => 
                                 <td className="px-1 py-2 md:px-4 md:py-4 text-center font-bold text-gray-600 dark:text-gray-300">
                                     {standing.position}
                                 </td>
-                                <td className="px-1 py-2 md:px-4 md:py-4 font-semibold text-sffl-navy dark:text-white flex items-center space-x-1 md:space-x-3 whitespace-nowrap">
-                                    <img src={standing.team?.logo || 'https://via.placeholder.com/30'} alt={standing.team?.name || 'Team'} className="w-5 h-5 md:w-8 md:h-8 object-contain" />
+                                <td className="px-1 py-2 md:px-4 md:py-4 font-semibold text-sffl-navy dark:text-white flex items-center space-x-1 md:space-x-3 whitespace-nowrap text-left">
+                                    <LightboxImage 
+                                        src={standing.team?.logo || 'https://via.placeholder.com/30'} 
+                                        alt={standing.team?.name || 'Team'} 
+                                        thumbnailClassName="w-5 h-5 md:w-8 md:h-8 object-contain rounded-md" 
+                                    />
                                     <span className="truncate max-w-[60px] md:max-w-none">{standing.team?.short_name || standing.team?.name || 'Unknown'}</span>
                                 </td>
                                 <td className="px-1 py-2 md:px-4 md:py-4 text-center text-gray-700 dark:text-gray-200">{standing.played}</td>

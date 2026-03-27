@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { getPlayers, getTeams } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
+import { LightboxImage } from '../../components/ui';
 
 export const PlayersPage = () => {
     const [selectedTeamId, setSelectedTeamId] = useState<string>('');
@@ -82,19 +83,19 @@ export const PlayersPage = () => {
                             className="bg-white dark:bg-gray-800 rounded-lg md:rounded-xl shadow-sm hover:shadow-xl transition overflow-hidden group border border-gray-100 dark:border-gray-700"
                         >
                             {/* Player Image - Condensed */}
-                            <div className="relative h-32 md:h-64 overflow-hidden bg-gradient-to-br from-sffl-navy to-sffl-red">
+                            <div className="relative h-32 md:h-64 overflow-hidden bg-gradient-to-br from-sffl-navy to-sffl-red group-image">
                                 {player.image ? (
-                                    <img
+                                    <LightboxImage
                                         src={player.image}
                                         alt={player.name}
-                                        className="w-full h-full object-cover opacity-80 group-hover:scale-110 transition-transform duration-300"
+                                        thumbnailClassName="w-full h-full object-cover opacity-80 group-hover:scale-110 transition-transform duration-300"
                                     />
                                 ) : (
                                     <div className="w-full h-full flex items-center justify-center text-white text-3xl md:text-6xl font-black opacity-40">
                                         #{player.jersey_number}
                                     </div>
                                 )}
-                                <div className="absolute top-2 right-2 md:top-4 md:right-4 bg-sffl-red text-white font-black text-[10px] md:text-base px-2 py-0.5 md:px-4 md:py-2 rounded-full shadow-lg">
+                                <div className="absolute top-2 right-2 md:top-4 md:right-4 bg-sffl-red text-white font-black text-[10px] md:text-base px-2 py-0.5 md:px-4 md:py-2 rounded-full shadow-lg z-20">
                                     #{player.jersey_number}
                                 </div>
                             </div>

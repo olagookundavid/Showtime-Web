@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { PhotoIcon, XMarkIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
 import { useImageUpload } from '../../hooks/useImageUpload';
 import toast from 'react-hot-toast';
+import { LightboxImage } from './LightboxImage';
 
 interface ImageUploadFieldProps {
   label: string;
@@ -99,10 +100,10 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
         <div className="relative w-32 h-32 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden flex items-center justify-center bg-gray-50 dark:bg-gray-800">
           {preview ? (
             <>
-              <img 
+              <LightboxImage 
                 src={preview} 
                 alt="Preview" 
-                className="w-full h-full object-cover"
+                thumbnailClassName="w-full h-full object-cover"
               />
               {!isUploading && (
                 <button

@@ -1,6 +1,7 @@
 import React from 'react';
 import type { PlayerStat, TeamStat } from '../../services/api';
 import { Link } from 'react-router-dom';
+import { LightboxImage } from '../ui';
 
 interface StatsTableProps {
     type: 'players' | 'teams';
@@ -102,7 +103,11 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                                         {isPlayer ? (
                                             <Link to={`/players/${row.player_id}`} className="flex items-center space-x-2 md:space-x-3 hover:text-sffl-red transition-colors">
                                                 {row.player_image ? (
-                                                    <img src={row.player_image} alt={row.player_name} className="w-6 h-6 md:w-8 md:h-8 rounded-full object-cover shadow-sm border border-gray-100 dark:border-gray-700" />
+                                                    <LightboxImage 
+                                                        src={row.player_image} 
+                                                        alt={row.player_name} 
+                                                        thumbnailClassName="w-6 h-6 md:w-8 md:h-8 rounded-full object-cover shadow-sm border border-gray-100 dark:border-gray-700" 
+                                                    />
                                                 ) : (
                                                     <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-[10px] md:text-xs">
                                                         #{row.player_jersey_number}
@@ -115,7 +120,11 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                                             </Link>
                                         ) : (
                                             <div className="flex items-center space-x-2 md:space-x-3">
-                                                <img src={row.team_logo || 'https://via.placeholder.com/30'} alt={row.team_name} className="w-6 h-6 md:w-8 md:h-8 object-contain shadow-sm" />
+                                                <LightboxImage 
+                                                    src={row.team_logo || 'https://via.placeholder.com/30'} 
+                                                    alt={row.team_name} 
+                                                    thumbnailClassName="w-6 h-6 md:w-8 md:h-8 object-contain rounded-md shadow-sm" 
+                                                />
                                                 <span className="uppercase text-xs md:text-sm tracking-tight">{row.team_name}</span>
                                             </div>
                                         )}
@@ -123,7 +132,11 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                                     {isPlayer && (
                                         <td className="px-2 py-2 md:px-4 md:py-4 text-[10px] md:text-xs font-bold text-gray-600 dark:text-gray-400 whitespace-nowrap text-left border-r border-gray-50 dark:border-gray-800">
                                             <div className="flex items-center space-x-2 group">
-                                                <img src={row.team_logo || 'https://via.placeholder.com/20'} className="w-4 h-4 md:w-5 md:h-5 object-contain opacity-70 group-hover:opacity-100 transition-opacity" alt="" />
+                                                <LightboxImage 
+                                                    src={row.team_logo || 'https://via.placeholder.com/20'} 
+                                                    alt=""
+                                                    thumbnailClassName="w-4 h-4 md:w-5 md:h-5 object-contain rounded-sm opacity-70 group-hover:opacity-100 transition-opacity" 
+                                                />
                                                 <span className="uppercase tracking-tight leading-none">{row.team_short_name || row.team_name}</span>
                                             </div>
                                         </td>

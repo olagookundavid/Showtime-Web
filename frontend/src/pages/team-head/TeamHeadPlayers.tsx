@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOutletContext } from 'react-router-dom';
 import api from '../../services/api';
+import { LightboxImage } from '../../components/ui';
 
 interface TeamInfo {
     id: string;
@@ -147,8 +148,11 @@ const TeamHeadPlayers = () => {
                             <div className="p-6">
                                 <div className="flex items-center gap-4 mb-4">
                                     {player.image ? (
-                                        <img src={player.image} alt={player.name}
-                                            className="w-14 h-14 rounded-full object-cover border-2 border-gray-200" />
+                                        <LightboxImage 
+                                            src={player.image} 
+                                            alt={player.name} 
+                                            thumbnailClassName="w-14 h-14 rounded-full object-cover border-2 border-gray-200 shadow-sm" 
+                                        />
                                     ) : (
                                         <div className="w-14 h-14 rounded-full bg-sffl-navy/10 flex items-center justify-center text-xl font-black text-sffl-navy">
                                             #{player.jersey_number || '?'}
