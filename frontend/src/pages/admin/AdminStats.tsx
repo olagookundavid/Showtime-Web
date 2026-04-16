@@ -157,10 +157,10 @@ export const AdminStats = () => {
             cell: (p) => (
                 <div className="flex items-center gap-3">
                     {p.image ? (
-                        <LightboxImage 
-                            src={p.image} 
-                            alt={p.name} 
-                            thumbnailClassName="w-8 h-8 rounded-full shadow-sm border border-gray-100 dark:border-gray-700" 
+                        <LightboxImage
+                            src={p.image}
+                            alt={p.name}
+                            thumbnailClassName="w-8 h-8 rounded-full shadow-sm border border-gray-100 dark:border-gray-700"
                         />
                     ) : (
                         <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-500">#{p.jersey_number}</div>
@@ -267,7 +267,7 @@ export const AdminStats = () => {
                             )}
 
                             <div className="bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 p-4 rounded-xl mb-6 text-sm font-medium border border-blue-100 dark:border-blue-800">
-                                ℹ️ Update the stats for this player. <b>Saving will overwrite existing data</b> for this specific match date.
+                                ℹ️ Update the stats for this player. <b>Saving will add to existing stats</b> for this specific match date.
                             </div>
 
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
