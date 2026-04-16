@@ -4,6 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import { getMatches, getNews } from '../services/api';
 import { CompactMatchCard } from '../components/matches/CompactMatchCard';
 import { Loader } from '../components/ui/Loader';
+import { ArrowRightIcon } from '@heroicons/react/24/outline';
+import { TOTWWidget } from '../components/widgets/TOTWWidget';
 
 export const LandingPage = () => {
     const { data: finishedMatchesData, isLoading: loadingFinished } = useQuery({
@@ -26,6 +28,7 @@ export const LandingPage = () => {
 
     // The backend now filters by category, so the first item is our latest note
     const latestNote = newsData?.data?.[0] || null;
+
     return (
         <div className="space-y-6 md:space-y-12">
             {/* Hero Section - High Density */}
@@ -113,29 +116,34 @@ export const LandingPage = () => {
                 )}
             </section>
 
-            {/* News/Engagement Placeholder */}
+            {/* News and TOTW Section */}
             <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-2 md:px-0">
-                <div className="bg-sffl-navy dark:bg-gray-800 text-white p-6 md:p-8 rounded-2xl shadow-xl border border-transparent dark:border-gray-700 flex flex-col h-full">
-                    <h3 className="text-xl md:text-2xl font-bold italic mb-4 uppercase">Commissioner's Note</h3>
+                {/* Commissioner's Note */}
+                <div className="bg-sffl-navy dark:bg-gray-800 text-white p-6 md:p-8 rounded-2xl shadow-xl border border-transparent dark:border-gray-700 flex flex-col h-full relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/4 w-32 h-32 bg-sffl-red/10 rounded-full blur-2xl group-hover:bg-sffl-red/20 transition-all duration-700"></div>
+                    <h3 className="text-xl md:text-2xl font-black italic mb-6 uppercase tracking-tighter relative z-10">Commissioner's <span className="text-sffl-red">Note</span></h3>
                     {loadingNews ? (
                         <div className="flex-1 flex justify-center items-center py-8">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
                         </div>
                     ) : latestNote ? (
-                        <>
-                            <p className="text-gray-300 dark:text-gray-300 mb-6 italic flex-1 relative z-10 before:content-['\201C'] before:absolute before:-top-4 before:-left-2 before:text-5xl before:text-sffl-red/30 before:-z-10 after:content-['\201D'] after:relative after:-bottom-4 after:text-5xl after:text-sffl-red/30 after:leading-none">
-                                {latestNote.excerpt || latestNote.content.substring(0, 150) + '...'}
+                        <div className="relative z-10 flex flex-col h-full">
+                            <p className="text-gray-300 dark:text-gray-300 mb-8 italic flex-1 relative z-10 leading-relaxed text-sm md:text-base before:content-['\201C'] before:absolute before:-top-6 before:-left-4 before:text-7xl before:text-sffl-red/20 before:-z-10 after:content-['\201D'] after:relative after:-bottom-4 after:text-5xl after:text-sffl-red/20 after:leading-none">
+                                {latestNote.excerpt || latestNote.content.substring(0, 200) + '...'}
                             </p>
-                            <Link to={`/news/${latestNote.slug}`} className="text-sffl-red font-bold hover:text-white dark:hover:text-red-400 transition mt-auto inline-flex items-center gap-1">
-                                Read Note <span className="text-lg leading-none">&rarr;</span>
+                            <Link to={`/news/${latestNote.slug}`} className="text-white bg-sffl-red/20 hover:bg-sffl-red/40 px-6 py-2.5 rounded-xl font-bold transition-all mt-auto inline-flex items-center justify-center gap-2 w-fit border border-sffl-red/30 hover:scale-[1.02] active:scale-95">
+                                Read Full Note <ArrowRightIcon className="w-4 h-4" />
                             </Link>
-                        </>
+                        </div>
                     ) : (
-                        <div className="flex-1 flex items-center justify-center">
+                        <div className="flex-1 flex items-center justify-center border-2 border-dashed border-white/10 rounded-2xl">
                             <p className="text-gray-400 dark:text-gray-500 italic font-medium">No commissioner's note at this time.</p>
                         </div>
                     )}
                 </div>
+
+                {/* Team of the Week Widget */}
+                <TOTWWidget />
             </section>
         </div>
     );

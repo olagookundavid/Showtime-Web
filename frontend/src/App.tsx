@@ -42,6 +42,8 @@ import AdminTeams from './pages/admin/AdminTeams';
 import AdminCompetitions from './pages/admin/AdminCompetitions';
 import { AdminAnalytics } from './pages/admin/AdminAnalytics';
 import { AdminInventory } from './pages/admin/AdminInventory';
+import { AdminTOTW } from './pages/admin/AdminTOTW';
+import { TOTWPage } from './pages/stats/TOTWPage';
 import TeamHeadLayout from './pages/team-head/TeamHeadLayout';
 import TeamHeadOverview from './pages/team-head/TeamHeadOverview';
 import TeamHeadPlayers from './pages/team-head/TeamHeadPlayers';
@@ -72,6 +74,7 @@ function App() {
               <Route path="/matches" element={<MatchHub />} />
               <Route path="/standings" element={<StandingsPage />} />
               <Route path="/stats" element={<StatsPage />} />
+              <Route path="/team-of-the-week" element={<TOTWPage />} />
               <Route path="/news" element={<NewsList />} />
               <Route path="/news/:slug" element={<NewsDetail />} />
               <Route path="/gallery" element={<GalleryPage />} />
@@ -110,6 +113,7 @@ function App() {
               <Route path="gallery" element={<AdminGallery />} />
               <Route path="players" element={<AdminPlayers />} />
               <Route path="stats" element={<AdminStats />} />
+              <Route path="totw" element={<AdminTOTW />} />
               <Route path="standings" element={<AdminStandings />} />
               <Route path="tickets" element={<AdminTickets />} />
               <Route path="event-days" element={<AdminEventDays />} />

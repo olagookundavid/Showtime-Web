@@ -39,6 +39,8 @@ func (h *StatsHandler) getFilterFromParams(c *gin.Context) domain.StatsFilter {
 
 	filter := domain.StatsFilter{
 		CompetitionID: c.Query("competition_id"),
+		PlayerID:      c.Query("player_id"),
+		SearchQuery:   c.Query("search"),
 		Page:          page,
 		Limit:         limit,
 	}

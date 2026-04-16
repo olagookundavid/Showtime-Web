@@ -756,11 +756,13 @@ export interface UpsertPlayerStatPayload {
     def_sacks: number;
 }
 
-export const getPlayerStats = async (compId?: string, eventDay?: string, page = 1, limit = 20): Promise<PaginatedResponse<PlayerStat>> => {
+export const getPlayerStats = async (compId?: string, eventDay?: string, page = 1, limit = 20, playerId?: string, search?: string): Promise<PaginatedResponse<PlayerStat>> => {
     let url = '/stats/players';
     const params = new URLSearchParams();
     if (compId) params.append('competition_id', compId);
     if (eventDay) params.append('event_day', eventDay);
+    if (playerId) params.append('player_id', playerId);
+    if (search) params.append('search', search);
     params.append('page', page.toString());
     params.append('limit', limit.toString());
     if (params.toString()) url += `?${params.toString()}`;
@@ -801,6 +803,43 @@ export const getStatDates = async (compId?: string): Promise<string[]> => {
     if (compId) url += `?competition_id=${compId}`;
     const response = await api.get(url);
     return response.data.data || [];
+};
+
+// ─── Team of the Week (TOTW) ────────────────────────────────────────────────
+export interface TOTWEntry {
+    id: string;
+    competition_id: string;
+    event_day_date: string;
+    player_id: string;
+    position_group: 'QB' | 'WR' | 'DEF';
+    created_at: string;
+    player?: Player;
+}
+
+export const getTOTW = async (compId: string, eventDay: string): Promise<TOTWEntry[]> => {
+    const response = await api.get(`/totw?competition_id=${compId}&event_day=${eventDay}`);
+    return response.data.data || [];
+};
+
+export const getLatestTOTW = async (compId?: string): Promise<{ data: TOTWEntry[]; date: string }> => {
+    let url = '/totw/latest';
+    if (compId) url += `?competition_id=${compId}`;
+    const response = await api.get(url);
+    return response.data;
+};
+
+export const createTOTWEntry = async (payload: {
+    competition_id: string;
+    event_day_date: string;
+    player_id: string;
+    position_group: string;
+}) => {
+    const response = await api.post('/admin/totw', payload);
+    return response.data;
+};
+
+export const deleteTOTWEntry = async (id: string) => {
+    await api.delete(`/admin/totw/${id}`);
 };
 
 // ─── Inventory Management ─────────────────────────────────────────────────────

@@ -88,6 +88,7 @@ type StatsFilter struct {
 	CompetitionID string
 	EventDay      *time.Time
 	PlayerID      string
+	SearchQuery   string
 	Page          int
 	Limit         int
 }

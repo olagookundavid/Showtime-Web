@@ -102,6 +102,12 @@ func buildStatsWhereClause(filter domain.StatsFilter) (string, []interface{}) {
 		argCount++
 	}
 
+	if filter.SearchQuery != "" {
+		conditions = append(conditions, fmt.Sprintf("p.name ILIKE $%d", argCount))
+		args = append(args, "%"+filter.SearchQuery+"%")
+		argCount++
+	}
+
 	whereClause := ""
 	if len(conditions) > 0 {
 		whereClause = "WHERE " + strings.Join(conditions, " AND ")

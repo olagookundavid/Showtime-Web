@@ -3,14 +3,30 @@ import { useQuery } from '@tanstack/react-query';
 import { getCompetitions, getPlayerStats, getTeamStats, getStatDates } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { StatsTable } from '../../components/stats/StatsTable';
+import { useSearchParams } from 'react-router-dom';
+import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 export const StatsPage = () => {
-    const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>('');
-    const [selectedDate, setSelectedDate] = useState<string>('');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const urlComp = searchParams.get('comp');
+    const urlDate = searchParams.get('date');
+    const urlPlayerId = searchParams.get('player_id');
+    const urlSearch = searchParams.get('search');
+
+    const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>(urlComp || '');
+    const [selectedDate, setSelectedDate] = useState<string>(urlDate || '');
+    const [searchQuery, setSearchQuery] = useState(urlSearch || '');
     const [activeTab, setActiveTab] = useState<'players' | 'teams'>('players');
     const [page, setPage] = useState(1);
     const [showLegend, setShowLegend] = useState(false);
     const limit = 20;
+
+    // Sync state with URL params when they change
+    useEffect(() => {
+        if (urlComp && urlComp !== selectedCompetitionId) setSelectedCompetitionId(urlComp);
+        if (urlDate && urlDate !== selectedDate) setSelectedDate(urlDate);
+        if (urlSearch && urlSearch !== searchQuery) setSearchQuery(urlSearch);
+    }, [urlComp, urlDate, urlSearch]);
 
     const { data: competitionsData, isLoading: compLoading } = useQuery({
         queryKey: ['publicCompetitions'],
@@ -38,8 +54,8 @@ export const StatsPage = () => {
     }, [statDates, selectedDate]);
 
     const { data: playerStatsPagination, isLoading: loadingPlayers } = useQuery({
-        queryKey: ['playerStatsFiltered', selectedCompetitionId, selectedDate, page],
-        queryFn: () => getPlayerStats(selectedCompetitionId, selectedDate, page, limit),
+        queryKey: ['playerStatsFiltered', selectedCompetitionId, selectedDate, page, urlPlayerId, searchQuery],
+        queryFn: () => getPlayerStats(selectedCompetitionId, selectedDate, page, limit, urlPlayerId || undefined, searchQuery || undefined),
         enabled: activeTab === 'players',
     });
 
@@ -60,19 +76,65 @@ export const StatsPage = () => {
     return (
         <div className="max-w-7xl mx-auto space-y-4 md:space-y-10 min-h-screen p-2 md:p-4 pb-20">
             {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl gap-4">
-                <div>
-                    <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase">League Stats</h1>
-                    <p className="text-gray-300 mt-0.5 text-xs md:text-lg">Player and Team Performances</p>
+            <div className="flex flex-col lg:flex-row items-start lg:items-center bg-sffl-navy text-white p-6 md:p-8 rounded-xl md:rounded-2xl shadow-xl gap-8 lg:gap-12">
+                <div className="shrink-0">
+                    <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase whitespace-nowrap">League Stats</h1>
+                    <p className="text-gray-300 mt-0.5 text-xs md:text-lg">Player & Team Performance</p>
                 </div>
 
-                {/* Filters */}
-                <div className="flex flex-col sm:flex-row items-end gap-3 w-full md:w-auto">
+                {/* Filters Group */}
+                <div className="flex flex-col sm:flex-row items-end gap-4 md:gap-6 w-full lg:w-auto">
+                    <div className={`w-full sm:w-auto overflow-visible transition-opacity duration-300 ${activeTab === 'players' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                        <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">Search Players</label>
+                        <div className="relative group/search">
+                            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within/search:text-sffl-red transition-colors" />
+                            <input
+                                type="text"
+                                placeholder="Player name..."
+                                value={searchQuery}
+                                onChange={(e) => {
+                                    setSearchQuery(e.target.value);
+                                    setPage(1);
+                                    const params = new URLSearchParams(searchParams);
+                                    if (e.target.value) {
+                                        params.set('search', e.target.value);
+                                    } else {
+                                        params.delete('search');
+                                        params.delete('player_id'); 
+                                    }
+                                    setSearchParams(params, { replace: true });
+                                }}
+                                className="bg-white/10 border border-white/20 text-white pl-9 pr-10 py-2 rounded-lg font-bold text-sm min-w-full sm:min-w-[240px] outline-none focus:ring-2 focus:ring-sffl-red transition-all"
+                            />
+                            {searchQuery && (
+                                <button
+                                    onClick={() => {
+                                        setSearchQuery('');
+                                        setPage(1);
+                                        const params = new URLSearchParams(searchParams);
+                                        params.delete('search');
+                                        params.delete('player_id');
+                                        setSearchParams(params, { replace: true });
+                                    }}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-white/10 rounded-full transition-colors"
+                                    title="Clear search"
+                                >
+                                    <XMarkIcon className="w-4 h-4 text-gray-400 hover:text-white" />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
                     <div className="w-full sm:w-auto">
                         <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">Competition</label>
                         <select
                             value={selectedCompetitionId}
-                            onChange={(e) => setSelectedCompetitionId(e.target.value)}
+                            onChange={(e) => {
+                                setSelectedCompetitionId(e.target.value);
+                                const params = new URLSearchParams(searchParams);
+                                params.set('comp', e.target.value);
+                                setSearchParams(params, { replace: true });
+                            }}
                             className="bg-white/10 border border-white/20 text-white p-2 rounded-lg font-bold text-sm min-w-full sm:min-w-[200px] cursor-pointer hover:bg-white/20 transition-colors w-full"
                         >
                             {competitions.map((c: any) => (
@@ -87,7 +149,12 @@ export const StatsPage = () => {
                         <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">Event Day</label>
                         <select
                             value={selectedDate}
-                            onChange={(e) => setSelectedDate(e.target.value)}
+                            onChange={(e) => {
+                                setSelectedDate(e.target.value);
+                                const params = new URLSearchParams(searchParams);
+                                params.set('date', e.target.value);
+                                setSearchParams(params, { replace: true });
+                            }}
                             className="bg-white/10 border border-white/20 text-white p-2 rounded-lg font-bold text-sm min-w-full sm:min-w-[160px] cursor-pointer hover:bg-white/20 transition-colors w-full"
                         >
                             {statDates.map((date: string) => (

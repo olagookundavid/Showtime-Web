@@ -56,6 +56,7 @@ func Routes(app *api.Application) *gin.Engine {
 	SetupStatsRoutes(v1_api, app)
 	SetupSellerRoutes(v1_api, app)
 	SetupUploadRoutes(v1_api, app)
+	SetupTOTWRoutes(v1_api, app)
 	return r
 }
 
@@ -196,6 +197,13 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		ticketsGroup.GET("/lookup/:code", app.Handlers.TicketHandler.LookupByCode)
 	}
 
+	totwGroup := adminRoutes.Group("/totw")
+	totwGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
+	{
+		totwGroup.POST("", app.Handlers.TOTWHandler.Create)
+		totwGroup.DELETE("/:id", app.Handlers.TOTWHandler.Delete)
+	}
+
 }
 
 func SetupTeamHeadRoutes(r *gin.RouterGroup, app *api.Application) {
@@ -324,5 +332,13 @@ func SetupSellerRoutes(r *gin.RouterGroup, app *api.Application) {
 		sellerRoutes.GET("/sales", app.Handlers.InventoryHandler.ListSales)
 		sellerRoutes.GET("/products", app.Handlers.InventoryHandler.ListProducts)
 		sellerRoutes.GET("/payment-methods", app.Handlers.InventoryHandler.ListPaymentMethods)
+	}
+}
+
+func SetupTOTWRoutes(r *gin.RouterGroup, app *api.Application) {
+	totwRoutes := r.Group("/totw")
+	{
+		totwRoutes.GET("", app.Handlers.TOTWHandler.GetTOTW)
+		totwRoutes.GET("/latest", app.Handlers.TOTWHandler.GetLatestTOTW)
 	}
 }

@@ -3,7 +3,7 @@
 # ==================================================================================== #
 
 ## help: print this help message
-.PHONY: help confirm service/swag run/service
+.PHONY: help confirm service/swag run/service run/frontend stop/backend stop/frontend debug/backend test db/status db/up db/down seed/match-hub
 help: 
 	@echo 'Usage:' 
 	@sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' | sed -e 's/^/ /'

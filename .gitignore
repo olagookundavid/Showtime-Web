@@ -12,3 +12,6 @@ dist
 bin
 tmp
 coverage
+.env
+.env.*
+# Delve debug binaries (VS Code Go extension)
