@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getLatestTOTW, type TOTWEntry } from '../../services/api';
+import { getLatestTOTW } from '../../services/api';
 import { LightboxImage } from '../ui';
 import { StarIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';

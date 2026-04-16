@@ -4,7 +4,6 @@ import {
     getCompetitions,
     getStatDates,
     getTOTW,
-    getPlayerStats,
     getLatestTOTW,
     type Competition
 } from '../../services/api';
@@ -46,7 +45,7 @@ export const TOTWPage = () => {
         queryFn: () => getTOTW(selectedComp, selectedDate),
         enabled: !!selectedComp && !!selectedDate,
     });
-    
+
     // 1. Fetch Latest TOTW to determine defaults
     const { data: latestInit } = useQuery({
         queryKey: ['latestTOTWInit'],
@@ -144,39 +143,39 @@ export const TOTWPage = () => {
                                 </div>
 
                                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                                {entries.map(entry => (
-                                    <div key={entry.id} className="bg-white dark:bg-gray-800 rounded-3xl p-4 md:p-6 shadow-xl border border-gray-100 dark:border-gray-700 hover:scale-[1.01] transition-transform flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6">
-                                        {/* Player Info Card */}
-                                        <div className="flex items-center gap-4 md:gap-6 min-w-0">
-                                            <div className="relative shrink-0">
-                                                <LightboxImage 
-                                                    src={entry.player?.image || ''} 
-                                                    alt={entry.player?.name || ''} 
-                                                    thumbnailClassName="w-16 h-16 md:w-24 md:h-24 rounded-3xl object-cover shadow-lg border-2 border-white dark:border-gray-700" 
-                                                />
-                                                <div className="absolute -bottom-1 -right-1 md:-bottom-2 md:-right-2 bg-sffl-red text-white text-[10px] md:text-xs font-black p-1.5 md:p-2 rounded-xl shadow-lg border-2 border-white dark:border-gray-800 min-w-[2rem] md:min-w-[2.5rem] text-center">
-                                                    #{entry.player?.jersey_number}
+                                    {entries.map(entry => (
+                                        <div key={entry.id} className="bg-white dark:bg-gray-800 rounded-3xl p-4 md:p-6 shadow-xl border border-gray-100 dark:border-gray-700 hover:scale-[1.01] transition-transform flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6">
+                                            {/* Player Info Card */}
+                                            <div className="flex items-center gap-4 md:gap-6 min-w-0">
+                                                <div className="relative shrink-0">
+                                                    <LightboxImage
+                                                        src={entry.player?.image || ''}
+                                                        alt={entry.player?.name || ''}
+                                                        thumbnailClassName="w-16 h-16 md:w-24 md:h-24 rounded-3xl object-cover shadow-lg border-2 border-white dark:border-gray-700"
+                                                    />
+                                                    <div className="absolute -bottom-1 -right-1 md:-bottom-2 md:-right-2 bg-sffl-red text-white text-[10px] md:text-xs font-black p-1.5 md:p-2 rounded-xl shadow-lg border-2 border-white dark:border-gray-800 min-w-[2rem] md:min-w-[2.5rem] text-center">
+                                                        #{entry.player?.jersey_number}
+                                                    </div>
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <h3 className="text-lg md:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tighter leading-tight truncate">{entry.player?.name}</h3>
+                                                    <div className="flex items-center gap-2 mt-1 md:mt-2">
+                                                        <LightboxImage src={entry.player?.team?.logo || ''} alt={entry.player?.team?.name || ''} thumbnailClassName="w-4 h-4 md:w-6 md:h-6 object-contain" />
+                                                        <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest truncate">{entry.player?.team?.short_name || entry.player?.team?.name}</span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <div className="min-w-0">
-                                                <h3 className="text-lg md:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tighter leading-tight truncate">{entry.player?.name}</h3>
-                                                <div className="flex items-center gap-2 mt-1 md:mt-2">
-                                                    <LightboxImage src={entry.player?.team?.logo || ''} alt={entry.player?.team?.name || ''} thumbnailClassName="w-4 h-4 md:w-6 md:h-6 object-contain" />
-                                                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest truncate">{entry.player?.team?.short_name || entry.player?.team?.name}</span>
-                                                </div>
-                                            </div>
-                                        </div>
 
-                                        {/* Simplified CTA */}
-                                        <Link 
-                                            to={`/stats?comp=${selectedComp}&date=${selectedDate}&player_id=${entry.player_id}&search=${encodeURIComponent(entry.player?.name || '')}`}
-                                            className="w-full md:w-auto px-6 py-3 bg-sffl-navy text-white text-[10px] md:text-xs font-black uppercase tracking-widest rounded-2xl shadow-lg hover:bg-sffl-navy-light transition-all flex items-center justify-center gap-2 group whitespace-nowrap"
-                                        >
-                                            View Stats
-                                            <ArrowRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                                        </Link>
-                                    </div>
-                                ))}
+                                            {/* Simplified CTA */}
+                                            <Link
+                                                to={`/stats?comp=${selectedComp}&date=${selectedDate}&player_id=${entry.player_id}&search=${encodeURIComponent(entry.player?.name || '')}`}
+                                                className="w-full md:w-auto px-6 py-3 bg-sffl-navy text-white text-[10px] md:text-xs font-black uppercase tracking-widest rounded-2xl shadow-lg hover:bg-sffl-navy-light transition-all flex items-center justify-center gap-2 group whitespace-nowrap"
+                                            >
+                                                View Stats
+                                                <ArrowRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                            </Link>
+                                        </div>
+                                    ))}
                                 </div>
                             </section>
                         );
