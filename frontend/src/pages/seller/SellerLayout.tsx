@@ -1,11 +1,9 @@
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { useTheme } from '../../contexts/ThemeContext';
 
 export const SellerLayout = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
-    const { isDarkMode, toggleDarkMode } = useTheme();
 
     const handleLogout = () => {
         logout();
@@ -13,7 +11,7 @@ export const SellerLayout = () => {
     };
 
     return (
-        <div className={`min-h-screen bg-gray-50 dark:bg-gray-900 ${isDarkMode ? 'dark' : ''} w-full`}>
+        <div className={`min-h-screen bg-gray-50 dark:bg-gray-900 w-full`}>
             {/* Header */}
             <header className="bg-sffl-navy text-white shadow-md sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -27,9 +25,6 @@ export const SellerLayout = () => {
                             <span className="text-sm font-medium hidden sm:block text-gray-300">
                                 {user?.name}
                             </span>
-                            <button onClick={toggleDarkMode} className="p-2 text-gray-400 hover:text-white transition-colors">
-                                {isDarkMode ? '☀️' : '🌙'}
-                            </button>
                             <button
                                 onClick={handleLogout}
                                 className="text-sm font-bold bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors"

@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { useTheme } from '../../contexts/ThemeContext';
 import api from '../../services/api';
 import { TeamHeadBottomNav } from './TeamHeadBottomNav';
 import {
@@ -20,7 +19,6 @@ interface TeamInfo {
 const TeamHeadLayout = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { isDarkMode, toggleDarkMode } = useTheme();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     useEffect(() => {
@@ -56,7 +54,7 @@ const TeamHeadLayout = () => {
     };
 
     return (
-        <div className={`flex h-screen overflow-hidden ${isDarkMode ? 'dark' : ''} bg-gray-50 dark:bg-gray-900 w-full relative`}>
+        <div className={`flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900 w-full relative`}>
             {/* Mobile Team Header */}
             <div className="md:hidden fixed top-0 left-0 right-0 h-12 bg-white dark:bg-gray-800 text-sffl-navy dark:text-white border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-3 z-30 shadow-sm">
                 <div className="flex items-center gap-2">
@@ -64,12 +62,6 @@ const TeamHeadLayout = () => {
                         {team?.short_name || 'TEAM'} <span className="text-sffl-red">HEAD</span>
                     </span>
                 </div>
-                <button
-                    onClick={toggleDarkMode}
-                    className="p-2 text-gray-500"
-                >
-                    {isDarkMode ? '☀️' : '🌙'}
-                </button>
             </div>
 
             {/* Sidebar (Desktop Only) */}

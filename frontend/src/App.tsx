@@ -51,11 +51,13 @@ import TeamTickets from './pages/team-head/TeamTickets';
 import { SellerLayout } from './pages/seller/SellerLayout';
 import { SellerPortal } from './pages/seller/SellerPortal';
 import { Toaster } from 'react-hot-toast';
+import { FloatingThemeToggle } from './components/common/FloatingThemeToggle';
 import './index.css';
 
 function App() {
   return (
     <ThemeProvider>
+      <FloatingThemeToggle />
       <AuthProvider>
         <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
         <BrowserRouter>
