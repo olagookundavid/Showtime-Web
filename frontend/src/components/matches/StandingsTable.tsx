@@ -81,7 +81,7 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({ standings }) => 
                                 <td className="px-1 py-2 md:px-4 md:py-4 text-center">
                                     {standing.l5 ? (
                                         <div className="flex gap-0.5 justify-center">
-                                            {standing.l5.split('-').map((r, i) => (
+                                            {standing.l5.split('').filter(c => c !== '-').map((r, i) => (
                                                 <L5Badge key={i} result={r} />
                                             ))}
                                         </div>

@@ -39,6 +39,7 @@ type MatchRepository interface {
 	CreateStanding(ctx context.Context, standing *domain.Standing) error
 	UpdateStanding(ctx context.Context, standing *domain.Standing) error
 	DeleteStanding(ctx context.Context, id string) error
+	RecalculateStandings(ctx context.Context, competitionID string) error
 }
 
 type PostgresMatchRepository struct {
@@ -325,9 +326,13 @@ func (r *PostgresMatchRepository) GetMatches(ctx context.Context, competitionID 
 }
 
 func (r *PostgresMatchRepository) GetMatchByID(ctx context.Context, id string) (*domain.Match, error) {
-	// Similar query but WHERE m.id = $1
-	// ...
-	return nil, nil // TODO: Implement if needed for details modal
+	query := `SELECT id, competition_id, status FROM matches WHERE id = $1`
+	var m domain.Match
+	err := r.db.QueryRow(ctx, query, id).Scan(&m.ID, &m.CompetitionID, &m.Status)
+	if err != nil {
+		return nil, err
+	}
+	return &m, nil
 }
 
 func (r *PostgresMatchRepository) CreateMatch(ctx context.Context, match *domain.Match) error {
@@ -419,4 +424,121 @@ func (r *PostgresMatchRepository) DeleteStanding(ctx context.Context, id string)
 	query := `DELETE FROM standings WHERE id = $1`
 	_, err := r.db.Exec(ctx, query, id)
 	return err
+}
+
+func (r *PostgresMatchRepository) RecalculateStandings(ctx context.Context, competitionID string) error {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	query := `
+		WITH match_results AS (
+		  SELECT
+			home_team_id AS team_id, competition_id,
+			home_score AS gf, away_score AS ga, date, time,
+			CASE
+			  WHEN home_score > away_score THEN 'W'
+			  WHEN home_score = away_score THEN 'D'
+			  ELSE 'L'
+			END AS result
+		  FROM matches
+		  WHERE competition_id = $1 AND status = 'FINISHED'
+			AND home_score IS NOT NULL AND away_score IS NOT NULL
+
+		  UNION ALL
+
+		  SELECT
+			away_team_id AS team_id, competition_id,
+			away_score AS gf, home_score AS ga, date, time,
+			CASE
+			  WHEN away_score > home_score THEN 'W'
+			  WHEN away_score = home_score THEN 'D'
+			  ELSE 'L'
+			END AS result
+		  FROM matches
+		  WHERE competition_id = $1 AND status = 'FINISHED'
+			AND home_score IS NOT NULL AND away_score IS NOT NULL
+		),
+		aggregated AS (
+		  SELECT
+			team_id,
+			COUNT(*)::INT                          AS played,
+			COUNT(*) FILTER (WHERE result = 'W')::INT  AS won,
+			COUNT(*) FILTER (WHERE result = 'D')::INT  AS drawn,
+			COUNT(*) FILTER (WHERE result = 'L')::INT  AS lost,
+			COALESCE(SUM(gf), 0)::INT             AS goals_for,
+			COALESCE(SUM(ga), 0)::INT             AS goals_against
+		  FROM match_results
+		  GROUP BY team_id
+		),
+		l5_ordered AS (
+		  SELECT team_id,
+			STRING_AGG(result, '' ORDER BY date ASC, time ASC) FILTER (
+			  WHERE rn <= 5
+			) AS l5
+		  FROM (
+			SELECT *, ROW_NUMBER() OVER (
+			  PARTITION BY team_id ORDER BY date DESC, time DESC
+			) AS rn
+			FROM match_results
+		  ) ranked
+		  GROUP BY team_id
+		)
+		INSERT INTO standings (
+			competition_id, team_id, played, won, drawn, lost, 
+			goals_for, goals_against, pct, l5, updated_at
+		)
+		SELECT 
+			$1, 
+			a.team_id, 
+			a.played, 
+			a.won, 
+			a.drawn, 
+			a.lost, 
+			a.goals_for, 
+			a.goals_against, 
+			CASE WHEN a.played > 0
+				THEN ROUND(((a.won * 1.0) + (a.drawn * 0.5)) / a.played * 100, 1)
+				ELSE 0 END, 
+			COALESCE(l5.l5, ''),
+			NOW()
+		FROM aggregated a
+		LEFT JOIN l5_ordered l5 ON l5.team_id = a.team_id
+		ON CONFLICT (competition_id, team_id) DO UPDATE SET
+			played = EXCLUDED.played,
+			won = EXCLUDED.won,
+			drawn = EXCLUDED.drawn,
+			lost = EXCLUDED.lost,
+			goals_for = EXCLUDED.goals_for,
+			goals_against = EXCLUDED.goals_against,
+			pct = EXCLUDED.pct,
+			l5 = EXCLUDED.l5,
+			updated_at = NOW()
+	`
+	if _, err := tx.Exec(ctx, query, competitionID); err != nil {
+		return err
+	}
+
+	zeroOutQuery := `
+		UPDATE standings SET
+		  played=0, won=0, drawn=0, lost=0,
+		  goals_for=0, goals_against=0, pct=0, l5='', updated_at=NOW()
+		WHERE competition_id = $1
+		  AND team_id NOT IN (
+			SELECT DISTINCT home_team_id FROM matches 
+			WHERE competition_id = $1 AND status = 'FINISHED' 
+			  AND home_score IS NOT NULL AND away_score IS NOT NULL
+			UNION
+			SELECT DISTINCT away_team_id FROM matches 
+			WHERE competition_id = $1 AND status = 'FINISHED' 
+			  AND home_score IS NOT NULL AND away_score IS NOT NULL
+		  )
+	`
+	if _, err := tx.Exec(ctx, zeroOutQuery, competitionID); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
 }

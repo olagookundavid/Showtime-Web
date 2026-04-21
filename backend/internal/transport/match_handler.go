@@ -182,6 +182,8 @@ func (h *MatchHandler) CreateMatch(c *gin.Context) {
 		Status:        domain.MatchStatus(req.Status),
 		TicketURL:     stringPtr(req.TicketURL),
 		HighlightsURL: stringPtr(req.HighlightsURL),
+		HomeScore:     req.HomeScore,
+		AwayScore:     req.AwayScore,
 	}
 
 	if match.Status == "" {
@@ -311,7 +313,7 @@ func (h *MatchHandler) CreateStanding(c *gin.Context) {
 	played := req.Won + req.Drawn + req.Lost
 	var pct float64
 	if played > 0 {
-		pct = math.Round(float64(req.Won)/float64(played)*1000) / 10 // 1 decimal
+		pct = math.Round(((float64(req.Won)*1.0)+(float64(req.Drawn)*0.5))/float64(played)*100*10) / 10
 	}
 
 	standing := &domain.Standing{
@@ -355,7 +357,7 @@ func (h *MatchHandler) UpdateStanding(c *gin.Context) {
 	played := req.Won + req.Drawn + req.Lost
 	var pct float64
 	if played > 0 {
-		pct = math.Round(float64(req.Won)/float64(played)*1000) / 10
+		pct = math.Round(((float64(req.Won)*1.0)+(float64(req.Drawn)*0.5))/float64(played)*100*10) / 10
 	}
 
 	standing := &domain.Standing{

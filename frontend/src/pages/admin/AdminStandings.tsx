@@ -63,7 +63,6 @@ export const AdminStandings = () => {
     const standings: Standing[] = Array.isArray(standingsData) ? standingsData : [];
     const loading = loadingComps || loadingTeams || (!!selectedComp && loadingStandings);
     const [showModal, setShowModal] = useState(false);
-    const [editingId, setEditingId] = useState<string | null>(null);
     const [form, setForm] = useState<FormData>(emptyForm);
     const [saving, setSaving] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -71,7 +70,6 @@ export const AdminStandings = () => {
 
 
     const openCreate = () => {
-        setEditingId(null);
         setForm({ ...emptyForm, competition_id: selectedComp });
         setShowModal(true);
     };
@@ -81,21 +79,6 @@ export const AdminStandings = () => {
         return [parts[0] || '', parts[1] || '', parts[2] || '', parts[3] || '', parts[4] || ''];
     };
 
-    const openEdit = (s: Standing) => {
-        const [l5_1, l5_2, l5_3, l5_4, l5_5] = parseL5(s.l5);
-        setEditingId(s.id);
-        setForm({
-            competition_id: selectedComp,
-            team_id: s.team?.id || '',
-            won: s.won?.toString() || '0',
-            drawn: s.drawn?.toString() || '0',
-            lost: s.lost?.toString() || '0',
-            goals_for: s.goals_for?.toString() || '0',
-            goals_against: s.goals_against?.toString() || '0',
-            l5_1, l5_2, l5_3, l5_4, l5_5,
-        });
-        setShowModal(true);
-    };
 
     const buildL5 = (): string => {
         const parts = [form.l5_1, form.l5_2, form.l5_3, form.l5_4, form.l5_5].filter(p => p !== '');
@@ -115,16 +98,10 @@ export const AdminStandings = () => {
                 goals_against: parseInt(form.goals_against) || 0,
                 l5: buildL5(),
             };
-            if (editingId) {
-                await updateStanding(editingId, payload);
-                toast.success('Standing updated successfully');
-            } else {
-                await createStanding(payload);
-                toast.success('Standing created successfully');
-            }
+            await createStanding(payload);
+            toast.success('Standing created successfully');
             queryClient.invalidateQueries({ queryKey: ['adminStandings', selectedComp] });
             setShowModal(false);
-            setEditingId(null);
         } catch (err: any) {
             console.error(err);
             toast.error(err.response?.data?.message || err.response?.data?.error || 'Failed to save standing');
@@ -212,7 +189,7 @@ export const AdminStandings = () => {
                                     <td className="px-4 py-3 text-center text-sm dark:text-gray-300">{s.pct != null ? `${s.pct}%` : '-'}</td>
                                     <td className="px-4 py-3 text-center text-xs font-mono dark:text-gray-300">
                                         <div className="flex justify-center gap-1">
-                                            {s.l5 ? s.l5.split('-').map((res, i) => (
+                                            {s.l5 ? s.l5.split('').filter(c => c !== '-').map((res, i) => (
                                                 <span key={i} title={res} className={`w-5 h-5 flex items-center justify-center rounded text-[10px] font-bold ${res === 'W' ? 'bg-green-500 text-white' : res === 'D' ? 'bg-yellow-400 text-gray-900' : res === 'L' ? 'bg-red-500 text-white' : 'bg-gray-200 dark:bg-gray-600 text-gray-500'}`}>
                                                     {res}
                                                 </span>
@@ -220,7 +197,7 @@ export const AdminStandings = () => {
                                         </div>
                                     </td>
                                     <td className="px-4 py-3 text-right space-x-2">
-                                        <button onClick={() => openEdit(s)} className="text-blue-600 hover:text-blue-800 dark:text-blue-400 font-bold text-sm">Edit</button>
+
                                         <button onClick={() => setDeleteConfirm(s.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 font-bold text-sm">Delete</button>
                                     </td>
                                 </tr>
@@ -234,7 +211,7 @@ export const AdminStandings = () => {
             {showModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-                        <div className="p-6 border-b border-gray-200 dark:border-gray-700"><h2 className="text-2xl font-black text-sffl-navy dark:text-white">{editingId ? 'Edit Standing' : 'Add Standing'}</h2></div>
+                        <div className="p-6 border-b border-gray-200 dark:border-gray-700"><h2 className="text-2xl font-black text-sffl-navy dark:text-white">Add Standing</h2></div>
                         <div className="p-6 space-y-4">
                             <div className="mb-4">
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Team *</label>
@@ -299,7 +276,7 @@ export const AdminStandings = () => {
                         </div>
                         <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
                             <button onClick={() => setShowModal(false)} className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">Cancel</button>
-                            <button onClick={handleSave} disabled={saving} className="px-4 py-2 min-h-[44px] bg-sffl-red text-white font-bold text-sm rounded-lg hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50">{saving ? 'Saving...' : editingId ? 'Update' : 'Create'}</button>
+                            <button onClick={handleSave} disabled={saving} className="px-4 py-2 min-h-[44px] bg-sffl-red text-white font-bold text-sm rounded-lg hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50">{saving ? 'Saving...' : 'Create'}</button>
                         </div>
                     </div>
                 </div>

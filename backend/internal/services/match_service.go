@@ -22,6 +22,7 @@ type IMatchService interface {
 	CreateMatch(ctx context.Context, match *domain.Match) error
 	UpdateMatch(ctx context.Context, match *domain.Match) error
 	DeleteMatch(ctx context.Context, id string) error
+	RecalculateStandings(ctx context.Context, competitionID string) error
 	CreateStanding(ctx context.Context, standing *domain.Standing) error
 	UpdateStanding(ctx context.Context, standing *domain.Standing) error
 	DeleteStanding(ctx context.Context, id string) error
@@ -178,15 +179,36 @@ func (s *MatchService) GetMatches(ctx context.Context, competitionID string, sta
 }
 
 func (s *MatchService) CreateMatch(ctx context.Context, match *domain.Match) error {
-	return s.repo.CreateMatch(ctx, match)
+	if err := s.repo.CreateMatch(ctx, match); err != nil {
+		return err
+	}
+	if match.Status == domain.MatchStatusFinished {
+		return s.repo.RecalculateStandings(ctx, match.CompetitionID)
+	}
+	return nil
 }
 
 func (s *MatchService) UpdateMatch(ctx context.Context, match *domain.Match) error {
-	return s.repo.UpdateMatch(ctx, match)
+	if err := s.repo.UpdateMatch(ctx, match); err != nil {
+		return err
+	}
+	return s.repo.RecalculateStandings(ctx, match.CompetitionID)
 }
 
 func (s *MatchService) DeleteMatch(ctx context.Context, id string) error {
-	return s.repo.DeleteMatch(ctx, id)
+	existing, err := s.repo.GetMatchByID(ctx, id)
+	if err != nil || existing == nil {
+		return s.repo.DeleteMatch(ctx, id)
+	}
+	competitionID := existing.CompetitionID
+	if err := s.repo.DeleteMatch(ctx, id); err != nil {
+		return err
+	}
+	return s.repo.RecalculateStandings(ctx, competitionID)
+}
+
+func (s *MatchService) RecalculateStandings(ctx context.Context, competitionID string) error {
+	return s.repo.RecalculateStandings(ctx, competitionID)
 }
 
 func (s *MatchService) GetStandings(ctx context.Context, competitionID string) ([]dto.StandingResponse, error) {
