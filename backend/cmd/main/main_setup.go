@@ -30,6 +30,7 @@ import (
 
 	sqlembed "showtime-backend/internal/sql"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
@@ -52,7 +53,15 @@ func expvarSetup() {
 }
 
 func openDB(cfg config.Config, ctx context.Context) (*pgxpool.Pool, error) {
-	pool, err := pgxpool.New(ctx, cfg.Db.Dsn)
+	poolConfig, err := pgxpool.ParseConfig(cfg.Db.Dsn)
+	if err != nil {
+		return nil, err
+	}
+
+	// Disable prepared statements for compatibility with PgBouncer in transaction mode
+	poolConfig.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
+
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
 		return nil, err
 	}

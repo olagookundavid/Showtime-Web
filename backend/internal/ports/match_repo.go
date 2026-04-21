@@ -395,12 +395,12 @@ func (r *PostgresMatchRepository) GetStandings(ctx context.Context, competitionI
 
 func (r *PostgresMatchRepository) CreateStanding(ctx context.Context, standing *domain.Standing) error {
 	query := `
-		INSERT INTO standings (competition_id, team_id, position, played, won, drawn, lost, goals_for, goals_against, goal_difference, pct, l5)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		INSERT INTO standings (competition_id, team_id, position, played, won, drawn, lost, goals_for, goals_against, pct, l5)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		RETURNING id, created_at, updated_at
 	`
 	return r.db.QueryRow(ctx, query,
-		standing.CompetitionID, standing.TeamID, standing.Position, standing.Played, standing.Won, standing.Drawn, standing.Lost, standing.GoalsFor, standing.GoalsAgainst, standing.GoalDiff, standing.PCT, standing.L5,
+		standing.CompetitionID, standing.TeamID, standing.Position, standing.Played, standing.Won, standing.Drawn, standing.Lost, standing.GoalsFor, standing.GoalsAgainst, standing.PCT, standing.L5,
 	).Scan(&standing.ID, &standing.CreatedAt, &standing.UpdatedAt)
 }
 
