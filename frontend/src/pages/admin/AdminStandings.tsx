@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
     getStandings, getCompetitions, getTeams,
-    createStanding, updateStanding, deleteStanding,
+    createStanding, deleteStanding,
     type Standing, type Competition, type Team, type CreateStandingPayload,
 } from '../../services/api';
 
@@ -74,10 +74,6 @@ export const AdminStandings = () => {
         setShowModal(true);
     };
 
-    const parseL5 = (l5: string): [string, string, string, string, string] => {
-        const parts = l5 ? l5.split('-') : [];
-        return [parts[0] || '', parts[1] || '', parts[2] || '', parts[3] || '', parts[4] || ''];
-    };
 
 
     const buildL5 = (): string => {
