@@ -255,6 +255,7 @@ export const AdminTickets = () => {
                                         <th className="px-4 py-2 text-left">Event</th>
                                         <th className="px-4 py-2 text-left">Tier</th>
                                         <th className="px-4 py-2 text-left">Email</th>
+                                        <th className="px-4 py-2 text-left">Phone</th>
                                         <th className="px-4 py-2 text-center">Qty</th>
                                         <th className="px-4 py-2 text-right">Amount</th>
                                         <th className="px-4 py-2 text-center">Status</th>
@@ -268,6 +269,7 @@ export const AdminTickets = () => {
                                             <td className="px-4 py-3 dark:text-gray-300 text-sm">{t.event_title || '—'}</td>
                                             <td className="px-4 py-3 dark:text-gray-300 text-sm">{t.tier_name || '—'}</td>
                                             <td className="px-4 py-3 dark:text-gray-300 text-sm">{t.email}</td>
+                                            <td className="px-4 py-3 dark:text-gray-300 text-sm whitespace-nowrap">{t.phone || '—'}</td>
                                             <td className="px-4 py-3 text-center dark:text-gray-300">{t.quantity}</td>
                                             <td className="px-4 py-3 text-right font-semibold dark:text-white">₦{t.total_amount?.toLocaleString()}</td>
                                             <td className="px-4 py-3 text-center">
@@ -323,6 +325,7 @@ export const AdminTickets = () => {
                                     <th className="px-4 py-3 text-left">Event</th>
                                     <th className="px-4 py-3 text-left">Tier</th>
                                     <th className="px-4 py-3 text-left">Email</th>
+                                    <th className="px-4 py-3 text-left">Phone</th>
                                     <th className="px-4 py-3 text-center">Qty</th>
                                     <th className="px-4 py-3 text-right">Amount</th>
                                     <th className="px-4 py-3 text-center">Status</th>
@@ -336,6 +339,7 @@ export const AdminTickets = () => {
                                         <td className="px-4 py-3 dark:text-gray-300 text-sm">{t.event_title || '—'}</td>
                                         <td className="px-4 py-3 dark:text-gray-300 text-sm">{t.tier_name || '—'}</td>
                                         <td className="px-4 py-3 dark:text-gray-300 text-sm">{t.email}</td>
+                                        <td className="px-4 py-3 dark:text-gray-300 text-sm whitespace-nowrap">{t.phone || '—'}</td>
                                         <td className="px-4 py-3 text-center dark:text-gray-300">{t.quantity}</td>
                                         <td className="px-4 py-3 text-right font-semibold dark:text-white">₦{t.total_amount?.toLocaleString()}</td>
                                         <td className="px-4 py-3 text-center">
@@ -347,7 +351,7 @@ export const AdminTickets = () => {
                                     </tr>
                                 )) : (
                                     <tr>
-                                        <td colSpan={8} className="px-4 py-12 text-center text-gray-400">No tickets found</td>
+                                        <td colSpan={9} className="px-4 py-12 text-center text-gray-400">No tickets found</td>
                                     </tr>
                                 )}
                             </tbody>

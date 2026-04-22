@@ -237,6 +237,7 @@ func SetupAuthRoutes(r *gin.RouterGroup, app *api.Application) {
 		{
 			limitedAuth.POST("/register", app.Handlers.AuthHandler.Register)
 			limitedAuth.POST("/login", app.Handlers.AuthHandler.Login)
+			limitedAuth.POST("/forgot-password", app.Handlers.AuthHandler.SendPasswordResetOTP)
 		}
 
 		authRoutes.POST("/logout", app.Handlers.AuthHandler.Logout)

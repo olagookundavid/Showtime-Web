@@ -16,6 +16,8 @@ interface AuthContextType {
     login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
     signup: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
     logout: () => Promise<void>;
+    forgotPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
+    resetPasswordWithOTP: (email: string, otp: string, new_password: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -85,8 +87,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(null);
     };
 
+    const forgotPassword = async (email: string): Promise<{ success: boolean; error?: string }> => {
+        try {
+            const { forgotPassword: forgotPasswordApi } = await import('../services/api');
+            await forgotPasswordApi(email);
+            return { success: true };
+        } catch (err: any) {
+            const message = err.response?.data?.message || err.response?.data?.error || 'Failed to send reset code';
+            return { success: false, error: message };
+        }
+    };
+
+    const resetPasswordWithOTP = async (email: string, otp: string, new_password: string): Promise<{ success: boolean; error?: string }> => {
+        try {
+            const { resetPassword: resetPasswordApi } = await import('../services/api');
+            await resetPasswordApi({ email, otp, new_password });
+            return { success: true };
+        } catch (err: any) {
+            const message = err.response?.data?.message || err.response?.data?.error || 'Failed to reset password';
+            return { success: false, error: message };
+        }
+    };
+
     return (
-        <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, signup, logout }}>
+        <AuthContext.Provider value={{ 
+            user, 
+            isAuthenticated: !!user, 
+            isLoading, 
+            login, 
+            signup, 
+            logout,
+            forgotPassword,
+            resetPasswordWithOTP
+        }}>
             {children}
         </AuthContext.Provider>
     );

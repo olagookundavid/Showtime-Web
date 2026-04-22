@@ -257,9 +257,17 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 		return nil, fmt.Errorf("tier not found: %w", err)
 	}
 
-	// Verify tier belongs to the event day
-	if tier.EventDayID != req.EventDayID {
-		return nil, fmt.Errorf("tier does not belong to this event day")
+	// 1b. Verify event day is not in the past
+	eventDay, err := s.eventDayRepo.GetByID(ctx, req.EventDayID)
+	if err != nil {
+		return nil, fmt.Errorf("event day not found: %w", err)
+	}
+
+	// Compare dates (ignore time)
+	now := time.Now().Truncate(24 * time.Hour)
+	eventDate := eventDay.Date.Truncate(24 * time.Hour)
+	if eventDate.Before(now) {
+		return nil, fmt.Errorf("cannot purchase tickets for past events (%s)", eventDay.Date.Format("2006-01-02"))
 	}
 
 	// 2. Check capacity
@@ -312,6 +320,7 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 			EventDayID:         req.EventDayID,
 			TierID:             req.TierID,
 			Email:              req.Email,
+			Phone:              req.Phone,
 			Quantity:           req.Quantity,
 			UnitPrice:          tier.Price,
 			TotalAmount:        totalAmount,
@@ -358,6 +367,7 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 		EventDayID:       ticket.EventDayID,
 		TierID:           ticket.TierID,
 		Email:            ticket.Email,
+		Phone:            ticket.Phone,
 		Quantity:         ticket.Quantity,
 		UnitPrice:        ticket.UnitPrice,
 		TotalAmount:      ticket.TotalAmount,
@@ -551,6 +561,7 @@ func (s *TicketService) sendPurchaseEmail(ticket *domain.Ticket) {
 		ticket.EventDay.Date.Format("Mon, Jan 02 2006"),
 		ticket.EventDay.Venue,
 		ticket.Tier.Name,
+		ticket.Phone,
 		ticket.Quantity,
 		ticket.TotalAmount,
 		ticket.TicketCode,
@@ -644,6 +655,7 @@ func ticketToResponse(t *domain.Ticket) *dto.TicketResponse {
 		EventDayID:  t.EventDayID,
 		TierID:      t.TierID,
 		Email:       t.Email,
+		Phone:       t.Phone,
 		Quantity:    t.Quantity,
 		UnitPrice:   t.UnitPrice,
 		TotalAmount: t.TotalAmount,

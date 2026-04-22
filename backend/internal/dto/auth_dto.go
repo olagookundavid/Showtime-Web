@@ -14,6 +14,10 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
+type ForgotPasswordRequest struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
 type ResetPasswordRequest struct {
 	Email       string `json:"email"`
 	Otp         string `json:"otp"`

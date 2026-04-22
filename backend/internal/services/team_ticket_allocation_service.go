@@ -184,6 +184,7 @@ func (s *TeamTicketAllocationService) sendTeamTicketEmail(ticket *domain.Ticket)
 		ticket.EventDay.Date.Format("Mon, Jan 02 2006"),
 		ticket.EventDay.Venue,
 		ticket.Tier.Name,
+		"N/A", // Phone number (not stored for team allocations)
 		ticket.Quantity,
 		ticket.TotalAmount,
 		ticket.TicketCode,

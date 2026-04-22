@@ -19,7 +19,7 @@ const slides: Slide[] = [
         ctaText: 'Buy Tickets',
         ctaLink: '/tickets',
         bgColor: 'from-sffl-red to-[#8B1C1C]',
-        image: '/images/branding/hero-action.png',
+        image: '/images/branding/hero-1.jpeg',
     },
     {
         id: 2,
@@ -28,7 +28,7 @@ const slides: Slide[] = [
         ctaText: 'Sign Up Free',
         ctaLink: '/signup',
         bgColor: 'from-sffl-navy to-blue-900',
-        image: '/images/branding/hero-team.png',
+        image: '/images/branding/hero-2.jpeg',
     },
     {
         id: 3,
@@ -37,7 +37,7 @@ const slides: Slide[] = [
         ctaText: 'See Photos',
         ctaLink: '/gallery',
         bgColor: 'from-purple-600 to-purple-900',
-        image: '/images/branding/hero-qb.png',
+        image: '/images/branding/hero-3.jpeg',
     },
 ];
 

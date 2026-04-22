@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
-import { getEventDays, getEventDayByDate, purchaseTicket, type EventDayResponse, type TicketTierResponse, type PurchaseTicketPayload } from '../../services/api';
+import { getEventDays, getEventDayByDate, purchaseTicket, getUserProfile, type EventDayResponse, type TicketTierResponse, type PurchaseTicketPayload, type AuthUser } from '../../services/api';
 
 export const TicketsPage = () => {
     const navigate = useNavigate();
@@ -30,6 +30,9 @@ export const TicketsPage = () => {
     const [selectedTier, setSelectedTier] = useState<TicketTierResponse | null>(null);
     const [quantity, setQuantity] = useState(1);
     const [email, setEmail] = useState('');
+    const [phone, setPhone] = useState('');
+    const [useAccountEmail, setUseAccountEmail] = useState(false);
+    const [userProfile, setUserProfile] = useState<AuthUser | null>(null);
     const [purchasing, setPurchasing] = useState(false);
     const [error, setError] = useState('');
 
@@ -42,8 +45,39 @@ export const TicketsPage = () => {
         }
     }, [specificDay, specificDayError]);
 
+    // Check auth status on mount
+    useEffect(() => {
+        const token = localStorage.getItem('showtime_access_token');
+        if (token) {
+            getUserProfile()
+                .then(profile => {
+                    setUserProfile(profile);
+                    setUseAccountEmail(true);
+                    setEmail(profile.email);
+                    if (profile.phone) setPhone(profile.phone);
+                })
+                .catch(() => {
+                    // Not logged in or expired
+                    setUserProfile(null);
+                });
+        }
+    }, []);
+
+    // Sync email when toggle changes
+    useEffect(() => {
+        if (useAccountEmail && userProfile) {
+            setEmail(userProfile.email);
+        } else if (!useAccountEmail && userProfile) {
+            // Optional: could keep the email but unlock it, but clear is safer for override
+            // Clear if they want to use something else
+        }
+    }, [useAccountEmail, userProfile]);
+
     const handlePurchase = async () => {
-        if (!selectedEventDay || !selectedTier || !email) return;
+        if (!selectedEventDay || !selectedTier || !email || !phone) {
+            setError(email && !phone ? 'Phone number is required' : 'All fields marked with * are required');
+            return;
+        }
         setError('');
         setPurchasing(true);
 
@@ -52,6 +86,7 @@ export const TicketsPage = () => {
                 event_day_id: selectedEventDay.id,
                 tier_id: selectedTier.id,
                 email,
+                phone,
                 quantity,
             };
 
@@ -241,6 +276,22 @@ export const TicketsPage = () => {
                                 </div>
                             </div>
 
+                            {/* Auth Toggle */}
+                            {userProfile && (
+                                <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
+                                    <input
+                                        type="checkbox"
+                                        id="useAccountEmail"
+                                        checked={useAccountEmail}
+                                        onChange={(e) => setUseAccountEmail(e.target.checked)}
+                                        className="w-4 h-4 text-sffl-red rounded border-gray-300 focus:ring-sffl-red"
+                                    />
+                                    <label htmlFor="useAccountEmail" className="text-xs font-bold text-blue-800 dark:text-blue-300 cursor-pointer">
+                                        Use my account information
+                                    </label>
+                                </div>
+                            )}
+
                             {/* Email */}
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
@@ -251,10 +302,27 @@ export const TicketsPage = () => {
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="e.g. example@mail.com"
+                                    className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none transition-opacity ${useAccountEmail ? 'opacity-60 cursor-not-allowed bg-gray-50' : ''}`}
+                                    required
+                                    disabled={useAccountEmail}
+                                />
+                                <p className="text-xs text-gray-500 mt-1">Your ticket will be sent to this email</p>
+                            </div>
+
+                            {/* Phone */}
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                                    Phone Number <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="tel"
+                                    value={phone}
+                                    onChange={(e) => setPhone(e.target.value)}
+                                    placeholder="e.g. +234..."
                                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none"
                                     required
                                 />
-                                <p className="text-xs text-gray-500 mt-1">Your ticket will be sent to this email</p>
+                                <p className="text-xs text-gray-500 mt-1">We may call you regarding your ticket</p>
                             </div>
 
                             {/* Quantity */}
@@ -297,7 +365,7 @@ export const TicketsPage = () => {
                             >Cancel</button>
                             <button
                                 onClick={handlePurchase}
-                                disabled={purchasing || !email}
+                                disabled={purchasing || !email || !phone}
                                 className="flex-1 bg-sffl-red hover:bg-[#A52323] text-white font-bold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {purchasing ? (

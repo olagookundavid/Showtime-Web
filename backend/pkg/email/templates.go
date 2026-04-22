@@ -144,7 +144,7 @@ func brandFooter() string {
 }
 
 // PurchaseEmailHTML generates a premium ticket confirmation email
-func PurchaseEmailHTML(eventTitle, eventDate, eventVenue, tierName string, quantity int, totalAmount int, ticketCode string) string {
+func PurchaseEmailHTML(eventTitle, eventDate, eventVenue, tierName, phone string, quantity int, totalAmount int, ticketCode string) string {
 	unitDisplay := "ticket"
 	isAre := "is"
 	if quantity > 1 {
@@ -217,7 +217,7 @@ Thank you for your purchase! Your %s for <strong>%s</strong> %s confirmed. Here 
 </tr>
 <!-- Tier & Quantity Row -->
 <tr>
-<td style="padding: 0;">
+<td style="padding: 0 0 14px;">
 <table role="presentation" width="100%%" cellpadding="0" cellspacing="0">
 <tr>
 <td width="50%%" style="vertical-align: top;">
@@ -227,6 +227,19 @@ Thank you for your purchase! Your %s for <strong>%s</strong> %s confirmed. Here 
 <td width="50%%" style="vertical-align: top;">
 <p style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; margin: 0 0 4px;">👥 Quantity</p>
 <p style="color: #1e293b; font-size: 14px; font-weight: 600; margin: 0;">%d %s</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<!-- Phone Row -->
+<tr>
+<td style="padding: 0;">
+<table role="presentation" width="100%%" cellpadding="0" cellspacing="0">
+<tr>
+<td width="100%%" style="vertical-align: top;">
+<p style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; margin: 0 0 4px;">📞 Phone Number</p>
+<p style="color: #1e293b; font-size: 14px; font-weight: 600; margin: 0;">%s</p>
 </td>
 </tr>
 </table>
@@ -293,7 +306,7 @@ Thank you for your purchase! Your %s for <strong>%s</strong> %s confirmed. Here 
 </tr>
 </table>
 </body>
-</html>`, unitDisplay, eventTitle, isAre, eventTitle, eventDate, eventVenue, tierName, quantity, unitDisplay, ticketCode, formatNaira(totalAmount))
+</html>`, unitDisplay, eventTitle, isAre, eventTitle, eventDate, eventVenue, tierName, quantity, unitDisplay, phone, ticketCode, formatNaira(totalAmount))
 }
 
 // CheckinEmailHTML generates a premium check-in confirmation email
@@ -384,6 +397,63 @@ You have been successfully checked in for <strong>%s</strong>. Enjoy the games!
 </table>
 </body>
 </html>`, eventTitle, eventTitle, eventDate, eventVenue, ticketCode)
+}
+
+// OTPEmailHTML generates a premium OTP email for password resets
+func OTPEmailHTML(otpCode string) string {
+	return fmt.Sprintf(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SFFL — Password Reset Code</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f0f2f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="background-color: #f0f2f5; padding: 40px 20px;">
+<tr>
+<td align="center">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
+
+`+brandHeader()+`
+
+<!-- Hero -->
+<tr>
+<td style="background: linear-gradient(135deg, #0f172a 0%%, #1e293b 100%%); padding: 48px 40px; text-align: center;">
+<h1 style="color: #ffffff; font-size: 24px; font-weight: 700; margin: 0 0 8px;">Reset Your Password</h1>
+<p style="color: `+sfflRed+`; font-size: 14px; font-weight: 600; margin: 0;">PROTECT YOUR ACCOUNT 🛡️</p>
+</td>
+</tr>
+
+<!-- Content -->
+<tr>
+<td style="padding: 32px 40px;">
+<p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
+Hello, we received a request to reset your password. Use the verification code below to proceed. This code will expire in <strong>10 minutes</strong>.
+</p>
+
+<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; border: 2px dashed #e2e8f0; border-radius: 12px;">
+<tr>
+<td style="padding: 32px; text-align: center;">
+<p style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; margin: 0 0 12px;">Verification Code</p>
+<p style="color: #0f172a; font-size: 42px; font-weight: 800; letter-spacing: 8px; margin: 0; font-family: 'Courier New', monospace;">%s</p>
+</td>
+</tr>
+</table>
+
+<p style="color: #64748b; font-size: 13px; line-height: 1.6; margin: 24px 0 0;">
+If you didn't request this, you can safely ignore this email. Someone may have entered your email address by mistake.
+</p>
+</td>
+</tr>
+
+`+brandFooter()+`
+
+</table>
+</td>
+</tr>
+</table>
+</body>
+</html>`, otpCode)
 }
 
 // formatNaira formats an integer amount to a comma-separated string

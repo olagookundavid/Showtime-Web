@@ -147,6 +147,14 @@ func cronjobs(app *api.Application) {
 		}
 	})
 
+	// Run every 6 hours to cleanup OTPs
+	c.AddFunc("0 */6 * * *", func() {
+		app.Logger.Info("Running OTP cleanup job...", nil)
+		if err := app.AuthService.CleanupExpiredOTPs(context.Background()); err != nil {
+			app.Logger.Error(fmt.Sprintf("OTP cleanup failed: %v", err), nil)
+		}
+	})
+
 	app.Logger.Info("Starting scheduler...", nil)
 	c.Start()
 }
@@ -225,12 +233,12 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 
 	// Services
 	auditService := services.NewAuditService(auditRepo, authRepo)
-	authService := services.NewAuthService(authRepo, tokenMaker)
+	emailService := email.NewResendService() // Move this up
+	authService := services.NewAuthService(authRepo, tokenMaker, emailService)
 	newsService := services.NewNewsService(newsRepo, storageService)
 	galleryService := services.NewGalleryService(galleryRepo)
 	matchService := services.NewMatchService(matchRepo, storageService)
 	playerService := services.NewPlayerService(playerRepo, storageService)
-	emailService := email.NewResendService()
 	ticketService := services.NewTicketService(eventDayRepo, tierRepo, ticketRepo, matchRepo, paystackClient, emailService)
 	tmService := services.NewTeamManagerService(tmRepo, authRepo)
 	analyticsService := services.NewAnalyticsService(authRepo, ticketRepo, analyticsRepo)

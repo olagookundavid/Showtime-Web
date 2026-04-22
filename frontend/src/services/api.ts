@@ -55,6 +55,20 @@ export const getUserProfile = async (): Promise<AuthUser> => {
     return response.data.data;
 };
 
+export interface ResetPasswordPayload {
+    email: string;
+    otp: string;
+    new_password: string;
+}
+
+export const forgotPassword = async (email: string): Promise<void> => {
+    await api.post('/auth/forgot-password', { email });
+};
+
+export const resetPassword = async (payload: ResetPasswordPayload): Promise<void> => {
+    await api.post('/auth/reset-password', payload);
+};
+
 // ─── Generic Paginated Response ───────────────────────────────────────────────
 export interface PaginatedResponse<T> {
     data: T[];
@@ -414,6 +428,7 @@ export interface TicketResponse {
     event_day_id: string;
     tier_id: string;
     email: string;
+    phone?: string;
     quantity: number;
     unit_price: number;
     total_amount: number;
@@ -434,6 +449,7 @@ export interface PurchaseTicketPayload {
     event_day_id: string;
     tier_id: string;
     email: string;
+    phone: string;
     quantity: number;
 }
 

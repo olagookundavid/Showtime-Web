@@ -2,16 +2,17 @@ package services
 
 import (
 	"context"
+	cryptoRand "crypto/rand"
 	"errors"
 	"fmt"
 	"os"
 	"pkg-common/token"
+	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
 	appErrors "showtime-backend/internal/errors"
 	"showtime-backend/internal/ports"
+	"showtime-backend/pkg/email"
 	"strings"
-
-	"showtime-backend/internal/domain"
 	"time"
 )
 
@@ -23,23 +24,27 @@ type IAuthService interface {
 	ListUsers(ctx context.Context, page, limit int, searchFilter string) ([]dto.UserResponse, int, error)
 	UpdateUserRole(ctx context.Context, userID, newRole string) error
 	UpdateUserInfo(ctx context.Context, userID, fullName, phone string) error
+	SendPasswordResetOTP(ctx context.Context, email string) error
+	CleanupExpiredOTPs(ctx context.Context) error
 }
 
 type AuthService struct {
 	AuthRepository ports.IAuthRepository
 	TokenMaker     token.Maker
+	EmailService   ports.EmailService
 }
 
-func NewAuthService(repo ports.IAuthRepository, tokenMaker token.Maker) *AuthService {
+func NewAuthService(repo ports.IAuthRepository, tokenMaker token.Maker, emailService ports.EmailService) *AuthService {
 	return &AuthService{
 		AuthRepository: repo,
 		TokenMaker:     tokenMaker,
+		EmailService:   emailService,
 	}
 }
 
 func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest) error {
 
-	email := strings.ToLower(strings.TrimSpace(req.Email))
+	emailAddr := strings.ToLower(strings.TrimSpace(req.Email))
 
 	if req.FullName == "" {
 		return errors.New("full Name must be filled")
@@ -55,7 +60,7 @@ func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest) err
 		}
 	}
 
-	existing, _ := s.AuthRepository.GetUserByEmail(ctx, email)
+	existing, _ := s.AuthRepository.GetUserByEmail(ctx, emailAddr)
 	if existing != nil {
 		return fmt.Errorf("email already in use")
 
@@ -63,7 +68,7 @@ func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest) err
 
 	user := domain.User{
 		FullName: req.FullName,
-		Email:    email,
+		Email:    emailAddr,
 		Role:     "user", // Default role
 		Phone:    req.Phone,
 	}
@@ -82,20 +87,78 @@ func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest) err
 }
 
 func (s *AuthService) ResetPassword(ctx context.Context, req dto.ResetPasswordRequest) error {
+	// 1. Verify OTP
+	valid, err := s.AuthRepository.VerifyOTP(ctx, req.Email, req.Otp, "password_reset")
+	if err != nil {
+		return err
+	}
+	if !valid {
+		return errors.New("invalid or expired OTP")
+	}
 
+	// 2. Validate Password
 	if !domain.IsValidPassword(&req.NewPassword) {
 		return errors.New("password must be at least 8 characters, 1 number, and 1 symbol")
 	}
+
+	// 3. Set New Password
 	user := domain.User{
 		Email: req.Email,
 	}
 
-	err := user.Password.Set(&req.NewPassword)
+	err = user.Password.Set(&req.NewPassword)
 	if err != nil {
 		return errors.New("invalid password")
 	}
 
-	return s.AuthRepository.ResetPassword(ctx, user)
+	err = s.AuthRepository.ResetPassword(ctx, user)
+	if err != nil {
+		return err
+	}
+
+	// 4. Mark OTP as used
+	_ = s.AuthRepository.MarkOTPUsed(ctx, req.Email, req.Otp, "password_reset")
+
+	return nil
+}
+
+func (s *AuthService) SendPasswordResetOTP(ctx context.Context, emailAddr string) error {
+	emailAddr = strings.ToLower(strings.TrimSpace(emailAddr))
+
+	// Check if user exists
+	user, _ := s.AuthRepository.GetUserByEmail(ctx, emailAddr)
+	if user == nil {
+		// Return nil to avoid email enumeration
+		return nil
+	}
+
+	// Generate 6-digit OTP
+	otp, err := generateOTP(6)
+	if err != nil {
+		return err
+	}
+
+	// Save to DB (expires in 10 minutes)
+	err = s.AuthRepository.SaveOTP(ctx, emailAddr, otp, "password_reset", 10*time.Minute)
+	if err != nil {
+		return err
+	}
+
+	// Send Email
+	if s.EmailService != nil {
+		body := email.OTPEmailHTML(otp) // Use email package prefix
+		subject := "SFFL Password Reset Code"
+		err = s.EmailService.SendEmail(emailAddr, subject, body)
+		if err != nil {
+			fmt.Printf("Failed to send OTP email to %s: %v\n", emailAddr, err)
+		}
+	}
+
+	return nil
+}
+
+func (s *AuthService) CleanupExpiredOTPs(ctx context.Context) error {
+	return s.AuthRepository.DeleteExpiredOTPs(ctx)
 }
 
 func (s *AuthService) Login(ctx context.Context, req dto.LoginRequest) (*dto.LoginResponse, error) {
@@ -232,4 +295,25 @@ func (s *AuthService) UpdateUserInfo(ctx context.Context, userID, fullName, phon
 		return fmt.Errorf("full name must not be empty")
 	}
 	return s.AuthRepository.UpdateUserInfo(ctx, userID, fullName, phone)
+}
+
+func generateOTP(length int) (string, error) {
+	const digits = "0123456789"
+	otp := make([]byte, length)
+	for i := range otp {
+		num, err := randInt(len(digits))
+		if err != nil {
+			return "", err
+		}
+		otp[i] = digits[num]
+	}
+	return string(otp), nil
+}
+
+func randInt(max int) (int, error) {
+	var b [1]byte
+	if _, err := cryptoRand.Read(b[:]); err != nil {
+		return 0, err
+	}
+	return int(b[0]) % max, nil
 }

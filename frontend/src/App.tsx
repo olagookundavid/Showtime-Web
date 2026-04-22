@@ -24,6 +24,7 @@ import { TicketsPage } from './pages/tickets/TicketsPage';
 import { TicketConfirmation } from './pages/tickets/TicketConfirmation';
 import { LoginPage } from './pages/auth/LoginPage';
 import { SignupPage } from './pages/auth/SignupPage';
+import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { HighlightsPage } from './pages/HighlightsPage';
 import { PlayersPage } from './pages/players/PlayersPage';
 import { PlayerDetail } from './pages/players/PlayerDetail';
@@ -70,6 +71,7 @@ function App() {
               {/* Auth Routes */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignupPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
               {/* Main Features */}
 // ...

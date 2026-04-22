@@ -16,13 +16,14 @@ import (
 
 type IAuthHandler interface {
 	Register(c *gin.Context)
-	Login(c *gin.Context)
 	ResetPassword(c *gin.Context)
-	ReturnUserProfile(c *gin.Context)
+	Login(c *gin.Context)
 	Logout(c *gin.Context)
+	ReturnUserProfile(c *gin.Context)
 	GetUsers(c *gin.Context)
 	UpdateUserRole(c *gin.Context)
 	UpdateUserInfo(c *gin.Context)
+	SendPasswordResetOTP(c *gin.Context)
 }
 
 type AuthHandler struct {
@@ -257,4 +258,34 @@ func (h *AuthHandler) UpdateUserInfo(c *gin.Context) {
 	}
 
 	helpers.SuccessOK(c, "User info updated successfully", nil)
+}
+
+// SendPasswordResetOTP godoc
+// @Summary      Send OTP for password reset
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.ForgotPasswordRequest true "Forgot Password Payload"
+// @Success      200 {object} map[string]string
+// @Router       /api/v1/auth/forgot-password [post]
+func (h *AuthHandler) SendPasswordResetOTP(c *gin.Context) {
+	var req dto.ForgotPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helpers.BadResponse(c, err.Error())
+		return
+	}
+
+	err := h.AuthService.SendPasswordResetOTP(c, req.Email)
+	if err != nil {
+		switch {
+		case errors.Is(err, appErrors.ErrServerError):
+			helpers.ServerErrorResponse(c, err)
+		default:
+			helpers.BadResponse(c, err.Error())
+		}
+		return
+	}
+
+	// Always return success to prevent email enumeration
+	helpers.SuccessOK(c, "If your email is registered, a code has been sent", nil)
 }

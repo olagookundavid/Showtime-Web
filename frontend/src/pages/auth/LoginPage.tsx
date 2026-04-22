@@ -69,6 +69,14 @@ export const LoginPage = () => {
                             className="w-full px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-sffl-red transition-colors"
                             placeholder="••••••••"
                         />
+                        <div className="flex justify-end mt-1">
+                            <Link 
+                                to="/forgot-password" 
+                                className="text-xs font-bold text-sffl-red hover:underline transition-colors"
+                            >
+                                Forgot password?
+                            </Link>
+                        </div>
                     </div>
 
                     <button

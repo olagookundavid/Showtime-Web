@@ -23,6 +23,11 @@ type IAuthRepository interface {
 	UpdateUserRole(ctx context.Context, userID, newRole string) error
 	UpdateUserInfo(ctx context.Context, userID, fullName, phone string) error
 	CountTotalUsers(ctx context.Context) (int, error)
+	// OTP methods
+	SaveOTP(ctx context.Context, email, code, purpose string, expiry time.Duration) error
+	VerifyOTP(ctx context.Context, email, code, purpose string) (bool, error)
+	MarkOTPUsed(ctx context.Context, email, code, purpose string) error
+	DeleteExpiredOTPs(ctx context.Context) error
 }
 
 type AuthRepository struct {
@@ -243,4 +248,33 @@ func (m AuthRepository) CountTotalUsers(ctx context.Context) (int, error) {
 	var total int
 	err := m.Db.QueryRow(ctx, query).Scan(&total)
 	return total, err
+}
+
+func (m AuthRepository) SaveOTP(ctx context.Context, email, code, purpose string, expiry time.Duration) error {
+	query := `INSERT INTO otps (email, otp_code, purpose, expires_at) VALUES ($1, $2, $3, $4)`
+	expiresAt := time.Now().Add(expiry)
+	_, err := m.Db.Exec(ctx, query, email, code, purpose, expiresAt)
+	return err
+}
+
+func (m AuthRepository) VerifyOTP(ctx context.Context, email, code, purpose string) (bool, error) {
+	query := `SELECT EXISTS (
+		SELECT 1 FROM otps 
+		WHERE email = $1 AND otp_code = $2 AND purpose = $3 AND used = FALSE AND expires_at > NOW()
+	)`
+	var exists bool
+	err := m.Db.QueryRow(ctx, query, email, code, purpose).Scan(&exists)
+	return exists, err
+}
+
+func (m AuthRepository) MarkOTPUsed(ctx context.Context, email, code, purpose string) error {
+	query := `UPDATE otps SET used = TRUE WHERE email = $1 AND otp_code = $2 AND purpose = $3`
+	_, err := m.Db.Exec(ctx, query, email, code, purpose)
+	return err
+}
+
+func (m AuthRepository) DeleteExpiredOTPs(ctx context.Context) error {
+	query := `DELETE FROM otps WHERE expires_at < NOW() OR used = TRUE`
+	_, err := m.Db.Exec(ctx, query)
+	return err
 }
