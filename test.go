@@ -66,3 +66,15 @@ func testingBetter(list []int) []int {
 
 //Pinggy
 // ssh -T -p 443 -R0:localhost:8089 a.pinggy.io
+
+/*
+"Hey Antigravity, I want you to perform a deep cleanup and optimization of our frontend codebase (frontend/src). Please execute the following sequence:"
+
+Dead Code & Unused Imports: Scan all .ts, .tsx, and .css files. Identify and remove any unused imports, local variables, types, and components.
+Debug cleanup: Search for and remove all console.log, console.warn, or commented-out code blocks that were used for debugging.
+Design System Alignment: Verify that all components are using our standard design system tokens (e.g., Tailwind classes, CSS variables) rather than ad-hoc hex codes or styles, unless specifically required.
+Aesthetic Audit: Review key pages for the "Premium WoW Factor" (ensure modern typography, smooth transitions, and mobile responsiveness are intact).
+Type Safety: Audit any remaining any types or TypeScript warnings and refactor them into proper interfaces or types.
+Consistent Naming: Ensure consistent naming conventions for components (PascalCase) and utilities (camelCase).
+"Please provide a summary of the deleted code, the specific files modified, and any architectural improvements you made."
+*/
