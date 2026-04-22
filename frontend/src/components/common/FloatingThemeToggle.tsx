@@ -3,7 +3,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 
 export const FloatingThemeToggle = () => {
     const { isDarkMode, toggleDarkMode } = useTheme();
-    const [position, setPosition] = useState({ x: 20, y: 80 }); // Default position: bottom-right (percentages)
+    const [position, setPosition] = useState({ x: 2, y: 92 }); // Default position: top-right corner
     const [isDragging, setIsDragging] = useState(false);
     const dragRef = useRef<HTMLButtonElement>(null);
     const dragStartRef = useRef({ x: 0, y: 0 });
@@ -54,9 +54,9 @@ export const FloatingThemeToggle = () => {
         let newX = posStartRef.current.x - dxPct;
         let newY = posStartRef.current.y - dyPct;
 
-        // Clamp to screen bounds (approximate with button size)
-        newX = Math.max(2, Math.min(newX, 95));
-        newY = Math.max(2, Math.min(newY, 95));
+        // Clamp to screen bounds allowing it to get much closer to the edges
+        newX = Math.max(0.5, Math.min(newX, 98));
+        newY = Math.max(0.5, Math.min(newY, 98));
 
         setPosition({ x: newX, y: newY });
     };
