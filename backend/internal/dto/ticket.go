@@ -65,7 +65,8 @@ type PurchaseTicketRequest struct {
 	EventDayID string `json:"event_day_id" binding:"required"`
 	TierID     string `json:"tier_id" binding:"required"`
 	Email      string `json:"email" binding:"required,email"`
-	Phone      string `json:"phone" binding:"required"`
+	Name       string `json:"name" binding:"required"`
+	Phone      string `json:"phone"`
 	Quantity   int    `json:"quantity" binding:"required,min=1,max=10"`
 }
 
@@ -74,6 +75,7 @@ type TicketResponse struct {
 	EventDayID        string  `json:"event_day_id"`
 	TierID            string  `json:"tier_id"`
 	Email             string  `json:"email"`
+	Name              string  `json:"name,omitempty"`
 	Phone             string  `json:"phone,omitempty"`
 	Quantity          int     `json:"quantity"`
 	UnitPrice         int     `json:"unit_price"`

@@ -3,6 +3,7 @@ package ports
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"showtime-backend/internal/domain"
 
@@ -288,14 +289,14 @@ func NewTicketRepository(db *pgxpool.Pool) *PostgresTicketRepository {
 
 func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ticket) error {
 	query := `
-		INSERT INTO tickets (event_day_id, tier_id, email, phone, user_id, quantity, unit_price, total_amount, status, paystack_reference, paystack_access_code, ticket_code, team_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		INSERT INTO tickets (event_day_id, tier_id, email, phone, name, user_id, quantity, unit_price, total_amount, status, paystack_reference, paystack_access_code, ticket_code, team_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		ON CONFLICT (paystack_reference) DO NOTHING
 		RETURNING id, created_at, updated_at
 	`
 
 	err := r.db.QueryRow(ctx, query,
-		ticket.EventDayID, ticket.TierID, ticket.Email, ticket.Phone, ticket.UserID,
+		ticket.EventDayID, ticket.TierID, ticket.Email, ticket.Phone, ticket.Name, ticket.UserID,
 		ticket.Quantity, ticket.UnitPrice, ticket.TotalAmount, ticket.Status,
 		ticket.PaystackReference, ticket.PaystackAccessCode, ticket.TicketCode, ticket.TeamID,
 	).Scan(&ticket.ID, &ticket.CreatedAt, &ticket.UpdatedAt)
@@ -309,7 +310,7 @@ func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ti
 
 func (r *PostgresTicketRepository) GetByID(ctx context.Context, id string) (*domain.Ticket, error) {
 	query := `
-		SELECT t.id, t.event_day_id, t.tier_id, t.email, COALESCE(t.phone, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
+		SELECT t.id, t.event_day_id, t.tier_id, t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
 			t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
 			t.checked_in_at, t.checked_in_by, t.created_at, t.updated_at,
 			ed.title, ed.date, ed.venue,
@@ -324,7 +325,7 @@ func (r *PostgresTicketRepository) GetByID(ctx context.Context, id string) (*dom
 
 func (r *PostgresTicketRepository) GetByReference(ctx context.Context, reference string) (*domain.Ticket, error) {
 	query := `
-		SELECT t.id, t.event_day_id, t.tier_id, t.email, COALESCE(t.phone, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
+		SELECT t.id, t.event_day_id, t.tier_id, t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
 			t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
 			t.checked_in_at, t.checked_in_by, t.created_at, t.updated_at,
 			ed.title, ed.date, ed.venue,
@@ -339,7 +340,7 @@ func (r *PostgresTicketRepository) GetByReference(ctx context.Context, reference
 
 func (r *PostgresTicketRepository) GetByCode(ctx context.Context, code string) (*domain.Ticket, error) {
 	query := `
-		SELECT t.id, t.event_day_id, t.tier_id, t.email, COALESCE(t.phone, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
+		SELECT t.id, t.event_day_id, t.tier_id, t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
 			t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
 			t.checked_in_at, t.checked_in_by, t.created_at, t.updated_at,
 			ed.title, ed.date, ed.venue,
@@ -347,7 +348,7 @@ func (r *PostgresTicketRepository) GetByCode(ctx context.Context, code string) (
 		FROM tickets t
 		JOIN event_days ed ON t.event_day_id = ed.id
 		JOIN ticket_tiers tt ON t.tier_id = tt.id
-		WHERE t.ticket_code = $1
+		WHERE UPPER(t.ticket_code) = UPPER($1)
 	`
 	return r.scanTicketRow(ctx, query, code)
 }
@@ -359,7 +360,7 @@ func (r *PostgresTicketRepository) scanTicketRow(ctx context.Context, query stri
 	var tierPrice int
 
 	err := r.db.QueryRow(ctx, query, arg).Scan(
-		&t.ID, &t.EventDayID, &t.TierID, &t.Email, &t.Phone, &t.UserID,
+		&t.ID, &t.EventDayID, &t.TierID, &t.Email, &t.Phone, &t.Name, &t.UserID,
 		&t.Quantity, &t.UnitPrice, &t.TotalAmount,
 		&t.Status, &t.PaystackReference, &t.PaystackAccessCode, &t.TicketCode, &t.TeamID,
 		&t.CheckedInAt, &t.CheckedInBy, &t.CreatedAt, &t.UpdatedAt,
@@ -377,9 +378,12 @@ func (r *PostgresTicketRepository) scanTicketRow(ctx context.Context, query stri
 	}
 	// Parse event day date
 	switch v := edDate.(type) {
+	case time.Time:
+		t.EventDay.Date = v
 	case string:
-		// already a string
-		_ = v
+		if dt, err := time.Parse("2006-01-02", v); err == nil {
+			t.EventDay.Date = dt
+		}
 	}
 
 	t.Tier = &domain.TicketTier{
@@ -393,7 +397,7 @@ func (r *PostgresTicketRepository) scanTicketRow(ctx context.Context, query stri
 
 func (r *PostgresTicketRepository) SearchByEmail(ctx context.Context, email string) ([]domain.Ticket, error) {
 	query := `
-		SELECT t.id, t.event_day_id, t.tier_id, t.email, COALESCE(t.phone, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
+		SELECT t.id, t.event_day_id, t.tier_id, t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
 			t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
 			t.checked_in_at, t.checked_in_by, t.created_at, t.updated_at,
 			ed.title, tt.name
@@ -415,7 +419,8 @@ func (r *PostgresTicketRepository) SearchByEmail(ctx context.Context, email stri
 		var t domain.Ticket
 		var edTitle, tierName string
 		if err := rows.Scan(
-			&t.ID, &t.EventDayID, &t.TierID, &t.Email, &t.Phone, &t.UserID,
+			&t.ID, &t.EventDayID, &t.TierID, &t.Email, &t.Phone, &t.Name, &t.UserID,
+
 			&t.Quantity, &t.UnitPrice, &t.TotalAmount,
 			&t.Status, &t.PaystackReference, &t.PaystackAccessCode, &t.TicketCode, &t.TeamID,
 			&t.CheckedInAt, &t.CheckedInBy, &t.CreatedAt, &t.UpdatedAt,
@@ -484,7 +489,7 @@ func (r *PostgresTicketRepository) List(ctx context.Context, eventDayID string, 
 
 	// Data query
 	dataQuery := `
-		SELECT t.id, t.event_day_id, t.tier_id, t.email, COALESCE(t.phone, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
+		SELECT t.id, t.event_day_id, t.tier_id, t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
 			t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
 			t.checked_in_at, t.checked_in_by, t.created_at, t.updated_at,
 			ed.title, tt.name
@@ -521,7 +526,8 @@ func (r *PostgresTicketRepository) List(ctx context.Context, eventDayID string, 
 		var t domain.Ticket
 		var edTitle, tierName string
 		if err := rows.Scan(
-			&t.ID, &t.EventDayID, &t.TierID, &t.Email, &t.Phone, &t.UserID,
+			&t.ID, &t.EventDayID, &t.TierID, &t.Email, &t.Phone, &t.Name, &t.UserID,
+
 			&t.Quantity, &t.UnitPrice, &t.TotalAmount,
 			&t.Status, &t.PaystackReference, &t.PaystackAccessCode, &t.TicketCode, &t.TeamID,
 			&t.CheckedInAt, &t.CheckedInBy, &t.CreatedAt, &t.UpdatedAt,
@@ -572,7 +578,7 @@ func (r *PostgresTicketRepository) GetTotalTicketsSold(ctx context.Context) (int
 
 func (r *PostgresTicketRepository) GetRecentSales(ctx context.Context, limit int) ([]domain.Ticket, error) {
 	query := `
-		SELECT t.id, t.event_day_id, t.tier_id, t.email, COALESCE(t.phone, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
+		SELECT t.id, t.event_day_id, t.tier_id, t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
 			t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
 			t.checked_in_at, t.checked_in_by, t.created_at, t.updated_at,
 			ed.title, tt.name
@@ -594,7 +600,8 @@ func (r *PostgresTicketRepository) GetRecentSales(ctx context.Context, limit int
 		var t domain.Ticket
 		var edTitle, tierName string
 		if err := rows.Scan(
-			&t.ID, &t.EventDayID, &t.TierID, &t.Email, &t.Phone, &t.UserID,
+			&t.ID, &t.EventDayID, &t.TierID, &t.Email, &t.Phone, &t.Name, &t.UserID,
+
 			&t.Quantity, &t.UnitPrice, &t.TotalAmount,
 			&t.Status, &t.PaystackReference, &t.PaystackAccessCode, &t.TicketCode, &t.TeamID,
 			&t.CheckedInAt, &t.CheckedInBy, &t.CreatedAt, &t.UpdatedAt,

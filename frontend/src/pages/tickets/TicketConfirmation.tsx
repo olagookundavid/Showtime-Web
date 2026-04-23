@@ -96,6 +96,10 @@ export const TicketConfirmation = () => {
                                 <span className="text-xs text-gray-500 uppercase font-bold">Tier</span>
                                 <p className="font-bold text-sffl-navy dark:text-white">{ticket.tier_name || '—'}</p>
                             </div>
+                             <div>
+                                <span className="text-xs text-gray-500 uppercase font-bold">Name</span>
+                                <p className="font-bold text-sffl-navy dark:text-white">{ticket.name || '—'}</p>
+                            </div>
                             <div>
                                 <span className="text-xs text-gray-500 uppercase font-bold">Email</span>
                                 <p className="font-bold text-sffl-navy dark:text-white">{ticket.email}</p>

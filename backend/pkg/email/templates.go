@@ -144,7 +144,7 @@ func brandFooter() string {
 }
 
 // PurchaseEmailHTML generates a premium ticket confirmation email
-func PurchaseEmailHTML(eventTitle, eventDate, eventVenue, tierName, phone string, quantity int, totalAmount int, ticketCode string) string {
+func PurchaseEmailHTML(buyerName, eventTitle, eventDate, eventVenue, tierName, phone string, quantity int, totalAmount int, ticketCode string) string {
 	unitDisplay := "ticket"
 	isAre := "is"
 	if quantity > 1 {
@@ -178,6 +178,7 @@ func PurchaseEmailHTML(eventTitle, eventDate, eventVenue, tierName, phone string
 <!-- Greeting -->
 <tr>
 <td style="padding: 32px 40px 0;">
+<p style="color: #334155; font-size: 16px; font-weight: 700; margin: 0 0 12px;">Hi %s,</p>
 <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0;">
 Thank you for your purchase! Your %s for <strong>%s</strong> %s confirmed. Here are your details:
 </p>
@@ -306,7 +307,7 @@ Thank you for your purchase! Your %s for <strong>%s</strong> %s confirmed. Here 
 </tr>
 </table>
 </body>
-</html>`, unitDisplay, eventTitle, isAre, eventTitle, eventDate, eventVenue, tierName, quantity, unitDisplay, phone, ticketCode, formatNaira(totalAmount))
+</html>`, buyerName, unitDisplay, eventTitle, isAre, eventTitle, eventDate, eventVenue, tierName, quantity, unitDisplay, phone, ticketCode, formatNaira(totalAmount))
 }
 
 // CheckinEmailHTML generates a premium check-in confirmation email

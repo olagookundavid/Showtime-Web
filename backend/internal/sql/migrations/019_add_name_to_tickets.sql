@@ -1,0 +1,5 @@
+-- +goose Up
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS name VARCHAR(255) NULL;
+
+-- +goose Down
+ALTER TABLE tickets DROP COLUMN IF EXISTS name;

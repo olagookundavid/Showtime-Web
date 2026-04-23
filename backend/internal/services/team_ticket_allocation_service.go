@@ -129,6 +129,7 @@ func (s *TeamTicketAllocationService) IssueTeamTicket(ctx context.Context, req d
 			Status:      domain.TicketStatusPaid,
 			TicketCode:  GenerateTicketCode(),
 			TeamID:      &teamID,
+			Name:        req.Name,
 		}
 
 		if err := s.ticketRepo.Create(ctx, ticket); err != nil {
@@ -180,6 +181,7 @@ func (s *TeamTicketAllocationService) sendTeamTicketEmail(ticket *domain.Ticket)
 	}
 	subject := fmt.Sprintf("IT'S SHOWTIME 🏈, Your Ticket for %s", ticket.EventDay.Title)
 	body := email.PurchaseEmailHTML(
+		ticket.Name,
 		ticket.EventDay.Title,
 		ticket.EventDay.Date.Format("Mon, Jan 02 2006"),
 		ticket.EventDay.Venue,

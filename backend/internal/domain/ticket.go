@@ -61,6 +61,7 @@ type Ticket struct {
 	PaystackAccessCode *string      `json:"paystack_access_code,omitempty"`
 	TicketCode         string       `json:"ticket_code"`
 	Phone              string       `json:"phone"`
+	Name               string       `json:"name"`
 	TeamID             *string      `json:"team_id,omitempty"`
 	CheckedInAt        *time.Time   `json:"checked_in_at,omitempty"`
 	CheckedInBy        *string      `json:"checked_in_by,omitempty"`

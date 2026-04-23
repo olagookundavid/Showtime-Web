@@ -30,6 +30,7 @@ export const TicketsPage = () => {
     const [selectedTier, setSelectedTier] = useState<TicketTierResponse | null>(null);
     const [quantity, setQuantity] = useState(1);
     const [email, setEmail] = useState('');
+    const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
     const [useAccountEmail, setUseAccountEmail] = useState(false);
     const [userProfile, setUserProfile] = useState<AuthUser | null>(null);
@@ -54,6 +55,7 @@ export const TicketsPage = () => {
                     setUserProfile(profile);
                     setUseAccountEmail(true);
                     setEmail(profile.email);
+                    setName(profile.full_name);
                     if (profile.phone) setPhone(profile.phone);
                 })
                 .catch(() => {
@@ -63,19 +65,19 @@ export const TicketsPage = () => {
         }
     }, []);
 
-    // Sync email when toggle changes
+    // Sync email and name when toggle changes
     useEffect(() => {
         if (useAccountEmail && userProfile) {
             setEmail(userProfile.email);
+            setName(userProfile.full_name);
         } else if (!useAccountEmail && userProfile) {
-            // Optional: could keep the email but unlock it, but clear is safer for override
-            // Clear if they want to use something else
+            // Optional: could clear if they want to override
         }
     }, [useAccountEmail, userProfile]);
 
     const handlePurchase = async () => {
-        if (!selectedEventDay || !selectedTier || !email || !phone) {
-            setError(email && !phone ? 'Phone number is required' : 'All fields marked with * are required');
+        if (!selectedEventDay || !selectedTier || !email || !name) {
+            setError('Full Name and Email are required');
             return;
         }
         setError('');
@@ -86,6 +88,7 @@ export const TicketsPage = () => {
                 event_day_id: selectedEventDay.id,
                 tier_id: selectedTier.id,
                 email,
+                name,
                 phone,
                 quantity,
             };
@@ -292,6 +295,22 @@ export const TicketsPage = () => {
                                 </div>
                             )}
 
+                            {/* Full Name */}
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                                    Full Name <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    placeholder="e.g. John Doe"
+                                    className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none transition-opacity ${useAccountEmail ? 'opacity-60 cursor-not-allowed bg-gray-50' : ''}`}
+                                    required
+                                    disabled={useAccountEmail}
+                                />
+                            </div>
+
                             {/* Email */}
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
@@ -312,7 +331,7 @@ export const TicketsPage = () => {
                             {/* Phone */}
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                                    Phone Number <span className="text-red-500">*</span>
+                                    Phone Number <span className="text-gray-500 font-normal ml-1">(optional)</span>
                                 </label>
                                 <input
                                     type="tel"
@@ -320,7 +339,6 @@ export const TicketsPage = () => {
                                     onChange={(e) => setPhone(e.target.value)}
                                     placeholder="e.g. +234..."
                                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none"
-                                    required
                                 />
                                 <p className="text-xs text-gray-500 mt-1">We may call you regarding your ticket</p>
                             </div>
@@ -365,7 +383,7 @@ export const TicketsPage = () => {
                             >Cancel</button>
                             <button
                                 onClick={handlePurchase}
-                                disabled={purchasing || !email || !phone}
+                                disabled={purchasing || !email || !name}
                                 className="flex-1 bg-sffl-red hover:bg-[#A52323] text-white font-bold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {purchasing ? (

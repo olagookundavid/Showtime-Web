@@ -427,8 +427,10 @@ export interface TicketResponse {
     id: string;
     event_day_id: string;
     tier_id: string;
-    email: string;
+        email: string;
+    name?: string;
     phone?: string;
+
     quantity: number;
     unit_price: number;
     total_amount: number;
@@ -449,6 +451,7 @@ export interface PurchaseTicketPayload {
     event_day_id: string;
     tier_id: string;
     email: string;
+    name: string;
     phone: string;
     quantity: number;
 }

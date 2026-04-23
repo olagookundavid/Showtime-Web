@@ -321,6 +321,7 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 			TierID:             req.TierID,
 			Email:              req.Email,
 			Phone:              req.Phone,
+			Name:               req.Name,
 			Quantity:           req.Quantity,
 			UnitPrice:          tier.Price,
 			TotalAmount:        totalAmount,
@@ -368,6 +369,7 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 		TierID:           ticket.TierID,
 		Email:            ticket.Email,
 		Phone:            ticket.Phone,
+		Name:             ticket.Name,
 		Quantity:         ticket.Quantity,
 		UnitPrice:        ticket.UnitPrice,
 		TotalAmount:      ticket.TotalAmount,
@@ -557,6 +559,7 @@ func (s *TicketService) sendPurchaseEmail(ticket *domain.Ticket) {
 	}
 	subject := fmt.Sprintf("IT'S SHOWTIME 🏈, Your Ticket for %s", ticket.EventDay.Title)
 	body := email.PurchaseEmailHTML(
+		ticket.Name,
 		ticket.EventDay.Title,
 		ticket.EventDay.Date.Format("Mon, Jan 02 2006"),
 		ticket.EventDay.Venue,
@@ -656,6 +659,7 @@ func ticketToResponse(t *domain.Ticket) *dto.TicketResponse {
 		TierID:      t.TierID,
 		Email:       t.Email,
 		Phone:       t.Phone,
+		Name:        t.Name,
 		Quantity:    t.Quantity,
 		UnitPrice:   t.UnitPrice,
 		TotalAmount: t.TotalAmount,
