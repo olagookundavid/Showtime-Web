@@ -1,4 +1,4 @@
-package main
+package testing
 
 func testing(list []int) []int {
 
