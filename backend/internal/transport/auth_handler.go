@@ -186,8 +186,14 @@ func (h *AuthHandler) GetUsers(c *gin.Context) {
 		return
 	}
 
+	totalPages := 1
+	if limit > 0 {
+		totalPages = (total + limit - 1) / limit
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"data": users,
+		"data":        users,
+		"total_pages": totalPages,
 		"meta": gin.H{
 			"total": total,
 			"page":  page,

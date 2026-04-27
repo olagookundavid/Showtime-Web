@@ -30,6 +30,7 @@ func SetTokensInCookie(c *gin.Context, authUser *dto.LoginResponse) {
 		Secure:   true, // for HTTPS only
 		SameSite: http.SameSiteNoneMode,
 		Domain:   cookieDomain,
+		MaxAge:   30 * 24 * 60 * 60, // 30 days in seconds
 	})
 }
 

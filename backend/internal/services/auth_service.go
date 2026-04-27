@@ -224,7 +224,7 @@ func (s *AuthService) getAccessToken(userId string) (string, error) {
 
 	accessDuration, err := time.ParseDuration(os.Getenv("ACCESS_TOKEN_DURATION"))
 	if err != nil {
-		accessDuration = time.Hour * 24
+		accessDuration = time.Hour * 24 * 30
 	}
 
 	accessToken, _, err := s.TokenMaker.CreateToken(userId, accessDuration)
@@ -239,7 +239,7 @@ func (s *AuthService) getTokenPair(userId string) (string, error) {
 
 	accessDuration, err := time.ParseDuration(os.Getenv("ACCESS_TOKEN_DURATION"))
 	if err != nil {
-		accessDuration = time.Hour * 24
+		accessDuration = time.Hour * 24 * 30
 	}
 
 	accessToken, _, err := s.TokenMaker.CreateToken(userId, accessDuration)
