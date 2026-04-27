@@ -34,8 +34,8 @@ export const LoginPage = () => {
     };
 
     return (
-        <div className="min-h-[80vh] flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4 transition-colors">
-            <div className="max-w-md w-full bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-xl p-8">
+        <div className="min-h-[80vh] flex items-center justify-center bg-transparent px-4 transition-colors">
+            <div className="max-w-md w-full bg-white/10 dark:bg-slate-900/50 backdrop-blur-md border border-white/10 dark:border-white/10 rounded-2xl shadow-xl p-8">
                 {/* Header */}
                 <div className="text-center mb-8">
                     <img
