@@ -38,22 +38,20 @@ export const Layout = () => {
     const isHomePage = location.pathname === '/';
 
     return (
-        <div className={`flex flex-col min-h-screen w-full max-w-[100vw] overflow-x-hidden transition-colors duration-500 ${isHomePage ? 'bg-transparent' : 'bg-white dark:bg-gray-950 pb-14 lg:pb-0'}`}>
-            {/* Global Home Background - Only active on landing page */}
-            {isHomePage && (
-                <div className="fixed inset-0 -z-50 bg-gray-50 dark:bg-gray-950">
-                    <div 
-                        className="absolute inset-0 bg-[url('/images/branding/home-bg.jpeg')] bg-cover bg-center opacity-20 dark:opacity-30" 
-                        style={{ backgroundAttachment: 'fixed' }}
-                    />
-                    {/* Atmospheric overlays */}
-                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white dark:to-gray-950" />
-                    <div className="absolute inset-0 bg-gradient-to-br from-sffl-red/5 via-transparent to-sffl-navy/10 dark:from-sffl-red/10 dark:to-sffl-navy/40" />
-                </div>
-            )}
+        <div className={`flex flex-col min-h-screen w-full max-w-[100vw] overflow-x-hidden transition-colors duration-500 bg-transparent pb-14 lg:pb-0`}>
+            {/* Global Background */}
+            <div className="fixed inset-0 -z-50 bg-gray-50 dark:bg-gray-950">
+                <div 
+                    className="absolute inset-0 bg-[url('/images/branding/home-bg.jpeg')] bg-cover bg-center opacity-20 dark:opacity-30" 
+                    style={{ backgroundAttachment: 'fixed' }}
+                />
+                {/* Atmospheric overlays */}
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white dark:to-gray-950" />
+                <div className="absolute inset-0 bg-gradient-to-br from-sffl-red/5 via-transparent to-sffl-navy/10 dark:from-sffl-red/10 dark:to-sffl-navy/40" />
+            </div>
 
             <Navbar onMoreClick={() => setIsMoreMenuOpen(true)} />
-            <main className={`flex-grow w-full max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-3 md:py-8 ${isHomePage ? 'relative z-10' : ''}`}>
+            <main className="flex-grow w-full max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-3 md:py-8 relative z-10">
                 <Outlet />
             </main>
             <Footer />

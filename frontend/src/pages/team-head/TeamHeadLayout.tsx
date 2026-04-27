@@ -54,7 +54,17 @@ const TeamHeadLayout = () => {
     };
 
     return (
-        <div className={`flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900 w-full relative`}>
+        <div className={`flex h-screen overflow-hidden bg-transparent w-full relative`}>
+            {/* Global Background */}
+            <div className="fixed inset-0 -z-50 bg-gray-50 dark:bg-gray-950">
+                <div 
+                    className="absolute inset-0 bg-[url('/images/branding/home-bg.jpeg')] bg-cover bg-center opacity-20 dark:opacity-30" 
+                    style={{ backgroundAttachment: 'fixed' }}
+                />
+                {/* Atmospheric overlays */}
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white dark:to-gray-950" />
+                <div className="absolute inset-0 bg-gradient-to-br from-sffl-red/5 via-transparent to-sffl-navy/10 dark:from-sffl-red/10 dark:to-sffl-navy/40" />
+            </div>
             {/* Mobile Team Header */}
             <div className="md:hidden fixed top-0 left-0 right-0 h-12 bg-white dark:bg-gray-800 text-sffl-navy dark:text-white border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-3 z-30 shadow-sm">
                 <div className="flex items-center gap-2">
