@@ -41,6 +41,17 @@ func NewMatchService(repo ports.MatchRepository, storage ports.StorageService) I
 }
 
 
+func (s *MatchService) isCompleted(ctx context.Context, competitionID string) (bool, error) {
+	if competitionID == "" {
+		return false, nil
+	}
+	comp, err := s.repo.GetCompetitionByID(ctx, competitionID)
+	if err != nil {
+		return false, err
+	}
+	return comp != nil && comp.Status == "completed", nil
+}
+
 func (s *MatchService) GetCompetitions(ctx context.Context, page, limit int, search string, status string) (dto.PaginatedResult[dto.CompetitionResponse], error) {
 	competitions, total, err := s.repo.GetCompetitions(ctx, page, limit, search, status)
 	if err != nil {
@@ -179,6 +190,14 @@ func (s *MatchService) GetMatches(ctx context.Context, competitionID string, sta
 }
 
 func (s *MatchService) CreateMatch(ctx context.Context, match *domain.Match) error {
+	completed, err := s.isCompleted(ctx, match.CompetitionID)
+	if err != nil {
+		return err
+	}
+	if completed {
+		return fmt.Errorf("competition is completed and cannot be modified")
+	}
+
 	if err := s.repo.CreateMatch(ctx, match); err != nil {
 		return err
 	}
@@ -189,6 +208,14 @@ func (s *MatchService) CreateMatch(ctx context.Context, match *domain.Match) err
 }
 
 func (s *MatchService) UpdateMatch(ctx context.Context, match *domain.Match) error {
+	completed, err := s.isCompleted(ctx, match.CompetitionID)
+	if err != nil {
+		return err
+	}
+	if completed {
+		return fmt.Errorf("competition is completed and cannot be modified")
+	}
+
 	if err := s.repo.UpdateMatch(ctx, match); err != nil {
 		return err
 	}
@@ -201,6 +228,15 @@ func (s *MatchService) DeleteMatch(ctx context.Context, id string) error {
 		return s.repo.DeleteMatch(ctx, id)
 	}
 	competitionID := existing.CompetitionID
+
+	completed, err := s.isCompleted(ctx, competitionID)
+	if err != nil {
+		return err
+	}
+	if completed {
+		return fmt.Errorf("competition is completed and cannot be modified")
+	}
+
 	if err := s.repo.DeleteMatch(ctx, id); err != nil {
 		return err
 	}
@@ -208,6 +244,13 @@ func (s *MatchService) DeleteMatch(ctx context.Context, id string) error {
 }
 
 func (s *MatchService) RecalculateStandings(ctx context.Context, competitionID string) error {
+	completed, err := s.isCompleted(ctx, competitionID)
+	if err != nil {
+		return err
+	}
+	if completed {
+		return fmt.Errorf("competition is completed and cannot be modified")
+	}
 	return s.repo.RecalculateStandings(ctx, competitionID)
 }
 
@@ -243,14 +286,41 @@ func (s *MatchService) GetStandings(ctx context.Context, competitionID string) (
 }
 
 func (s *MatchService) CreateStanding(ctx context.Context, standing *domain.Standing) error {
+	completed, err := s.isCompleted(ctx, standing.CompetitionID)
+	if err != nil {
+		return err
+	}
+	if completed {
+		return fmt.Errorf("competition is completed and cannot be modified")
+	}
 	return s.repo.CreateStanding(ctx, standing)
 }
 
 func (s *MatchService) UpdateStanding(ctx context.Context, standing *domain.Standing) error {
+	completed, err := s.isCompleted(ctx, standing.CompetitionID)
+	if err != nil {
+		return err
+	}
+	if completed {
+		return fmt.Errorf("competition is completed and cannot be modified")
+	}
 	return s.repo.UpdateStanding(ctx, standing)
 }
 
 func (s *MatchService) DeleteStanding(ctx context.Context, id string) error {
+	existing, err := s.repo.GetStandingByID(ctx, id)
+	if err != nil || existing == nil {
+		return s.repo.DeleteStanding(ctx, id)
+	}
+	competitionID := existing.CompetitionID
+
+	completed, err := s.isCompleted(ctx, competitionID)
+	if err != nil {
+		return err
+	}
+	if completed {
+		return fmt.Errorf("competition is completed and cannot be modified")
+	}
 	return s.repo.DeleteStanding(ctx, id)
 }
 

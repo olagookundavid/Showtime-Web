@@ -16,14 +16,23 @@ type IStatsService interface {
 }
 
 type StatsService struct {
-	repo ports.StatsRepository
+	repo      ports.StatsRepository
+	matchRepo ports.MatchRepository
 }
 
-func NewStatsService(repo ports.StatsRepository) IStatsService {
-	return &StatsService{repo: repo}
+func NewStatsService(repo ports.StatsRepository, matchRepo ports.MatchRepository) IStatsService {
+	return &StatsService{repo: repo, matchRepo: matchRepo}
 }
 
 func (s *StatsService) UpsertPlayerStat(ctx context.Context, stat *domain.PlayerStat) error {
+	comp, err := s.matchRepo.GetCompetitionByID(ctx, stat.CompetitionID)
+	if err != nil {
+		return err
+	}
+	if comp != nil && comp.Status == "completed" {
+		return fmt.Errorf("competition is completed and cannot be modified")
+	}
+
 	// The repo handles the incremental add via ON CONFLICT DO UPDATE
 	return s.repo.UpsertPlayerStat(ctx, stat)
 }

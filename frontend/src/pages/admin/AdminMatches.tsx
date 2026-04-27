@@ -25,7 +25,7 @@ interface FormData {
 
 const emptyForm: FormData = {
     competition_id: '', home_team_id: '', away_team_id: '',
-    date: '', start_time: '', venue: '', status: 'SCHEDULED',
+    date: '', start_time: '12:00', venue: 'Showtime Arena', status: 'FINISHED',
     home_score: '', away_score: '', highlights_url: '', ticket_url: '',
 };
 
@@ -45,7 +45,7 @@ export const AdminMatches = () => {
 
     const { data: compsData, isLoading: loadingComps } = useQuery({
         queryKey: ['adminCompetitions'],
-        queryFn: () => getCompetitions(1, 100, 'active'),
+        queryFn: () => getCompetitions(1, 100),
     });
 
     const { data: teamsData, isLoading: loadingTeams } = useQuery({
@@ -63,7 +63,7 @@ export const AdminMatches = () => {
 
     // Auto-select first competition when loaded
     useEffect(() => {
-        const comps = compsData?.data || [];
+        const comps = (compsData?.data || []).filter(c => c.status !== 'inactive');
         if (comps.length > 0 && !filterComp) {
             setFilterComp(comps[0].id);
         }
@@ -78,7 +78,9 @@ export const AdminMatches = () => {
         }));
     };
 
-    const competitions: Competition[] = compsData?.data || [];
+    const competitions: Competition[] = (compsData?.data || []).filter(c => c.status !== 'inactive');
+    const selectedCompData = competitions.find(c => c.id === filterComp);
+    const isCompleted = selectedCompData?.status === 'completed';
     const teams: Team[] = teamsData?.data || [];
     const matches: Match[] = matchesData?.data || [];
     const totalPages = matchesData?.total_pages || 1;
@@ -219,9 +221,22 @@ export const AdminMatches = () => {
                     >
                         {competitions.map(c => <option key={c.id} value={c.id} className="truncate">{c.name}</option>)}
                     </select>
-                    <button onClick={openCreate} className="px-4 py-2 min-h-[44px] bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 whitespace-nowrap">+ Add Match</button>
+                    <button 
+                        onClick={openCreate} 
+                        disabled={isCompleted}
+                        className="px-4 py-2 min-h-[44px] bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        + Add Match
+                    </button>
                 </div>
             </div>
+
+            {isCompleted && (
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 rounded-xl p-4 flex items-center gap-3 text-amber-800 dark:text-amber-400 font-bold text-sm">
+                    <span>🔒</span>
+                    <span>Season Completed. Matches are locked and cannot be modified.</span>
+                </div>
+            )}
 
             {loading ? (
                 <Loader />
@@ -293,8 +308,14 @@ export const AdminMatches = () => {
                                                     </td>
                                                     <td className="px-4 py-3 text-right">
                                                         <div className="flex justify-end gap-2">
-                                                            <button onClick={() => openEdit(m)} className="px-2.5 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 font-bold text-xs rounded-md shadow-sm transition-all">Edit</button>
-                                                            <button onClick={() => setDeleteConfirm(m.id)} className="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-bold text-xs rounded-md shadow-sm transition-all">Delete</button>
+                                                            {!isCompleted ? (
+                                                                <>
+                                                                    <button onClick={() => openEdit(m)} className="px-2.5 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 font-bold text-xs rounded-md shadow-sm transition-all">Edit</button>
+                                                                    <button onClick={() => setDeleteConfirm(m.id)} className="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-bold text-xs rounded-md shadow-sm transition-all">Delete</button>
+                                                                </>
+                                                            ) : (
+                                                                <span className="text-gray-400 dark:text-gray-600 text-xs font-semibold">Locked</span>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 </tr>

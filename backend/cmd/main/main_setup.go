@@ -243,7 +243,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	tmService := services.NewTeamManagerService(tmRepo, authRepo)
 	analyticsService := services.NewAnalyticsService(authRepo, ticketRepo, analyticsRepo)
 	tmAllocService := services.NewTeamTicketAllocationService(tmAllocRepo, ticketRepo, tierRepo, eventDayRepo, emailService)
-	statsService := services.NewStatsService(statsRepo)
+	statsService := services.NewStatsService(statsRepo, matchRepo)
 	inventoryService := services.NewInventoryService(inventoryRepo)
 	totwService := services.NewTOTWService(totwRepo)
 

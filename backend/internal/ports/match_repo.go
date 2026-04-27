@@ -39,6 +39,7 @@ type MatchRepository interface {
 	CreateStanding(ctx context.Context, standing *domain.Standing) error
 	UpdateStanding(ctx context.Context, standing *domain.Standing) error
 	DeleteStanding(ctx context.Context, id string) error
+	GetStandingByID(ctx context.Context, id string) (*domain.Standing, error)
 	RecalculateStandings(ctx context.Context, competitionID string) error
 }
 
@@ -424,6 +425,16 @@ func (r *PostgresMatchRepository) DeleteStanding(ctx context.Context, id string)
 	query := `DELETE FROM standings WHERE id = $1`
 	_, err := r.db.Exec(ctx, query, id)
 	return err
+}
+
+func (r *PostgresMatchRepository) GetStandingByID(ctx context.Context, id string) (*domain.Standing, error) {
+	query := `SELECT id, competition_id, team_id, position, played, won, drawn, lost, goals_for, goals_against, pct, l5, created_at, updated_at FROM standings WHERE id = $1`
+	var s domain.Standing
+	err := r.db.QueryRow(ctx, query, id).Scan(&s.ID, &s.CompetitionID, &s.TeamID, &s.Position, &s.Played, &s.Won, &s.Drawn, &s.Lost, &s.GoalsFor, &s.GoalsAgainst, &s.PCT, &s.L5, &s.CreatedAt, &s.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &s, nil
 }
 
 func (r *PostgresMatchRepository) RecalculateStandings(ctx context.Context, competitionID string) error {

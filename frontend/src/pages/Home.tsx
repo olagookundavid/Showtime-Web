@@ -64,7 +64,7 @@ export default function Home() {
         queryFn: () => getNews(1, 3),
     });
 
-    const competitions = competitionsData?.data || [];
+    const competitions = (competitionsData?.data || []).filter(c => c.status !== 'inactive');
     const firstCompId = competitions?.[0]?.id;
 
     const { data: standingsDataRaw, isLoading: loadingStandings } = useQuery({

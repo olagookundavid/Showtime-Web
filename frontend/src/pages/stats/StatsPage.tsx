@@ -32,7 +32,7 @@ export const StatsPage = () => {
         queryKey: ['publicCompetitions'],
         queryFn: () => getCompetitions(1, 100),
     });
-    const competitions = competitionsData?.data || [];
+    const competitions = (competitionsData?.data || []).filter(c => c.status !== 'inactive');
 
     const { data: datesData, isLoading: datesLoading } = useQuery({
         queryKey: ['statDates', selectedCompetitionId],

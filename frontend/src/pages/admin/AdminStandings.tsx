@@ -17,12 +17,12 @@ export const AdminStandings = () => {
 
     const { data: compsData, isLoading: loadingComps } = useQuery({
         queryKey: ['adminCompetitions'],
-        queryFn: () => getCompetitions(1, 100, 'active'),
+        queryFn: () => getCompetitions(1, 100),
     });
 
     // Auto-select first competition when loaded
     useEffect(() => {
-        const comps = compsData?.data || [];
+        const comps = (compsData?.data || []).filter(c => c.status !== 'inactive');
         if (comps.length > 0 && !selectedComp) {
             setSelectedComp(comps[0].id);
         }
@@ -36,7 +36,9 @@ export const AdminStandings = () => {
         enabled: !!selectedComp,
     });
 
-    const competitions: Competition[] = compsData?.data || [];
+    const competitions: Competition[] = (compsData?.data || []).filter(c => c.status !== 'inactive');
+    const selectedCompData = competitions.find(c => c.id === selectedComp);
+    const isCompleted = selectedCompData?.status === 'completed';
     const standings: Standing[] = Array.isArray(standingsData) ? standingsData : [];
     const loading = loadingComps || (!!selectedComp && loadingStandings);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -73,6 +75,13 @@ export const AdminStandings = () => {
                     </select>
                 </div>
             </div>
+            
+            {isCompleted && (
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 rounded-xl p-4 flex items-center gap-3 text-amber-800 dark:text-amber-400 font-bold text-sm">
+                    <span>🔒</span>
+                    <span>Season Completed. Standings are locked and cannot be modified.</span>
+                </div>
+            )}
 
             {loading ? (
                 <Loader />
@@ -129,8 +138,11 @@ export const AdminStandings = () => {
                                         </div>
                                     </td>
                                     <td className="px-4 py-3 text-right space-x-2">
-
-                                        <button onClick={() => setDeleteConfirm(s.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 font-bold text-sm">Delete</button>
+                                        {!isCompleted ? (
+                                            <button onClick={() => setDeleteConfirm(s.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 font-bold text-sm">Delete</button>
+                                        ) : (
+                                            <span className="text-gray-400 dark:text-gray-600 text-xs font-semibold">Locked</span>
+                                        )}
                                     </td>
                                 </tr>
                             ))}

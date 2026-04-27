@@ -15,7 +15,7 @@ export const MatchHub = () => {
         queryKey: ['publicCompetitions'],
         queryFn: () => getCompetitions(1, 100),
     });
-    const competitions = competitionsData?.data || [];
+    const competitions = (competitionsData?.data || []).filter(c => c.status !== 'inactive');
 
     useEffect(() => {
         if (competitions.length > 0 && !selectedCompetitionId) {
@@ -29,6 +29,8 @@ export const MatchHub = () => {
         enabled: !!selectedCompetitionId,
     });
     const standings = standingsData || [];
+    const selectedCompetition = competitions.find(c => c.id === selectedCompetitionId);
+    const isCompleted = selectedCompetition?.status === 'completed';
 
     const {
         data: infiniteMatchesData,
@@ -247,7 +249,7 @@ export const MatchHub = () => {
                     </div>
                     {standings.length > 0 ? (
                         <div className="sticky top-24 space-y-6">
-                            <MatchStandingsTable standings={standings} />
+                            <MatchStandingsTable standings={standings} isCompleted={isCompleted} />
 
                             <div className="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-xl p-6 text-white shadow-lg">
                                 <h3 className="text-xl font-bold mb-2">Join the Action!</h3>

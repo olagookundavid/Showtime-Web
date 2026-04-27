@@ -31,7 +31,7 @@ export const TOTWPage = () => {
         queryKey: ['publicCompsList'],
         queryFn: () => getCompetitions(1, 100),
     });
-    const comps: Competition[] = compData?.data || [];
+    const comps: Competition[] = (compData?.data || []).filter(c => c.status !== 'inactive');
 
     const { data: datesData, isLoading: loadingDates } = useQuery({
         queryKey: ['statDates', selectedComp],

@@ -175,10 +175,13 @@ const AdminCompetitions = () => {
                                     )}
                                     <h3 className="text-lg font-bold text-gray-900 dark:text-white flex-1">{comp.name}</h3>
                                     {comp.status && (
-                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${comp.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                                                comp.status === 'inactive' ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' :
-                                                    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                                            }`}>
+                                        <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${
+                                            comp.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                                            comp.status === 'inactive' ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' :
+                                            comp.status === 'completed' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                                            'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                        }`}>
+                                            {comp.status === 'completed' && <span>🏆</span>}
                                             {comp.status}
                                         </span>
                                     )}
@@ -250,7 +253,7 @@ const AdminCompetitions = () => {
                                     className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red">
                                     <option value="active">Active</option>
                                     <option value="inactive">Inactive</option>
-                                    <option value="archived">Archived</option>
+                                    <option value="completed">Completed</option>
                                 </select>
                             </div>
                         </div>

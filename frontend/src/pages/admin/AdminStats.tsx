@@ -52,9 +52,11 @@ export const AdminStats = () => {
     // Queries
     const { data: compData, isLoading: loadingComps } = useQuery({
         queryKey: ['adminCompsList'],
-        queryFn: () => getCompetitions(1, 100, 'active'),
+        queryFn: () => getCompetitions(1, 100),
     });
-    const comps: Competition[] = compData?.data || [];
+    const comps: Competition[] = (compData?.data || []).filter(c => c.status !== 'inactive');
+    const selectedCompData = comps.find(c => c.id === selectedComp);
+    const isCompleted = selectedCompData?.status === 'completed';
 
     const { data: teamsData, isLoading: loadingTeams } = useQuery({
         queryKey: ['adminTeamsListAll'],
@@ -181,9 +183,10 @@ export const AdminStats = () => {
             cell: (p) => (
                 <button
                     onClick={() => openStatsModal(p)}
-                    className="px-3 py-1.5 bg-sffl-navy text-white font-bold text-xs rounded-lg shadow-sm hover:shadow-md hover:bg-sffl-navy-light transition-all duration-300 hover:scale-[1.02] active:scale-95 whitespace-nowrap"
+                    disabled={isCompleted}
+                    className="px-3 py-1.5 bg-sffl-navy text-white font-bold text-xs rounded-lg shadow-sm hover:shadow-md hover:bg-sffl-navy-light transition-all duration-300 hover:scale-[1.02] active:scale-95 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    Edit Stats
+                    {isCompleted ? 'Locked' : 'Edit Stats'}
                 </button>
             )
         },
@@ -226,6 +229,13 @@ export const AdminStats = () => {
                     </select>
                 </div>
             </div>
+
+            {isCompleted && (
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 rounded-xl p-4 flex items-center gap-3 text-amber-800 dark:text-amber-400 font-bold text-sm">
+                    <span>🔒</span>
+                    <span>Season Completed. Stats are locked and cannot be modified.</span>
+                </div>
+            )}
 
             {(loadingComps || loadingTeams || loadingPlayers) ? (
                 <Loader />

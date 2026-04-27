@@ -12,7 +12,7 @@ export const StandingsPage = () => {
         queryKey: ['publicCompetitions'],
         queryFn: () => getCompetitions(1, 100),
     });
-    const competitions = competitionsData?.data || [];
+    const competitions = (competitionsData?.data || []).filter(c => c.status !== 'inactive');
 
     useEffect(() => {
         if (competitions.length > 0 && !selectedCompetitionId) {
@@ -127,7 +127,7 @@ export const StandingsPage = () => {
                         )}
                     </div>
 
-                    <StandingsTable standings={standings} />
+                    <StandingsTable standings={standings} isCompleted={selectedCompetition?.status === 'completed'} />
                 </div>
             ) : !dataLoading ? (
                 <div className="bg-gray-100 dark:bg-gray-800 p-16 rounded-xl text-center">
