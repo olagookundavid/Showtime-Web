@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ImageLightbox } from './ImageLightbox';
 
 interface LightboxImageProps {
@@ -16,6 +16,15 @@ export const LightboxImage: React.FC<LightboxImageProps> = ({
   thumbnailClassName = '',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [imgSrc, setImgSrc] = useState(src || '/images/default_football.png');
+
+  useEffect(() => {
+    setImgSrc(src || '/images/default_football.png');
+  }, [src]);
+
+  const handleError = () => {
+    setImgSrc('/images/default_football.png');
+  };
 
   return (
     <>
@@ -29,13 +38,14 @@ export const LightboxImage: React.FC<LightboxImageProps> = ({
         title={title || alt || 'View Full Image'}
       >
         <img
-          src={src}
+          src={imgSrc}
           alt={alt}
+          onError={handleError}
           className="max-w-full max-h-full object-contain"
         />
       </div>
       <ImageLightbox
-        src={src}
+        src={imgSrc}
         alt={alt}
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}

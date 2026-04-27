@@ -21,7 +21,7 @@ export default function MatchCard({ match, homeTeam, awayTeam }: MatchCardProps)
                 {/* Home Team */}
                 <div className="flex flex-col items-center flex-1">
                     {homeTeam.logoUrl ? (
-                        <img src={homeTeam.logoUrl} alt={homeTeam.name} className="w-16 h-16 rounded-full mb-2 object-cover bg-gray-700" />
+                        <img src={homeTeam.logoUrl} alt={homeTeam.name} onError={(e) => { e.currentTarget.src = '/images/default_football.png'; }} className="w-16 h-16 rounded-full mb-2 object-cover bg-gray-700" />
                     ) : (
                         <div className="w-16 h-16 rounded-full bg-gray-700 mb-2 flex items-center justify-center text-2xl font-bold">
                             {homeTeam.name[0]}
@@ -50,7 +50,7 @@ export default function MatchCard({ match, homeTeam, awayTeam }: MatchCardProps)
                 {/* Away Team */}
                 <div className="flex flex-col items-center flex-1">
                     {awayTeam.logoUrl ? (
-                        <img src={awayTeam.logoUrl} alt={awayTeam.name} className="w-16 h-16 rounded-full mb-2 object-cover bg-gray-700" />
+                        <img src={awayTeam.logoUrl} alt={awayTeam.name} onError={(e) => { e.currentTarget.src = '/images/default_football.png'; }} className="w-16 h-16 rounded-full mb-2 object-cover bg-gray-700" />
                     ) : (
                         <div className="w-16 h-16 rounded-full bg-gray-700 mb-2 flex items-center justify-center text-2xl font-bold">
                             {awayTeam.name[0]}
