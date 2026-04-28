@@ -79,39 +79,41 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
             </div>
 
             {/* Footer Actions - Compact */}
-            <div className="p-2 md:p-4 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row justify-center gap-1.5 md:gap-3 bg-gray-50 dark:bg-gray-700/50">
-                {isFinished ? (
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (match.highlights_url) window.open(match.highlights_url, '_blank', 'noopener,noreferrer');
-                        }}
-                        className="px-3 py-1.5 bg-sffl-red text-white text-[10px] md:text-sm font-bold flex items-center justify-center min-h-[36px] md:min-h-[44px] rounded-lg hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 w-full"
-                    >
-                        Highlights
-                    </button>
-                ) : (
-                    <>
-                        <Link
-                            to={`/tickets?date=${match.date.split('T')[0]}`}
-                            onClick={(e) => e.stopPropagation()}
-                            className="px-3 py-1.5 bg-sffl-navy text-white text-[10px] md:text-sm font-bold flex items-center justify-center min-h-[36px] md:min-h-[44px] rounded-lg hover:bg-blue-900 transition-all duration-300 hover:scale-[1.02] active:scale-95 w-full block"
-                        >
-                            🎟️ Tickets
-                        </Link>
+            {(!isFinished || (isFinished && match.highlights_url)) && (
+                <div className="p-2 md:p-4 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row justify-center gap-1.5 md:gap-3 bg-gray-50 dark:bg-gray-700/50">
+                    {isFinished ? (
                         <button
-                            className="px-3 py-1.5 bg-white text-sffl-navy border border-gray-300 text-[10px] md:text-sm font-bold flex items-center justify-center min-h-[36px] md:min-h-[44px] rounded-lg hover:bg-gray-50 dark:bg-gray-800 dark:text-white dark:border-gray-600 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 w-full"
                             onClick={(e) => {
                                 e.stopPropagation();
-                                const link = generateGoogleCalendarLink(match);
-                                window.open(link, '_blank', 'noopener,noreferrer');
+                                if (match.highlights_url) window.open(match.highlights_url, '_blank', 'noopener,noreferrer');
                             }}
+                            className="px-3 py-1.5 bg-sffl-red text-white text-[10px] md:text-sm font-bold flex items-center justify-center min-h-[36px] md:min-h-[44px] rounded-lg hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 w-full"
                         >
-                            + Calendar
+                            Highlights
                         </button>
-                    </>
-                )}
-            </div>
+                    ) : (
+                        <>
+                            <Link
+                                to={`/tickets?date=${match.date.split('T')[0]}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="px-3 py-1.5 bg-sffl-navy text-white text-[10px] md:text-sm font-bold flex items-center justify-center min-h-[36px] md:min-h-[44px] rounded-lg hover:bg-blue-900 transition-all duration-300 hover:scale-[1.02] active:scale-95 w-full block"
+                            >
+                                🎟️ Tickets
+                            </Link>
+                            <button
+                                className="px-3 py-1.5 bg-white text-sffl-navy border border-gray-300 text-[10px] md:text-sm font-bold flex items-center justify-center min-h-[36px] md:min-h-[44px] rounded-lg hover:bg-gray-50 dark:bg-gray-800 dark:text-white dark:border-gray-600 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 w-full"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const link = generateGoogleCalendarLink(match);
+                                    window.open(link, '_blank', 'noopener,noreferrer');
+                                }}
+                            >
+                                + Calendar
+                            </button>
+                        </>
+                    )}
+                </div>
+            )}
         </div>
     );
 };
