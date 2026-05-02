@@ -1,5 +1,4 @@
 import { FAQSection } from './FAQSection';
-import { CopyableEmail } from '../../components/common/CopyableEmail';
 
 export const AboutShowtimeFlag = () => {
     return (
@@ -27,7 +26,7 @@ export const AboutShowtimeFlag = () => {
                             <span className="text-3xl">🎯</span> MISSION
                         </h2>
                         <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
-                            To define the highest standard of competition and spectacle in co-ed flag football.
+                            To build a structured, professional, and commercially viable flag football ecosystem that develops athletes, delivers high-quality sporting experiences, and creates meaningful opportunities for partners, communities, and the next generation of talent.
                         </p>
                     </section>
 
@@ -36,7 +35,7 @@ export const AboutShowtimeFlag = () => {
                             <span className="text-3xl">👁️</span> VISION
                         </h2>
                         <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
-                            To build a lasting sports institution where elite co-ed competition, cultural energy, and professional excellence unite to shape the future of flag football.
+                            To become the leading flag football platform in the World and a globally recognized standard for how emerging sports are organized, experienced, and scaled.
                         </p>
                     </section>
                 </div>
@@ -46,60 +45,22 @@ export const AboutShowtimeFlag = () => {
                     <h2 className="text-2xl font-black italic mb-6">ABOUT US</h2>
                     <div className="space-y-4 text-gray-200 leading-relaxed">
                         <p>
-                            Showtime Flag is a performance-driven sports institution and cultural platform rooted in Lagos, Nigeria.
+                            Showtime Flag is a premier flag football platform built to grow the sport, develop athletes, and create a new culture of competitive sport entertainment in Nigeria.
                         </p>
                         <p>
-                            Founded in mid-2023 as The Lagos Flag Football League by Azeez Amida, the league was rebranded in 2024 to reflect its growing ambition, not only to host games, but to define the highest standard of co-ed flag football.
+                            Founded with a clear belief that sport can be both a business and a movement, Showtime Flag brings together athletes, fans, brands, schools, communities, and media through organized leagues, tournaments, training programs, and high-quality sporting experiences.
                         </p>
                         <p>
-                            Today, Showtime operates as a structured competitive ecosystem. Through initiatives like Showtime Streetz — our scouting program — and Showtime Pro — our intensive athlete development platform — we identify, train, and elevate talent into the Showtime player pipeline.
+                            At the heart of Showtime Flag is a simple mission: to make flag football accessible, aspirational, and commercially viable.
                         </p>
                         <p className="font-bold text-white text-lg mt-6 pt-6 border-t border-white/20">
-                            Every season, Showtime transforms Sundays into a destination experience where elite co-ed competition meets curated spectacle. What began as a league has evolved into an institution built on excellence, structure, and the belief that sport, culture, and opportunity can rise together.
+                            We are building more than a league. We are building an ecosystem where athletes can compete, brands can connect with youth culture, and communities can experience sport in a fresh, energetic, and inclusive way.
                         </p>
                     </div>
                 </section>
             </div>
 
-            {/* Sponsorships */}
-            <section className="bg-white dark:bg-gray-800 p-10 rounded-3xl shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-sffl-red/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-                <h2 className="text-3xl font-black text-sffl-navy dark:text-white mb-6 relative z-10">SPONSORSHIPS</h2>
 
-                <div className="prose prose-lg dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 relative z-10">
-                    <p className="font-medium text-xl text-sffl-navy dark:text-blue-400 mb-6">
-                        Showtime offers premium partnership opportunities across live events, digital platforms, media integration, and community development initiatives.
-                    </p>
-                    <p className="mb-8">
-                        As The Standard of Co-Ed Flag Football, we provide more than brand visibility. What we offer is cultural positioning within a fast-growing, youth-forward sports ecosystem.
-                    </p>
-
-                    <div className="bg-gray-50 dark:bg-gray-900/50 p-8 rounded-2xl border border-gray-100 dark:border-gray-700">
-                        <h3 className="font-bold text-lg text-sffl-navy dark:text-white mb-4">Partnership opportunities include:</h3>
-                        <ul className="grid md:grid-cols-2 gap-4 list-none p-0 m-0">
-                            {[
-                                'Title Sponsorship',
-                                'Season Partnerships',
-                                'Game-Day Activations',
-                                'Digital & Media Integration',
-                                'Product Placement & On-Site Experience',
-                                'Community & Development Program Sponsorship'
-                            ].map((item, i) => (
-                                <li key={i} className="flex items-center gap-3 m-0 p-0 text-base font-semibold">
-                                    <span className="text-sffl-red text-xl">✓</span> {item}
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-
-                    <p className="font-black text-xl text-center text-sffl-navy dark:text-white mt-8 italic">
-                        Showtime is where brands align with competition, culture, and credibility.
-                    </p>
-                    <div className="flex justify-center mt-6">
-                        <CopyableEmail email="showtime@sffl.football" label="Request Deck at:" className="bg-gray-100 dark:bg-gray-800 text-sffl-navy dark:text-white px-6 py-3 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm" />
-                    </div>
-                </div>
-            </section>
 
             {/* Incubator Program */}
             <section className="bg-gradient-to-r from-gray-900 to-sffl-navy text-white p-10 rounded-3xl shadow-xl overflow-hidden relative">

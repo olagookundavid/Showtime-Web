@@ -55,7 +55,8 @@ export const NewsDetail = () => {
                         <LightboxImage
                             src={article.featured_image}
                             alt={article.title}
-                            thumbnailClassName="w-full h-full object-cover"
+                            thumbnailClassName="w-full h-full"
+                            imgClassName="w-full h-full object-cover"
                         />
                     ) : (
                         <div className="w-full h-full bg-gray-200 flex items-center justify-center">No Image</div>
@@ -65,7 +66,7 @@ export const NewsDetail = () => {
                 {/* Content */}
                 <div className="p-8 md:p-12">
                     {/* Category */}
-                    <div className="inline-block bg-sffl-red text-white text-sm font-bold px-4 py-2 rounded-full mb-4 uppercase">
+                    <div className="w-fit bg-sffl-red text-white text-sm font-bold px-4 py-2 rounded-full mb-4 uppercase">
                         {article.category}
                     </div>
 

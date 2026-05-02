@@ -18,7 +18,7 @@ export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({ standi
                 <span>Team Standings</span>
                 {isCompleted && <span className="text-xs bg-amber-500 text-sffl-navy px-2 py-0.5 rounded-full font-black uppercase tracking-wider">Completed</span>}
             </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto custom-scrollbar">
                 <table className="w-full text-xs md:text-sm text-left">
                     <thead className="text-[10px] md:text-xs uppercase bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
                         <tr>

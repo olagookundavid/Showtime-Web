@@ -37,7 +37,7 @@ export const Layout = () => {
 
 
     return (
-        <div className={`flex flex-col min-h-screen w-full max-w-[100vw] overflow-x-hidden transition-colors duration-500 bg-transparent pb-14 lg:pb-0`}>
+        <div className={`flex flex-col min-h-screen w-full max-w-[100vw] transition-colors duration-500 bg-transparent pb-14 lg:pb-0`}>
             {/* Global Background */}
             <div className="fixed inset-0 -z-50 bg-gray-50 dark:bg-gray-950">
                 <div 

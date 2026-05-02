@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 
 interface ImageLightboxProps {
@@ -23,7 +24,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({ src, alt, isOpen, 
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div 
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 md:p-10 animate-in fade-in duration-300"
       onClick={onClose}
@@ -58,6 +59,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({ src, alt, isOpen, 
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

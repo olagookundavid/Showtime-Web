@@ -147,8 +147,8 @@ func cronjobs(app *api.Application) {
 		}
 	})
 
-	// Run every 6 hours to cleanup OTPs
-	c.AddFunc("0 */6 * * *", func() {
+	// Run daily at 01:00 AM to cleanup OTPs
+	c.AddFunc("0 1 * * *", func() {
 		app.Logger.Info("Running OTP cleanup job...", nil)
 		if err := app.AuthService.CleanupExpiredOTPs(context.Background()); err != nil {
 			app.Logger.Error(fmt.Sprintf("OTP cleanup failed: %v", err), nil)

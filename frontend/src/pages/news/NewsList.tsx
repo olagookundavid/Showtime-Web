@@ -38,9 +38,8 @@ export const NewsList = () => {
             {/* News Grid */}
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {news.map((article) => (
-                    <Link
+                    <div
                         key={article.id}
-                        to={`/news/${article.slug}`}
                         className="group bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
                     >
                         {/* Featured Image */}
@@ -49,7 +48,8 @@ export const NewsList = () => {
                                 <LightboxImage
                                     src={article.featured_image}
                                     alt={article.title}
-                                    thumbnailClassName="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                    thumbnailClassName="w-full h-full"
+                                    imgClassName="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                 />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center text-gray-400">
@@ -59,11 +59,10 @@ export const NewsList = () => {
                         </div>
 
                         {/* Content */}
-                        <div className="p-6">
-                            {/* Category Badge */}
-                            <div className="inline-block bg-sffl-red text-white text-xs font-bold px-3 py-1 rounded-full mb-3 uppercase">
-                                {article.category}
-                            </div>
+                        <Link 
+                            to={`/news/${article.slug}`}
+                            className="p-6 flex flex-col cursor-pointer"
+                        >
 
                             {/* Title */}
                             <h2 className="font-black text-xl text-sffl-navy dark:text-white mb-2 group-hover:text-sffl-red transition-colors line-clamp-2">
@@ -77,11 +76,18 @@ export const NewsList = () => {
 
                             {/* Meta */}
                             <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                                <span>{article.author}</span>
+                                <div className="flex items-center gap-2">
+                                    <span>{article.author}</span>
+                                    {article.category && (
+                                        <span className="bg-sffl-red/10 text-sffl-red text-[10px] font-bold px-2 py-0.5 rounded-md uppercase">
+                                            {article.category}
+                                        </span>
+                                    )}
+                                </div>
                                 <span>{new Date(article.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                             </div>
-                        </div>
-                    </Link>
+                        </Link>
+                    </div>
                 ))}
             </div>
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Slide {
     id: number;
@@ -11,38 +12,39 @@ interface Slide {
     image: string;
 }
 
-const slides: Slide[] = [
-    {
-        id: 1,
-        title: 'Get Your Tickets Now!',
-        subtitle: 'Secure your spot for the next thrilling SFFL match',
-        ctaText: 'Buy Tickets',
-        ctaLink: '/tickets',
-        bgColor: 'from-sffl-red to-[#8B1C1C]',
-        image: '/images/branding/hero-1.jpeg',
-    },
-    {
-        id: 2,
-        title: 'Join As A Fan',
-        subtitle: 'Register now and get exclusive discounts on tickets',
-        ctaText: 'Sign Up Free',
-        ctaLink: '/signup',
-        bgColor: 'from-sffl-navy to-blue-900',
-        image: '/images/branding/hero-2.jpeg',
-    },
-    {
-        id: 3,
-        title: 'View Gallery',
-        subtitle: 'Check out photos from our recent matches',
-        ctaText: 'See Photos',
-        ctaLink: '/gallery',
-        bgColor: 'from-purple-600 to-purple-900',
-        image: '/images/branding/hero-3.jpeg',
-    },
-];
-
 export const HeroCarousel = () => {
     const [currentSlide, setCurrentSlide] = useState(0);
+    const { isAuthenticated } = useAuth();
+
+    const slides: Slide[] = [
+        {
+            id: 1,
+            title: 'Get Your Tickets Now!',
+            subtitle: 'Secure your spot for the next thrilling SFFL match',
+            ctaText: 'Buy Tickets',
+            ctaLink: '/tickets',
+            bgColor: 'from-sffl-red to-[#8B1C1C]',
+            image: '/images/branding/hero-1.jpeg',
+        },
+        {
+            id: 2,
+            title: 'Join As A Fan',
+            subtitle: 'Register now and get exclusive discounts on tickets',
+            ctaText: 'Sign Up Free',
+            ctaLink: isAuthenticated ? '/tickets' : '/signup',
+            bgColor: 'from-sffl-navy to-blue-900',
+            image: '/images/branding/hero-2.jpeg',
+        },
+        {
+            id: 3,
+            title: 'View Gallery',
+            subtitle: 'Check out photos from our recent matches',
+            ctaText: 'See Photos',
+            ctaLink: '/gallery',
+            bgColor: 'from-purple-600 to-purple-900',
+            image: '/images/branding/hero-3.jpeg',
+        },
+    ];
 
     // Auto-advance every 5 seconds
     useEffect(() => {
@@ -51,7 +53,7 @@ export const HeroCarousel = () => {
         }, 5000);
 
         return () => clearInterval(timer);
-    }, []);
+    }, [slides.length]);
 
     const goToSlide = (index: number) => {
         setCurrentSlide(index);

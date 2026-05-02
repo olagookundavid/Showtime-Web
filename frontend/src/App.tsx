@@ -14,6 +14,8 @@ import { ShowtimeArena } from './pages/about/ShowtimeArena';
 import { Education } from './pages/about/Education';
 import { FAQ } from './pages/about/FAQ';
 import { Whistleblower } from './pages/about/Whistleblower';
+import { OurTeam } from './pages/about/OurTeam';
+import { Sponsorships } from './pages/about/Sponsorships';
 import { NewsList } from './pages/news/NewsList';
 import { MatchHub } from './pages/matches/MatchHub';
 import { StandingsPage } from './pages/matches/StandingsPage';
@@ -102,6 +104,8 @@ function App() {
               <Route path="/about/education" element={<Education />} />
               <Route path="/about/faq" element={<FAQ />} />
               <Route path="/about/whistleblower" element={<Whistleblower />} />
+              <Route path="/about/our-team" element={<OurTeam />} />
+              <Route path="/about/sponsorships" element={<Sponsorships />} />
             </Route>
 
             {/* Admin Routes (No Layout) */}

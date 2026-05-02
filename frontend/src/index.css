@@ -13,6 +13,7 @@
 
 body {
     @apply bg-sffl-gray text-sffl-navy font-sans;
+    overflow-x: hidden;
 }
 
 /* Hide scrollbar while keeping scroll functionality */
@@ -22,4 +23,23 @@ body {
 .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+}
+
+/* Custom premium thin scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+    height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(0, 31, 63, 0.1);
+    border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #C62828;
+    border-radius: 10px;
+}
+.dark .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+}
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #C62828;
 }

@@ -95,7 +95,7 @@ export const MatchHub = () => {
     if (loading && competitions.length === 0) return <Loader />;
 
     return (
-        <div className="max-w-6xl mx-auto space-y-10 min-h-screen p-4">
+        <div className="max-w-6xl mx-auto flex flex-col gap-8 min-h-screen p-4 pb-16">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-center bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
                 <div>
@@ -237,18 +237,18 @@ export const MatchHub = () => {
                     )}
                 </div>
 
-                {/* Right Column: Standings (1/3 width) */}
-                <div className="lg:col-span-1 space-y-6">
+                {/* Right Column: Standings (1/3 width) — sticky sidebar */}
+                <div className="lg:col-span-1 lg:sticky lg:top-[90px] self-start space-y-6">
                     <div className="flex items-center justify-between mb-6">
                         <h2 className="text-2xl font-bold text-sffl-navy dark:text-white flex items-center gap-2">
                             <span className="text-yellow-500">🏆</span> Standings
                         </h2>
-                        <Link to="/standings" className="hidden lg:inline-flex px-3 py-1.5 bg-sffl-navy hover:bg-sffl-red text-white text-xs font-bold rounded-lg transition-colors">
+                        <Link to={`/standings?comp=${selectedCompetitionId}`} className="hidden lg:inline-flex px-3 py-1.5 bg-sffl-navy hover:bg-sffl-red text-white text-xs font-bold rounded-lg transition-colors">
                             View All
                         </Link>
                     </div>
                     {standings.length > 0 ? (
-                        <div className="sticky top-24 space-y-6">
+                        <div className="space-y-6">
                             <MatchStandingsTable standings={standings} isCompleted={isCompleted} />
 
                             <div className="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-xl p-6 text-white shadow-lg">

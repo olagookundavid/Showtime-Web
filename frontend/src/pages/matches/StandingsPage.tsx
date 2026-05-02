@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getCompetitions, getStandings } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { StandingsTable } from '../../components/matches/StandingsTable';
 
 export const StandingsPage = () => {
+    const [searchParams] = useSearchParams();
+    const compParam = searchParams.get('comp');
     const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>('');
     const [showLegend, setShowLegend] = useState(false);
 
@@ -15,10 +18,14 @@ export const StandingsPage = () => {
     const competitions = (competitionsData?.data || []).filter(c => c.status !== 'inactive');
 
     useEffect(() => {
-        if (competitions.length > 0 && !selectedCompetitionId) {
-            setSelectedCompetitionId(competitions[0].id);
+        if (competitions.length > 0) {
+            if (compParam && competitions.some(c => c.id === compParam)) {
+                setSelectedCompetitionId(compParam);
+            } else if (!selectedCompetitionId) {
+                setSelectedCompetitionId(competitions[0].id);
+            }
         }
-    }, [competitions, selectedCompetitionId]);
+    }, [competitions, selectedCompetitionId, compParam]);
 
     const { data: standingsData, isLoading: dataLoading } = useQuery({
         queryKey: ['publicStandings', selectedCompetitionId],

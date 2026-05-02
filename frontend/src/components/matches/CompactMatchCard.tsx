@@ -5,9 +5,10 @@ import { LightboxImage } from '../ui';
 interface CompactMatchCardProps {
     match: Match;
     onClick?: () => void;
+    hideHeaderAndVenue?: boolean;
 }
 
-export const CompactMatchCard: React.FC<CompactMatchCardProps> = ({ match, onClick }) => {
+export const CompactMatchCard: React.FC<CompactMatchCardProps> = ({ match, onClick, hideHeaderAndVenue = false }) => {
     const isFinished = match.status === 'FINISHED';
     const isLive = match.status === 'LIVE';
 
@@ -33,9 +34,11 @@ export const CompactMatchCard: React.FC<CompactMatchCardProps> = ({ match, onCli
             className="flex-none w-[260px] md:w-[280px] bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden transition-all duration-300 hover:shadow-xl hover:scale-[1.02] cursor-pointer group snap-center"
         >
             {/* Header */}
-            <div className={`py-2 px-4 text-center text-[10px] font-black uppercase tracking-widest ${isLive ? 'bg-sffl-red text-white animate-pulse' : 'bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300'}`}>
-                {isLive ? 'LIVE NOW' : isFinished ? 'Final Result' : `${formatDate(match.date)} • ${formatTime(match.start_time, match.date)}`}
-            </div>
+            {!hideHeaderAndVenue && (
+                <div className={`py-2 px-4 text-center text-[10px] font-black uppercase tracking-widest ${isLive ? 'bg-sffl-red text-white animate-pulse' : 'bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300'}`}>
+                    {isLive ? 'LIVE NOW' : isFinished ? 'Final Result' : `${formatDate(match.date)} • ${formatTime(match.start_time, match.date)}`}
+                </div>
+            )}
 
             {/* Content */}
             <div className="p-4 flex items-center justify-between gap-3">
@@ -76,11 +79,13 @@ export const CompactMatchCard: React.FC<CompactMatchCardProps> = ({ match, onCli
             </div>
             
             {/* Tiny Venue badge */}
-            <div className="px-4 pb-2 text-center">
-                <span className="text-[8px] uppercase text-gray-400 dark:text-gray-500 font-bold tracking-tighter">
-                    🏟️ {match.venue || 'Main Stadium'}
-                </span>
-            </div>
+            {!hideHeaderAndVenue && (
+                <div className="px-4 pb-2 text-center">
+                    <span className="text-[8px] uppercase text-gray-400 dark:text-gray-500 font-bold tracking-tighter">
+                        🏟️ {match.venue || 'Main Stadium'}
+                    </span>
+                </div>
+            )}
         </div>
     );
 };
