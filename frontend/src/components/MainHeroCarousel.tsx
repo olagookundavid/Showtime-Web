@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 
 interface Slide {
     id: number;
     image: string;
-    link?: string;
 }
 
 export const MainHeroCarousel = () => {
