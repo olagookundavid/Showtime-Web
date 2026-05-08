@@ -9,7 +9,6 @@ import {
     getPlayerStatById,
     type Competition,
     type Match,
-    type MatchTeamSheet,
     type TeamSheetPlayer
 } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
