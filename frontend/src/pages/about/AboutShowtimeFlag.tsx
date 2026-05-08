@@ -2,7 +2,7 @@ import { FAQSection } from './FAQSection';
 
 export const AboutShowtimeFlag = () => {
     return (
-        <div className="max-w-6xl mx-auto space-y-12 pb-12">
+        <div className="max-w-6xl mx-auto space-y-4 md:space-y-8 pb-12">
             {/* Header Area */}
             <div className="bg-sffl-navy text-white p-10 rounded-3xl shadow-2xl flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
                 <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=2069&auto=format&fit=crop')] bg-cover bg-center opacity-10" />

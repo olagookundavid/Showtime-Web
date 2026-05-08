@@ -156,7 +156,7 @@ export const MediaGuidelines = () => {
     ];
 
     return (
-        <div className="max-w-6xl mx-auto space-y-10 pb-16 px-4">
+        <div className="max-w-6xl mx-auto space-y-4 md:space-y-8 pb-16">
             {/* Header */}
             <div className="bg-sffl-navy text-white p-8 md:p-12 rounded-3xl shadow-2xl flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
                 <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-10" />

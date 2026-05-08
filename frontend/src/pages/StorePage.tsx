@@ -1,6 +1,6 @@
 export const StorePage = () => {
     return (
-        <div className="max-w-6xl mx-auto space-y-8">
+        <div className="max-w-6xl mx-auto space-y-4 md:space-y-8">
             {/* Header - Condensed */}
             <div className="bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-center">
                 <div>

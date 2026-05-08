@@ -40,7 +40,7 @@ func (r *PostgresStatsRepository) UpsertPlayerStat(ctx context.Context, stat *do
 			$16, $17, $18, $19, $20,
 			$21, $22
 		)
-		ON CONFLICT (player_id, competition_id, match_date) DO UPDATE SET
+		ON CONFLICT (player_id, match_id) DO UPDATE SET
 			match_id = COALESCE(EXCLUDED.match_id, player_stats.match_id),
 			passing_attempts = EXCLUDED.passing_attempts,
 			rushing_attempts = EXCLUDED.rushing_attempts,
@@ -88,6 +88,10 @@ func buildStatsWhereClause(filter domain.StatsFilter) (string, []interface{}) {
 			args = append(args, filter.EventDay)
 			argCount++
 		}
+	} else if filter.MatchID != "" {
+		conditions = append(conditions, fmt.Sprintf("ps.match_id = $%d", argCount))
+		args = append(args, filter.MatchID)
+		argCount++
 	} else if filter.PlayerID == "" {
 		// Year to date default (unless specifically getting stats for a player)
 		conditions = append(conditions, "ps.match_date >= date_trunc('year', NOW())")

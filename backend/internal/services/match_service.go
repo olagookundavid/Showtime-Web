@@ -29,6 +29,11 @@ type IMatchService interface {
 	CreateTeam(ctx context.Context, team *domain.Team) error
 	UpdateTeam(ctx context.Context, team *domain.Team) error
 	DeleteTeam(ctx context.Context, id string) error
+	SaveTeamSheet(ctx context.Context, matchID, teamID string, playerIDs []string) error
+	GetTeamSheet(ctx context.Context, matchID string) (*domain.MatchTeamSheet, error)
+	GetMatchDetail(ctx context.Context, matchID string) (*domain.MatchDetail, error)
+	GetMatchDaysByCompetition(ctx context.Context, competitionID string) ([]string, error)
+	GetEligiblePlayersForMatchDay(ctx context.Context, competitionID string, date string) ([]domain.Player, error)
 }
 
 type MatchService struct {
@@ -198,6 +203,10 @@ func (s *MatchService) CreateMatch(ctx context.Context, match *domain.Match) err
 		return fmt.Errorf("competition is completed and cannot be modified")
 	}
 
+	if match.Status == domain.MatchStatusFinished && (match.HomeScore == nil || match.AwayScore == nil) {
+		return fmt.Errorf("home and away scores are required for finished matches")
+	}
+
 	if err := s.repo.CreateMatch(ctx, match); err != nil {
 		return err
 	}
@@ -214,6 +223,10 @@ func (s *MatchService) UpdateMatch(ctx context.Context, match *domain.Match) err
 	}
 	if completed {
 		return fmt.Errorf("competition is completed and cannot be modified")
+	}
+
+	if match.Status == domain.MatchStatusFinished && (match.HomeScore == nil || match.AwayScore == nil) {
+		return fmt.Errorf("home and away scores are required for finished matches")
 	}
 
 	if err := s.repo.UpdateMatch(ctx, match); err != nil {
@@ -432,5 +445,25 @@ func (s *MatchService) DeleteCompetition(ctx context.Context, id string) error {
 		}
 	}
 	return s.repo.DeleteCompetition(ctx, id)
+}
+
+func (s *MatchService) SaveTeamSheet(ctx context.Context, matchID, teamID string, playerIDs []string) error {
+	return s.repo.SaveTeamSheet(ctx, matchID, teamID, playerIDs)
+}
+
+func (s *MatchService) GetTeamSheet(ctx context.Context, matchID string) (*domain.MatchTeamSheet, error) {
+	return s.repo.GetTeamSheet(ctx, matchID)
+}
+
+func (s *MatchService) GetMatchDetail(ctx context.Context, matchID string) (*domain.MatchDetail, error) {
+	return s.repo.GetMatchDetail(ctx, matchID)
+}
+
+func (s *MatchService) GetMatchDaysByCompetition(ctx context.Context, competitionID string) ([]string, error) {
+	return s.repo.GetMatchDaysByCompetition(ctx, competitionID)
+}
+
+func (s *MatchService) GetEligiblePlayersForMatchDay(ctx context.Context, competitionID string, date string) ([]domain.Player, error) {
+	return s.repo.GetEligiblePlayersForMatchDay(ctx, competitionID, date)
 }
 

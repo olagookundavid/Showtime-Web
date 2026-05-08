@@ -60,7 +60,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
 
     return (
         <nav className="bg-sffl-navy sticky top-0 z-50 shadow-lg border-b-4 border-sffl-red">
-            <div className="container mx-auto px-4 py-2.5 md:py-3">
+            <div className="max-w-6xl mx-auto px-4 py-2.5 md:py-3">
                 <div className="flex items-center justify-between text-white">
                     {/* Logo - Left */}
                     <Link to="/" className="flex items-center flex-shrink-0">
@@ -240,7 +240,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
 
             {/* Mobile Menu Overlay */}
             <div
-                className={`lg:hidden fixed inset-0 z-40 bg-sffl-navy/95 backdrop-blur-md transition-all duration-300 overflow-y-auto pt-[72px] ${mobileMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'}`}
+                className={`lg:hidden fixed inset-0 z-40 bg-sffl-navy/95 backdrop-blur-sm transition-all duration-300 overflow-y-auto pt-[72px] ${mobileMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'}`}
             >
                 <div className="container mx-auto px-6 py-8 pb-32 min-h-full flex flex-col">
                     <div className="flex flex-col space-y-2 text-center">

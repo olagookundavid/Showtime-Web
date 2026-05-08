@@ -28,10 +28,10 @@ func NewTOTWHandler(service services.ITOTWService) *TOTWHandler {
 }
 
 type CreateTOTWPayload struct {
-	CompetitionID string `json:"competition_id" binding:"required"`
-	EventDayDate  string `json:"event_day_date" binding:"required"` // YYYY-MM-DD
-	PlayerID      string `json:"player_id" binding:"required"`
-	PositionGroup string `json:"position_group" binding:"required"`
+	CompetitionID string  `json:"competition_id" binding:"required"`
+	EventDayDate  string  `json:"event_day_date" binding:"required"` // YYYY-MM-DD
+	PlayerID      string  `json:"player_id" binding:"required"`
+	PositionGroup string  `json:"position_group" binding:"required"`
 }
 
 func (h *TOTWHandler) Create(c *gin.Context) {

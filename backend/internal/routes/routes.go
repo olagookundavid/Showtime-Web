@@ -149,6 +149,8 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		matchesGroup.POST("", app.Handlers.MatchHandler.CreateMatch)
 		matchesGroup.PUT("/:id", app.Handlers.MatchHandler.UpdateMatch)
 		matchesGroup.DELETE("/:id", app.Handlers.MatchHandler.DeleteMatch)
+		matchesGroup.POST("/:id/team-sheets", app.Handlers.MatchHandler.SaveTeamSheet)
+		matchesGroup.GET("/:id/team-sheets", app.Handlers.MatchHandler.GetAdminTeamSheet)
 		matchesGroup.POST("/standings", app.Handlers.MatchHandler.CreateStanding)
 		matchesGroup.PUT("/standings/:id", app.Handlers.MatchHandler.UpdateStanding)
 		matchesGroup.DELETE("/standings/:id", app.Handlers.MatchHandler.DeleteStanding)
@@ -273,8 +275,11 @@ func SetupMatchRoutes(r *gin.RouterGroup, app *api.Application) {
 	{
 		matchRoutes.GET("/competitions", app.Handlers.MatchHandler.GetCompetitions)
 		matchRoutes.GET("", app.Handlers.MatchHandler.GetMatches)
+		matchRoutes.GET("/:id", app.Handlers.MatchHandler.GetMatchDetail)
 		matchRoutes.GET("/standings", app.Handlers.MatchHandler.GetStandings)
 		matchRoutes.GET("/teams", app.Handlers.MatchHandler.GetAllTeams)
+		matchRoutes.GET("/days", app.Handlers.MatchHandler.GetMatchDays)
+		matchRoutes.GET("/eligible-players", app.Handlers.MatchHandler.GetEligiblePlayersForMatchDay)
 	}
 }
 

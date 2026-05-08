@@ -11,9 +11,23 @@
 
 @variant dark (.dark &);
 
+html {
+    height: 100%;
+    overscroll-behavior: none;
+}
+
 body {
-    @apply bg-sffl-gray text-sffl-navy font-sans;
+    @apply bg-transparent text-sffl-navy font-sans;
+    min-height: 100%;
     overflow-x: hidden;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch; /* smooth iOS scroll */
+}
+
+/* Root container must also prevent overscroll on iOS */
+#root {
+    min-height: 100vh;
+    overscroll-behavior: none;
 }
 
 /* Hide scrollbar while keeping scroll functionality */

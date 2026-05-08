@@ -155,8 +155,8 @@ export const FAQ = () => {
     };
 
     return (
-        <div className="max-w-6xl mx-auto space-y-12 pb-16">
-            <div className="bg-gradient-to-r from-sffl-navy to-blue-900 text-white p-12 rounded-3xl shadow-2xl text-center relative overflow-hidden mt-8">
+        <div className="max-w-6xl mx-auto space-y-4 md:space-y-8 pb-16">
+            <div className="bg-gradient-to-r from-sffl-navy to-blue-900 text-white p-12 rounded-3xl shadow-2xl text-center relative overflow-hidden">
                 <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=2069&auto=format&fit=crop')] bg-cover bg-center opacity-10 mix-blend-overlay"></div>
                 <div className="relative z-10">
                     <span className="inline-block bg-sffl-red text-white text-xs font-black px-3 py-1 rounded-full uppercase tracking-widest mb-4 mt-2">Help Center</span>
@@ -165,7 +165,7 @@ export const FAQ = () => {
                 </div>
             </div>
 
-            <div className="max-w-4xl mx-auto space-y-12">
+            <div className="max-w-6xl mx-auto space-y-12">
                 {faqCategories.map((category, catIndex) => (
                     <section key={catIndex} className="scroll-mt-24">
                         <div className="flex items-center gap-3 mb-6 border-b-2 border-gray-100 dark:border-gray-800 pb-2">

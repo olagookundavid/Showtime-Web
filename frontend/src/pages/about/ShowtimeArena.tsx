@@ -1,11 +1,11 @@
 export const ShowtimeArena = () => {
     return (
-        <div className="max-w-6xl mx-auto space-y-8">
+        <div className="max-w-6xl mx-auto space-y-4 md:space-y-8">
             <div className="bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl relative overflow-hidden h-[300px] md:h-[450px] flex flex-col justify-end">
-                <img 
-                    src="/images/branding/showtime_arena.png" 
-                    alt="Showtime Arena" 
-                    className="absolute inset-0 w-full h-full object-cover opacity-60 z-0" 
+                <img
+                    src="/images/branding/showtime-arena-main.jpg"
+                    alt="Showtime Arena"
+                    className="absolute inset-0 w-full h-full object-cover opacity-60 z-0"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-sffl-navy/90 via-sffl-navy/40 to-transparent z-10" />
                 <div className="relative z-20">

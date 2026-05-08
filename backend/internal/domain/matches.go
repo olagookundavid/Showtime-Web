@@ -73,3 +73,29 @@ type Standing struct {
 	// Relations
 	Team *Team `json:"team,omitempty"`
 }
+
+type MatchTeamSheetEntry struct {
+	ID       string `json:"id" db:"id"`
+	MatchID  string `json:"match_id" db:"match_id"`
+	TeamID   string `json:"team_id" db:"team_id"`
+	PlayerID string `json:"player_id" db:"player_id"`
+}
+
+// Enriched version returned to the public API
+type TeamSheetPlayer struct {
+	PlayerID     string `json:"player_id" db:"player_id"`
+	Name         string `json:"name" db:"name"`
+	JerseyNumber int    `json:"jersey_number" db:"jersey_number"`
+	Position     string `json:"position" db:"position"`
+	Image        string `json:"image" db:"image"`
+}
+
+type MatchTeamSheet struct {
+	HomeTeam []TeamSheetPlayer `json:"home_team"`
+	AwayTeam []TeamSheetPlayer `json:"away_team"`
+}
+
+type MatchDetail struct {
+	Match     Match         `json:"match"`
+	TeamSheet MatchTeamSheet `json:"team_sheet"`
+}

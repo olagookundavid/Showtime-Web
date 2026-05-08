@@ -61,7 +61,7 @@ export const TOTWWidget = () => {
                     </h3>
                     <p className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] mt-1 flex items-center gap-1">
                         <span className="w-2 h-2 rounded-full bg-sffl-red animate-pulse"></span>
-                        {latestDate}
+                        {latestDate.substring(0, 10)}
                     </p>
                 </div>
                 <div className="flex gap-1">

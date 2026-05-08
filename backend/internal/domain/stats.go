@@ -86,6 +86,7 @@ type AggregatedTeamStat struct {
 
 type StatsFilter struct {
 	CompetitionID string
+	MatchID       string
 	EventDay      *time.Time
 	PlayerID      string
 	SearchQuery   string

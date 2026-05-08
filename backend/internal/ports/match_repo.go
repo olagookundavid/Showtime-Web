@@ -41,6 +41,14 @@ type MatchRepository interface {
 	DeleteStanding(ctx context.Context, id string) error
 	GetStandingByID(ctx context.Context, id string) (*domain.Standing, error)
 	RecalculateStandings(ctx context.Context, competitionID string) error
+
+	// Team Sheets
+	SaveTeamSheet(ctx context.Context, matchID, teamID string, playerIDs []string) error
+	GetTeamSheet(ctx context.Context, matchID string) (*domain.MatchTeamSheet, error)
+	IsPlayerOnTeamSheet(ctx context.Context, matchID, playerID string) (bool, error)
+	GetMatchDetail(ctx context.Context, matchID string) (*domain.MatchDetail, error)
+	GetMatchDaysByCompetition(ctx context.Context, competitionID string) ([]string, error)
+	GetEligiblePlayersForMatchDay(ctx context.Context, competitionID string, date string) ([]domain.Player, error)
 }
 
 type PostgresMatchRepository struct {
@@ -552,4 +560,190 @@ func (r *PostgresMatchRepository) RecalculateStandings(ctx context.Context, comp
 	}
 
 	return tx.Commit(ctx)
+}
+
+// --- Team Sheets ---
+func (r *PostgresMatchRepository) SaveTeamSheet(ctx context.Context, matchID, teamID string, playerIDs []string) error {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	// Idempotent: delete existing first
+	delQuery := `DELETE FROM match_team_sheets WHERE match_id = $1 AND team_id = $2`
+	if _, err := tx.Exec(ctx, delQuery, matchID, teamID); err != nil {
+		return err
+	}
+
+	// Insert new
+	if len(playerIDs) > 0 {
+		insertQuery := `INSERT INTO match_team_sheets (match_id, team_id, player_id) VALUES ($1, $2, $3)`
+		for _, pid := range playerIDs {
+			if _, err := tx.Exec(ctx, insertQuery, matchID, teamID, pid); err != nil {
+				return err
+			}
+		}
+	}
+
+	return tx.Commit(ctx)
+}
+
+func (r *PostgresMatchRepository) GetTeamSheet(ctx context.Context, matchID string) (*domain.MatchTeamSheet, error) {
+	// We need to know which team is home and which is away to partition correctly.
+	matchQuery := `SELECT home_team_id, away_team_id FROM matches WHERE id = $1`
+	var homeTeamID, awayTeamID string
+	if err := r.db.QueryRow(ctx, matchQuery, matchID).Scan(&homeTeamID, &awayTeamID); err != nil {
+		return nil, err
+	}
+
+	query := `
+		SELECT mts.team_id, p.id, p.name, p.jersey_number, p.position, p.image
+		FROM match_team_sheets mts
+		JOIN players p ON mts.player_id = p.id
+		WHERE mts.match_id = $1
+		ORDER BY p.jersey_number ASC
+	`
+	rows, err := r.db.Query(ctx, query, matchID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	sheet := &domain.MatchTeamSheet{
+		HomeTeam: make([]domain.TeamSheetPlayer, 0),
+		AwayTeam: make([]domain.TeamSheetPlayer, 0),
+	}
+
+	for rows.Next() {
+		var teamID string
+		var p domain.TeamSheetPlayer
+		// image might be null
+		var img *string
+		if err := rows.Scan(&teamID, &p.PlayerID, &p.Name, &p.JerseyNumber, &p.Position, &img); err != nil {
+			return nil, err
+		}
+		if img != nil {
+			p.Image = *img
+		}
+		switch teamID {
+		case homeTeamID:
+			sheet.HomeTeam = append(sheet.HomeTeam, p)
+		case awayTeamID:
+			sheet.AwayTeam = append(sheet.AwayTeam, p)
+		}
+	}
+	return sheet, nil
+}
+
+func (r *PostgresMatchRepository) IsPlayerOnTeamSheet(ctx context.Context, matchID, playerID string) (bool, error) {
+	query := `SELECT EXISTS(SELECT 1 FROM match_team_sheets WHERE match_id = $1 AND player_id = $2)`
+	var exists bool
+	err := r.db.QueryRow(ctx, query, matchID, playerID).Scan(&exists)
+	return exists, err
+}
+
+func (r *PostgresMatchRepository) GetMatchDetail(ctx context.Context, matchID string) (*domain.MatchDetail, error) {
+	// Full fetch with joined competition and team data
+	query := `
+		SELECT 
+			m.id, m.competition_id, m.home_team_id, m.away_team_id, m.date, m.time, m.venue, m.status, m.home_score, m.away_score, m.highlights_url, m.ticket_url, m.created_at, m.updated_at,
+			c.id, c.name, c.logo,
+			ht.id, ht.name, ht.short_name, ht.logo,
+			at.id, at.name, at.short_name, at.logo
+		FROM matches m
+		LEFT JOIN competitions c ON m.competition_id = c.id
+		LEFT JOIN teams ht ON m.home_team_id = ht.id
+		LEFT JOIN teams at ON m.away_team_id = at.id
+		WHERE m.id = $1
+	`
+	var m domain.Match
+	m.Competition = &domain.Competition{}
+	m.HomeTeam = &domain.Team{}
+	m.AwayTeam = &domain.Team{}
+	var startTime time.Time
+
+	err := r.db.QueryRow(ctx, query, matchID).Scan(
+		&m.ID, &m.CompetitionID, &m.HomeTeamID, &m.AwayTeamID, &m.Date, &startTime, &m.Venue, &m.Status, &m.HomeScore, &m.AwayScore, &m.HighlightsURL, &m.TicketURL, &m.CreatedAt, &m.UpdatedAt,
+		&m.Competition.ID, &m.Competition.Name, &m.Competition.Logo,
+		&m.HomeTeam.ID, &m.HomeTeam.Name, &m.HomeTeam.ShortName, &m.HomeTeam.Logo,
+		&m.AwayTeam.ID, &m.AwayTeam.Name, &m.AwayTeam.ShortName, &m.AwayTeam.Logo,
+	)
+	if err != nil {
+		return nil, err
+	}
+	m.StartTime = startTime
+
+	sheet, err := r.GetTeamSheet(ctx, matchID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &domain.MatchDetail{
+		Match:     m,
+		TeamSheet: *sheet,
+	}, nil
+}
+
+func (r *PostgresMatchRepository) GetMatchDaysByCompetition(ctx context.Context, competitionID string) ([]string, error) {
+	query := `
+		SELECT DISTINCT date::TEXT 
+		FROM matches 
+		WHERE competition_id = $1 
+		ORDER BY date DESC
+	`
+	rows, err := r.db.Query(ctx, query, competitionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var dates []string
+	for rows.Next() {
+		var d string
+		if err := rows.Scan(&d); err != nil {
+			return nil, err
+		}
+		dates = append(dates, d)
+	}
+	return dates, nil
+}
+
+func (r *PostgresMatchRepository) GetEligiblePlayersForMatchDay(ctx context.Context, competitionID string, date string) ([]domain.Player, error) {
+	query := `
+		SELECT DISTINCT
+			p.id, p.name, p.jersey_number, p.position, p.team_id, p.bio,
+			COALESCE(p.image, '') AS image,
+			COALESCE(p.email, '') AS email,
+			p.created_at, p.updated_at,
+			t.id AS t_id, t.name AS t_name, t.short_name AS t_short_name, COALESCE(t.logo, '') AS t_logo
+		FROM players p
+		JOIN match_team_sheets mts ON p.id = mts.player_id
+		JOIN matches m ON mts.match_id = m.id
+		JOIN teams t ON p.team_id = t.id
+		WHERE m.competition_id = $1 AND m.date = $2
+		ORDER BY t.name, p.name
+	`
+	rows, err := r.db.Query(ctx, query, competitionID, date)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var players []domain.Player
+	for rows.Next() {
+		var p domain.Player
+		var team domain.Team
+		if err := rows.Scan(
+			&p.ID, &p.Name, &p.JerseyNumber, &p.Position, &p.TeamID, &p.Bio,
+			&p.Image, &p.Email,
+			&p.CreatedAt, &p.UpdatedAt,
+			&team.ID, &team.Name, &team.ShortName, &team.Logo,
+		); err != nil {
+			return nil, err
+		}
+		p.Team = &team
+		players = append(players, p)
+	}
+	return players, nil
 }

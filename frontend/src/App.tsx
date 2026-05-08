@@ -18,6 +18,7 @@ import { OurTeam } from './pages/about/OurTeam';
 import { Sponsorships } from './pages/about/Sponsorships';
 import { NewsList } from './pages/news/NewsList';
 import { MatchHub } from './pages/matches/MatchHub';
+import { MatchDetail } from './pages/matches/MatchDetail';
 import { StandingsPage } from './pages/matches/StandingsPage';
 import { StatsPage } from './pages/stats/StatsPage';
 import { NewsDetail } from './pages/news/NewsDetail';
@@ -76,8 +77,8 @@ function App() {
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
               {/* Main Features */}
-// ...
               <Route path="/matches" element={<MatchHub />} />
+              <Route path="/matches/:id" element={<MatchDetail />} />
               <Route path="/standings" element={<StandingsPage />} />
               <Route path="/stats" element={<StatsPage />} />
               <Route path="/team-of-the-week" element={<TOTWPage />} />

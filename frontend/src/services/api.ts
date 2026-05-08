@@ -167,6 +167,25 @@ export interface Match {
     away_score?: number;
     highlights_url?: string;
     ticket_url?: string;
+    event_day_id?: string;
+}
+
+export interface TeamSheetPlayer {
+    player_id: string;
+    name: string;
+    jersey_number: number;
+    position: string;
+    image: string;
+}
+
+export interface MatchTeamSheet {
+    home_team: TeamSheetPlayer[];
+    away_team: TeamSheetPlayer[];
+}
+
+export interface MatchDetail {
+    match: Match;
+    team_sheet: MatchTeamSheet;
 }
 
 export interface Standing {
@@ -217,6 +236,11 @@ export const getMatches = async (
 
 export const getStandings = async (competitionId: string): Promise<Standing[]> => {
     const response = await api.get<{ data: Standing[] }>(`/matches/standings?competition_id=${competitionId}`);
+    return response.data.data;
+};
+
+export const getMatchDetail = async (id: string): Promise<MatchDetail> => {
+    const response = await api.get<{ data: MatchDetail }>(`/matches/${id}`);
     return response.data.data;
 };
 
@@ -286,6 +310,7 @@ export interface CreateMatchPayload {
     away_score?: number | null;
     highlights_url?: string;
     ticket_url?: string;
+    event_day_id?: string;
 }
 
 export interface CreatePlayerPayload {
@@ -344,6 +369,17 @@ export const updateMatch = async (id: string, payload: Partial<CreateMatchPayloa
 export const deleteMatch = async (id: string) => {
     const response = await api.delete(`/admin/matches/${id}`);
     return response.data;
+};
+
+// ─── Team Sheet Mutations ─────────────────────────────────────────────────────
+export const saveTeamSheet = async (matchId: string, payload: { team_id: string; player_ids: string[] }) => {
+    const response = await api.post(`/admin/matches/${matchId}/team-sheets`, payload);
+    return response.data;
+};
+
+export const getAdminTeamSheet = async (matchId: string): Promise<MatchTeamSheet> => {
+    const response = await api.get<{ data: MatchTeamSheet }>(`/admin/matches/${matchId}/team-sheets`);
+    return response.data.data;
 };
 
 // ─── Player Mutations ─────────────────────────────────────────────────────────
@@ -789,11 +825,12 @@ export const getPlayerStats = async (compId?: string, eventDay?: string, page = 
     return response.data;
 };
 
-export const getPlayerStatById = async (id: string, compId?: string, matchDate?: string): Promise<PlayerStat | null> => {
+export const getPlayerStatById = async (id: string, compId?: string, matchDate?: string, matchId?: string): Promise<PlayerStat | null> => {
     let url = `/stats/players/${id}`;
     const params = new URLSearchParams();
     if (compId) params.append('competition_id', compId);
     if (matchDate) params.append('match_date', matchDate);
+    if (matchId) params.append('match_id', matchId);
     if (params.toString()) url += `?${params.toString()}`;
 
     const response = await api.get(url);
@@ -828,6 +865,7 @@ export const getStatDates = async (compId?: string): Promise<string[]> => {
 export interface TOTWEntry {
     id: string;
     competition_id: string;
+    event_day_id?: string;
     event_day_date: string;
     player_id: string;
     position_group: 'QB' | 'WR' | 'DEF';
@@ -849,6 +887,7 @@ export const getLatestTOTW = async (compId?: string): Promise<{ data: TOTWEntry[
 
 export const createTOTWEntry = async (payload: {
     competition_id: string;
+    event_day_id?: string;
     event_day_date: string;
     player_id: string;
     position_group: string;
@@ -859,6 +898,26 @@ export const createTOTWEntry = async (payload: {
 
 export const deleteTOTWEntry = async (id: string) => {
     await api.delete(`/admin/totw/${id}`);
+};
+
+// ─── Match-Day TOTW Helpers ──────────────────────────────────────────────────
+// Returns unique match dates (YYYY-MM-DD) for a competition, sourced from
+// actual matches (not stats) to ensure data integrity for TOTW selection.
+export const getMatchDays = async (competitionId: string): Promise<string[]> => {
+    const response = await api.get(`/matches/days?competition_id=${competitionId}`);
+    return response.data.data || [];
+};
+
+// Returns players who were on official team sheets on a specific match day.
+// This constrains TOTW selection to only players who actually played.
+export const getEligiblePlayersForMatchDay = async (
+    competitionId: string,
+    date: string
+): Promise<Player[]> => {
+    const response = await api.get(
+        `/matches/eligible-players?competition_id=${competitionId}&date=${date}`
+    );
+    return response.data.data || [];
 };
 
 // ─── Inventory Management ─────────────────────────────────────────────────────
@@ -1009,5 +1068,4 @@ export const sellerGetPaymentMethods = async () => {
     const response = await api.get<GenericApiResponse<PaymentMethod[]>>(`/seller/payment-methods?active_only=true`);
     return response.data.data;
 };
-
 export default api;

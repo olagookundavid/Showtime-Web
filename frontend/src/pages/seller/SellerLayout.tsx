@@ -13,18 +13,21 @@ export const SellerLayout = () => {
     return (
         <div className={`min-h-screen bg-transparent w-full relative`}>
             {/* Global Background */}
-            <div className="fixed inset-0 -z-50 bg-gray-50 dark:bg-gray-950">
+            <div className="fixed inset-0 -z-50 bg-slate-200 dark:bg-black">
                 <div 
-                    className="absolute inset-0 bg-[url('/images/branding/home-bg.jpeg')] bg-cover bg-center opacity-20 dark:opacity-30" 
+                    className="absolute inset-0 bg-[url('/images/branding/home-bg.jpeg')] bg-cover bg-center opacity-40 dark:opacity-20 transition-opacity duration-700" 
                     style={{ backgroundAttachment: 'fixed' }}
                 />
-                {/* Atmospheric overlays */}
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white dark:to-gray-950" />
-                <div className="absolute inset-0 bg-gradient-to-br from-sffl-red/5 via-transparent to-sffl-navy/10 dark:from-sffl-red/10 dark:to-sffl-navy/40" />
+                
+                {/* Dynamic Tints */}
+                <div className="absolute inset-0 bg-gradient-to-br from-sffl-red/10 via-white/50 dark:via-transparent to-sffl-navy/20 dark:from-sffl-red/5 dark:to-sffl-navy/60" />
+                
+                {/* Vignette for depth */}
+                <div className="absolute inset-0 [background:radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.05)_100%)] dark:[background:radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)]" />
             </div>
             {/* Header */}
             <header className="bg-sffl-navy text-white shadow-md sticky top-0 z-50">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center h-16">
                         <div className="flex items-center gap-4">
                             <span className="font-black italic text-xl tracking-tighter uppercase leading-none">
@@ -47,7 +50,7 @@ export const SellerLayout = () => {
             </header>
 
             {/* Main Content */}
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+            <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
                 <Outlet />
             </main>
         </div>

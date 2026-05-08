@@ -3,7 +3,7 @@ import { CopyableEmail } from '../common/CopyableEmail';
 export const Footer = () => {
     return (
         <footer className="bg-sffl-navy dark:bg-gray-950 text-white p-4 md:p-8 mt-auto border-t border-gray-800 dark:border-gray-700">
-            <div className="container mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-center md:text-left">
+            <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-center md:text-left">
                 {/* Branding */}
                 <div className="flex flex-col items-center md:items-start text-center md:text-left group cursor-pointer">
                     <div className="flex items-center gap-2 mb-3 md:mb-4">

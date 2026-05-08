@@ -20,7 +20,7 @@ export const FAQSection = () => {
     const [openIndex, setOpenIndex] = useState<number | null>(null);
 
     return (
-        <section className="mt-12 bg-gray-50 dark:bg-gray-800/50 p-10 -mx-10 rounded-3xl border border-gray-100 dark:border-gray-700">
+        <section className="mt-12 bg-gray-50 dark:bg-gray-800/50 p-6 md:p-10 rounded-3xl border border-gray-100 dark:border-gray-700">
             <div className="text-center mb-10">
                 <h2 className="text-4xl font-black text-sffl-navy dark:text-white italic">FREQUENTLY ASKED QUESTIONS</h2>
                 <p className="text-gray-500 mt-2">Everything you need to know about Showtime Flag Football.</p>

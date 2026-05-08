@@ -32,6 +32,18 @@ func (s *StatsService) UpsertPlayerStat(ctx context.Context, stat *domain.Player
 	if comp != nil && comp.Status == "completed" {
 		return fmt.Errorf("competition is completed and cannot be modified")
 	}
+	
+	if stat.MatchID != "" {
+		onTeamSheet, err := s.matchRepo.IsPlayerOnTeamSheet(ctx, stat.MatchID, stat.PlayerID)
+		if err != nil {
+			return fmt.Errorf("failed to verify team sheet: %v", err)
+		}
+		if !onTeamSheet {
+			return fmt.Errorf("Player is not on the team sheet for this match")
+		}
+	} else {
+		return fmt.Errorf("match_id is required")
+	}
 
 	// The repo handles the incremental add via ON CONFLICT DO UPDATE
 	return s.repo.UpsertPlayerStat(ctx, stat)

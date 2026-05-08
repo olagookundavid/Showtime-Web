@@ -1,13 +1,15 @@
-import { Loader } from '../../components/ui/Loader';
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-
 import {
     getMatches, getCompetitions, getTeams,
     createMatch, updateMatch, deleteMatch,
+    getAllEventDays, type EventDayResponse,
+    saveTeamSheet, getAdminTeamSheet, getPlayers, type Player, type MatchTeamSheet,
     type Match, type Competition, type Team, type CreateMatchPayload,
 } from '../../services/api';
+import { Loader } from '../../components/ui/Loader';
+import { AdminTeamSheetModal } from '../../components/admin/AdminTeamSheetModal';
 
 interface FormData {
     competition_id: string;
@@ -21,12 +23,13 @@ interface FormData {
     away_score: string;
     highlights_url: string;
     ticket_url: string;
+    event_day_id: string;
 }
 
 const emptyForm: FormData = {
     competition_id: '', home_team_id: '', away_team_id: '',
     date: '', start_time: '12:00', venue: 'Showtime Arena', status: 'FINISHED',
-    home_score: '', away_score: '', highlights_url: '', ticket_url: '',
+    home_score: '', away_score: '', highlights_url: '', ticket_url: '', event_day_id: '',
 };
 
 export const AdminMatches = () => {
@@ -38,6 +41,7 @@ export const AdminMatches = () => {
     const [form, setForm] = useState<FormData>(emptyForm);
     const [saving, setSaving] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+    const [teamSheetMatch, setTeamSheetMatch] = useState<Match | null>(null);
 
     // Filters
     const [filterComp, setFilterComp] = useState('');
@@ -51,6 +55,11 @@ export const AdminMatches = () => {
     const { data: teamsData, isLoading: loadingTeams } = useQuery({
         queryKey: ['adminTeamsList'],
         queryFn: () => getTeams(1, 100),
+    });
+
+    const { data: eventDaysData, isLoading: loadingEventDays } = useQuery({
+        queryKey: ['adminEventDays'],
+        queryFn: () => getAllEventDays(),
     });
 
     const { data: matchesData, isLoading: loadingMatches } = useQuery({
@@ -83,8 +92,9 @@ export const AdminMatches = () => {
     const isCompleted = selectedCompData?.status === 'completed';
     const teams: Team[] = teamsData?.data || [];
     const matches: Match[] = matchesData?.data || [];
+    const eventDays: EventDayResponse[] = eventDaysData || [];
     const totalPages = matchesData?.total_pages || 1;
-    const loading = loadingComps || loadingTeams || loadingMatches;
+    const loading = loadingComps || loadingTeams || loadingMatches || loadingEventDays;
 
     const groupedMatches = matches.reduce((acc: Record<string, Match[]>, match: Match) => {
         const dateStr = match.date.substring(0, 10);
@@ -136,11 +146,17 @@ export const AdminMatches = () => {
             away_score: m.away_score?.toString() ?? '',
             highlights_url: m.highlights_url || '',
             ticket_url: m.ticket_url || '',
+            event_day_id: m.event_day_id || '',
         });
         setShowModal(true);
     };
 
     const handleSave = async () => {
+        if (form.status === 'FINISHED' && (form.home_score === '' || form.away_score === '')) {
+            toast.error('Home and Away scores are required for finished matches');
+            return;
+        }
+
         setSaving(true);
         try {
             const payload: CreateMatchPayload = {
@@ -155,6 +171,7 @@ export const AdminMatches = () => {
                 away_score: form.away_score !== '' ? parseInt(form.away_score) : null,
                 highlights_url: form.highlights_url,
                 ticket_url: form.ticket_url,
+                event_day_id: form.event_day_id || undefined,
             };
             if (editingId) {
                 await updateMatch(editingId, payload);
@@ -310,6 +327,7 @@ export const AdminMatches = () => {
                                                         <div className="flex justify-end gap-2">
                                                             {!isCompleted ? (
                                                                 <>
+                                                                    <button onClick={() => setTeamSheetMatch(m)} className="px-2.5 py-1 bg-purple-50 text-purple-600 hover:bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400 dark:hover:bg-purple-900/50 font-bold text-xs rounded-md shadow-sm transition-all">Team Sheet</button>
                                                                     <button onClick={() => openEdit(m)} className="px-2.5 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 font-bold text-xs rounded-md shadow-sm transition-all">Edit</button>
                                                                     <button onClick={() => setDeleteConfirm(m.id)} className="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-bold text-xs rounded-md shadow-sm transition-all">Delete</button>
                                                                 </>
@@ -405,6 +423,15 @@ export const AdminMatches = () => {
                                     <input type="text" value={form.venue} onChange={e => set('venue', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="e.g. SFFL Arena" />
                                 </div>
                             </div>
+                            <div className="grid grid-cols-1 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Event Day</label>
+                                    <select value={form.event_day_id} onChange={e => set('event_day_id', e.target.value)} className="w-full min-h-[44px] z-50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-sffl-red">
+                                        <option value="" className="truncate">None</option>
+                                        {eventDays.map(ed => <option key={ed.id} value={ed.id} className="truncate">{ed.title} ({ed.date.substring(0,10)})</option>)}
+                                    </select>
+                                </div>
+                            </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Home Score</label>
@@ -446,6 +473,14 @@ export const AdminMatches = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Team Sheet Modal */}
+            {teamSheetMatch && (
+                <AdminTeamSheetModal 
+                    match={teamSheetMatch} 
+                    onClose={() => setTeamSheetMatch(null)} 
+                />
             )}
         </div>
     );

@@ -31,6 +31,11 @@ type IMatchHandler interface {
 	CreateStanding(c *gin.Context)
 	UpdateStanding(c *gin.Context)
 	DeleteStanding(c *gin.Context)
+	GetMatchDetail(c *gin.Context)
+	GetMatchDays(c *gin.Context)
+	GetEligiblePlayersForMatchDay(c *gin.Context)
+	SaveTeamSheet(c *gin.Context)
+	GetAdminTeamSheet(c *gin.Context)
 }
 
 type MatchHandler struct {
@@ -180,14 +185,22 @@ func (h *MatchHandler) CreateMatch(c *gin.Context) {
 		StartTime:     startTime,
 		Venue:         req.Venue,
 		Status:        domain.MatchStatus(req.Status),
-		TicketURL:     stringPtr(req.TicketURL),
-		HighlightsURL: stringPtr(req.HighlightsURL),
+		TicketURL:     req.TicketURL,
+		HighlightsURL: req.HighlightsURL,
 		HomeScore:     req.HomeScore,
 		AwayScore:     req.AwayScore,
 	}
 
 	if match.Status == "" {
 		match.Status = "SCHEDULED"
+	}
+
+	// Validation: Finished matches must have scores
+	if match.Status == domain.MatchStatusFinished {
+		if match.HomeScore == nil || match.AwayScore == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Home and Away scores must be provided for finished matches"})
+			return
+		}
 	}
 
 	if err := h.service.CreateMatch(c.Request.Context(), match); err != nil {
@@ -225,8 +238,8 @@ func (h *MatchHandler) UpdateMatch(c *gin.Context) {
 		HomeTeamID:    req.HomeTeamID,
 		AwayTeamID:    req.AwayTeamID,
 		Venue:         req.Venue,
-		HighlightsURL: stringPtr(req.HighlightsURL),
-		TicketURL:     stringPtr(req.TicketURL),
+		HighlightsURL: req.HighlightsURL,
+		TicketURL:     req.TicketURL,
 	}
 
 	if req.Date != "" {
@@ -250,6 +263,14 @@ func (h *MatchHandler) UpdateMatch(c *gin.Context) {
 	}
 	if req.AwayScore != nil {
 		match.AwayScore = req.AwayScore
+	}
+
+	// Validation: Finished matches must have scores
+	if match.Status == domain.MatchStatusFinished {
+		if match.HomeScore == nil || match.AwayScore == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Home and Away scores must be provided when finishing a match"})
+			return
+		}
 	}
 
 	if err := h.service.UpdateMatch(c.Request.Context(), match); err != nil {
@@ -581,4 +602,95 @@ func (h *MatchHandler) DeleteCompetition(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Competition deleted"})
+}
+
+// GetMatchDetail godoc
+// @Summary      Get match details with team sheets
+// @Tags         match-hub
+// @Param        id path string true "Match ID"
+// @Produce      json
+// @Success      200 {object} domain.MatchDetail
+// @Router       /api/v1/matches/{id} [get]
+func (h *MatchHandler) GetMatchDetail(c *gin.Context) {
+	id := c.Param("id")
+	detail, err := h.service.GetMatchDetail(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": detail})
+}
+
+func (h *MatchHandler) GetMatchDays(c *gin.Context) {
+	competitionID := c.Query("competition_id")
+	if competitionID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "competition_id is required"})
+		return
+	}
+
+	days, err := h.service.GetMatchDaysByCompetition(c.Request.Context(), competitionID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": days})
+}
+
+func (h *MatchHandler) GetEligiblePlayersForMatchDay(c *gin.Context) {
+	competitionID := c.Query("competition_id")
+	date := c.Query("date")
+
+	if competitionID == "" || date == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "competition_id and date are required"})
+		return
+	}
+
+	players, err := h.service.GetEligiblePlayersForMatchDay(c.Request.Context(), competitionID, date)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": players})
+}
+
+// SaveTeamSheet godoc
+// @Summary      Save team sheet for a match
+// @Tags         admin
+// @Param        id path string true "Match ID"
+// @Param        request body dto.SaveTeamSheetRequest true "Team sheet payload"
+// @Produce      json
+// @Success      200 {object} map[string]string
+// @Router       /api/v1/admin/matches/{id}/team-sheets [post]
+func (h *MatchHandler) SaveTeamSheet(c *gin.Context) {
+	matchID := c.Param("id")
+	var req dto.SaveTeamSheetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.SaveTeamSheet(c.Request.Context(), matchID, req.TeamID, req.PlayerIDs); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Team sheet saved successfully"})
+}
+
+// GetAdminTeamSheet godoc
+// @Summary      Get team sheets for a match
+// @Tags         admin
+// @Param        id path string true "Match ID"
+// @Produce      json
+// @Success      200 {object} domain.MatchTeamSheet
+// @Router       /api/v1/admin/matches/{id}/team-sheets [get]
+func (h *MatchHandler) GetAdminTeamSheet(c *gin.Context) {
+	matchID := c.Param("id")
+	sheet, err := h.service.GetTeamSheet(c.Request.Context(), matchID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": sheet})
 }

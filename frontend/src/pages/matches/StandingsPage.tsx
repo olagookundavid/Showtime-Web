@@ -42,7 +42,7 @@ export const StandingsPage = () => {
     const selectedCompetition = competitions.find(c => c.id === selectedCompetitionId);
 
     return (
-        <div className="max-w-5xl mx-auto space-y-4 md:space-y-10 min-h-screen p-2 md:p-4 pb-20">
+        <div className="max-w-6xl mx-auto space-y-4 md:space-y-8 pb-20">
             {/* Header - Condensed */}
             <div className="flex flex-col md:flex-row justify-between items-center bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
                 <div>
@@ -62,7 +62,7 @@ export const StandingsPage = () => {
                             >
                                 {competitions.map((c: any) => (
                                     <option key={c.id} value={c.id} className="text-black bg-white">
-                                        {c.name} {c.status && c.status !== 'active' ? `[${c.status.toUpperCase()}]` : ''}
+                                        {c.name} {c.status && !['active', 'completed'].includes(c.status) ? `[${c.status.toUpperCase()}]` : ''}
                                     </option>
                                 ))}
                             </select>
@@ -90,7 +90,7 @@ export const StandingsPage = () => {
                         <span className="text-base md:text-2xl">🏆</span>
                         <h2 className="text-sm md:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">
                             {selectedCompetition?.name || 'League'}
-                            {selectedCompetition?.status && selectedCompetition.status !== 'active' && (
+                            {selectedCompetition?.status && !['active', 'completed'].includes(selectedCompetition.status) && (
                                 <span className="text-red-500 text-sm ml-2 align-middle">[{selectedCompetition.status.toUpperCase()}]</span>
                             )}
                         </h2>

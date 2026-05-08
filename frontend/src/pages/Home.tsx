@@ -82,7 +82,7 @@ export default function Home() {
     return (
         <div className="relative isolate min-h-screen -mt-3 md:-mt-8 -mx-2 sm:-mx-6 lg:-mx-8 px-2 sm:px-6 lg:px-8 py-10 md:py-16 space-y-24">
             {/* Hero Section - Optimized for high transparency */}
-            <RevealSection className="relative overflow-hidden rounded-[2.5rem] bg-sffl-navy/40 dark:bg-black/60 backdrop-blur-xl isolate shadow-2xl border border-white/20">
+            <RevealSection className="relative overflow-hidden rounded-[2.5rem] bg-sffl-navy/40 dark:bg-black/60 backdrop-blur-md isolate shadow-2xl border border-white/20">
                 <div className="px-6 py-20 sm:px-6 sm:py-32 lg:px-8 text-center relative z-10">
                     <h1 className="text-5xl font-extrabold tracking-tighter text-white sm:text-8xl mb-6 drop-shadow-2xl">
                         Welcome to the <span className="text-sffl-red italic">Showtime</span>
@@ -94,7 +94,7 @@ export default function Home() {
                         <Link to="/matches" className="flex items-center justify-center rounded-full bg-sffl-red px-10 py-4 min-h-[56px] text-base font-black text-white shadow-xl hover:bg-red-700 hover:scale-105 active:scale-95 transition-all duration-300 w-full sm:w-auto uppercase tracking-widest">
                             View Schedule
                         </Link>
-                        <Link to="/tickets" className="flex items-center justify-center rounded-full bg-white/10 backdrop-blur-md px-10 py-4 min-h-[56px] text-base font-black text-white border border-white/20 hover:bg-white/20 hover:scale-105 active:scale-95 transition-all duration-300 w-full sm:w-auto uppercase tracking-widest">
+                        <Link to="/tickets" className="flex items-center justify-center rounded-full bg-white/10 backdrop-blur-sm px-10 py-4 min-h-[56px] text-base font-black text-white border border-white/20 hover:bg-white/20 hover:scale-105 active:scale-95 transition-all duration-300 w-full sm:w-auto uppercase tracking-widest">
                             Get Tickets
                         </Link>
                     </div>
@@ -109,7 +109,7 @@ export default function Home() {
                     <h2 className="text-4xl font-black italic tracking-tighter text-sffl-navy dark:text-white transition-colors duration-300">
                         <span className="text-sffl-red mr-3 shadow-md">●</span> LATEST RESULTS
                     </h2>
-                    <Link to="/matches" className="text-sffl-red dark:text-red-400 font-bold hover:underline py-2.5 px-5 rounded-full flex items-center min-h-[44px] bg-white/50 dark:bg-white/5 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-white/10 active:scale-95 transition-all duration-300 border border-black/5 dark:border-white/5">
+                    <Link to="/matches" className="text-sffl-red dark:text-red-400 font-bold hover:underline py-2.5 px-5 rounded-full flex items-center min-h-[44px] bg-white/30 dark:bg-white/5 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-white/10 active:scale-95 transition-all duration-300 border border-black/5 dark:border-white/5">
                         View All <span className="ml-2">→</span>
                     </Link>
                 </div>
@@ -125,7 +125,7 @@ export default function Home() {
                             ))}
                         </div>
                     ) : (
-                        <div className="flex flex-col items-center justify-center py-20 bg-white/40 dark:bg-gray-900/40 backdrop-blur-md rounded-3xl border border-white/20 dark:border-white/5 shadow-xl">
+                        <div className="flex flex-col items-center justify-center py-20 bg-white/30 dark:bg-gray-900/40 backdrop-blur-sm rounded-3xl border border-white/20 dark:border-white/5 shadow-xl">
                             <span className="text-6xl mb-4 animate-bounce">🏈</span>
                             <h3 className="text-2xl font-black italic text-sffl-navy dark:text-white tracking-tight">NO RECENT RESULTS</h3>
                             <p className="text-gray-500 dark:text-gray-400 font-medium mt-3 text-base">Results will be posted here right after game day.</p>
@@ -140,7 +140,7 @@ export default function Home() {
                     <h2 className="text-4xl font-black italic tracking-tighter text-sffl-navy dark:text-white transition-colors duration-300">
                         <span className="text-sffl-red mr-3 shadow-md">●</span> UPCOMING MATCHES
                     </h2>
-                    <Link to="/tickets" className="text-sffl-navy dark:text-gray-300 font-bold hover:underline py-2.5 px-5 rounded-full flex items-center min-h-[44px] bg-white/50 dark:bg-white/5 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-white/10 active:scale-95 transition-all duration-300 border border-black/5 dark:border-white/5">
+                    <Link to="/tickets" className="text-sffl-navy dark:text-gray-300 font-bold hover:underline py-2.5 px-5 rounded-full flex items-center min-h-[44px] bg-white/30 dark:bg-white/5 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-white/10 active:scale-95 transition-all duration-300 border border-black/5 dark:border-white/5">
                         Get Tickets <span className="ml-2">🎟️</span>
                     </Link>
                 </div>
@@ -175,7 +175,7 @@ export default function Home() {
                             Full Table <span className="ml-2">→</span>
                         </Link>
                     </div>
-                    <div className="bg-white/60 dark:bg-gray-900/40 backdrop-blur-xl rounded-[2rem] shadow-2xl overflow-hidden border border-white/30 dark:border-white/5">
+                    <div className="bg-white/40 dark:bg-gray-900/40 backdrop-blur-md rounded-[2rem] shadow-2xl overflow-hidden border border-white/30 dark:border-white/5">
                         <div className="overflow-x-auto">
                             <table className="w-full min-w-[500px]">
                                 <thead>
@@ -234,7 +234,7 @@ export default function Home() {
                     </div>
                     <div className="space-y-6">
                         {latestNews.length > 0 ? latestNews.map(article => (
-                            <Link key={article.id} to={`/news/${article.slug}`} className="block bg-white/60 dark:bg-gray-900/40 backdrop-blur-xl rounded-2xl shadow-xl overflow-hidden border border-white/30 dark:border-white/5 hover:shadow-2xl hover:-translate-y-1 active:scale-[0.98] transition-all duration-300 group">
+                            <Link key={article.id} to={`/news/${article.slug}`} className="block bg-white/40 dark:bg-gray-900/40 backdrop-blur-md rounded-2xl shadow-xl overflow-hidden border border-white/30 dark:border-white/5 hover:shadow-2xl hover:-translate-y-1 active:scale-[0.98] transition-all duration-300 group">
                                 <div className="flex">
                                     {article.featured_image && (
                                         <div className="relative w-32 h-32 flex-shrink-0 overflow-hidden">
@@ -272,7 +272,7 @@ export default function Home() {
                     { to: '/players', emoji: '⚡', title: 'MVP Stats', desc: 'Track the league\'s top performers and rising stars.', color: 'hover:border-green-500' }
                 ].map((feature, i) => (
                     <RevealSection key={i} delay={i * 200}>
-                        <Link to={feature.to} className={`block w-full h-full p-10 bg-white/60 dark:bg-gray-900/40 backdrop-blur-xl rounded-[2.5rem] border border-white/30 dark:border-white/5 transition-all duration-500 group shadow-lg hover:shadow-2xl active:scale-[0.98] ${feature.color}`}>
+                        <Link to={feature.to} className={`block w-full h-full p-10 bg-white/40 dark:bg-gray-900/40 backdrop-blur-md rounded-[2.5rem] border border-white/30 dark:border-white/5 transition-all duration-500 group shadow-lg hover:shadow-2xl active:scale-[0.98] ${feature.color}`}>
                             <div className="text-6xl mb-6 group-hover:scale-110 group-hover:-rotate-6 transition-all duration-500 filter drop-shadow-lg">{feature.emoji}</div>
                             <h3 className="text-2xl font-black mb-3 text-sffl-navy dark:text-white tracking-tighter uppercase italic">{feature.title}</h3>
                             <p className="text-gray-500 dark:text-gray-400 text-base leading-relaxed font-medium">{feature.desc}</p>

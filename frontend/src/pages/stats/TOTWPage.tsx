@@ -33,12 +33,11 @@ export const TOTWPage = () => {
     });
     const comps: Competition[] = (compData?.data || []).filter(c => c.status !== 'inactive');
 
-    const { data: datesData, isLoading: loadingDates } = useQuery({
-        queryKey: ['statDates', selectedComp],
+    const { data: dates = [], isLoading: loadingDates } = useQuery({
+        queryKey: ['publicStatDates', selectedComp],
         queryFn: () => getStatDates(selectedComp),
         enabled: !!selectedComp,
     });
-    const statDates = datesData || [];
 
     const { data: totwEntries, isLoading: loadingTOTW } = useQuery({
         queryKey: ['publicTOTW', selectedComp, selectedDate],
@@ -58,7 +57,7 @@ export const TOTWPage = () => {
         if (latestInit?.date && !selectedComp && !selectedDate) {
             if (latestInit.data.length > 0) {
                 setSelectedComp(latestInit.data[0].competition_id);
-                setSelectedDate(latestInit.date);
+                setSelectedDate(latestInit.date.substring(0, 10));
             }
         }
     }, [latestInit, selectedComp, selectedDate]);
@@ -71,15 +70,15 @@ export const TOTWPage = () => {
     }, [comps, selectedComp]);
 
     useEffect(() => {
-        if (statDates.length > 0 && !selectedDate) {
-            setSelectedDate(statDates[0]);
+        if (dates.length > 0 && !selectedDate) {
+            setSelectedDate(dates[0].substring(0, 10));
         }
-    }, [statDates, selectedDate]);
+    }, [dates, selectedDate]);
 
     const isLoading = loadingComps || loadingDates || loadingTOTW;
 
     return (
-        <div className="max-w-7xl mx-auto space-y-8 p-4 md:p-8 min-h-screen">
+        <div className="max-w-6xl mx-auto space-y-4 md:space-y-8 pb-12">
             {/* Header Section */}
             <div className="relative overflow-hidden bg-sffl-navy p-8 md:p-12 rounded-[2rem] shadow-2xl flex flex-col md:flex-row justify-between items-center gap-8 border-b-8 border-sffl-red">
                 <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/4 w-64 h-64 bg-sffl-red/10 rounded-full blur-3xl"></div>
@@ -114,18 +113,25 @@ export const TOTWPage = () => {
                             <select
                                 value={selectedDate}
                                 onChange={e => setSelectedDate(e.target.value)}
-                                className="w-full bg-white/10 hover:bg-white/20 border border-white/20 text-white pl-10 pr-4 py-3 rounded-2xl font-bold text-sm transition-all outline-none focus:ring-2 focus:ring-sffl-red cursor-pointer disabled:opacity-50"
-                                disabled={statDates.length === 0}
+                                className="w-full bg-white/10 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm font-bold text-white focus:ring-2 focus:ring-sffl-red outline-none transition-all appearance-none cursor-pointer hover:bg-white/20"
                             >
-                                {statDates.length === 0 && <option value="">No Data</option>}
-                                {statDates.map(d => <option key={d} value={d} className="text-black">{d}</option>)}
+                                {dates.map(date => (
+                                    <option key={date} value={date.substring(0, 10)} className="text-gray-900">
+                                        {new Date(date).toLocaleDateString('en-US', { 
+                                            weekday: 'long', 
+                                            month: 'short', 
+                                            day: 'numeric',
+                                            year: 'numeric'
+                                        })}
+                                    </option>
+                                ))}
                             </select>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {isLoading ? (
+            {isLoading || loadingDates ? (
                 <div className="py-20"><Loader /></div>
             ) : totwEntries && totwEntries.length > 0 ? (
                 <div className="grid grid-cols-1 gap-12">

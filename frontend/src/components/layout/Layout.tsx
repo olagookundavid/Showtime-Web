@@ -37,20 +37,23 @@ export const Layout = () => {
 
 
     return (
-        <div className={`flex flex-col min-h-screen w-full max-w-[100vw] transition-colors duration-500 bg-transparent pb-14 lg:pb-0`}>
-            {/* Global Background */}
-            <div className="fixed inset-0 -z-50 bg-gray-50 dark:bg-gray-950">
+        <div className={`flex flex-col min-h-screen w-full max-w-[100vw] transition-colors duration-500 bg-transparent pb-14 lg:pb-0 overscroll-y-none`}>
+            {/* Global Background - High-contrast atmospheric version */}
+            <div className="fixed inset-0 -z-50 bg-slate-200 dark:bg-black">
                 <div 
-                    className="absolute inset-0 bg-[url('/images/branding/home-bg.jpeg')] bg-cover bg-center opacity-20 dark:opacity-30" 
+                    className="absolute inset-0 bg-[url('/images/branding/home-bg.jpeg')] bg-cover bg-center opacity-40 dark:opacity-20 transition-opacity duration-700" 
                     style={{ backgroundAttachment: 'fixed' }}
                 />
-                {/* Atmospheric overlays */}
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white dark:to-gray-950" />
-                <div className="absolute inset-0 bg-gradient-to-br from-sffl-red/5 via-transparent to-sffl-navy/10 dark:from-sffl-red/10 dark:to-sffl-navy/40" />
+                
+                {/* Dynamic Tints - Way different for light/dark */}
+                <div className="absolute inset-0 bg-gradient-to-br from-sffl-red/10 via-white/50 dark:via-transparent to-sffl-navy/20 dark:from-sffl-red/5 dark:to-sffl-navy/60" />
+                
+                {/* Vignette for depth */}
+                <div className="absolute inset-0 [background:radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.05)_100%)] dark:[background:radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)]" />
             </div>
 
             <Navbar onMoreClick={() => setIsMoreMenuOpen(true)} />
-            <main className="flex-grow w-full max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-3 md:py-8 relative z-10">
+            <main className="flex-grow w-full max-w-6xl mx-auto px-2 sm:px-6 lg:px-8 py-3 md:py-8 relative z-10 overscroll-y-none">
                 <Outlet />
             </main>
             <Footer />

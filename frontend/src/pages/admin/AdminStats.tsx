@@ -3,17 +3,18 @@ import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
     getCompetitions,
-    getAdminTeams,
-    getPlayers,
+    getMatches,
+    getAdminTeamSheet,
     upsertPlayerStat,
-    type Team,
-    type Player,
-    type Competition
+    getPlayerStatById,
+    type Competition,
+    type Match,
+    type MatchTeamSheet,
+    type TeamSheetPlayer
 } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { LightboxImage } from '../../components/ui';
 import { DataTable, type Column } from '../../components/ui/DataTable';
-import { CalendarPicker } from '../../components/ui/CalendarPicker';
 
 const STAT_FIELDS = [
     { key: 'passing_attempts', label: 'Pass Attempts' },
@@ -45,9 +46,8 @@ const emptyForm: FormState = STAT_FIELDS.reduce((acc, field) => {
 
 export const AdminStats = () => {
     const [selectedComp, setSelectedComp] = useState<string>('');
-    const [selectedTeam, setSelectedTeam] = useState<string>('');
-    const today = new Date().toISOString().split('T')[0];
-    const [selectedDate, setSelectedDate] = useState<string>(today);
+    const [selectedMatch, setSelectedMatch] = useState<string>('');
+    const [selectedTeamId, setSelectedTeamId] = useState<string>('');
 
     // Queries
     const { data: compData, isLoading: loadingComps } = useQuery({
@@ -58,42 +58,62 @@ export const AdminStats = () => {
     const selectedCompData = comps.find(c => c.id === selectedComp);
     const isCompleted = selectedCompData?.status === 'completed';
 
-    const { data: teamsData, isLoading: loadingTeams } = useQuery({
-        queryKey: ['adminTeamsListAll'],
-        queryFn: () => getAdminTeams({ page: 1, limit: 100 }),
+    const { data: matchesData, isLoading: loadingMatches } = useQuery({
+        queryKey: ['adminMatchesForStats', selectedComp],
+        queryFn: () => getMatches(selectedComp, 1, 100),
+        enabled: !!selectedComp,
     });
-    const teams: Team[] = teamsData?.data || [];
+    const matches: Match[] = matchesData?.data || [];
+    const activeMatch = matches.find(m => m.id === selectedMatch);
 
-    const { data: playersData, isLoading: loadingPlayers } = useQuery({
-        queryKey: ['adminPlayersByTeam', selectedTeam],
-        queryFn: () => getPlayers(selectedTeam, 1, 100),
-        enabled: !!selectedTeam,
+    const { data: teamSheetData, isLoading: loadingTeamSheet } = useQuery({
+        queryKey: ['adminTeamSheet', selectedMatch],
+        queryFn: () => getAdminTeamSheet(selectedMatch),
+        enabled: !!selectedMatch,
     });
-    const players: Player[] = playersData?.data || [];
 
-    // Auto-select latest competition and team
+    // Auto-select latest competition
     useEffect(() => {
         if (comps.length > 0 && !selectedComp) {
             setSelectedComp(comps[0].id);
         }
     }, [comps, selectedComp]);
 
+    // Auto-select first match when matches load
     useEffect(() => {
-        if (teams.length > 0 && !selectedTeam) {
-            setSelectedTeam(teams[0].id);
+        if (matches.length > 0 && (!selectedMatch || !matches.find(m => m.id === selectedMatch))) {
+            setSelectedMatch(matches[0].id);
+        } else if (matches.length === 0) {
+            setSelectedMatch('');
         }
-    }, [teams, selectedTeam]);
+    }, [matches, selectedMatch]);
+
+    // Auto-select Home Team when Match loads
+    useEffect(() => {
+        if (activeMatch && (!selectedTeamId || (selectedTeamId !== activeMatch.home_team.id && selectedTeamId !== activeMatch.away_team.id))) {
+            setSelectedTeamId(activeMatch.home_team.id);
+        }
+    }, [activeMatch, selectedTeamId]);
+
+    let players: TeamSheetPlayer[] = [];
+    if (teamSheetData && activeMatch) {
+        if (selectedTeamId === activeMatch.home_team.id) {
+            players = teamSheetData.home_team;
+        } else if (selectedTeamId === activeMatch.away_team.id) {
+            players = teamSheetData.away_team;
+        }
+    }
 
     // Modal State
     const [showModal, setShowModal] = useState(false);
-    const [activePlayer, setActivePlayer] = useState<Player | null>(null);
+    const [activePlayer, setActivePlayer] = useState<TeamSheetPlayer | null>(null);
     const [form, setForm] = useState<FormState>(emptyForm);
     const [saving, setSaving] = useState(false);
     const [loadingExisting, setLoadingExisting] = useState(false);
 
-    const openStatsModal = async (p: Player) => {
-        if (!selectedComp || !selectedDate) {
-            toast.error('Please select a Competition and Date first');
+    const openStatsModal = async (p: TeamSheetPlayer) => {
+        if (!selectedComp || !selectedMatch) {
+            toast.error('Please select a Competition and Match first');
             return;
         }
         setActivePlayer(p);
@@ -101,9 +121,7 @@ export const AdminStats = () => {
         setShowModal(true);
 
         try {
-            const existing = await import('../../services/api').then(m =>
-                m.getPlayerStatById(p.id, selectedComp, selectedDate)
-            );
+            const existing = await getPlayerStatById(p.player_id, selectedComp, undefined, selectedMatch);
 
             if (existing) {
                 const loadedForm: any = { ...emptyForm };
@@ -124,18 +142,17 @@ export const AdminStats = () => {
     };
 
     const handleSave = async () => {
-        if (!activePlayer || !selectedComp || !selectedDate) return;
+        if (!activePlayer || !selectedComp || !selectedMatch || !activeMatch) return;
         setSaving(true);
         try {
             const payload: any = {
-                player_id: activePlayer.id,
-                team_id: activePlayer.team.id || selectedTeam,
+                player_id: activePlayer.player_id,
+                team_id: selectedTeamId,
                 competition_id: selectedComp,
-                match_id: '',
-                match_date: selectedDate,
+                match_id: selectedMatch,
+                match_date: activeMatch.date.split('T')[0],
             };
 
-            // Parse all string inputs to numbers
             STAT_FIELDS.forEach(f => {
                 payload[f.key] = parseInt(form[f.key]) || 0;
             });
@@ -150,7 +167,7 @@ export const AdminStats = () => {
         setSaving(false);
     };
 
-    const columns: Column<Player>[] = [
+    const columns: Column<TeamSheetPlayer>[] = [
         { header: '#', accessor: 'jersey_number', sortable: true, className: "px-4 py-3 font-bold text-sm dark:text-gray-300 w-16" },
         {
             header: 'Player',
@@ -197,7 +214,7 @@ export const AdminStats = () => {
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-black text-sffl-navy dark:text-white">Stats Entry</h1>
-                    <p className="text-gray-500 text-sm mt-1">Select context to record daily match stats</p>
+                    <p className="text-gray-500 text-sm mt-1">Select match context to record player stats</p>
                 </div>
             </div>
 
@@ -213,19 +230,38 @@ export const AdminStats = () => {
                         {comps.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                 </div>
-                <CalendarPicker
-                    label="Match Date *"
-                    value={selectedDate}
-                    onChange={setSelectedDate}
-                />
+                <div>
+                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Match *</label>
+                    <select
+                        value={selectedMatch}
+                        onChange={e => setSelectedMatch(e.target.value)}
+                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        disabled={loadingMatches || matches.length === 0}
+                    >
+                        {matches.length === 0 && <option value="">No matches found</option>}
+                        {matches.map(m => (
+                            <option key={m.id} value={m.id}>
+                                {m.date.split('T')[0]} : {m.home_team.short_name} vs {m.away_team.short_name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
                 <div>
                     <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Team Filter</label>
                     <select
-                        value={selectedTeam}
-                        onChange={e => setSelectedTeam(e.target.value)}
+                        value={selectedTeamId}
+                        onChange={e => setSelectedTeamId(e.target.value)}
                         className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        disabled={!activeMatch}
                     >
-                        {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        {activeMatch ? (
+                            <>
+                                <option value={activeMatch.home_team.id}>{activeMatch.home_team.name}</option>
+                                <option value={activeMatch.away_team.id}>{activeMatch.away_team.name}</option>
+                            </>
+                        ) : (
+                            <option value="">Select a match first</option>
+                        )}
                     </select>
                 </div>
             </div>
@@ -237,9 +273,17 @@ export const AdminStats = () => {
                 </div>
             )}
 
-            {(loadingComps || loadingTeams || loadingPlayers) ? (
+            {(loadingComps || loadingMatches || loadingTeamSheet) ? (
                 <Loader />
-            ) : selectedTeam ? (
+            ) : !selectedMatch ? (
+                <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
+                    <p className="text-gray-500 font-semibold">Please select a Match to view players.</p>
+                </div>
+            ) : players.length === 0 ? (
+                <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
+                    <p className="text-gray-500 font-semibold">No players found on the team sheet for this team. Please add them via Match Management.</p>
+                </div>
+            ) : (
                 <DataTable
                     data={players}
                     columns={columns}
@@ -247,10 +291,6 @@ export const AdminStats = () => {
                     searchPlaceholder="Search players..."
                     itemsPerPage={20}
                 />
-            ) : (
-                <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
-                    <p className="text-gray-500 font-semibold">Please select a Team to view players and enter stats.</p>
-                </div>
             )}
 
             {/* Stats Entry Modal */}
@@ -261,7 +301,7 @@ export const AdminStats = () => {
                             <div>
                                 <h2 className="text-2xl font-black text-sffl-navy dark:text-white">Record Stats</h2>
                                 <p className="text-gray-500 text-sm mt-1">
-                                    <span className="font-bold text-sffl-red">{activePlayer.name}</span> • {selectedDate}
+                                    <span className="font-bold text-sffl-red">{activePlayer.name}</span> • {activeMatch?.date.split('T')[0]}
                                 </p>
                             </div>
                             <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
@@ -277,7 +317,7 @@ export const AdminStats = () => {
                             )}
 
                             <div className="bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 p-4 rounded-xl mb-6 text-sm font-medium border border-blue-100 dark:border-blue-800">
-                                ℹ️ Update the stats for this player. <b>Saving will add to existing stats</b> for this specific match date.
+                                ℹ️ Update the stats for this player. <b>Saving will add to existing stats</b> for this specific match.
                             </div>
 
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

@@ -45,8 +45,8 @@ type CreateMatchRequest struct {
 	Status        string `json:"status"`
 	HomeScore     *int   `json:"home_score"`
 	AwayScore     *int   `json:"away_score"`
-	HighlightsURL string `json:"highlights_url"`
-	TicketURL     string `json:"ticket_url"`
+	HighlightsURL *string `json:"highlights_url"`
+	TicketURL     *string `json:"ticket_url"`
 }
 
 type UpdateMatchRequest struct {
@@ -59,8 +59,8 @@ type UpdateMatchRequest struct {
 	Status        string `json:"status"`
 	HomeScore     *int   `json:"home_score"`
 	AwayScore     *int   `json:"away_score"`
-	HighlightsURL string `json:"highlights_url"`
-	TicketURL     string `json:"ticket_url"`
+	HighlightsURL *string `json:"highlights_url"`
+	TicketURL     *string `json:"ticket_url"`
 }
 
 type MatchResponse struct {
@@ -76,6 +76,12 @@ type MatchResponse struct {
 	AwayScore     *int                 `json:"away_score"`
 	HighlightsURL string               `json:"highlights_url"`
 	TicketURL     string               `json:"ticket_url"`
+}
+
+// --- Team Sheets ---
+type SaveTeamSheetRequest struct {
+	TeamID    string   `json:"team_id" binding:"required"`
+	PlayerIDs []string `json:"player_ids" binding:"required"`
 }
 
 // --- Standings ---

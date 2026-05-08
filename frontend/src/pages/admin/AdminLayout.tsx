@@ -97,15 +97,18 @@ export const AdminLayout = () => {
 
     return (
         <div className={`h-screen flex overflow-hidden bg-transparent w-full`}>
-            {/* Global Background */}
-            <div className="fixed inset-0 -z-50 bg-gray-50 dark:bg-gray-950">
+            {/* Global Background - Atmospheric version */}
+            <div className="fixed inset-0 -z-50 bg-slate-200 dark:bg-black">
                 <div 
-                    className="absolute inset-0 bg-[url('/images/branding/home-bg.jpeg')] bg-cover bg-center opacity-20 dark:opacity-30" 
+                    className="absolute inset-0 bg-[url('/images/branding/home-bg.jpeg')] bg-cover bg-center opacity-40 dark:opacity-20 transition-opacity duration-700" 
                     style={{ backgroundAttachment: 'fixed' }}
                 />
-                {/* Atmospheric overlays */}
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white dark:to-gray-950" />
-                <div className="absolute inset-0 bg-gradient-to-br from-sffl-red/5 via-transparent to-sffl-navy/10 dark:from-sffl-red/10 dark:to-sffl-navy/40" />
+                
+                {/* Dynamic Tints */}
+                <div className="absolute inset-0 bg-gradient-to-br from-sffl-red/10 via-white/50 dark:via-transparent to-sffl-navy/20 dark:from-sffl-red/5 dark:to-sffl-navy/60" />
+                
+                {/* Vignette for depth */}
+                <div className="absolute inset-0 [background:radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.05)_100%)] dark:[background:radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)]" />
             </div>
             {/* Mobile Admin Header */}
             <div className="lg:hidden fixed top-0 left-0 right-0 h-20 bg-sffl-navy text-white flex items-center justify-between px-4 z-30 shadow-md border-b border-sffl-red/30">
@@ -162,7 +165,7 @@ export const AdminLayout = () => {
             </aside>
 
             {/* Main Content Area */}
-            <main className="flex-1 w-full min-w-0 p-2 lg:p-8 pt-22 lg:pt-8 overflow-y-auto bg-transparent pb-20 lg:pb-8 relative z-10">
+            <main className="flex-1 w-full min-w-0 p-2 lg:p-8 pt-22 lg:pt-8 overflow-y-auto overscroll-y-none bg-transparent pb-20 lg:pb-8 relative z-10">
                 <Outlet />
             </main>
 

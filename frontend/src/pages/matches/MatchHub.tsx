@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { getCompetitions, getMatches, getStandings, type Match, type Competition, type PaginatedResponse } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { MatchCard } from '../../components/matches/MatchCard';
@@ -10,6 +10,7 @@ export const MatchHub = () => {
     const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>('');
     const [statusFilter, setStatusFilter] = useState<'ALL' | 'LIVE' | 'FINISHED' | 'SCHEDULED'>('ALL');
     const [collapsedDates, setCollapsedDates] = useState<Record<string, boolean>>({});
+    const navigate = useNavigate();
 
     const { data: competitionsData, isLoading: loadingComps } = useQuery({
         queryKey: ['publicCompetitions'],
@@ -95,7 +96,7 @@ export const MatchHub = () => {
     if (loading && competitions.length === 0) return <Loader />;
 
     return (
-        <div className="max-w-6xl mx-auto flex flex-col gap-8 min-h-screen p-4 pb-16">
+        <div className="max-w-6xl mx-auto space-y-4 md:space-y-8 pb-16">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-center bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
                 <div>
@@ -120,7 +121,7 @@ export const MatchHub = () => {
                             >
                                 {competitions.map((c: Competition) => (
                                     <option key={c.id} value={c.id} className="text-black bg-white">
-                                        {c.name} {c.status && c.status !== 'active' ? `[${c.status.toUpperCase()}]` : ''}
+                                        {c.name} {c.status && !['active', 'completed'].includes(c.status) ? `[${c.status.toUpperCase()}]` : ''}
                                     </option>
                                 ))}
                             </select>
@@ -208,7 +209,7 @@ export const MatchHub = () => {
                                                     <div ref={isLastOverall ? lastMatchElementRef : null} key={match.id}>
                                                         <MatchCard
                                                             match={match}
-                                                            onClick={() => { }}
+                                                            onClick={() => navigate(`/matches/${match.id}`)}
                                                         />
                                                     </div>
                                                 );
@@ -239,17 +240,13 @@ export const MatchHub = () => {
 
                 {/* Right Column: Standings (1/3 width) — sticky sidebar */}
                 <div className="lg:col-span-1 lg:sticky lg:top-[90px] self-start space-y-6">
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-2xl font-bold text-sffl-navy dark:text-white flex items-center gap-2">
-                            <span className="text-yellow-500">🏆</span> Standings
-                        </h2>
-                        <Link to={`/standings?comp=${selectedCompetitionId}`} className="hidden lg:inline-flex px-3 py-1.5 bg-sffl-navy hover:bg-sffl-red text-white text-xs font-bold rounded-lg transition-colors">
-                            View All
-                        </Link>
-                    </div>
                     {standings.length > 0 ? (
                         <div className="space-y-6">
-                            <MatchStandingsTable standings={standings} isCompleted={isCompleted} />
+                            <MatchStandingsTable 
+                                standings={standings} 
+                                isCompleted={isCompleted} 
+                                viewAllLink={`/standings?comp=${selectedCompetitionId}`}
+                            />
 
                             <div className="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-xl p-6 text-white shadow-lg">
                                 <h3 className="text-xl font-bold mb-2">Join the Action!</h3>

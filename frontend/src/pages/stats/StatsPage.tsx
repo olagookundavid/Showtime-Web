@@ -40,18 +40,24 @@ export const StatsPage = () => {
     });
     const statDates = datesData || [];
 
-    // Auto-select latest competition and date
-    useEffect(() => {
-        if (competitions.length > 0 && !selectedCompetitionId) {
-            setSelectedCompetitionId(competitions[0].id);
-        }
-    }, [competitions, selectedCompetitionId]);
 
+
+    // Reset date to 'All' when competition changes
     useEffect(() => {
-        if (statDates.length > 0 && !selectedDate) {
-            setSelectedDate(statDates[0]);
+        if (selectedCompetitionId) {
+            setSelectedDate('');
+            const params = new URLSearchParams(searchParams);
+            params.delete('date');
+            setSearchParams(params, { replace: true });
         }
-    }, [statDates, selectedDate]);
+    }, [selectedCompetitionId]);
+
+    // Default to 'All' (empty string) instead of first date
+    useEffect(() => {
+        if (!selectedDate && !urlDate) {
+            setSelectedDate('');
+        }
+    }, [urlDate, selectedDate]);
 
     const { data: playerStatsPagination, isLoading: loadingPlayers } = useQuery({
         queryKey: ['playerStatsFiltered', selectedCompetitionId, selectedDate, page, urlPlayerId, searchQuery],
@@ -74,7 +80,7 @@ export const StatsPage = () => {
     const totalItems = pagination?.total || 0;
 
     return (
-        <div className="max-w-7xl mx-auto space-y-4 md:space-y-10 min-h-screen p-2 md:p-4 pb-20">
+        <div className="max-w-6xl mx-auto space-y-4 md:space-y-8 pb-20">
             {/* Header */}
             <div className="flex flex-col lg:flex-row items-start lg:items-center bg-sffl-navy text-white p-6 md:p-8 rounded-xl md:rounded-2xl shadow-xl gap-8 lg:gap-12">
                 <div className="shrink-0">
@@ -132,20 +138,23 @@ export const StatsPage = () => {
                             onChange={(e) => {
                                 setSelectedCompetitionId(e.target.value);
                                 const params = new URLSearchParams(searchParams);
-                                params.set('comp', e.target.value);
+                                if (e.target.value) params.set('comp', e.target.value);
+                                else params.delete('comp');
+                                params.delete('date');
                                 setSearchParams(params, { replace: true });
                             }}
                             className="bg-white/10 border border-white/20 text-white p-2 rounded-lg font-bold text-sm min-w-full sm:min-w-[200px] cursor-pointer hover:bg-white/20 transition-colors w-full"
                         >
+                            <option value="" className="text-black bg-white">All Competitions</option>
                             {competitions.map((c: any) => (
                                 <option key={c.id} value={c.id} className="text-black bg-white">
-                                    {c.name} {c.status && c.status !== 'active' ? `[${c.status.toUpperCase()}]` : ''}
+                                    {c.name} {c.status && !['active', 'completed'].includes(c.status) ? `[${c.status.toUpperCase()}]` : ''}
                                 </option>
                             ))}
                         </select>
                     </div>
 
-                    <div className="w-full sm:w-auto">
+                    <div className={`w-full sm:w-auto transition-opacity duration-300 ${!selectedCompetitionId ? 'opacity-40' : 'opacity-100'}`}>
                         <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">Event Day</label>
                         <select
                             value={selectedDate}
@@ -155,8 +164,10 @@ export const StatsPage = () => {
                                 params.set('date', e.target.value);
                                 setSearchParams(params, { replace: true });
                             }}
-                            className="bg-white/10 border border-white/20 text-white p-2 rounded-lg font-bold text-sm min-w-full sm:min-w-[160px] cursor-pointer hover:bg-white/20 transition-colors w-full"
+                            disabled={!selectedCompetitionId}
+                            className="bg-white/10 border border-white/20 text-white p-2 rounded-lg font-bold text-sm min-w-full sm:min-w-[160px] cursor-pointer hover:bg-white/20 transition-colors w-full disabled:cursor-not-allowed"
                         >
+                             <option value="" className="text-black bg-white">All Event Days</option>
                             {statDates.map((date: string) => (
                                 <option key={date} value={date} className="text-black bg-white">
                                     {date}

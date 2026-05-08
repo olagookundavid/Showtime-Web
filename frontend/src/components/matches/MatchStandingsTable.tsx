@@ -1,13 +1,14 @@
-import React from 'react';
+import { Link } from 'react-router-dom';
 import type { Standing } from '../../services/api';
 import { LightboxImage } from '../ui';
 
 interface MatchStandingsTableProps {
     standings: Standing[];
     isCompleted?: boolean;
+    viewAllLink?: string;
 }
 
-export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({ standings, isCompleted }) => {
+export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({ standings, isCompleted, viewAllLink }) => {
     if (standings.length === 0) {
         return <div className="text-center p-8 text-gray-500 dark:text-gray-400">No standings available yet.</div>;
     }
@@ -15,8 +16,17 @@ export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({ standi
     return (
         <div className="overflow-hidden rounded-lg md:rounded-xl shadow-lg bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700">
             <div className="px-3 py-2.5 md:px-6 md:py-4 bg-sffl-navy text-white font-bold text-sm md:text-lg flex items-center justify-between">
-                <span>Team Standings</span>
-                {isCompleted && <span className="text-xs bg-amber-500 text-sffl-navy px-2 py-0.5 rounded-full font-black uppercase tracking-wider">Completed</span>}
+                <div className="flex items-center gap-2">
+                    <span className="text-yellow-500">🏆</span>
+                    <span>Team Standings</span>
+                </div>
+                <div className="flex items-center gap-3">
+                    {viewAllLink && (
+                        <Link to={viewAllLink} className="text-[10px] md:text-xs bg-white/10 hover:bg-white/20 text-white px-2 py-1 rounded transition-colors uppercase tracking-tight">
+                            View All →
+                        </Link>
+                    )}
+                </div>
             </div>
             <div className="overflow-x-auto custom-scrollbar">
                 <table className="w-full text-xs md:text-sm text-left">

@@ -25,7 +25,7 @@ export const PlayersPage = () => {
     if (loading) return <Loader />;
 
     return (
-        <div className="space-y-8">
+        <div className="max-w-6xl mx-auto space-y-8">
             {/* Header - High Density */}
             <div className="flex flex-col md:flex-row justify-between items-center bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
                 <div>
@@ -77,21 +77,20 @@ export const PlayersPage = () => {
             ) : (
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 md:gap-6">
                     {players.map((player: any) => (
-                        <Link
+                        <div
                             key={player.id}
-                            to={`/players/${player.id}`}
-                            className="bg-white dark:bg-gray-800 rounded-lg md:rounded-xl shadow-sm hover:shadow-xl transition overflow-hidden group border border-gray-100 dark:border-gray-700"
+                            className="bg-white dark:bg-gray-800 rounded-lg md:rounded-xl shadow-sm hover:shadow-xl transition overflow-hidden group border border-gray-100 dark:border-gray-700 flex flex-col"
                         >
-                            {/* Player Image - Condensed */}
-                            <div className="relative h-32 md:h-64 overflow-hidden bg-gradient-to-br from-sffl-navy to-sffl-red group-image">
+                            {/* Player Image - Lightbox only click */}
+                            <div className="relative h-48 md:h-80 overflow-hidden bg-gray-100 dark:bg-gray-900 group-image cursor-zoom-in">
                                 {player.image ? (
                                     <LightboxImage
                                         src={player.image}
                                         alt={player.name}
-                                        thumbnailClassName="w-full h-full object-cover opacity-80 group-hover:scale-110 transition-transform duration-300"
+                                        thumbnailClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                                     />
                                 ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-white text-3xl md:text-6xl font-black opacity-40">
+                                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-sffl-navy to-sffl-navy/80 text-white text-3xl md:text-6xl font-black opacity-40">
                                         #{player.jersey_number}
                                     </div>
                                 )}
@@ -100,30 +99,20 @@ export const PlayersPage = () => {
                                 </div>
                             </div>
 
-                            {/* Player Info - High Density */}
-                            <div className="p-2 md:p-6">
-                                <h3 className="text-xs md:text-2xl font-black text-sffl-navy dark:text-white truncate">{player.name}</h3>
-                                <div className="text-[10px] md:text-sm text-sffl-red font-bold truncate mb-1 md:mb-3">
-                                    {player.position}
-                                </div>
-
-                                {/* Stats - Compact Grid */}
-                                <div className="grid grid-cols-2 gap-1 md:gap-2">
-                                    <div className="bg-gray-50 dark:bg-gray-700/50 p-1 md:p-2 rounded text-center">
-                                        <div className="text-gray-500 dark:text-gray-400 text-[8px] md:text-xs">TDs</div>
-                                        <div className="font-black text-[10px] md:text-base text-sffl-navy dark:text-white">{player.touchdowns || 0}</div>
-                                    </div>
-                                    <div className="bg-gray-50 dark:bg-gray-700/50 p-1 md:p-2 rounded text-center">
-                                        <div className="text-gray-500 dark:text-gray-400 text-[8px] md:text-xs">YDS</div>
-                                        <div className="font-black text-[10px] md:text-base text-sffl-navy dark:text-white">{player.yards || 0}</div>
+                            {/* Player Info - Link to profile */}
+                            <Link to={`/players/${player.id}`} className="p-2 md:p-6 flex-1 flex flex-col justify-between hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                                <div>
+                                    <h3 className="text-xs md:text-2xl font-black text-sffl-navy dark:text-white truncate">{player.name}</h3>
+                                    <div className="text-[10px] md:text-sm text-sffl-red font-bold truncate">
+                                        {player.position}
                                     </div>
                                 </div>
 
-                                <div className="mt-4 text-sffl-red font-semibold text-sm group-hover:underline">
-                                    View Profile →
+                                <div className="mt-2 md:mt-4 text-sffl-red font-semibold text-[10px] md:text-sm uppercase tracking-wider flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                                    View Profile <span>→</span>
                                 </div>
-                            </div>
-                        </Link>
+                            </Link>
+                        </div>
                     ))}
                 </div>
             )}
