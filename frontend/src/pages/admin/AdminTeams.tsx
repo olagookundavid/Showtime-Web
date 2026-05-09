@@ -252,8 +252,8 @@ const AdminTeams = () => {
                                         </div>
                                     )}
                                     <div>
-                                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">{team.name}</h3>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400">{team.short_name}</p>
+                                        <h3 className="text-lg font-bold text-gray-900 dark:text-white uppercase">{team.name}</h3>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400 uppercase">{team.short_name}</p>
                                     </div>
                                 </div>
                                 <div className="flex gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
@@ -303,13 +303,13 @@ const AdminTeams = () => {
                         <div className="p-6 space-y-4">
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Team Name *</label>
-                                <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red" placeholder="e.g. Lagos Guardians" />
+                                <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value.toUpperCase() }))}
+                                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red uppercase" placeholder="e.g. LAGOS GUARDIANS" />
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Short Name</label>
-                                <input type="text" value={form.short_name} onChange={e => setForm(f => ({ ...f, short_name: e.target.value }))}
-                                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red" placeholder="e.g. LGD" />
+                                <input type="text" value={form.short_name} onChange={e => setForm(f => ({ ...f, short_name: e.target.value.toUpperCase() }))}
+                                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red uppercase" placeholder="e.g. LGD" />
                             </div>
                             <div>
                                 <ImageUploadField

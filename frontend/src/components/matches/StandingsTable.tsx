@@ -72,7 +72,7 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCom
                                             alt={standing.team?.name || 'Team'} 
                                             thumbnailClassName="w-5 h-5 md:w-8 md:h-8 object-contain rounded-md" 
                                         />
-                                        <span className="truncate max-w-[60px] md:max-w-none flex items-center gap-1">
+                                        <span className="truncate max-w-[60px] md:max-w-none flex items-center gap-1 uppercase">
                                             {isGold && <span title="Champion">👑</span>}
                                             {isSilver && <span title="Runner Up">🥈</span>}
                                             {standing.team?.short_name || standing.team?.name || 'Unknown'}

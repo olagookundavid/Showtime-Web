@@ -240,7 +240,7 @@ export const AdminStats = () => {
                         {matches.length === 0 && <option value="">No matches found</option>}
                         {matches.map(m => (
                             <option key={m.id} value={m.id}>
-                                {m.date.split('T')[0]} : {m.home_team.short_name} vs {m.away_team.short_name}
+                                {m.date.split('T')[0]} : {m.home_team.short_name?.toUpperCase()} vs {m.away_team.short_name?.toUpperCase()}
                             </option>
                         ))}
                     </select>

@@ -49,7 +49,7 @@ export const CompactMatchCard: React.FC<CompactMatchCardProps> = ({ match, onCli
                         alt={match.home_team?.name} 
                         thumbnailClassName="w-10 h-10 md:w-12 md:h-12 rounded-md object-contain bg-gray-50 dark:bg-gray-900/50 p-1"
                     />
-                    <span className="text-[10px] md:text-xs font-bold text-sffl-navy dark:text-white truncate pb-1">
+                    <span className="text-[10px] md:text-xs font-bold text-sffl-navy dark:text-white truncate pb-1 uppercase">
                         {match.home_team?.short_name || match.home_team?.name || 'Home'}
                     </span>
                 </div>
@@ -72,7 +72,7 @@ export const CompactMatchCard: React.FC<CompactMatchCardProps> = ({ match, onCli
                         alt={match.away_team?.name} 
                         thumbnailClassName="w-10 h-10 md:w-12 md:h-12 rounded-md object-contain bg-gray-50 dark:bg-gray-900/50 p-1"
                     />
-                    <span className="text-[10px] md:text-xs font-bold text-sffl-navy dark:text-white truncate pb-1">
+                    <span className="text-[10px] md:text-xs font-bold text-sffl-navy dark:text-white truncate pb-1 uppercase">
                         {match.away_team?.short_name || match.away_team?.name || 'Away'}
                     </span>
                 </div>

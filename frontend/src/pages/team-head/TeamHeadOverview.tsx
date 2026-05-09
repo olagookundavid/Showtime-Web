@@ -23,7 +23,7 @@ const TeamHeadOverview = () => {
     return (
         <div className="space-y-8">
             <div>
-                <h1 className="text-3xl font-black text-sffl-navy dark:text-white">Welcome to {team.name}</h1>
+                <h1 className="text-3xl font-black text-sffl-navy dark:text-white uppercase">Welcome to {team.name}</h1>
                 <p className="text-gray-600 dark:text-gray-400 mt-1">Manage your team's players and details from here.</p>
             </div>
 
@@ -42,8 +42,8 @@ const TeamHeadOverview = () => {
                             </div>
                         )}
                         <div>
-                            <h2 className="text-2xl font-black text-gray-900 dark:text-white">{team.name}</h2>
-                            <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">{team.short_name}</span>
+                            <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase">{team.name}</h2>
+                            <span className="text-sm text-gray-500 dark:text-gray-400 font-medium uppercase">{team.short_name}</span>
                         </div>
                     </div>
                 </div>

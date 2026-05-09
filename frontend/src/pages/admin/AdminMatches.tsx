@@ -308,7 +308,7 @@ export const AdminMatches = () => {
                                                             ? 'TBD' 
                                                             : (m.start_time.includes('T') ? m.start_time.split('T')[1].slice(0, 5) : m.start_time)}
                                                     </td>
-                                                    <td className="px-4 py-3 font-bold text-gray-900 dark:text-gray-100">
+                                                    <td className="px-4 py-3 font-bold text-gray-900 dark:text-gray-100 uppercase">
                                                         {m.home_team?.short_name || 'TBD'} vs {m.away_team?.short_name || 'TBD'}
                                                     </td>
                                                     <td className="px-4 py-3 font-bold text-gray-900 dark:text-gray-100">
@@ -397,14 +397,14 @@ export const AdminMatches = () => {
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Home Team *</label>
                                     <select value={form.home_team_id} onChange={e => set('home_team_id', e.target.value)} className="w-full min-h-[44px] z-50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2">
                                         <option value="" className="truncate">Select...</option>
-                                        {teams.map(t => <option key={t.id} value={t.id} className="truncate">{t.name}</option>)}
+                                        {teams.map(t => <option key={t.id} value={t.id} className="truncate">{t.name.toUpperCase()}</option>)}
                                     </select>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Away Team *</label>
                                     <select value={form.away_team_id} onChange={e => set('away_team_id', e.target.value)} className="w-full min-h-[44px] z-50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2">
                                         <option value="" className="truncate">Select...</option>
-                                        {teams.map(t => <option key={t.id} value={t.id} className="truncate">{t.name}</option>)}
+                                        {teams.map(t => <option key={t.id} value={t.id} className="truncate">{t.name.toUpperCase()}</option>)}
                                     </select>
                                 </div>
                             </div>

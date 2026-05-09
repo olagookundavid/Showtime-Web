@@ -52,7 +52,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
                         alt={match.home_team?.name} 
                         thumbnailClassName="w-6 h-6 md:w-16 md:h-16 object-contain rounded-md" 
                     />
-                    <span className="font-bold text-[10px] md:text-sm text-sffl-navy dark:text-white leading-tight truncate">{match.home_team?.short_name || match.home_team?.name || 'Home'}</span>
+                    <span className="font-bold text-[10px] md:text-sm text-sffl-navy dark:text-white leading-tight truncate uppercase">{match.home_team?.short_name || match.home_team?.name || 'Home'}</span>
                 </div>
 
                 {/* Score vs VS */}
@@ -69,7 +69,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
 
                 {/* Away Team */}
                 <div className="flex items-center justify-end gap-1.5 w-1/3 text-right">
-                    <span className="font-bold text-[10px] md:text-sm text-sffl-navy dark:text-white leading-tight truncate">{match.away_team?.short_name || match.away_team?.name || 'Away'}</span>
+                    <span className="font-bold text-[10px] md:text-sm text-sffl-navy dark:text-white leading-tight truncate uppercase">{match.away_team?.short_name || match.away_team?.name || 'Away'}</span>
                     <LightboxImage 
                         src={match.away_team?.logo || 'https://via.placeholder.com/60'} 
                         alt={match.away_team?.name} 
