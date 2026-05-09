@@ -7,6 +7,7 @@ import (
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/services"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -465,8 +466,8 @@ func (h *MatchHandler) CreateTeam(c *gin.Context) {
 	}
 
 	team := &domain.Team{
-		Name:      req.Name,
-		ShortName: req.ShortName,
+		Name:      strings.ToUpper(strings.TrimSpace(req.Name)),
+		ShortName: strings.ToUpper(strings.TrimSpace(req.ShortName)),
 		Logo:      req.Logo,
 	}
 
@@ -496,8 +497,8 @@ func (h *MatchHandler) UpdateTeam(c *gin.Context) {
 
 	team := &domain.Team{
 		ID:        id,
-		Name:      req.Name,
-		ShortName: req.ShortName,
+		Name:      strings.ToUpper(strings.TrimSpace(req.Name)),
+		ShortName: strings.ToUpper(strings.TrimSpace(req.ShortName)),
 		Logo:      req.Logo,
 	}
 

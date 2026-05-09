@@ -157,17 +157,19 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
         setPendingPlayer(player);
     };
 
-    // ── Save team sheet mutation ─────────────────────────────────────────────
-    const saveMutation = useMutation({
+    // ── Save BOTH team sheets in one shot ───────────────────────────────────
+    const saveBothMutation = useMutation({
         mutationFn: async () => {
-            if (!activeTeamId) throw new Error('Team ID not found');
-            return saveTeamSheet(match.id, {
-                team_id: activeTeamId,
-                player_ids: activeSelected,
-            });
+            const homeTeamId = match.home_team?.id;
+            const awayTeamId = match.away_team?.id;
+            if (!homeTeamId || !awayTeamId) throw new Error('Team IDs not found');
+            await Promise.all([
+                saveTeamSheet(match.id, { team_id: homeTeamId, player_ids: selectedHomePlayers }),
+                saveTeamSheet(match.id, { team_id: awayTeamId, player_ids: selectedAwayPlayers }),
+            ]);
         },
         onSuccess: () => {
-            toast.success('Team sheet saved!');
+            toast.success('Both team sheets saved!');
             queryClient.invalidateQueries({ queryKey: ['adminTeamSheet', match.id] });
         },
         onError: (err: any) => {
@@ -369,15 +371,18 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
 
                 {/* Footer */}
                 <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl">
-                    <span className="text-xs text-gray-500 dark:text-gray-400 font-semibold">{selectedCount} player{selectedCount !== 1 ? 's' : ''} selected</span>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 font-semibold space-y-0.5">
+                        <div>🏠 Home: {selectedHomePlayers.length} player{selectedHomePlayers.length !== 1 ? 's' : ''}</div>
+                        <div>✈️ Away: {selectedAwayPlayers.length} player{selectedAwayPlayers.length !== 1 ? 's' : ''}</div>
+                    </div>
                     <div className="flex gap-2">
                         <button onClick={onClose} className="px-4 py-2 min-h-[40px] border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 transition-all">Close</button>
                         <button
-                            onClick={() => saveMutation.mutate()}
-                            disabled={saveMutation.isPending || loadingSheet}
+                            onClick={() => saveBothMutation.mutate()}
+                            disabled={saveBothMutation.isPending || loadingSheet}
                             className="px-5 py-2 min-h-[40px] bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:bg-red-700 transition-all disabled:opacity-50"
                         >
-                            {saveMutation.isPending ? 'Saving…' : `Save ${activeTab === 'home' ? 'Home' : 'Away'} Sheet`}
+                            {saveBothMutation.isPending ? 'Saving…' : 'Save Both Sheets'}
                         </button>
                     </div>
                 </div>
