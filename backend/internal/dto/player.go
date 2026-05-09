@@ -8,7 +8,7 @@ type CreatePlayerRequest struct {
 	TeamID       string `json:"team_id" binding:"required"`
 	Bio          string `json:"bio"`
 	Image        string `json:"image"`
-	Email        string `json:"email" binding:"required"`
+	Email        string `json:"email"`
 }
 
 type UpdatePlayerRequest struct {

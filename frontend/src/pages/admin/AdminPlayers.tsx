@@ -229,8 +229,8 @@ export const AdminPlayers = () => {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Email *</label>
-                                    <input type="email" value={form.email} onChange={e => set('email', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="player@example.com" required />
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Email <span className="text-gray-400 font-normal">(optional)</span></label>
+                                    <input type="email" value={form.email} onChange={e => set('email', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="player@example.com" />
                                 </div>
                             </div>
                             <div>
