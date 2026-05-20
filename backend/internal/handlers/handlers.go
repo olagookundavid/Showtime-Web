@@ -18,6 +18,7 @@ type Handlers struct {
 	InventoryHandler            transport.IInventoryHandler
 	UploadHandler               transport.IUploadHandler
 	TOTWHandler                 transport.ITOTWHandler
+	StoreHandler                transport.IStoreHandler
 }
 
 func NewHandlers(
@@ -34,6 +35,7 @@ func NewHandlers(
 	inventoryHandler transport.IInventoryHandler,
 	uploadHandler transport.IUploadHandler,
 	totwHandler transport.ITOTWHandler,
+	storeHandler transport.IStoreHandler,
 ) Handlers {
 	return Handlers{
 		AuthHandler:                 authHandler,
@@ -49,6 +51,7 @@ func NewHandlers(
 		InventoryHandler:            inventoryHandler,
 		UploadHandler:               uploadHandler,
 		TOTWHandler:                 totwHandler,
+		StoreHandler:                storeHandler,
 	}
 }
 

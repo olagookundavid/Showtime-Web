@@ -25,5 +25,6 @@ for root, _, files in os.walk(directory):
             if new_content != content:
                 with open(filepath, 'w') as f:
                     f.write(new_content)
-                print(f'Updated {filepath}')
+
+
 

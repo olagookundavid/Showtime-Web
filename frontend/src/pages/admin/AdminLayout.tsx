@@ -70,6 +70,7 @@ export const AdminLayout = () => {
         { name: 'Gallery', path: '/admin/gallery', icon: PhotoIcon },
         { name: 'Users', path: '/admin/users', icon: UsersIcon },
         { name: 'Inventory', path: '/admin/inventory', icon: BuildingStorefrontIcon },
+        { name: 'Online Store', path: '/admin/store', icon: BuildingStorefrontIcon },
     ];
 
     const adminLinks = (() => {

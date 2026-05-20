@@ -34,6 +34,10 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
   }, [isCommitted]);
 
   useEffect(() => {
+    setPreview(value || null);
+  }, [value]);
+
+  useEffect(() => {
     return () => {
       // If we unmount and we have an uncommitted upload that wasn't saved, delete it
       if (uncommittedUrlRef.current && !isCommittedRef.current && uncommittedUrlRef.current !== value) {

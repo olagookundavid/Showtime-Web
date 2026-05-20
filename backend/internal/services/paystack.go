@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 )
 
 type PaystackClient struct {
@@ -53,7 +54,7 @@ func NewPaystackClient() *PaystackClient {
 	return &PaystackClient{
 		secretKey: key,
 		baseURL:   "https://api.paystack.co",
-		client:    &http.Client{},
+		client:    &http.Client{Timeout: 10 * time.Second},
 	}
 }
 

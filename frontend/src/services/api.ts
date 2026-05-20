@@ -1068,4 +1068,200 @@ export const sellerGetPaymentMethods = async () => {
     const response = await api.get<GenericApiResponse<PaymentMethod[]>>(`/seller/payment-methods?active_only=true`);
     return response.data.data;
 };
+
+// ─── Store / E-commerce Interfaces & APIs ─────────────────────────────────────
+export interface ProductImage {
+    id: string;
+    image_url: string;
+    is_primary: boolean;
+    display_order: number;
+}
+
+export interface ProductVariant {
+    id: string;
+    variant_name: string;
+    variant_value: string;
+    sku: string;
+    price: number;
+    quantity: number;
+}
+
+export interface StoreProduct {
+    id: string;
+    name: string;
+    sku: string;
+    description: string;
+    price: number;
+    quantity: number;
+    threshold: number;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+    images: ProductImage[];
+    variants: ProductVariant[];
+}
+
+export interface CheckoutItemPayload {
+    product_id: string;
+    variant_id?: string;
+    quantity: number;
+}
+
+export interface CheckoutPayload {
+    customer_name: string;
+    customer_email: string;
+    customer_phone: string;
+    shipping_country: string;
+    shipping_state: string;
+    shipping_city: string;
+    shipping_address: string;
+    shipping_postal_code: string;
+    items: CheckoutItemPayload[];
+}
+
+export interface CheckoutResponseData {
+    order_reference: string;
+    paystack_url: string;
+    paystack_ref: string;
+    paystack_access_code: string;
+}
+
+export interface OrderItem {
+    id: string;
+    product_id: string;
+    product_name: string;
+    variant_id?: string;
+    variant_name?: string;
+    variant_value?: string;
+    quantity: number;
+    unit_price: number;
+    total_price: number;
+}
+
+export interface Order {
+    id: string;
+    order_reference: string;
+    user_id?: string;
+    customer_name: string;
+    customer_email: string;
+    customer_phone: string;
+    shipping_country: string;
+    shipping_state: string;
+    shipping_city: string;
+    shipping_address: string;
+    shipping_postal_code: string;
+    total_amount: number;
+    payment_status: 'pending' | 'paid' | 'failed';
+    fulfillment_status: 'pending' | 'shipped' | 'delivered' | 'cancelled';
+    paystack_reference?: string;
+    created_at: string;
+    updated_at: string;
+    items: OrderItem[];
+}
+
+export interface SavedAddress {
+    id: string;
+    recipient_name: string;
+    phone: string;
+    country: string;
+    state: string;
+    city: string;
+    street_address: string;
+    postal_code: string;
+}
+
+export const getStoreProducts = async (): Promise<StoreProduct[]> => {
+    const response = await api.get<{ data: StoreProduct[] }>('/store/products');
+    return response.data.data || [];
+};
+
+export const getStoreProduct = async (id: string): Promise<StoreProduct> => {
+    const response = await api.get<{ data: StoreProduct }>(`/store/products/${id}`);
+    return response.data.data;
+};
+
+export const initializeCheckout = async (payload: CheckoutPayload): Promise<CheckoutResponseData> => {
+    const response = await api.post<{ data: CheckoutResponseData }>('/store/checkout', payload);
+    return response.data.data;
+};
+
+export const verifyStorePayment = async (reference: string): Promise<Order> => {
+    const response = await api.post<{ data: Order }>('/store/verify', { reference });
+    return response.data.data;
+};
+
+export const getOrderByReference = async (reference: string): Promise<Order> => {
+    const response = await api.get<{ data: Order }>(`/store/orders/by-ref/${reference}`);
+    return response.data.data;
+};
+
+export const getSavedAddresses = async (): Promise<SavedAddress[]> => {
+    const response = await api.get<{ data: SavedAddress[] }>('/store/addresses');
+    return response.data.data || [];
+};
+
+export const saveSavedAddress = async (payload: Omit<SavedAddress, 'id'>): Promise<SavedAddress> => {
+    const response = await api.post<{ data: SavedAddress }>('/store/addresses', payload);
+    return response.data.data;
+};
+
+export const getCustomerOrders = async (page = 1, limit = 20): Promise<PaginatedResponse<Order>> => {
+    const response = await api.get<PaginatedResponse<Order>>(`/store/orders?page=${page}&limit=${limit}`);
+    return response.data;
+};
+
+// Admin E-commerce Storefront APIs
+export const getAdminStoreProducts = async (): Promise<StoreProduct[]> => {
+    const response = await api.get<{ data: StoreProduct[] }>('/admin/store/products');
+    return response.data.data || [];
+};
+
+export const createAdminStoreProduct = async (payload: Omit<StoreProduct, 'id' | 'created_at' | 'updated_at' | 'images' | 'variants'>): Promise<StoreProduct> => {
+    const response = await api.post<{ data: StoreProduct }>('/admin/store/products', payload);
+    return response.data.data;
+};
+
+export const updateAdminStoreProduct = async (id: string, payload: Omit<StoreProduct, 'id' | 'created_at' | 'updated_at' | 'images' | 'variants'>): Promise<any> => {
+    const response = await api.put(`/admin/store/products/${id}`, payload);
+    return response.data;
+};
+
+export const deleteAdminStoreProduct = async (id: string): Promise<any> => {
+    const response = await api.delete(`/admin/store/products/${id}`);
+    return response.data;
+};
+
+export const getAdminOrders = async (page = 1, limit = 20, paymentStatus?: string, fulfillmentStatus?: string): Promise<{ data: Order[]; total: number; page: number; limit: number; total_pages: number }> => {
+    let url = `/admin/store/orders?page=${page}&limit=${limit}`;
+    if (paymentStatus) url += `&payment_status=${paymentStatus}`;
+    if (fulfillmentStatus) url += `&fulfillment_status=${fulfillmentStatus}`;
+    const response = await api.get<{ data: Order[]; total: number; page: number; limit: number; total_pages: number }>(url);
+    return response.data;
+};
+
+export const getAdminOrder = async (id: string): Promise<Order> => {
+    const response = await api.get<{ data: Order }>(`/admin/store/orders/${id}`);
+    return response.data.data;
+};
+
+export const updateOrderFulfillment = async (id: string, fulfillmentStatus: string): Promise<Order> => {
+    const response = await api.patch<{ data: Order }>(`/admin/store/orders/${id}/fulfillment`, { fulfillment_status: fulfillmentStatus });
+    return response.data.data;
+};
+
+export const verifyAdminStoreOrder = async (id: string): Promise<Order> => {
+    const response = await api.post<{ data: Order }>(`/admin/store/orders/${id}/verify`);
+    return response.data.data;
+};
+
+export const saveAdminProductVariants = async (productId: string, variants: Omit<ProductVariant, 'id'>[]): Promise<any> => {
+    const response = await api.post(`/admin/store/products/${productId}/variants`, variants);
+    return response.data;
+};
+
+export const saveAdminProductImages = async (productId: string, images: Omit<ProductImage, 'id'>[]): Promise<any> => {
+    const response = await api.post(`/admin/store/products/${productId}/images`, images);
+    return response.data;
+};
+
 export default api;

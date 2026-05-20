@@ -4,16 +4,18 @@ import "time"
 
 // Product represents an item in the inventory
 type Product struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	SKU         string    `json:"sku"`
-	Description string    `json:"description"`
-	Price       float64   `json:"price"`
-	Quantity    int       `json:"quantity"`
-	Threshold   int       `json:"threshold"`
-	IsActive    bool      `json:"is_active"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID          string           `json:"id"`
+	Name        string           `json:"name"`
+	SKU         string           `json:"sku"`
+	Description string           `json:"description"`
+	Price       float64          `json:"price"`
+	Quantity    int              `json:"quantity"`
+	Threshold   int              `json:"threshold"`
+	IsActive    bool             `json:"is_active"`
+	CreatedAt   time.Time        `json:"created_at"`
+	UpdatedAt   time.Time        `json:"updated_at"`
+	Images      []ProductImage   `json:"images,omitempty"`
+	Variants    []ProductVariant `json:"variants,omitempty"`
 }
 
 // Sale represents a record of a sale event

@@ -57,6 +57,7 @@ func Routes(app *api.Application) *gin.Engine {
 	SetupSellerRoutes(v1_api, app)
 	SetupUploadRoutes(v1_api, app)
 	SetupTOTWRoutes(v1_api, app)
+	SetupStoreRoutes(v1_api, app)
 	return r
 }
 
@@ -141,6 +142,22 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		inventoryGroup.GET("/payment-methods", app.Handlers.InventoryHandler.ListPaymentMethods)
 		inventoryGroup.POST("/payment-methods", app.Handlers.InventoryHandler.CreatePaymentMethod)
 		inventoryGroup.PATCH("/payment-methods/:id/toggle", app.Handlers.InventoryHandler.TogglePaymentMethod)
+	}
+
+	adminStoreGroup := adminRoutes.Group("/store")
+	adminStoreGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
+	{
+		adminStoreGroup.GET("/products", app.Handlers.StoreHandler.ListAllStoreProducts)
+		adminStoreGroup.GET("/products/:id", app.Handlers.StoreHandler.GetStoreProduct)
+		adminStoreGroup.POST("/products", app.Handlers.StoreHandler.CreateStoreProduct)
+		adminStoreGroup.PUT("/products/:id", app.Handlers.StoreHandler.UpdateStoreProduct)
+		adminStoreGroup.DELETE("/products/:id", app.Handlers.StoreHandler.DeleteStoreProduct)
+		adminStoreGroup.POST("/products/:id/variants", app.Handlers.StoreHandler.SaveProductVariants)
+		adminStoreGroup.POST("/products/:id/images", app.Handlers.StoreHandler.SaveProductImages)
+		adminStoreGroup.GET("/orders", app.Handlers.StoreHandler.ListOrders)
+		adminStoreGroup.GET("/orders/:id", app.Handlers.StoreHandler.GetOrder)
+		adminStoreGroup.PATCH("/orders/:id/fulfillment", app.Handlers.StoreHandler.UpdateFulfillment)
+		adminStoreGroup.POST("/orders/:id/verify", app.Handlers.StoreHandler.VerifyOrder)
 	}
 
 	matchesGroup := adminRoutes.Group("/matches")
@@ -346,5 +363,26 @@ func SetupTOTWRoutes(r *gin.RouterGroup, app *api.Application) {
 	{
 		totwRoutes.GET("", app.Handlers.TOTWHandler.GetTOTW)
 		totwRoutes.GET("/latest", app.Handlers.TOTWHandler.GetLatestTOTW)
+	}
+}
+
+func SetupStoreRoutes(r *gin.RouterGroup, app *api.Application) {
+	storeRoutes := r.Group("/store")
+	{
+		storeRoutes.GET("/products", app.Handlers.StoreHandler.ListStoreProducts)
+		storeRoutes.GET("/products/:id", app.Handlers.StoreHandler.GetStoreProduct)
+		storeRoutes.POST("/checkout", app.Handlers.StoreHandler.Checkout)
+		storeRoutes.POST("/verify", app.Handlers.StoreHandler.VerifyPayment)
+		storeRoutes.POST("/webhook", app.Handlers.StoreHandler.Webhook)
+		storeRoutes.GET("/orders/by-ref/:reference", app.Handlers.StoreHandler.GetOrderByReference)
+
+		// Authenticated protected customer actions
+		protected := storeRoutes.Group("")
+		protected.Use(commonAuth.TokenMiddleware(app.TokenMaker))
+		{
+			protected.GET("/addresses", app.Handlers.StoreHandler.ListSavedAddresses)
+			protected.POST("/addresses", app.Handlers.StoreHandler.SaveAddress)
+			protected.GET("/orders", app.Handlers.StoreHandler.ListCustomerOrders)
+		}
 	}
 }

@@ -6,6 +6,9 @@ import { Layout } from './components/layout/Layout';
 import { ScrollToTop } from './components/common/ScrollToTop';
 import { LandingPage } from './pages/LandingPage';
 import { StorePage } from './pages/StorePage';
+import { ProductDetailPage } from './pages/ProductDetailPage';
+import { CheckoutPage } from './pages/CheckoutPage';
+import { OrderConfirmationPage } from './pages/OrderConfirmationPage';
 import { AboutShowtimeFlag } from './pages/about/AboutShowtimeFlag';
 import { MediaGuidelines } from './pages/about/MediaGuidelines';
 import { GameplayRules } from './pages/about/GameplayRules';
@@ -46,6 +49,7 @@ import AdminTeams from './pages/admin/AdminTeams';
 import AdminCompetitions from './pages/admin/AdminCompetitions';
 import { AdminAnalytics } from './pages/admin/AdminAnalytics';
 import { AdminInventory } from './pages/admin/AdminInventory';
+import { AdminStore } from './pages/admin/AdminStore';
 import { AdminTOTW } from './pages/admin/AdminTOTW';
 import { TOTWPage } from './pages/stats/TOTWPage';
 import TeamHeadLayout from './pages/team-head/TeamHeadLayout';
@@ -93,8 +97,11 @@ function App() {
               <Route path="/players" element={<PlayersPage />} />
               <Route path="/players/:id" element={<PlayerDetail />} />
 
-              {/* Static Pages */}
+              {/* Store Pages */}
               <Route path="/store" element={<StorePage />} />
+              <Route path="/store/products/:id" element={<ProductDetailPage />} />
+              <Route path="/store/checkout" element={<CheckoutPage />} />
+              <Route path="/store/confirm" element={<OrderConfirmationPage />} />
 
               {/* About Us Pages */}
               <Route path="/about/showtime-flag" element={<AboutShowtimeFlag />} />
@@ -130,6 +137,7 @@ function App() {
               <Route path="teams" element={<AdminTeams />} />
               <Route path="competitions" element={<AdminCompetitions />} />
               <Route path="inventory" element={<AdminInventory />} />
+              <Route path="store" element={<AdminStore />} />
             </Route>
 
             {/* Team Head Routes */}

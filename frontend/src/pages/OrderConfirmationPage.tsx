@@ -1,0 +1,188 @@
+import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useSearchParams, Link } from 'react-router-dom';
+import { getOrderByReference } from '../services/api';
+import { Loader } from '../components/ui/Loader';
+
+export const OrderConfirmationPage = () => {
+    const [searchParams] = useSearchParams();
+    const reference = searchParams.get('reference') || searchParams.get('trxref');
+
+    // We use a small delay state for webhook processing before enabling the query
+    const [delayComplete, setDelayComplete] = useState(false);
+
+    useEffect(() => {
+        if (!reference) return;
+        const timer = setTimeout(() => setDelayComplete(true), 2000);
+        return () => clearTimeout(timer);
+    }, [reference]);
+
+    const { data: order, isLoading, isError } = useQuery({
+        queryKey: ['publicOrder', reference],
+        queryFn: () => getOrderByReference(reference!),
+        enabled: !!reference && delayComplete,
+        retry: 2, // Retry twice if webhook is still processing
+    });
+
+    const loading = !reference ? false : (!delayComplete || isLoading);
+    const error = !reference ? 'No order reference found.' : isError ? 'Could not find your order. Please check your email or contact support.' : '';
+
+    if (loading) {
+        return (
+            <div className="max-w-7xl mx-auto px-4 py-16 flex flex-col items-center justify-center space-y-4">
+                <Loader />
+                <p className="text-sm font-bold text-gray-500 dark:text-gray-400">Verifying secure payment with merchant gateways...</p>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="max-w-2xl mx-auto text-center py-24 px-4 space-y-6">
+                <div className="text-6xl animate-bounce">❌</div>
+                <h2 className="text-2xl font-black text-red-600 mb-2 uppercase tracking-tight">Something Went Wrong</h2>
+                <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">{error}</p>
+                <Link to="/store" className="inline-block bg-sffl-navy hover:bg-sffl-red text-white px-8 py-3 rounded-full font-bold transition shadow-md">
+                    Back to Store
+                </Link>
+            </div>
+        );
+    }
+
+    const isPaid = order?.payment_status === 'paid';
+    const isPending = order?.payment_status === 'pending';
+
+    const handlePrint = () => {
+        window.print();
+    };
+
+    return (
+        <div className="max-w-2xl mx-auto py-12 px-4 space-y-8 animate-fadeIn print:py-0 print:px-0">
+            {/* Status Header - Hidden during print */}
+            <div className={`text-center p-8 rounded-3xl shadow-xl print:hidden ${
+                isPaid 
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white' 
+                    : isPending 
+                        ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-white' 
+                        : 'bg-gradient-to-r from-red-500 to-rose-600 text-white'
+            }`}>
+                <div className="text-6xl mb-4">{isPaid ? '✅' : isPending ? '⏳' : '❌'}</div>
+                <h1 className="text-3xl font-black uppercase tracking-tight mb-2">
+                    {isPaid ? 'Order Confirmed!' : isPending ? 'Order Pending' : 'Order Failed'}
+                </h1>
+                <p className="text-sm opacity-90 font-bold uppercase tracking-wider">
+                    {isPaid ? 'Thank you for your purchase!' : isPending ? 'Your payment is being processed' : 'Your payment could not be completed'}
+                </p>
+            </div>
+
+            {/* Order Details Receipt Box */}
+            {order && (
+                <div className="bg-white dark:bg-gray-800/40 backdrop-blur-md rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-700/60 shadow-xl print:shadow-none print:border-none">
+                    {/* Header Banner */}
+                    <div className="bg-sffl-navy text-white p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-700">
+                        <div>
+                            <p className="text-xs uppercase tracking-widest text-gray-300 font-bold">Showtime Merchandise</p>
+                            <h2 className="text-xl font-black italic uppercase tracking-tight mt-1">Official Invoice</h2>
+                        </div>
+                        <div className="text-left md:text-right">
+                            <p className="text-xs text-gray-400 font-bold uppercase">Order Reference</p>
+                            <p className="font-mono text-sm font-black tracking-widest text-sffl-red">{order.order_reference}</p>
+                        </div>
+                    </div>
+
+                    {/* Details Breakdown */}
+                    <div className="p-6 space-y-6">
+                        {/* Customer & Shipping Summary */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b dark:border-gray-700/40">
+                            <div className="space-y-1">
+                                <span className="text-[10px] text-gray-400 uppercase font-black tracking-wider">Customer Contact</span>
+                                <p className="font-bold text-sffl-navy dark:text-white">{order.customer_name}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">{order.customer_email}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">{order.customer_phone}</p>
+                            </div>
+                            <div className="space-y-1">
+                                <span className="text-[10px] text-gray-400 uppercase font-black tracking-wider">Delivery Address</span>
+                                <p className="font-bold text-sffl-navy dark:text-white leading-tight">{order.shipping_address}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    {order.shipping_city}, {order.shipping_state}, {order.shipping_country}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">Postal Code: {order.shipping_postal_code || '—'}</p>
+                            </div>
+                        </div>
+
+                        {/* Order Items Table */}
+                        <div className="space-y-3">
+                            <span className="text-[10px] text-gray-400 uppercase font-black tracking-wider block">Items Purchased</span>
+                            <div className="divide-y divide-gray-100 dark:divide-gray-700/40">
+                                {order.items?.map((item) => (
+                                    <div key={item.id} className="py-3 flex items-center justify-between text-sm">
+                                        <div className="space-y-0.5">
+                                            <p className="font-bold text-sffl-navy dark:text-white uppercase">{item.product_name}</p>
+                                            {item.variant_name && (
+                                                <p className="text-[10px] bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider px-2 py-0.5 rounded inline-block">
+                                                    {item.variant_name}: {item.variant_value}
+                                                </p>
+                                            )}
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="font-bold text-gray-900 dark:text-white">
+                                                ₦{item.unit_price?.toLocaleString()} <span className="text-xs text-gray-400">x{item.quantity}</span>
+                                            </p>
+                                            <p className="text-xs font-black text-sffl-red">₦{(item.unit_price * item.quantity).toLocaleString()}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Invoice Summary Calculation */}
+                        <div className="pt-6 border-t dark:border-gray-700/40 flex flex-col items-end space-y-2">
+                            <div className="flex justify-between w-64 text-xs font-bold text-gray-500">
+                                <span>Subtotal</span>
+                                <span>₦{order.total_amount?.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between w-64 text-xs font-bold text-green-500">
+                                <span>Shipping (Promo)</span>
+                                <span>FREE</span>
+                            </div>
+                            <div className="flex justify-between w-64 pt-3 border-t dark:border-gray-700/40 text-base font-black text-sffl-navy dark:text-white">
+                                <span>Total Paid</span>
+                                <span className="text-sffl-red text-lg">₦{order.total_amount?.toLocaleString()}</span>
+                            </div>
+                        </div>
+
+                        {/* Order Reference details footer */}
+                        <div className="border-t dark:border-gray-700/40 pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-gray-400">
+                            <span>Reference: {order.paystack_reference || '—'}</span>
+                            <span className={`px-3 py-1 rounded-full font-black uppercase text-[10px] self-start sm:self-center ${
+                                isPaid 
+                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' 
+                                    : isPending 
+                                        ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400' 
+                                        : 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                            }`}>
+                                {order.payment_status}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Print & Back actions */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 print:hidden">
+                <button
+                    onClick={handlePrint}
+                    className="w-full sm:w-auto bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 px-8 py-3 rounded-full font-bold transition flex items-center justify-center gap-2 shadow"
+                >
+                    <span>🖨️</span> Print Invoice
+                </button>
+                <Link 
+                    to="/store" 
+                    className="w-full sm:w-auto text-center bg-sffl-navy hover:bg-sffl-red text-white px-8 py-3 rounded-full font-bold transition shadow"
+                >
+                    ← Back to Store
+                </Link>
+            </div>
+        </div>
+    );
+};

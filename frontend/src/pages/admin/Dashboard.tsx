@@ -86,7 +86,7 @@ export const Dashboard = () => {
             {/* Quick Actions */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
                 <h2 className="text-2xl font-black text-sffl-navy dark:text-white mb-4">Quick Actions</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
                     <Link
                         to="/admin/matches"
                         className="flex items-center gap-3 p-4 min-h-[44px] border-2 border-gray-100 dark:border-gray-700 rounded-lg hover:border-sffl-red dark:hover:border-sffl-red hover:bg-red-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
@@ -137,8 +137,19 @@ export const Dashboard = () => {
                     >
                         <div className="text-3xl">📦</div>
                         <div>
-                            <div className="font-bold text-sffl-navy dark:text-white">Store Inventory</div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">Manage products</div>
+                            <div className="font-bold text-sffl-navy dark:text-white">Warehouse Stock</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">Physical logistics</div>
+                        </div>
+                    </Link>
+
+                    <Link
+                        to="/admin/store"
+                        className="flex items-center gap-3 p-4 min-h-[44px] border-2 border-gray-100 dark:border-gray-700 rounded-lg hover:border-orange-500 dark:hover:border-orange-500 hover:bg-orange-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
+                    >
+                        <div className="text-3xl">🛒</div>
+                        <div>
+                            <div className="font-bold text-sffl-navy dark:text-white">Online Store</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">Manage e-comm</div>
                         </div>
                     </Link>
                 </div>
