@@ -142,6 +142,49 @@ func TokenMiddleware(tokenMaker token.Maker) gin.HandlerFunc {
 	}
 }
 
+// OptionalTokenMiddleware extracts and verifies the bearer/cookie token if
+// present, stashing the payload in the gin context. Unlike TokenMiddleware,
+// missing or invalid tokens are NOT treated as errors — the request is
+// allowed through anonymously. Use for endpoints that should attribute the
+// caller when logged in but still accept guest traffic (e.g. checkout).
+func OptionalTokenMiddleware(tokenMaker token.Maker) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var accessToken string
+
+		cookie, err := c.Request.Cookie(authorizationCookieKey)
+		if err == nil && cookie.Value != "" {
+			accessToken = cookie.Value
+		}
+
+		if accessToken == "" {
+			authHeader := c.GetHeader(authorizationHeaderKey)
+			if len(authHeader) > 0 {
+				fields := strings.Fields(authHeader)
+				if len(fields) == 2 && strings.ToLower(fields[0]) == authorizationTypeBearer {
+					accessToken = fields[1]
+				}
+			}
+		}
+
+		// No token at all — proceed as guest.
+		if accessToken == "" {
+			c.Next()
+			return
+		}
+
+		// Bad token — also proceed as guest. We don't surface 401 because the
+		// endpoint itself supports anonymous callers.
+		payload, err := tokenMaker.VerifyToken(accessToken)
+		if err != nil {
+			c.Next()
+			return
+		}
+
+		c.Set(authorizationPayloadKey, payload)
+		c.Next()
+	}
+}
+
 func Metrics() gin.HandlerFunc {
 	var (
 		totalRequestsReceived           = expvar.NewInt("total_requests_received")

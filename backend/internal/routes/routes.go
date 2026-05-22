@@ -380,7 +380,10 @@ func SetupStoreRoutes(r *gin.RouterGroup, app *api.Application) {
 			Rps:            5,
 			Burst:          10,
 		}
-		limited := storeRoutes.Group("", commonAuth.RateLimit(rls))
+		// OptionalTokenMiddleware lets logged-in customers' user_id be stamped
+		// onto orders so they show up in My Orders, while still allowing
+		// guest checkouts to go through unauthenticated.
+		limited := storeRoutes.Group("", commonAuth.RateLimit(rls), commonAuth.OptionalTokenMiddleware(app.TokenMaker))
 		{
 			limited.POST("/checkout", app.Handlers.StoreHandler.Checkout)
 			limited.POST("/verify", app.Handlers.StoreHandler.VerifyPayment)

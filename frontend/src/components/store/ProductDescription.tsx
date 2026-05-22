@@ -19,7 +19,7 @@ export const ProductDescription = ({ text, className = '' }: Props) => {
     return (
         <div className={`space-y-3 ${className}`}>
             {paragraphs.map((para, i) => (
-                <p key={i} className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-line">
+                <p key={i} className="text-base font-medium text-gray-800 dark:text-gray-300 leading-relaxed whitespace-pre-line">
                     {para}
                 </p>
             ))}

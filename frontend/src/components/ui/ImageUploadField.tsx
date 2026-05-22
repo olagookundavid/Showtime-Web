@@ -115,14 +115,14 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
         {label}
       </label>
-      
+
       <div className="flex items-start space-x-4">
         <div className="relative w-32 h-32 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden flex items-center justify-center bg-gray-50 dark:bg-gray-800">
           {preview ? (
             <>
-              <LightboxImage 
-                src={preview} 
-                alt="Preview" 
+              <LightboxImage
+                src={preview}
+                alt="Preview"
                 thumbnailClassName="w-full h-full object-cover"
               />
               {!isUploading && (
@@ -142,8 +142,8 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
           {isUploading && (
             <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center">
               <div className="w-16 h-1 bg-gray-200 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-blue-500 transition-all duration-300" 
+                <div
+                  className="h-full bg-blue-500 transition-all duration-300"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -169,11 +169,11 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
             <ArrowUpTrayIcon className="w-4 h-4 mr-2" />
             {mode === 'picker' ? 'Select Image' : (preview ? 'Change Image' : 'Upload Image')}
           </button>
-          
+
           <p className="text-xs text-gray-500 dark:text-gray-400">
             {helperText || 'JPG, PNG or WEBP. Max 1MB (will be compressed).'}
           </p>
-          
+
           {(error || uploadError) && (
             <p className="text-xs text-red-500 mt-1">{error || uploadError}</p>
           )}

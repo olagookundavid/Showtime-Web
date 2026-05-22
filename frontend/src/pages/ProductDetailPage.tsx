@@ -332,11 +332,11 @@ export const ProductDetailPage = () => {
 
                     {/* 5. Description */}
                     <div className="space-y-2 pt-4 border-t dark:border-gray-700/40">
-                        <h3 className="text-xs uppercase font-bold text-gray-400 tracking-wider">Description</h3>
+                        <h3 className="text-xs uppercase font-black text-sffl-navy dark:text-gray-400 tracking-wider">Description</h3>
                         {product.description?.trim() ? (
                             <ProductDescription text={product.description} />
                         ) : (
-                            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                            <p className="text-base font-medium text-gray-800 dark:text-gray-300 leading-relaxed">
                                 Exclusive official Showtime Flag Football premium gear. Durable threadwork engineered for dynamic durability and athletic performance.
                             </p>
                         )}
