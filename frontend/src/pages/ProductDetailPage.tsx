@@ -176,8 +176,11 @@ export const ProductDetailPage = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
-                {/* Left: Dynamic HD Image Gallery Showcase */}
-                <div className="lg:col-span-7 space-y-4">
+                {/* Left: Dynamic HD Image Gallery Showcase.
+                    On desktop, sticks below the navbar while the right column
+                    scrolls — Shopify-style. `lg:self-start` is critical: grid
+                    items default to `stretch`, which breaks `position:sticky`. */}
+                <div className="lg:col-span-7 space-y-4 lg:sticky lg:top-24 lg:self-start">
                     {/* Big Showcase Box */}
                     <div className="relative aspect-square w-full rounded-3xl overflow-hidden bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700/50 flex items-center justify-center shadow-lg">
                         {productImages.length > 0 ? (

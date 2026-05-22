@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useSearchParams, Link } from 'react-router-dom';
 import { getOrderByReference } from '../services/api';
 import { Loader } from '../components/ui/Loader';
+import { OrderLifecycleStepper } from '../components/store/OrderLifecycleStepper';
 
 export const OrderConfirmationPage = () => {
     const [searchParams] = useSearchParams();
@@ -77,6 +78,16 @@ export const OrderConfirmationPage = () => {
                     {isPaid ? 'Thank you for your purchase!' : isPending ? 'Your payment is being processed' : 'Your payment could not be completed'}
                 </p>
             </div>
+
+            {/* Lifecycle stepper — Order Placed → Paid → Preparing → Shipped → Delivered.
+                Terminal states (failed payment / cancelled order) render their own
+                inline banner inside the component. Hidden during print so it doesn't
+                clutter the physical receipt. */}
+            {order && (
+                <div className="print:hidden">
+                    <OrderLifecycleStepper order={order} />
+                </div>
+            )}
 
             {/* Order Details Receipt Box */}
             {order && (
