@@ -2,6 +2,7 @@ package ports
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	appErrors "showtime-backend/internal/errors"
@@ -25,6 +26,8 @@ type IStoreRepository interface {
 	SaveAddress(ctx context.Context, address domain.SavedAddress) (*domain.SavedAddress, error)
 	ListSavedAddresses(ctx context.Context, userID string) ([]domain.SavedAddress, error)
 	DeductStock(ctx context.Context, productID string, variantID *string, qty int) error
+	MarkOrderFailedAndRestoreStock(ctx context.Context, orderID string) error
+	CancelOrderAndRestoreStock(ctx context.Context, orderID string) error
 	SaveProductVariants(ctx context.Context, productID string, variants []domain.ProductVariant) error
 	SaveProductImages(ctx context.Context, productID string, images []domain.ProductImage) error
 
@@ -43,15 +46,90 @@ func NewStoreRepository(Db *pgxpool.Pool) IStoreRepository {
 	return &StoreRepository{Db: Db}
 }
 
+// scanProductRow scans a single product row (columns in canonical order, with
+// options JSONB last). Reused by all the list/get paths.
+func scanProductRow(row pgx.Row, p *domain.Product) error {
+	var optionsRaw []byte
+	if err := row.Scan(
+		&p.ID, &p.Name, &p.SKU, &p.Description, &p.Price, &p.Quantity, &p.Threshold,
+		&p.IsActive, &p.CreatedAt, &p.UpdatedAt, &optionsRaw,
+	); err != nil {
+		return err
+	}
+	if len(optionsRaw) > 0 {
+		_ = json.Unmarshal(optionsRaw, &p.Options)
+	}
+	return nil
+}
+
+// loadProductRelations attaches Images and Variants for a single product.
+// Errors fetching relations are not fatal — the product itself is still
+// returned with empty slices, matching prior behaviour.
+func (r *StoreRepository) loadProductRelations(ctx context.Context, p *domain.Product) {
+	imagesQuery := `SELECT id, product_id, image_url, is_primary, display_order, created_at
+		FROM store_product_images WHERE product_id = $1 ORDER BY display_order ASC`
+	if imgRows, err := r.Db.Query(ctx, imagesQuery, p.ID); err == nil {
+		var images []domain.ProductImage
+		for imgRows.Next() {
+			var img domain.ProductImage
+			if err := imgRows.Scan(&img.ID, &img.ProductID, &img.ImageURL, &img.IsPrimary, &img.DisplayOrder, &img.CreatedAt); err == nil {
+				images = append(images, img)
+			}
+		}
+		imgRows.Close()
+		p.Images = images
+	}
+
+	variantsQuery := `SELECT id, product_id,
+		COALESCE(option1_value, ''), COALESCE(option2_value, ''), COALESCE(option3_value, ''),
+		COALESCE(sku, ''), quantity, COALESCE(image_url, ''), created_at, updated_at
+		FROM store_product_variants WHERE product_id = $1
+		ORDER BY option1_value ASC NULLS FIRST, option2_value ASC NULLS FIRST, option3_value ASC NULLS FIRST`
+	if vRows, err := r.Db.Query(ctx, variantsQuery, p.ID); err == nil {
+		var variants []domain.ProductVariant
+		for vRows.Next() {
+			var v domain.ProductVariant
+			if err := vRows.Scan(&v.ID, &v.ProductID, &v.Option1Value, &v.Option2Value, &v.Option3Value, &v.SKU, &v.Quantity, &v.ImageURL, &v.CreatedAt, &v.UpdatedAt); err == nil {
+				variants = append(variants, v)
+			}
+		}
+		vRows.Close()
+		p.Variants = variants
+	}
+}
+
+const productSelectColumns = `id, name, sku, description, price, quantity, threshold, is_active, created_at, updated_at, options`
+
+// loadOrderItems fetches the line items for an order, joining only to the
+// product table for the product_name. The variant_label is read directly from
+// the order_items snapshot column so receipts survive variant edits/deletes.
+func (r *StoreRepository) loadOrderItems(ctx context.Context, orderID string) []domain.OrderItem {
+	itemsQuery := `SELECT i.id, i.order_id, i.product_id, p.name AS product_name,
+		i.variant_id, COALESCE(i.variant_label, '') AS variant_label,
+		i.quantity, i.unit_price
+		FROM online_order_items i
+		JOIN store_products p ON i.product_id = p.id
+		WHERE i.order_id = $1`
+	rows, err := r.Db.Query(ctx, itemsQuery, orderID)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var items []domain.OrderItem
+	for rows.Next() {
+		var item domain.OrderItem
+		if err := rows.Scan(&item.ID, &item.OrderID, &item.ProductID, &item.ProductName, &item.VariantID, &item.VariantLabel, &item.Quantity, &item.UnitPrice); err == nil {
+			items = append(items, item)
+		}
+	}
+	return items
+}
+
 func (r *StoreRepository) ListStoreProducts(ctx context.Context) ([]domain.Product, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	query := `SELECT id, name, sku, description, price, quantity, threshold, is_active, created_at, updated_at 
-		FROM store_products 
-		WHERE is_active = true 
-		ORDER BY name ASC`
-
+	query := `SELECT ` + productSelectColumns + ` FROM store_products WHERE is_active = true ORDER BY name ASC`
 	rows, err := r.Db.Query(ctx, query)
 	if err != nil {
 		return nil, err
@@ -61,50 +139,15 @@ func (r *StoreRepository) ListStoreProducts(ctx context.Context) ([]domain.Produ
 	var products []domain.Product
 	for rows.Next() {
 		var p domain.Product
-		err := rows.Scan(&p.ID, &p.Name, &p.SKU, &p.Description, &p.Price, &p.Quantity, &p.Threshold, &p.IsActive, &p.CreatedAt, &p.UpdatedAt)
-		if err != nil {
+		if err := scanProductRow(rows, &p); err != nil {
 			return nil, err
 		}
 		products = append(products, p)
 	}
 
-	// Fetch primary images and variants for each product
 	for i := range products {
-		imagesQuery := `SELECT id, product_id, image_url, is_primary, display_order, created_at 
-			FROM store_product_images 
-			WHERE product_id = $1 
-			ORDER BY display_order ASC`
-		imgRows, err := r.Db.Query(ctx, imagesQuery, products[i].ID)
-		if err == nil {
-			var images []domain.ProductImage
-			for imgRows.Next() {
-				var img domain.ProductImage
-				if err := imgRows.Scan(&img.ID, &img.ProductID, &img.ImageURL, &img.IsPrimary, &img.DisplayOrder, &img.CreatedAt); err == nil {
-					images = append(images, img)
-				}
-			}
-			imgRows.Close()
-			products[i].Images = images
-		}
-
-		variantsQuery := `SELECT id, product_id, variant_name, variant_value, sku, price, quantity, created_at, updated_at 
-			FROM store_product_variants 
-			WHERE product_id = $1 
-			ORDER BY variant_name ASC, variant_value ASC`
-		vRows, err := r.Db.Query(ctx, variantsQuery, products[i].ID)
-		if err == nil {
-			var variants []domain.ProductVariant
-			for vRows.Next() {
-				var v domain.ProductVariant
-				if err := vRows.Scan(&v.ID, &v.ProductID, &v.VariantName, &v.VariantValue, &v.SKU, &v.Price, &v.Quantity, &v.CreatedAt, &v.UpdatedAt); err == nil {
-					variants = append(variants, v)
-				}
-			}
-			vRows.Close()
-			products[i].Variants = variants
-		}
+		r.loadProductRelations(ctx, &products[i])
 	}
-
 	return products, nil
 }
 
@@ -112,58 +155,23 @@ func (r *StoreRepository) GetStoreProduct(ctx context.Context, id string) (*doma
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	query := `SELECT id, name, sku, description, price, quantity, threshold, is_active, created_at, updated_at 
-		FROM store_products 
-		WHERE id = $1`
-
+	query := `SELECT ` + productSelectColumns + ` FROM store_products WHERE id = $1`
 	var p domain.Product
-	err := r.Db.QueryRow(ctx, query, id).Scan(&p.ID, &p.Name, &p.SKU, &p.Description, &p.Price, &p.Quantity, &p.Threshold, &p.IsActive, &p.CreatedAt, &p.UpdatedAt)
-	if err != nil {
+	if err := scanProductRow(r.Db.QueryRow(ctx, query, id), &p); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, appErrors.ErrNotFound
 		}
 		return nil, err
 	}
-
-	// Fetch all relational images
-	imagesQuery := `SELECT id, product_id, image_url, is_primary, display_order, created_at 
-		FROM store_product_images 
-		WHERE product_id = $1 
-		ORDER BY display_order ASC`
-	imgRows, err := r.Db.Query(ctx, imagesQuery, p.ID)
-	if err == nil {
-		defer imgRows.Close()
-		var images []domain.ProductImage
-		for imgRows.Next() {
-			var img domain.ProductImage
-			if err := imgRows.Scan(&img.ID, &img.ProductID, &img.ImageURL, &img.IsPrimary, &img.DisplayOrder, &img.CreatedAt); err == nil {
-				images = append(images, img)
-			}
-		}
-		p.Images = images
-	}
-
-	// Fetch all relational variants
-	variantsQuery := `SELECT id, product_id, variant_name, variant_value, sku, price, quantity, created_at, updated_at 
-		FROM store_product_variants 
-		WHERE product_id = $1 
-		ORDER BY variant_name ASC, variant_value ASC`
-	vRows, err := r.Db.Query(ctx, variantsQuery, p.ID)
-	if err == nil {
-		defer vRows.Close()
-		var variants []domain.ProductVariant
-		for vRows.Next() {
-			var v domain.ProductVariant
-			if err := vRows.Scan(&v.ID, &v.ProductID, &v.VariantName, &v.VariantValue, &v.SKU, &v.Price, &v.Quantity, &v.CreatedAt, &v.UpdatedAt); err == nil {
-				variants = append(variants, v)
-			}
-		}
-		p.Variants = variants
-	}
-
+	r.loadProductRelations(ctx, &p)
 	return &p, nil
 }
 
+// CreateOrder atomically reserves stock for each item, then inserts the order
+// and its line items in a single database transaction. Stock is locked with
+// SELECT FOR UPDATE so concurrent checkouts cannot oversell. Any insufficient
+// stock surfaces as appErrors.ErrInsufficientStock and the whole transaction
+// rolls back, leaving stock untouched.
 func (r *StoreRepository) CreateOrder(ctx context.Context, order domain.Order) (*domain.Order, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -173,6 +181,41 @@ func (r *StoreRepository) CreateOrder(ctx context.Context, order domain.Order) (
 		return nil, err
 	}
 	defer tx.Rollback(ctx)
+
+	for i := range order.Items {
+		item := order.Items[i]
+		if item.VariantID != nil && *item.VariantID != "" {
+			var currentQty int
+			err = tx.QueryRow(ctx, `SELECT quantity FROM store_product_variants WHERE id = $1 FOR UPDATE`, *item.VariantID).Scan(&currentQty)
+			if err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					return nil, appErrors.ErrVariantNotFound
+				}
+				return nil, err
+			}
+			if currentQty < item.Quantity {
+				return nil, appErrors.ErrInsufficientStock
+			}
+			if _, err = tx.Exec(ctx, `UPDATE store_product_variants SET quantity = quantity - $1, updated_at = NOW() WHERE id = $2`, item.Quantity, *item.VariantID); err != nil {
+				return nil, err
+			}
+		} else {
+			var currentQty int
+			err = tx.QueryRow(ctx, `SELECT quantity FROM store_products WHERE id = $1 FOR UPDATE`, item.ProductID).Scan(&currentQty)
+			if err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					return nil, appErrors.ErrNotFound
+				}
+				return nil, err
+			}
+			if currentQty < item.Quantity {
+				return nil, appErrors.ErrInsufficientStock
+			}
+			if _, err = tx.Exec(ctx, `UPDATE store_products SET quantity = quantity - $1, updated_at = NOW() WHERE id = $2`, item.Quantity, item.ProductID); err != nil {
+				return nil, err
+			}
+		}
+	}
 
 	orderQuery := `
 		INSERT INTO online_orders (
@@ -195,11 +238,11 @@ func (r *StoreRepository) CreateOrder(ctx context.Context, order domain.Order) (
 	for i := range order.Items {
 		itemQuery := `
 			INSERT INTO online_order_items (
-				order_id, product_id, variant_id, quantity, unit_price
-			) VALUES ($1, $2, $3, $4, $5)
+				order_id, product_id, variant_id, quantity, unit_price, variant_label
+			) VALUES ($1, $2, $3, $4, $5, $6)
 			RETURNING id`
 		err = tx.QueryRow(ctx, itemQuery,
-			order.ID, order.Items[i].ProductID, order.Items[i].VariantID, order.Items[i].Quantity, order.Items[i].UnitPrice,
+			order.ID, order.Items[i].ProductID, order.Items[i].VariantID, order.Items[i].Quantity, order.Items[i].UnitPrice, order.Items[i].VariantLabel,
 		).Scan(&order.Items[i].ID)
 
 		if err != nil {
@@ -213,6 +256,110 @@ func (r *StoreRepository) CreateOrder(ctx context.Context, order domain.Order) (
 	}
 
 	return &order, nil
+}
+
+// restoreOrderStockTx adds reserved quantities back to variant/product stock
+// inside an existing transaction. Used by failure/cancel paths.
+func (r *StoreRepository) restoreOrderStockTx(ctx context.Context, tx pgx.Tx, orderID string) error {
+	rows, err := tx.Query(ctx, `SELECT product_id, variant_id, quantity FROM online_order_items WHERE order_id = $1`, orderID)
+	if err != nil {
+		return err
+	}
+	type item struct {
+		productID string
+		variantID *string
+		quantity  int
+	}
+	var items []item
+	for rows.Next() {
+		var it item
+		if err := rows.Scan(&it.productID, &it.variantID, &it.quantity); err != nil {
+			rows.Close()
+			return err
+		}
+		items = append(items, it)
+	}
+	rows.Close()
+
+	for _, it := range items {
+		if it.variantID != nil && *it.variantID != "" {
+			if _, err := tx.Exec(ctx, `UPDATE store_product_variants SET quantity = quantity + $1, updated_at = NOW() WHERE id = $2`, it.quantity, *it.variantID); err != nil {
+				return err
+			}
+		} else {
+			if _, err := tx.Exec(ctx, `UPDATE store_products SET quantity = quantity + $1, updated_at = NOW() WHERE id = $2`, it.quantity, it.productID); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// MarkOrderFailedAndRestoreStock transitions a pending order to failed and
+// returns its reserved stock. Idempotent: if the order is no longer pending,
+// it does nothing (so re-runs from verify retries or webhooks are safe).
+func (r *StoreRepository) MarkOrderFailedAndRestoreStock(ctx context.Context, orderID string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	tx, err := r.Db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	var paymentStatus string
+	err = tx.QueryRow(ctx, `SELECT payment_status FROM online_orders WHERE id = $1 FOR UPDATE`, orderID).Scan(&paymentStatus)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return appErrors.ErrNotFound
+		}
+		return err
+	}
+	if paymentStatus != "pending" {
+		return tx.Commit(ctx)
+	}
+
+	if err := r.restoreOrderStockTx(ctx, tx, orderID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `UPDATE online_orders SET payment_status = 'failed', updated_at = NOW() WHERE id = $1`, orderID); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+// CancelOrderAndRestoreStock marks an order's fulfillment as cancelled and
+// returns its reserved stock. Idempotent: a second call is a no-op.
+func (r *StoreRepository) CancelOrderAndRestoreStock(ctx context.Context, orderID string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	tx, err := r.Db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	var fulfillmentStatus string
+	err = tx.QueryRow(ctx, `SELECT fulfillment_status FROM online_orders WHERE id = $1 FOR UPDATE`, orderID).Scan(&fulfillmentStatus)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return appErrors.ErrNotFound
+		}
+		return err
+	}
+	if fulfillmentStatus == "cancelled" {
+		return tx.Commit(ctx)
+	}
+
+	if err := r.restoreOrderStockTx(ctx, tx, orderID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `UPDATE online_orders SET fulfillment_status = 'cancelled', updated_at = NOW() WHERE id = $1`, orderID); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (r *StoreRepository) GetOrder(ctx context.Context, id string) (*domain.Order, error) {
@@ -237,27 +384,7 @@ func (r *StoreRepository) GetOrder(ctx context.Context, id string) (*domain.Orde
 		return nil, err
 	}
 
-	itemsQuery := `SELECT i.id, i.order_id, i.product_id, p.name as product_name, i.variant_id, 
-		COALESCE(v.variant_name, '') as variant_name, COALESCE(v.variant_value, '') as variant_value,
-		i.quantity, i.unit_price 
-		FROM online_order_items i
-		JOIN store_products p ON i.product_id = p.id
-		LEFT JOIN store_product_variants v ON i.variant_id = v.id
-		WHERE i.order_id = $1`
-
-	rows, err := r.Db.Query(ctx, itemsQuery, o.ID)
-	if err == nil {
-		defer rows.Close()
-		var items []domain.OrderItem
-		for rows.Next() {
-			var item domain.OrderItem
-			err := rows.Scan(&item.ID, &item.OrderID, &item.ProductID, &item.ProductName, &item.VariantID, &item.VariantName, &item.VariantValue, &item.Quantity, &item.UnitPrice)
-			if err == nil {
-				items = append(items, item)
-			}
-		}
-		o.Items = items
-	}
+	o.Items = r.loadOrderItems(ctx, o.ID)
 
 	return &o, nil
 }
@@ -284,27 +411,7 @@ func (r *StoreRepository) GetOrderByReference(ctx context.Context, reference str
 		return nil, err
 	}
 
-	itemsQuery := `SELECT i.id, i.order_id, i.product_id, p.name as product_name, i.variant_id, 
-		COALESCE(v.variant_name, '') as variant_name, COALESCE(v.variant_value, '') as variant_value,
-		i.quantity, i.unit_price 
-		FROM online_order_items i
-		JOIN store_products p ON i.product_id = p.id
-		LEFT JOIN store_product_variants v ON i.variant_id = v.id
-		WHERE i.order_id = $1`
-
-	rows, err := r.Db.Query(ctx, itemsQuery, o.ID)
-	if err == nil {
-		defer rows.Close()
-		var items []domain.OrderItem
-		for rows.Next() {
-			var item domain.OrderItem
-			err := rows.Scan(&item.ID, &item.OrderID, &item.ProductID, &item.ProductName, &item.VariantID, &item.VariantName, &item.VariantValue, &item.Quantity, &item.UnitPrice)
-			if err == nil {
-				items = append(items, item)
-			}
-		}
-		o.Items = items
-	}
+	o.Items = r.loadOrderItems(ctx, o.ID)
 
 	return &o, nil
 }
@@ -331,27 +438,7 @@ func (r *StoreRepository) GetOrderByPaystackRef(ctx context.Context, paystackRef
 		return nil, err
 	}
 
-	itemsQuery := `SELECT i.id, i.order_id, i.product_id, p.name as product_name, i.variant_id, 
-		COALESCE(v.variant_name, '') as variant_name, COALESCE(v.variant_value, '') as variant_value,
-		i.quantity, i.unit_price 
-		FROM online_order_items i
-		JOIN store_products p ON i.product_id = p.id
-		LEFT JOIN store_product_variants v ON i.variant_id = v.id
-		WHERE i.order_id = $1`
-
-	rows, err := r.Db.Query(ctx, itemsQuery, o.ID)
-	if err == nil {
-		defer rows.Close()
-		var items []domain.OrderItem
-		for rows.Next() {
-			var item domain.OrderItem
-			err := rows.Scan(&item.ID, &item.OrderID, &item.ProductID, &item.ProductName, &item.VariantID, &item.VariantName, &item.VariantValue, &item.Quantity, &item.UnitPrice)
-			if err == nil {
-				items = append(items, item)
-			}
-		}
-		o.Items = items
-	}
+	o.Items = r.loadOrderItems(ctx, o.ID)
 
 	return &o, nil
 }
@@ -560,31 +647,41 @@ func (r *StoreRepository) SaveProductVariants(ctx context.Context, productID str
 	}
 	defer tx.Rollback(ctx)
 
-	// 1. Delete existing variants for this product
+	// Replace-all semantics: drop the previous combination grid, then write
+	// the new one. The unique (product, opt1, opt2, opt3) index will reject
+	// duplicate combinations.
 	_, err = tx.Exec(ctx, `DELETE FROM store_product_variants WHERE product_id = $1`, productID)
 	if err != nil {
 		return err
 	}
 
-	// 2. Insert new variants
 	for _, v := range variants {
 		query := `
 			INSERT INTO store_product_variants (
-				product_id, variant_name, variant_value, sku, price, quantity, created_at, updated_at
-			) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`
-		
-		var priceVal interface{}
-		if v.Price != nil {
-			priceVal = *v.Price
-		}
-		
-		_, err = tx.Exec(ctx, query, productID, v.VariantName, v.VariantValue, v.SKU, priceVal, v.Quantity)
+				product_id, option1_value, option2_value, option3_value, sku, quantity, image_url, created_at, updated_at
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())`
+
+		opt1 := nullableText(v.Option1Value)
+		opt2 := nullableText(v.Option2Value)
+		opt3 := nullableText(v.Option3Value)
+		img := nullableText(v.ImageURL)
+
+		_, err = tx.Exec(ctx, query, productID, opt1, opt2, opt3, v.SKU, v.Quantity, img)
 		if err != nil {
 			return err
 		}
 	}
 
 	return tx.Commit(ctx)
+}
+
+// nullableText returns *string when s is non-empty, nil otherwise. Used so
+// blank option columns persist as SQL NULL (matching the unique index intent).
+func nullableText(s string) interface{} {
+	if s == "" {
+		return nil
+	}
+	return s
 }
 
 func (r *StoreRepository) SaveProductImages(ctx context.Context, productID string, images []domain.ProductImage) error {
@@ -619,18 +716,39 @@ func (r *StoreRepository) SaveProductImages(ctx context.Context, productID strin
 	return tx.Commit(ctx)
 }
 
+// marshalOptions serializes the product's options array for JSONB storage.
+// Returns a string (not []byte) because pgx encodes []byte as bytea, which
+// Postgres rejects when the target column is JSONB. An empty/nil slice
+// round-trips as the JSON literal "[]" so the NOT NULL default is honoured.
+func marshalOptions(opts []domain.ProductOption) (string, error) {
+	if opts == nil {
+		return `[]`, nil
+	}
+	b, err := json.Marshal(opts)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
 // Admin product catalog actions specifically for store_products
 func (r *StoreRepository) CreateStoreProduct(ctx context.Context, p domain.Product) (*domain.Product, error) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
+	optionsJSON, err := marshalOptions(p.Options)
+	if err != nil {
+		return nil, err
+	}
+
 	query := `
 		INSERT INTO store_products (
-			name, sku, description, price, quantity, threshold, is_active, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+			name, sku, description, price, quantity, threshold, is_active, options, created_at, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
 		RETURNING id, created_at, updated_at`
 
-	err := r.Db.QueryRow(ctx, query, p.Name, p.SKU, p.Description, p.Price, p.Quantity, p.Threshold, p.IsActive).Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt)
+	err = r.Db.QueryRow(ctx, query, p.Name, p.SKU, p.Description, p.Price, p.Quantity, p.Threshold, p.IsActive, optionsJSON).
+		Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -641,12 +759,18 @@ func (r *StoreRepository) UpdateStoreProduct(ctx context.Context, p domain.Produ
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	query := `
-		UPDATE store_products 
-		SET name = $1, sku = $2, description = $3, price = $4, quantity = $5, threshold = $6, is_active = $7, updated_at = NOW() 
-		WHERE id = $8`
+	optionsJSON, err := marshalOptions(p.Options)
+	if err != nil {
+		return err
+	}
 
-	tag, err := r.Db.Exec(ctx, query, p.Name, p.SKU, p.Description, p.Price, p.Quantity, p.Threshold, p.IsActive, p.ID)
+	query := `
+		UPDATE store_products
+		SET name = $1, sku = $2, description = $3, price = $4, quantity = $5, threshold = $6,
+			is_active = $7, options = $8, updated_at = NOW()
+		WHERE id = $9`
+
+	tag, err := r.Db.Exec(ctx, query, p.Name, p.SKU, p.Description, p.Price, p.Quantity, p.Threshold, p.IsActive, optionsJSON, p.ID)
 	if err != nil {
 		return err
 	}
@@ -656,11 +780,15 @@ func (r *StoreRepository) UpdateStoreProduct(ctx context.Context, p domain.Produ
 	return nil
 }
 
+// DeleteStoreProduct soft-deletes by flipping is_active=false. A hard DELETE
+// would break ON DELETE RESTRICT on online_order_items and erase the product
+// name from historical receipts. The storefront list already filters by
+// is_active so the product disappears for customers immediately.
 func (r *StoreRepository) DeleteStoreProduct(ctx context.Context, id string) error {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	query := `DELETE FROM store_products WHERE id = $1`
+	query := `UPDATE store_products SET is_active = false, updated_at = NOW() WHERE id = $1`
 	tag, err := r.Db.Exec(ctx, query, id)
 	if err != nil {
 		return err
@@ -675,10 +803,7 @@ func (r *StoreRepository) ListAllStoreProducts(ctx context.Context) ([]domain.Pr
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	query := `SELECT id, name, sku, description, price, quantity, threshold, is_active, created_at, updated_at 
-		FROM store_products 
-		ORDER BY name ASC`
-
+	query := `SELECT ` + productSelectColumns + ` FROM store_products ORDER BY name ASC`
 	rows, err := r.Db.Query(ctx, query)
 	if err != nil {
 		return nil, err
@@ -688,49 +813,14 @@ func (r *StoreRepository) ListAllStoreProducts(ctx context.Context) ([]domain.Pr
 	var products []domain.Product
 	for rows.Next() {
 		var p domain.Product
-		err := rows.Scan(&p.ID, &p.Name, &p.SKU, &p.Description, &p.Price, &p.Quantity, &p.Threshold, &p.IsActive, &p.CreatedAt, &p.UpdatedAt)
-		if err != nil {
+		if err := scanProductRow(rows, &p); err != nil {
 			return nil, err
 		}
 		products = append(products, p)
 	}
 
-	// Fetch primary images and variants for each product
 	for i := range products {
-		imagesQuery := `SELECT id, product_id, image_url, is_primary, display_order, created_at 
-			FROM store_product_images 
-			WHERE product_id = $1 
-			ORDER BY display_order ASC`
-		imgRows, err := r.Db.Query(ctx, imagesQuery, products[i].ID)
-		if err == nil {
-			var images []domain.ProductImage
-			for imgRows.Next() {
-				var img domain.ProductImage
-				if err := imgRows.Scan(&img.ID, &img.ProductID, &img.ImageURL, &img.IsPrimary, &img.DisplayOrder, &img.CreatedAt); err == nil {
-					images = append(images, img)
-				}
-			}
-			imgRows.Close()
-			products[i].Images = images
-		}
-
-		variantsQuery := `SELECT id, product_id, variant_name, variant_value, sku, price, quantity, created_at, updated_at 
-			FROM store_product_variants 
-			WHERE product_id = $1 
-			ORDER BY variant_name ASC, variant_value ASC`
-		vRows, err := r.Db.Query(ctx, variantsQuery, products[i].ID)
-		if err == nil {
-			var variants []domain.ProductVariant
-			for vRows.Next() {
-				var v domain.ProductVariant
-				if err := vRows.Scan(&v.ID, &v.ProductID, &v.VariantName, &v.VariantValue, &v.SKU, &v.Price, &v.Quantity, &v.CreatedAt, &v.UpdatedAt); err == nil {
-					variants = append(variants, v)
-				}
-			}
-			vRows.Close()
-			products[i].Variants = variants
-		}
+		r.loadProductRelations(ctx, &products[i])
 	}
-
 	return products, nil
 }

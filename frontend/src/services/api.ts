@@ -1077,13 +1077,26 @@ export interface ProductImage {
     display_order: number;
 }
 
+export interface ProductOptionValue {
+    value: string;
+    price?: number; // only present when the parent option drives price
+}
+
+export interface ProductOption {
+    name: string;
+    drives_price: boolean;
+    values: ProductOptionValue[];
+}
+
 export interface ProductVariant {
     id: string;
-    variant_name: string;
-    variant_value: string;
+    option1_value?: string;
+    option2_value?: string;
+    option3_value?: string;
     sku: string;
-    price: number;
     quantity: number;
+    price: number;      // derived server-side from the pricing option
+    image_url?: string; // optional pin to a product image
 }
 
 export interface StoreProduct {
@@ -1098,6 +1111,7 @@ export interface StoreProduct {
     created_at: string;
     updated_at: string;
     images: ProductImage[];
+    options: ProductOption[];
     variants: ProductVariant[];
 }
 
@@ -1131,8 +1145,7 @@ export interface OrderItem {
     product_id: string;
     product_name: string;
     variant_id?: string;
-    variant_name?: string;
-    variant_value?: string;
+    variant_label?: string; // snapshot like "Size: M, Color: Navy"
     quantity: number;
     unit_price: number;
     total_price: number;
@@ -1216,12 +1229,17 @@ export const getAdminStoreProducts = async (): Promise<StoreProduct[]> => {
     return response.data.data || [];
 };
 
-export const createAdminStoreProduct = async (payload: Omit<StoreProduct, 'id' | 'created_at' | 'updated_at' | 'images' | 'variants'>): Promise<StoreProduct> => {
+type AdminStoreProductPayload = Omit<StoreProduct, 'id' | 'sku' | 'created_at' | 'updated_at' | 'images' | 'variants' | 'options'> & {
+    sku?: string;
+    options: ProductOption[];
+};
+
+export const createAdminStoreProduct = async (payload: AdminStoreProductPayload): Promise<StoreProduct> => {
     const response = await api.post<{ data: StoreProduct }>('/admin/store/products', payload);
     return response.data.data;
 };
 
-export const updateAdminStoreProduct = async (id: string, payload: Omit<StoreProduct, 'id' | 'created_at' | 'updated_at' | 'images' | 'variants'>): Promise<any> => {
+export const updateAdminStoreProduct = async (id: string, payload: AdminStoreProductPayload): Promise<any> => {
     const response = await api.put(`/admin/store/products/${id}`, payload);
     return response.data;
 };
@@ -1254,7 +1272,23 @@ export const verifyAdminStoreOrder = async (id: string): Promise<Order> => {
     return response.data.data;
 };
 
-export const saveAdminProductVariants = async (productId: string, variants: Omit<ProductVariant, 'id'>[]): Promise<any> => {
+export const cancelAdminStoreOrder = async (id: string): Promise<Order> => {
+    const response = await api.post<{ data: Order }>(`/admin/store/orders/${id}/cancel`);
+    return response.data.data;
+};
+
+// Variant rows sent up are pure combination + stock + optional image pin —
+// price is derived server-side from the product's pricing option.
+export type AdminVariantPayload = {
+    option1_value?: string;
+    option2_value?: string;
+    option3_value?: string;
+    sku?: string;
+    quantity: number;
+    image_url?: string;
+};
+
+export const saveAdminProductVariants = async (productId: string, variants: AdminVariantPayload[]): Promise<any> => {
     const response = await api.post(`/admin/store/products/${productId}/variants`, variants);
     return response.data;
 };

@@ -12,15 +12,35 @@ type ProductImage struct {
 	CreatedAt    time.Time `json:"created_at"`
 }
 
-// ProductVariant represents a specific variant size/format option with stock & custom SKU
+// ProductOptionValue is a single allowed value of a product option, plus the
+// optional price tied to it (only meaningful when the parent option drives
+// price for the product).
+type ProductOptionValue struct {
+	Value string   `json:"value"`
+	Price *float64 `json:"price,omitempty"`
+}
+
+// ProductOption defines one of (up to 3) option dimensions on a product, e.g.
+// "Size" with values S/M/L. At most one option per product may have
+// DrivesPrice=true; that option's per-value price overrides the product base.
+type ProductOption struct {
+	Name        string               `json:"name"`
+	DrivesPrice bool                 `json:"drives_price"`
+	Values      []ProductOptionValue `json:"values"`
+}
+
+// ProductVariant is one concrete combination of option values (e.g.
+// Size=M, Color=Navy). Each combination has its own SKU, stock, and may pin
+// the gallery to a specific product image when selected.
 type ProductVariant struct {
 	ID           string    `json:"id"`
 	ProductID    string    `json:"product_id"`
-	VariantName  string    `json:"variant_name"`  // e.g. "Size", "Format"
-	VariantValue string    `json:"variant_value"` // e.g. "M", "Hardcover"
+	Option1Value string    `json:"option1_value,omitempty"`
+	Option2Value string    `json:"option2_value,omitempty"`
+	Option3Value string    `json:"option3_value,omitempty"`
 	SKU          string    `json:"sku"`
-	Price        *float64  `json:"price,omitempty"` // Custom override price. If nil, defaults to product base price
-	Quantity     int       `json:"quantity"`        // Specific stock count for this variant
+	Quantity     int       `json:"quantity"`
+	ImageURL     string    `json:"image_url,omitempty"` // optional pointer to one of the product's gallery images
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
@@ -62,15 +82,17 @@ type Order struct {
 	Items              []OrderItem `json:"items,omitempty"`
 }
 
-// OrderItem represents a single item configuration within an online order
+// OrderItem represents a single item configuration within an online order.
+// VariantLabel is a snapshot of the human-readable variant tuple at the time
+// the order was placed (e.g. "Size: M, Color: Navy") so receipts stay intact
+// even if the admin later edits the product's options.
 type OrderItem struct {
-	ID           string   `json:"id"`
-	OrderID      string   `json:"order_id"`
-	ProductID    string   `json:"product_id"`
-	VariantID    *string  `json:"variant_id,omitempty"` // Optional variant
-	Quantity     int      `json:"quantity"`
-	UnitPrice    float64  `json:"unit_price"`
-	ProductName  string   `json:"product_name,omitempty"`
-	VariantName  string   `json:"variant_name,omitempty"`
-	VariantValue string   `json:"variant_value,omitempty"`
+	ID           string  `json:"id"`
+	OrderID      string  `json:"order_id"`
+	ProductID    string  `json:"product_id"`
+	VariantID    *string `json:"variant_id,omitempty"`
+	Quantity     int     `json:"quantity"`
+	UnitPrice    float64 `json:"unit_price"`
+	ProductName  string  `json:"product_name,omitempty"`
+	VariantLabel string  `json:"variant_label,omitempty"`
 }

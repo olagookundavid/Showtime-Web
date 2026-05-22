@@ -20,6 +20,11 @@ var ErrServerError = fmt.Errorf("something went wrong")
 
 var ErrNotFound = errors.New("not found")
 
+// Store-domain errors surfaced to the HTTP layer as 4xx
+var ErrInsufficientStock = errors.New("insufficient stock")
+var ErrVariantRequired = errors.New("variant selection required for this product")
+var ErrVariantNotFound = errors.New("variant not found on product")
+
 var (
 	ErrExampleNotFound  = errors.New("example not found")
 	ErrDuplicateExample = errors.New("example already exists")

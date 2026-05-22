@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams, Link } from 'react-router-dom';
 import { getOrderByReference } from '../services/api';
@@ -8,24 +7,28 @@ export const OrderConfirmationPage = () => {
     const [searchParams] = useSearchParams();
     const reference = searchParams.get('reference') || searchParams.get('trxref');
 
-    // We use a small delay state for webhook processing before enabling the query
-    const [delayComplete, setDelayComplete] = useState(false);
-
-    useEffect(() => {
-        if (!reference) return;
-        const timer = setTimeout(() => setDelayComplete(true), 2000);
-        return () => clearTimeout(timer);
-    }, [reference]);
-
-    const { data: order, isLoading, isError } = useQuery({
+    // Poll the order until payment_status moves off 'pending'. The Paystack
+    // webhook lands milliseconds-to-seconds after the redirect — stop polling
+    // once we see a terminal state ('paid' or 'failed'), or after ~30s.
+    const { data: order, isLoading, isError, failureCount } = useQuery({
         queryKey: ['publicOrder', reference],
         queryFn: () => getOrderByReference(reference!),
-        enabled: !!reference && delayComplete,
-        retry: 2, // Retry twice if webhook is still processing
+        enabled: !!reference,
+        refetchInterval: (query) => {
+            const data = query.state.data;
+            if (data && data.payment_status !== 'pending') return false;
+            return 2000;
+        },
+        retry: 6, // ~6 retries while order row hasn't been written yet
+        retryDelay: 1500,
     });
 
-    const loading = !reference ? false : (!delayComplete || isLoading);
-    const error = !reference ? 'No order reference found.' : isError ? 'Could not find your order. Please check your email or contact support.' : '';
+    const loading = !reference ? false : (isLoading && failureCount < 6);
+    const error = !reference
+        ? 'No order reference found.'
+        : (isError && failureCount >= 6)
+            ? 'Could not find your order. Please check your email or contact support.'
+            : '';
 
     if (loading) {
         return (
@@ -118,9 +121,9 @@ export const OrderConfirmationPage = () => {
                                     <div key={item.id} className="py-3 flex items-center justify-between text-sm">
                                         <div className="space-y-0.5">
                                             <p className="font-bold text-sffl-navy dark:text-white uppercase">{item.product_name}</p>
-                                            {item.variant_name && (
+                                            {item.variant_label && (
                                                 <p className="text-[10px] bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider px-2 py-0.5 rounded inline-block">
-                                                    {item.variant_name}: {item.variant_value}
+                                                    {item.variant_label}
                                                 </p>
                                             )}
                                         </div>

@@ -5,6 +5,10 @@ interface LazyImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
     alt: string;
     className?: string;
     placeholderClassName?: string;
+    // 'cover' (default) crops to fill the box — good for thumbnails & heroes.
+    // 'contain' fits the whole image without cropping — good for product
+    // photography where the edges (sleeves, neckline) matter.
+    objectFit?: 'cover' | 'contain';
 }
 
 export const LazyImage: React.FC<LazyImageProps> = ({
@@ -12,6 +16,7 @@ export const LazyImage: React.FC<LazyImageProps> = ({
     alt,
     className = '',
     placeholderClassName = '',
+    objectFit = 'cover',
     ...props
 }) => {
     const [isLoaded, setIsLoaded] = useState(false);
@@ -48,9 +53,9 @@ export const LazyImage: React.FC<LazyImageProps> = ({
                 <img
                     src={src}
                     alt={alt}
-                    className={`w-full h-full object-cover transition-all duration-700 ease-out select-none ${
-                        isLoaded 
-                            ? 'opacity-100 scale-100 filter blur-0' 
+                    className={`w-full h-full ${objectFit === 'contain' ? 'object-contain' : 'object-cover'} transition-all duration-700 ease-out select-none ${
+                        isLoaded
+                            ? 'opacity-100 scale-100 filter blur-0'
                             : 'opacity-0 scale-95 filter blur-md'
                     } ${className}`}
                     {...props}

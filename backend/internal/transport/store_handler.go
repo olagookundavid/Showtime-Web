@@ -5,10 +5,12 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"pkg-common/helpers"
 	"showtime-backend/internal/dto"
+	appErrors "showtime-backend/internal/errors"
 	"showtime-backend/internal/services"
 	"strconv"
 
@@ -26,6 +28,7 @@ type IStoreHandler interface {
 	ListOrders(c *gin.Context)
 	GetOrder(c *gin.Context)
 	UpdateFulfillment(c *gin.Context)
+	CancelOrder(c *gin.Context)
 	ListSavedAddresses(c *gin.Context)
 	SaveAddress(c *gin.Context)
 	ListCustomerOrders(c *gin.Context)
@@ -86,7 +89,16 @@ func (h *StoreHandler) Checkout(c *gin.Context) {
 
 	res, err := h.Service.CreateOrder(c.Request.Context(), userID, req)
 	if err != nil {
-		helpers.BadResponse(c, err.Error())
+		switch {
+		case errors.Is(err, appErrors.ErrInsufficientStock):
+			helpers.BadResponse(c, "Sorry, this item just sold out. Please pick a different size or come back later.")
+		case errors.Is(err, appErrors.ErrVariantRequired):
+			helpers.BadResponse(c, "Please choose a variant (e.g. size) before checking out.")
+		case errors.Is(err, appErrors.ErrVariantNotFound):
+			helpers.BadResponse(c, "The selected variant is no longer available.")
+		default:
+			helpers.BadResponse(c, err.Error())
+		}
 		return
 	}
 	helpers.SuccessCreated(c, "Order initialized successfully", res)
@@ -200,6 +212,20 @@ func (h *StoreHandler) GetOrder(c *gin.Context) {
 		return
 	}
 	helpers.SuccessOK(c, "Order retrieved successfully", res)
+}
+
+func (h *StoreHandler) CancelOrder(c *gin.Context) {
+	id := c.Param("id")
+	res, err := h.Service.CancelOrder(c.Request.Context(), id)
+	if err != nil {
+		if err.Error() == "not found" {
+			helpers.NotFoundResponseWithMsg(c, "Order not found")
+			return
+		}
+		helpers.ServerErrorResponse(c, err)
+		return
+	}
+	helpers.SuccessOK(c, "Order cancelled and stock restored", res)
 }
 
 func (h *StoreHandler) UpdateFulfillment(c *gin.Context) {

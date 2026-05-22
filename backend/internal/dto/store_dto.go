@@ -10,14 +10,30 @@ type ProductImageResponse struct {
 	DisplayOrder int    `json:"display_order"`
 }
 
-// ProductVariantResponse represents size/format option configuration for storefront purchases
+// ProductOptionValueDTO carries one allowed value of an option, plus the
+// optional price if the option drives pricing.
+type ProductOptionValueDTO struct {
+	Value string   `json:"value"`
+	Price *float64 `json:"price,omitempty"`
+}
+
+// ProductOptionDTO is one option dimension (Size, Color, etc.) on a product.
+type ProductOptionDTO struct {
+	Name        string                  `json:"name"`
+	DrivesPrice bool                    `json:"drives_price"`
+	Values      []ProductOptionValueDTO `json:"values"`
+}
+
+// ProductVariantResponse is one concrete option-combination row.
 type ProductVariantResponse struct {
-	ID           string   `json:"id"`
-	VariantName  string   `json:"variant_name"`
-	VariantValue string   `json:"variant_value"`
-	SKU          string   `json:"sku"`
-	Price        float64  `json:"price"` // Custom override price or product base price
-	Quantity     int      `json:"quantity"`
+	ID           string `json:"id"`
+	Option1Value string `json:"option1_value,omitempty"`
+	Option2Value string `json:"option2_value,omitempty"`
+	Option3Value string `json:"option3_value,omitempty"`
+	SKU          string `json:"sku"`
+	Quantity     int    `json:"quantity"`
+	Price        float64 `json:"price"`               // derived from product options
+	ImageURL     string  `json:"image_url,omitempty"` // optional pin to a gallery image
 }
 
 // StoreProductResponse represents a deeply populated storefront product
@@ -26,13 +42,14 @@ type StoreProductResponse struct {
 	Name        string                   `json:"name"`
 	SKU         string                   `json:"sku"`
 	Description string                   `json:"description"`
-	Price       float64                  `json:"price"` // Base product price
-	Quantity    int                      `json:"quantity"` // Global inventory aggregate or legacy count
+	Price       float64                  `json:"price"`    // base product price
+	Quantity    int                      `json:"quantity"` // base qty (ignored when variants exist)
 	Threshold   int                      `json:"threshold"`
 	IsActive    bool                     `json:"is_active"`
 	CreatedAt   time.Time                `json:"created_at"`
 	UpdatedAt   time.Time                `json:"updated_at"`
 	Images      []ProductImageResponse   `json:"images"`
+	Options     []ProductOptionDTO       `json:"options"`
 	Variants    []ProductVariantResponse `json:"variants"`
 }
 
@@ -87,17 +104,16 @@ type CheckoutResponse struct {
 	PaystackAccessCode string `json:"paystack_access_code"`
 }
 
-// OrderItemResponse represents e-commerce invoice line details
+// OrderItemResponse represents e-commerce invoice line details.
 type OrderItemResponse struct {
-	ID           string   `json:"id"`
-	ProductID    string   `json:"product_id"`
-	ProductName  string   `json:"product_name"`
-	VariantID    *string  `json:"variant_id,omitempty"`
-	VariantName  string   `json:"variant_name,omitempty"`
-	VariantValue string   `json:"variant_value,omitempty"`
-	Quantity     int      `json:"quantity"`
-	UnitPrice    float64  `json:"unit_price"`
-	TotalPrice   float64  `json:"total_price"`
+	ID           string  `json:"id"`
+	ProductID    string  `json:"product_id"`
+	ProductName  string  `json:"product_name"`
+	VariantID    *string `json:"variant_id,omitempty"`
+	VariantLabel string  `json:"variant_label,omitempty"`
+	Quantity     int     `json:"quantity"`
+	UnitPrice    float64 `json:"unit_price"`
+	TotalPrice   float64 `json:"total_price"`
 }
 
 // OrderResponse represents full storefront purchase package
@@ -124,28 +140,30 @@ type OrderResponse struct {
 
 // UpdateFulfillmentRequest represents dashboard status changes
 type UpdateFulfillmentRequest struct {
-	FulfillmentStatus string `json:"fulfillment_status" binding:"required,oneof=pending shipped delivered"`
+	FulfillmentStatus string `json:"fulfillment_status" binding:"required,oneof=pending shipped delivered cancelled"`
 }
 
 // CreateStoreProductRequest represents payload for admin creating storefront products
 type CreateStoreProductRequest struct {
-	Name        string  `json:"name" binding:"required"`
-	SKU         string  `json:"sku"`
-	Description string  `json:"description"`
-	Price       float64 `json:"price" binding:"required,min=0"`
-	Quantity    int     `json:"quantity" binding:"min=0"`
-	Threshold   int     `json:"threshold" binding:"min=0"`
-	IsActive    bool    `json:"is_active"`
+	Name        string             `json:"name" binding:"required"`
+	SKU         string             `json:"sku"`
+	Description string             `json:"description"`
+	Price       float64            `json:"price" binding:"required,min=0"`
+	Quantity    int                `json:"quantity" binding:"min=0"`
+	Threshold   int                `json:"threshold" binding:"min=0"`
+	IsActive    bool               `json:"is_active"`
+	Options     []ProductOptionDTO `json:"options"`
 }
 
 // UpdateStoreProductRequest represents payload for admin updating storefront products
 type UpdateStoreProductRequest struct {
-	Name        string  `json:"name" binding:"required"`
-	SKU         string  `json:"sku"`
-	Description string  `json:"description"`
-	Price       float64 `json:"price" binding:"required,min=0"`
-	Quantity    int     `json:"quantity" binding:"min=0"`
-	Threshold   int     `json:"threshold" binding:"min=0"`
-	IsActive    bool    `json:"is_active"`
+	Name        string             `json:"name" binding:"required"`
+	SKU         string             `json:"sku"`
+	Description string             `json:"description"`
+	Price       float64            `json:"price" binding:"required,min=0"`
+	Quantity    int                `json:"quantity" binding:"min=0"`
+	Threshold   int                `json:"threshold" binding:"min=0"`
+	IsActive    bool               `json:"is_active"`
+	Options     []ProductOptionDTO `json:"options"`
 }
 

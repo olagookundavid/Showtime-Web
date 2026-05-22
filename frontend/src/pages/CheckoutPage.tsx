@@ -1,20 +1,23 @@
 import { useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
-import { 
-    getStoreProduct, 
-    getSavedAddresses, 
-    initializeCheckout, 
-    type StoreProduct, 
-    type SavedAddress, 
-    type CheckoutPayload 
+import {
+    getStoreProduct,
+    getSavedAddresses,
+    saveSavedAddress,
+    initializeCheckout,
+    type StoreProduct,
+    type SavedAddress,
+    type CheckoutPayload
 } from '../services/api';
 import { LazyImage } from '../components/common/LazyImage';
+import { formatVariantLabel } from '../utils/storeStock';
 
 export const CheckoutPage = () => {
     const [searchParams] = useSearchParams();
     const { user, isAuthenticated } = useAuth();
+    const queryClient = useQueryClient();
 
     const productId = searchParams.get('product_id') || '';
     const variantId = searchParams.get('variant_id') || '';
@@ -22,6 +25,13 @@ export const CheckoutPage = () => {
 
     const [checkoutStep, setCheckoutStep] = useState<1 | 2>(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [formError, setFormError] = useState<string>('');
+    const [payError, setPayError] = useState<string>('');
+    // Logged-in users can opt to persist this address to their address book.
+    // Default ON when they don't have any saved addresses yet, OFF otherwise
+    // (handled below once savedAddresses has loaded).
+    const [saveAddress, setSaveAddress] = useState<boolean>(false);
+    const [selectedSavedAddressId, setSelectedSavedAddressId] = useState<string | null>(null);
 
     // Form State
     const [shippingForm, setShippingForm] = useState({
@@ -80,6 +90,13 @@ export const CheckoutPage = () => {
     const shippingCost = 0; // Free promo
     const totalAmount = subtotal + shippingCost;
 
+    // When the user manually edits a field after picking a saved address, treat
+    // it as a fresh entry — they're no longer reusing the saved one.
+    const updateField = <K extends keyof typeof shippingForm>(key: K, value: (typeof shippingForm)[K]) => {
+        setShippingForm(prev => ({ ...prev, [key]: value }));
+        if (selectedSavedAddressId) setSelectedSavedAddressId(null);
+    };
+
     const handleSelectAddress = (addr: SavedAddress) => {
         setShippingForm({
             recipient_name: addr.recipient_name,
@@ -91,27 +108,64 @@ export const CheckoutPage = () => {
             street_address: addr.street_address,
             postal_code: addr.postal_code,
         });
+        setSelectedSavedAddressId(addr.id);
+        // Re-saving an existing address would just duplicate it.
+        setSaveAddress(false);
     };
 
-    const handleFormSubmit = (e: React.FormEvent) => {
+    const handleFormSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Validation
+        setFormError('');
         if (
-            !shippingForm.recipient_name ||
-            !shippingForm.email ||
-            !shippingForm.phone ||
-            !shippingForm.state ||
-            !shippingForm.city ||
-            !shippingForm.street_address
+            !shippingForm.recipient_name.trim() ||
+            !shippingForm.email.trim() ||
+            !shippingForm.phone.trim() ||
+            !shippingForm.state.trim() ||
+            !shippingForm.city.trim() ||
+            !shippingForm.street_address.trim()
         ) {
-            alert('Please fill out all required shipping fields.');
+            setFormError('Please fill out all required shipping fields before continuing.');
             return;
         }
+
+        // Persist the typed-in address to the user's address book if requested.
+        // Failure here is non-fatal — we still advance to payment so the order
+        // can complete; the user can re-save next time.
+        if (isAuthenticated && saveAddress && !selectedSavedAddressId) {
+            try {
+                await saveSavedAddress({
+                    recipient_name: shippingForm.recipient_name,
+                    phone: shippingForm.phone,
+                    country: shippingForm.country,
+                    state: shippingForm.state,
+                    city: shippingForm.city,
+                    street_address: shippingForm.street_address,
+                    postal_code: shippingForm.postal_code,
+                });
+                queryClient.invalidateQueries({ queryKey: ['savedAddresses'] });
+            } catch {
+                // ignore — user can still check out without saving
+            }
+        }
+
         setCheckoutStep(2);
+    };
+
+    // Only redirect to Paystack-owned hosts. Stops a compromised/spoofed API
+    // response from sending the customer to a phishing payment page.
+    const isAllowedPaystackUrl = (raw: string): boolean => {
+        try {
+            const u = new URL(raw);
+            if (u.protocol !== 'https:') return false;
+            return u.hostname === 'checkout.paystack.com' || u.hostname.endsWith('.paystack.com');
+        } catch {
+            return false;
+        }
     };
 
     const handlePayNow = async () => {
         setIsSubmitting(true);
+        setPayError('');
         try {
             const payload: CheckoutPayload = {
                 customer_name: shippingForm.recipient_name,
@@ -132,14 +186,15 @@ export const CheckoutPage = () => {
             };
 
             const response = await initializeCheckout(payload);
-            if (response && response.paystack_url) {
-                // Redirect user directly to secure Paystack transaction
-                window.location.href = response.paystack_url;
-            } else {
+            if (!response || !response.paystack_url) {
                 throw new Error('No checkout URL received from merchant API.');
             }
+            if (!isAllowedPaystackUrl(response.paystack_url)) {
+                throw new Error('Unexpected payment redirect URL — checkout aborted for your safety.');
+            }
+            window.location.href = response.paystack_url;
         } catch (err: any) {
-            alert(err.response?.data?.error || 'Failed to initialize Paystack checkout. Please try again.');
+            setPayError(err.response?.data?.error || err.message || 'Failed to initialize Paystack checkout. Please try again.');
         } finally {
             setIsSubmitting(false);
         }
@@ -186,23 +241,36 @@ export const CheckoutPage = () => {
                                         📋 Select a Saved Shipping Address
                                     </label>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        {savedAddresses.map((addr) => (
-                                            <div
-                                                key={addr.id}
-                                                onClick={() => handleSelectAddress(addr)}
-                                                className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 hover:border-sffl-red/40 p-4 rounded-2xl cursor-pointer transition-all duration-300 group hover:shadow-md"
-                                            >
-                                                <div className="flex justify-between items-start">
-                                                    <span className="font-bold text-sm text-sffl-navy dark:text-white group-hover:text-sffl-red transition-colors">
-                                                        {addr.recipient_name}
-                                                    </span>
-                                                    <span className="text-[10px] bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-500 font-bold uppercase">Use</span>
+                                        {savedAddresses.map((addr) => {
+                                            const isSelected = selectedSavedAddressId === addr.id;
+                                            return (
+                                                <div
+                                                    key={addr.id}
+                                                    onClick={() => handleSelectAddress(addr)}
+                                                    className={`p-4 rounded-2xl cursor-pointer transition-all duration-300 group ${
+                                                        isSelected
+                                                            ? 'bg-sffl-red/5 border-2 border-sffl-red shadow-md'
+                                                            : 'bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 hover:border-sffl-red/40 hover:shadow-md'
+                                                    }`}
+                                                >
+                                                    <div className="flex justify-between items-start">
+                                                        <span className={`font-bold text-sm transition-colors ${isSelected ? 'text-sffl-red' : 'text-sffl-navy dark:text-white group-hover:text-sffl-red'}`}>
+                                                            {addr.recipient_name}
+                                                        </span>
+                                                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${
+                                                            isSelected
+                                                                ? 'bg-sffl-red text-white'
+                                                                : 'bg-gray-200 dark:bg-gray-700 text-gray-500'
+                                                        }`}>
+                                                            {isSelected ? '✓ Using' : 'Use'}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 truncate">{addr.street_address}</p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{addr.city}, {addr.state}</p>
+                                                    <p className="text-[10px] text-gray-400 mt-1">{addr.phone}</p>
                                                 </div>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 truncate">{addr.street_address}</p>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{addr.city}, {addr.state}</p>
-                                                <p className="text-[10px] text-gray-400 mt-1">{addr.phone}</p>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             )}
@@ -214,6 +282,12 @@ export const CheckoutPage = () => {
                                 </div>
                             )}
 
+                            {formError && (
+                                <div role="alert" className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-xs font-bold px-4 py-3 rounded-xl">
+                                    {formError}
+                                </div>
+                            )}
+
                             <form onSubmit={handleFormSubmit} className="space-y-4 pt-2">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-1">
@@ -222,7 +296,7 @@ export const CheckoutPage = () => {
                                             required
                                             type="text"
                                             value={shippingForm.recipient_name}
-                                            onChange={e => setShippingForm({ ...shippingForm, recipient_name: e.target.value })}
+                                            onChange={e => updateField('recipient_name', e.target.value)}
                                             className="w-full px-3 py-2 text-sm border rounded-xl dark:bg-gray-800 dark:border-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
                                             placeholder="e.g. David Oh"
                                         />
@@ -233,7 +307,7 @@ export const CheckoutPage = () => {
                                             required
                                             type="email"
                                             value={shippingForm.email}
-                                            onChange={e => setShippingForm({ ...shippingForm, email: e.target.value })}
+                                            onChange={e => updateField('email', e.target.value)}
                                             className="w-full px-3 py-2 text-sm border rounded-xl dark:bg-gray-800 dark:border-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
                                             placeholder="e.g. david@gmail.com"
                                         />
@@ -247,7 +321,7 @@ export const CheckoutPage = () => {
                                             required
                                             type="text"
                                             value={shippingForm.phone}
-                                            onChange={e => setShippingForm({ ...shippingForm, phone: e.target.value })}
+                                            onChange={e => updateField('phone', e.target.value)}
                                             className="w-full px-3 py-2 text-sm border rounded-xl dark:bg-gray-800 dark:border-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
                                             placeholder="e.g. +234..."
                                         />
@@ -270,7 +344,7 @@ export const CheckoutPage = () => {
                                             required
                                             type="text"
                                             value={shippingForm.state}
-                                            onChange={e => setShippingForm({ ...shippingForm, state: e.target.value })}
+                                            onChange={e => updateField('state', e.target.value)}
                                             className="w-full px-3 py-2 text-sm border rounded-xl dark:bg-gray-800 dark:border-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
                                             placeholder="e.g. Lagos"
                                         />
@@ -281,7 +355,7 @@ export const CheckoutPage = () => {
                                             required
                                             type="text"
                                             value={shippingForm.city}
-                                            onChange={e => setShippingForm({ ...shippingForm, city: e.target.value })}
+                                            onChange={e => updateField('city', e.target.value)}
                                             className="w-full px-3 py-2 text-sm border rounded-xl dark:bg-gray-800 dark:border-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
                                             placeholder="e.g. Lekki"
                                         />
@@ -291,7 +365,7 @@ export const CheckoutPage = () => {
                                         <input
                                             type="text"
                                             value={shippingForm.postal_code}
-                                            onChange={e => setShippingForm({ ...shippingForm, postal_code: e.target.value })}
+                                            onChange={e => updateField('postal_code', e.target.value)}
                                             className="w-full px-3 py-2 text-sm border rounded-xl dark:bg-gray-800 dark:border-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
                                             placeholder="e.g. 100001"
                                         />
@@ -304,11 +378,23 @@ export const CheckoutPage = () => {
                                         required
                                         rows={2}
                                         value={shippingForm.street_address}
-                                        onChange={e => setShippingForm({ ...shippingForm, street_address: e.target.value })}
+                                        onChange={e => updateField('street_address', e.target.value)}
                                         className="w-full px-3 py-2 text-sm border rounded-xl dark:bg-gray-800 dark:border-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
                                         placeholder="Detailed street name, apartment details, building number..."
                                     />
                                 </div>
+
+                                {isAuthenticated && !selectedSavedAddressId && (
+                                    <label className="flex items-center gap-2 text-xs font-bold text-gray-600 dark:text-gray-300 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={saveAddress}
+                                            onChange={e => setSaveAddress(e.target.checked)}
+                                            className="w-4 h-4 accent-sffl-red"
+                                        />
+                                        💾 Save this address for next time
+                                    </label>
+                                )}
 
                                 <button
                                     type="submit"
@@ -341,7 +427,7 @@ export const CheckoutPage = () => {
                                     <div className="flex items-center gap-3 mt-3">
                                         <div className="w-12 h-12 rounded-lg bg-gray-200 dark:bg-gray-700 overflow-hidden flex-shrink-0">
                                             {product.images && product.images.length > 0 ? (
-                                                <LazyImage src={product.images[0].image_url} alt="" />
+                                                <LazyImage src={product.images[0].image_url} alt="" objectFit="contain" className="p-1" />
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-gray-400">GEAR</div>
                                             )}
@@ -350,7 +436,7 @@ export const CheckoutPage = () => {
                                             <p className="font-bold text-sffl-navy dark:text-white">{product.name}</p>
                                             {matchedVariant && (
                                                 <p className="text-[10px] text-gray-500 font-bold uppercase mt-0.5">
-                                                    Option: {matchedVariant.variant_name} ({matchedVariant.variant_value})
+                                                    {formatVariantLabel(product, matchedVariant)}
                                                 </p>
                                             )}
                                             <p className="text-gray-400 mt-0.5">Qty: {quantity} @ ₦{unitPrice.toLocaleString()}</p>
@@ -358,6 +444,12 @@ export const CheckoutPage = () => {
                                     </div>
                                 </div>
                             </div>
+
+                            {payError && (
+                                <div role="alert" className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-xs font-bold px-4 py-3 rounded-xl">
+                                    {payError}
+                                </div>
+                            )}
 
                             {isSubmitting ? (
                                 <div className="text-center py-6 space-y-4">
@@ -406,7 +498,7 @@ export const CheckoutPage = () => {
                             <p className="font-bold text-gray-900 dark:text-white line-clamp-1">{product.name}</p>
                             {matchedVariant && (
                                 <p className="text-[10px] font-semibold text-gray-400 uppercase">
-                                    Option: {matchedVariant.variant_name} ({matchedVariant.variant_value})
+                                    {formatVariantLabel(product, matchedVariant)}
                                 </p>
                             )}
                             <p className="text-sffl-red font-bold">₦{unitPrice.toLocaleString()} × {quantity}</p>

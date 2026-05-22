@@ -158,6 +158,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		adminStoreGroup.GET("/orders/:id", app.Handlers.StoreHandler.GetOrder)
 		adminStoreGroup.PATCH("/orders/:id/fulfillment", app.Handlers.StoreHandler.UpdateFulfillment)
 		adminStoreGroup.POST("/orders/:id/verify", app.Handlers.StoreHandler.VerifyOrder)
+		adminStoreGroup.POST("/orders/:id/cancel", app.Handlers.StoreHandler.CancelOrder)
 	}
 
 	matchesGroup := adminRoutes.Group("/matches")
@@ -371,8 +372,20 @@ func SetupStoreRoutes(r *gin.RouterGroup, app *api.Application) {
 	{
 		storeRoutes.GET("/products", app.Handlers.StoreHandler.ListStoreProducts)
 		storeRoutes.GET("/products/:id", app.Handlers.StoreHandler.GetStoreProduct)
-		storeRoutes.POST("/checkout", app.Handlers.StoreHandler.Checkout)
-		storeRoutes.POST("/verify", app.Handlers.StoreHandler.VerifyPayment)
+
+		// Stricter limiter on the write/payment endpoints — guards against
+		// runaway clients exhausting Paystack quota or spawning orphan orders.
+		rls := commonAuth.RateLimitStruct{
+			LimiterEnabled: true,
+			Rps:            5,
+			Burst:          10,
+		}
+		limited := storeRoutes.Group("", commonAuth.RateLimit(rls))
+		{
+			limited.POST("/checkout", app.Handlers.StoreHandler.Checkout)
+			limited.POST("/verify", app.Handlers.StoreHandler.VerifyPayment)
+		}
+
 		storeRoutes.POST("/webhook", app.Handlers.StoreHandler.Webhook)
 		storeRoutes.GET("/orders/by-ref/:reference", app.Handlers.StoreHandler.GetOrderByReference)
 

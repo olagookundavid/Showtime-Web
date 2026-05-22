@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os"
+	appErrors "showtime-backend/internal/errors"
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/ports"
@@ -34,6 +36,7 @@ type IStoreService interface {
 	UpdateStoreProduct(ctx context.Context, id string, req dto.UpdateStoreProductRequest) error
 	DeleteStoreProduct(ctx context.Context, id string) error
 	ListAllStoreProducts(ctx context.Context) ([]dto.StoreProductResponse, error)
+	CancelOrder(ctx context.Context, id string) (*dto.OrderResponse, error)
 }
 
 type StoreService struct {
@@ -63,6 +66,7 @@ func mapProductToStoreResponse(p *domain.Product) dto.StoreProductResponse {
 		CreatedAt:   p.CreatedAt,
 		UpdatedAt:   p.UpdatedAt,
 		Images:      make([]dto.ProductImageResponse, 0, len(p.Images)),
+		Options:     make([]dto.ProductOptionDTO, 0, len(p.Options)),
 		Variants:    make([]dto.ProductVariantResponse, 0, len(p.Variants)),
 	}
 
@@ -75,22 +79,58 @@ func mapProductToStoreResponse(p *domain.Product) dto.StoreProductResponse {
 		})
 	}
 
-	for _, v := range p.Variants {
-		price := p.Price
-		if v.Price != nil {
-			price = *v.Price
+	for _, opt := range p.Options {
+		values := make([]dto.ProductOptionValueDTO, 0, len(opt.Values))
+		for _, val := range opt.Values {
+			values = append(values, dto.ProductOptionValueDTO{
+				Value: val.Value,
+				Price: val.Price,
+			})
 		}
+		res.Options = append(res.Options, dto.ProductOptionDTO{
+			Name:        opt.Name,
+			DrivesPrice: opt.DrivesPrice,
+			Values:      values,
+		})
+	}
+
+	for i := range p.Variants {
+		v := p.Variants[i]
 		res.Variants = append(res.Variants, dto.ProductVariantResponse{
 			ID:           v.ID,
-			VariantName:  v.VariantName,
-			VariantValue: v.VariantValue,
+			Option1Value: v.Option1Value,
+			Option2Value: v.Option2Value,
+			Option3Value: v.Option3Value,
 			SKU:          v.SKU,
-			Price:        price,
 			Quantity:     v.Quantity,
+			Price:        p.PriceForVariant(&v),
+			ImageURL:     v.ImageURL,
 		})
 	}
 
 	return res
+}
+
+// buildVariantLabel composes a human-readable snapshot of a variant tuple for
+// receipts, e.g. "Size: M, Color: Navy". Uses the product options to attach
+// the option name to each value. Skips columns without a value.
+func buildVariantLabel(p *domain.Product, v *domain.ProductVariant) string {
+	if v == nil {
+		return ""
+	}
+	values := []string{v.Option1Value, v.Option2Value, v.Option3Value}
+	parts := make([]string, 0, 3)
+	for i, val := range values {
+		if val == "" {
+			continue
+		}
+		name := fmt.Sprintf("Option %d", i+1)
+		if i < len(p.Options) && p.Options[i].Name != "" {
+			name = p.Options[i].Name
+		}
+		parts = append(parts, fmt.Sprintf("%s: %s", name, val))
+	}
+	return strings.Join(parts, ", ")
 }
 
 func (s *StoreService) ListStoreProducts(ctx context.Context) ([]dto.StoreProductResponse, error) {
@@ -147,10 +187,9 @@ func mapOrderToResponse(o *domain.Order) dto.OrderResponse {
 		res.Items = append(res.Items, dto.OrderItemResponse{
 			ID:           item.ID,
 			ProductID:    item.ProductID,
-			ProductName:   item.ProductName,
+			ProductName:  item.ProductName,
 			VariantID:    item.VariantID,
-			VariantName:  item.VariantName,
-			VariantValue: item.VariantValue,
+			VariantLabel: item.VariantLabel,
 			Quantity:     item.Quantity,
 			UnitPrice:    item.UnitPrice,
 			TotalPrice:   float64(item.Quantity) * item.UnitPrice,
@@ -168,7 +207,8 @@ func (s *StoreService) CreateOrder(ctx context.Context, userID *string, req dto.
 	var totalAmount float64
 	orderItems := make([]domain.OrderItem, 0, len(req.Items))
 
-	// Validate items, quantities and price options
+	// Validate items + compute the authoritative total from server-side prices.
+	// Stock is reserved later inside repo.CreateOrder under FOR UPDATE locks.
 	for _, reqItem := range req.Items {
 		p, err := s.repo.GetStoreProduct(ctx, reqItem.ProductID)
 		if err != nil {
@@ -176,46 +216,36 @@ func (s *StoreService) CreateOrder(ctx context.Context, userID *string, req dto.
 		}
 
 		unitPrice := p.Price
-		var variantName, variantValue string
+		var variantLabel string
 
-		// If variant was chosen, check variant stock & override price
+		if len(p.Variants) > 0 && (reqItem.VariantID == nil || *reqItem.VariantID == "") {
+			return nil, appErrors.ErrVariantRequired
+		}
+
 		if reqItem.VariantID != nil && *reqItem.VariantID != "" {
 			var selectedVariant *domain.ProductVariant
-			for _, v := range p.Variants {
-				if v.ID == *reqItem.VariantID {
-					selectedVariant = &v
+			for i := range p.Variants {
+				if p.Variants[i].ID == *reqItem.VariantID {
+					selectedVariant = &p.Variants[i]
 					break
 				}
 			}
 
 			if selectedVariant == nil {
-				return nil, fmt.Errorf("variant %s not found on product", *reqItem.VariantID)
+				return nil, appErrors.ErrVariantNotFound
 			}
 
-			if selectedVariant.Quantity < reqItem.Quantity {
-				return nil, fmt.Errorf("insufficient stock for variant: %s (%s)", selectedVariant.VariantName, selectedVariant.VariantValue)
-			}
-
-			if selectedVariant.Price != nil {
-				unitPrice = *selectedVariant.Price
-			}
-			variantName = selectedVariant.VariantName
-			variantValue = selectedVariant.VariantValue
-		} else {
-			// Fallback to base product global quantity checks
-			if p.Quantity < reqItem.Quantity {
-				return nil, fmt.Errorf("insufficient global stock for product: %s", p.Name)
-			}
+			unitPrice = p.PriceForVariant(selectedVariant)
+			variantLabel = buildVariantLabel(p, selectedVariant)
 		}
 
 		totalAmount += float64(reqItem.Quantity) * unitPrice
 
 		orderItems = append(orderItems, domain.OrderItem{
 			ProductID:    reqItem.ProductID,
-			ProductName:   p.Name,
+			ProductName:  p.Name,
 			VariantID:    reqItem.VariantID,
-			VariantName:  variantName,
-			VariantValue: variantValue,
+			VariantLabel: variantLabel,
 			Quantity:     reqItem.Quantity,
 			UnitPrice:    unitPrice,
 		})
@@ -224,8 +254,8 @@ func (s *StoreService) CreateOrder(ctx context.Context, userID *string, req dto.
 	paystackRef := fmt.Sprintf("sffl-pay-%s", uuid.New().String()[:8])
 	orderRef := generateOrderReference()
 
-	// Convert Naira float64 to Paystack Kobo int
-	paystackAmountKobo := int(totalAmount * 100)
+	// Naira -> kobo using math.Round so a 0.01 float drift can't cost a kobo.
+	paystackAmountKobo := int(math.Round(totalAmount * 100))
 
 	// Fetch callback URL from configs
 	callbackURL := os.Getenv("PAYSTACK_STORE_CALLBACK_URL")
@@ -237,7 +267,9 @@ func (s *StoreService) CreateOrder(ctx context.Context, userID *string, req dto.
 		callbackURL = fmt.Sprintf("%s/store/confirm", frontendURL)
 	}
 
-	// Initialize Paystack payment
+	// Initialize Paystack payment BEFORE reserving stock. If reservation later
+	// fails (race with concurrent buyers), the orphaned Paystack txn simply
+	// expires unused — no charge, no money lost.
 	paystackReq := PaystackInitRequest{
 		Email:       req.CustomerEmail,
 		Amount:      paystackAmountKobo,
@@ -250,7 +282,6 @@ func (s *StoreService) CreateOrder(ctx context.Context, userID *string, req dto.
 		return nil, fmt.Errorf("paystack initialization failed: %w", err)
 	}
 
-	// Create pending order in database
 	order := domain.Order{
 		OrderReference:     orderRef,
 		UserID:             userID,
@@ -272,6 +303,12 @@ func (s *StoreService) CreateOrder(ctx context.Context, userID *string, req dto.
 
 	created, err := s.repo.CreateOrder(ctx, order)
 	if err != nil {
+		// Pass through known business errors (insufficient stock etc.) cleanly.
+		if errors.Is(err, appErrors.ErrInsufficientStock) ||
+			errors.Is(err, appErrors.ErrVariantNotFound) ||
+			errors.Is(err, appErrors.ErrVariantRequired) {
+			return nil, err
+		}
 		return nil, fmt.Errorf("failed to save pending order: %w", err)
 	}
 
@@ -303,7 +340,11 @@ func (s *StoreService) VerifyPayment(ctx context.Context, paystackRef string) (*
 	}
 
 	if !verification.Status || verification.Data.Status != "success" {
-		_ = s.repo.UpdateOrderPaymentStatus(ctx, order.ID, "failed")
+		// Atomically transition pending -> failed and return the reserved stock.
+		// Idempotent: a second call (webhook retry) is a no-op.
+		if err := s.repo.MarkOrderFailedAndRestoreStock(ctx, order.ID); err != nil {
+			fmt.Printf("⚠️ WARNING: Failed to mark order %s failed / restore stock: %s\n", order.ID, err.Error())
+		}
 		refreshed, err := s.repo.GetOrder(ctx, order.ID)
 		if err == nil {
 			order = refreshed
@@ -312,24 +353,18 @@ func (s *StoreService) VerifyPayment(ctx context.Context, paystackRef string) (*
 		return &res, nil
 	}
 
-	// Double-check transaction amount matches (Paystack amount is in Kobo)
-	expectedKobo := int(order.TotalAmount * 100)
+	// Double-check transaction amount matches (Paystack amount is in kobo).
+	// Use math.Round so a fractional-cent float never costs a kobo of margin.
+	expectedKobo := int(math.Round(order.TotalAmount * 100))
 	if verification.Data.Amount < expectedKobo {
 		return nil, fmt.Errorf("payment mismatch: expected %d kobo, got %d kobo", expectedKobo, verification.Data.Amount)
 	}
 
-	// Update order to Paid and deduct stock counts under database transaction lock
+	// Stock was already deducted when the order was created. On successful
+	// payment we only flip the status; no stock movement here.
 	err = s.repo.UpdateOrderPaymentStatus(ctx, order.ID, "paid")
 	if err != nil {
 		return nil, fmt.Errorf("failed to update payment status: %w", err)
-	}
-
-	for _, item := range order.Items {
-		err := s.repo.DeductStock(ctx, item.ProductID, item.VariantID, item.Quantity)
-		if err != nil {
-			// If stock deduction fails, log warning but keep order status as paid
-			fmt.Printf("⚠️ WARNING: Stock deduction failed for product %s (variant %+v): %s\n", item.ProductID, item.VariantID, err.Error())
-		}
 	}
 
 	// User Saved Address Auto-Save logic for future checkouts
@@ -387,8 +422,8 @@ func (s *StoreService) dispatchResendEmails(order *domain.Order) {
 	var itemsHTML string
 	for _, item := range order.Items {
 		variantStr := ""
-		if item.VariantName != "" {
-			variantStr = fmt.Sprintf(" (%s: %s)", item.VariantName, item.VariantValue)
+		if item.VariantLabel != "" {
+			variantStr = fmt.Sprintf(" (%s)", item.VariantLabel)
 		}
 		itemsHTML += fmt.Sprintf(`
 			<tr>
@@ -454,10 +489,11 @@ func (s *StoreService) dispatchResendEmails(order *domain.Order) {
 		}
 	})
 
-	// 2. Send alert email to the Admin configured email
-	adminEmail := os.Getenv("ADMIN_STORE_EMAIL")
+	// 2. Send alert email to the Admin configured email. RESEND_FROM_EMAIL is
+	// also our admin notification recipient (same operator inbox).
+	adminEmail := os.Getenv("RESEND_FROM_EMAIL")
 	if adminEmail == "" {
-		adminEmail = "store-admin@sffl.football" // sensible default SFFL admin email
+		adminEmail = "store-admin@sffl.football"
 	}
 
 	adminHTML := fmt.Sprintf(`
@@ -633,26 +669,50 @@ func (s *StoreService) SaveAddress(ctx context.Context, userID string, req dto.S
 func (s *StoreService) SaveProductVariants(ctx context.Context, productID string, req []dto.ProductVariantResponse) error {
 	variants := make([]domain.ProductVariant, 0, len(req))
 	for _, v := range req {
-		var pricePtr *float64
-		if v.Price > 0 {
-			pricePtr = &v.Price
-		}
-		
-		sku := v.SKU
+		sku := strings.TrimSpace(v.SKU)
 		if sku == "" {
-			sku = fmt.Sprintf("sku-%s-%s-%s", productID[:4], v.VariantName[:2], uuid.New().String()[:4])
+			sku = generateVariantSKU(productID, v.Option1Value, v.Option2Value, v.Option3Value)
 		}
-		
+
 		variants = append(variants, domain.ProductVariant{
 			ProductID:    productID,
-			VariantName:  v.VariantName,
-			VariantValue: v.VariantValue,
+			Option1Value: strings.TrimSpace(v.Option1Value),
+			Option2Value: strings.TrimSpace(v.Option2Value),
+			Option3Value: strings.TrimSpace(v.Option3Value),
 			SKU:          sku,
-			Price:        pricePtr,
 			Quantity:     v.Quantity,
+			ImageURL:     strings.TrimSpace(v.ImageURL),
 		})
 	}
 	return s.repo.SaveProductVariants(ctx, productID, variants)
+}
+
+// generateVariantSKU produces a deterministic-feeling SKU per combination
+// using a short product-id prefix, the option values' initials, and a uuid
+// suffix to keep the UNIQUE index on sku happy across products.
+func generateVariantSKU(productID, v1, v2, v3 string) string {
+	parts := []string{}
+	for _, v := range []string{v1, v2, v3} {
+		v = strings.TrimSpace(v)
+		if v == "" {
+			continue
+		}
+		cleaned := strings.ToUpper(strings.ReplaceAll(v, " ", ""))
+		if len(cleaned) > 3 {
+			cleaned = cleaned[:3]
+		}
+		parts = append(parts, cleaned)
+	}
+	prefix := productID
+	if len(prefix) > 4 {
+		prefix = prefix[:4]
+	}
+	suffix := strings.ToUpper(strings.ReplaceAll(uuid.New().String(), "-", "")[:6])
+	tag := strings.Join(parts, "-")
+	if tag == "" {
+		return fmt.Sprintf("SFFL-VAR-%s-%s", strings.ToUpper(prefix), suffix)
+	}
+	return fmt.Sprintf("SFFL-VAR-%s-%s-%s", strings.ToUpper(prefix), tag, suffix)
 }
 
 func (s *StoreService) SaveProductImages(ctx context.Context, productID string, req []dto.ProductImageResponse) error {
@@ -668,15 +728,34 @@ func (s *StoreService) SaveProductImages(ctx context.Context, productID string, 
 	return s.repo.SaveProductImages(ctx, productID, images)
 }
 
+func generateProductSKU(name string) string {
+	// e.g. "Showtime Cap" + uuid -> "SFFL-SHO-A1B2C3D4"
+	prefix := "PRD"
+	cleanName := strings.ToUpper(strings.ReplaceAll(name, " ", ""))
+	if len(cleanName) >= 3 {
+		prefix = cleanName[:3]
+	}
+	suffix := strings.ToUpper(strings.ReplaceAll(uuid.New().String(), "-", "")[:8])
+	return fmt.Sprintf("SFFL-%s-%s", prefix, suffix)
+}
+
 func (s *StoreService) CreateStoreProduct(ctx context.Context, req dto.CreateStoreProductRequest) (*dto.StoreProductResponse, error) {
+	if err := validateProductOptions(req.Options); err != nil {
+		return nil, err
+	}
+	sku := strings.TrimSpace(req.SKU)
+	if sku == "" {
+		sku = generateProductSKU(req.Name)
+	}
 	p := domain.Product{
 		Name:        req.Name,
-		SKU:         req.SKU,
+		SKU:         sku,
 		Description: req.Description,
 		Price:       req.Price,
 		Quantity:    req.Quantity,
 		Threshold:   req.Threshold,
 		IsActive:    req.IsActive,
+		Options:     mapOptionsToDomain(req.Options),
 	}
 	created, err := s.repo.CreateStoreProduct(ctx, p)
 	if err != nil {
@@ -687,17 +766,89 @@ func (s *StoreService) CreateStoreProduct(ctx context.Context, req dto.CreateSto
 }
 
 func (s *StoreService) UpdateStoreProduct(ctx context.Context, id string, req dto.UpdateStoreProductRequest) error {
+	if err := validateProductOptions(req.Options); err != nil {
+		return err
+	}
+	sku := strings.TrimSpace(req.SKU)
+	if sku == "" {
+		// Preserve existing SKU when admin doesn't supply one (autogen-only flow).
+		if existing, err := s.repo.GetStoreProduct(ctx, id); err == nil {
+			sku = existing.SKU
+		} else {
+			sku = generateProductSKU(req.Name)
+		}
+	}
 	p := domain.Product{
 		ID:          id,
 		Name:        req.Name,
-		SKU:         req.SKU,
+		SKU:         sku,
 		Description: req.Description,
 		Price:       req.Price,
 		Quantity:    req.Quantity,
 		Threshold:   req.Threshold,
 		IsActive:    req.IsActive,
+		Options:     mapOptionsToDomain(req.Options),
 	}
 	return s.repo.UpdateStoreProduct(ctx, p)
+}
+
+// validateProductOptions enforces the option model invariants: max 3 options,
+// at most one option marked drives_price, no empty names, and at least one
+// value per option.
+func validateProductOptions(opts []dto.ProductOptionDTO) error {
+	if len(opts) > 3 {
+		return errors.New("a product may have at most 3 options")
+	}
+	pricingCount := 0
+	for _, opt := range opts {
+		if strings.TrimSpace(opt.Name) == "" {
+			return errors.New("option name is required")
+		}
+		if len(opt.Values) == 0 {
+			return fmt.Errorf("option %q has no values", opt.Name)
+		}
+		if opt.DrivesPrice {
+			pricingCount++
+		}
+	}
+	if pricingCount > 1 {
+		return errors.New("only one option can drive price")
+	}
+	return nil
+}
+
+func mapOptionsToDomain(opts []dto.ProductOptionDTO) []domain.ProductOption {
+	out := make([]domain.ProductOption, 0, len(opts))
+	for _, opt := range opts {
+		values := make([]domain.ProductOptionValue, 0, len(opt.Values))
+		for _, val := range opt.Values {
+			v := domain.ProductOptionValue{
+				Value: strings.TrimSpace(val.Value),
+			}
+			if opt.DrivesPrice && val.Price != nil {
+				v.Price = val.Price
+			}
+			values = append(values, v)
+		}
+		out = append(out, domain.ProductOption{
+			Name:        strings.TrimSpace(opt.Name),
+			DrivesPrice: opt.DrivesPrice,
+			Values:      values,
+		})
+	}
+	return out
+}
+
+func (s *StoreService) CancelOrder(ctx context.Context, id string) (*dto.OrderResponse, error) {
+	if err := s.repo.CancelOrderAndRestoreStock(ctx, id); err != nil {
+		return nil, err
+	}
+	o, err := s.repo.GetOrder(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	res := mapOrderToResponse(o)
+	return &res, nil
 }
 
 func (s *StoreService) DeleteStoreProduct(ctx context.Context, id string) error {

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     getAdminStoreProducts,
@@ -8,22 +9,17 @@ import {
     saveAdminProductVariants,
     saveAdminProductImages,
     getAdminOrders,
-    updateOrderFulfillment,
-    verifyAdminStoreOrder,
     type StoreProduct,
-    type ProductVariant,
     type ProductImage,
-    type Order,
+    type ProductOption,
 } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { ImageUploadField } from '../../components/ui/ImageUploadField';
 
 type Tab = 'PRODUCTS' | 'ORDERS';
-type MediaTab = 'VARIANTS' | 'IMAGES';
 
 type ProductFormData = {
     name: string;
-    sku: string;
     description: string;
     price: number;
     quantity: number;
@@ -33,7 +29,6 @@ type ProductFormData = {
 
 const emptyProductForm: ProductFormData = {
     name: '',
-    sku: '',
     description: '',
     price: 0,
     quantity: 0,
@@ -41,15 +36,68 @@ const emptyProductForm: ProductFormData = {
     is_active: true,
 };
 
-type VariantDraft = Omit<ProductVariant, 'id'>;
+// VariantDraft mirrors the new ProductVariant shape (combination row) minus
+// server-managed fields. `sku` is auto-generated server-side when empty.
+type VariantDraft = {
+    option1_value: string;
+    option2_value: string;
+    option3_value: string;
+    sku: string;
+    quantity: number;
+    image_url: string;
+};
 type ImageDraft = Omit<ProductImage, 'id'>;
 
-const emptyVariantDraft: VariantDraft = {
-    variant_name: '',
-    variant_value: '',
-    sku: '',
-    price: 0,
-    quantity: 0,
+// One option being built/edited in the admin modal. Same shape as the API's
+// ProductOption — re-aliased here so the rest of the file reads cleanly.
+type OptionDraft = ProductOption;
+
+const emptyOption = (): OptionDraft => ({ name: '', drives_price: false, values: [] });
+
+type EditorMode = { kind: 'create' } | { kind: 'edit'; product: StoreProduct };
+
+const MAX_OPTIONS = 3;
+
+// Stable key for a combination row — used to preserve user-entered stock /
+// image across re-generations when an option value is added/removed elsewhere.
+const variantKey = (opt1: string, opt2: string, opt3: string) =>
+    `${opt1}|${opt2}|${opt3}`;
+
+// Compose the cartesian product of all option values into a fresh variant
+// array, carrying over `quantity`/`image_url`/`sku` from previous rows whose
+// tuple still matches. New combinations seed their stock from `defaultStock`
+// (typically the product's base quantity) so the admin's intent doesn't get
+// silently zeroed out the moment they add an option.
+const regenerateVariantGrid = (opts: OptionDraft[], prev: VariantDraft[], defaultStock: number): VariantDraft[] => {
+    const valueLists = opts
+        .map(o => o.values.map(v => v.value).filter(Boolean))
+        .filter(list => list.length > 0);
+    if (valueLists.length === 0) return [];
+
+    // Compute combinations. Each combo is an array of values, padded to 3.
+    let combos: string[][] = [[]];
+    for (const list of valueLists) {
+        const next: string[][] = [];
+        for (const combo of combos) {
+            for (const v of list) next.push([...combo, v]);
+        }
+        combos = next;
+    }
+
+    const prevByKey = new Map(prev.map(v => [variantKey(v.option1_value, v.option2_value, v.option3_value), v]));
+
+    return combos.map(combo => {
+        const [o1 = '', o2 = '', o3 = ''] = combo;
+        const existing = prevByKey.get(variantKey(o1, o2, o3));
+        return {
+            option1_value: o1,
+            option2_value: o2,
+            option3_value: o3,
+            sku: existing?.sku || '',
+            quantity: existing ? existing.quantity : Math.max(0, defaultStock),
+            image_url: existing?.image_url || '',
+        };
+    });
 };
 
 export const AdminStore = () => {
@@ -57,26 +105,26 @@ export const AdminStore = () => {
 
     const [activeTab, setActiveTab] = useState<Tab>('PRODUCTS');
 
-    // Product form state
-    const [isAdding, setIsAdding] = useState(false);
-    const [isEditing, setIsEditing] = useState<StoreProduct | null>(null);
+    // Unified product editor state (covers create + edit, with options +
+    // auto-generated variant grid + product image gallery)
+    const [editor, setEditor] = useState<EditorMode | null>(null);
     const [formData, setFormData] = useState<ProductFormData>(emptyProductForm);
-
-    // Media manager state (variants + images for a product)
-    const [activeProductForMedia, setActiveProductForMedia] = useState<StoreProduct | null>(null);
-    const [mediaTab, setMediaTab] = useState<MediaTab>('VARIANTS');
+    const [options, setOptions] = useState<OptionDraft[]>([]);
+    // Variants are derived from `options`; we hold them in state so per-row
+    // stock + image picks survive option edits. Regenerated whenever options change.
     const [variants, setVariants] = useState<VariantDraft[]>([]);
     const [images, setImages] = useState<ImageDraft[]>([]);
-    const [newVariant, setNewVariant] = useState<VariantDraft>(emptyVariantDraft);
+    // Buffer for typing the next option value before it's added to a chip list.
+    const [newOptionValue, setNewOptionValue] = useState<string[]>(['', '', '']);
     const [uploadTempImageUrl, setUploadTempImageUrl] = useState('');
+    const [editorError, setEditorError] = useState('');
+    const [isSavingEditor, setIsSavingEditor] = useState(false);
 
     // Orders state
     const [ordersPage, setOrdersPage] = useState(1);
     const [paymentFilter, setPaymentFilter] = useState('');
     const [fulfillmentFilter, setFulfillmentFilter] = useState('');
-    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-    const [updatingOrderFulfillmentId, setUpdatingOrderFulfillmentId] = useState<string | null>(null);
-    const [verifyingOrderId, setVerifyingOrderId] = useState<string | null>(null);
+    const navigate = useNavigate();
 
     // Queries
     const { data: products, isLoading: loadingProducts } = useQuery({
@@ -90,123 +138,134 @@ export const AdminStore = () => {
         enabled: activeTab === 'ORDERS',
     });
 
-    // ─── Product CRUD ─────────────────────────────────────────────────────
-    const handleOpenAdd = () => {
+    // ─── Unified Product Editor (product + options + variants + images) ────
+    const resetEditorState = () => {
         setFormData(emptyProductForm);
-        setIsEditing(null);
-        setIsAdding(true);
+        setOptions([]);
+        setVariants([]);
+        setImages([]);
+        setNewOptionValue(['', '', '']);
+        setUploadTempImageUrl('');
+        setEditorError('');
+    };
+
+    const handleOpenCreate = () => {
+        resetEditorState();
+        setEditor({ kind: 'create' });
     };
 
     const handleOpenEdit = (p: StoreProduct) => {
         setFormData({
             name: p.name,
-            sku: p.sku || '',
             description: p.description || '',
             price: p.price,
             quantity: p.quantity,
             threshold: p.threshold,
             is_active: p.is_active,
         });
-        setIsAdding(false);
-        setIsEditing(p);
-    };
-
-    const handleCloseForm = () => {
-        setIsAdding(false);
-        setIsEditing(null);
-    };
-
-    const handleSubmitProduct = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            const payload = {
-                name: formData.name,
-                sku: formData.sku,
-                description: formData.description,
-                price: Number(formData.price),
-                quantity: Number(formData.quantity),
-                threshold: Number(formData.threshold),
-                is_active: formData.is_active,
-            };
-
-            if (isEditing) {
-                await updateAdminStoreProduct(isEditing.id, payload);
-                alert('Product updated successfully.');
-            } else {
-                await createAdminStoreProduct(payload);
-                alert('Product created. Click "Options & Media" to add variants and images.');
-            }
-            queryClient.invalidateQueries({ queryKey: ['adminStoreProducts'] });
-            handleCloseForm();
-        } catch (err: any) {
-            alert(err.response?.data?.error || err.message || 'Failed to save product');
-        }
-    };
-
-    const handleDeleteProduct = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this product?')) return;
-        try {
-            await deleteAdminStoreProduct(id);
-            queryClient.invalidateQueries({ queryKey: ['adminStoreProducts'] });
-            alert('Product deleted.');
-        } catch (err: any) {
-            alert(err.response?.data?.error || err.message || 'Failed to delete product');
-        }
-    };
-
-    // ─── Media Manager (variants + images) ────────────────────────────────
-    const handleOpenMediaManager = (product: StoreProduct) => {
-        setActiveProductForMedia(product);
-        setMediaTab('VARIANTS');
-        setVariants((product.variants || []).map(v => ({
-            variant_name: v.variant_name,
-            variant_value: v.variant_value,
-            sku: v.sku,
-            price: v.price,
-            quantity: v.quantity,
+        setOptions((p.options || []).map(o => ({
+            name: o.name,
+            drives_price: o.drives_price,
+            values: o.values.map(v => ({ value: v.value, price: v.price })),
         })));
-        setImages((product.images || []).map(img => ({
+        setVariants((p.variants || []).map(v => ({
+            option1_value: v.option1_value || '',
+            option2_value: v.option2_value || '',
+            option3_value: v.option3_value || '',
+            sku: v.sku,
+            quantity: v.quantity,
+            image_url: v.image_url || '',
+        })));
+        setImages((p.images || []).map(img => ({
             image_url: img.image_url,
             is_primary: img.is_primary,
             display_order: img.display_order,
         })));
-        setNewVariant(emptyVariantDraft);
+        setNewOptionValue(['', '', '']);
         setUploadTempImageUrl('');
+        setEditorError('');
+        setEditor({ kind: 'edit', product: p });
     };
 
-    const handleCloseMediaManager = () => {
-        setActiveProductForMedia(null);
+    const handleCloseEditor = () => {
+        setEditor(null);
+        resetEditorState();
     };
 
-    const handleAddVariant = () => {
-        if (!newVariant.variant_name.trim() || !newVariant.variant_value.trim()) {
-            alert('Option name (e.g. Size) and value (e.g. M) are required.');
-            return;
-        }
-        setVariants(prev => [...prev, {
-            variant_name: newVariant.variant_name.trim(),
-            variant_value: newVariant.variant_value.trim(),
-            sku: newVariant.sku.trim(),
-            price: Number(newVariant.price) || 0,
-            quantity: Number(newVariant.quantity) || 0,
-        }]);
-        setNewVariant(emptyVariantDraft);
+    // ─── Options management ────────────────────────────────────────────────
+    const handleAddOption = () => {
+        if (options.length >= MAX_OPTIONS) return;
+        setOptions(prev => [...prev, emptyOption()]);
     };
 
-    const handleRemoveVariant = (index: number) => {
-        setVariants(prev => prev.filter((_, i) => i !== index));
+    const handleRemoveOption = (idx: number) => {
+        setOptions(prev => prev.filter((_, i) => i !== idx));
+        setNewOptionValue(prev => {
+            const next = [...prev];
+            next.splice(idx, 1);
+            next.push('');
+            return next;
+        });
     };
 
-    const handleSaveVariants = async () => {
-        if (!activeProductForMedia) return;
-        try {
-            await saveAdminProductVariants(activeProductForMedia.id, variants);
-            queryClient.invalidateQueries({ queryKey: ['adminStoreProducts'] });
-            alert('Variants saved.');
-        } catch (err: any) {
-            alert(err.response?.data?.error || err.message || 'Failed to save variants');
-        }
+    const handleOptionNameChange = (idx: number, name: string) => {
+        setOptions(prev => prev.map((o, i) => i === idx ? { ...o, name } : o));
     };
+
+    // Only ONE option may drive price at a time — radio behaviour.
+    const handleDrivesPriceToggle = (idx: number) => {
+        setOptions(prev => prev.map((o, i) => ({
+            ...o,
+            drives_price: i === idx ? !o.drives_price : false,
+            // When un-marking, strip stale prices so the JSON stays clean.
+            values: i === idx
+                ? o.values.map(v => ({ ...v, price: o.drives_price ? undefined : v.price }))
+                : o.values.map(v => ({ ...v, price: undefined })),
+        })));
+    };
+
+    const handleAddOptionValue = (idx: number) => {
+        const raw = newOptionValue[idx]?.trim();
+        if (!raw) return;
+        setOptions(prev => prev.map((o, i) => {
+            if (i !== idx) return o;
+            if (o.values.some(v => v.value === raw)) return o; // dedupe
+            return { ...o, values: [...o.values, { value: raw }] };
+        }));
+        setNewOptionValue(prev => {
+            const next = [...prev];
+            next[idx] = '';
+            return next;
+        });
+    };
+
+    const handleRemoveOptionValue = (optIdx: number, valIdx: number) => {
+        setOptions(prev => prev.map((o, i) => {
+            if (i !== optIdx) return o;
+            return { ...o, values: o.values.filter((_, j) => j !== valIdx) };
+        }));
+    };
+
+    const handleOptionValuePrice = (optIdx: number, valIdx: number, price: number) => {
+        setOptions(prev => prev.map((o, i) => {
+            if (i !== optIdx) return o;
+            return {
+                ...o,
+                values: o.values.map((v, j) => j === valIdx ? { ...v, price: price > 0 ? price : undefined } : v),
+            };
+        }));
+    };
+
+    // ─── Variant grid auto-generation ──────────────────────────────────────
+    // Whenever the option definitions change, regenerate the cartesian
+    // product of values into the variants array. Stock & image picks for
+    // matching combinations are preserved; newly-created combinations seed
+    // their stock from the product's base quantity so the admin doesn't have
+    // to re-enter the same number for every row.
+    useEffect(() => {
+        if (!editor) return;
+        setVariants(prev => regenerateVariantGrid(options, prev, Number(formData.quantity) || 0));
+    }, [options, editor, formData.quantity]);
 
     const handleImageUploaded = (url: string) => {
         if (!url) return;
@@ -229,44 +288,85 @@ export const AdminStore = () => {
         setImages(prev => prev.filter((_, i) => i !== index));
     };
 
-    const handleSaveImages = async () => {
-        if (!activeProductForMedia) return;
+    // Saves product + variants + images in one go. On create, we POST the
+    // product first to get an ID, then post variants and images against it.
+    // If a step after the product POST fails, the product still exists — the
+    // admin can reopen the editor and retry; we surface a clear error.
+    const handleSaveEditor = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editor) return;
+        setEditorError('');
+        setIsSavingEditor(true);
         try {
-            await saveAdminProductImages(activeProductForMedia.id, images);
+            // SKU is auto-generated server-side; omit from payload.
+            // Strip out empty options + values so we don't ship junk.
+            const cleanOptions = options
+                .map(o => ({
+                    name: o.name.trim(),
+                    drives_price: o.drives_price,
+                    values: o.values
+                        .filter(v => v.value.trim())
+                        .map(v => ({
+                            value: v.value.trim(),
+                            price: o.drives_price && v.price && v.price > 0 ? v.price : undefined,
+                        })),
+                }))
+                .filter(o => o.name && o.values.length > 0);
+
+            const payload = {
+                name: formData.name,
+                sku: '',
+                description: formData.description,
+                price: Number(formData.price),
+                quantity: Number(formData.quantity),
+                threshold: Number(formData.threshold),
+                is_active: formData.is_active,
+                options: cleanOptions,
+            };
+
+            let productId: string;
+            if (editor.kind === 'edit') {
+                await updateAdminStoreProduct(editor.product.id, payload);
+                productId = editor.product.id;
+            } else {
+                const created = await createAdminStoreProduct(payload);
+                productId = created.id;
+            }
+
+            // Build the variant payload from the auto-generated grid, dropping
+            // empty option slots so unused dimensions round-trip as NULL.
+            const variantPayload = variants.map(v => ({
+                option1_value: v.option1_value || undefined,
+                option2_value: v.option2_value || undefined,
+                option3_value: v.option3_value || undefined,
+                sku: v.sku || undefined,
+                quantity: Number(v.quantity) || 0,
+                image_url: v.image_url || undefined,
+            }));
+
+            await saveAdminProductVariants(productId, variantPayload);
+            await saveAdminProductImages(productId, images);
+
             queryClient.invalidateQueries({ queryKey: ['adminStoreProducts'] });
-            alert('Images saved.');
+            handleCloseEditor();
         } catch (err: any) {
-            alert(err.response?.data?.error || err.message || 'Failed to save images');
+            setEditorError(err.response?.data?.error || err.message || 'Failed to save product');
+        } finally {
+            setIsSavingEditor(false);
         }
     };
 
-    // ─── Orders ───────────────────────────────────────────────────────────
-    const handleFulfillOrder = async (orderId: string, nextStatus: 'shipped' | 'delivered') => {
-        setUpdatingOrderFulfillmentId(orderId);
+    const handleDeleteProduct = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this product?')) return;
         try {
-            const updated = await updateOrderFulfillment(orderId, nextStatus);
-            queryClient.invalidateQueries({ queryKey: ['adminOrders'] });
-            if (selectedOrder?.id === orderId) setSelectedOrder(updated);
+            await deleteAdminStoreProduct(id);
+            queryClient.invalidateQueries({ queryKey: ['adminStoreProducts'] });
         } catch (err: any) {
-            alert(err.response?.data?.error || err.message || 'Failed to update fulfillment');
-        } finally {
-            setUpdatingOrderFulfillmentId(null);
+            alert(err.response?.data?.error || err.message || 'Failed to delete product');
         }
     };
 
-    const handleVerifyOrder = async (orderId: string) => {
-        setVerifyingOrderId(orderId);
-        try {
-            const updated = await verifyAdminStoreOrder(orderId);
-            queryClient.invalidateQueries({ queryKey: ['adminOrders'] });
-            if (selectedOrder?.id === orderId) setSelectedOrder(updated);
-            alert(`Payment status: ${updated.payment_status.toUpperCase()}`);
-        } catch (err: any) {
-            alert(err.response?.data?.error || err.message || 'Failed to verify payment');
-        } finally {
-            setVerifyingOrderId(null);
-        }
-    };
+    // Order actions live on the dedicated detail page (AdminOrderDetail).
 
     return (
         <div className="space-y-6 pb-12">
@@ -280,7 +380,7 @@ export const AdminStore = () => {
                 </div>
                 {activeTab === 'PRODUCTS' && (
                     <button
-                        onClick={handleOpenAdd}
+                        onClick={handleOpenCreate}
                         className="bg-sffl-red hover:bg-red-700 text-white px-6 py-3 rounded-2xl font-black tracking-wider text-xs uppercase shadow-lg transition-all hover:scale-[1.02] active:scale-95"
                     >
                         + Create Product
@@ -293,7 +393,7 @@ export const AdminStore = () => {
                 {(['PRODUCTS', 'ORDERS'] as Tab[]).map(tab => (
                     <button
                         key={tab}
-                        onClick={() => { setActiveTab(tab); setSelectedOrder(null); }}
+                        onClick={() => setActiveTab(tab)}
                         className={`px-6 py-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all ${
                             activeTab === tab
                                 ? 'border-sffl-red text-sffl-red'
@@ -364,22 +464,16 @@ export const AdminStore = () => {
 
                                         <div className="grid grid-cols-2 gap-2 mt-6 pt-4 border-t border-gray-100 dark:border-gray-700">
                                             <button
-                                                onClick={() => handleOpenMediaManager(p)}
-                                                className="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-sffl-navy dark:text-white px-3 py-2.5 rounded-xl font-bold text-xs"
-                                            >
-                                                ⚙️ Options & Media
-                                            </button>
-                                            <button
                                                 onClick={() => handleOpenEdit(p)}
                                                 className="bg-sffl-navy hover:bg-slate-900 text-white px-3 py-2.5 rounded-xl font-bold text-xs"
                                             >
-                                                ✏️ Edit Details
+                                                ✏️ Edit Product
                                             </button>
                                             <button
                                                 onClick={() => handleDeleteProduct(p.id)}
-                                                className="col-span-2 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-600 dark:hover:text-white py-2 rounded-xl font-bold text-xs"
+                                                className="bg-red-50 hover:bg-red-600 text-red-600 hover:text-white dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-600 dark:hover:text-white py-2 rounded-xl font-bold text-xs"
                                             >
-                                                🗑️ Delete Product
+                                                🗑️ Delete
                                             </button>
                                         </div>
                                     </div>
@@ -390,462 +484,401 @@ export const AdminStore = () => {
                 </>
             )}
 
-            {/* ORDERS TAB */}
+            {/* ORDERS TAB — full-width list. Click a row to open its detail page. */}
             {activeTab === 'ORDERS' && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                    {/* Orders list */}
-                    <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 shadow-lg space-y-4">
-                        <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center pb-4 border-b border-gray-100 dark:border-gray-700">
-                            <h3 className="font-black text-xl dark:text-white">Order Logs</h3>
-                            <div className="flex flex-wrap gap-2">
-                                <select
-                                    value={paymentFilter}
-                                    onChange={(e) => { setPaymentFilter(e.target.value); setOrdersPage(1); }}
-                                    className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-xs px-3 py-2 rounded-xl font-bold dark:text-white"
-                                >
-                                    <option value="">All Payments</option>
-                                    <option value="pending">Pending</option>
-                                    <option value="paid">Paid</option>
-                                    <option value="failed">Failed</option>
-                                </select>
-                                <select
-                                    value={fulfillmentFilter}
-                                    onChange={(e) => { setFulfillmentFilter(e.target.value); setOrdersPage(1); }}
-                                    className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-xs px-3 py-2 rounded-xl font-bold dark:text-white"
-                                >
-                                    <option value="">All Fulfillments</option>
-                                    <option value="pending">Pending</option>
-                                    <option value="shipped">Shipped</option>
-                                    <option value="delivered">Delivered</option>
-                                </select>
-                            </div>
+                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 shadow-lg space-y-4">
+                    <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center pb-4 border-b border-gray-100 dark:border-gray-700">
+                        <h3 className="font-black text-xl dark:text-white">Order Logs</h3>
+                        <div className="flex flex-wrap gap-2">
+                            <select
+                                value={paymentFilter}
+                                onChange={(e) => { setPaymentFilter(e.target.value); setOrdersPage(1); }}
+                                className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-xs px-3 py-2 rounded-xl font-bold dark:text-white"
+                            >
+                                <option value="">All Payments</option>
+                                <option value="pending">Pending</option>
+                                <option value="paid">Paid</option>
+                                <option value="failed">Failed</option>
+                            </select>
+                            <select
+                                value={fulfillmentFilter}
+                                onChange={(e) => { setFulfillmentFilter(e.target.value); setOrdersPage(1); }}
+                                className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-xs px-3 py-2 rounded-xl font-bold dark:text-white"
+                            >
+                                <option value="">All Fulfillments</option>
+                                <option value="pending">Pending</option>
+                                <option value="shipped">Shipped</option>
+                                <option value="delivered">Delivered</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
                         </div>
-
-                        {loadingOrders ? (
-                            <div className="flex justify-center py-12"><Loader /></div>
-                        ) : !ordersData || ordersData.data.length === 0 ? (
-                            <p className="text-gray-500 font-bold text-center py-6">No orders found.</p>
-                        ) : (
-                            <>
-                                <div className="space-y-3">
-                                    {ordersData.data.map(order => {
-                                        const isSelected = selectedOrder?.id === order.id;
-                                        return (
-                                            <div
-                                                key={order.id}
-                                                onClick={() => setSelectedOrder(order)}
-                                                className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                                                    isSelected
-                                                        ? 'border-sffl-red bg-sffl-red/5'
-                                                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                                                }`}
-                                            >
-                                                <div className="flex flex-col md:flex-row justify-between md:items-center gap-2">
-                                                    <div>
-                                                        <div className="flex items-center gap-2 flex-wrap">
-                                                            <span className="font-black text-sm text-sffl-red">{order.order_reference}</span>
-                                                            <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${
-                                                                order.payment_status === 'paid'
-                                                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                                                    : order.payment_status === 'failed'
-                                                                        ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                                                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                                                            }`}>
-                                                                {order.payment_status}
-                                                            </span>
-                                                            <span className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                                                                {order.fulfillment_status}
-                                                            </span>
-                                                        </div>
-                                                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                                            {order.customer_name} • {order.customer_phone}
-                                                        </div>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <div className="font-black text-sm dark:text-white">₦{order.total_amount.toLocaleString()}</div>
-                                                        <div className="text-[10px] text-gray-400 mt-0.5">{new Date(order.created_at).toLocaleDateString()}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-
-                                {ordersData.total_pages > 1 && (
-                                    <div className="flex justify-between items-center pt-4 border-t border-gray-100 dark:border-gray-700">
-                                        <button
-                                            disabled={ordersPage === 1}
-                                            onClick={() => setOrdersPage(p => Math.max(1, p - 1))}
-                                            className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-xs font-bold rounded-xl disabled:opacity-50 dark:text-white"
-                                        >
-                                            Previous
-                                        </button>
-                                        <span className="text-xs text-gray-500 font-bold">Page {ordersPage} of {ordersData.total_pages}</span>
-                                        <button
-                                            disabled={ordersPage >= ordersData.total_pages}
-                                            onClick={() => setOrdersPage(p => p + 1)}
-                                            className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-xs font-bold rounded-xl disabled:opacity-50 dark:text-white"
-                                        >
-                                            Next
-                                        </button>
-                                    </div>
-                                )}
-                            </>
-                        )}
                     </div>
 
-                    {/* Order Detail */}
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 shadow-lg space-y-5">
-                        <h3 className="font-black text-xl dark:text-white pb-2 border-b border-gray-100 dark:border-gray-700">Order Details</h3>
-                        {!selectedOrder ? (
-                            <p className="text-sm text-gray-500 italic py-6 text-center">Select an order to see full details.</p>
-                        ) : (
-                            <div className="space-y-5 text-sm dark:text-gray-300">
-                                <div className="space-y-1.5">
-                                    <div className="flex justify-between">
-                                        <span className="text-gray-400 font-bold">Reference</span>
-                                        <span className="font-black text-sffl-red">{selectedOrder.order_reference}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-gray-400 font-bold">Date</span>
-                                        <span className="font-bold">{new Date(selectedOrder.created_at).toLocaleString()}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-gray-400 font-bold">Payment</span>
-                                        <span className={`font-black uppercase ${selectedOrder.payment_status === 'paid' ? 'text-green-600' : selectedOrder.payment_status === 'failed' ? 'text-red-600' : 'text-amber-600'}`}>
-                                            {selectedOrder.payment_status}
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-gray-400 font-bold">Fulfillment</span>
-                                        <span className="font-black uppercase text-blue-600 dark:text-blue-400">{selectedOrder.fulfillment_status}</span>
-                                    </div>
-                                </div>
-
-                                <div className="border-t border-gray-100 dark:border-gray-700 pt-4 space-y-1.5 text-xs">
-                                    <h4 className="font-black uppercase text-[10px] tracking-wider text-gray-500 mb-2">Customer</h4>
-                                    <div><strong>Name:</strong> {selectedOrder.customer_name}</div>
-                                    <div><strong>Email:</strong> {selectedOrder.customer_email}</div>
-                                    <div><strong>Phone:</strong> {selectedOrder.customer_phone}</div>
-                                </div>
-
-                                <div className="border-t border-gray-100 dark:border-gray-700 pt-4 text-xs space-y-1.5">
-                                    <h4 className="font-black uppercase text-[10px] tracking-wider text-gray-500 mb-2">Shipping</h4>
-                                    <div className="bg-gray-50 dark:bg-gray-900/40 p-3 rounded-xl border border-gray-100 dark:border-gray-700">
-                                        <div>{selectedOrder.shipping_address}</div>
-                                        <div>{selectedOrder.shipping_city}, {selectedOrder.shipping_state}</div>
-                                        <div>{selectedOrder.shipping_country} {selectedOrder.shipping_postal_code}</div>
-                                    </div>
-                                </div>
-
-                                <div className="border-t border-gray-100 dark:border-gray-700 pt-4 space-y-2">
-                                    <h4 className="font-black uppercase text-[10px] tracking-wider text-gray-500">Items</h4>
-                                    {selectedOrder.items?.map(item => (
-                                        <div key={item.id} className="text-xs flex justify-between bg-gray-50 dark:bg-gray-900/40 p-2.5 rounded-xl border border-gray-100 dark:border-gray-700">
+                    {loadingOrders ? (
+                        <div className="flex justify-center py-12"><Loader /></div>
+                    ) : !ordersData || ordersData.data.length === 0 ? (
+                        <p className="text-gray-500 font-bold text-center py-6">No orders found.</p>
+                    ) : (
+                        <>
+                            <div className="space-y-3">
+                                {ordersData.data.map(order => (
+                                    <div
+                                        key={order.id}
+                                        role="link"
+                                        tabIndex={0}
+                                        onClick={() => navigate(`/admin/store/orders/${order.id}`)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault();
+                                                navigate(`/admin/store/orders/${order.id}`);
+                                            }
+                                        }}
+                                        className="p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-sffl-red/40 hover:bg-sffl-red/5 cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-sffl-red/40"
+                                    >
+                                        <div className="flex flex-col md:flex-row justify-between md:items-center gap-2">
                                             <div>
-                                                <div className="font-bold dark:text-white">{item.product_name}</div>
-                                                {item.variant_name && (
-                                                    <div className="text-[10px] text-gray-500 mt-0.5">
-                                                        {item.variant_name}: {item.variant_value}
-                                                    </div>
-                                                )}
-                                                <div className="text-[10px] text-gray-500 mt-0.5">Qty: {item.quantity}</div>
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className="font-black text-sm text-sffl-red">{order.order_reference}</span>
+                                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${
+                                                        order.payment_status === 'paid'
+                                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                            : order.payment_status === 'failed'
+                                                                ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                                                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                                    }`}>
+                                                        {order.payment_status}
+                                                    </span>
+                                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${
+                                                        order.fulfillment_status === 'cancelled'
+                                                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                                            : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                                    }`}>
+                                                        {order.fulfillment_status}
+                                                    </span>
+                                                </div>
+                                                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                    {order.customer_name} • {order.customer_phone}
+                                                </div>
                                             </div>
-                                            <div className="font-bold self-center dark:text-white">
-                                                ₦{item.total_price.toLocaleString()}
+                                            <div className="text-right">
+                                                <div className="font-black text-sm dark:text-white">₦{order.total_amount.toLocaleString()}</div>
+                                                <div className="text-[10px] text-gray-400 mt-0.5">{new Date(order.created_at).toLocaleDateString()}</div>
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
-
-                                <div className="border-t border-gray-100 dark:border-gray-700 pt-4 flex justify-between items-center">
-                                    <span className="font-black uppercase text-xs">Total</span>
-                                    <span className="font-black text-lg text-sffl-red">₦{selectedOrder.total_amount.toLocaleString()}</span>
-                                </div>
-
-                                {/* Actions */}
-                                <div className="border-t border-gray-100 dark:border-gray-700 pt-4 space-y-2">
-                                    {selectedOrder.payment_status !== 'paid' && (
-                                        <button
-                                            disabled={verifyingOrderId === selectedOrder.id}
-                                            onClick={() => handleVerifyOrder(selectedOrder.id)}
-                                            className="w-full bg-sffl-navy hover:bg-slate-900 text-white py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50"
-                                        >
-                                            {verifyingOrderId === selectedOrder.id ? 'Verifying…' : '🔄 Re-verify Payment'}
-                                        </button>
-                                    )}
-                                    {selectedOrder.payment_status === 'paid' && selectedOrder.fulfillment_status === 'pending' && (
-                                        <button
-                                            disabled={updatingOrderFulfillmentId === selectedOrder.id}
-                                            onClick={() => handleFulfillOrder(selectedOrder.id, 'shipped')}
-                                            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50"
-                                        >
-                                            🚢 Mark as Shipped
-                                        </button>
-                                    )}
-                                    {selectedOrder.payment_status === 'paid' && selectedOrder.fulfillment_status === 'shipped' && (
-                                        <button
-                                            disabled={updatingOrderFulfillmentId === selectedOrder.id}
-                                            onClick={() => handleFulfillOrder(selectedOrder.id, 'delivered')}
-                                            className="w-full bg-green-600 hover:bg-green-700 text-white py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50"
-                                        >
-                                            ✅ Mark as Delivered
-                                        </button>
-                                    )}
-                                </div>
+                                    </div>
+                                ))}
                             </div>
-                        )}
-                    </div>
+
+                            {ordersData.total_pages > 1 && (
+                                <div className="flex justify-between items-center pt-4 border-t border-gray-100 dark:border-gray-700">
+                                    <button
+                                        disabled={ordersPage === 1}
+                                        onClick={() => setOrdersPage(p => Math.max(1, p - 1))}
+                                        className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-xs font-bold rounded-xl disabled:opacity-50 dark:text-white"
+                                    >
+                                        Previous
+                                    </button>
+                                    <span className="text-xs text-gray-500 font-bold">Page {ordersPage} of {ordersData.total_pages}</span>
+                                    <button
+                                        disabled={ordersPage >= ordersData.total_pages}
+                                        onClick={() => setOrdersPage(p => p + 1)}
+                                        className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-xs font-bold rounded-xl disabled:opacity-50 dark:text-white"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            )}
+                        </>
+                    )}
                 </div>
             )}
 
-            {/* Create / Edit Product Modal */}
-            {(isAdding || isEditing) && (
+            {/* Unified Product Editor (create + edit) */}
+            {editor && (
                 <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-3xl w-full p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
                         <div className="flex justify-between items-center pb-4 border-b border-gray-100 dark:border-gray-700 mb-4">
-                            <h2 className="text-xl font-black dark:text-white">
-                                {isEditing ? 'Edit Product' : 'Create Product'}
-                            </h2>
-                            <button onClick={handleCloseForm} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-xl">✕</button>
-                        </div>
-
-                        <form onSubmit={handleSubmitProduct} className="space-y-4">
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold uppercase text-gray-600 dark:text-gray-400 tracking-wider">Product Name</label>
-                                <input
-                                    required
-                                    type="text"
-                                    placeholder="Team Jersey, Snapback Cap…"
-                                    value={formData.name}
-                                    onChange={e => setFormData(d => ({ ...d, name: e.target.value }))}
-                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
-                                />
-                            </div>
-
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold uppercase text-gray-600 dark:text-gray-400 tracking-wider">SKU (Optional)</label>
-                                <input
-                                    type="text"
-                                    placeholder="e.g. SFFL-JRSY-001"
-                                    value={formData.sku}
-                                    onChange={e => setFormData(d => ({ ...d, sku: e.target.value }))}
-                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
-                                />
-                            </div>
-
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold uppercase text-gray-600 dark:text-gray-400 tracking-wider">Description</label>
-                                <textarea
-                                    rows={3}
-                                    value={formData.description}
-                                    onChange={e => setFormData(d => ({ ...d, description: e.target.value }))}
-                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40 resize-none"
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-3">
-                                <div className="space-y-1">
-                                    <label className="text-xs font-bold uppercase text-gray-600 dark:text-gray-400 tracking-wider">Price (₦)</label>
-                                    <input
-                                        required
-                                        type="number"
-                                        min="0"
-                                        value={formData.price}
-                                        onChange={e => setFormData(d => ({ ...d, price: Number(e.target.value) }))}
-                                        className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-xs font-bold uppercase text-gray-600 dark:text-gray-400 tracking-wider">Quantity</label>
-                                    <input
-                                        required
-                                        type="number"
-                                        min="0"
-                                        value={formData.quantity}
-                                        onChange={e => setFormData(d => ({ ...d, quantity: Number(e.target.value) }))}
-                                        className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-xs font-bold uppercase text-gray-600 dark:text-gray-400 tracking-wider">Threshold</label>
-                                    <input
-                                        required
-                                        type="number"
-                                        min="0"
-                                        value={formData.threshold}
-                                        onChange={e => setFormData(d => ({ ...d, threshold: Number(e.target.value) }))}
-                                        className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                                <input
-                                    id="is_active"
-                                    type="checkbox"
-                                    checked={formData.is_active}
-                                    onChange={e => setFormData(d => ({ ...d, is_active: e.target.checked }))}
-                                    className="w-4 h-4 accent-sffl-red"
-                                />
-                                <label htmlFor="is_active" className="text-sm font-medium dark:text-gray-300 select-none cursor-pointer">
-                                    Active (visible in storefront)
-                                </label>
-                            </div>
-
-                            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
-                                <button
-                                    type="button"
-                                    onClick={handleCloseForm}
-                                    className="px-5 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold text-xs uppercase tracking-wider"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-6 py-2.5 bg-sffl-red hover:bg-red-700 text-white rounded-xl font-bold text-xs uppercase tracking-wider"
-                                >
-                                    {isEditing ? 'Save Changes' : 'Create Product'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* Media Manager Modal */}
-            {activeProductForMedia && (
-                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-3xl w-full p-6 shadow-2xl overflow-y-auto max-h-[90vh] space-y-6">
-                        <div className="flex justify-between items-center pb-3 border-b border-gray-100 dark:border-gray-700">
                             <div>
-                                <h3 className="text-xl font-black text-sffl-red uppercase">Options & Media</h3>
-                                <p className="text-[11px] text-gray-500 mt-0.5">{activeProductForMedia.name}</p>
+                                <h2 className="text-xl font-black dark:text-white">
+                                    {editor.kind === 'edit' ? 'Edit Product' : 'Create Product'}
+                                </h2>
+                                {editor.kind === 'edit' && (
+                                    <p className="text-[11px] text-gray-500 mt-0.5">{editor.product.name}</p>
+                                )}
                             </div>
-                            <button onClick={handleCloseMediaManager} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-xl">✕</button>
+                            <button onClick={handleCloseEditor} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-xl">✕</button>
                         </div>
 
-                        {/* Sub-tabs */}
-                        <div className="flex gap-2 border-b border-gray-100 dark:border-gray-700">
-                            <button
-                                onClick={() => setMediaTab('VARIANTS')}
-                                className={`px-4 py-2 text-xs font-black uppercase tracking-wider border-b-2 ${mediaTab === 'VARIANTS' ? 'border-sffl-red text-sffl-red' : 'border-transparent text-gray-500'}`}
-                            >
-                                👚 Variants
-                            </button>
-                            <button
-                                onClick={() => setMediaTab('IMAGES')}
-                                className={`px-4 py-2 text-xs font-black uppercase tracking-wider border-b-2 ${mediaTab === 'IMAGES' ? 'border-sffl-red text-sffl-red' : 'border-transparent text-gray-500'}`}
-                            >
-                                🖼️ Images
-                            </button>
-                        </div>
+                        <form onSubmit={handleSaveEditor} className="space-y-6">
+                            {/* ── Product details ─────────────────────────────── */}
+                            <section className="space-y-4">
+                                <h3 className="text-[10px] uppercase font-black tracking-widest text-sffl-red">Product Details</h3>
 
-                        {/* Variants Tab */}
-                        {mediaTab === 'VARIANTS' && (
-                            <div className="space-y-5">
-                                <div className="bg-gray-50 dark:bg-gray-900/40 p-4 rounded-xl border border-gray-100 dark:border-gray-700 space-y-3">
-                                    <h4 className="text-[10px] uppercase font-black tracking-widest text-sffl-red">Add Variant</h4>
-                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3 items-end text-xs">
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase">Name</label>
-                                            <input
-                                                type="text"
-                                                placeholder="Size"
-                                                value={newVariant.variant_name}
-                                                onChange={e => setNewVariant(v => ({ ...v, variant_name: e.target.value }))}
-                                                className="w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-2 dark:text-white"
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase">Value</label>
-                                            <input
-                                                type="text"
-                                                placeholder="M"
-                                                value={newVariant.variant_value}
-                                                onChange={e => setNewVariant(v => ({ ...v, variant_value: e.target.value }))}
-                                                className="w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-2 dark:text-white"
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase">Price (₦)</label>
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                placeholder="0"
-                                                value={newVariant.price}
-                                                onChange={e => setNewVariant(v => ({ ...v, price: Number(e.target.value) }))}
-                                                className="w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-2 dark:text-white"
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase">Qty</label>
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                value={newVariant.quantity}
-                                                onChange={e => setNewVariant(v => ({ ...v, quantity: Number(e.target.value) }))}
-                                                className="w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-2 dark:text-white"
-                                            />
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={handleAddVariant}
-                                            className="bg-sffl-navy hover:bg-slate-900 text-white font-black py-2.5 rounded-lg uppercase tracking-wider text-[10px]"
-                                        >
-                                            + Add
-                                        </button>
+                                <div className="space-y-1">
+                                    <label className="text-xs font-bold uppercase text-gray-600 dark:text-gray-400 tracking-wider">Product Name</label>
+                                    <input
+                                        required
+                                        type="text"
+                                        placeholder="Team Jersey, Snapback Cap…"
+                                        value={formData.name}
+                                        onChange={e => setFormData(d => ({ ...d, name: e.target.value }))}
+                                        className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
+                                    />
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-xs font-bold uppercase text-gray-600 dark:text-gray-400 tracking-wider">Description</label>
+                                    <textarea
+                                        rows={8}
+                                        value={formData.description}
+                                        onChange={e => setFormData(d => ({ ...d, description: e.target.value }))}
+                                        placeholder={'Describe the product. Leave a blank line between paragraphs.\n\nFabric · Fit · Care · What\'s in the box — anything a buyer wants to know.'}
+                                        className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40 resize-y leading-relaxed"
+                                    />
+                                    <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                                        Tip: leave a <strong>blank line</strong> between paragraphs to render with spacing on the product page.
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold uppercase text-gray-600 dark:text-gray-400 tracking-wider">Price (₦)</label>
+                                        <input
+                                            required
+                                            type="number"
+                                            min="0"
+                                            value={formData.price}
+                                            onChange={e => setFormData(d => ({ ...d, price: Number(e.target.value) }))}
+                                            className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold uppercase text-gray-600 dark:text-gray-400 tracking-wider">Quantity</label>
+                                        <input
+                                            required
+                                            type="number"
+                                            min="0"
+                                            value={formData.quantity}
+                                            onChange={e => setFormData(d => ({ ...d, quantity: Number(e.target.value) }))}
+                                            className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
+                                        />
+                                        <p className="text-[10px] text-gray-500 dark:text-gray-400">Base stock — ignored if variants exist.</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold uppercase text-gray-600 dark:text-gray-400 tracking-wider">Threshold</label>
+                                        <input
+                                            required
+                                            type="number"
+                                            min="0"
+                                            value={formData.threshold}
+                                            onChange={e => setFormData(d => ({ ...d, threshold: Number(e.target.value) }))}
+                                            className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
+                                        />
                                     </div>
                                 </div>
 
-                                {variants.length === 0 ? (
-                                    <p className="text-sm text-gray-500 italic py-3 text-center">No variants yet. Product uses base price + base quantity.</p>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        id="is_active"
+                                        type="checkbox"
+                                        checked={formData.is_active}
+                                        onChange={e => setFormData(d => ({ ...d, is_active: e.target.checked }))}
+                                        className="w-4 h-4 accent-sffl-red"
+                                    />
+                                    <label htmlFor="is_active" className="text-sm font-medium dark:text-gray-300 select-none cursor-pointer">
+                                        Active (visible in storefront)
+                                    </label>
+                                </div>
+                            </section>
+
+                            {/* ── Options builder (defines variant dimensions) ── */}
+                            <section className="space-y-3 pt-2 border-t border-gray-100 dark:border-gray-700">
+                                <h3 className="text-[10px] uppercase font-black tracking-widest text-sffl-red">
+                                    Options <span className="text-gray-400 normal-case font-bold ml-1">(up to {MAX_OPTIONS} — e.g. Size, Color, Age Group)</span>
+                                </h3>
+
+                                {options.length === 0 ? (
+                                    <p className="text-sm text-gray-500 italic py-2">No options. Product is sold as a single SKU using base price + base quantity.</p>
                                 ) : (
-                                    <div className="space-y-2 max-h-[30vh] overflow-y-auto">
-                                        {variants.map((v, index) => (
-                                            <div key={index} className="flex justify-between items-center bg-gray-50 dark:bg-gray-900/40 border border-gray-100 dark:border-gray-700 p-3 rounded-xl">
-                                                <div>
-                                                    <div className="font-bold text-sm dark:text-white">
-                                                        {v.variant_name}: <span className="text-sffl-red">{v.variant_value}</span>
+                                    <div className="space-y-3">
+                                        {options.map((opt, optIdx) => (
+                                            <div key={optIdx} className="bg-gray-50 dark:bg-gray-900/40 border border-gray-100 dark:border-gray-700 rounded-xl p-4 space-y-3">
+                                                <div className="flex items-end gap-3">
+                                                    <div className="flex-1 space-y-1">
+                                                        <label className="text-[10px] font-bold text-gray-500 uppercase">Option Name</label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Size"
+                                                            value={opt.name}
+                                                            onChange={e => handleOptionNameChange(optIdx, e.target.value)}
+                                                            className="w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:text-white"
+                                                        />
                                                     </div>
-                                                    <div className="text-[10px] text-gray-500 mt-0.5">
-                                                        {v.price > 0 ? `₦${v.price.toLocaleString()}` : 'Base price'} • Stock: {v.quantity}
+                                                    <label className="flex items-center gap-2 text-[11px] font-bold text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={opt.drives_price}
+                                                            onChange={() => handleDrivesPriceToggle(optIdx)}
+                                                            className="w-4 h-4 accent-sffl-red"
+                                                        />
+                                                        Drives price
+                                                    </label>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveOption(optIdx)}
+                                                        className="text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg text-[10px] font-bold uppercase"
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-bold text-gray-500 uppercase">Values</label>
+                                                    {opt.values.length > 0 && (
+                                                        <div className="space-y-2">
+                                                            {opt.values.map((val, valIdx) => (
+                                                                <div key={valIdx} className="flex items-center gap-2 bg-white dark:bg-gray-700/40 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2">
+                                                                    <span className="font-bold text-sm dark:text-white flex-1">{val.value}</span>
+                                                                    {opt.drives_price && (
+                                                                        <div className="flex items-center gap-1">
+                                                                            <span className="text-[10px] font-bold text-gray-500 uppercase">₦</span>
+                                                                            <input
+                                                                                type="number"
+                                                                                min="0"
+                                                                                placeholder="Price"
+                                                                                value={val.price ?? ''}
+                                                                                onChange={e => handleOptionValuePrice(optIdx, valIdx, Number(e.target.value))}
+                                                                                className="w-28 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded px-2 py-1 text-sm dark:text-white"
+                                                                            />
+                                                                        </div>
+                                                                    )}
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleRemoveOptionValue(optIdx, valIdx)}
+                                                                        className="text-red-500 text-[10px] font-bold uppercase px-2"
+                                                                    >
+                                                                        ✕
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                    <div className="flex gap-2">
+                                                        <input
+                                                            type="text"
+                                                            placeholder={`Add ${opt.name || 'value'} (e.g. M, Navy)…`}
+                                                            value={newOptionValue[optIdx] || ''}
+                                                            onChange={e => setNewOptionValue(prev => {
+                                                                const next = [...prev];
+                                                                next[optIdx] = e.target.value;
+                                                                return next;
+                                                            })}
+                                                            onKeyDown={e => {
+                                                                if (e.key === 'Enter') {
+                                                                    e.preventDefault();
+                                                                    handleAddOptionValue(optIdx);
+                                                                }
+                                                            }}
+                                                            className="flex-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:text-white"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleAddOptionValue(optIdx)}
+                                                            className="bg-sffl-navy hover:bg-slate-900 text-white px-4 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider"
+                                                        >
+                                                            + Add value
+                                                        </button>
                                                     </div>
                                                 </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleRemoveVariant(index)}
-                                                    className="text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-1.5 rounded-lg text-[10px] font-bold"
-                                                >
-                                                    Remove
-                                                </button>
                                             </div>
                                         ))}
                                     </div>
                                 )}
 
-                                <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-gray-700">
+                                {options.length < MAX_OPTIONS && (
                                     <button
                                         type="button"
-                                        onClick={handleSaveVariants}
-                                        className="bg-sffl-red hover:bg-red-700 text-white px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-wider"
+                                        onClick={handleAddOption}
+                                        className="text-xs font-black uppercase tracking-wider text-sffl-red hover:underline"
                                     >
-                                        💾 Save Variants
+                                        + Add option
                                     </button>
-                                </div>
-                            </div>
-                        )}
+                                )}
+                            </section>
 
-                        {/* Images Tab */}
-                        {mediaTab === 'IMAGES' && (
-                            <div className="space-y-5">
+                            {/* ── Variant grid (auto-generated combinations) ──── */}
+                            {variants.length > 0 && (
+                                <section className="space-y-3 pt-2 border-t border-gray-100 dark:border-gray-700">
+                                    <h3 className="text-[10px] uppercase font-black tracking-widest text-sffl-red">
+                                        Variants <span className="text-gray-400 normal-case font-bold ml-1">(auto-generated · {variants.length} {variants.length === 1 ? 'combo' : 'combos'})</span>
+                                    </h3>
+                                    <p className="text-[11px] text-gray-500">Set stock per combination. Optionally pin one of the product images so the gallery jumps to it when this variant is selected.</p>
+
+                                    {variants.some(v => (Number(v.quantity) || 0) === 0) && (
+                                        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300 text-xs font-bold px-4 py-2.5 rounded-xl">
+                                            ⚠ One or more variants have <strong>0 stock</strong>. The storefront will show those as sold out — including the whole product if every variant is at 0.
+                                        </div>
+                                    )}
+
+                                    <div className="space-y-2 max-h-[40vh] overflow-y-auto">
+                                        {variants.map((v, index) => {
+                                            const tuple = [v.option1_value, v.option2_value, v.option3_value].filter(Boolean).join(' · ');
+                                            return (
+                                                <div key={variantKey(v.option1_value, v.option2_value, v.option3_value)} className="grid grid-cols-12 gap-3 items-center bg-gray-50 dark:bg-gray-900/40 border border-gray-100 dark:border-gray-700 p-3 rounded-xl">
+                                                    <div className="col-span-12 sm:col-span-5">
+                                                        <div className="font-bold text-sm dark:text-white">{tuple}</div>
+                                                    </div>
+                                                    <div className="col-span-6 sm:col-span-3 space-y-1">
+                                                        <label className="text-[10px] font-bold text-gray-500 uppercase">Stock</label>
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            value={v.quantity}
+                                                            onChange={e => {
+                                                                const qty = Number(e.target.value) || 0;
+                                                                setVariants(prev => prev.map((x, i) => i === index ? { ...x, quantity: qty } : x));
+                                                            }}
+                                                            className="w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-2 text-sm dark:text-white"
+                                                        />
+                                                    </div>
+                                                    <div className="col-span-6 sm:col-span-4 space-y-1">
+                                                        <label className="text-[10px] font-bold text-gray-500 uppercase">Image (optional)</label>
+                                                        <select
+                                                            value={v.image_url}
+                                                            onChange={e => {
+                                                                const url = e.target.value;
+                                                                setVariants(prev => prev.map((x, i) => i === index ? { ...x, image_url: url } : x));
+                                                            }}
+                                                            disabled={images.length === 0}
+                                                            className="w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-2 text-sm dark:text-white disabled:opacity-50"
+                                                        >
+                                                            <option value="">{images.length === 0 ? 'Upload images first' : 'None'}</option>
+                                                            {images.map((img, i) => (
+                                                                <option key={img.image_url} value={img.image_url}>
+                                                                    Image {i + 1}{img.is_primary ? ' (primary)' : ''}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </section>
+                            )}
+
+                            {/* ── Images ──────────────────────────────────────── */}
+                            <section className="space-y-3 pt-2 border-t border-gray-100 dark:border-gray-700">
+                                <h3 className="text-[10px] uppercase font-black tracking-widest text-sffl-red">Images <span className="text-gray-400 normal-case font-bold ml-1">(up to 5 — first is primary)</span></h3>
+
                                 {images.length < 5 ? (
                                     <ImageUploadField
-                                        label="Upload Product Image"
+                                        label="Add Product Image"
                                         value={uploadTempImageUrl}
                                         onChange={handleImageUploaded}
                                         folder="news"
-                                        helperText="Max 5 images. First image becomes primary by default."
+                                        mode="picker"
+                                        helperText="Max 5 images. The first uploaded image is primary by default — change it below."
                                     />
                                 ) : (
                                     <div className="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded-xl text-center font-bold text-xs">
@@ -854,7 +887,7 @@ export const AdminStore = () => {
                                 )}
 
                                 {images.length === 0 ? (
-                                    <p className="text-sm text-gray-500 italic py-3 text-center">No images added yet.</p>
+                                    <p className="text-sm text-gray-500 italic py-2 text-center">No images added yet.</p>
                                 ) : (
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                         {images.map((img, index) => (
@@ -884,18 +917,34 @@ export const AdminStore = () => {
                                         ))}
                                     </div>
                                 )}
+                            </section>
 
-                                <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-gray-700">
-                                    <button
-                                        type="button"
-                                        onClick={handleSaveImages}
-                                        className="bg-sffl-red hover:bg-red-700 text-white px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-wider"
-                                    >
-                                        💾 Save Images
-                                    </button>
+                            {editorError && (
+                                <div role="alert" className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-xs font-bold px-4 py-3 rounded-xl">
+                                    {editorError}
                                 </div>
+                            )}
+
+                            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700 sticky bottom-0 bg-white dark:bg-gray-800 -mx-6 px-6 pb-2">
+                                <button
+                                    type="button"
+                                    onClick={handleCloseEditor}
+                                    disabled={isSavingEditor}
+                                    className="px-5 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSavingEditor}
+                                    className="px-6 py-2.5 bg-sffl-red hover:bg-red-700 text-white rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50"
+                                >
+                                    {isSavingEditor
+                                        ? 'Saving…'
+                                        : editor.kind === 'edit' ? '💾 Save Changes' : '✨ Create Product'}
+                                </button>
                             </div>
-                        )}
+                        </form>
                     </div>
                 </div>
             )}

@@ -12,6 +12,11 @@ interface ImageUploadFieldProps {
   error?: string;
   helperText?: string;
   isCommitted?: boolean;
+  // 'single' (default) keeps the preview as the currently-selected image and
+  // shows "Change Image". 'picker' clears the preview after each successful
+  // upload — used when the parent immediately consumes the URL into a list
+  // (e.g. product gallery) so the picker stays ready for the next image.
+  mode?: 'single' | 'picker';
 }
 
 export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
@@ -22,6 +27,7 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
   error,
   helperText,
   isCommitted = false,
+  mode = 'single',
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { uploadImage, deleteImage, isUploading, progress, error: uploadError } = useImageUpload();
@@ -71,6 +77,16 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
         uncommittedUrlRef.current = publicUrl;
         onChange(publicUrl);
         toast.success('Image uploaded successfully');
+
+        // Picker mode: the parent immediately consumes the URL into a list,
+        // so the inline preview/picker should reset to empty for the next pick.
+        if (mode === 'picker') {
+          uncommittedUrlRef.current = null;
+          setPreview(null);
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+        }
       } else {
         toast.error(uploadError || 'Failed to upload image. Please try again.');
         setPreview(value || null);
@@ -151,7 +167,7 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
             className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
           >
             <ArrowUpTrayIcon className="w-4 h-4 mr-2" />
-            {preview ? 'Change Image' : 'Upload Image'}
+            {mode === 'picker' ? 'Select Image' : (preview ? 'Change Image' : 'Upload Image')}
           </button>
           
           <p className="text-xs text-gray-500 dark:text-gray-400">

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { getStoreProducts, type StoreProduct } from '../services/api';
 import { LazyImage } from '../components/common/LazyImage';
+import { getAvailableStock } from '../utils/storeStock';
 
 export const StorePage = () => {
     const navigate = useNavigate();
@@ -27,16 +28,30 @@ export const StorePage = () => {
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fadeIn">
             {/* Immersive Glassmorphic Banner */}
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-sffl-navy to-black p-8 md:p-12 shadow-2xl border border-white/10">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-sffl-red/20 rounded-full blur-3xl -mr-20 -mt-20"></div>
-                <div className="relative z-10 space-y-4 max-w-2xl">
-                    <div className="inline-flex items-center gap-1.5 bg-sffl-red/10 border border-sffl-red/30 px-3 py-1 rounded-full text-xs font-black text-sffl-red uppercase tracking-wider">
+            <div className="relative overflow-hidden rounded-3xl shadow-2xl border border-white/10 bg-sffl-navy min-h-[280px] md:min-h-[340px]">
+                {/* Hero background photo */}
+                <div
+                    className="absolute inset-0 bg-cover bg-center"
+                    style={{ backgroundImage: 'url(/images/branding/store-hero.jpg)' }}
+                    aria-hidden="true"
+                />
+                {/* Dark gradient overlay — heavier on the left so the headline reads cleanly,
+                    fading toward transparent on the right so the photo is visible. */}
+                <div
+                    className="absolute inset-0 bg-gradient-to-r from-sffl-navy/95 via-sffl-navy/80 to-sffl-navy/30 md:to-transparent"
+                    aria-hidden="true"
+                />
+                {/* Red accent glow */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-sffl-red/20 rounded-full blur-3xl -mr-20 -mt-20" aria-hidden="true" />
+
+                <div className="relative z-10 space-y-4 max-w-2xl p-8 md:p-12">
+                    <div className="inline-flex items-center gap-1.5 bg-sffl-red/10 border border-sffl-red/30 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-black text-sffl-red uppercase tracking-wider">
                         <span>⚡</span> OFFICIAL SHOWTIME MERCHANDISE
                     </div>
-                    <h1 className="text-4xl md:text-6xl font-black italic tracking-tighter text-white uppercase leading-none">
+                    <h1 className="text-4xl md:text-6xl font-black italic tracking-tighter text-white uppercase leading-none drop-shadow-lg">
                         Gear Up For <span className="text-sffl-red">Showtime</span>
                     </h1>
-                    <p className="text-sm md:text-base text-gray-300">
+                    <p className="text-sm md:text-base text-gray-200 drop-shadow">
                         Official team jerseys, high-performance training wear, custom hoodies, caps, and exclusive league drops. 100% of proceeds support team expansion.
                     </p>
                 </div>
@@ -76,8 +91,9 @@ export const StorePage = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                     {filteredProducts.map((product) => {
                         const imgUrl = getPrimaryImage(product);
-                        const isOutOfStock = product.quantity === 0;
-                        const isLowStock = !isOutOfStock && product.quantity <= product.threshold;
+                        const available = getAvailableStock(product);
+                        const isOutOfStock = available === 0;
+                        const isLowStock = !isOutOfStock && available <= product.threshold;
 
                         return (
                             <div
@@ -93,7 +109,8 @@ export const StorePage = () => {
                                         <LazyImage
                                             src={imgUrl}
                                             alt={product.name}
-                                            className="group-hover:scale-105"
+                                            objectFit="contain"
+                                            className="group-hover:scale-105 p-3"
                                         />
                                     ) : (
                                         <div className="text-gray-400 font-bold tracking-widest text-xs select-none">
