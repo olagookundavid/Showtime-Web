@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { getStoreProducts, type StoreProduct } from '../services/api';
 import { LazyImage } from '../components/common/LazyImage';
 import { getAvailableStock } from '../utils/storeStock';
+import { StarRating } from '../components/store/StarRating';
 
 export const StorePage = () => {
     const navigate = useNavigate();
@@ -26,7 +27,7 @@ export const StorePage = () => {
     };
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fadeIn">
+        <div className="space-y-8 animate-fadeIn">
             {/* Immersive Glassmorphic Banner */}
             <div className="relative overflow-hidden rounded-3xl shadow-2xl border border-white/10 bg-sffl-navy min-h-[280px] md:min-h-[340px]">
                 {/* Hero background photo */}
@@ -145,6 +146,12 @@ export const StorePage = () => {
                                         <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-sffl-red transition-colors line-clamp-1">
                                             {product.name}
                                         </h3>
+                                        {product.rating_count > 0 && (
+                                            <div className="flex items-center gap-1.5">
+                                                <StarRating value={product.rating_avg ?? 0} size="sm" />
+                                                <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400">({product.rating_count})</span>
+                                            </div>
+                                        )}
                                         <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 min-h-[2rem]">
                                             {product.description || 'Premium official Showtime Flag Football apparel.'}
                                         </p>

@@ -1,6 +1,6 @@
 export const ShowtimeArena = () => {
     return (
-        <div className="max-w-6xl mx-auto space-y-4 md:space-y-8">
+        <div className="space-y-4 md:space-y-8">
             <div className="bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl relative overflow-hidden h-[300px] md:h-[450px] flex flex-col justify-end">
                 <img
                     src="/images/branding/showtime-arena-main.jpg"

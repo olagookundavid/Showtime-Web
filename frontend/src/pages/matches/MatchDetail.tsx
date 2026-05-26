@@ -72,7 +72,7 @@ export const MatchDetail = () => {
     const statusInfo = statusConfig[match.status as keyof typeof statusConfig] ?? { label: match.status, cls: 'bg-gray-500' };
 
     return (
-        <div className="max-w-6xl mx-auto space-y-4 md:space-y-8 pb-16">
+        <div className="space-y-4 md:space-y-8 pb-16">
 
             {/* Back nav */}
             <Link to="/matches" className="inline-flex items-center gap-1.5 text-sffl-red hover:underline font-bold text-xs uppercase tracking-wider">

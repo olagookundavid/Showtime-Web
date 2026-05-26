@@ -93,7 +93,7 @@ const TeamTickets = () => {
     }
 
     return (
-        <div className="space-y-6 max-w-6xl mx-auto">
+        <div className="space-y-6">
             <h1 className="text-3xl font-black text-sffl-navy dark:text-white mb-2">🎟️ Match Day Tickets</h1>
             <p className="text-gray-600 dark:text-gray-300 mb-8">
                 Distribute complimentary tickets allocated to your team for upcoming Event Days. These tickets will be instantly emailed to your players or guests.

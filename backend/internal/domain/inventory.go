@@ -14,9 +14,13 @@ type Product struct {
 	IsActive    bool             `json:"is_active"`
 	CreatedAt   time.Time        `json:"created_at"`
 	UpdatedAt   time.Time        `json:"updated_at"`
-	Images      []ProductImage   `json:"images,omitempty"`
-	Variants    []ProductVariant `json:"variants,omitempty"`
-	Options     []ProductOption  `json:"options,omitempty"` // storefront only
+	Images        []ProductImage   `json:"images,omitempty"`
+	Variants      []ProductVariant `json:"variants,omitempty"`
+	Options       []ProductOption  `json:"options,omitempty"` // storefront only
+	RatingAvg     float64          `json:"rating_avg"`
+	RatingCount   int              `json:"rating_count"`
+	CreatedBy     *string          `json:"created_by,omitempty"`      // admin user id
+	CreatedByName string           `json:"created_by_name,omitempty"` // joined display name
 }
 
 // PriceForVariant returns the active price for the given variant, honouring

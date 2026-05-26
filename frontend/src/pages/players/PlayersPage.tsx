@@ -25,7 +25,7 @@ export const PlayersPage = () => {
     if (loading) return <Loader />;
 
     return (
-        <div className="max-w-6xl mx-auto space-y-8">
+        <div className="space-y-8">
             {/* Header - High Density */}
             <div className="flex flex-col md:flex-row justify-between items-center bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
                 <div>

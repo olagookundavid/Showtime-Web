@@ -28,7 +28,7 @@ export const NewsList = () => {
     }
 
     return (
-        <div className="max-w-6xl mx-auto space-y-4 md:space-y-8">
+        <div className="space-y-4 md:space-y-8">
             {/* Header */}
             <div className="bg-sffl-navy text-white p-8 rounded-2xl shadow-xl">
                 <h1 className="text-5xl font-black italic">LEAGUE NEWS</h1>

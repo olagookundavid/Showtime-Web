@@ -78,7 +78,7 @@ export const TOTWPage = () => {
     const isLoading = loadingComps || loadingDates || loadingTOTW;
 
     return (
-        <div className="max-w-6xl mx-auto space-y-4 md:space-y-8 pb-12">
+        <div className="space-y-4 md:space-y-8 pb-12">
             {/* Header Section */}
             <div className="relative overflow-hidden bg-sffl-navy p-8 md:p-12 rounded-[2rem] shadow-2xl flex flex-col md:flex-row justify-between items-center gap-8 border-b-8 border-sffl-red">
                 <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/4 w-64 h-64 bg-sffl-red/10 rounded-full blur-3xl"></div>

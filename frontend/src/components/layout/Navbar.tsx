@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCart } from '../../contexts/CartContext';
 
 interface NavbarProps {
     onMoreClick?: () => void;
@@ -12,6 +13,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [mobileStoreOpen, setMobileStoreOpen] = useState(false);
     const { isAuthenticated, user, logout } = useAuth();
+    const { count: cartCount } = useCart();
     const navigate = useNavigate();
     const dropdownTimeoutRef = useRef<number | null>(null);
     const storeTimeoutRef = useRef<number | null>(null);
@@ -60,7 +62,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
 
     return (
         <nav className="bg-sffl-navy sticky top-0 z-50 shadow-lg border-b-4 border-sffl-red">
-            <div className="max-w-6xl mx-auto px-4 py-2.5 md:py-3">
+            <div className="max-w-shell mx-auto px-4 py-2.5 md:py-3">
                 <div className="flex items-center justify-between text-white">
                     {/* Logo - Left */}
                     <Link to="/" className="flex items-center flex-shrink-0">
@@ -71,8 +73,9 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                         />
                     </Link>
 
-                    {/* Main Navigation - Center */}
-                    <div className="hidden lg:flex items-center gap-6 uppercase font-bold text-xs xl:text-sm tracking-wide">
+                    {/* Main Navigation - Center. gap-5 at lg, gap-6 at xl so
+                        the 8 items breathe properly once the viewport is wide. */}
+                    <div className="hidden lg:flex items-center gap-5 xl:gap-6 uppercase font-bold text-xs xl:text-sm tracking-wide">
                         <Link to="/matches" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105">Matches</Link>
                         <Link to="/standings" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105">Standings</Link>
                         <Link to="/players" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105">Players</Link>
@@ -98,6 +101,9 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                                     <div className="bg-white dark:bg-gray-800 text-sffl-navy dark:text-white rounded-lg shadow-2xl py-2 normal-case font-bold text-sm border border-gray-200 dark:border-gray-700">
                                         <Link to="/tickets" className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors font-bold">Tickets</Link>
                                         <Link to="/store" className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors font-bold">Merch Store</Link>
+                                        <Link to="/store/cart" className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors font-bold">
+                                            Cart{cartCount > 0 && <span className="ml-1 text-sffl-red">({cartCount})</span>}
+                                        </Link>
                                         {isAuthenticated && (
                                             <Link to="/store/orders" className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors font-bold">My Orders</Link>
                                         )}
@@ -137,12 +143,30 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                         </div>
                     </div>
 
-                    {/* Actions / Auth - Right */}
-                    <div className="hidden lg:flex items-center gap-6">
+                    {/* Actions / Auth - Right. Gap is intentionally tight here
+                        because the right rail already carries 3 chunks (placeholder
+                        link, cart icon, auth block) and used to overflow. */}
+                    <div className="hidden lg:flex items-center gap-3">
                         {/* Own a Team link placeholder */}
                         <span className="text-gray-300 hover:text-sffl-red transition-colors font-bold text-xs tracking-wider cursor-pointer">
                             OWN A TEAM
                         </span>
+
+                        {/* Cart icon with item-count badge */}
+                        <Link
+                            to="/store/cart"
+                            aria-label={`Cart, ${cartCount} item${cartCount === 1 ? '' : 's'}`}
+                            className="relative text-white hover:text-sffl-red transition-colors ml-1"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                            {cartCount > 0 && (
+                                <span className="absolute -top-1.5 -right-2 bg-sffl-red text-white text-[10px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                                    {cartCount > 99 ? '99+' : cartCount}
+                                </span>
+                            )}
+                        </Link>
 
                         <div className="flex items-center gap-3">
                             {isAuthenticated ? (
@@ -261,6 +285,9 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                             <div className="bg-gray-800/50 rounded-xl py-2 px-4 space-y-2 flex flex-col items-center">
                                 <Link to="/tickets" onClick={() => setMobileMenuOpen(false)} className="text-gray-300 hover:text-white text-base font-bold py-2 transition-colors">Tickets</Link>
                                 <Link to="/store" onClick={() => setMobileMenuOpen(false)} className="text-gray-300 hover:text-white text-base font-bold py-2 transition-colors">Merch Store</Link>
+                                <Link to="/store/cart" onClick={() => setMobileMenuOpen(false)} className="text-gray-300 hover:text-white text-base font-bold py-2 transition-colors">
+                                    Cart{cartCount > 0 && <span className="ml-1 text-sffl-red">({cartCount})</span>}
+                                </Link>
                                 {isAuthenticated && (
                                     <Link to="/store/orders" onClick={() => setMobileMenuOpen(false)} className="text-gray-300 hover:text-white text-base font-bold py-2 transition-colors">My Orders</Link>
                                 )}

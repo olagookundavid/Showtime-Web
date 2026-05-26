@@ -33,7 +33,7 @@ export const NewsDetail = () => {
 
     if (!article) {
         return (
-            <div className="max-w-6xl mx-auto text-center py-20">
+            <div className="text-center py-20">
                 <h1 className="text-4xl font-black text-sffl-navy mb-4">Article Not Found</h1>
                 <Link to="/news" className="text-sffl-red hover:underline">← Back to News</Link>
             </div>
@@ -41,7 +41,7 @@ export const NewsDetail = () => {
     }
 
     return (
-        <div className="max-w-6xl mx-auto space-y-6">
+        <div className="space-y-6">
             {/* Back Button */}
             <Link to="/news" className="inline-flex items-center text-sffl-navy dark:text-white hover:text-sffl-red font-bold transition">
                 <span className="mr-2">←</span> Back to News

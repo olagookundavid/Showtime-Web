@@ -1,6 +1,6 @@
 export const OurTeam = () => {
     return (
-        <div className="max-w-6xl mx-auto space-y-4 md:space-y-8 pb-12">
+        <div className="space-y-4 md:space-y-8 pb-12">
             <div className="bg-sffl-navy text-white p-10 rounded-3xl shadow-2xl relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-r from-sffl-red/20 to-blue-900/30" />
                 <div className="relative z-10 text-center md:text-left">

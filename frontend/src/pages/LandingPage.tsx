@@ -67,7 +67,7 @@ export const LandingPage = () => {
     return (
         <div className="space-y-6 md:space-y-12 pt-4">
             {/* Latest Results */}
-            <section className="max-w-6xl mx-auto px-1">
+            <section className="px-1">
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-lg md:text-4xl font-black italic text-sffl-navy dark:text-white transition-colors duration-300">
                         LATEST <span className="text-sffl-red">RESULTS</span>
@@ -130,12 +130,12 @@ export const LandingPage = () => {
             </section>
 
             {/* Hero Carousel Section */}
-            <section className="max-w-6xl mx-auto px-1">
+            <section className="px-1">
                 <MainHeroCarousel />
             </section>
 
             {/* Upcoming Matches */}
-            <section className="max-w-6xl mx-auto px-1">
+            <section className="px-1">
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-lg md:text-4xl font-black italic text-sffl-navy dark:text-white transition-colors duration-300">
                         UPCOMING <span className="text-sffl-red">MATCHES</span>
@@ -185,7 +185,7 @@ export const LandingPage = () => {
             </section>
 
             {/* News and TOTW Section */}
-            <section className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 px-2 md:px-0">
+            <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-2 md:px-0">
                 {/* Team of the Week Widget */}
                 <TOTWWidget />
 
@@ -218,7 +218,7 @@ export const LandingPage = () => {
             <HeroCarousel />
 
             {/* Team News Section */}
-            <section className="max-w-6xl mx-auto px-1 mt-12">
+            <section className="px-1 mt-12">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-lg md:text-4xl font-black italic text-sffl-navy dark:text-white transition-colors duration-300">
                         TEAM <span className="text-sffl-red">NEWS</span>

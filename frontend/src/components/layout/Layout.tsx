@@ -53,7 +53,7 @@ export const Layout = () => {
             </div>
 
             <Navbar onMoreClick={() => setIsMoreMenuOpen(true)} />
-            <main className="flex-grow w-full max-w-6xl mx-auto px-2 sm:px-6 lg:px-8 py-3 md:py-8 relative z-10 overscroll-y-none">
+            <main className="flex-grow w-full max-w-page mx-auto px-2 sm:px-6 lg:px-8 py-3 md:py-8 relative z-10 overscroll-y-none">
                 <Outlet />
             </main>
             <Footer />

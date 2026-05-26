@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { CartProvider } from './contexts/CartContext';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { Layout } from './components/layout/Layout';
 import { ScrollToTop } from './components/common/ScrollToTop';
@@ -10,6 +11,8 @@ import { ProductDetailPage } from './pages/ProductDetailPage';
 import { CheckoutPage } from './pages/CheckoutPage';
 import { OrderConfirmationPage } from './pages/OrderConfirmationPage';
 import { MyOrdersPage } from './pages/MyOrdersPage';
+import { ProductReviewsPage } from './pages/ProductReviewsPage';
+import { CartPage } from './pages/CartPage';
 import { AboutShowtimeFlag } from './pages/about/AboutShowtimeFlag';
 import { MediaGuidelines } from './pages/about/MediaGuidelines';
 import { GameplayRules } from './pages/about/GameplayRules';
@@ -69,6 +72,7 @@ function App() {
     <ThemeProvider>
       <FloatingThemeToggle />
       <AuthProvider>
+        <CartProvider>
         <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
         <BrowserRouter>
           <ScrollToTop />
@@ -102,6 +106,8 @@ function App() {
               {/* Store Pages */}
               <Route path="/store" element={<StorePage />} />
               <Route path="/store/products/:id" element={<ProductDetailPage />} />
+              <Route path="/store/products/:id/reviews" element={<ProductReviewsPage />} />
+              <Route path="/store/cart" element={<CartPage />} />
               <Route path="/store/checkout" element={<CheckoutPage />} />
               <Route path="/store/confirm" element={<OrderConfirmationPage />} />
               <Route path="/store/orders" element={<MyOrdersPage />} />
@@ -168,6 +174,7 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
+        </CartProvider>
       </AuthProvider>
     </ThemeProvider>
   );

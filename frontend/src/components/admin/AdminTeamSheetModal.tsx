@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
     getAdminTeamSheet, getPlayers, saveTeamSheet,
-    createPlayer, updatePlayer,
+    createPlayer,
     type Match, type Player, type TeamSheetPlayer,
 } from '../../services/api';
 import { Loader } from '../ui/Loader';
@@ -40,6 +40,10 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
 
     // Team-change confirmation
     const [pendingPlayer, setPendingPlayer] = useState<Player | null>(null);
+
+    // Off-roster players we've added in this session — used to display chip names
+    // for players whose global team is not the active team (historical entry).
+    const [extraPlayers, setExtraPlayers] = useState<Record<string, Player>>({});
 
     // ── Existing team sheet ──────────────────────────────────────────────────
     const { data: teamSheet, isLoading: loadingSheet } = useQuery({
@@ -127,22 +131,17 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
         },
     });
 
-    // ── Reassign team mutation ───────────────────────────────────────────────
-    const reassignMutation = useMutation({
-        mutationFn: async (player: Player) =>
-            updatePlayer(player.id, { team_id: activeTeamId, name: player.name }),
-        onSuccess: (_, player) => {
-            toast.success(`${player.name} moved to ${activeTab === 'home' ? match.home_team?.name : match.away_team?.name}`);
-            queryClient.invalidateQueries({ queryKey: ['players'] });
-            addToSelected(player.id);
-            setPendingPlayer(null);
-            setSearchQuery('');
-            setShowDropdown(false);
-        },
-        onError: (err: any) => {
-            toast.error(err.response?.data?.error || 'Failed to reassign team');
-        },
-    });
+    // ── Confirm add for an off-roster player ─────────────────────────────────
+    // Historical entry: we keep the player's current team record intact and only
+    // record that they played on the active team in THIS match (via match_team_sheets.team_id).
+    const confirmAddOffRosterPlayer = (player: Player) => {
+        setExtraPlayers(prev => ({ ...prev, [player.id]: player }));
+        addToSelected(player.id);
+        setPendingPlayer(null);
+        setSearchQuery('');
+        setShowDropdown(false);
+        toast.success(`${player.name} added to this match's sheet`);
+    };
 
     // ── Handle search result click ───────────────────────────────────────────
     const handleSelectFromSearch = (player: Player) => {
@@ -153,7 +152,7 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
             setSearchQuery('');
             return;
         }
-        // Different team — ask to reassign
+        // Different team — confirm so the admin knows what they're doing
         setPendingPlayer(player);
     };
 
@@ -326,6 +325,7 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
                                     <div className="flex flex-wrap gap-2">
                                         {activeSelected.map(pid => {
                                             const p = activeTeamPlayers.find(pl => pl.id === pid) ||
+                                                extraPlayers[pid] ||
                                                 (teamSheet?.home_team.find(p => p.player_id === pid) || teamSheet?.away_team.find(p => p.player_id === pid)) as TeamSheetPlayer | undefined;
                                             const name = (p as any)?.name || pid.slice(0, 8);
                                             return (
@@ -388,17 +388,17 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
                 </div>
             </div>
 
-            {/* ── Team Reassignment Confirmation Modal ── */}
+            {/* ── Off-Roster Confirmation Modal ── */}
             {pendingPlayer && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4">
                     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 w-full max-w-sm">
-                        <h3 className="text-lg font-black text-sffl-navy dark:text-white mb-2">Move Player?</h3>
+                        <h3 className="text-lg font-black text-sffl-navy dark:text-white mb-2">Add Off-Roster Player?</h3>
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                            <strong className="text-gray-900 dark:text-white">{pendingPlayer.name}</strong> is currently on{' '}
+                            <strong className="text-gray-900 dark:text-white">{pendingPlayer.name}</strong> is currently rostered on{' '}
                             <strong className="text-sffl-red">{pendingPlayer.team?.name || 'another team'}</strong>.
                         </p>
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-5">
-                            Moving them to <strong className="text-gray-900 dark:text-white">{activeTab === 'home' ? match.home_team?.name : match.away_team?.name}</strong> will update their team in the database. This is fine for historical data entry.
+                            They'll be recorded as playing for <strong className="text-gray-900 dark:text-white">{activeTab === 'home' ? match.home_team?.name : match.away_team?.name}</strong> in this match only. Their current roster stays intact.
                         </p>
                         <div className="flex gap-3">
                             <button
@@ -408,11 +408,10 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
                                 Cancel
                             </button>
                             <button
-                                onClick={() => reassignMutation.mutate(pendingPlayer)}
-                                disabled={reassignMutation.isPending}
-                                className="flex-1 px-4 py-2.5 bg-sffl-red text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-colors disabled:opacity-50"
+                                onClick={() => confirmAddOffRosterPlayer(pendingPlayer)}
+                                className="flex-1 px-4 py-2.5 bg-sffl-red text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-colors"
                             >
-                                {reassignMutation.isPending ? 'Moving…' : 'Yes, Move & Add'}
+                                Add to This Match
                             </button>
                         </div>
                     </div>

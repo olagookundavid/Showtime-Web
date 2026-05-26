@@ -132,7 +132,7 @@ export const TicketsPage = () => {
     };
 
     return (
-        <div className="max-w-6xl mx-auto space-y-4 md:space-y-8">
+        <div className="space-y-4 md:space-y-8">
             {/* Header - Compact for Mobile */}
             <div className="bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-center gap-4">
                 <div className="text-center md:text-left">

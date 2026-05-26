@@ -7,6 +7,15 @@
     --color-sffl-gray: #F5F5F5;
 
     --font-sans: 'Inter', system-ui, sans-serif;
+
+    /* Page CONTENT width — used by Layout's <main>. Every page inherits this
+       via Layout, so new pages don't need their own max-width. */
+    --max-width-page: 72rem; /* 1152px (Tailwind's 6xl) */
+
+    /* Chrome width — used by Navbar/Footer. Slightly wider than --max-width-page
+       so the header and footer extend past the content edges (Amazon-style
+       letterbox effect — visually frames the narrower body). */
+    --max-width-shell: 80rem; /* 1280px (Tailwind's 7xl) */
 }
 
 @variant dark (.dark &);
@@ -56,4 +65,57 @@ body {
 }
 .dark .custom-scrollbar::-webkit-scrollbar-thumb {
     background: #C62828;
+}
+
+/* ─── Print rules ──────────────────────────────────────────────────────────
+   When the customer prints an invoice (or any page via Cmd+P) we hide every
+   piece of app chrome — navigation, mobile bottom bar, footer, the floating
+   theme toggle, the atmospheric background, and the "More" drawer — so the
+   physical sheet only contains the receipt content. */
+@media print {
+    /* Strip the fixed atmospheric background so paper stays white */
+    body,
+    html,
+    #root {
+        background: white !important;
+    }
+
+    /* Hide layout chrome */
+    nav,
+    footer,
+    [data-print-hide] {
+        display: none !important;
+    }
+
+    /* Anything fixed-position is overlay chrome (theme toggle, drawers,
+       background tints) — none of it belongs on paper. */
+    .fixed {
+        display: none !important;
+    }
+
+    /* Cards in print mode shouldn't carry app shadows */
+    .shadow,
+    .shadow-md,
+    .shadow-lg,
+    .shadow-xl,
+    .shadow-2xl {
+        box-shadow: none !important;
+    }
+
+    /* Reasonable physical margin */
+    @page {
+        margin: 0.5in;
+    }
+
+    /* Keep section headings glued to their content across page breaks */
+    h1, h2, h3 {
+        page-break-after: avoid;
+    }
+
+    /* Don't split items mid-row */
+    .invoice-item,
+    .invoice-summary,
+    .invoice-header {
+        page-break-inside: avoid;
+    }
 }

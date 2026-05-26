@@ -159,6 +159,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		adminStoreGroup.PATCH("/orders/:id/fulfillment", app.Handlers.StoreHandler.UpdateFulfillment)
 		adminStoreGroup.POST("/orders/:id/verify", app.Handlers.StoreHandler.VerifyOrder)
 		adminStoreGroup.POST("/orders/:id/cancel", app.Handlers.StoreHandler.CancelOrder)
+		adminStoreGroup.DELETE("/reviews/:id", app.Handlers.StoreHandler.DeleteProductReview)
 	}
 
 	matchesGroup := adminRoutes.Group("/matches")
@@ -169,6 +170,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		matchesGroup.DELETE("/:id", app.Handlers.MatchHandler.DeleteMatch)
 		matchesGroup.POST("/:id/team-sheets", app.Handlers.MatchHandler.SaveTeamSheet)
 		matchesGroup.GET("/:id/team-sheets", app.Handlers.MatchHandler.GetAdminTeamSheet)
+		matchesGroup.POST("/:id/import", app.Handlers.ImportHandler.ImportMatch)
 		matchesGroup.POST("/standings", app.Handlers.MatchHandler.CreateStanding)
 		matchesGroup.PUT("/standings/:id", app.Handlers.MatchHandler.UpdateStanding)
 		matchesGroup.DELETE("/standings/:id", app.Handlers.MatchHandler.DeleteStanding)
@@ -392,6 +394,9 @@ func SetupStoreRoutes(r *gin.RouterGroup, app *api.Application) {
 		storeRoutes.POST("/webhook", app.Handlers.StoreHandler.Webhook)
 		storeRoutes.GET("/orders/by-ref/:reference", app.Handlers.StoreHandler.GetOrderByReference)
 
+		// Public reviews list — anyone can read reviews.
+		storeRoutes.GET("/products/:id/reviews", app.Handlers.StoreHandler.ListProductReviews)
+
 		// Authenticated protected customer actions
 		protected := storeRoutes.Group("")
 		protected.Use(commonAuth.TokenMiddleware(app.TokenMaker))
@@ -399,6 +404,8 @@ func SetupStoreRoutes(r *gin.RouterGroup, app *api.Application) {
 			protected.GET("/addresses", app.Handlers.StoreHandler.ListSavedAddresses)
 			protected.POST("/addresses", app.Handlers.StoreHandler.SaveAddress)
 			protected.GET("/orders", app.Handlers.StoreHandler.ListCustomerOrders)
+			protected.POST("/products/:id/reviews", app.Handlers.StoreHandler.CreateProductReview)
+			protected.GET("/products/:id/reviews/mine", app.Handlers.StoreHandler.GetMyProductReview)
 		}
 	}
 }

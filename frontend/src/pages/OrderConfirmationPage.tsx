@@ -33,7 +33,7 @@ export const OrderConfirmationPage = () => {
 
     if (loading) {
         return (
-            <div className="max-w-7xl mx-auto px-4 py-16 flex flex-col items-center justify-center space-y-4">
+            <div className="px-4 py-16 flex flex-col items-center justify-center space-y-4">
                 <Loader />
                 <p className="text-sm font-bold text-gray-500 dark:text-gray-400">Verifying secure payment with merchant gateways...</p>
             </div>
@@ -61,7 +61,7 @@ export const OrderConfirmationPage = () => {
     };
 
     return (
-        <div className="max-w-2xl mx-auto py-12 px-4 space-y-8 animate-fadeIn print:py-0 print:px-0">
+        <div className="space-y-8 animate-fadeIn print:py-0 print:px-0">
             {/* Status Header - Hidden during print */}
             <div className={`text-center p-8 rounded-3xl shadow-xl print:hidden ${
                 isPaid 
@@ -91,21 +91,37 @@ export const OrderConfirmationPage = () => {
 
             {/* Order Details Receipt Box */}
             {order && (
-                <div className="bg-white dark:bg-gray-800/40 backdrop-blur-md rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-700/60 shadow-xl print:shadow-none print:border-none">
-                    {/* Header Banner */}
-                    <div className="bg-sffl-navy text-white p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-700">
-                        <div>
-                            <p className="text-xs uppercase tracking-widest text-gray-300 font-bold">Showtime Merchandise</p>
-                            <h2 className="text-xl font-black italic uppercase tracking-tight mt-1">Official Invoice</h2>
+                <div className="bg-white dark:bg-gray-800/40 backdrop-blur-md rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-700/60 shadow-xl print:shadow-none print:border-none print:rounded-none print:bg-white">
+                    {/* Header Banner — logo + brand on the left, invoice meta on
+                        the right. In print this becomes the document letterhead
+                        and stays as the first thing on page 1. */}
+                    <div className="invoice-header bg-sffl-navy text-white p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-700 print:bg-white print:text-sffl-navy print:border-b-2 print:border-sffl-navy print:p-0 print:pb-4">
+                        <div className="flex items-center gap-4">
+                            <img
+                                src="https://images.leaguerepublic.com/data/images/738010788/107.png"
+                                alt="Showtime Flag Football"
+                                className="w-14 h-14 object-contain bg-white rounded-full p-1 print:bg-transparent print:p-0 print:w-16 print:h-16"
+                            />
+                            <div>
+                                <p className="text-xs uppercase tracking-widest text-gray-300 font-bold print:text-sffl-navy">
+                                    Showtime Flag Football
+                                </p>
+                                <h2 className="text-xl font-black italic uppercase tracking-tight mt-1 print:text-2xl">
+                                    Official Invoice
+                                </h2>
+                            </div>
                         </div>
                         <div className="text-left md:text-right">
-                            <p className="text-xs text-gray-400 font-bold uppercase">Order Reference</p>
-                            <p className="font-mono text-sm font-black tracking-widest text-sffl-red">{order.order_reference}</p>
+                            <p className="text-xs text-gray-400 font-bold uppercase print:text-gray-600">Order Reference</p>
+                            <p className="font-mono text-sm font-black tracking-widest text-sffl-red print:text-base">{order.order_reference}</p>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase mt-1 print:text-gray-600">
+                                {new Date(order.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                            </p>
                         </div>
                     </div>
 
                     {/* Details Breakdown */}
-                    <div className="p-6 space-y-6">
+                    <div className="p-6 space-y-6 print:p-0 print:pt-4">
                         {/* Customer & Shipping Summary */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b dark:border-gray-700/40">
                             <div className="space-y-1">
@@ -129,7 +145,7 @@ export const OrderConfirmationPage = () => {
                             <span className="text-[10px] text-gray-400 uppercase font-black tracking-wider block">Items Purchased</span>
                             <div className="divide-y divide-gray-100 dark:divide-gray-700/40">
                                 {order.items?.map((item) => (
-                                    <div key={item.id} className="py-3 flex items-center justify-between text-sm">
+                                    <div key={item.id} className="invoice-item py-3 flex items-center justify-between text-sm">
                                         <div className="space-y-0.5">
                                             <p className="font-bold text-sffl-navy dark:text-white uppercase">{item.product_name}</p>
                                             {item.variant_label && (
@@ -150,7 +166,7 @@ export const OrderConfirmationPage = () => {
                         </div>
 
                         {/* Invoice Summary Calculation */}
-                        <div className="pt-6 border-t dark:border-gray-700/40 flex flex-col items-end space-y-2">
+                        <div className="invoice-summary pt-6 border-t dark:border-gray-700/40 flex flex-col items-end space-y-2">
                             <div className="flex justify-between w-64 text-xs font-bold text-gray-500">
                                 <span>Subtotal</span>
                                 <span>₦{order.total_amount?.toLocaleString()}</span>

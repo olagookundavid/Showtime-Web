@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
+import { useCart } from '../contexts/CartContext';
 import {
     getStoreProduct,
     getSavedAddresses,
@@ -17,8 +18,12 @@ import { formatVariantLabel } from '../utils/storeStock';
 export const CheckoutPage = () => {
     const [searchParams] = useSearchParams();
     const { user, isAuthenticated } = useAuth();
+    const { items: cartItems, subtotal: cartSubtotal, clear: clearCart } = useCart();
     const queryClient = useQueryClient();
 
+    // Cart-mode (when arriving from /store/cart) takes the line items straight
+    // from CartContext. Single-product mode reads from URL params.
+    const isCartCheckout = searchParams.get('source') === 'cart';
     const productId = searchParams.get('product_id') || '';
     const variantId = searchParams.get('variant_id') || '';
     const quantity = parseInt(searchParams.get('quantity') || '1', 10);
@@ -45,10 +50,13 @@ export const CheckoutPage = () => {
         postal_code: '',
     });
 
+    // Single-product mode loads the product so the summary panel can render
+    // the image + variant label. Cart mode skips this entirely because the
+    // cart already carries snapshots.
     const { data: product, isLoading: loadingProduct } = useQuery<StoreProduct>({
         queryKey: ['storeProduct', productId],
         queryFn: () => getStoreProduct(productId),
-        enabled: !!productId,
+        enabled: !!productId && !isCartCheckout,
     });
 
     const { data: savedAddresses = [] } = useQuery<SavedAddress[]>({
@@ -57,16 +65,18 @@ export const CheckoutPage = () => {
         enabled: isAuthenticated,
     });
 
-    if (loadingProduct) {
+    if (!isCartCheckout && loadingProduct) {
         return (
-            <div className="max-w-7xl mx-auto px-4 py-16 flex flex-col items-center justify-center space-y-4">
+            <div className="px-4 py-16 flex flex-col items-center justify-center space-y-4">
                 <div className="w-12 h-12 border-4 border-sffl-red border-t-transparent rounded-full animate-spin"></div>
                 <p className="text-sm font-bold text-gray-500">Preparing secure checkout gateway...</p>
             </div>
         );
     }
 
-    if (!product) {
+    // Empty state — covers both cart-mode (no items) and single-product
+    // mode (URL points at nothing).
+    if (isCartCheckout ? cartItems.length === 0 : !product) {
         return (
             <div className="max-w-md mx-auto px-4 py-16 text-center space-y-6">
                 <span className="text-5xl">🛒</span>
@@ -83,10 +93,11 @@ export const CheckoutPage = () => {
         );
     }
 
-    // Match variant details
-    const matchedVariant = product.variants?.find(v => v.id === variantId);
-    const unitPrice = matchedVariant && matchedVariant.price > 0 ? matchedVariant.price : product.price;
-    const subtotal = unitPrice * quantity;
+    // Match variant + compute totals. In cart mode `product` is undefined
+    // (we don't fetch it); use the cart-side helpers instead.
+    const matchedVariant = product?.variants?.find(v => v.id === variantId);
+    const unitPrice = matchedVariant && matchedVariant.price > 0 ? matchedVariant.price : (product?.price || 0);
+    const subtotal = isCartCheckout ? cartSubtotal : unitPrice * quantity;
     const shippingCost = 0; // Free promo
     const totalAmount = subtotal + shippingCost;
 
@@ -167,6 +178,18 @@ export const CheckoutPage = () => {
         setIsSubmitting(true);
         setPayError('');
         try {
+            // In cart-mode the items array is fed by CartContext; otherwise
+            // it's the single product/variant from URL params.
+            const items = isCartCheckout
+                ? cartItems.map(i => ({
+                    product_id: i.product_id,
+                    variant_id: i.variant_id || undefined,
+                    quantity: i.quantity,
+                }))
+                : product
+                    ? [{ product_id: product.id, variant_id: variantId || undefined, quantity }]
+                    : [];
+
             const payload: CheckoutPayload = {
                 customer_name: shippingForm.recipient_name,
                 customer_email: shippingForm.email,
@@ -176,13 +199,7 @@ export const CheckoutPage = () => {
                 shipping_city: shippingForm.city,
                 shipping_address: shippingForm.street_address,
                 shipping_postal_code: shippingForm.postal_code || '100001',
-                items: [
-                    {
-                        product_id: product.id,
-                        variant_id: variantId || undefined,
-                        quantity: quantity,
-                    }
-                ],
+                items,
             };
 
             const response = await initializeCheckout(payload);
@@ -192,6 +209,9 @@ export const CheckoutPage = () => {
             if (!isAllowedPaystackUrl(response.paystack_url)) {
                 throw new Error('Unexpected payment redirect URL — checkout aborted for your safety.');
             }
+            // Cart converted into a Paystack transaction — clear it so coming
+            // back to /store/cart doesn't show the same items as still-pending.
+            if (isCartCheckout) clearCart();
             window.location.href = response.paystack_url;
         } catch (err: any) {
             setPayError(err.response?.data?.error || err.message || 'Failed to initialize Paystack checkout. Please try again.');
@@ -201,7 +221,7 @@ export const CheckoutPage = () => {
     };
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fadeIn">
+        <div className="space-y-8 animate-fadeIn">
             {/* Header Steps */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b dark:border-gray-800">
                 <div>
@@ -424,24 +444,47 @@ export const CheckoutPage = () => {
 
                                 <div>
                                     <h3 className="text-xs font-black uppercase text-gray-400 tracking-wider">Checkout Order Breakdown</h3>
-                                    <div className="flex items-center gap-3 mt-3">
-                                        <div className="w-12 h-12 rounded-lg bg-gray-200 dark:bg-gray-700 overflow-hidden flex-shrink-0">
-                                            {product.images && product.images.length > 0 ? (
-                                                <LazyImage src={product.images[0].image_url} alt="" objectFit="contain" className="p-1" />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-gray-400">GEAR</div>
-                                            )}
+                                    {isCartCheckout ? (
+                                        <div className="space-y-3 mt-3">
+                                            {cartItems.map(line => (
+                                                <div key={`${line.product_id}::${line.variant_id || ''}`} className="flex items-center gap-3">
+                                                    <div className="w-12 h-12 rounded-lg bg-gray-200 dark:bg-gray-700 overflow-hidden flex-shrink-0">
+                                                        {line.image_url ? (
+                                                            <img src={line.image_url} alt="" className="w-full h-full object-contain p-1" />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-gray-400">GEAR</div>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-xs flex-1">
+                                                        <p className="font-bold text-sffl-navy dark:text-white">{line.product_name}</p>
+                                                        {line.variant_label && (
+                                                            <p className="text-[10px] text-gray-500 font-bold uppercase mt-0.5">{line.variant_label}</p>
+                                                        )}
+                                                        <p className="text-gray-400 mt-0.5">Qty: {line.quantity} @ ₦{line.unit_price.toLocaleString()}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
-                                        <div className="text-xs">
-                                            <p className="font-bold text-sffl-navy dark:text-white">{product.name}</p>
-                                            {matchedVariant && (
-                                                <p className="text-[10px] text-gray-500 font-bold uppercase mt-0.5">
-                                                    {formatVariantLabel(product, matchedVariant)}
-                                                </p>
-                                            )}
-                                            <p className="text-gray-400 mt-0.5">Qty: {quantity} @ ₦{unitPrice.toLocaleString()}</p>
+                                    ) : product && (
+                                        <div className="flex items-center gap-3 mt-3">
+                                            <div className="w-12 h-12 rounded-lg bg-gray-200 dark:bg-gray-700 overflow-hidden flex-shrink-0">
+                                                {product.images && product.images.length > 0 ? (
+                                                    <LazyImage src={product.images[0].image_url} alt="" objectFit="contain" className="p-1" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-gray-400">GEAR</div>
+                                                )}
+                                            </div>
+                                            <div className="text-xs">
+                                                <p className="font-bold text-sffl-navy dark:text-white">{product.name}</p>
+                                                {matchedVariant && (
+                                                    <p className="text-[10px] text-gray-500 font-bold uppercase mt-0.5">
+                                                        {formatVariantLabel(product, matchedVariant)}
+                                                    </p>
+                                                )}
+                                                <p className="text-gray-400 mt-0.5">Qty: {quantity} @ ₦{unitPrice.toLocaleString()}</p>
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -486,6 +529,28 @@ export const CheckoutPage = () => {
                         🛒 Checkout Cart Summary
                     </h2>
 
+                    {isCartCheckout ? (
+                        <div className="space-y-3 pb-3 border-b dark:border-gray-800">
+                            {cartItems.map(line => (
+                                <div key={`${line.product_id}::${line.variant_id || ''}`} className="flex items-center gap-3">
+                                    <div className="w-14 h-14 rounded-xl bg-gray-100 dark:bg-gray-800/60 overflow-hidden flex-shrink-0 flex items-center justify-center border">
+                                        {line.image_url ? (
+                                            <img src={line.image_url} alt="" className="w-full h-full object-contain p-1" />
+                                        ) : (
+                                            <div className="text-[10px] font-bold text-gray-400">MERCH</div>
+                                        )}
+                                    </div>
+                                    <div className="text-xs space-y-1 flex-1 min-w-0">
+                                        <p className="font-bold text-gray-900 dark:text-white line-clamp-1">{line.product_name}</p>
+                                        {line.variant_label && (
+                                            <p className="text-[10px] font-semibold text-gray-400 uppercase">{line.variant_label}</p>
+                                        )}
+                                        <p className="text-sffl-red font-bold">₦{line.unit_price.toLocaleString()} × {line.quantity}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : product && (
                     <div className="flex items-center gap-3 pb-3 border-b dark:border-gray-800">
                         <div className="w-16 h-16 rounded-xl bg-gray-100 dark:bg-gray-800/60 overflow-hidden flex-shrink-0 flex items-center justify-center border">
                             {product.images && product.images.length > 0 ? (
@@ -504,6 +569,7 @@ export const CheckoutPage = () => {
                             <p className="text-sffl-red font-bold">₦{unitPrice.toLocaleString()} × {quantity}</p>
                         </div>
                     </div>
+                    )}
 
                     <div className="space-y-2 text-xs pt-1">
                         <div className="flex justify-between text-gray-500">

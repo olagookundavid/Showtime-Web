@@ -40,6 +40,12 @@ type IStoreHandler interface {
 	UpdateStoreProduct(c *gin.Context)
 	DeleteStoreProduct(c *gin.Context)
 	ListAllStoreProducts(c *gin.Context)
+
+	// Reviews
+	ListProductReviews(c *gin.Context)
+	CreateProductReview(c *gin.Context)
+	GetMyProductReview(c *gin.Context)
+	DeleteProductReview(c *gin.Context)
 }
 
 type StoreHandler struct {
@@ -323,7 +329,14 @@ func (h *StoreHandler) CreateStoreProduct(c *gin.Context) {
 		return
 	}
 
-	res, err := h.Service.CreateStoreProduct(c.Request.Context(), req)
+	// Admin-only route — TokenMiddleware guarantees the payload exists, but
+	// we treat a missing one as anonymous (created_by stays NULL) to be safe.
+	var createdBy string
+	if payload, err := helpers.GetTokenPayloadFromContext(c); err == nil && payload != nil {
+		createdBy = payload.UserId
+	}
+
+	res, err := h.Service.CreateStoreProduct(c.Request.Context(), createdBy, req)
 	if err != nil {
 		helpers.ServerErrorResponse(c, err)
 		return
@@ -435,5 +448,84 @@ func (h *StoreHandler) VerifyOrder(c *gin.Context) {
 		return
 	}
 	helpers.SuccessOK(c, "Order payment verified successfully", order)
+}
+
+// ─── Reviews ──────────────────────────────────────────────────────────────
+
+func (h *StoreHandler) ListProductReviews(c *gin.Context) {
+	productID := c.Param("id")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	sort := c.DefaultQuery("sort", "newest")
+
+	res, total, err := h.Service.ListProductReviews(c.Request.Context(), productID, page, limit, sort)
+	if err != nil {
+		helpers.ServerErrorResponse(c, err)
+		return
+	}
+
+	totalPages := (total + limit - 1) / limit
+	c.JSON(http.StatusOK, gin.H{
+		"message":     "Reviews retrieved successfully",
+		"data":        res,
+		"total":       total,
+		"page":        page,
+		"limit":       limit,
+		"total_pages": totalPages,
+	})
+}
+
+func (h *StoreHandler) CreateProductReview(c *gin.Context) {
+	productID := c.Param("id")
+	payload, err := helpers.GetTokenPayloadFromContext(c)
+	if err != nil || payload == nil {
+		helpers.UnAuthorizedResponse(c, "unauthorized")
+		return
+	}
+
+	var req dto.CreateProductReviewRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helpers.BadResponse(c, err.Error())
+		return
+	}
+
+	res, err := h.Service.CreateOrUpdateProductReview(c.Request.Context(), payload.UserId, productID, req)
+	if err != nil {
+		// Surface the verified-purchase guard as a friendly 400 rather than a 500.
+		helpers.BadResponse(c, err.Error())
+		return
+	}
+	helpers.SuccessCreated(c, "Review saved", res)
+}
+
+func (h *StoreHandler) GetMyProductReview(c *gin.Context) {
+	productID := c.Param("id")
+	payload, err := helpers.GetTokenPayloadFromContext(c)
+	if err != nil || payload == nil {
+		helpers.UnAuthorizedResponse(c, "unauthorized")
+		return
+	}
+
+	res, err := h.Service.GetMyReviewForProduct(c.Request.Context(), payload.UserId, productID)
+	if err != nil {
+		helpers.ServerErrorResponse(c, err)
+		return
+	}
+	// Returning null `data` (vs 404) so the FE can branch cleanly on
+	// "user hasn't reviewed yet" without exception handling.
+	helpers.SuccessOK(c, "Review retrieved", res)
+}
+
+func (h *StoreHandler) DeleteProductReview(c *gin.Context) {
+	id := c.Param("id")
+	if err := h.Service.DeleteProductReview(c.Request.Context(), id); err != nil {
+		if err.Error() == "not found" {
+			helpers.NotFoundResponseWithMsg(c, "Review not found")
+			return
+		}
+		helpers.ServerErrorResponse(c, err)
+		return
+	}
+	helpers.SuccessOK(c, "Review deleted", nil)
 }
 

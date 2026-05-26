@@ -31,6 +31,15 @@ type IStoreRepository interface {
 	SaveProductVariants(ctx context.Context, productID string, variants []domain.ProductVariant) error
 	SaveProductImages(ctx context.Context, productID string, images []domain.ProductImage) error
 
+	// Reviews
+	FindPaidOrderForProduct(ctx context.Context, userID, productID string) (*string, error)
+	UpsertProductReview(ctx context.Context, review domain.ProductReview) (*domain.ProductReview, error)
+	ListProductReviews(ctx context.Context, productID string, page, limit int, sort string) ([]domain.ProductReview, int, error)
+	GetProductReview(ctx context.Context, id string) (*domain.ProductReview, error)
+	GetUserReviewForProduct(ctx context.Context, userID, productID string) (*domain.ProductReview, error)
+	DeleteProductReview(ctx context.Context, id string) error
+	RecomputeProductRating(ctx context.Context, productID string) error
+
 	// Admin e-commerce product catalog CRUD operations
 	CreateStoreProduct(ctx context.Context, product domain.Product) (*domain.Product, error)
 	UpdateStoreProduct(ctx context.Context, product domain.Product) error
@@ -47,18 +56,24 @@ func NewStoreRepository(Db *pgxpool.Pool) IStoreRepository {
 }
 
 // scanProductRow scans a single product row (columns in canonical order, with
-// options JSONB last). Reused by all the list/get paths.
+// options JSONB, rating summary, and creator info last). Reused by all the
+// list/get paths.
 func scanProductRow(row pgx.Row, p *domain.Product) error {
 	var optionsRaw []byte
+	var createdBy *string
+	var createdByName string
 	if err := row.Scan(
 		&p.ID, &p.Name, &p.SKU, &p.Description, &p.Price, &p.Quantity, &p.Threshold,
-		&p.IsActive, &p.CreatedAt, &p.UpdatedAt, &optionsRaw,
+		&p.IsActive, &p.CreatedAt, &p.UpdatedAt, &optionsRaw, &p.RatingAvg, &p.RatingCount,
+		&createdBy, &createdByName,
 	); err != nil {
 		return err
 	}
 	if len(optionsRaw) > 0 {
 		_ = json.Unmarshal(optionsRaw, &p.Options)
 	}
+	p.CreatedBy = createdBy
+	p.CreatedByName = createdByName
 	return nil
 }
 
@@ -98,7 +113,11 @@ func (r *StoreRepository) loadProductRelations(ctx context.Context, p *domain.Pr
 	}
 }
 
-const productSelectColumns = `id, name, sku, description, price, quantity, threshold, is_active, created_at, updated_at, options`
+// Bare table columns. List/get queries wrap this with a LEFT JOIN to users
+// to attach the creator's display name (productSelectFrom).
+const productSelectColumns = `sp.id, sp.name, sp.sku, sp.description, sp.price, sp.quantity, sp.threshold, sp.is_active, sp.created_at, sp.updated_at, sp.options, sp.rating_avg, sp.rating_count, sp.created_by, COALESCE(u.full_name, '')`
+
+const productSelectFrom = `FROM store_products sp LEFT JOIN users u ON u.id = sp.created_by`
 
 // loadOrderItems fetches the line items for an order, joining only to the
 // product table for the product_name. The variant_label is read directly from
@@ -129,7 +148,7 @@ func (r *StoreRepository) ListStoreProducts(ctx context.Context) ([]domain.Produ
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	query := `SELECT ` + productSelectColumns + ` FROM store_products WHERE is_active = true ORDER BY name ASC`
+	query := `SELECT ` + productSelectColumns + ` ` + productSelectFrom + ` WHERE sp.is_active = true ORDER BY sp.name ASC`
 	rows, err := r.Db.Query(ctx, query)
 	if err != nil {
 		return nil, err
@@ -155,7 +174,7 @@ func (r *StoreRepository) GetStoreProduct(ctx context.Context, id string) (*doma
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	query := `SELECT ` + productSelectColumns + ` FROM store_products WHERE id = $1`
+	query := `SELECT ` + productSelectColumns + ` ` + productSelectFrom + ` WHERE sp.id = $1`
 	var p domain.Product
 	if err := scanProductRow(r.Db.QueryRow(ctx, query, id), &p); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -743,11 +762,11 @@ func (r *StoreRepository) CreateStoreProduct(ctx context.Context, p domain.Produ
 
 	query := `
 		INSERT INTO store_products (
-			name, sku, description, price, quantity, threshold, is_active, options, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+			name, sku, description, price, quantity, threshold, is_active, options, created_by, created_at, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
 		RETURNING id, created_at, updated_at`
 
-	err = r.Db.QueryRow(ctx, query, p.Name, p.SKU, p.Description, p.Price, p.Quantity, p.Threshold, p.IsActive, optionsJSON).
+	err = r.Db.QueryRow(ctx, query, p.Name, p.SKU, p.Description, p.Price, p.Quantity, p.Threshold, p.IsActive, optionsJSON, p.CreatedBy).
 		Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		return nil, err
@@ -803,7 +822,7 @@ func (r *StoreRepository) ListAllStoreProducts(ctx context.Context) ([]domain.Pr
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	query := `SELECT ` + productSelectColumns + ` FROM store_products ORDER BY name ASC`
+	query := `SELECT ` + productSelectColumns + ` ` + productSelectFrom + ` ORDER BY sp.name ASC`
 	rows, err := r.Db.Query(ctx, query)
 	if err != nil {
 		return nil, err
@@ -823,4 +842,197 @@ func (r *StoreRepository) ListAllStoreProducts(ctx context.Context) ([]domain.Pr
 		r.loadProductRelations(ctx, &products[i])
 	}
 	return products, nil
+}
+
+// ─── Product reviews ──────────────────────────────────────────────────────
+
+// FindPaidOrderForProduct returns the most recent paid order id that contained
+// the product for this user, or nil if no such order exists. Used by the
+// service layer to enforce "verified purchase" before allowing a review.
+func (r *StoreRepository) FindPaidOrderForProduct(ctx context.Context, userID, productID string) (*string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	query := `
+		SELECT o.id FROM online_orders o
+		JOIN online_order_items i ON i.order_id = o.id
+		WHERE o.user_id = $1 AND i.product_id = $2 AND o.payment_status = 'paid'
+		ORDER BY o.created_at DESC LIMIT 1`
+
+	var id string
+	err := r.Db.QueryRow(ctx, query, userID, productID).Scan(&id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &id, nil
+}
+
+func scanReviewRow(row pgx.Row, rev *domain.ProductReview) error {
+	var orderID *string
+	if err := row.Scan(
+		&rev.ID, &rev.ProductID, &rev.UserID, &orderID,
+		&rev.Rating, &rev.Title, &rev.Body,
+		&rev.CreatedAt, &rev.UpdatedAt,
+		&rev.UserName,
+	); err != nil {
+		return err
+	}
+	rev.OrderID = orderID
+	return nil
+}
+
+const reviewSelectColumns = `
+	r.id, r.product_id, r.user_id, r.order_id,
+	r.rating, r.title, r.body,
+	r.created_at, r.updated_at,
+	COALESCE(u.full_name, '')`
+
+// UpsertProductReview creates or updates the (product, user) review row. The
+// `ON CONFLICT` clause refreshes the rating/title/body and bumps updated_at
+// but preserves the original order_id snapshot.
+func (r *StoreRepository) UpsertProductReview(ctx context.Context, rev domain.ProductReview) (*domain.ProductReview, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	query := `
+		INSERT INTO product_reviews (product_id, user_id, order_id, rating, title, body)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		ON CONFLICT (product_id, user_id) DO UPDATE
+		SET rating = EXCLUDED.rating,
+		    title = EXCLUDED.title,
+		    body = EXCLUDED.body,
+		    updated_at = NOW()
+		RETURNING id, created_at, updated_at`
+
+	err := r.Db.QueryRow(ctx, query,
+		rev.ProductID, rev.UserID, rev.OrderID, rev.Rating, rev.Title, rev.Body,
+	).Scan(&rev.ID, &rev.CreatedAt, &rev.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &rev, nil
+}
+
+// ListProductReviews paginates reviews for a product. `sort` accepts
+// "newest" (default), "highest", or "lowest". Returns the rows plus the
+// total count for the matching product so the caller can render pagination.
+func (r *StoreRepository) ListProductReviews(ctx context.Context, productID string, page, limit int, sort string) ([]domain.ProductReview, int, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	orderBy := "r.created_at DESC"
+	switch sort {
+	case "highest":
+		orderBy = "r.rating DESC, r.created_at DESC"
+	case "lowest":
+		orderBy = "r.rating ASC, r.created_at DESC"
+	}
+
+	var total int
+	if err := r.Db.QueryRow(ctx, `SELECT COUNT(*) FROM product_reviews WHERE product_id = $1`, productID).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * limit
+	query := `SELECT ` + reviewSelectColumns + `
+		FROM product_reviews r
+		LEFT JOIN users u ON u.id = r.user_id
+		WHERE r.product_id = $1
+		ORDER BY ` + orderBy + `
+		LIMIT $2 OFFSET $3`
+
+	rows, err := r.Db.Query(ctx, query, productID, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var reviews []domain.ProductReview
+	for rows.Next() {
+		var rev domain.ProductReview
+		if err := scanReviewRow(rows, &rev); err != nil {
+			return nil, 0, err
+		}
+		reviews = append(reviews, rev)
+	}
+	return reviews, total, nil
+}
+
+// GetProductReview fetches a single review by id (used by admin delete).
+func (r *StoreRepository) GetProductReview(ctx context.Context, id string) (*domain.ProductReview, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	query := `SELECT ` + reviewSelectColumns + `
+		FROM product_reviews r
+		LEFT JOIN users u ON u.id = r.user_id
+		WHERE r.id = $1`
+
+	var rev domain.ProductReview
+	err := scanReviewRow(r.Db.QueryRow(ctx, query, id), &rev)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, appErrors.ErrNotFound
+		}
+		return nil, err
+	}
+	return &rev, nil
+}
+
+// GetUserReviewForProduct lets the FE detect whether the current customer
+// already has a review on this product (so the form pre-fills with edits
+// instead of looking like a fresh submission).
+func (r *StoreRepository) GetUserReviewForProduct(ctx context.Context, userID, productID string) (*domain.ProductReview, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	query := `SELECT ` + reviewSelectColumns + `
+		FROM product_reviews r
+		LEFT JOIN users u ON u.id = r.user_id
+		WHERE r.user_id = $1 AND r.product_id = $2`
+
+	var rev domain.ProductReview
+	err := scanReviewRow(r.Db.QueryRow(ctx, query, userID, productID), &rev)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &rev, nil
+}
+
+func (r *StoreRepository) DeleteProductReview(ctx context.Context, id string) error {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	tag, err := r.Db.Exec(ctx, `DELETE FROM product_reviews WHERE id = $1`, id)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return appErrors.ErrNotFound
+	}
+	return nil
+}
+
+// RecomputeProductRating refreshes the denormalized rating_avg/rating_count
+// on store_products in a single statement. Called by the service after every
+// review create/update/delete so the aggregate stays in sync.
+func (r *StoreRepository) RecomputeProductRating(ctx context.Context, productID string) error {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	query := `
+		UPDATE store_products SET
+			rating_avg = COALESCE((SELECT ROUND(AVG(rating)::NUMERIC, 2) FROM product_reviews WHERE product_id = $1), 0),
+			rating_count = COALESCE((SELECT COUNT(*) FROM product_reviews WHERE product_id = $1), 0),
+			updated_at = NOW()
+		WHERE id = $1`
+
+	_, err := r.Db.Exec(ctx, query, productID)
+	return err
 }

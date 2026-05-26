@@ -2,7 +2,7 @@ import { CopyableEmail } from '../../components/common/CopyableEmail';
 
 export const Sponsorships = () => {
     return (
-        <div className="max-w-6xl mx-auto space-y-4 md:space-y-8 pb-12">
+        <div className="space-y-4 md:space-y-8 pb-12">
             <div className="bg-sffl-navy text-white p-10 rounded-3xl shadow-2xl relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-r from-sffl-red/30 to-sffl-navy/40" />
                 <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter relative z-10">PARTNERSHIPS & SPONSORSHIPS</h1>

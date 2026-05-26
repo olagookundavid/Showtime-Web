@@ -48,9 +48,34 @@ type StoreProductResponse struct {
 	IsActive    bool                     `json:"is_active"`
 	CreatedAt   time.Time                `json:"created_at"`
 	UpdatedAt   time.Time                `json:"updated_at"`
-	Images      []ProductImageResponse   `json:"images"`
-	Options     []ProductOptionDTO       `json:"options"`
-	Variants    []ProductVariantResponse `json:"variants"`
+	Images        []ProductImageResponse   `json:"images"`
+	Options       []ProductOptionDTO       `json:"options"`
+	Variants      []ProductVariantResponse `json:"variants"`
+	RatingAvg     float64                  `json:"rating_avg"`
+	RatingCount   int                      `json:"rating_count"`
+	CreatedByName string                   `json:"created_by_name,omitempty"`
+}
+
+// ProductReviewResponse is a single customer review surfaced on the storefront.
+type ProductReviewResponse struct {
+	ID        string    `json:"id"`
+	ProductID string    `json:"product_id"`
+	UserID    string    `json:"user_id"`
+	UserName  string    `json:"user_name"`           // "David O." style — preformatted server-side
+	Verified  bool      `json:"verified_purchase"`   // true when order_id is set
+	Rating    int       `json:"rating"`
+	Title     string    `json:"title,omitempty"`
+	Body      string    `json:"body,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// CreateProductReviewRequest is the customer-facing payload to create or
+// update a review. Title is optional, body too — only the rating is required.
+type CreateProductReviewRequest struct {
+	Rating int    `json:"rating" binding:"required,min=1,max=5"`
+	Title  string `json:"title"`
+	Body   string `json:"body"`
 }
 
 // SaveAddressRequest represents payload for users creating or saving shipping locations

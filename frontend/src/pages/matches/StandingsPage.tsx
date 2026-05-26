@@ -42,7 +42,7 @@ export const StandingsPage = () => {
     const selectedCompetition = competitions.find(c => c.id === selectedCompetitionId);
 
     return (
-        <div className="max-w-6xl mx-auto space-y-4 md:space-y-8 pb-20">
+        <div className="space-y-4 md:space-y-8 pb-20">
             {/* Header - Condensed */}
             <div className="flex flex-col md:flex-row justify-between items-center bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
                 <div>

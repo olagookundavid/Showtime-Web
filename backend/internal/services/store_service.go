@@ -32,11 +32,17 @@ type IStoreService interface {
 	SaveProductImages(ctx context.Context, productID string, req []dto.ProductImageResponse) error
 
 	// Admin online e-commerce catalog CRUD actions
-	CreateStoreProduct(ctx context.Context, req dto.CreateStoreProductRequest) (*dto.StoreProductResponse, error)
+	CreateStoreProduct(ctx context.Context, createdBy string, req dto.CreateStoreProductRequest) (*dto.StoreProductResponse, error)
 	UpdateStoreProduct(ctx context.Context, id string, req dto.UpdateStoreProductRequest) error
 	DeleteStoreProduct(ctx context.Context, id string) error
 	ListAllStoreProducts(ctx context.Context) ([]dto.StoreProductResponse, error)
 	CancelOrder(ctx context.Context, id string) (*dto.OrderResponse, error)
+
+	// Reviews
+	ListProductReviews(ctx context.Context, productID string, page, limit int, sort string) ([]dto.ProductReviewResponse, int, error)
+	CreateOrUpdateProductReview(ctx context.Context, userID, productID string, req dto.CreateProductReviewRequest) (*dto.ProductReviewResponse, error)
+	GetMyReviewForProduct(ctx context.Context, userID, productID string) (*dto.ProductReviewResponse, error)
+	DeleteProductReview(ctx context.Context, id string) error
 }
 
 type StoreService struct {
@@ -68,6 +74,9 @@ func mapProductToStoreResponse(p *domain.Product) dto.StoreProductResponse {
 		Images:      make([]dto.ProductImageResponse, 0, len(p.Images)),
 		Options:     make([]dto.ProductOptionDTO, 0, len(p.Options)),
 		Variants:    make([]dto.ProductVariantResponse, 0, len(p.Variants)),
+		RatingAvg:     p.RatingAvg,
+		RatingCount:   p.RatingCount,
+		CreatedByName: p.CreatedByName,
 	}
 
 	for _, img := range p.Images {
@@ -739,7 +748,7 @@ func generateProductSKU(name string) string {
 	return fmt.Sprintf("SFFL-%s-%s", prefix, suffix)
 }
 
-func (s *StoreService) CreateStoreProduct(ctx context.Context, req dto.CreateStoreProductRequest) (*dto.StoreProductResponse, error) {
+func (s *StoreService) CreateStoreProduct(ctx context.Context, createdBy string, req dto.CreateStoreProductRequest) (*dto.StoreProductResponse, error) {
 	if err := validateProductOptions(req.Options); err != nil {
 		return nil, err
 	}
@@ -756,6 +765,9 @@ func (s *StoreService) CreateStoreProduct(ctx context.Context, req dto.CreateSto
 		Threshold:   req.Threshold,
 		IsActive:    req.IsActive,
 		Options:     mapOptionsToDomain(req.Options),
+	}
+	if createdBy != "" {
+		p.CreatedBy = &createdBy
 	}
 	created, err := s.repo.CreateStoreProduct(ctx, p)
 	if err != nil {
@@ -866,5 +878,118 @@ func (s *StoreService) ListAllStoreProducts(ctx context.Context) ([]dto.StorePro
 		responses = append(responses, mapProductToStoreResponse(&p))
 	}
 	return responses, nil
+}
+
+// ─── Reviews ──────────────────────────────────────────────────────────────
+
+// formatReviewerName turns "David Oh" into "David O." — keeps reviews
+// recognizable without exposing the full last name.
+func formatReviewerName(full string) string {
+	full = strings.TrimSpace(full)
+	if full == "" {
+		return "Anonymous"
+	}
+	parts := strings.Fields(full)
+	if len(parts) == 1 {
+		return parts[0]
+	}
+	last := parts[len(parts)-1]
+	return fmt.Sprintf("%s %s.", strings.Join(parts[:len(parts)-1], " "), string(last[0]))
+}
+
+func mapReviewToResponse(r *domain.ProductReview) dto.ProductReviewResponse {
+	return dto.ProductReviewResponse{
+		ID:        r.ID,
+		ProductID: r.ProductID,
+		UserID:    r.UserID,
+		UserName:  formatReviewerName(r.UserName),
+		Verified:  r.OrderID != nil,
+		Rating:    r.Rating,
+		Title:     r.Title,
+		Body:      r.Body,
+		CreatedAt: r.CreatedAt,
+		UpdatedAt: r.UpdatedAt,
+	}
+}
+
+func (s *StoreService) ListProductReviews(ctx context.Context, productID string, page, limit int, sort string) ([]dto.ProductReviewResponse, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 50 {
+		limit = 10
+	}
+	rows, total, err := s.repo.ListProductReviews(ctx, productID, page, limit, sort)
+	if err != nil {
+		return nil, 0, err
+	}
+	responses := make([]dto.ProductReviewResponse, 0, len(rows))
+	for i := range rows {
+		responses = append(responses, mapReviewToResponse(&rows[i]))
+	}
+	return responses, total, nil
+}
+
+// CreateOrUpdateProductReview enforces the verified-purchase rule: the caller
+// must have at least one paid order containing this product. Reviews from the
+// same user upsert in place so editing a review doesn't double-count it.
+func (s *StoreService) CreateOrUpdateProductReview(ctx context.Context, userID, productID string, req dto.CreateProductReviewRequest) (*dto.ProductReviewResponse, error) {
+	orderID, err := s.repo.FindPaidOrderForProduct(ctx, userID, productID)
+	if err != nil {
+		return nil, err
+	}
+	if orderID == nil {
+		return nil, errors.New("only customers who have purchased this product can leave a review")
+	}
+
+	saved, err := s.repo.UpsertProductReview(ctx, domain.ProductReview{
+		ProductID: productID,
+		UserID:    userID,
+		OrderID:   orderID,
+		Rating:    req.Rating,
+		Title:     strings.TrimSpace(req.Title),
+		Body:      strings.TrimSpace(req.Body),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.repo.RecomputeProductRating(ctx, productID); err != nil {
+		fmt.Printf("⚠️ failed to recompute rating for product %s: %s\n", productID, err.Error())
+	}
+
+	// Re-read to pick up the joined user name for the response.
+	fresh, err := s.repo.GetProductReview(ctx, saved.ID)
+	if err != nil {
+		return nil, err
+	}
+	res := mapReviewToResponse(fresh)
+	return &res, nil
+}
+
+func (s *StoreService) GetMyReviewForProduct(ctx context.Context, userID, productID string) (*dto.ProductReviewResponse, error) {
+	rev, err := s.repo.GetUserReviewForProduct(ctx, userID, productID)
+	if err != nil {
+		return nil, err
+	}
+	if rev == nil {
+		return nil, nil
+	}
+	res := mapReviewToResponse(rev)
+	return &res, nil
+}
+
+func (s *StoreService) DeleteProductReview(ctx context.Context, id string) error {
+	rev, err := s.repo.GetProductReview(ctx, id)
+	if err != nil {
+		return err
+	}
+	if err := s.repo.DeleteProductReview(ctx, id); err != nil {
+		return err
+	}
+	if err := s.repo.RecomputeProductRating(ctx, rev.ProductID); err != nil {
+		fmt.Printf("⚠️ failed to recompute rating after deleting review %s: %s\n", id, err.Error())
+	}
+	return nil
 }
 

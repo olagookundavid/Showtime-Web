@@ -382,6 +382,53 @@ export const getAdminTeamSheet = async (matchId: string): Promise<MatchTeamSheet
     return response.data.data;
 };
 
+// ─── Bulk historical-data CSV import ──────────────────────────────────────────
+export interface ImportMatchPlayerRow {
+    side: 'home' | 'away';
+    player_name: string;
+    jersey_number?: number;
+    position?: string;
+    passing_attempts?: number;
+    rushing_attempts?: number;
+    completed_passes?: number;
+    passing_tds?: number;
+    rushing_tds?: number;
+    interceptions_thrown?: number;
+    receptions?: number;
+    receiving_tds?: number;
+    extra_points_tds?: number;
+    drops?: number;
+    flag_pulls?: number;
+    pass_deflections?: number;
+    interceptions?: number;
+    defensive_tds?: number;
+    safety?: number;
+    qb_sacks?: number;
+    def_sacks?: number;
+}
+
+export interface ImportMatchResult {
+    players_created: number;
+    players_matched: number;
+    sheet_rows: number;
+    stat_rows: number;
+    created_players?: Array<{
+        id: string;
+        name: string;
+        team_id: string;
+        jersey_number: number;
+        position: string;
+    }>;
+}
+
+export const importMatchCsv = async (matchId: string, rows: ImportMatchPlayerRow[]): Promise<ImportMatchResult> => {
+    const res = await api.post<{ message: string; data: ImportMatchResult }>(
+        `/admin/matches/${matchId}/import`,
+        { rows },
+    );
+    return res.data.data;
+};
+
 // ─── Player Mutations ─────────────────────────────────────────────────────────
 export const createPlayer = async (payload: CreatePlayerPayload) => {
     const response = await api.post('/admin/players', payload);
@@ -1113,7 +1160,31 @@ export interface StoreProduct {
     images: ProductImage[];
     options: ProductOption[];
     variants: ProductVariant[];
+    rating_avg: number;
+    rating_count: number;
+    created_by_name?: string;
 }
+
+export interface ProductReview {
+    id: string;
+    product_id: string;
+    user_id: string;
+    user_name: string;
+    verified_purchase: boolean;
+    rating: number;
+    title?: string;
+    body?: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface CreateProductReviewPayload {
+    rating: number;
+    title?: string;
+    body?: string;
+}
+
+export type ReviewSort = 'newest' | 'highest' | 'lowest';
 
 export interface CheckoutItemPayload {
     product_id: string;
@@ -1229,7 +1300,7 @@ export const getAdminStoreProducts = async (): Promise<StoreProduct[]> => {
     return response.data.data || [];
 };
 
-type AdminStoreProductPayload = Omit<StoreProduct, 'id' | 'sku' | 'created_at' | 'updated_at' | 'images' | 'variants' | 'options'> & {
+type AdminStoreProductPayload = Omit<StoreProduct, 'id' | 'sku' | 'created_at' | 'updated_at' | 'images' | 'variants' | 'options' | 'rating_avg' | 'rating_count' | 'created_by_name'> & {
     sku?: string;
     options: ProductOption[];
 };
@@ -1295,6 +1366,30 @@ export const saveAdminProductVariants = async (productId: string, variants: Admi
 
 export const saveAdminProductImages = async (productId: string, images: Omit<ProductImage, 'id'>[]): Promise<any> => {
     const response = await api.post(`/admin/store/products/${productId}/images`, images);
+    return response.data;
+};
+
+// ─── Product Reviews ──────────────────────────────────────────────────────
+
+export const getProductReviews = async (productId: string, page = 1, limit = 10, sort: ReviewSort = 'newest'): Promise<{ data: ProductReview[]; total: number; page: number; limit: number; total_pages: number }> => {
+    const response = await api.get<{ data: ProductReview[]; total: number; page: number; limit: number; total_pages: number }>(
+        `/store/products/${productId}/reviews?page=${page}&limit=${limit}&sort=${sort}`
+    );
+    return response.data;
+};
+
+export const createProductReview = async (productId: string, payload: CreateProductReviewPayload): Promise<ProductReview> => {
+    const response = await api.post<{ data: ProductReview }>(`/store/products/${productId}/reviews`, payload);
+    return response.data.data;
+};
+
+export const getMyProductReview = async (productId: string): Promise<ProductReview | null> => {
+    const response = await api.get<{ data: ProductReview | null }>(`/store/products/${productId}/reviews/mine`);
+    return response.data.data;
+};
+
+export const deleteAdminProductReview = async (id: string): Promise<any> => {
+    const response = await api.delete(`/admin/store/reviews/${id}`);
     return response.data;
 };
 

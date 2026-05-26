@@ -82,6 +82,22 @@ type Order struct {
 	Items              []OrderItem `json:"items,omitempty"`
 }
 
+// ProductReview is a customer-written rating on a storefront product. Only
+// customers with a paid order containing the product can post one; one review
+// per (product, user) is enforced at the DB level.
+type ProductReview struct {
+	ID            string    `json:"id"`
+	ProductID     string    `json:"product_id"`
+	UserID        string    `json:"user_id"`
+	OrderID       *string   `json:"order_id,omitempty"`
+	UserName      string    `json:"user_name,omitempty"` // joined from users table at read time
+	Rating        int       `json:"rating"`
+	Title         string    `json:"title,omitempty"`
+	Body          string    `json:"body,omitempty"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
 // OrderItem represents a single item configuration within an online order.
 // VariantLabel is a snapshot of the human-readable variant tuple at the time
 // the order was placed (e.g. "Size: M, Color: Navy") so receipts stay intact

@@ -69,7 +69,7 @@ export const PlayerDetail = () => {
     }
 
     return (
-        <div className="max-w-6xl mx-auto space-y-4 md:space-y-8">
+        <div className="space-y-4 md:space-y-8">
             {/* Back Button */}
             <Link to="/players" className="inline-flex items-center text-sffl-red hover:underline font-bold text-xs uppercase tracking-wider px-2">
                 ← Back to Players

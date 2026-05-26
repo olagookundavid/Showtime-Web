@@ -9,6 +9,7 @@ import {
 } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { AdminTeamSheetModal } from '../../components/admin/AdminTeamSheetModal';
+import { AdminImportMatchModal } from '../../components/admin/AdminImportMatchModal';
 
 interface FormData {
     competition_id: string;
@@ -41,6 +42,7 @@ export const AdminMatches = () => {
     const [saving, setSaving] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
     const [teamSheetMatch, setTeamSheetMatch] = useState<Match | null>(null);
+    const [importMatch, setImportMatch] = useState<Match | null>(null);
 
     // Filters
     const [filterComp, setFilterComp] = useState('');
@@ -327,6 +329,7 @@ export const AdminMatches = () => {
                                                             {!isCompleted ? (
                                                                 <>
                                                                     <button onClick={() => setTeamSheetMatch(m)} className="px-2.5 py-1 bg-purple-50 text-purple-600 hover:bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400 dark:hover:bg-purple-900/50 font-bold text-xs rounded-md shadow-sm transition-all">Team Sheet</button>
+                                                                    <button onClick={() => setImportMatch(m)} className="px-2.5 py-1 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 font-bold text-xs rounded-md shadow-sm transition-all">Import CSV</button>
                                                                     <button onClick={() => openEdit(m)} className="px-2.5 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 font-bold text-xs rounded-md shadow-sm transition-all">Edit</button>
                                                                     <button onClick={() => setDeleteConfirm(m.id)} className="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-bold text-xs rounded-md shadow-sm transition-all">Delete</button>
                                                                 </>
@@ -476,9 +479,17 @@ export const AdminMatches = () => {
 
             {/* Team Sheet Modal */}
             {teamSheetMatch && (
-                <AdminTeamSheetModal 
-                    match={teamSheetMatch} 
-                    onClose={() => setTeamSheetMatch(null)} 
+                <AdminTeamSheetModal
+                    match={teamSheetMatch}
+                    onClose={() => setTeamSheetMatch(null)}
+                />
+            )}
+
+            {/* CSV Import Modal */}
+            {importMatch && (
+                <AdminImportMatchModal
+                    match={importMatch}
+                    onClose={() => setImportMatch(null)}
                 />
             )}
         </div>
