@@ -288,9 +288,12 @@ export const ProductReviewsPage = () => {
                                     {submitting ? 'Saving…' : myReview ? 'Update Review' : 'Submit Review'}
                                 </button>
 
-                                <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-relaxed">
-                                    Only customers who have purchased this product can leave a review. Your name appears as "First L."
-                                </p>
+                                <div className="flex items-start gap-2 bg-sffl-navy/5 dark:bg-sffl-navy/30 border border-sffl-navy/15 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-sffl-navy dark:text-gray-200 leading-relaxed">
+                                    <span className="text-sffl-red font-black mt-0.5">ⓘ</span>
+                                    <p>
+                                        Only customers who have purchased this product can leave a review. Your name appears as your first name + last initial (e.g. <span className="font-bold">"John D."</span>).
+                                    </p>
+                                </div>
                             </form>
                         )}
                     </div>
