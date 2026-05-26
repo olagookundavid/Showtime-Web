@@ -18,7 +18,7 @@ import { formatVariantLabel } from '../utils/storeStock';
 export const CheckoutPage = () => {
     const [searchParams] = useSearchParams();
     const { user, isAuthenticated } = useAuth();
-    const { items: cartItems, subtotal: cartSubtotal, clear: clearCart } = useCart();
+    const { items: cartItems, subtotal: cartSubtotal } = useCart();
     const queryClient = useQueryClient();
 
     // Cart-mode (when arriving from /store/cart) takes the line items straight
@@ -209,9 +209,10 @@ export const CheckoutPage = () => {
             if (!isAllowedPaystackUrl(response.paystack_url)) {
                 throw new Error('Unexpected payment redirect URL — checkout aborted for your safety.');
             }
-            // Cart converted into a Paystack transaction — clear it so coming
-            // back to /store/cart doesn't show the same items as still-pending.
-            if (isCartCheckout) clearCart();
+            // Deliberately DO NOT clear the cart here. The clear happens on
+            // the confirmation page once payment_status flips to 'paid' — that
+            // way a customer who bails at Paystack or whose payment fails
+            // returns to /store/cart with their items intact and can retry.
             window.location.href = response.paystack_url;
         } catch (err: any) {
             setPayError(err.response?.data?.error || err.message || 'Failed to initialize Paystack checkout. Please try again.');

@@ -1,12 +1,16 @@
+import { useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams, Link } from 'react-router-dom';
 import { getOrderByReference } from '../services/api';
 import { Loader } from '../components/ui/Loader';
 import { OrderLifecycleStepper } from '../components/store/OrderLifecycleStepper';
+import { useCart } from '../contexts/CartContext';
 
 export const OrderConfirmationPage = () => {
     const [searchParams] = useSearchParams();
     const reference = searchParams.get('reference') || searchParams.get('trxref');
+    const { removeItem } = useCart();
+    const cartClearedRef = useRef(false);
 
     // Poll the order until payment_status moves off 'pending'. The Paystack
     // webhook lands milliseconds-to-seconds after the redirect — stop polling
@@ -23,6 +27,17 @@ export const OrderConfirmationPage = () => {
         retry: 6, // ~6 retries while order row hasn't been written yet
         retryDelay: 1500,
     });
+
+    // Clear purchased lines from the cart once payment is confirmed. We hold
+    // off until 'paid' (not at checkout submit) so a customer who bails at
+    // Paystack or whose payment fails still finds their cart intact and can
+    // retry. Guarded by a ref so polling re-renders don't re-fire the clear.
+    useEffect(() => {
+        if (cartClearedRef.current) return;
+        if (order?.payment_status !== 'paid') return;
+        order.items?.forEach(item => removeItem(item.product_id, item.variant_id));
+        cartClearedRef.current = true;
+    }, [order, removeItem]);
 
     const loading = !reference ? false : (isLoading && failureCount < 6);
     const error = !reference
@@ -77,6 +92,14 @@ export const OrderConfirmationPage = () => {
                 <p className="text-sm opacity-90 font-bold uppercase tracking-wider">
                     {isPaid ? 'Thank you for your purchase!' : isPending ? 'Your payment is being processed' : 'Your payment could not be completed'}
                 </p>
+                {!isPaid && !isPending && (
+                    <Link
+                        to="/store/cart"
+                        className="inline-block mt-5 bg-white text-sffl-red hover:bg-gray-100 px-6 py-2.5 rounded-full font-black uppercase tracking-wider text-xs shadow-md transition"
+                    >
+                        ← Try Again
+                    </Link>
+                )}
             </div>
 
             {/* Lifecycle stepper — Order Placed → Paid → Preparing → Shipped → Delivered.
