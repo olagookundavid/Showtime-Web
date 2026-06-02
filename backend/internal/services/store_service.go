@@ -502,7 +502,7 @@ func (s *StoreService) dispatchResendEmails(order *domain.Order) {
 	// also our admin notification recipient (same operator inbox).
 	adminEmail := os.Getenv("RESEND_FROM_EMAIL")
 	if adminEmail == "" {
-		adminEmail = "store-admin@sffl.football"
+		adminEmail = "showtime@sffl.football"
 	}
 
 	adminHTML := fmt.Sprintf(`
