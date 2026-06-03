@@ -145,16 +145,16 @@ func (r *PostgresStatsRepository) GetPlayerStats(ctx context.Context, filter dom
 	}
 
 	query := fmt.Sprintf(`
-		SELECT 
-			ps.player_id, 
-			p.name AS player_name, 
-			p.image AS player_image, 
-			p.jersey_number AS player_jersey_number, 
-			p.position AS player_position,
-			ps.team_id, 
-			t.name AS team_name, 
-			t.short_name AS team_short_name, 
-			t.logo AS team_logo,
+		SELECT
+			ps.player_id,
+			p.name AS player_name,
+			COALESCE(p.image, '') AS player_image,
+			COALESCE(p.jersey_number, 0) AS player_jersey_number,
+			COALESCE(p.position, '') AS player_position,
+			ps.team_id,
+			t.name AS team_name,
+			COALESCE(t.short_name, '') AS team_short_name,
+			COALESCE(t.logo, '') AS team_logo,
 			COUNT(ps.match_date) AS apps,
 			SUM(ps.passing_attempts) AS passing_attempts,
 			SUM(ps.rushing_attempts) AS rushing_attempts,
@@ -177,7 +177,7 @@ func (r *PostgresStatsRepository) GetPlayerStats(ctx context.Context, filter dom
 		JOIN players p ON ps.player_id = p.id
 		JOIN teams t ON ps.team_id = t.id
 		%s
-		GROUP BY 
+		GROUP BY
 			ps.player_id, p.name, p.image, p.jersey_number, p.position,
 			ps.team_id, t.name, t.short_name, t.logo
 		ORDER BY SUM(ps.passing_attempts) DESC
@@ -234,11 +234,11 @@ func (r *PostgresStatsRepository) GetTeamStats(ctx context.Context, filter domai
 	}
 
 	query := fmt.Sprintf(`
-		SELECT 
-			ps.team_id, 
-			t.name AS team_name, 
-			t.short_name AS team_short_name, 
-			t.logo AS team_logo,
+		SELECT
+			ps.team_id,
+			t.name AS team_name,
+			COALESCE(t.short_name, '') AS team_short_name,
+			COALESCE(t.logo, '') AS team_logo,
 			SUM(ps.passing_attempts) AS passing_attempts,
 			SUM(ps.rushing_attempts) AS rushing_attempts,
 			SUM(ps.completed_passes) AS completed_passes,
