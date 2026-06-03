@@ -5,6 +5,7 @@ import (
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/services"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,22 +27,36 @@ func NewPlayerHandler(service services.IPlayerService) IPlayerHandler {
 }
 
 // GetPlayers godoc
-// @Summary      Get players (optionally filtered by team)
+// @Summary      Get players (paginated, optionally filtered by team or search)
 // @Tags         players
 // @Param        team_id query string false "Team ID"
+// @Param        search  query string false "Search by name or position"
+// @Param        page    query int    false "Page number (default 1)"
+// @Param        limit   query int    false "Page size (default 20, no upper cap)"
 // @Produce      json
-// @Success      200  {object}  map[string]string
+// @Success      200 {object} dto.PaginatedResult[dto.PlayerResponse]
 // @Router       /api/v1/players [get]
 func (h *PlayerHandler) GetPlayers(c *gin.Context) {
 	teamID := c.Query("team_id")
 	searchTerm := c.Query("search")
 
-	players, err := h.service.GetPlayers(c.Request.Context(), teamID, searchTerm)
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if page < 1 {
+		page = 1
+	}
+	// limit defaults to 20 when missing or invalid; callers (admin/team-sheet pickers)
+	// can pass higher values explicitly and the backend will respect them.
+	limit, err := strconv.Atoi(c.Query("limit"))
+	if err != nil || limit <= 0 {
+		limit = 20
+	}
+
+	result, err := h.service.GetPlayers(c.Request.Context(), teamID, searchTerm, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": players})
+	c.JSON(http.StatusOK, result)
 }
 
 // GetPlayerByID godoc

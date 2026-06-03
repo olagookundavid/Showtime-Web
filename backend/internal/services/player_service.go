@@ -10,7 +10,7 @@ import (
 )
 
 type IPlayerService interface {
-	GetPlayers(ctx context.Context, teamID string, search string) ([]dto.PlayerResponse, error)
+	GetPlayers(ctx context.Context, teamID string, search string, page, limit int) (dto.PaginatedResult[dto.PlayerResponse], error)
 	GetPlayerByID(ctx context.Context, id string) (*dto.PlayerResponse, error)
 	CreatePlayer(ctx context.Context, player *domain.Player) error
 	UpdatePlayer(ctx context.Context, player *domain.Player) error
@@ -26,13 +26,13 @@ func NewPlayerService(repo ports.PlayerRepository, storage ports.StorageService)
 	return &PlayerService{repo: repo, storage: storage}
 }
 
-func (s *PlayerService) GetPlayers(ctx context.Context, teamID string, search string) ([]dto.PlayerResponse, error) {
-	players, err := s.repo.GetPlayers(ctx, teamID, search)
+func (s *PlayerService) GetPlayers(ctx context.Context, teamID string, search string, page, limit int) (dto.PaginatedResult[dto.PlayerResponse], error) {
+	players, total, err := s.repo.GetPlayers(ctx, teamID, search, page, limit)
 	if err != nil {
-		return nil, err
+		return dto.PaginatedResult[dto.PlayerResponse]{}, err
 	}
 
-	var res []dto.PlayerResponse
+	res := make([]dto.PlayerResponse, 0, len(players))
 	for _, p := range players {
 		pr := dto.PlayerResponse{
 			ID:           p.ID,
@@ -53,7 +53,19 @@ func (s *PlayerService) GetPlayers(ctx context.Context, teamID string, search st
 		}
 		res = append(res, pr)
 	}
-	return res, nil
+
+	totalPages := 0
+	if limit > 0 {
+		totalPages = int((total + int64(limit) - 1) / int64(limit))
+	}
+
+	return dto.PaginatedResult[dto.PlayerResponse]{
+		Data:       res,
+		Total:      int(total),
+		Page:       page,
+		Limit:      limit,
+		TotalPages: totalPages,
+	}, nil
 }
 
 func (s *PlayerService) GetPlayerByID(ctx context.Context, id string) (*dto.PlayerResponse, error) {

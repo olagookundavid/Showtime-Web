@@ -10,7 +10,7 @@ import (
 )
 
 type PlayerRepository interface {
-	GetPlayers(ctx context.Context, teamID string, search string) ([]domain.Player, error)
+	GetPlayers(ctx context.Context, teamID string, search string, page, limit int) ([]domain.Player, int64, error)
 	GetPlayerByID(ctx context.Context, id string) (*domain.Player, error)
 	CreatePlayer(ctx context.Context, player *domain.Player) error
 	UpdatePlayer(ctx context.Context, player *domain.Player) error
@@ -25,7 +25,28 @@ func NewPlayerRepository(db *pgxpool.Pool) *PostgresPlayerRepository {
 	return &PostgresPlayerRepository{db: db}
 }
 
-func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string, search string) ([]domain.Player, error) {
+func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string, search string, page, limit int) ([]domain.Player, int64, error) {
+	whereClause := ` WHERE 1=1`
+	args := []any{}
+	argCount := 1
+
+	if teamID != "" {
+		whereClause += ` AND p.team_id = $` + strconv.Itoa(argCount)
+		args = append(args, teamID)
+		argCount++
+	}
+
+	if search != "" {
+		whereClause += ` AND (p.name ILIKE $` + strconv.Itoa(argCount) + ` OR p.position ILIKE $` + strconv.Itoa(argCount) + `)`
+		args = append(args, "%"+search+"%")
+		argCount++
+	}
+
+	var total int64
+	if err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM players p`+whereClause, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
 	query := `
 		SELECT
 			p.id, p.name,
@@ -35,29 +56,21 @@ func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string
 			p.created_at, p.updated_at,
 			COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, '')
 		FROM players p
-		LEFT JOIN teams t ON p.team_id = t.id
-		WHERE 1=1
-	`
-	args := []any{}
-	argCount := 1
+		LEFT JOIN teams t ON p.team_id = t.id` + whereClause +
+		` ORDER BY p.jersey_number ASC`
 
-	if teamID != "" {
-		query += ` AND p.team_id = $` + strconv.Itoa(argCount)
-		args = append(args, teamID)
-		argCount++
+	if limit > 0 {
+		offset := (page - 1) * limit
+		if offset < 0 {
+			offset = 0
+		}
+		query += ` LIMIT $` + strconv.Itoa(argCount) + ` OFFSET $` + strconv.Itoa(argCount+1)
+		args = append(args, limit, offset)
 	}
-
-	if search != "" {
-		query += ` AND (p.name ILIKE $` + strconv.Itoa(argCount) + ` OR p.position ILIKE $` + strconv.Itoa(argCount) + `)`
-		args = append(args, "%"+search+"%")
-		argCount++
-	}
-
-	query += ` ORDER BY p.jersey_number ASC`
 
 	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -71,12 +84,12 @@ func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string
 			&p.Team.Name, &p.Team.ShortName, &p.Team.Logo,
 		)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		p.Team.ID = p.TeamID
 		players = append(players, p)
 	}
-	return players, nil
+	return players, total, nil
 }
 
 func (r *PostgresPlayerRepository) GetPlayerByID(ctx context.Context, id string) (*domain.Player, error) {

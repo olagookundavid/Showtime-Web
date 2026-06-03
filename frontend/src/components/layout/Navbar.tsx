@@ -78,6 +78,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                     <div className="hidden lg:flex items-center gap-5 xl:gap-6 uppercase font-bold text-xs xl:text-sm tracking-wide">
                         <Link to="/matches" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105">Matches</Link>
                         <Link to="/standings" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105">Standings</Link>
+                        <Link to="/teams" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105">Teams</Link>
                         <Link to="/players" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105">Players</Link>
                         <Link to="/stats" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105">Stats</Link>
                         <Link to="/news" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105">News</Link>

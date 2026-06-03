@@ -38,6 +38,7 @@ import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { HighlightsPage } from './pages/HighlightsPage';
 import { PlayersPage } from './pages/players/PlayersPage';
 import { PlayerDetail } from './pages/players/PlayerDetail';
+import { TeamsPage } from './pages/teams/TeamsPage';
 import { AdminLayout } from './pages/admin/AdminLayout';
 import { Dashboard } from './pages/admin/Dashboard';
 import { AdminMatches } from './pages/admin/AdminMatches';
@@ -102,6 +103,9 @@ function App() {
               {/* Player Profiles */}
               <Route path="/players" element={<PlayersPage />} />
               <Route path="/players/:id" element={<PlayerDetail />} />
+
+              {/* Teams */}
+              <Route path="/teams" element={<TeamsPage />} />
 
               {/* Store Pages */}
               <Route path="/store" element={<StorePage />} />
