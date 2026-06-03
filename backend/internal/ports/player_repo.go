@@ -28,9 +28,12 @@ func NewPlayerRepository(db *pgxpool.Pool) *PostgresPlayerRepository {
 func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string, search string) ([]domain.Player, error) {
 	query := `
 		SELECT
-			p.id, p.name, p.jersey_number, p.position, p.team_id, p.bio, p.image, p.email,
+			p.id, p.name,
+			COALESCE(p.jersey_number, 0), COALESCE(p.position, ''),
+			COALESCE(p.team_id::text, ''),
+			COALESCE(p.bio, ''), COALESCE(p.image, ''), p.email,
 			p.created_at, p.updated_at,
-			t.name, t.short_name, t.logo
+			COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, '')
 		FROM players p
 		LEFT JOIN teams t ON p.team_id = t.id
 		WHERE 1=1
@@ -79,9 +82,12 @@ func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string
 func (r *PostgresPlayerRepository) GetPlayerByID(ctx context.Context, id string) (*domain.Player, error) {
 	query := `
 		SELECT
-			p.id, p.name, p.jersey_number, p.position, p.team_id, p.bio, p.image, p.email,
+			p.id, p.name,
+			COALESCE(p.jersey_number, 0), COALESCE(p.position, ''),
+			COALESCE(p.team_id::text, ''),
+			COALESCE(p.bio, ''), COALESCE(p.image, ''), p.email,
 			p.created_at, p.updated_at,
-			t.name, t.short_name, t.logo
+			COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, '')
 		FROM players p
 		LEFT JOIN teams t ON p.team_id = t.id
 		WHERE p.id = $1

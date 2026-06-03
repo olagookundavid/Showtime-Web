@@ -712,7 +712,11 @@ func (r *PostgresMatchRepository) GetMatchDaysByCompetition(ctx context.Context,
 func (r *PostgresMatchRepository) GetEligiblePlayersForMatchDay(ctx context.Context, competitionID string, date string) ([]domain.Player, error) {
 	query := `
 		SELECT DISTINCT
-			p.id, p.name, p.jersey_number, p.position, p.team_id, p.bio,
+			p.id, p.name,
+			COALESCE(p.jersey_number, 0) AS jersey_number,
+			COALESCE(p.position, '') AS position,
+			p.team_id,
+			COALESCE(p.bio, '') AS bio,
 			COALESCE(p.image, '') AS image,
 			COALESCE(p.email, '') AS email,
 			p.created_at, p.updated_at,
