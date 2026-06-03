@@ -30,6 +30,7 @@ type IStoreRepository interface {
 	CancelOrderAndRestoreStock(ctx context.Context, orderID string) error
 	SaveProductVariants(ctx context.Context, productID string, variants []domain.ProductVariant) error
 	SaveProductImages(ctx context.Context, productID string, images []domain.ProductImage) error
+	ClearVariantImagePins(ctx context.Context, productID string, urls []string) error
 
 	// Reviews
 	FindPaidOrderForProduct(ctx context.Context, userID, productID string) (*string, error)
@@ -701,6 +702,23 @@ func nullableText(s string) interface{} {
 		return nil
 	}
 	return s
+}
+
+// ClearVariantImagePins nulls out variant.image_url for any variant of the
+// given product whose pinned image matches one of urls. Called after a product
+// image is removed so variants don't carry a dangling URL.
+func (r *StoreRepository) ClearVariantImagePins(ctx context.Context, productID string, urls []string) error {
+	if len(urls) == 0 {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	_, err := r.Db.Exec(ctx,
+		`UPDATE store_product_variants SET image_url = NULL, updated_at = NOW()
+		 WHERE product_id = $1 AND image_url = ANY($2)`,
+		productID, urls,
+	)
+	return err
 }
 
 func (r *StoreRepository) SaveProductImages(ctx context.Context, productID string, images []domain.ProductImage) error {

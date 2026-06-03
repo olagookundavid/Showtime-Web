@@ -9,6 +9,7 @@ import (
 	appErrors "showtime-backend/internal/errors"
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
+	"pkg-common/logger"
 	"showtime-backend/internal/ports"
 	"showtime-backend/pkg/email"
 	"strings"
@@ -49,13 +50,15 @@ type StoreService struct {
 	repo           ports.IStoreRepository
 	paystackClient *PaystackClient
 	emailService   *email.ResendService
+	storage        ports.StorageService
 }
 
-func NewStoreService(repo ports.IStoreRepository, paystackClient *PaystackClient, emailService *email.ResendService) IStoreService {
+func NewStoreService(repo ports.IStoreRepository, paystackClient *PaystackClient, emailService *email.ResendService, storage ports.StorageService) IStoreService {
 	return &StoreService{
 		repo:           repo,
 		paystackClient: paystackClient,
 		emailService:   emailService,
+		storage:        storage,
 	}
 }
 
@@ -725,6 +728,43 @@ func generateVariantSKU(productID, v1, v2, v3 string) string {
 }
 
 func (s *StoreService) SaveProductImages(ctx context.Context, productID string, req []dto.ProductImageResponse) error {
+	// Diff old vs new and async-delete the dropped images from R2 so dead
+	// objects don't pile up in the bucket. SaveProductImages has replace-all
+	// semantics on the DB side; this mirrors that on the storage side. Also
+	// null out any variant.image_url that pinned to a removed image so we
+	// don't ship a dangling URL on the storefront.
+	if s.storage != nil {
+		existing, err := s.repo.GetStoreProduct(ctx, productID)
+		if err == nil && existing != nil {
+			keep := make(map[string]struct{}, len(req))
+			for _, img := range req {
+				keep[img.ImageURL] = struct{}{}
+			}
+			var removedURLs []string
+			for _, old := range existing.Images {
+				if _, stillThere := keep[old.ImageURL]; stillThere || old.ImageURL == "" {
+					continue
+				}
+				removedURLs = append(removedURLs, old.ImageURL)
+			}
+			if len(removedURLs) > 0 {
+				if clearErr := s.repo.ClearVariantImagePins(ctx, productID, removedURLs); clearErr != nil {
+					logger.GetSingletonLogger().Error("Failed to clear variant image pins for removed product images", map[string]any{"product_id": productID, "error": clearErr.Error()})
+				}
+				for _, url := range removedURLs {
+					url := url
+					if jobErr := SubmitJob(func() {
+						if delErr := s.storage.DeleteObject(context.Background(), url); delErr != nil {
+							logger.GetSingletonLogger().Error("Failed to delete removed product image from R2", map[string]any{"url": url, "product_id": productID, "error": delErr.Error()})
+						}
+					}); jobErr != nil {
+						logger.GetSingletonLogger().Error(fmt.Sprintf("Failed to submit delete job for product image: %v", jobErr), nil)
+					}
+				}
+			}
+		}
+	}
+
 	images := make([]domain.ProductImage, 0, len(req))
 	for _, img := range req {
 		images = append(images, domain.ProductImage{

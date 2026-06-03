@@ -248,7 +248,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	statsService := services.NewStatsService(statsRepo, matchRepo)
 	inventoryService := services.NewInventoryService(inventoryRepo)
 	totwService := services.NewTOTWService(totwRepo)
-	storeService := services.NewStoreService(storeRepo, paystackClient, emailService)
+	storeService := services.NewStoreService(storeRepo, paystackClient, emailService, storageService)
 	importService := services.NewImportService(importRepo, matchRepo)
 
 	// Transport / Handlers

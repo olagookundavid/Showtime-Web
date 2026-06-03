@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -15,6 +15,7 @@ import {
 } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { ImageUploadField } from '../../components/ui/ImageUploadField';
+import { useImageUpload } from '../../hooks/useImageUpload';
 
 type Tab = 'PRODUCTS' | 'ORDERS';
 
@@ -119,6 +120,12 @@ export const AdminStore = () => {
     const [uploadTempImageUrl, setUploadTempImageUrl] = useState('');
     const [editorError, setEditorError] = useState('');
     const [isSavingEditor, setIsSavingEditor] = useState(false);
+    // URLs uploaded in this editor session but not yet persisted to the DB. If
+    // the admin removes one before saving (or closes the modal without saving)
+    // we fire DELETE /upload immediately so R2 doesn't accumulate orphans.
+    // Cleared on successful save (everything is now durable on the server).
+    const sessionUploadedUrlsRef = useRef<Set<string>>(new Set());
+    const { deleteImage } = useImageUpload();
 
     // Orders state
     const [ordersPage, setOrdersPage] = useState(1);
@@ -147,6 +154,7 @@ export const AdminStore = () => {
         setNewOptionValue(['', '', '']);
         setUploadTempImageUrl('');
         setEditorError('');
+        sessionUploadedUrlsRef.current = new Set();
     };
 
     const handleOpenCreate = () => {
@@ -184,10 +192,15 @@ export const AdminStore = () => {
         setNewOptionValue(['', '', '']);
         setUploadTempImageUrl('');
         setEditorError('');
+        sessionUploadedUrlsRef.current = new Set();
         setEditor({ kind: 'edit', product: p });
     };
 
     const handleCloseEditor = () => {
+        // Any image uploaded in this session that was never saved is now an
+        // orphan in R2 — async-delete each before tearing down state.
+        const orphans = Array.from(sessionUploadedUrlsRef.current);
+        orphans.forEach(url => { deleteImage(url); });
         setEditor(null);
         resetEditorState();
     };
@@ -277,6 +290,7 @@ export const AdminStore = () => {
                 display_order: prev.length,
             }];
         });
+        sessionUploadedUrlsRef.current.add(url);
         setUploadTempImageUrl('');
     };
 
@@ -285,7 +299,21 @@ export const AdminStore = () => {
     };
 
     const handleRemoveImage = (index: number) => {
+        const removed = images[index];
+        if (!removed) return;
+        // Drop the line.
         setImages(prev => prev.filter((_, i) => i !== index));
+        // If any variant was pinned to this image, unpin it so we don't ship a
+        // dangling URL on save.
+        setVariants(prev => prev.map(v => (v.image_url === removed.image_url ? { ...v, image_url: '' } : v)));
+        // If the image was uploaded in THIS session (not yet on the server),
+        // delete the R2 object immediately so it doesn't become an orphan.
+        // Images that came from the DB are left alone here — the backend will
+        // delete them from R2 when the product is saved.
+        if (sessionUploadedUrlsRef.current.has(removed.image_url)) {
+            sessionUploadedUrlsRef.current.delete(removed.image_url);
+            deleteImage(removed.image_url);
+        }
     };
 
     // Saves product + variants + images in one go. On create, we POST the
@@ -347,6 +375,9 @@ export const AdminStore = () => {
             await saveAdminProductVariants(productId, variantPayload);
             await saveAdminProductImages(productId, images);
 
+            // Everything is durable on the server now — don't let the
+            // close-handler treat these as orphans.
+            sessionUploadedUrlsRef.current = new Set();
             queryClient.invalidateQueries({ queryKey: ['adminStoreProducts'] });
             handleCloseEditor();
         } catch (err: any) {
