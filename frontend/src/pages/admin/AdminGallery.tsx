@@ -1,25 +1,39 @@
 import { Loader } from '../../components/ui/Loader';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-    getGallery, createGallery, updateGallery, deleteGallery,
-    type Gallery, type CreateGalleryPayload,
+    getGallery, createGallery, updateGallery, deleteGallery, getCompetitions,
+    type Gallery, type CreateGalleryPayload, type Competition,
 } from '../../services/api';
 
 interface FormData {
-    game_week: string; date: string; players_photo_url: string; fans_photo_url: string;
+    competition_id: string;
+    game_week: string;
+    date: string;
+    players_photo_url: string;
+    fans_photo_url: string;
 }
 
-const emptyForm: FormData = { game_week: '', date: '', players_photo_url: '', fans_photo_url: '' };
+const emptyForm: FormData = { competition_id: '', game_week: '', date: '', players_photo_url: '', fans_photo_url: '' };
 const PAGE_SIZE = 9;
+const ALL = 'ALL';
 
 export const AdminGallery = () => {
     const queryClient = useQueryClient();
     const [page, setPage] = useState(1);
+    const [filterComp, setFilterComp] = useState<string>(ALL);
+
+    const { data: compsData } = useQuery({
+        queryKey: ['adminCompetitions'],
+        queryFn: () => getCompetitions(1, 100),
+    });
+    const competitions: Competition[] = (compsData?.data || []).filter(c => c.status !== 'inactive');
+
+    const competitionFilter = filterComp === ALL ? undefined : filterComp;
 
     const { data: galleryData, isLoading: loading } = useQuery({
-        queryKey: ['adminGalleries', page],
-        queryFn: () => getGallery(page, PAGE_SIZE),
+        queryKey: ['adminGalleries', page, filterComp],
+        queryFn: () => getGallery(page, PAGE_SIZE, competitionFilter),
     });
 
     const galleries: Gallery[] = galleryData?.data || [];
@@ -31,17 +45,35 @@ export const AdminGallery = () => {
     const [saving, setSaving] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
-    const openCreate = () => { setEditingId(null); setForm(emptyForm); setShowModal(true); };
+    useEffect(() => { setPage(1); }, [filterComp]);
+
+    const openCreate = () => {
+        setEditingId(null);
+        setForm({ ...emptyForm, competition_id: filterComp !== ALL ? filterComp : (competitions[0]?.id || '') });
+        setShowModal(true);
+    };
     const openEdit = (g: Gallery) => {
         setEditingId(g.id);
-        setForm({ game_week: g.game_week, date: g.date, players_photo_url: g.players_photo_url || '', fans_photo_url: g.fans_photo_url || '' });
+        setForm({
+            competition_id: g.competition_id || '',
+            game_week: g.game_week,
+            date: g.date,
+            players_photo_url: g.players_photo_url || '',
+            fans_photo_url: g.fans_photo_url || '',
+        });
         setShowModal(true);
     };
 
     const handleSave = async () => {
         setSaving(true);
         try {
-            const payload: CreateGalleryPayload = { game_week: form.game_week, date: form.date, players_photo_url: form.players_photo_url, fans_photo_url: form.fans_photo_url };
+            const payload: CreateGalleryPayload = {
+                competition_id: form.competition_id || null,
+                game_week: form.game_week,
+                date: form.date,
+                players_photo_url: form.players_photo_url,
+                fans_photo_url: form.fans_photo_url,
+            };
             if (editingId) await updateGallery(editingId, payload);
             else await createGallery(payload);
             queryClient.invalidateQueries({ queryKey: ['adminGalleries'] });
@@ -62,9 +94,19 @@ export const AdminGallery = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <h1 className="text-3xl font-black text-sffl-navy dark:text-white">Gallery Management</h1>
-                <button onClick={openCreate} className="px-4 py-2 min-h-[44px] bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">+ Add Gallery</button>
+                <div className="flex flex-wrap items-center gap-2">
+                    <select
+                        value={filterComp}
+                        onChange={(e) => setFilterComp(e.target.value)}
+                        className="min-h-[44px] border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm font-medium"
+                    >
+                        <option value={ALL}>All competitions</option>
+                        {competitions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    <button onClick={openCreate} className="px-4 py-2 min-h-[44px] bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">+ Add Gallery</button>
+                </div>
             </div>
 
             {loading ? (
@@ -85,6 +127,14 @@ export const AdminGallery = () => {
                                         </div>
                                     </div>
                                     <div className="space-y-3 mb-6">
+                                        <div>
+                                            <span className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Competition</span>
+                                            {g.competition?.name ? (
+                                                <span className="text-sm font-medium text-sffl-navy dark:text-white">{g.competition.name}</span>
+                                            ) : (
+                                                <span className="text-sm text-gray-400 italic">Not set</span>
+                                            )}
+                                        </div>
                                         <div>
                                             <span className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Players Folder</span>
                                             {g.players_photo_url ? (
@@ -140,8 +190,15 @@ export const AdminGallery = () => {
                     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg">
                         <div className="p-6 border-b border-gray-200 dark:border-gray-700"><h2 className="text-2xl font-black text-sffl-navy dark:text-white">{editingId ? 'Edit Gallery' : 'New Gallery'}</h2></div>
                         <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Competition</label>
+                                <select value={form.competition_id} onChange={e => set('competition_id', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-[44px]">
+                                    <option value="">— None —</option>
+                                    {competitions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                </select>
+                            </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Game Week *</label><input type="text" value={form.game_week} onChange={e => set('game_week', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="e.g. Week 5" /></div>
+                                <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Game Week *</label><input type="text" value={form.game_week} onChange={e => set('game_week', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="e.g. Week 5 or Custom Day" /></div>
                                 <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Date *</label><input type="date" value={form.date} onChange={e => set('date', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" /></div>
                             </div>
                             <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Players Folder Link *</label><input type="url" value={form.players_photo_url} onChange={e => set('players_photo_url', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-sffl-red" placeholder="https://drive.google.com/..." /></div>

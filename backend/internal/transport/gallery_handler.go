@@ -50,12 +50,13 @@ func (h *GalleryHandler) CreateGallery(c *gin.Context) {
 
 // GetGallery godoc
 // @Summary Get all gallery items
-// @Description Get gallery items with pagination
+// @Description Get gallery items with pagination, optionally filtered by competition
 // @Tags gallery
 // @Accept json
 // @Produce json
 // @Param page query int false "Page number"
 // @Param limit query int false "Items per page"
+// @Param competition_id query string false "Filter by competition ID"
 // @Success 200 {object} dto.PaginatedResponse
 // @Router /api/v1/gallery [get]
 func (h *GalleryHandler) GetGallery(c *gin.Context) {
@@ -72,7 +73,12 @@ func (h *GalleryHandler) GetGallery(c *gin.Context) {
 		query.Limit = 10
 	}
 
-	response, err := h.service.GetGallery(c.Request.Context(), query)
+	var competitionID *string
+	if cid := c.Query("competition_id"); cid != "" {
+		competitionID = &cid
+	}
+
+	response, err := h.service.GetGallery(c.Request.Context(), competitionID, query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch gallery items"})
 		return

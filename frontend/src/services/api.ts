@@ -127,15 +127,21 @@ export const getNewsById = async (id: string) => {
 // ─── Gallery ──────────────────────────────────────────────────────────────────
 export interface Gallery {
     id: string;
+    competition_id?: string | null;
     game_week: string;
     date: string;
     players_photo_url: string;
     fans_photo_url: string;
     created_at: string;
+    competition?: Competition | null;
 }
 
-export const getGallery = async (page = 1, limit = 10) => {
-    const response = await api.get<PaginatedResponse<Gallery>>(`/gallery?page=${page}&limit=${limit}`);
+export const getGallery = async (page = 1, limit = 10, competitionId?: string) => {
+    let url = `/gallery?page=${page}&limit=${limit}`;
+    if (competitionId) {
+        url += `&competition_id=${encodeURIComponent(competitionId)}`;
+    }
+    const response = await api.get<PaginatedResponse<Gallery>>(url);
     return response.data;
 };
 
@@ -292,6 +298,7 @@ export interface CreateNewsPayload {
 }
 
 export interface CreateGalleryPayload {
+    competition_id?: string | null;
     game_week: string;
     date: string;
     players_photo_url: string;
