@@ -216,6 +216,7 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="Parse, pivot, and resolve matches but don't POST")
     ap.add_argument("--only", help="Substring filter on the fixture date string (e.g. 'Sun 24 Sep 2023')")
     ap.add_argument("--competition", default=COMPETITION_NAME, help="Fixture Group value to filter on (default: %(default)r)")
+    ap.add_argument("--competition-id", help="DB competition ID. Skips the name-based API lookup; use when the Excel name and DB name differ.")
     ap.add_argument("--sheet", help="Workbook sheet name to read. If omitted, all sheets are scanned for matching rows.")
     args = ap.parse_args()
 
@@ -242,8 +243,12 @@ def main():
 
     # Look up matches in the live DB.
     if not args.dry_run:
-        comp_id = fetch_competition_id(token, base_url, args.competition)
-        print(f"Competition ID: {comp_id}")
+        if args.competition_id:
+            comp_id = args.competition_id
+            print(f"Competition ID (from --competition-id): {comp_id}")
+        else:
+            comp_id = fetch_competition_id(token, base_url, args.competition)
+            print(f"Competition ID: {comp_id}")
         live_matches = fetch_all_matches(token, base_url, comp_id)
         print(f"Live matches in competition: {len(live_matches)}")
         idx = build_match_index(live_matches)
