@@ -223,6 +223,47 @@ def build_match_index(matches):
     return idx
 
 
+def report_missing_matches(by_match, idx, competition_name):
+    """Print a table of Excel fixtures with no matching DB record."""
+    missing = []
+    present_count = 0
+    for (date_iso, home, away), rows in sorted(by_match.items()):
+        home_db = TEAM_NAME_OVERRIDES.get(home.lower(), home)
+        away_db = TEAM_NAME_OVERRIDES.get(away.lower(), away)
+        key = (date_iso, home_db.lower(), away_db.lower())
+        if key in idx:
+            present_count += 1
+            continue
+        pivoted = pivot_match_rows(rows)
+        stat_lines = sum(1 for r in rows if r["Stat Desc"] != "Apps")
+        missing.append({
+            "date": date_iso,
+            "home": home_db,
+            "away": away_db,
+            "players": len(pivoted),
+            "stats": stat_lines,
+        })
+
+    total_fixtures = present_count + len(missing)
+    print(f"\n=== Report: {competition_name} ===")
+    print(f"Present in DB:  {present_count} / {total_fixtures}")
+    print(f"Missing in DB:  {len(missing)} / {total_fixtures}")
+    if not missing:
+        print("\n✅ All Excel fixtures match a DB record. Nothing to create.")
+        return
+
+    total_players = sum(m["players"] for m in missing)
+    total_stats = sum(m["stats"] for m in missing)
+    print(f"Missing volume: {total_players} player-rows, {total_stats} stat lines\n")
+
+    # Aligned column widths
+    name_w = max(20, max(len(m["home"]) for m in missing), max(len(m["away"]) for m in missing))
+    print(f"{'Date':<12} {'Home':<{name_w}} {'Away':<{name_w}} {'Players':>8} {'Stats':>6}")
+    print(f"{'-' * 12} {'-' * name_w} {'-' * name_w} {'-' * 8} {'-' * 6}")
+    for m in missing:
+        print(f"{m['date']:<12} {m['home']:<{name_w}} {m['away']:<{name_w}} {m['players']:>8} {m['stats']:>6}")
+
+
 # ---- Main --------------------------------------------------------------------
 
 def main():
@@ -233,6 +274,8 @@ def main():
     ap.add_argument("--competition", default=COMPETITION_NAME, help="Fixture Group value to filter on (default: %(default)r)")
     ap.add_argument("--competition-id", help="DB competition ID. Skips the name-based API lookup; use when the Excel name and DB name differ.")
     ap.add_argument("--sheet", help="Workbook sheet name to read. If omitted, all sheets are scanned for matching rows.")
+    ap.add_argument("--report-missing", action="store_true",
+                    help="Don't import; just list Excel fixtures with no matching DB match, including how many player-rows and stat lines each is worth.")
     args = ap.parse_args()
 
     token = os.environ.get("SHOWTIME_TOKEN")
@@ -256,8 +299,11 @@ def main():
 
     print(f"Found {len(by_match)} unique matches for {args.competition!r} ({len(raw_rows)} raw rows).")
 
-    # Look up matches in the live DB.
-    if not args.dry_run:
+    # --report-missing always needs the live DB; --dry-run alone doesn't.
+    needs_db = (not args.dry_run) or args.report_missing
+    if needs_db:
+        if not token:
+            raise SystemExit("SHOWTIME_TOKEN env var is required for --report-missing or live import")
         if args.competition_id:
             comp_id = args.competition_id
             print(f"Competition ID (from --competition-id): {comp_id}")
@@ -269,6 +315,11 @@ def main():
         idx = build_match_index(live_matches)
     else:
         idx = {}
+
+    # --report-missing: list fixtures with no DB match and exit, no imports.
+    if args.report_missing:
+        report_missing_matches(by_match, idx, args.competition)
+        return
 
     successes, failures, skipped = 0, 0, 0
     for (date_iso, home, away), rows in sorted(by_match.items()):
