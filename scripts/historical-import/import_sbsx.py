@@ -56,6 +56,14 @@ STAT_MAP = {
     "Interception Thrown": "interceptions_thrown",
     "Defensive TDs": "defensive_tds",
     "Safety": "safety",
+    # Added when Season XI+ exports started including these:
+    "Rushing Attempts": "rushing_attempts",
+    "Rushing TDs": "rushing_tds",
+    "Def. Sacks": "def_sacks",
+    # Yards columns (Passing Yards, Receiving Yards, Rushing Yards) and
+    # "Defensive TDs XP" are intentionally NOT mapped — the player_stats table
+    # has no columns for them. They will be reported in the "Unknown Stat Desc
+    # values ignored" warning and silently dropped.
 }
 
 # Excel team name (lowercased, after stripping the (CODE) suffix) -> DB team name.
