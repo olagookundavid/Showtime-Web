@@ -184,10 +184,17 @@ def pivot_match_rows(raw_rows: list[dict]) -> list[dict]:
 
 def fetch_competition_id(token, base_url, comp_name):
     resp = api_request("GET", f"/admin/competitions?search={urllib.parse.quote(comp_name)}", token, base_url)
-    for c in resp.get("data", []):
+    # The API returns {"data": null} when search has no matches, not {"data": []}.
+    candidates = resp.get("data") or []
+    for c in candidates:
         if c["name"].strip().lower() == comp_name.strip().lower():
             return c["id"]
-    raise SystemExit(f"Competition not found in API: {comp_name!r}. Got: {[c['name'] for c in resp.get('data', [])]}")
+    got = [c["name"] for c in candidates]
+    raise SystemExit(
+        f"Competition not found in API for search {comp_name!r}. "
+        f"Got: {got}. "
+        f"If the DB competition is named differently, pass --competition-id <uuid> instead."
+    )
 
 def fetch_all_matches(token, base_url, competition_id):
     out = []
