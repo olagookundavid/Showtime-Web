@@ -19,3 +19,6 @@ coverage
 # Throwaway historical-import tooling — script + generated reports + python cache.
 # This folder will be deleted once the historical backfill is finished.
 scripts/historical-import/
+
+# Historical-data Excel source files — large, throwaway, kept locally only.
+docs/*.xlsx
