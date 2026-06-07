@@ -39,6 +39,7 @@ import { HighlightsPage } from './pages/HighlightsPage';
 import { PlayersPage } from './pages/players/PlayersPage';
 import { PlayerDetail } from './pages/players/PlayerDetail';
 import { TeamsPage } from './pages/teams/TeamsPage';
+import { TeamDetail } from './pages/teams/TeamDetail';
 import { AdminLayout } from './pages/admin/AdminLayout';
 import { Dashboard } from './pages/admin/Dashboard';
 import { AdminMatches } from './pages/admin/AdminMatches';
@@ -106,6 +107,7 @@ function App() {
 
               {/* Teams */}
               <Route path="/teams" element={<TeamsPage />} />
+              <Route path="/teams/:id" element={<TeamDetail />} />
 
               {/* Store Pages */}
               <Route path="/store" element={<StorePage />} />

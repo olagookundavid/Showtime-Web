@@ -18,12 +18,11 @@ export const StandingsPage = () => {
     const competitions = (competitionsData?.data || []).filter(c => c.status !== 'inactive');
 
     useEffect(() => {
-        if (competitions.length > 0) {
-            if (compParam && competitions.some(c => c.id === compParam)) {
-                setSelectedCompetitionId(compParam);
-            } else if (!selectedCompetitionId) {
-                setSelectedCompetitionId(competitions[0].id);
-            }
+        if (competitions.length === 0 || selectedCompetitionId) return;
+        if (compParam && competitions.some(c => c.id === compParam)) {
+            setSelectedCompetitionId(compParam);
+        } else {
+            setSelectedCompetitionId(competitions[0].id);
         }
     }, [competitions, selectedCompetitionId, compParam]);
 

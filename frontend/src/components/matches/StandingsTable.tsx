@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import type { Standing } from '../../services/api';
 import { LightboxImage } from '../ui';
 
@@ -66,17 +67,30 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCom
                                     <td className="px-2.5 py-3 md:px-4 md:py-4 text-center font-bold text-gray-600 dark:text-gray-300">
                                         {standing.position}
                                     </td>
-                                    <td className="px-2.5 py-3 md:px-4 md:py-4 font-semibold text-sffl-navy dark:text-white flex items-center space-x-1 md:space-x-3 whitespace-nowrap text-left">
-                                        <LightboxImage 
-                                            src={standing.team?.logo || 'https://via.placeholder.com/30'} 
-                                            alt={standing.team?.name || 'Team'} 
-                                            thumbnailClassName="w-5 h-5 md:w-8 md:h-8 object-contain rounded-md" 
-                                        />
-                                        <span className="truncate max-w-[60px] md:max-w-none flex items-center gap-1 uppercase">
-                                            {isGold && <span title="Champion">👑</span>}
-                                            {isSilver && <span title="Runner Up">🥈</span>}
-                                            {standing.team?.short_name || standing.team?.name || 'Unknown'}
-                                        </span>
+                                    <td className="px-2.5 py-3 md:px-4 md:py-4 font-semibold text-sffl-navy dark:text-white whitespace-nowrap text-left">
+                                        <div className="flex items-center space-x-1 md:space-x-3">
+                                            <LightboxImage
+                                                src={standing.team?.logo || 'https://via.placeholder.com/30'}
+                                                alt={standing.team?.name || 'Team'}
+                                                thumbnailClassName="w-5 h-5 md:w-8 md:h-8 object-contain rounded-md"
+                                            />
+                                            {standing.team?.id ? (
+                                                <Link
+                                                    to={`/teams/${standing.team.id}`}
+                                                    className="truncate max-w-[60px] md:max-w-none flex items-center gap-1 uppercase hover:text-sffl-red transition-colors"
+                                                >
+                                                    {standing.team?.short_name || standing.team?.name || 'Unknown'}
+                                                    {isGold && <span title="Champion">👑</span>}
+                                                    {isSilver && <span title="Runner Up">🥈</span>}
+                                                </Link>
+                                            ) : (
+                                                <span className="truncate max-w-[60px] md:max-w-none flex items-center gap-1 uppercase">
+                                                    {standing.team?.short_name || standing.team?.name || 'Unknown'}
+                                                    {isGold && <span title="Champion">👑</span>}
+                                                    {isSilver && <span title="Runner Up">🥈</span>}
+                                                </span>
+                                            )}
+                                        </div>
                                     </td>
                                 <td className="px-2.5 py-3 md:px-4 md:py-4 text-center text-gray-700 dark:text-gray-200">{standing.played}</td>
                                 <td className="px-2.5 py-3 md:px-4 md:py-4 text-center text-gray-700 dark:text-gray-200">{standing.won}</td>
