@@ -92,13 +92,11 @@ func buildStatsWhereClause(filter domain.StatsFilter) (string, []interface{}) {
 		conditions = append(conditions, fmt.Sprintf("ps.match_id = $%d", argCount))
 		args = append(args, filter.MatchID)
 		argCount++
-	} else if filter.PlayerID == "" {
-		// Year to date default (unless specifically getting stats for a player)
-		conditions = append(conditions, "ps.match_date >= date_trunc('year', NOW())")
-	} else {
-		// Year to date for player if no comp specified
-		conditions = append(conditions, "ps.match_date >= date_trunc('year', NOW())")
 	}
+	// No competition/match filter means all-time. The site carries multiple
+	// historical seasons, so a hidden year-to-date default would silently drop
+	// every season before the current calendar year from "All Competitions"
+	// views and from player career totals.
 
 	if filter.PlayerID != "" {
 		conditions = append(conditions, fmt.Sprintf("ps.player_id = $%d", argCount))
@@ -123,9 +121,11 @@ func buildStatsWhereClause(filter domain.StatsFilter) (string, []interface{}) {
 func (r *PostgresStatsRepository) GetPlayerStats(ctx context.Context, filter domain.StatsFilter) ([]domain.AggregatedPlayerStat, int, error) {
 	whereClause, args := buildStatsWhereClause(filter)
 
-	// Get total count
+	// Get total count. Must mirror the result query's GROUP BY
+	// (player_id, team_id): a player whose stats span two teams produces two
+	// result rows, so counting distinct player_id alone would undercount.
 	countQuery := fmt.Sprintf(`
-		SELECT COUNT(DISTINCT ps.player_id)
+		SELECT COUNT(DISTINCT (ps.player_id, ps.team_id))
 		FROM player_stats ps
 		JOIN players p ON ps.player_id = p.id
 		JOIN teams t ON ps.team_id = t.id
@@ -180,7 +180,7 @@ func (r *PostgresStatsRepository) GetPlayerStats(ctx context.Context, filter dom
 		GROUP BY
 			ps.player_id, p.name, p.image, p.jersey_number, p.position,
 			ps.team_id, t.name, t.short_name, t.logo
-		ORDER BY SUM(ps.passing_attempts) DESC
+		ORDER BY p.name ASC
 		%s
 	`, whereClause, limitOffset)
 
@@ -259,9 +259,9 @@ func (r *PostgresStatsRepository) GetTeamStats(ctx context.Context, filter domai
 		FROM player_stats ps
 		JOIN teams t ON ps.team_id = t.id
 		%s
-		GROUP BY 
+		GROUP BY
 			ps.team_id, t.name, t.short_name, t.logo
-		ORDER BY SUM(ps.passing_attempts) DESC
+		ORDER BY t.name ASC
 		%s
 	`, whereClause, limitOffset)
 
