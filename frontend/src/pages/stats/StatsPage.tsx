@@ -18,8 +18,20 @@ export const StatsPage = () => {
     const [searchQuery, setSearchQuery] = useState(urlSearch || '');
     const [activeTab, setActiveTab] = useState<'players' | 'teams'>('players');
     const [page, setPage] = useState(1);
+    const [sortBy, setSortBy] = useState('');
     const [showLegend, setShowLegend] = useState(false);
     const limit = 20;
+
+    const handleSortChange = (key: string) => {
+        setSortBy(key);
+        setPage(1);
+    };
+
+    const handleTabChange = (tab: 'players' | 'teams') => {
+        setActiveTab(tab);
+        setSortBy('');
+        setPage(1);
+    };
 
     // Sync state with URL params when they change
     useEffect(() => {
@@ -60,14 +72,14 @@ export const StatsPage = () => {
     }, [urlDate, selectedDate]);
 
     const { data: playerStatsPagination, isLoading: loadingPlayers } = useQuery({
-        queryKey: ['playerStatsFiltered', selectedCompetitionId, selectedDate, page, urlPlayerId, searchQuery],
-        queryFn: () => getPlayerStats(selectedCompetitionId, selectedDate, page, limit, urlPlayerId || undefined, searchQuery || undefined),
+        queryKey: ['playerStatsFiltered', selectedCompetitionId, selectedDate, page, urlPlayerId, searchQuery, sortBy],
+        queryFn: () => getPlayerStats(selectedCompetitionId, selectedDate, page, limit, urlPlayerId || undefined, searchQuery || undefined, sortBy || undefined),
         enabled: activeTab === 'players',
     });
 
     const { data: teamStatsPagination, isLoading: loadingTeams } = useQuery({
-        queryKey: ['teamStatsFiltered', selectedCompetitionId, selectedDate, page],
-        queryFn: () => getTeamStats(selectedCompetitionId, selectedDate, page, limit),
+        queryKey: ['teamStatsFiltered', selectedCompetitionId, selectedDate, page, sortBy],
+        queryFn: () => getTeamStats(selectedCompetitionId, selectedDate, page, limit, sortBy || undefined),
         enabled: activeTab === 'teams',
     });
 
@@ -181,7 +193,7 @@ export const StatsPage = () => {
             {/* Tabs */}
             <div className="flex space-x-2 border-b border-gray-200 dark:border-gray-700 overflow-x-auto scrollbar-hide">
                 <button
-                    onClick={() => setActiveTab('players')}
+                    onClick={() => handleTabChange('players')}
                     className={`px-4 md:px-6 py-3 font-black text-sm md:text-base border-b-4 transition-colors whitespace-nowrap ${activeTab === 'players'
                         ? 'border-sffl-red text-sffl-red'
                         : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'
@@ -190,7 +202,7 @@ export const StatsPage = () => {
                     Player Stats
                 </button>
                 <button
-                    onClick={() => setActiveTab('teams')}
+                    onClick={() => handleTabChange('teams')}
                     className={`px-4 md:px-6 py-3 font-black text-sm md:text-base border-b-4 transition-colors whitespace-nowrap ${activeTab === 'teams'
                         ? 'border-sffl-red text-sffl-red'
                         : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'
@@ -299,6 +311,8 @@ export const StatsPage = () => {
                         type={activeTab}
                         playerStats={playerStats}
                         teamStats={teamStats}
+                        sortBy={sortBy}
+                        onSortChange={handleSortChange}
                     />
 
                     {/* Pagination Controls */}

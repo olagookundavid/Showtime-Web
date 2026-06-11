@@ -90,6 +90,7 @@ type StatsFilter struct {
 	EventDay      *time.Time
 	PlayerID      string
 	SearchQuery   string
+	SortBy        string // stat column key; empty = alphabetical by name
 	Page          int
 	Limit         int
 }

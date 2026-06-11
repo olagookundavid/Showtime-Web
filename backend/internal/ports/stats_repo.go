@@ -118,6 +118,43 @@ func buildStatsWhereClause(filter domain.StatsFilter) (string, []interface{}) {
 	return whereClause, args
 }
 
+// statsSortColumns whitelists the sortable stat keys. Values are the exact
+// aggregate expressions used in the SELECT, so ORDER BY stays injection-safe:
+// anything not in this map falls back to alphabetical name order.
+var statsSortColumns = map[string]string{
+	"passing_attempts":     "SUM(ps.passing_attempts)",
+	"completed_passes":     "SUM(ps.completed_passes)",
+	"passing_tds":          "SUM(ps.passing_tds)",
+	"interceptions_thrown": "SUM(ps.interceptions_thrown)",
+	"qb_sacks":             "SUM(ps.qb_sacks)",
+	"rushing_attempts":     "SUM(ps.rushing_attempts)",
+	"rushing_tds":          "SUM(ps.rushing_tds)",
+	"receptions":           "SUM(ps.receptions)",
+	"receiving_tds":        "SUM(ps.receiving_tds)",
+	"drops":                "SUM(ps.drops)",
+	"extra_points_tds":     "SUM(ps.extra_points_tds)",
+	"flag_pulls":           "SUM(ps.flag_pulls)",
+	"pass_deflections":     "SUM(ps.pass_deflections)",
+	"interceptions":        "SUM(ps.interceptions)",
+	"def_sacks":            "SUM(ps.def_sacks)",
+	"defensive_tds":        "SUM(ps.defensive_tds)",
+	"safety":               "SUM(ps.safety)",
+}
+
+// statsOrderClause ranks by the requested stat (highest first, name as
+// tiebreak) or alphabetically when no valid sort key is given. nameExpr is
+// p.name for player stats, t.name for team stats. allowApps admits the
+// player-only "apps" key.
+func statsOrderClause(sortBy, nameExpr string, allowApps bool) string {
+	if allowApps && sortBy == "apps" {
+		return fmt.Sprintf("ORDER BY COUNT(ps.match_date) DESC, %s ASC", nameExpr)
+	}
+	if expr, ok := statsSortColumns[sortBy]; ok {
+		return fmt.Sprintf("ORDER BY %s DESC, %s ASC", expr, nameExpr)
+	}
+	return fmt.Sprintf("ORDER BY %s ASC", nameExpr)
+}
+
 func (r *PostgresStatsRepository) GetPlayerStats(ctx context.Context, filter domain.StatsFilter) ([]domain.AggregatedPlayerStat, int, error) {
 	whereClause, args := buildStatsWhereClause(filter)
 
@@ -180,9 +217,9 @@ func (r *PostgresStatsRepository) GetPlayerStats(ctx context.Context, filter dom
 		GROUP BY
 			ps.player_id, p.name, p.image, p.jersey_number, p.position,
 			ps.team_id, t.name, t.short_name, t.logo
-		ORDER BY p.name ASC
 		%s
-	`, whereClause, limitOffset)
+		%s
+	`, whereClause, statsOrderClause(filter.SortBy, "p.name", true), limitOffset)
 
 	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
@@ -261,9 +298,9 @@ func (r *PostgresStatsRepository) GetTeamStats(ctx context.Context, filter domai
 		%s
 		GROUP BY
 			ps.team_id, t.name, t.short_name, t.logo
-		ORDER BY t.name ASC
 		%s
-	`, whereClause, limitOffset)
+		%s
+	`, whereClause, statsOrderClause(filter.SortBy, "t.name", false), limitOffset)
 
 	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {

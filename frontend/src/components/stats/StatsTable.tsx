@@ -7,11 +7,44 @@ interface StatsTableProps {
     type: 'players' | 'teams';
     playerStats?: PlayerStat[];
     teamStats?: TeamStat[];
+    sortBy?: string;
+    onSortChange?: (key: string) => void;
 }
 
-export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], teamStats = [] }) => {
+// Order must mirror the stat cells in the table body below.
+const STAT_COLS = [
+    { key: 'apps', label: 'APPS', title: 'Appearances (Games Played)', bg: '', playerOnly: true },
+    { key: 'passing_attempts', label: 'P-ATT', title: 'Pass Attempts', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
+    { key: 'completed_passes', label: 'P-COM', title: 'Pass Completions', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
+    { key: 'passing_tds', label: 'P-TD', title: 'Passing Touchdowns', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
+    { key: 'interceptions_thrown', label: 'P-INT', title: 'Interceptions Thrown', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
+    { key: 'qb_sacks', label: 'QBS', title: 'QB Sacks Accounted (QB fault)', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
+    { key: 'rushing_attempts', label: 'R-ATT', title: 'Rushing Attempts', bg: 'bg-green-50/30 dark:bg-green-900/10' },
+    { key: 'rushing_tds', label: 'R-TD', title: 'Rushing Touchdowns', bg: 'bg-green-50/30 dark:bg-green-900/10' },
+    { key: 'receptions', label: 'REC', title: 'Receptions', bg: 'bg-yellow-50/30 dark:bg-yellow-900/10' },
+    { key: 'receiving_tds', label: 'RC-TD', title: 'Receiving Touchdowns', bg: 'bg-yellow-50/30 dark:bg-yellow-900/10' },
+    { key: 'drops', label: 'DROP', title: 'Drops', bg: 'bg-yellow-50/30 dark:bg-yellow-900/10' },
+    { key: 'extra_points_tds', label: 'XPT', title: 'Extra Point Touchdowns', bg: 'bg-purple-50/30 dark:bg-purple-900/10' },
+    { key: 'flag_pulls', label: 'TKL', title: 'Flag Pulls (Tackles)', bg: 'bg-red-50/30 dark:bg-red-900/10' },
+    { key: 'pass_deflections', label: 'P-DEF', title: 'Pass Deflections', bg: 'bg-red-50/30 dark:bg-red-900/10' },
+    { key: 'interceptions', label: 'INT', title: 'Interceptions Caught', bg: 'bg-red-50/30 dark:bg-red-900/10' },
+    { key: 'def_sacks', label: 'DEF-S', title: 'Defensive Sacks (Def fault)', bg: 'bg-red-50/30 dark:bg-red-900/10' },
+    { key: 'defensive_tds', label: 'D-TD', title: 'Defensive Touchdowns', bg: 'bg-red-50/30 dark:bg-red-900/10' },
+    { key: 'safety', label: 'SFTY', title: 'Safeties', bg: 'bg-red-50/30 dark:bg-red-900/10' },
+];
+
+export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], teamStats = [], sortBy = '', onSortChange }) => {
     const isPlayer = type === 'players';
     const data = isPlayer ? playerStats : teamStats;
+
+    const visibleStatCols = STAT_COLS.filter(c => isPlayer || !c.playerOnly);
+
+    // Clicking a stat header ranks league-wide leaders first (server-side
+    // sort, so it spans every page); clicking it again returns to A→Z.
+    const handleHeaderClick = (key: string) => {
+        if (!onSortChange) return;
+        onSortChange(sortBy === key ? '' : key);
+    };
 
     if (data.length === 0) {
         return <div className="text-center p-8 text-gray-500 dark:text-gray-400">No stats available for the selected filters.</div>;
@@ -30,63 +63,26 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                             <th className="px-2 py-4 md:px-4 text-left whitespace-nowrap min-w-[150px] border-r border-gray-100 dark:border-gray-700">{isPlayer ? 'Player' : 'Team'}</th>
                             {isPlayer && <th className="px-2 py-4 md:px-4 text-left whitespace-nowrap border-r border-gray-100 dark:border-gray-700">Team</th>}
 
-                            {/* Vertical Headers for Stats */}
-                            {isPlayer && (
-                                <th className="p-0 border-r border-gray-100 dark:border-gray-700">
-                                    <div className="[writing-mode:vertical-rl] rotate-180 py-4 px-2 whitespace-nowrap mx-auto" title="Appearances (Games Played)">APPS</div>
-                                </th>
-                            )}
-                            <th className="p-0 border-r border-gray-100 dark:border-gray-700 bg-blue-50/30 dark:bg-blue-900/10">
-                                <div className="[writing-mode:vertical-rl] rotate-180 py-4 px-2 whitespace-nowrap mx-auto" title="Pass Attempts">P-ATT</div>
-                            </th>
-                            <th className="p-0 border-r border-gray-100 dark:border-gray-700 bg-blue-50/30 dark:bg-blue-900/10">
-                                <div className="[writing-mode:vertical-rl] rotate-180 py-4 px-2 whitespace-nowrap mx-auto" title="Pass Completions">P-COM</div>
-                            </th>
-                            <th className="p-0 border-r border-gray-100 dark:border-gray-700 bg-blue-50/30 dark:bg-blue-900/10">
-                                <div className="[writing-mode:vertical-rl] rotate-180 py-4 px-2 whitespace-nowrap mx-auto" title="Passing Touchdowns">P-TD</div>
-                            </th>
-                            <th className="p-0 border-r border-gray-100 dark:border-gray-700 bg-blue-50/30 dark:bg-blue-900/10">
-                                <div className="[writing-mode:vertical-rl] rotate-180 py-4 px-2 whitespace-nowrap mx-auto" title="Interceptions Thrown">P-INT</div>
-                            </th>
-                            <th className="p-0 border-r border-gray-100 dark:border-gray-700 bg-blue-50/30 dark:bg-blue-900/10">
-                                <div className="[writing-mode:vertical-rl] rotate-180 py-4 px-2 whitespace-nowrap mx-auto" title="QB Sacks Accounted (QB fault)">QBS</div>
-                            </th>
-                            <th className="p-0 border-r border-gray-100 dark:border-gray-700 bg-green-50/30 dark:bg-green-900/10">
-                                <div className="[writing-mode:vertical-rl] rotate-180 py-4 px-2 whitespace-nowrap mx-auto" title="Rushing Attempts">R-ATT</div>
-                            </th>
-                            <th className="p-0 border-r border-gray-100 dark:border-gray-700 bg-green-50/30 dark:bg-green-900/10">
-                                <div className="[writing-mode:vertical-rl] rotate-180 py-4 px-2 whitespace-nowrap mx-auto" title="Rushing Touchdowns">R-TD</div>
-                            </th>
-                            <th className="p-0 border-r border-gray-100 dark:border-gray-700 bg-yellow-50/30 dark:bg-yellow-900/10">
-                                <div className="[writing-mode:vertical-rl] rotate-180 py-4 px-2 whitespace-nowrap mx-auto" title="Receptions">REC</div>
-                            </th>
-                            <th className="p-0 border-r border-gray-100 dark:border-gray-700 bg-yellow-50/30 dark:bg-yellow-900/10">
-                                <div className="[writing-mode:vertical-rl] rotate-180 py-4 px-2 whitespace-nowrap mx-auto" title="Receiving Touchdowns">RC-TD</div>
-                            </th>
-                            <th className="p-0 border-r border-gray-100 dark:border-gray-700 bg-yellow-50/30 dark:bg-yellow-900/10">
-                                <div className="[writing-mode:vertical-rl] rotate-180 py-4 px-2 whitespace-nowrap mx-auto" title="Drops">DROP</div>
-                            </th>
-                            <th className="p-0 border-r border-gray-100 dark:border-gray-700 bg-purple-50/30 dark:bg-purple-900/10">
-                                <div className="[writing-mode:vertical-rl] rotate-180 py-4 px-2 whitespace-nowrap mx-auto" title="Extra Point Touchdowns">XPT</div>
-                            </th>
-                            <th className="p-0 border-r border-gray-100 dark:border-gray-700 bg-red-50/30 dark:bg-red-900/10">
-                                <div className="[writing-mode:vertical-rl] rotate-180 py-4 px-2 whitespace-nowrap mx-auto" title="Flag Pulls (Tackles)">TKL</div>
-                            </th>
-                            <th className="p-0 border-r border-gray-100 dark:border-gray-700 bg-red-50/30 dark:bg-red-900/10">
-                                <div className="[writing-mode:vertical-rl] rotate-180 py-4 px-2 whitespace-nowrap mx-auto" title="Pass Deflections">P-DEF</div>
-                            </th>
-                            <th className="p-0 border-r border-gray-100 dark:border-gray-700 bg-red-50/30 dark:bg-red-900/10">
-                                <div className="[writing-mode:vertical-rl] rotate-180 py-4 px-2 whitespace-nowrap mx-auto" title="Interceptions Caught">INT</div>
-                            </th>
-                            <th className="p-0 border-r border-gray-100 dark:border-gray-700 bg-red-50/30 dark:bg-red-900/10">
-                                <div className="[writing-mode:vertical-rl] rotate-180 py-4 px-2 whitespace-nowrap mx-auto" title="Defensive Sacks (Def fault)">DEF-S</div>
-                            </th>
-                            <th className="p-0 border-r border-gray-100 dark:border-gray-700 bg-red-50/30 dark:bg-red-900/10">
-                                <div className="[writing-mode:vertical-rl] rotate-180 py-4 px-2 whitespace-nowrap mx-auto" title="Defensive Touchdowns">D-TD</div>
-                            </th>
-                            <th className="p-0 bg-red-50/30 dark:bg-red-900/10">
-                                <div className="[writing-mode:vertical-rl] rotate-180 py-4 px-2 whitespace-nowrap mx-auto" title="Safeties">SFTY</div>
-                            </th>
+                            {/* Vertical Headers for Stats — click to rank league-wide leaders */}
+                            {visibleStatCols.map((col, i) => {
+                                const isActive = sortBy === col.key;
+                                const isLast = i === visibleStatCols.length - 1;
+                                return (
+                                    <th
+                                        key={col.key}
+                                        className={`p-0 ${isLast ? '' : 'border-r border-gray-100 dark:border-gray-700'} ${col.bg} ${isActive ? 'bg-sffl-red/10 dark:bg-sffl-red/20' : ''}`}
+                                    >
+                                        <button
+                                            type="button"
+                                            onClick={() => handleHeaderClick(col.key)}
+                                            title={isActive ? `${col.title} — click to clear sort` : `${col.title} — click to sort by leaders`}
+                                            className={`[writing-mode:vertical-rl] rotate-180 py-4 px-2 whitespace-nowrap mx-auto cursor-pointer select-none transition-colors hover:text-sffl-red ${isActive ? 'text-sffl-red font-black' : ''}`}
+                                        >
+                                            {col.label}{isActive ? ' ▾' : ''}
+                                        </button>
+                                    </th>
+                                );
+                            })}
                         </tr>
                     </thead>
                     <tbody>
