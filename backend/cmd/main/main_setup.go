@@ -61,6 +61,15 @@ func openDB(cfg config.Config, ctx context.Context) (*pgxpool.Pool, error) {
 	// Disable prepared statements for compatibility with PgBouncer in transaction mode
 	poolConfig.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
 
+	// Pin session timezone to Lagos so CURRENT_DATE / NOW() match the
+	// timezone admins and users expect. Without this, on a UTC-hosted DB
+	// (Koyeb default), events would appear/disappear an hour around
+	// midnight Lagos time and game-day cut-offs would land on the wrong day.
+	poolConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		_, err := conn.Exec(ctx, "SET TIME ZONE 'Africa/Lagos'")
+		return err
+	}
+
 	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
 		return nil, err

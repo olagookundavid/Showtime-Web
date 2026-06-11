@@ -16,14 +16,19 @@ export const TicketsPage = () => {
         queryFn: () => getEventDayByDate(dateParam!, appliedCode),
         enabled: !!dateParam,
         retry: false,
+        staleTime: 30_000,
+        refetchOnWindowFocus: true,
     });
 
     const fetchAllDays = !dateParam || specificDayError;
+    const fellBackFromMissingDate = !!dateParam && specificDayError;
 
     const { data: allDaysData, isLoading: loadingAll } = useQuery({
         queryKey: ['publicEventDays', appliedCode],
         queryFn: () => getEventDays(appliedCode),
         enabled: fetchAllDays,
+        staleTime: 30_000,
+        refetchOnWindowFocus: true,
     });
 
     const [selectedEventDay, setSelectedEventDay] = useState<EventDayResponse | null>(null);
@@ -158,6 +163,13 @@ export const TicketsPage = () => {
                     </div>
                 </div>
             </div>
+
+            {fellBackFromMissingDate && (
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 p-4 rounded-xl text-sm">
+                    <strong className="font-bold">No event found for {dateParam}.</strong>{' '}
+                    Showing all upcoming events instead.
+                </div>
+            )}
 
             {loading ? (
                 <div className="flex justify-center py-16">
