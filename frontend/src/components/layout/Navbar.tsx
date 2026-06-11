@@ -100,11 +100,8 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                             {storeDropdownOpen && (
                                 <div className="absolute top-full left-0 w-48 z-50 pt-2">
                                     <div className="bg-white dark:bg-gray-800 text-sffl-navy dark:text-white rounded-lg shadow-2xl py-2 normal-case font-bold text-sm border border-gray-200 dark:border-gray-700">
-                                        <Link to="/tickets" className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors font-bold">Tickets</Link>
+                                        <Link to="/tickets" className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors font-bold">Gameday Tickets</Link>
                                         <Link to="/store" className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors font-bold">Merch Store</Link>
-                                        <Link to="/store/cart" className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors font-bold">
-                                            Cart{cartCount > 0 && <span className="ml-1 text-sffl-red">({cartCount})</span>}
-                                        </Link>
                                         {isAuthenticated && (
                                             <Link to="/store/orders" className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors font-bold">My Orders</Link>
                                         )}
@@ -284,11 +281,8 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                         </button>
                         {mobileStoreOpen && (
                             <div className="bg-gray-800/50 rounded-xl py-2 px-4 space-y-2 flex flex-col items-center">
-                                <Link to="/tickets" onClick={() => setMobileMenuOpen(false)} className="text-gray-300 hover:text-white text-base font-bold py-2 transition-colors">Tickets</Link>
+                                <Link to="/tickets" onClick={() => setMobileMenuOpen(false)} className="text-gray-300 hover:text-white text-base font-bold py-2 transition-colors">Gameday Tickets</Link>
                                 <Link to="/store" onClick={() => setMobileMenuOpen(false)} className="text-gray-300 hover:text-white text-base font-bold py-2 transition-colors">Merch Store</Link>
-                                <Link to="/store/cart" onClick={() => setMobileMenuOpen(false)} className="text-gray-300 hover:text-white text-base font-bold py-2 transition-colors">
-                                    Cart{cartCount > 0 && <span className="ml-1 text-sffl-red">({cartCount})</span>}
-                                </Link>
                                 {isAuthenticated && (
                                     <Link to="/store/orders" onClick={() => setMobileMenuOpen(false)} className="text-gray-300 hover:text-white text-base font-bold py-2 transition-colors">My Orders</Link>
                                 )}
