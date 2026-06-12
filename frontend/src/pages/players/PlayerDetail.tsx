@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getPlayerById, getPlayerStatById, getCompetitions, getStatDates } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
@@ -43,9 +43,14 @@ export const PlayerDetail = () => {
     });
     const statDates = datesData || [];
 
-    // Auto-select latest date when competition changes and no date is selected
+    // Auto-select the latest date once, only when the competition itself
+    // changes. Tracking the last-defaulted competition lets the user pick
+    // "Full Season" (empty date) without the effect snapping it back to the
+    // latest match day on every render.
+    const defaultedCompRef = useRef<string>('');
     useEffect(() => {
-        if (compId && statDates.length > 0 && !matchDate) {
+        if (compId && statDates.length > 0 && !matchDate && defaultedCompRef.current !== compId) {
+            defaultedCompRef.current = compId;
             const params = new URLSearchParams(searchParams);
             params.set('date', statDates[0].substring(0, 10));
             setSearchParams(params, { replace: true });
