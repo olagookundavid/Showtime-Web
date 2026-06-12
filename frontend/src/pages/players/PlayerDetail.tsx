@@ -204,6 +204,7 @@ export const PlayerDetail = () => {
                         <StatCard label="QB Sacks" value={stats.qb_sacks} />
                         <StatCard label="Flag Pulls" value={stats.flag_pulls} />
                         <StatCard label="DEF TDs" value={stats.defensive_tds} />
+                        <StatCard label="DEF XP TDs" value={stats.defensive_xp_tds} />
                         <StatCard label="Pass Deflect" value={stats.pass_deflections} />
                         <StatCard label="Drops" value={stats.drops} />
                         <StatCard label="Extra Points" value={stats.extra_points_tds} />

@@ -32,13 +32,13 @@ func (r *PostgresStatsRepository) UpsertPlayerStat(ctx context.Context, stat *do
 			passing_tds, rushing_tds, interceptions_thrown,
 			receptions, receiving_tds, extra_points_tds, drops,
 			flag_pulls, pass_deflections, interceptions,
-			defensive_tds, safety, qb_sacks, def_sacks
+			defensive_tds, safety, qb_sacks, def_sacks, defensive_xp_tds
 		) VALUES (
 			$1, NULLIF($2, '')::uuid, NULLIF($3, '')::uuid, $4, $5,
 			$6, $7, $8, $9, $10,
 			$11, $12, $13, $14, $15,
 			$16, $17, $18, $19, $20,
-			$21, $22
+			$21, $22, $23
 		)
 		ON CONFLICT (player_id, match_id) DO UPDATE SET
 			match_id = COALESCE(EXCLUDED.match_id, player_stats.match_id),
@@ -59,6 +59,7 @@ func (r *PostgresStatsRepository) UpsertPlayerStat(ctx context.Context, stat *do
 			safety = EXCLUDED.safety,
 			qb_sacks = EXCLUDED.qb_sacks,
 			def_sacks = EXCLUDED.def_sacks,
+			defensive_xp_tds = EXCLUDED.defensive_xp_tds,
 			updated_at = NOW()
 	`
 
@@ -69,6 +70,7 @@ func (r *PostgresStatsRepository) UpsertPlayerStat(ctx context.Context, stat *do
 		stat.Receptions, stat.ReceivingTDs, stat.ExtraPointsTDs, stat.Drops,
 		stat.FlagPulls, stat.PassDeflections, stat.Interceptions,
 		stat.DefensiveTDs, stat.Safety, stat.QBSacks, stat.DefSacks,
+		stat.DefensiveXPTDs,
 	)
 	return err
 }
@@ -138,6 +140,7 @@ var statsSortColumns = map[string]string{
 	"interceptions":        "SUM(ps.interceptions)",
 	"def_sacks":            "SUM(ps.def_sacks)",
 	"defensive_tds":        "SUM(ps.defensive_tds)",
+	"defensive_xp_tds":     "SUM(ps.defensive_xp_tds)",
 	"safety":               "SUM(ps.safety)",
 }
 
@@ -209,7 +212,8 @@ func (r *PostgresStatsRepository) GetPlayerStats(ctx context.Context, filter dom
 			SUM(ps.defensive_tds) AS defensive_tds,
 			SUM(ps.safety) AS safety,
 			SUM(ps.qb_sacks) AS qb_sacks,
-			SUM(ps.def_sacks) AS def_sacks
+			SUM(ps.def_sacks) AS def_sacks,
+			SUM(ps.defensive_xp_tds) AS defensive_xp_tds
 		FROM player_stats ps
 		JOIN players p ON ps.player_id = p.id
 		JOIN teams t ON ps.team_id = t.id
@@ -238,6 +242,7 @@ func (r *PostgresStatsRepository) GetPlayerStats(ctx context.Context, filter dom
 			&s.Receptions, &s.ReceivingTDs, &s.ExtraPointsTDs, &s.Drops,
 			&s.FlagPulls, &s.PassDeflections, &s.Interceptions,
 			&s.DefensiveTDs, &s.Safety, &s.QBSacks, &s.DefSacks,
+			&s.DefensiveXPTDs,
 		)
 		if err != nil {
 			return nil, 0, err
@@ -292,7 +297,8 @@ func (r *PostgresStatsRepository) GetTeamStats(ctx context.Context, filter domai
 			SUM(ps.defensive_tds) AS defensive_tds,
 			SUM(ps.safety) AS safety,
 			SUM(ps.qb_sacks) AS qb_sacks,
-			SUM(ps.def_sacks) AS def_sacks
+			SUM(ps.def_sacks) AS def_sacks,
+			SUM(ps.defensive_xp_tds) AS defensive_xp_tds
 		FROM player_stats ps
 		JOIN teams t ON ps.team_id = t.id
 		%s
@@ -318,6 +324,7 @@ func (r *PostgresStatsRepository) GetTeamStats(ctx context.Context, filter domai
 			&s.Receptions, &s.ReceivingTDs, &s.ExtraPointsTDs, &s.Drops,
 			&s.FlagPulls, &s.PassDeflections, &s.Interceptions,
 			&s.DefensiveTDs, &s.Safety, &s.QBSacks, &s.DefSacks,
+			&s.DefensiveXPTDs,
 		)
 		if err != nil {
 			return nil, 0, err

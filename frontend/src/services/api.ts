@@ -412,6 +412,7 @@ export interface ImportMatchPlayerRow {
     safety?: number;
     qb_sacks?: number;
     def_sacks?: number;
+    defensive_xp_tds?: number;
 }
 
 export interface ImportMatchResult {
@@ -814,6 +815,7 @@ export interface PlayerStat {
     safety: number;
     qb_sacks: number;
     def_sacks: number;
+    defensive_xp_tds: number;
 }
 
 export interface TeamStat {
@@ -838,6 +840,7 @@ export interface TeamStat {
     safety: number;
     qb_sacks: number;
     def_sacks: number;
+    defensive_xp_tds: number;
 }
 
 export interface UpsertPlayerStatPayload {
@@ -863,6 +866,7 @@ export interface UpsertPlayerStatPayload {
     safety: number;
     qb_sacks: number;
     def_sacks: number;
+    defensive_xp_tds: number;
 }
 
 export const getPlayerStats = async (compId?: string, eventDay?: string, page = 1, limit = 20, playerId?: string, search?: string, sort?: string): Promise<PaginatedResponse<PlayerStat>> => {

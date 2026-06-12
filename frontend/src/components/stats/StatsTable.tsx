@@ -34,6 +34,7 @@ const STAT_COLS = [
     { key: 'interceptions', top: 'Def', bottom: 'INT', title: 'Interceptions Caught', bg: 'bg-red-50/30 dark:bg-red-900/10' },
     { key: 'def_sacks', top: 'Def', bottom: 'Sacks', title: 'Defensive Sacks (Def fault)', bg: 'bg-red-50/30 dark:bg-red-900/10' },
     { key: 'defensive_tds', top: 'Def', bottom: 'TDs', title: 'Defensive Touchdowns', bg: 'bg-red-50/30 dark:bg-red-900/10' },
+    { key: 'defensive_xp_tds', top: 'Def XP', bottom: 'TDs', title: 'Defensive Extra-Point TDs (interception returned on an extra point)', bg: 'bg-red-50/30 dark:bg-red-900/10' },
     { key: 'safety', top: '', bottom: 'Safety', title: 'Safeties', bg: 'bg-red-50/30 dark:bg-red-900/10' },
 ];
 
@@ -175,6 +176,7 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                                     <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-bold bg-red-50/10 dark:bg-red-900/10 text-red-600 dark:text-red-400">{row.interceptions}</td>
                                     <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-medium bg-red-50/5 dark:bg-red-900/5 text-gray-700 dark:text-gray-200">{row.def_sacks}</td>
                                     <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-bold bg-red-50/10 dark:bg-red-900/10 text-red-600 dark:text-red-400">{row.defensive_tds}</td>
+                                    <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-bold bg-red-50/10 dark:bg-red-900/10 text-red-600 dark:text-red-400">{row.defensive_xp_tds}</td>
                                     <td className="px-1 py-4 bg-red-50/5 dark:bg-red-900/5 text-gray-700 dark:text-gray-200 font-medium">{row.safety}</td>
                                 </tr>
                             );

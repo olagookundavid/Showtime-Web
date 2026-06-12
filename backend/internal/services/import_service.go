@@ -74,6 +74,7 @@ func (s *ImportService) ImportMatchData(ctx context.Context, matchID string, req
 			Safety:              r.Safety,
 			QBSacks:             r.QBSacks,
 			DefSacks:            r.DefSacks,
+			DefensiveXPTDs:      r.DefensiveXPTDs,
 		})
 	}
 

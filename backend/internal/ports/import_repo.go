@@ -34,6 +34,7 @@ type ImportMatchRow struct {
 	Safety              int
 	QBSacks             int
 	DefSacks            int
+	DefensiveXPTDs      int
 }
 
 type ImportMatchParams struct {
@@ -183,6 +184,7 @@ func (r *PostgresImportRepository) ImportMatchData(ctx context.Context, params I
 		safety              int
 		qbSacks             int
 		defSacks            int
+		defensiveXPTDs      int
 	}
 	statAgg := make(map[string]*statRow, len(params.Rows))
 	for i := range params.Rows {
@@ -211,6 +213,7 @@ func (r *PostgresImportRepository) ImportMatchData(ctx context.Context, params I
 		s.safety += row.Safety
 		s.qbSacks += row.QBSacks
 		s.defSacks += row.DefSacks
+		s.defensiveXPTDs += row.DefensiveXPTDs
 	}
 
 	if len(statAgg) > 0 {
@@ -226,13 +229,14 @@ func (r *PostgresImportRepository) ImportMatchData(ctx context.Context, params I
 				s.receptions, s.receivingTDs, s.extraPointsTDs, s.drops,
 				s.flagPulls, s.passDeflections, s.interceptions,
 				s.defensiveTDs, s.safety, s.qbSacks, s.defSacks,
+				s.defensiveXPTDs,
 			)
 			statPH = append(statPH, fmt.Sprintf(
-				"($%d, $%d, $2, $1, $3, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
+				"($%d, $%d, $2, $1, $3, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
 				base, base+1,
 				base+2, base+3, base+4, base+5, base+6, base+7,
 				base+8, base+9, base+10, base+11, base+12, base+13,
-				base+14, base+15, base+16, base+17, base+18,
+				base+14, base+15, base+16, base+17, base+18, base+19,
 			))
 		}
 
@@ -242,7 +246,7 @@ func (r *PostgresImportRepository) ImportMatchData(ctx context.Context, params I
 			passing_tds, rushing_tds, interceptions_thrown,
 			receptions, receiving_tds, extra_points_tds, drops,
 			flag_pulls, pass_deflections, interceptions,
-			defensive_tds, safety, qb_sacks, def_sacks
+			defensive_tds, safety, qb_sacks, def_sacks, defensive_xp_tds
 		) VALUES ` + strings.Join(statPH, ", ") + `
 		ON CONFLICT (player_id, match_id) DO UPDATE SET
 			team_id = EXCLUDED.team_id,
@@ -263,6 +267,7 @@ func (r *PostgresImportRepository) ImportMatchData(ctx context.Context, params I
 			safety = EXCLUDED.safety,
 			qb_sacks = EXCLUDED.qb_sacks,
 			def_sacks = EXCLUDED.def_sacks,
+			defensive_xp_tds = EXCLUDED.defensive_xp_tds,
 			updated_at = NOW()`
 		if _, err := tx.Exec(ctx, q, statArgs...); err != nil {
 			return result, fmt.Errorf("failed to upsert player stats: %w", err)

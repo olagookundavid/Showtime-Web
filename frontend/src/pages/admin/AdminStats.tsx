@@ -31,6 +31,7 @@ const STAT_FIELDS = [
     { key: 'pass_deflections', label: 'Pass Deflections' },
     { key: 'def_sacks', label: 'Defensive Sacks' },
     { key: 'defensive_tds', label: 'Defensive TDs' },
+    { key: 'defensive_xp_tds', label: 'Def. XP TDs' },
     { key: 'extra_points_tds', label: 'Extra Points' },
     { key: 'safety', label: 'Safeties' },
 ] as const;

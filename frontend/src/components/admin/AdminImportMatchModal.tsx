@@ -19,7 +19,7 @@ const STAT_COLS = [
     'passing_tds', 'rushing_tds', 'interceptions_thrown',
     'receptions', 'receiving_tds', 'extra_points_tds', 'drops',
     'flag_pulls', 'pass_deflections', 'interceptions',
-    'defensive_tds', 'safety', 'qb_sacks', 'def_sacks',
+    'defensive_tds', 'safety', 'qb_sacks', 'def_sacks', 'defensive_xp_tds',
 ] as const;
 
 const NUMERIC_COLS = new Set<string>([
@@ -28,7 +28,7 @@ const NUMERIC_COLS = new Set<string>([
     'passing_tds', 'rushing_tds', 'interceptions_thrown',
     'receptions', 'receiving_tds', 'extra_points_tds', 'drops',
     'flag_pulls', 'pass_deflections', 'interceptions',
-    'defensive_tds', 'safety', 'qb_sacks', 'def_sacks',
+    'defensive_tds', 'safety', 'qb_sacks', 'def_sacks', 'defensive_xp_tds',
 ]);
 
 // RFC 4180-ish CSV parser: handles quoted fields, embedded commas/newlines, escaped "".
@@ -212,7 +212,7 @@ export const AdminImportMatchModal = ({ match, onClose }: AdminImportMatchModalP
                         <p className="font-bold mb-1">CSV format — one row per player per match:</p>
                         <p className="font-mono text-[11px] break-all">
                             <strong>required:</strong> side, player_name<br />
-                            <strong>optional:</strong> jersey_number, position, passing_attempts, rushing_attempts, completed_passes, passing_tds, rushing_tds, interceptions_thrown, receptions, receiving_tds, extra_points_tds, drops, flag_pulls, pass_deflections, interceptions, defensive_tds, safety, qb_sacks, def_sacks
+                            <strong>optional:</strong> jersey_number, position, passing_attempts, rushing_attempts, completed_passes, passing_tds, rushing_tds, interceptions_thrown, receptions, receiving_tds, extra_points_tds, drops, flag_pulls, pass_deflections, interceptions, defensive_tds, safety, qb_sacks, def_sacks, defensive_xp_tds
                         </p>
                         <p className="mt-2">
                             <code>side</code> must be exactly <code>home</code> or <code>away</code>. New players get auto-created in the team they're listed for.

@@ -208,6 +208,7 @@ func (h *StatsHandler) UpsertPlayerStat(c *gin.Context) {
 		Safety:              req.Safety,
 		QBSacks:             req.QBSacks,
 		DefSacks:            req.DefSacks,
+		DefensiveXPTDs:      req.DefensiveXPTDs,
 	}
 
 	if err := h.service.UpsertPlayerStat(c.Request.Context(), stat); err != nil {

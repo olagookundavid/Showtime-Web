@@ -24,6 +24,7 @@ type ImportMatchPlayerRow struct {
 	Safety              int    `json:"safety"`
 	QBSacks             int    `json:"qb_sacks"`
 	DefSacks            int    `json:"def_sacks"`
+	DefensiveXPTDs      int    `json:"defensive_xp_tds"`
 }
 
 type ImportMatchRequest struct {

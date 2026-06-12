@@ -26,6 +26,7 @@ type PlayerStat struct {
 	Safety              int       `json:"safety"`
 	QBSacks             int       `json:"qb_sacks"`
 	DefSacks            int       `json:"def_sacks"`
+	DefensiveXPTDs      int       `json:"defensive_xp_tds"`
 	CreatedAt           time.Time `json:"created_at"`
 	UpdatedAt           time.Time `json:"updated_at"`
 }
@@ -58,6 +59,7 @@ type AggregatedPlayerStat struct {
 	Safety              int    `json:"safety"`
 	QBSacks             int    `json:"qb_sacks"`
 	DefSacks            int    `json:"def_sacks"`
+	DefensiveXPTDs      int    `json:"defensive_xp_tds"`
 }
 
 type AggregatedTeamStat struct {
@@ -82,6 +84,7 @@ type AggregatedTeamStat struct {
 	Safety              int    `json:"safety"`
 	QBSacks             int    `json:"qb_sacks"`
 	DefSacks            int    `json:"def_sacks"`
+	DefensiveXPTDs      int    `json:"defensive_xp_tds"`
 }
 
 type StatsFilter struct {

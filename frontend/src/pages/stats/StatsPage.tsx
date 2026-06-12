@@ -294,6 +294,7 @@ export const StatsPage = () => {
                                                 { a: 'Def INT', f: 'Interceptions Caught' },
                                                 { a: 'Def Sacks', f: 'Defensive Sacks' },
                                                 { a: 'Def TDs', f: 'Defensive Touchdowns' },
+                                                { a: 'Def XP TDs', f: 'Defensive Extra-Point TDs (INT returned on an extra point)' },
                                                 { a: 'Safety', f: 'Safeties' },
                                             ].map(s => (
                                                 <div key={s.a} className="flex items-center gap-1.5 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-full border border-red-100 dark:border-red-800">
