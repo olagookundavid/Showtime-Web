@@ -213,7 +213,7 @@ func (r *PostgresStatsRepository) GetPlayerStats(ctx context.Context, filter dom
 			SUM(ps.safety) AS safety,
 			SUM(ps.qb_sacks) AS qb_sacks,
 			SUM(ps.def_sacks) AS def_sacks,
-			SUM(ps.defensive_xp_tds) AS defensive_xp_tds
+			COALESCE(SUM(ps.defensive_xp_tds), 0) AS defensive_xp_tds
 		FROM player_stats ps
 		JOIN players p ON ps.player_id = p.id
 		JOIN teams t ON ps.team_id = t.id
@@ -298,7 +298,7 @@ func (r *PostgresStatsRepository) GetTeamStats(ctx context.Context, filter domai
 			SUM(ps.safety) AS safety,
 			SUM(ps.qb_sacks) AS qb_sacks,
 			SUM(ps.def_sacks) AS def_sacks,
-			SUM(ps.defensive_xp_tds) AS defensive_xp_tds
+			COALESCE(SUM(ps.defensive_xp_tds), 0) AS defensive_xp_tds
 		FROM player_stats ps
 		JOIN teams t ON ps.team_id = t.id
 		%s

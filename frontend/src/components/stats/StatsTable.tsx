@@ -81,10 +81,7 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                     <thead className="text-[10px] md:text-xs bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
                         <tr>
                             <th className={`sticky left-0 z-20 ${STICKY_HEAD_BG} px-2 py-4 md:px-4 text-center w-10 md:w-12 border-r border-gray-100 dark:border-gray-700`}>#</th>
-                            <th className={`sticky left-10 md:left-12 z-20 ${STICKY_HEAD_BG} px-2 py-4 md:px-4 text-left whitespace-nowrap w-[150px] md:w-[210px] uppercase border-r border-gray-100 dark:border-gray-700`}>{isPlayer ? 'Player' : 'Team'}</th>
-                            {isPlayer && (
-                                <th className={`sticky left-[190px] md:left-[258px] z-20 ${STICKY_HEAD_BG} px-2 py-4 md:px-4 text-left whitespace-nowrap w-[90px] md:w-[110px] uppercase border-r border-gray-100 dark:border-gray-700`}>Team</th>
-                            )}
+                            <th className={`sticky left-10 md:left-12 z-20 ${STICKY_HEAD_BG} px-2 py-4 md:px-4 text-left whitespace-nowrap ${isPlayer ? 'w-[230px] md:w-[310px]' : 'w-[150px] md:w-[210px]'} uppercase border-r border-gray-100 dark:border-gray-700`}>{isPlayer ? 'Player / Team' : 'Team'}</th>
 
                             {/* Stacked two-line headers — click to rank league-wide leaders */}
                             {visibleStatCols.map((col, i) => {
@@ -121,25 +118,35 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                                     <td className={`sticky left-0 z-10 ${STICKY_BODY_BG} px-2 py-2 md:px-4 md:py-4 text-center font-bold text-gray-400 dark:text-gray-500 border-r border-gray-50 dark:border-gray-800 w-10 md:w-12`}>
                                         {index + 1}
                                     </td>
-                                    <td className={`sticky left-10 md:left-12 z-10 ${STICKY_BODY_BG} px-2 py-2 md:px-4 md:py-4 font-bold text-sffl-navy dark:text-white whitespace-nowrap text-left border-r border-gray-50 dark:border-gray-800 w-[150px] md:w-[210px]`}>
+                                    <td className={`sticky left-10 md:left-12 z-10 ${STICKY_BODY_BG} px-2 py-2 md:px-4 md:py-4 font-bold text-sffl-navy dark:text-white whitespace-nowrap text-left border-r border-gray-50 dark:border-gray-800 ${isPlayer ? 'w-[230px] md:w-[310px]' : 'w-[150px] md:w-[210px]'}`}>
                                         {isPlayer ? (
-                                            <Link to={`/players/${row.player_id}`} className="flex items-center space-x-2 md:space-x-3 hover:text-sffl-red transition-colors">
-                                                {row.player_image ? (
-                                                    <LightboxImage
-                                                        src={row.player_image}
-                                                        alt={row.player_name}
-                                                        thumbnailClassName="w-6 h-6 md:w-8 md:h-8 rounded-full object-cover shadow-sm border border-gray-100 dark:border-gray-700"
-                                                    />
-                                                ) : (
-                                                    <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-[10px] md:text-xs">
-                                                        #{row.player_jersey_number}
+                                            <div className="flex items-center justify-between gap-2">
+                                                <Link to={`/players/${row.player_id}`} className="flex items-center space-x-2 md:space-x-3 hover:text-sffl-red transition-colors min-w-0 flex-1">
+                                                    {row.player_image ? (
+                                                        <LightboxImage
+                                                            src={row.player_image}
+                                                            alt={row.player_name}
+                                                            thumbnailClassName="w-6 h-6 md:w-8 md:h-8 rounded-full object-cover shadow-sm border border-gray-100 dark:border-gray-700"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-[10px] md:text-xs shrink-0">
+                                                            #{row.player_jersey_number}
+                                                        </div>
+                                                    )}
+                                                    <div className="flex flex-col min-w-0">
+                                                        <span className="leading-tight text-xs md:text-sm uppercase tracking-tight truncate">{row.player_name}</span>
+                                                        <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">{row.player_position}</span>
                                                     </div>
-                                                )}
-                                                <div className="flex flex-col min-w-0">
-                                                    <span className="leading-tight text-xs md:text-sm uppercase tracking-tight truncate">{row.player_name}</span>
-                                                    <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">{row.player_position}</span>
+                                                </Link>
+                                                <div className="flex items-center gap-1 shrink-0 text-[10px] md:text-xs font-bold text-gray-600 dark:text-gray-400">
+                                                    <LightboxImage
+                                                        src={row.team_logo || 'https://via.placeholder.com/20'}
+                                                        alt=""
+                                                        thumbnailClassName="w-4 h-4 md:w-5 md:h-5 object-contain rounded-sm opacity-70"
+                                                    />
+                                                    <span className="uppercase tracking-tight leading-none truncate">{row.team_short_name || row.team_name}</span>
                                                 </div>
-                                            </Link>
+                                            </div>
                                         ) : (
                                             <div className="flex items-center space-x-2 md:space-x-3">
                                                 <LightboxImage
@@ -151,18 +158,6 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                                             </div>
                                         )}
                                     </td>
-                                    {isPlayer && (
-                                        <td className={`sticky left-[190px] md:left-[258px] z-10 ${STICKY_BODY_BG} px-2 py-2 md:px-4 md:py-4 text-[10px] md:text-xs font-bold text-gray-600 dark:text-gray-400 whitespace-nowrap text-left border-r border-gray-50 dark:border-gray-800 w-[90px] md:w-[110px]`}>
-                                            <div className="flex items-center space-x-2 group/team">
-                                                <LightboxImage
-                                                    src={row.team_logo || 'https://via.placeholder.com/20'}
-                                                    alt=""
-                                                    thumbnailClassName="w-4 h-4 md:w-5 md:h-5 object-contain rounded-sm opacity-70 group-hover/team:opacity-100 transition-opacity"
-                                                />
-                                                <span className="uppercase tracking-tight leading-none truncate">{row.team_short_name || row.team_name}</span>
-                                            </div>
-                                        </td>
-                                    )}
 
                                     {/* Stat values */}
                                     {isPlayer && (
@@ -184,7 +179,7 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                                     <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-bold bg-red-50/10 dark:bg-red-900/10 text-red-600 dark:text-red-400">{row.interceptions}</td>
                                     <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-medium bg-red-50/5 dark:bg-red-900/5 text-gray-700 dark:text-gray-200">{row.def_sacks}</td>
                                     <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-bold bg-red-50/10 dark:bg-red-900/10 text-red-600 dark:text-red-400">{row.defensive_tds}</td>
-                                    <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-bold bg-red-50/10 dark:bg-red-900/10 text-red-600 dark:text-red-400">{row.defensive_xp_tds}</td>
+                                    <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-bold bg-red-50/10 dark:bg-red-900/10 text-red-600 dark:text-red-400">{row.defensive_xp_tds ?? 0}</td>
                                     <td className="px-1 py-4 bg-red-50/5 dark:bg-red-900/5 text-gray-700 dark:text-gray-200 font-medium">{row.safety}</td>
                                 </tr>
                             );
