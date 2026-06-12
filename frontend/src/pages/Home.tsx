@@ -203,7 +203,16 @@ export default function Home() {
                                                             thumbnailClassName="w-8 h-8 object-contain rounded-lg shadow-sm" 
                                                         />
                                                     )}
-                                                    <span className="font-bold text-base dark:text-white tracking-tight">{s.team?.name || '—'}</span>
+                                                    {s.team?.id ? (
+                                                        <Link
+                                                            to={`/teams/${s.team.id}`}
+                                                            className="font-bold text-base dark:text-white tracking-tight hover:text-sffl-red transition-colors"
+                                                        >
+                                                            {s.team.name}
+                                                        </Link>
+                                                    ) : (
+                                                        <span className="font-bold text-base dark:text-white tracking-tight">—</span>
+                                                    )}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-center text-sm font-semibold dark:text-gray-300">{s.played ?? 0}</td>

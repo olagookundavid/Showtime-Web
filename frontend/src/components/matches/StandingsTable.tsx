@@ -6,6 +6,7 @@ import { LightboxImage } from '../ui';
 interface StandingsTableProps {
     standings: Standing[];
     isCompleted?: boolean;
+    highlightTeamId?: string;
 }
 
 const L5Badge: React.FC<{ result: string }> = ({ result }) => {
@@ -21,7 +22,7 @@ const L5Badge: React.FC<{ result: string }> = ({ result }) => {
     );
 };
 
-export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCompleted }) => {
+export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCompleted, highlightTeamId }) => {
     if (standings.length === 0) {
         return <div className="text-center p-8 text-gray-500 dark:text-gray-400">No standings available yet.</div>;
     }
@@ -53,21 +54,26 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCom
                         {standings.map((standing, index) => {
                             const isGold = isCompleted && index === 0;
                             const isSilver = isCompleted && index === 1;
+                            const isHighlighted = !!highlightTeamId && standing.team?.id === highlightTeamId;
                             // Sticky cells need OPAQUE backgrounds matching their row, since the
                             // scrolling stat cells slide underneath them. The base row keeps the
                             // semi-transparent tint; the sticky cells use solid equivalents.
-                            const stickyBg = isGold
-                                ? 'bg-amber-50 dark:bg-amber-950 group-hover:bg-amber-100 dark:group-hover:bg-amber-900'
-                                : isSilver
-                                    ? 'bg-slate-50 dark:bg-slate-900 group-hover:bg-slate-100 dark:group-hover:bg-slate-800'
-                                    : 'bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-800';
+                            const stickyBg = isHighlighted
+                                ? 'bg-sffl-red/15 dark:bg-sffl-red/30 group-hover:bg-sffl-red/25 dark:group-hover:bg-sffl-red/40'
+                                : isGold
+                                    ? 'bg-amber-50 dark:bg-amber-950 group-hover:bg-amber-100 dark:group-hover:bg-amber-900'
+                                    : isSilver
+                                        ? 'bg-slate-50 dark:bg-slate-900 group-hover:bg-slate-100 dark:group-hover:bg-slate-800'
+                                        : 'bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-800';
 
                             return (
                                 <tr
                                     key={standing.id}
+                                    data-team-id={standing.team?.id}
                                     className={`
                                         group border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors
-                                        ${isGold ? 'bg-amber-500/10 hover:bg-amber-500/20 dark:bg-amber-500/5 dark:hover:bg-amber-500/10 border-l-4 border-l-amber-500' :
+                                        ${isHighlighted ? 'bg-sffl-red/10 hover:bg-sffl-red/20 dark:bg-sffl-red/20 dark:hover:bg-sffl-red/30 border-l-4 border-l-sffl-red ring-2 ring-sffl-red/40 ring-inset' :
+                                          isGold ? 'bg-amber-500/10 hover:bg-amber-500/20 dark:bg-amber-500/5 dark:hover:bg-amber-500/10 border-l-4 border-l-amber-500' :
                                           isSilver ? 'bg-slate-300/20 hover:bg-slate-300/30 dark:bg-slate-300/10 dark:hover:bg-slate-300/20 border-l-4 border-l-slate-400' :
                                           index < 4 ? 'border-l-4 border-l-green-500' : ''}
                                     `}

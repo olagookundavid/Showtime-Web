@@ -118,8 +118,17 @@ export const MatchDetail = () => {
                                 )}
                             </div>
                             <div className="text-center w-full">
-                                <h2 className="text-white font-black text-sm md:text-2xl leading-tight truncate px-1">{homeTeam?.name}</h2>
-                                <span className="text-gray-400 text-[10px] md:text-xs font-bold uppercase tracking-wider">{homeTeam?.short_name}</span>
+                                {homeTeam?.id ? (
+                                    <Link to={`/teams/${homeTeam.id}`} className="block group/team">
+                                        <h2 className="text-white font-black text-sm md:text-2xl leading-tight truncate px-1 group-hover/team:text-sffl-red transition-colors">{homeTeam?.name}</h2>
+                                        <span className="text-gray-400 text-[10px] md:text-xs font-bold uppercase tracking-wider">{homeTeam?.short_name}</span>
+                                    </Link>
+                                ) : (
+                                    <>
+                                        <h2 className="text-white font-black text-sm md:text-2xl leading-tight truncate px-1">{homeTeam?.name}</h2>
+                                        <span className="text-gray-400 text-[10px] md:text-xs font-bold uppercase tracking-wider">{homeTeam?.short_name}</span>
+                                    </>
+                                )}
                             </div>
                         </div>
 
@@ -159,8 +168,17 @@ export const MatchDetail = () => {
                                 )}
                             </div>
                             <div className="text-center w-full">
-                                <h2 className="text-white font-black text-sm md:text-2xl leading-tight truncate px-1">{awayTeam?.name}</h2>
-                                <span className="text-gray-400 text-[10px] md:text-xs font-bold uppercase tracking-wider">{awayTeam?.short_name}</span>
+                                {awayTeam?.id ? (
+                                    <Link to={`/teams/${awayTeam.id}`} className="block group/team">
+                                        <h2 className="text-white font-black text-sm md:text-2xl leading-tight truncate px-1 group-hover/team:text-sffl-red transition-colors">{awayTeam?.name}</h2>
+                                        <span className="text-gray-400 text-[10px] md:text-xs font-bold uppercase tracking-wider">{awayTeam?.short_name}</span>
+                                    </Link>
+                                ) : (
+                                    <>
+                                        <h2 className="text-white font-black text-sm md:text-2xl leading-tight truncate px-1">{awayTeam?.name}</h2>
+                                        <span className="text-gray-400 text-[10px] md:text-xs font-bold uppercase tracking-wider">{awayTeam?.short_name}</span>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </div>

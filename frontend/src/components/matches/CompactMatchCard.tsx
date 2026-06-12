@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import type { Match } from '../../services/api';
 import { LightboxImage } from '../ui';
 
@@ -49,9 +50,17 @@ export const CompactMatchCard: React.FC<CompactMatchCardProps> = ({ match, onCli
                         alt={match.home_team?.name} 
                         thumbnailClassName="w-10 h-10 md:w-12 md:h-12 rounded-md object-contain bg-gray-50 dark:bg-gray-900/50 p-1"
                     />
-                    <span className="text-[10px] md:text-xs font-bold text-sffl-navy dark:text-white truncate pb-1 uppercase">
-                        {match.home_team?.short_name || match.home_team?.name || 'Home'}
-                    </span>
+                    {match.home_team?.id ? (
+                        <Link
+                            to={`/teams/${match.home_team.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-[10px] md:text-xs font-bold text-sffl-navy dark:text-white truncate pb-1 uppercase hover:text-sffl-red transition-colors"
+                        >
+                            {match.home_team?.short_name || match.home_team?.name}
+                        </Link>
+                    ) : (
+                        <span className="text-[10px] md:text-xs font-bold text-sffl-navy dark:text-white truncate pb-1 uppercase">Home</span>
+                    )}
                 </div>
 
                 {/* Score vs VS */}
@@ -72,9 +81,17 @@ export const CompactMatchCard: React.FC<CompactMatchCardProps> = ({ match, onCli
                         alt={match.away_team?.name} 
                         thumbnailClassName="w-10 h-10 md:w-12 md:h-12 rounded-md object-contain bg-gray-50 dark:bg-gray-900/50 p-1"
                     />
-                    <span className="text-[10px] md:text-xs font-bold text-sffl-navy dark:text-white truncate pb-1 uppercase">
-                        {match.away_team?.short_name || match.away_team?.name || 'Away'}
-                    </span>
+                    {match.away_team?.id ? (
+                        <Link
+                            to={`/teams/${match.away_team.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-[10px] md:text-xs font-bold text-sffl-navy dark:text-white truncate pb-1 uppercase hover:text-sffl-red transition-colors"
+                        >
+                            {match.away_team?.short_name || match.away_team?.name}
+                        </Link>
+                    ) : (
+                        <span className="text-[10px] md:text-xs font-bold text-sffl-navy dark:text-white truncate pb-1 uppercase">Away</span>
+                    )}
                 </div>
             </div>
             

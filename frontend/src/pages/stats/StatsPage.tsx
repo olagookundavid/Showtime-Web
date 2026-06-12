@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getCompetitions, getPlayerStats, getTeamStats, getStatDates } from '../../services/api';
+import { getCompetitions, getPlayerStats, getTeamStats, getStatDates, getTeams } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { StatsTable } from '../../components/stats/StatsTable';
 import { useSearchParams } from 'react-router-dom';
@@ -12,6 +12,7 @@ export const StatsPage = () => {
     const urlDate = searchParams.get('date');
     const urlPlayerId = searchParams.get('player_id');
     const urlSearch = searchParams.get('search');
+    const urlTeam = searchParams.get('team');
 
     const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>(urlComp || '');
     const [selectedDate, setSelectedDate] = useState<string>(urlDate || '');
@@ -86,10 +87,38 @@ export const StatsPage = () => {
     const loading = compLoading || datesLoading || (activeTab === 'players' ? loadingPlayers : loadingTeams);
 
     const pagination = activeTab === 'players' ? playerStatsPagination : teamStatsPagination;
-    const playerStats = playerStatsPagination?.data || [];
-    const teamStats = teamStatsPagination?.data || [];
+    // Both PlayerStat and TeamStat carry team_id, so a ?team=X URL filter can
+    // be applied client-side without a new backend endpoint. We do the filter
+    // after the API returns its page; pagination counts reflect the unfiltered
+    // page (acceptable since a team's slice fits well within a single page).
+    const rawPlayerStats = playerStatsPagination?.data || [];
+    const rawTeamStats = teamStatsPagination?.data || [];
+    const playerStats = useMemo(
+        () => (urlTeam ? rawPlayerStats.filter(s => s.team_id === urlTeam) : rawPlayerStats),
+        [rawPlayerStats, urlTeam]
+    );
+    const teamStats = useMemo(
+        () => (urlTeam ? rawTeamStats.filter(s => s.team_id === urlTeam) : rawTeamStats),
+        [rawTeamStats, urlTeam]
+    );
     const totalPages = pagination?.total_pages || 0;
     const totalItems = pagination?.total || 0;
+
+    // Look up the filter team's name for the banner. Skipped when no ?team=.
+    const { data: teamsLookupData } = useQuery({
+        queryKey: ['publicTeamsLookup'],
+        queryFn: () => getTeams(1, 100),
+        enabled: !!urlTeam,
+    });
+    const filterTeam = urlTeam
+        ? teamsLookupData?.data?.find(t => t.id === urlTeam)
+        : undefined;
+
+    const clearTeamFilter = () => {
+        const params = new URLSearchParams(searchParams);
+        params.delete('team');
+        setSearchParams(params, { replace: true });
+    };
 
     return (
         <div className="space-y-4 md:space-y-8 pb-20">
@@ -189,6 +218,21 @@ export const StatsPage = () => {
                     </div>
                 </div>
             </div>
+
+            {filterTeam && (
+                <div className="flex items-center justify-between gap-3 bg-sffl-red/10 border border-sffl-red/30 text-sffl-red dark:bg-sffl-red/20 dark:text-white px-4 py-2.5 rounded-xl">
+                    <div className="flex items-center gap-2 text-xs md:text-sm font-bold uppercase tracking-wider">
+                        <span>Filtering stats for</span>
+                        <span className="font-black">{filterTeam.name}</span>
+                    </div>
+                    <button
+                        onClick={clearTeamFilter}
+                        className="text-[10px] md:text-xs font-black uppercase tracking-wider bg-white text-sffl-red hover:bg-gray-100 px-3 py-1 rounded-full transition"
+                    >
+                        Clear ✕
+                    </button>
+                </div>
+            )}
 
             {/* Tabs */}
             <div className="flex space-x-2 border-b border-gray-200 dark:border-gray-700 overflow-x-auto scrollbar-hide">

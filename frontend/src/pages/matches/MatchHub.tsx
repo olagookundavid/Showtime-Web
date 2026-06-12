@@ -1,19 +1,37 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { getCompetitions, getMatches, getStandings, type Match, type Competition, type PaginatedResponse } from '../../services/api';
+import { getCompetitions, getMatches, getStandings, getTeams, type Match, type Competition, type PaginatedResponse } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { Spinner } from '../../components/ui';
 import { MatchCard } from '../../components/matches/MatchCard';
 import { MatchStandingsTable } from '../../components/matches/MatchStandingsTable';
 
 export const MatchHub = () => {
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const compParam = searchParams.get('comp');
+    const teamParam = searchParams.get('team');
     const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>('');
     const [statusFilter, setStatusFilter] = useState<'ALL' | 'LIVE' | 'FINISHED' | 'SCHEDULED'>('ALL');
     const [collapsedDates, setCollapsedDates] = useState<Record<string, boolean>>({});
     const navigate = useNavigate();
+
+    // When the page is opened via /matches?team=X (e.g. from a Team Hub
+    // quick-link), look up the team so we can label the active filter.
+    const { data: teamsLookupData } = useQuery({
+        queryKey: ['publicTeamsLookup'],
+        queryFn: () => getTeams(1, 100),
+        enabled: !!teamParam,
+    });
+    const filterTeam = teamParam
+        ? teamsLookupData?.data?.find(t => t.id === teamParam)
+        : undefined;
+
+    const clearTeamFilter = () => {
+        const params = new URLSearchParams(searchParams);
+        params.delete('team');
+        setSearchParams(params, { replace: true });
+    };
 
     const { data: competitionsData, isLoading: loadingComps } = useQuery({
         queryKey: ['publicCompetitions'],
@@ -83,7 +101,13 @@ export const MatchHub = () => {
         enabled: !!selectedCompetitionId,
     });
 
-    const matches = infiniteMatchesData?.pages?.reduce((acc: Match[], p: PaginatedResponse<Match>) => acc.concat(p?.data || []), []) || [];
+    const rawMatches = infiniteMatchesData?.pages?.reduce((acc: Match[], p: PaginatedResponse<Match>) => acc.concat(p?.data || []), []) || [];
+    // If a team filter is active, keep only matches where the team plays.
+    // Done client-side since the matches API doesn't accept a team_id yet.
+    const matches = useMemo(() => {
+        if (!teamParam) return rawMatches;
+        return rawMatches.filter(m => m.home_team?.id === teamParam || m.away_team?.id === teamParam);
+    }, [rawMatches, teamParam]);
     const hasMore = hasNextPage;
     const loading = loadingComps || initialMatchesLoading;
 
@@ -162,6 +186,21 @@ export const MatchHub = () => {
                     </div>
                 )}
             </div>
+
+            {filterTeam && (
+                <div className="flex items-center justify-between gap-3 bg-sffl-red/10 border border-sffl-red/30 text-sffl-red dark:bg-sffl-red/20 dark:text-white px-4 py-2.5 rounded-xl">
+                    <div className="flex items-center gap-2 text-xs md:text-sm font-bold uppercase tracking-wider">
+                        <span>Filtering matches for</span>
+                        <span className="font-black">{filterTeam.name}</span>
+                    </div>
+                    <button
+                        onClick={clearTeamFilter}
+                        className="text-[10px] md:text-xs font-black uppercase tracking-wider bg-white text-sffl-red hover:bg-gray-100 px-3 py-1 rounded-full transition"
+                    >
+                        Clear ✕
+                    </button>
+                </div>
+            )}
 
             {/* Main Content Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

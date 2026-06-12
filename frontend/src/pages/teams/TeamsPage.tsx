@@ -68,7 +68,7 @@ export const TeamsPage = () => {
                                 ref={isLast ? lastCardRef : null}
                             >
                                 <Link
-                                    to={`/players?team=${team.id}`}
+                                    to={`/teams/${team.id}`}
                                     className="block bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-xl transition-all overflow-hidden border border-gray-100 dark:border-gray-700 group"
                                 >
                                     <div className="aspect-square bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">

@@ -153,26 +153,32 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                                                 </div>
                                             </Link>
                                         ) : (
-                                            <div className="flex items-center space-x-2 md:space-x-3 min-w-0">
+                                            <Link
+                                                to={`/teams/${row.team_id}`}
+                                                className="flex items-center space-x-2 md:space-x-3 min-w-0 hover:text-sffl-red transition-colors"
+                                            >
                                                 <LightboxImage
                                                     src={row.team_logo || 'https://via.placeholder.com/30'}
                                                     alt={row.team_name}
                                                     thumbnailClassName="w-6 h-6 md:w-8 md:h-8 object-contain rounded-md shadow-sm"
                                                 />
                                                 <span className="uppercase text-xs md:text-sm tracking-tight truncate">{row.team_name}</span>
-                                            </div>
+                                            </Link>
                                         )}
                                     </td>
                                     {isPlayer && (
                                         <td className="px-2 py-2 md:px-4 md:py-4 text-[10px] md:text-xs font-bold text-gray-600 dark:text-gray-400 whitespace-nowrap text-left border-r border-gray-50 dark:border-gray-800 overflow-hidden">
-                                            <div className="flex items-center space-x-2 min-w-0">
+                                            <Link
+                                                to={`/teams/${row.team_id}`}
+                                                className="flex items-center space-x-2 min-w-0 hover:text-sffl-red transition-colors"
+                                            >
                                                 <LightboxImage
                                                     src={row.team_logo || 'https://via.placeholder.com/20'}
                                                     alt=""
                                                     thumbnailClassName="w-4 h-4 md:w-5 md:h-5 object-contain rounded-sm opacity-70"
                                                 />
                                                 <span className="uppercase tracking-tight leading-none truncate">{row.team_short_name || row.team_name}</span>
-                                            </div>
+                                            </Link>
                                         </td>
                                     )}
 

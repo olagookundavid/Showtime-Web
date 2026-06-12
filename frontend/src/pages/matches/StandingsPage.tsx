@@ -8,6 +8,7 @@ import { StandingsTable } from '../../components/matches/StandingsTable';
 export const StandingsPage = () => {
     const [searchParams] = useSearchParams();
     const compParam = searchParams.get('comp');
+    const teamParam = searchParams.get('team');
     const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>('');
     const [showLegend, setShowLegend] = useState(false);
 
@@ -25,6 +26,17 @@ export const StandingsPage = () => {
             setSelectedCompetitionId(competitions[0].id);
         }
     }, [competitions, selectedCompetitionId, compParam]);
+
+    // When arriving with ?team=X, scroll the highlighted row into the viewport
+    // so the user can see their team immediately even if the table is long.
+    useEffect(() => {
+        if (!teamParam) return;
+        const t = setTimeout(() => {
+            const row = document.querySelector<HTMLTableRowElement>(`tr[data-team-id="${teamParam}"]`);
+            row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 250);
+        return () => clearTimeout(t);
+    }, [teamParam, selectedCompetitionId]);
 
     const { data: standingsData, isLoading: dataLoading } = useQuery({
         queryKey: ['publicStandings', selectedCompetitionId],
@@ -133,7 +145,11 @@ export const StandingsPage = () => {
                         )}
                     </div>
 
-                    <StandingsTable standings={standings} isCompleted={selectedCompetition?.status === 'completed'} />
+                    <StandingsTable
+                        standings={standings}
+                        isCompleted={selectedCompetition?.status === 'completed'}
+                        highlightTeamId={teamParam || undefined}
+                    />
                 </div>
             ) : !dataLoading ? (
                 <div className="bg-gray-100 dark:bg-gray-800 p-16 rounded-xl text-center">

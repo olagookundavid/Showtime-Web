@@ -109,7 +109,16 @@ export const PlayerDetail = () => {
                     <div className="text-white flex flex-col justify-center gap-1 md:gap-4">
                         <h1 className="text-3xl md:text-6xl font-black uppercase tracking-tighter leading-none">{player.name}</h1>
                         <div className="text-lg md:text-2xl font-black text-sffl-red italic">{player.position}</div>
-                        <div className="text-sm md:text-xl font-bold text-gray-100">{player.team?.name || 'Free Agent'}</div>
+                        {player.team?.id ? (
+                            <Link
+                                to={`/teams/${player.team.id}`}
+                                className="text-sm md:text-xl font-bold text-gray-100 hover:text-sffl-red transition-colors"
+                            >
+                                {player.team.name}
+                            </Link>
+                        ) : (
+                            <div className="text-sm md:text-xl font-bold text-gray-100">Free Agent</div>
+                        )}
                         {player.bio && (
                             <div className="mt-4 p-4 bg-black/20 dark:bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
                                 <p className="text-xs md:text-lg text-gray-100 leading-relaxed italic">{player.bio}</p>
