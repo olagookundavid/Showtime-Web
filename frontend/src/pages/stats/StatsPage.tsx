@@ -313,6 +313,7 @@ export const StatsPage = () => {
                         teamStats={teamStats}
                         sortBy={sortBy}
                         onSortChange={handleSortChange}
+                        isLoading={activeTab === 'players' ? loadingPlayers : loadingTeams}
                     />
 
                     {/* Pagination Controls */}

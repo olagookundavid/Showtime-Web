@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getPlayerById, getPlayerStatById, getCompetitions, getStatDates } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
+import { Spinner } from '../../components/ui';
 import { useSearchParams } from 'react-router-dom';
 
 const StatCard = ({ label, value }: { label: string, value: number }) => {
@@ -57,7 +58,10 @@ export const PlayerDetail = () => {
         enabled: !!id,
     });
 
-    if (loadingPlayer || loadingStats) return <Loader />;
+    // Only the initial player fetch blocks the whole page. Stats reload in place
+    // (see the section below) so changing the competition/match-day filters never
+    // tears down the header — just the stats area spins.
+    if (loadingPlayer) return <Loader />;
 
     if (error || !player) {
         return (
@@ -171,7 +175,9 @@ export const PlayerDetail = () => {
                     </div>
                 </div>
 
-                {stats ? (
+                {loadingStats ? (
+                    <Spinner label="Loading stats…" className="py-16" />
+                ) : stats ? (
                     <div className="p-4 md:p-8">
                         <div className="mb-6 flex items-center gap-2">
                             <div className="h-2 w-2 rounded-full bg-sffl-red animate-pulse" />

@@ -3,6 +3,7 @@ import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { getCompetitions, getMatches, getStandings, type Match, type Competition, type PaginatedResponse } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
+import { Spinner } from '../../components/ui';
 import { MatchCard } from '../../components/matches/MatchCard';
 import { MatchStandingsTable } from '../../components/matches/MatchStandingsTable';
 
@@ -24,7 +25,7 @@ export const MatchHub = () => {
         }
     }, [competitions, selectedCompetitionId]);
 
-    const { data: standingsData } = useQuery({
+    const { data: standingsData, isLoading: standingsLoading } = useQuery({
         queryKey: ['publicStandings', selectedCompetitionId],
         queryFn: () => getStandings(selectedCompetitionId),
         enabled: !!selectedCompetitionId,
@@ -240,7 +241,11 @@ export const MatchHub = () => {
 
                 {/* Right Column: Standings (1/3 width) — sticky sidebar */}
                 <div className="lg:col-span-1 lg:sticky lg:top-[90px] self-start space-y-6">
-                    {standings.length > 0 ? (
+                    {standingsLoading ? (
+                        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl shadow-sm">
+                            <Spinner label="Loading standings…" className="py-12" />
+                        </div>
+                    ) : standings.length > 0 ? (
                         <div className="space-y-6">
                             <MatchStandingsTable 
                                 standings={standings} 

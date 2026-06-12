@@ -1,7 +1,7 @@
 import React from 'react';
 import type { PlayerStat, TeamStat } from '../../services/api';
 import { Link } from 'react-router-dom';
-import { LightboxImage } from '../ui';
+import { LightboxImage, Spinner } from '../ui';
 
 interface StatsTableProps {
     type: 'players' | 'teams';
@@ -9,6 +9,7 @@ interface StatsTableProps {
     teamStats?: TeamStat[];
     sortBy?: string;
     onSortChange?: (key: string) => void;
+    isLoading?: boolean;
 }
 
 // Order must mirror the stat cells in the table body below.
@@ -36,7 +37,7 @@ const STAT_COLS = [
     { key: 'safety', top: '', bottom: 'Safety', title: 'Safeties', bg: 'bg-red-50/30 dark:bg-red-900/10' },
 ];
 
-export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], teamStats = [], sortBy = '', onSortChange }) => {
+export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], teamStats = [], sortBy = '', onSortChange, isLoading = false }) => {
     const isPlayer = type === 'players';
     const data = isPlayer ? playerStats : teamStats;
 
@@ -49,6 +50,16 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
         onSortChange(sortBy === key ? '' : key);
     };
 
+    // Loading shows a spinner rather than the empty state, so changing a
+    // filter never flashes "No stats" before the new data arrives.
+    if (isLoading) {
+        return (
+            <div className="rounded-lg md:rounded-xl shadow-lg bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700">
+                <Spinner label="Loading stats…" className="py-16" />
+            </div>
+        );
+    }
+
     if (data.length === 0) {
         return <div className="text-center p-8 text-gray-500 dark:text-gray-400">No stats available for the selected filters.</div>;
     }
@@ -60,11 +71,11 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
             </div>
             <div className="overflow-x-auto">
                 <table className="w-full text-xs md:text-sm text-center border-collapse">
-                    <thead className="text-[10px] md:text-xs uppercase bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
+                    <thead className="text-[10px] md:text-xs bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
                         <tr>
                             <th className="px-2 py-4 md:px-4 text-center w-8 md:w-12 border-r border-gray-100 dark:border-gray-700">#</th>
-                            <th className="px-2 py-4 md:px-4 text-left whitespace-nowrap min-w-[150px] border-r border-gray-100 dark:border-gray-700">{isPlayer ? 'Player' : 'Team'}</th>
-                            {isPlayer && <th className="px-2 py-4 md:px-4 text-left whitespace-nowrap border-r border-gray-100 dark:border-gray-700">Team</th>}
+                            <th className="px-2 py-4 md:px-4 text-left whitespace-nowrap min-w-[150px] uppercase border-r border-gray-100 dark:border-gray-700">{isPlayer ? 'Player' : 'Team'}</th>
+                            {isPlayer && <th className="px-2 py-4 md:px-4 text-left whitespace-nowrap uppercase border-r border-gray-100 dark:border-gray-700">Team</th>}
 
                             {/* Stacked two-line headers — click to rank league-wide leaders */}
                             {visibleStatCols.map((col, i) => {
