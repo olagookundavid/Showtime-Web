@@ -79,7 +79,7 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                                             type="button"
                                             onClick={() => handleHeaderClick(col.key)}
                                             title={isActive ? `${col.title} — click to clear sort` : `${col.title} — click to sort by leaders`}
-                                            className={`flex flex-col items-center justify-center leading-tight py-3 px-2.5 mx-auto min-w-[3.25rem] whitespace-nowrap normal-case cursor-pointer select-none transition-colors hover:text-sffl-red ${isActive ? 'text-sffl-red font-black' : ''}`}
+                                            className={`flex flex-col items-center justify-center leading-tight py-3 px-2.5 mx-auto min-w-[3.25rem] whitespace-nowrap cursor-pointer select-none transition-colors hover:text-sffl-red ${isActive ? 'text-sffl-red font-black' : ''}`}
                                         >
                                             {col.top && <span className="text-[9px] md:text-[10px] font-semibold opacity-70">{col.top}</span>}
                                             <span className="font-bold">
