@@ -12,25 +12,28 @@ interface StatsTableProps {
 }
 
 // Order must mirror the stat cells in the table body below.
+// `top` is the category, `bottom` is the stat — rendered as two stacked lines
+// in the header (e.g. "Passing" over "ATT"). Single-concept columns leave
+// `top` empty and just show the bottom label.
 const STAT_COLS = [
-    { key: 'apps', label: 'APPS', title: 'Appearances (Games Played)', bg: '', playerOnly: true },
-    { key: 'passing_attempts', label: 'P-ATT', title: 'Pass Attempts', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
-    { key: 'completed_passes', label: 'P-COM', title: 'Pass Completions', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
-    { key: 'passing_tds', label: 'P-TD', title: 'Passing Touchdowns', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
-    { key: 'interceptions_thrown', label: 'P-INT', title: 'Interceptions Thrown', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
-    { key: 'qb_sacks', label: 'QBS', title: 'QB Sacks Accounted (QB fault)', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
-    { key: 'rushing_attempts', label: 'R-ATT', title: 'Rushing Attempts', bg: 'bg-green-50/30 dark:bg-green-900/10' },
-    { key: 'rushing_tds', label: 'R-TD', title: 'Rushing Touchdowns', bg: 'bg-green-50/30 dark:bg-green-900/10' },
-    { key: 'receptions', label: 'REC', title: 'Receptions', bg: 'bg-yellow-50/30 dark:bg-yellow-900/10' },
-    { key: 'receiving_tds', label: 'RC-TD', title: 'Receiving Touchdowns', bg: 'bg-yellow-50/30 dark:bg-yellow-900/10' },
-    { key: 'drops', label: 'DROP', title: 'Drops', bg: 'bg-yellow-50/30 dark:bg-yellow-900/10' },
-    { key: 'extra_points_tds', label: 'XPT', title: 'Extra Point Touchdowns', bg: 'bg-purple-50/30 dark:bg-purple-900/10' },
-    { key: 'flag_pulls', label: 'TKL', title: 'Flag Pulls (Tackles)', bg: 'bg-red-50/30 dark:bg-red-900/10' },
-    { key: 'pass_deflections', label: 'P-DEF', title: 'Pass Deflections', bg: 'bg-red-50/30 dark:bg-red-900/10' },
-    { key: 'interceptions', label: 'INT', title: 'Interceptions Caught', bg: 'bg-red-50/30 dark:bg-red-900/10' },
-    { key: 'def_sacks', label: 'DEF-S', title: 'Defensive Sacks (Def fault)', bg: 'bg-red-50/30 dark:bg-red-900/10' },
-    { key: 'defensive_tds', label: 'D-TD', title: 'Defensive Touchdowns', bg: 'bg-red-50/30 dark:bg-red-900/10' },
-    { key: 'safety', label: 'SFTY', title: 'Safeties', bg: 'bg-red-50/30 dark:bg-red-900/10' },
+    { key: 'apps', top: '', bottom: 'Apps', title: 'Appearances (Games Played)', bg: '', playerOnly: true },
+    { key: 'passing_attempts', top: 'Passing', bottom: 'ATT', title: 'Pass Attempts', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
+    { key: 'completed_passes', top: 'Passing', bottom: 'COMP', title: 'Pass Completions', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
+    { key: 'passing_tds', top: 'Passing', bottom: 'TDs', title: 'Passing Touchdowns', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
+    { key: 'interceptions_thrown', top: 'Passing', bottom: 'INT', title: 'Interceptions Thrown', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
+    { key: 'qb_sacks', top: 'QB', bottom: 'Sacks', title: 'QB Sacks Accounted (QB fault)', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
+    { key: 'rushing_attempts', top: 'Rush', bottom: 'ATT', title: 'Rushing Attempts', bg: 'bg-green-50/30 dark:bg-green-900/10' },
+    { key: 'rushing_tds', top: 'Rush', bottom: 'TDs', title: 'Rushing Touchdowns', bg: 'bg-green-50/30 dark:bg-green-900/10' },
+    { key: 'receptions', top: '', bottom: 'Rec', title: 'Receptions', bg: 'bg-yellow-50/30 dark:bg-yellow-900/10' },
+    { key: 'receiving_tds', top: 'RC', bottom: 'TDs', title: 'Receiving Touchdowns', bg: 'bg-yellow-50/30 dark:bg-yellow-900/10' },
+    { key: 'drops', top: '', bottom: 'Drops', title: 'Drops', bg: 'bg-yellow-50/30 dark:bg-yellow-900/10' },
+    { key: 'extra_points_tds', top: 'X-Pts', bottom: 'TDs', title: 'Extra Point Touchdowns', bg: 'bg-purple-50/30 dark:bg-purple-900/10' },
+    { key: 'flag_pulls', top: 'Flag', bottom: 'Pulls', title: 'Flag Pulls (Tackles)', bg: 'bg-red-50/30 dark:bg-red-900/10' },
+    { key: 'pass_deflections', top: 'Pass', bottom: 'Defl', title: 'Pass Deflections', bg: 'bg-red-50/30 dark:bg-red-900/10' },
+    { key: 'interceptions', top: 'Def', bottom: 'INT', title: 'Interceptions Caught', bg: 'bg-red-50/30 dark:bg-red-900/10' },
+    { key: 'def_sacks', top: 'Def', bottom: 'Sacks', title: 'Defensive Sacks (Def fault)', bg: 'bg-red-50/30 dark:bg-red-900/10' },
+    { key: 'defensive_tds', top: 'Def', bottom: 'TDs', title: 'Defensive Touchdowns', bg: 'bg-red-50/30 dark:bg-red-900/10' },
+    { key: 'safety', top: '', bottom: 'Safety', title: 'Safeties', bg: 'bg-red-50/30 dark:bg-red-900/10' },
 ];
 
 export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], teamStats = [], sortBy = '', onSortChange }) => {
@@ -63,7 +66,7 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                             <th className="px-2 py-4 md:px-4 text-left whitespace-nowrap min-w-[150px] border-r border-gray-100 dark:border-gray-700">{isPlayer ? 'Player' : 'Team'}</th>
                             {isPlayer && <th className="px-2 py-4 md:px-4 text-left whitespace-nowrap border-r border-gray-100 dark:border-gray-700">Team</th>}
 
-                            {/* Vertical Headers for Stats — click to rank league-wide leaders */}
+                            {/* Stacked two-line headers — click to rank league-wide leaders */}
                             {visibleStatCols.map((col, i) => {
                                 const isActive = sortBy === col.key;
                                 const isLast = i === visibleStatCols.length - 1;
@@ -76,9 +79,12 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                                             type="button"
                                             onClick={() => handleHeaderClick(col.key)}
                                             title={isActive ? `${col.title} — click to clear sort` : `${col.title} — click to sort by leaders`}
-                                            className={`[writing-mode:vertical-rl] rotate-180 py-4 px-2 whitespace-nowrap mx-auto cursor-pointer select-none transition-colors hover:text-sffl-red ${isActive ? 'text-sffl-red font-black' : ''}`}
+                                            className={`flex flex-col items-center justify-center leading-tight py-3 px-2.5 mx-auto min-w-[3.25rem] whitespace-nowrap normal-case cursor-pointer select-none transition-colors hover:text-sffl-red ${isActive ? 'text-sffl-red font-black' : ''}`}
                                         >
-                                            {col.label}{isActive ? ' ▾' : ''}
+                                            {col.top && <span className="text-[9px] md:text-[10px] font-semibold opacity-70">{col.top}</span>}
+                                            <span className="font-bold">
+                                                {col.bottom}{isActive ? ' ▾' : ''}
+                                            </span>
                                         </button>
                                     </th>
                                 );

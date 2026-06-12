@@ -252,11 +252,11 @@ export const StatsPage = () => {
                                         <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest border-l-2 border-blue-200 pl-2">Passing</h4>
                                         <div className="flex flex-wrap gap-2 text-[10px] font-bold">
                                             {[
-                                                { a: 'P-ATT', f: 'Pass Attempts' },
-                                                { a: 'P-COM', f: 'Pass Completions' },
-                                                { a: 'P-TD', f: 'Passing TDs' },
-                                                { a: 'P-INT', f: 'Interceptions Thrown' },
-                                                { a: 'QBS', f: 'QB Sacks Accounted' },
+                                                { a: 'Passing ATT', f: 'Pass Attempts' },
+                                                { a: 'Passing COMP', f: 'Pass Completions' },
+                                                { a: 'Passing TDs', f: 'Passing Touchdowns' },
+                                                { a: 'Passing INT', f: 'Interceptions Thrown' },
+                                                { a: 'QB Sacks', f: 'QB Sacks Accounted' },
                                             ].map(s => (
                                                 <div key={s.a} className="flex items-center gap-1.5 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-full border border-blue-100 dark:border-blue-800">
                                                     <span className="text-blue-600"> {s.a}:</span> <span className="text-blue-800/80 dark:text-blue-300/80">{s.f}</span>
@@ -270,12 +270,12 @@ export const StatsPage = () => {
                                         <h4 className="text-[10px] font-black text-green-400 uppercase tracking-widest border-l-2 border-green-200 pl-2">Offense</h4>
                                         <div className="flex flex-wrap gap-2 text-[10px] font-bold">
                                             {[
-                                                { a: 'R-ATT', f: 'Rush Attempts', c: 'green' },
-                                                { a: 'R-TD', f: 'Rushing TDs', c: 'green' },
-                                                { a: 'REC', f: 'Receptions', c: 'yellow' },
-                                                { a: 'RC-TD', f: 'Receiving TDs', c: 'yellow' },
-                                                { a: 'DROP', f: 'Drops', c: 'yellow' },
-                                                { a: 'XPT', f: 'Extra Point TDs', c: 'purple' },
+                                                { a: 'Rush ATT', f: 'Rush Attempts', c: 'green' },
+                                                { a: 'Rush TDs', f: 'Rushing Touchdowns', c: 'green' },
+                                                { a: 'Rec', f: 'Receptions', c: 'yellow' },
+                                                { a: 'RC TDs', f: 'Receiving Touchdowns', c: 'yellow' },
+                                                { a: 'Drops', f: 'Drops', c: 'yellow' },
+                                                { a: 'X-Pts TDs', f: 'Extra Point Touchdowns', c: 'purple' },
                                             ].map(s => (
                                                 <div key={s.a} className={`flex items-center gap-1.5 bg-${s.c}-50 dark:bg-${s.c}-900/20 px-2 py-1 rounded-full border border-${s.c}-100 dark:border-${s.c}-800`}>
                                                     <span className={`text-${s.c}-600`}> {s.a}:</span> <span className={`text-${s.c}-800/80 dark:text-${s.c}-300/80`}>{s.f}</span>
@@ -289,12 +289,12 @@ export const StatsPage = () => {
                                         <h4 className="text-[10px] font-black text-red-400 uppercase tracking-widest border-l-2 border-red-200 pl-2">Defense</h4>
                                         <div className="flex flex-wrap gap-2 text-[10px] font-bold">
                                             {[
-                                                { a: 'TKL', f: 'Flag Pulls (Tackles)' },
-                                                { a: 'P-DEF', f: 'Pass Deflections' },
-                                                { a: 'INT', f: 'Interceptions Caught' },
-                                                { a: 'DEF-S', f: 'Defensive Sacks' },
-                                                { a: 'D-TD', f: 'Defensive TDs' },
-                                                { a: 'SFTY', f: 'Safeties' },
+                                                { a: 'Flag Pulls', f: 'Flag Pulls (Tackles)' },
+                                                { a: 'Pass Defl', f: 'Pass Deflections' },
+                                                { a: 'Def INT', f: 'Interceptions Caught' },
+                                                { a: 'Def Sacks', f: 'Defensive Sacks' },
+                                                { a: 'Def TDs', f: 'Defensive Touchdowns' },
+                                                { a: 'Safety', f: 'Safeties' },
                                             ].map(s => (
                                                 <div key={s.a} className="flex items-center gap-1.5 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-full border border-red-100 dark:border-red-800">
                                                     <span className="text-red-600"> {s.a}:</span> <span className="text-red-800/80 dark:text-red-300/80">{s.f}</span>
