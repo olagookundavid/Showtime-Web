@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getCompetitions, getStandings } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { StandingsTable } from '../../components/matches/StandingsTable';
+import { BracketView } from '../../components/matches/BracketView';
 
 export const StandingsPage = () => {
     const [searchParams] = useSearchParams();
@@ -38,10 +39,15 @@ export const StandingsPage = () => {
         return () => clearTimeout(t);
     }, [teamParam, selectedCompetitionId]);
 
+    // Find selected competition name
+    const selectedCompetition = competitions.find(c => c.id === selectedCompetitionId);
+    // Knockout competitions (playoffs + bowl) have a bracket instead of standings.
+    const isKnockout = selectedCompetition?.format === 'KNOCKOUT';
+
     const { data: standingsData, isLoading: dataLoading } = useQuery({
         queryKey: ['publicStandings', selectedCompetitionId],
         queryFn: () => getStandings(selectedCompetitionId),
-        enabled: !!selectedCompetitionId,
+        enabled: !!selectedCompetitionId && !isKnockout,
     });
     const standings = standingsData || [];
 
@@ -49,16 +55,13 @@ export const StandingsPage = () => {
 
     if (loading && competitions.length === 0) return <Loader />;
 
-    // Find selected competition name
-    const selectedCompetition = competitions.find(c => c.id === selectedCompetitionId);
-
     return (
         <div className="space-y-4 md:space-y-8 pb-20">
             {/* Header - Condensed */}
             <div className="flex flex-col md:flex-row justify-between items-center bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
                 <div>
-                    <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">STANDINGS</h1>
-                    <p className="text-gray-300 mt-0.5 text-xs md:text-lg">Rankings & Tables</p>
+                    <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">{isKnockout ? 'PLAYOFFS' : 'STANDINGS'}</h1>
+                    <p className="text-gray-300 mt-0.5 text-xs md:text-lg">{isKnockout ? 'Bracket & Road to the Bowl' : 'Rankings & Tables'}</p>
                 </div>
 
                 {/* Competition Selector - Mobile Optimized */}
@@ -87,15 +90,28 @@ export const StandingsPage = () => {
                 )}
             </div>
 
-            {dataLoading && (
+            {dataLoading && !isKnockout && (
                 <div className="flex justify-center items-center gap-2 text-gray-500">
                     <div className="w-5 h-5 border-2 border-sffl-red border-t-transparent rounded-full animate-spin"></div>
                     <span className="font-semibold">Loading standings...</span>
                 </div>
             )}
 
+            {/* Knockout: bracket replaces the standings table */}
+            {isKnockout && selectedCompetitionId && (
+                <div className="space-y-3 md:space-y-6">
+                    <div className="flex items-center gap-2">
+                        <span className="text-base md:text-2xl">🏈</span>
+                        <h2 className="text-sm md:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">
+                            {selectedCompetition?.name}
+                        </h2>
+                    </div>
+                    <BracketView competitionId={selectedCompetitionId} />
+                </div>
+            )}
+
             {/* Standings Table with Compact Legend */}
-            {!dataLoading && standings.length > 0 ? (
+            {!isKnockout && !dataLoading && standings.length > 0 ? (
                 <div className="space-y-3 md:space-y-6">
                     <div className="flex items-center gap-2">
                         <span className="text-base md:text-2xl">🏆</span>
@@ -151,7 +167,7 @@ export const StandingsPage = () => {
                         highlightTeamId={teamParam || undefined}
                     />
                 </div>
-            ) : !dataLoading ? (
+            ) : !isKnockout && !dataLoading ? (
                 <div className="bg-gray-100 dark:bg-gray-800 p-16 rounded-xl text-center">
                     <div className="text-5xl mb-4">🏆</div>
                     <p className="text-gray-500 text-lg font-semibold">No standings available for this competition yet.</p>

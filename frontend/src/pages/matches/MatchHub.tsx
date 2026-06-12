@@ -6,6 +6,7 @@ import { Loader } from '../../components/ui/Loader';
 import { Spinner } from '../../components/ui';
 import { MatchCard } from '../../components/matches/MatchCard';
 import { MatchStandingsTable } from '../../components/matches/MatchStandingsTable';
+import { BracketView } from '../../components/matches/BracketView';
 
 export const MatchHub = () => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -70,14 +71,17 @@ export const MatchHub = () => {
         }
     }, [competitions, selectedCompetitionId, compParam, latestMatchFetched, latestMatchCompetitionId]);
 
+    const selectedCompetition = competitions.find(c => c.id === selectedCompetitionId);
+    const isCompleted = selectedCompetition?.status === 'completed';
+    // Knockout competitions show the playoff bracket instead of standings.
+    const isKnockout = selectedCompetition?.format === 'KNOCKOUT';
+
     const { data: standingsData, isLoading: standingsLoading } = useQuery({
         queryKey: ['publicStandings', selectedCompetitionId],
         queryFn: () => getStandings(selectedCompetitionId),
-        enabled: !!selectedCompetitionId,
+        enabled: !!selectedCompetitionId && !isKnockout,
     });
     const standings = standingsData || [];
-    const selectedCompetition = competitions.find(c => c.id === selectedCompetitionId);
-    const isCompleted = selectedCompetition?.status === 'completed';
 
     const {
         data: infiniteMatchesData,
@@ -309,9 +313,25 @@ export const MatchHub = () => {
                     )}
                 </div>
 
-                {/* Right Column: Standings (1/3 width) — sticky sidebar */}
+                {/* Right Column: Standings or Bracket (1/3 width) — sticky sidebar */}
                 <div className="lg:col-span-1 lg:sticky lg:top-[90px] self-start space-y-6">
-                    {standingsLoading ? (
+                    {isKnockout ? (
+                        <div className="space-y-6">
+                            <BracketView
+                                competitionId={selectedCompetitionId}
+                                compact
+                                viewAllLink={`/standings?comp=${selectedCompetitionId}`}
+                            />
+
+                            <div className="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-xl p-6 text-white shadow-lg">
+                                <h3 className="text-xl font-bold mb-2">Join the Action!</h3>
+                                <p className="text-sm text-purple-100 mb-4">Don't miss a single moment of the SFFL season.</p>
+                                <Link to="/tickets" className="w-full py-2 bg-white text-indigo-700 font-bold rounded-lg hover:bg-purple-50 transition-colors block text-center">
+                                    Get Tickets
+                                </Link>
+                            </div>
+                        </div>
+                    ) : standingsLoading ? (
                         <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl shadow-sm">
                             <Spinner label="Loading standings…" className="py-12" />
                         </div>

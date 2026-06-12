@@ -10,6 +10,7 @@ interface Competition {
     name: string;
     logo: string;
     status?: string;
+    format?: string;
 }
 
 const AdminCompetitions = () => {
@@ -35,20 +36,20 @@ const AdminCompetitions = () => {
     // Modal
     const [showModal, setShowModal] = useState(false);
     const [editing, setEditing] = useState<Competition | null>(null);
-    const [form, setForm] = useState({ name: '', logo: '', status: 'active' });
+    const [form, setForm] = useState({ name: '', logo: '', status: 'active', format: 'LEAGUE' });
     const [saving, setSaving] = useState(false);
 
 
 
     const openCreate = () => {
         setEditing(null);
-        setForm({ name: '', logo: '', status: 'active' });
+        setForm({ name: '', logo: '', status: 'active', format: 'LEAGUE' });
         setShowModal(true);
     };
 
     const openEdit = (c: Competition) => {
         setEditing(c);
-        setForm({ name: c.name, logo: c.logo, status: c.status || 'active' });
+        setForm({ name: c.name, logo: c.logo, status: c.status || 'active', format: c.format || 'LEAGUE' });
         setShowModal(true);
     };
 
@@ -174,6 +175,11 @@ const AdminCompetitions = () => {
                                         </div>
                                     )}
                                     <h3 className="text-lg font-bold text-gray-900 dark:text-white flex-1">{comp.name}</h3>
+                                    {comp.format === 'KNOCKOUT' && (
+                                        <span className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                                            Knockout
+                                        </span>
+                                    )}
                                     {comp.status && (
                                         <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${
                                             comp.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
@@ -255,6 +261,18 @@ const AdminCompetitions = () => {
                                     <option value="inactive">Inactive</option>
                                     <option value="completed">Completed</option>
                                 </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Format *</label>
+                                <select value={form.format} onChange={e => setForm(f => ({ ...f, format: e.target.value }))}
+                                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red">
+                                    <option value="LEAGUE">League (standings table)</option>
+                                    <option value="KNOCKOUT">Knockout (playoff bracket)</option>
+                                </select>
+                                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                                    Knockout competitions show a bracket instead of standings. Winners advance automatically.
+                                </p>
                             </div>
                         </div>
                         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">

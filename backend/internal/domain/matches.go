@@ -4,11 +4,19 @@ import (
 	"time"
 )
 
+type CompetitionFormat string
+
+const (
+	CompetitionFormatLeague   CompetitionFormat = "LEAGUE"
+	CompetitionFormatKnockout CompetitionFormat = "KNOCKOUT"
+)
+
 type Competition struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
 	Logo      string    `json:"logo"`
 	Status    string    `json:"status"`
+	Format    string    `json:"format"` // LEAGUE | KNOCKOUT
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -46,6 +54,13 @@ type Match struct {
 	TicketURL     *string     `json:"ticket_url"`
 	CreatedAt     time.Time   `json:"created_at"`
 	UpdatedAt     time.Time   `json:"updated_at"`
+
+	// Bracket fields (knockout competitions only). The winner of this match
+	// is written into FeedsMatchID's home/away slot when it finishes.
+	Round        string  `json:"round,omitempty"`
+	BracketPos   *int    `json:"bracket_pos,omitempty"`
+	FeedsMatchID *string `json:"feeds_match_id,omitempty"`
+	FeedsSlot    string  `json:"feeds_slot,omitempty"` // HOME | AWAY
 
 	// Relations (Joined fields)
 	Competition *Competition `json:"competition,omitempty"`

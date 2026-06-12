@@ -103,6 +103,8 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		compGroup.POST("", app.Handlers.MatchHandler.CreateCompetition)
 		compGroup.PUT("/:id", app.Handlers.MatchHandler.UpdateCompetition)
 		compGroup.DELETE("/:id", app.Handlers.MatchHandler.DeleteCompetition)
+		compGroup.POST("/:id/bracket", app.Handlers.MatchHandler.GenerateBracket)
+		compGroup.DELETE("/:id/bracket", app.Handlers.MatchHandler.ResetBracket)
 	}
 
 	analyticsGroup := adminRoutes.Group("/analytics")

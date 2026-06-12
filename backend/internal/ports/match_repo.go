@@ -33,6 +33,9 @@ type MatchRepository interface {
 	CreateMatch(ctx context.Context, match *domain.Match) error
 	UpdateMatch(ctx context.Context, match *domain.Match) error
 	DeleteMatch(ctx context.Context, id string) error
+	SetMatchSlot(ctx context.Context, matchID, slot string, teamID *string) error
+	CountMatchesByCompetition(ctx context.Context, competitionID string) (int64, error)
+	DeleteMatchesByCompetition(ctx context.Context, competitionID string) error
 
 	// Standings
 	GetStandings(ctx context.Context, competitionID string) ([]domain.Standing, error)
@@ -84,7 +87,7 @@ func (r *PostgresMatchRepository) GetCompetitions(ctx context.Context, page, lim
 		return nil, 0, err
 	}
 
-	query := `SELECT id, name, logo, status, created_at, updated_at ` + baseQuery +
+	query := `SELECT id, name, logo, status, format, created_at, updated_at ` + baseQuery +
 		` ORDER BY created_at DESC LIMIT $` + strconv.Itoa(argCount) + ` OFFSET $` + strconv.Itoa(argCount+1)
 	args = append(args, limit, offset)
 
@@ -97,7 +100,7 @@ func (r *PostgresMatchRepository) GetCompetitions(ctx context.Context, page, lim
 	var competitions []domain.Competition
 	for rows.Next() {
 		var c domain.Competition
-		if err := rows.Scan(&c.ID, &c.Name, &c.Logo, &c.Status, &c.CreatedAt, &c.UpdatedAt); err != nil {
+		if err := rows.Scan(&c.ID, &c.Name, &c.Logo, &c.Status, &c.Format, &c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, 0, err
 		}
 		competitions = append(competitions, c)
@@ -106,9 +109,9 @@ func (r *PostgresMatchRepository) GetCompetitions(ctx context.Context, page, lim
 }
 
 func (r *PostgresMatchRepository) GetCompetitionByID(ctx context.Context, id string) (*domain.Competition, error) {
-	query := `SELECT id, name, logo, status, created_at, updated_at FROM competitions WHERE id = $1`
+	query := `SELECT id, name, logo, status, format, created_at, updated_at FROM competitions WHERE id = $1`
 	var c domain.Competition
-	err := r.db.QueryRow(ctx, query, id).Scan(&c.ID, &c.Name, &c.Logo, &c.Status, &c.CreatedAt, &c.UpdatedAt)
+	err := r.db.QueryRow(ctx, query, id).Scan(&c.ID, &c.Name, &c.Logo, &c.Status, &c.Format, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -116,13 +119,13 @@ func (r *PostgresMatchRepository) GetCompetitionByID(ctx context.Context, id str
 }
 
 func (r *PostgresMatchRepository) CreateCompetition(ctx context.Context, comp *domain.Competition) error {
-	query := `INSERT INTO competitions (name, logo, status) VALUES ($1, $2, $3) RETURNING id, created_at, updated_at`
-	return r.db.QueryRow(ctx, query, comp.Name, comp.Logo, comp.Status).Scan(&comp.ID, &comp.CreatedAt, &comp.UpdatedAt)
+	query := `INSERT INTO competitions (name, logo, status, format) VALUES ($1, $2, $3, $4) RETURNING id, created_at, updated_at`
+	return r.db.QueryRow(ctx, query, comp.Name, comp.Logo, comp.Status, comp.Format).Scan(&comp.ID, &comp.CreatedAt, &comp.UpdatedAt)
 }
 
 func (r *PostgresMatchRepository) UpdateCompetition(ctx context.Context, comp *domain.Competition) error {
-	query := `UPDATE competitions SET name=$1, logo=$2, status=$3, updated_at=NOW() WHERE id=$4`
-	_, err := r.db.Exec(ctx, query, comp.Name, comp.Logo, comp.Status, comp.ID)
+	query := `UPDATE competitions SET name=$1, logo=$2, status=$3, format=$4, updated_at=NOW() WHERE id=$5`
+	_, err := r.db.Exec(ctx, query, comp.Name, comp.Logo, comp.Status, comp.Format, comp.ID)
 	return err
 }
 
@@ -250,12 +253,15 @@ func (r *PostgresMatchRepository) GetMatches(ctx context.Context, competitionID 
 	offset := (page - 1) * limit
 
 	// Base query
+	// Team columns are COALESCE'd: knockout brackets keep home/away NULL (TBD)
+	// until a feeder match finishes, and the domain scans them as strings.
 	query := `
-		SELECT 
-			m.id, m.competition_id, m.home_team_id, m.away_team_id, m.date, m.time, m.venue, m.status, m.home_score, m.away_score, m.highlights_url, m.ticket_url, m.created_at, m.updated_at,
-			c.id, c.name, c.logo,
-			ht.id, ht.name, ht.short_name, ht.logo,
-			at.id, at.name, at.short_name, at.logo
+		SELECT
+			m.id, m.competition_id, COALESCE(m.home_team_id::text, ''), COALESCE(m.away_team_id::text, ''), m.date, m.time, m.venue, m.status, m.home_score, m.away_score, m.highlights_url, m.ticket_url, m.created_at, m.updated_at,
+			COALESCE(m.round, ''), m.bracket_pos, m.feeds_match_id::text, COALESCE(m.feeds_slot, ''),
+			c.id, c.name, c.logo, COALESCE(c.format, 'LEAGUE'),
+			COALESCE(ht.id::text, ''), COALESCE(ht.name, ''), COALESCE(ht.short_name, ''), COALESCE(ht.logo, ''),
+			COALESCE(at.id::text, ''), COALESCE(at.name, ''), COALESCE(at.short_name, ''), COALESCE(at.logo, '')
 		FROM matches m
 		LEFT JOIN competitions c ON m.competition_id = c.id
 		LEFT JOIN teams ht ON m.home_team_id = ht.id
@@ -321,7 +327,8 @@ func (r *PostgresMatchRepository) GetMatches(ctx context.Context, competitionID 
 		var startTime time.Time
 		err := rows.Scan(
 			&m.ID, &m.CompetitionID, &m.HomeTeamID, &m.AwayTeamID, &m.Date, &startTime, &m.Venue, &m.Status, &m.HomeScore, &m.AwayScore, &m.HighlightsURL, &m.TicketURL, &m.CreatedAt, &m.UpdatedAt,
-			&m.Competition.ID, &m.Competition.Name, &m.Competition.Logo,
+			&m.Round, &m.BracketPos, &m.FeedsMatchID, &m.FeedsSlot,
+			&m.Competition.ID, &m.Competition.Name, &m.Competition.Logo, &m.Competition.Format,
 			&m.HomeTeam.ID, &m.HomeTeam.Name, &m.HomeTeam.ShortName, &m.HomeTeam.Logo,
 			&m.AwayTeam.ID, &m.AwayTeam.Name, &m.AwayTeam.ShortName, &m.AwayTeam.Logo,
 		)
@@ -335,9 +342,20 @@ func (r *PostgresMatchRepository) GetMatches(ctx context.Context, competitionID 
 }
 
 func (r *PostgresMatchRepository) GetMatchByID(ctx context.Context, id string) (*domain.Match, error) {
-	query := `SELECT id, competition_id, status FROM matches WHERE id = $1`
+	query := `
+		SELECT id, competition_id, status,
+		       COALESCE(home_team_id::text, ''), COALESCE(away_team_id::text, ''),
+		       home_score, away_score,
+		       COALESCE(round, ''), bracket_pos, feeds_match_id::text, COALESCE(feeds_slot, '')
+		FROM matches WHERE id = $1
+	`
 	var m domain.Match
-	err := r.db.QueryRow(ctx, query, id).Scan(&m.ID, &m.CompetitionID, &m.Status)
+	err := r.db.QueryRow(ctx, query, id).Scan(
+		&m.ID, &m.CompetitionID, &m.Status,
+		&m.HomeTeamID, &m.AwayTeamID,
+		&m.HomeScore, &m.AwayScore,
+		&m.Round, &m.BracketPos, &m.FeedsMatchID, &m.FeedsSlot,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -345,30 +363,59 @@ func (r *PostgresMatchRepository) GetMatchByID(ctx context.Context, id string) (
 }
 
 func (r *PostgresMatchRepository) CreateMatch(ctx context.Context, match *domain.Match) error {
+	// NULLIF: empty team IDs are stored as NULL (TBD bracket slots).
 	query := `
-		INSERT INTO matches (competition_id, home_team_id, away_team_id, date, time, venue, status, home_score, away_score, highlights_url, ticket_url)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		INSERT INTO matches (competition_id, home_team_id, away_team_id, date, time, venue, status, home_score, away_score, highlights_url, ticket_url, round, bracket_pos, feeds_match_id, feeds_slot)
+		VALUES ($1, NULLIF($2, '')::uuid, NULLIF($3, '')::uuid, $4, $5, $6, $7, $8, $9, $10, $11, NULLIF($12, ''), $13, $14, NULLIF($15, ''))
 		RETURNING id, created_at, updated_at
 	`
 	return r.db.QueryRow(ctx, query,
 		match.CompetitionID, match.HomeTeamID, match.AwayTeamID, match.Date, match.StartTime, match.Venue, match.Status, match.HomeScore, match.AwayScore, match.HighlightsURL, match.TicketURL,
+		match.Round, match.BracketPos, match.FeedsMatchID, match.FeedsSlot,
 	).Scan(&match.ID, &match.CreatedAt, &match.UpdatedAt)
 }
 
 func (r *PostgresMatchRepository) UpdateMatch(ctx context.Context, match *domain.Match) error {
 	query := `
-        UPDATE matches SET competition_id=$1, home_team_id=$2, away_team_id=$3, date=$4, time=$5, venue=$6, status=$7, home_score=$8, away_score=$9, highlights_url=$10, ticket_url=$11, updated_at=NOW()
-        WHERE id=$12
+        UPDATE matches SET competition_id=$1, home_team_id=NULLIF($2, '')::uuid, away_team_id=NULLIF($3, '')::uuid, date=$4, time=$5, venue=$6, status=$7, home_score=$8, away_score=$9, highlights_url=$10, ticket_url=$11,
+            round=NULLIF($12, ''), bracket_pos=$13, feeds_match_id=$14, feeds_slot=NULLIF($15, ''), updated_at=NOW()
+        WHERE id=$16
     `
 	_, err := r.db.Exec(ctx, query,
-		match.CompetitionID, match.HomeTeamID, match.AwayTeamID, match.Date, match.StartTime, match.Venue, match.Status, match.HomeScore, match.AwayScore, match.HighlightsURL, match.TicketURL, match.ID,
+		match.CompetitionID, match.HomeTeamID, match.AwayTeamID, match.Date, match.StartTime, match.Venue, match.Status, match.HomeScore, match.AwayScore, match.HighlightsURL, match.TicketURL,
+		match.Round, match.BracketPos, match.FeedsMatchID, match.FeedsSlot, match.ID,
 	)
+	return err
+}
+
+// SetMatchSlot writes (or clears) one team slot of a bracket match. Used by
+// auto-advance: the winner of a feeder match lands in the slot it feeds.
+func (r *PostgresMatchRepository) SetMatchSlot(ctx context.Context, matchID, slot string, teamID *string) error {
+	col := "home_team_id"
+	if slot == "AWAY" {
+		col = "away_team_id"
+	} else if slot != "HOME" {
+		return fmt.Errorf("invalid bracket slot %q", slot)
+	}
+	query := fmt.Sprintf(`UPDATE matches SET %s = $1, updated_at = NOW() WHERE id = $2`, col)
+	_, err := r.db.Exec(ctx, query, teamID, matchID)
 	return err
 }
 
 func (r *PostgresMatchRepository) DeleteMatch(ctx context.Context, id string) error {
 	query := `DELETE FROM matches WHERE id = $1`
 	_, err := r.db.Exec(ctx, query, id)
+	return err
+}
+
+func (r *PostgresMatchRepository) CountMatchesByCompetition(ctx context.Context, competitionID string) (int64, error) {
+	var n int64
+	err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM matches WHERE competition_id = $1`, competitionID).Scan(&n)
+	return n, err
+}
+
+func (r *PostgresMatchRepository) DeleteMatchesByCompetition(ctx context.Context, competitionID string) error {
+	_, err := r.db.Exec(ctx, `DELETE FROM matches WHERE competition_id = $1`, competitionID)
 	return err
 }
 
@@ -591,7 +638,7 @@ func (r *PostgresMatchRepository) SaveTeamSheet(ctx context.Context, matchID, te
 
 func (r *PostgresMatchRepository) GetTeamSheet(ctx context.Context, matchID string) (*domain.MatchTeamSheet, error) {
 	// We need to know which team is home and which is away to partition correctly.
-	matchQuery := `SELECT home_team_id, away_team_id FROM matches WHERE id = $1`
+	matchQuery := `SELECT COALESCE(home_team_id::text, ''), COALESCE(away_team_id::text, '') FROM matches WHERE id = $1`
 	var homeTeamID, awayTeamID string
 	if err := r.db.QueryRow(ctx, matchQuery, matchID).Scan(&homeTeamID, &awayTeamID); err != nil {
 		return nil, err
@@ -646,11 +693,12 @@ func (r *PostgresMatchRepository) IsPlayerOnTeamSheet(ctx context.Context, match
 func (r *PostgresMatchRepository) GetMatchDetail(ctx context.Context, matchID string) (*domain.MatchDetail, error) {
 	// Full fetch with joined competition and team data
 	query := `
-		SELECT 
-			m.id, m.competition_id, m.home_team_id, m.away_team_id, m.date, m.time, m.venue, m.status, m.home_score, m.away_score, m.highlights_url, m.ticket_url, m.created_at, m.updated_at,
-			c.id, c.name, c.logo,
-			ht.id, ht.name, ht.short_name, ht.logo,
-			at.id, at.name, at.short_name, at.logo
+		SELECT
+			m.id, m.competition_id, COALESCE(m.home_team_id::text, ''), COALESCE(m.away_team_id::text, ''), m.date, m.time, m.venue, m.status, m.home_score, m.away_score, m.highlights_url, m.ticket_url, m.created_at, m.updated_at,
+			COALESCE(m.round, ''), m.bracket_pos, m.feeds_match_id::text, COALESCE(m.feeds_slot, ''),
+			c.id, c.name, c.logo, COALESCE(c.format, 'LEAGUE'),
+			COALESCE(ht.id::text, ''), COALESCE(ht.name, ''), COALESCE(ht.short_name, ''), COALESCE(ht.logo, ''),
+			COALESCE(at.id::text, ''), COALESCE(at.name, ''), COALESCE(at.short_name, ''), COALESCE(at.logo, '')
 		FROM matches m
 		LEFT JOIN competitions c ON m.competition_id = c.id
 		LEFT JOIN teams ht ON m.home_team_id = ht.id
@@ -665,7 +713,8 @@ func (r *PostgresMatchRepository) GetMatchDetail(ctx context.Context, matchID st
 
 	err := r.db.QueryRow(ctx, query, matchID).Scan(
 		&m.ID, &m.CompetitionID, &m.HomeTeamID, &m.AwayTeamID, &m.Date, &startTime, &m.Venue, &m.Status, &m.HomeScore, &m.AwayScore, &m.HighlightsURL, &m.TicketURL, &m.CreatedAt, &m.UpdatedAt,
-		&m.Competition.ID, &m.Competition.Name, &m.Competition.Logo,
+		&m.Round, &m.BracketPos, &m.FeedsMatchID, &m.FeedsSlot,
+		&m.Competition.ID, &m.Competition.Name, &m.Competition.Logo, &m.Competition.Format,
 		&m.HomeTeam.ID, &m.HomeTeam.Name, &m.HomeTeam.ShortName, &m.HomeTeam.Logo,
 		&m.AwayTeam.ID, &m.AwayTeam.Name, &m.AwayTeam.ShortName, &m.AwayTeam.Logo,
 	)

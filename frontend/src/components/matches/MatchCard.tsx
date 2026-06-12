@@ -40,6 +40,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
         >
             {/* Header: Date/Time or Status */}
             <div className={`p-2.5 md:p-3 text-center text-[10px] md:text-sm font-bold uppercase tracking-wider ${isLive ? 'bg-sffl-red text-white animate-pulse' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-white'}`}>
+                {match.round && <span className="mr-2 px-1.5 py-0.5 rounded bg-sffl-navy/80 text-white text-[9px] md:text-xs">{match.round}</span>}
                 {isLive ? 'LIVE NOW' : isFinished ? 'Final Score' : `${formatDate(match.date)} • ${formatTime(match.start_time, match.date)}`}
             </div>
 
@@ -61,7 +62,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
                             {match.home_team?.short_name || match.home_team?.name}
                         </Link>
                     ) : (
-                        <span className="font-bold text-[10px] md:text-sm text-sffl-navy dark:text-white leading-tight truncate uppercase">Home</span>
+                        <span className="font-bold text-[10px] md:text-sm text-gray-400 dark:text-gray-500 italic leading-tight truncate uppercase">TBD</span>
                     )}
                 </div>
 
@@ -88,7 +89,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
                             {match.away_team?.short_name || match.away_team?.name}
                         </Link>
                     ) : (
-                        <span className="font-bold text-[10px] md:text-sm text-sffl-navy dark:text-white leading-tight truncate uppercase">Away</span>
+                        <span className="font-bold text-[10px] md:text-sm text-gray-400 dark:text-gray-500 italic leading-tight truncate uppercase">TBD</span>
                     )}
                     <LightboxImage
                         src={match.away_team?.logo || 'https://via.placeholder.com/60'}

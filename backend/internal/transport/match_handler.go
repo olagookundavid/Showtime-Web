@@ -18,6 +18,8 @@ type IMatchHandler interface {
 	CreateCompetition(c *gin.Context)
 	UpdateCompetition(c *gin.Context)
 	DeleteCompetition(c *gin.Context)
+	GenerateBracket(c *gin.Context)
+	ResetBracket(c *gin.Context)
 	GetMatches(c *gin.Context)
 	GetTeams(c *gin.Context)
 	GetAllTeams(c *gin.Context)
@@ -144,8 +146,8 @@ func (h *MatchHandler) CreateMatch(c *gin.Context) {
 		return
 	}
 
-	// Validation: Team cannot play itself
-	if req.HomeTeamID == req.AwayTeamID {
+	// Validation: Team cannot play itself (empty IDs are TBD bracket slots)
+	if req.HomeTeamID != "" && req.HomeTeamID == req.AwayTeamID {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Home team and away team cannot be the same"})
 		return
 	}
@@ -190,6 +192,10 @@ func (h *MatchHandler) CreateMatch(c *gin.Context) {
 		HighlightsURL: req.HighlightsURL,
 		HomeScore:     req.HomeScore,
 		AwayScore:     req.AwayScore,
+		Round:         req.Round,
+		BracketPos:    req.BracketPos,
+		FeedsMatchID:  req.FeedsMatchID,
+		FeedsSlot:     strings.ToUpper(req.FeedsSlot),
 	}
 
 	if match.Status == "" {
@@ -241,6 +247,10 @@ func (h *MatchHandler) UpdateMatch(c *gin.Context) {
 		Venue:         req.Venue,
 		HighlightsURL: req.HighlightsURL,
 		TicketURL:     req.TicketURL,
+		Round:         req.Round,
+		BracketPos:    req.BracketPos,
+		FeedsMatchID:  req.FeedsMatchID,
+		FeedsSlot:     strings.ToUpper(req.FeedsSlot),
 	}
 
 	if req.Date != "" {
@@ -545,10 +555,20 @@ func (h *MatchHandler) CreateCompetition(c *gin.Context) {
 		status = "active"
 	}
 
+	format := strings.ToUpper(req.Format)
+	if format == "" {
+		format = string(domain.CompetitionFormatLeague)
+	}
+	if format != string(domain.CompetitionFormatLeague) && format != string(domain.CompetitionFormatKnockout) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "format must be LEAGUE or KNOCKOUT"})
+		return
+	}
+
 	comp := &domain.Competition{
 		Name:   req.Name,
 		Logo:   req.Logo,
 		Status: status,
+		Format: format,
 	}
 
 	if err := h.service.CreateCompetition(c.Request.Context(), comp); err != nil {
@@ -575,11 +595,21 @@ func (h *MatchHandler) UpdateCompetition(c *gin.Context) {
 		return
 	}
 
+	format := strings.ToUpper(req.Format)
+	if format == "" {
+		format = string(domain.CompetitionFormatLeague)
+	}
+	if format != string(domain.CompetitionFormatLeague) && format != string(domain.CompetitionFormatKnockout) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "format must be LEAGUE or KNOCKOUT"})
+		return
+	}
+
 	comp := &domain.Competition{
 		ID:     id,
 		Name:   req.Name,
 		Logo:   req.Logo,
 		Status: req.Status,
+		Format: format,
 	}
 
 	if err := h.service.UpdateCompetition(c.Request.Context(), comp); err != nil {
@@ -587,6 +617,46 @@ func (h *MatchHandler) UpdateCompetition(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Competition updated"})
+}
+
+// GenerateBracket godoc
+// @Summary      Generate the knockout bracket for a competition
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "Competition ID"
+// @Param        request body dto.GenerateBracketRequest true "Bracket setup"
+// @Success      201 {object} map[string]string
+// @Router       /api/v1/admin/competitions/{id}/bracket [post]
+func (h *MatchHandler) GenerateBracket(c *gin.Context) {
+	id := c.Param("id")
+	var req dto.GenerateBracketRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.GenerateBracket(c.Request.Context(), id, req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"message": "Bracket generated"})
+}
+
+// ResetBracket godoc
+// @Summary      Delete all matches of a knockout competition
+// @Tags         admin
+// @Produce      json
+// @Param        id path string true "Competition ID"
+// @Success      200 {object} map[string]string
+// @Router       /api/v1/admin/competitions/{id}/bracket [delete]
+func (h *MatchHandler) ResetBracket(c *gin.Context) {
+	id := c.Param("id")
+	if err := h.service.ResetBracket(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Bracket reset"})
 }
 
 // DeleteCompetition godoc

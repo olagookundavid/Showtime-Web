@@ -151,6 +151,7 @@ export interface Competition {
     name: string;
     logo: string;
     status: string;
+    format?: string; // LEAGUE | KNOCKOUT
 }
 
 export interface Team {
@@ -173,7 +174,10 @@ export interface Match {
     away_score?: number;
     highlights_url?: string;
     ticket_url?: string;
-    event_day_id?: string;
+    round?: string;
+    bracket_pos?: number;
+    feeds_match_id?: string;
+    feeds_slot?: 'HOME' | 'AWAY';
 }
 
 export interface TeamSheetPlayer {
@@ -307,8 +311,8 @@ export interface CreateGalleryPayload {
 
 export interface CreateMatchPayload {
     competition_id: string;
-    home_team_id: string;
-    away_team_id: string;
+    home_team_id: string; // '' = TBD slot (knockout brackets only)
+    away_team_id: string; // '' = TBD slot (knockout brackets only)
     date: string;
     start_time: string;
     venue?: string;
@@ -317,7 +321,10 @@ export interface CreateMatchPayload {
     away_score?: number | null;
     highlights_url?: string;
     ticket_url?: string;
-    event_day_id?: string;
+    round?: string;
+    bracket_pos?: number | null;
+    feeds_match_id?: string | null;
+    feeds_slot?: string;
 }
 
 export interface CreatePlayerPayload {
@@ -707,18 +714,40 @@ export const getAdminCompetitions = async (page: number = 1, limit: number = 100
     return response.data;
 };
 
-export const createCompetition = async (payload: { name: string; logo: string; status?: string }) => {
+export const createCompetition = async (payload: { name: string; logo: string; status?: string; format?: string }) => {
     const response = await api.post('/admin/competitions', payload);
     return response.data;
 };
 
-export const updateCompetition = async (id: string, payload: { name: string; logo: string; status?: string }) => {
+export const updateCompetition = async (id: string, payload: { name: string; logo: string; status?: string; format?: string }) => {
     const response = await api.put(`/admin/competitions/${id}`, payload);
     return response.data;
 };
 
 export const deleteCompetition = async (id: string) => {
     const response = await api.delete(`/admin/competitions/${id}`);
+    return response.data;
+};
+
+// One first-round slot of a knockout bracket: a matchup or a bye.
+// Adjacent slots pair up: winners of slots 1 & 2 meet next round, 3 & 4 meet, etc.
+export interface BracketEntryPayload {
+    bye: boolean;
+    team_id?: string;
+    home_team_id?: string;
+    away_team_id?: string;
+}
+
+export const generateBracket = async (
+    competitionId: string,
+    payload: { entries: BracketEntryPayload[]; date: string; time?: string; venue?: string },
+) => {
+    const response = await api.post(`/admin/competitions/${competitionId}/bracket`, payload);
+    return response.data;
+};
+
+export const resetBracket = async (competitionId: string) => {
+    const response = await api.delete(`/admin/competitions/${competitionId}/bracket`);
     return response.data;
 };
 
