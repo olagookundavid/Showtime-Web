@@ -36,8 +36,8 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCom
                 <table className="w-full text-xs md:text-sm text-left">
                     <thead className="text-[10px] md:text-xs uppercase bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
                         <tr>
-                            <th className="px-2.5 py-3 md:px-4 md:py-3 text-center w-8 md:w-12">Pos</th>
-                            <th className="px-2.5 py-3 md:px-4 md:py-3 whitespace-nowrap">Team</th>
+                            <th className="sticky left-0 z-20 bg-gray-50 dark:bg-gray-800 px-2.5 py-3 md:px-4 md:py-3 text-center w-10 md:w-14">Pos</th>
+                            <th className="sticky left-10 md:left-14 z-20 bg-gray-50 dark:bg-gray-800 px-2.5 py-3 md:px-4 md:py-3 whitespace-nowrap w-[130px] md:w-[200px] border-r border-gray-100 dark:border-gray-700">Team</th>
                             <th className="px-2.5 py-3 md:px-4 md:py-3 text-center whitespace-nowrap">P</th>
                             <th className="px-2.5 py-3 md:px-4 md:py-3 text-center whitespace-nowrap">W</th>
                             <th className="px-2.5 py-3 md:px-4 md:py-3 text-center whitespace-nowrap">D</th>
@@ -53,21 +53,29 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCom
                         {standings.map((standing, index) => {
                             const isGold = isCompleted && index === 0;
                             const isSilver = isCompleted && index === 1;
-                            
+                            // Sticky cells need OPAQUE backgrounds matching their row, since the
+                            // scrolling stat cells slide underneath them. The base row keeps the
+                            // semi-transparent tint; the sticky cells use solid equivalents.
+                            const stickyBg = isGold
+                                ? 'bg-amber-50 dark:bg-amber-950 group-hover:bg-amber-100 dark:group-hover:bg-amber-900'
+                                : isSilver
+                                    ? 'bg-slate-50 dark:bg-slate-900 group-hover:bg-slate-100 dark:group-hover:bg-slate-800'
+                                    : 'bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-800';
+
                             return (
                                 <tr
                                     key={standing.id}
                                     className={`
-                                        border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors
-                                        ${isGold ? 'bg-amber-500/10 hover:bg-amber-500/20 dark:bg-amber-500/5 dark:hover:bg-amber-500/10 border-l-4 border-l-amber-500' : 
-                                          isSilver ? 'bg-slate-300/20 hover:bg-slate-300/30 dark:bg-slate-300/10 dark:hover:bg-slate-300/20 border-l-4 border-l-slate-400' : 
+                                        group border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors
+                                        ${isGold ? 'bg-amber-500/10 hover:bg-amber-500/20 dark:bg-amber-500/5 dark:hover:bg-amber-500/10 border-l-4 border-l-amber-500' :
+                                          isSilver ? 'bg-slate-300/20 hover:bg-slate-300/30 dark:bg-slate-300/10 dark:hover:bg-slate-300/20 border-l-4 border-l-slate-400' :
                                           index < 4 ? 'border-l-4 border-l-green-500' : ''}
                                     `}
                                 >
-                                    <td className="px-2.5 py-3 md:px-4 md:py-4 text-center font-bold text-gray-600 dark:text-gray-300">
+                                    <td className={`sticky left-0 z-10 ${stickyBg} px-2.5 py-3 md:px-4 md:py-4 text-center font-bold text-gray-600 dark:text-gray-300 w-10 md:w-14`}>
                                         {standing.position}
                                     </td>
-                                    <td className="px-2.5 py-3 md:px-4 md:py-4 font-semibold text-sffl-navy dark:text-white whitespace-nowrap text-left">
+                                    <td className={`sticky left-10 md:left-14 z-10 ${stickyBg} px-2.5 py-3 md:px-4 md:py-4 font-semibold text-sffl-navy dark:text-white whitespace-nowrap text-left w-[130px] md:w-[200px] border-r border-gray-100 dark:border-gray-800`}>
                                         <div className="flex items-center space-x-1 md:space-x-3">
                                             <LightboxImage
                                                 src={standing.team?.logo || 'https://via.placeholder.com/30'}

@@ -3,7 +3,7 @@ import { HeroCarousel } from '../components/HeroCarousel';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useRef, useEffect } from 'react';
-import { getMatches, getNews } from '../services/api';
+import { getMatches, getNews, getEventDayByDate } from '../services/api';
 import { CompactMatchCard } from '../components/matches/CompactMatchCard';
 import { Loader } from '../components/ui/Loader';
 import { ArrowRightIcon } from '@heroicons/react/24/outline';
@@ -47,6 +47,25 @@ export const LandingPage = () => {
     const latestNote = newsData?.data?.[0] || null;
     const teamNews = teamNewsData?.data || [];
 
+    // Latest finished match drives the competition+week strip above the carousel
+    // and the "View All" destination, so users land on the same competition they
+    // were just looking at.
+    const latestMatch = latestResults[0];
+    const latestMatchDate = latestMatch?.date?.substring(0, 10);
+    const { data: latestEventDay } = useQuery({
+        queryKey: ['publicEventDayForLatest', latestMatchDate],
+        queryFn: () => getEventDayByDate(latestMatchDate!),
+        enabled: !!latestMatchDate,
+        retry: false,
+        staleTime: 60_000,
+    });
+    const latestWeekLabel = latestEventDay?.title || (latestMatchDate
+        ? new Date(latestMatch!.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+        : '');
+    const resultsViewAllHref = latestMatch?.competition?.id
+        ? `/matches?comp=${latestMatch.competition.id}`
+        : '/matches';
+
     useEffect(() => {
         if (latestResults.length <= 1) return;
         
@@ -84,9 +103,10 @@ export const LandingPage = () => {
                             </svg>
                             <span>Watch Highlights</span>
                         </a>
-                        <Link to="/matches" className="text-sffl-red text-xs md:text-sm font-semibold hover:underline">View All &rarr;</Link>
+                        <Link to={resultsViewAllHref} className="text-sffl-red text-xs md:text-sm font-semibold hover:underline">View All &rarr;</Link>
                     </div>
                 </div>
+
                 {loadingFinished ? (
                     <Loader />
                 ) : latestResults.length > 0 ? (
@@ -111,7 +131,7 @@ export const LandingPage = () => {
                         </div>
 
                         {/* Right Arrow */}
-                        <button 
+                        <button
                             onClick={() => scrollRight(resultsRef)}
                             className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-sffl-navy dark:bg-gray-800 hover:bg-sffl-red dark:hover:bg-sffl-red text-white p-1.5 md:p-2.5 rounded-full shadow-xl transition-all duration-300 flex items-center justify-center cursor-pointer border-2 border-white/20"
                         >
@@ -125,6 +145,23 @@ export const LandingPage = () => {
                         <span className="text-5xl mb-4">🏈</span>
                         <h3 className="text-xl font-black italic text-sffl-navy dark:text-white tracking-tight">NO RECENT RESULTS</h3>
                         <p className="text-gray-500 dark:text-gray-400 font-medium mt-2 text-sm">Results will be posted here right after game day.</p>
+                    </div>
+                )}
+
+                {/* Compact competition + week strip — sits directly under the carousel */}
+                {latestMatch?.competition && (
+                    <div className="flex items-center gap-2 px-1 md:px-2 text-xs md:text-sm">
+                        <span className="font-black uppercase tracking-tight text-sffl-navy dark:text-white truncate">
+                            {latestMatch.competition.name}
+                        </span>
+                        {latestWeekLabel && (
+                            <>
+                                <span className="text-gray-300 dark:text-gray-600">·</span>
+                                <span className="italic font-semibold text-gray-500 dark:text-gray-400 truncate">
+                                    {latestWeekLabel}
+                                </span>
+                            </>
+                        )}
                     </div>
                 )}
             </section>

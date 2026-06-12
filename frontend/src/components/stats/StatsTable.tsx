@@ -38,6 +38,12 @@ const STAT_COLS = [
     { key: 'safety', top: '', bottom: 'Safety', title: 'Safeties', bg: 'bg-red-50/30 dark:bg-red-900/10' },
 ];
 
+// Sticky-column styling. Each sticky `<th>` / `<td>` needs an opaque background
+// so the horizontally-scrolling stat cells don't bleed through underneath.
+// The `<tr>` is marked `group` so hover styling cascades into sticky cells too.
+const STICKY_HEAD_BG = 'bg-gray-50 dark:bg-gray-800';
+const STICKY_BODY_BG = 'bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-800';
+
 export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], teamStats = [], sortBy = '', onSortChange, isLoading = false }) => {
     const isPlayer = type === 'players';
     const data = isPlayer ? playerStats : teamStats;
@@ -74,9 +80,11 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                 <table className="w-full text-xs md:text-sm text-center border-collapse">
                     <thead className="text-[10px] md:text-xs bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
                         <tr>
-                            <th className="px-2 py-4 md:px-4 text-center w-8 md:w-12 border-r border-gray-100 dark:border-gray-700">#</th>
-                            <th className="px-2 py-4 md:px-4 text-left whitespace-nowrap min-w-[150px] uppercase border-r border-gray-100 dark:border-gray-700">{isPlayer ? 'Player' : 'Team'}</th>
-                            {isPlayer && <th className="px-2 py-4 md:px-4 text-left whitespace-nowrap uppercase border-r border-gray-100 dark:border-gray-700">Team</th>}
+                            <th className={`sticky left-0 z-20 ${STICKY_HEAD_BG} px-2 py-4 md:px-4 text-center w-10 md:w-12 border-r border-gray-100 dark:border-gray-700`}>#</th>
+                            <th className={`sticky left-10 md:left-12 z-20 ${STICKY_HEAD_BG} px-2 py-4 md:px-4 text-left whitespace-nowrap w-[150px] md:w-[210px] uppercase border-r border-gray-100 dark:border-gray-700`}>{isPlayer ? 'Player' : 'Team'}</th>
+                            {isPlayer && (
+                                <th className={`sticky left-[190px] md:left-[258px] z-20 ${STICKY_HEAD_BG} px-2 py-4 md:px-4 text-left whitespace-nowrap w-[90px] md:w-[110px] uppercase border-r border-gray-100 dark:border-gray-700`}>Team</th>
+                            )}
 
                             {/* Stacked two-line headers — click to rank league-wide leaders */}
                             {visibleStatCols.map((col, i) => {
@@ -108,50 +116,50 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                             return (
                                 <tr
                                     key={isPlayer ? row.player_id : row.team_id}
-                                    className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-center"
+                                    className="group border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-center"
                                 >
-                                    <td className="px-2 py-2 md:px-4 md:py-4 text-center font-bold text-gray-400 dark:text-gray-500 border-r border-gray-50 dark:border-gray-800">
+                                    <td className={`sticky left-0 z-10 ${STICKY_BODY_BG} px-2 py-2 md:px-4 md:py-4 text-center font-bold text-gray-400 dark:text-gray-500 border-r border-gray-50 dark:border-gray-800 w-10 md:w-12`}>
                                         {index + 1}
                                     </td>
-                                    <td className="px-2 py-2 md:px-4 md:py-4 font-bold text-sffl-navy dark:text-white whitespace-nowrap text-left border-r border-gray-50 dark:border-gray-800">
+                                    <td className={`sticky left-10 md:left-12 z-10 ${STICKY_BODY_BG} px-2 py-2 md:px-4 md:py-4 font-bold text-sffl-navy dark:text-white whitespace-nowrap text-left border-r border-gray-50 dark:border-gray-800 w-[150px] md:w-[210px]`}>
                                         {isPlayer ? (
                                             <Link to={`/players/${row.player_id}`} className="flex items-center space-x-2 md:space-x-3 hover:text-sffl-red transition-colors">
                                                 {row.player_image ? (
-                                                    <LightboxImage 
-                                                        src={row.player_image} 
-                                                        alt={row.player_name} 
-                                                        thumbnailClassName="w-6 h-6 md:w-8 md:h-8 rounded-full object-cover shadow-sm border border-gray-100 dark:border-gray-700" 
+                                                    <LightboxImage
+                                                        src={row.player_image}
+                                                        alt={row.player_name}
+                                                        thumbnailClassName="w-6 h-6 md:w-8 md:h-8 rounded-full object-cover shadow-sm border border-gray-100 dark:border-gray-700"
                                                     />
                                                 ) : (
                                                     <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-[10px] md:text-xs">
                                                         #{row.player_jersey_number}
                                                     </div>
                                                 )}
-                                                <div className="flex flex-col">
-                                                    <span className="leading-tight text-xs md:text-sm uppercase tracking-tight">{row.player_name}</span>
+                                                <div className="flex flex-col min-w-0">
+                                                    <span className="leading-tight text-xs md:text-sm uppercase tracking-tight truncate">{row.player_name}</span>
                                                     <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">{row.player_position}</span>
                                                 </div>
                                             </Link>
                                         ) : (
                                             <div className="flex items-center space-x-2 md:space-x-3">
-                                                <LightboxImage 
-                                                    src={row.team_logo || 'https://via.placeholder.com/30'} 
-                                                    alt={row.team_name} 
-                                                    thumbnailClassName="w-6 h-6 md:w-8 md:h-8 object-contain rounded-md shadow-sm" 
+                                                <LightboxImage
+                                                    src={row.team_logo || 'https://via.placeholder.com/30'}
+                                                    alt={row.team_name}
+                                                    thumbnailClassName="w-6 h-6 md:w-8 md:h-8 object-contain rounded-md shadow-sm"
                                                 />
-                                                <span className="uppercase text-xs md:text-sm tracking-tight">{row.team_name}</span>
+                                                <span className="uppercase text-xs md:text-sm tracking-tight truncate">{row.team_name}</span>
                                             </div>
                                         )}
                                     </td>
                                     {isPlayer && (
-                                        <td className="px-2 py-2 md:px-4 md:py-4 text-[10px] md:text-xs font-bold text-gray-600 dark:text-gray-400 whitespace-nowrap text-left border-r border-gray-50 dark:border-gray-800">
-                                            <div className="flex items-center space-x-2 group">
-                                                <LightboxImage 
-                                                    src={row.team_logo || 'https://via.placeholder.com/20'} 
+                                        <td className={`sticky left-[190px] md:left-[258px] z-10 ${STICKY_BODY_BG} px-2 py-2 md:px-4 md:py-4 text-[10px] md:text-xs font-bold text-gray-600 dark:text-gray-400 whitespace-nowrap text-left border-r border-gray-50 dark:border-gray-800 w-[90px] md:w-[110px]`}>
+                                            <div className="flex items-center space-x-2 group/team">
+                                                <LightboxImage
+                                                    src={row.team_logo || 'https://via.placeholder.com/20'}
                                                     alt=""
-                                                    thumbnailClassName="w-4 h-4 md:w-5 md:h-5 object-contain rounded-sm opacity-70 group-hover:opacity-100 transition-opacity" 
+                                                    thumbnailClassName="w-4 h-4 md:w-5 md:h-5 object-contain rounded-sm opacity-70 group-hover/team:opacity-100 transition-opacity"
                                                 />
-                                                <span className="uppercase tracking-tight leading-none">{row.team_short_name || row.team_name}</span>
+                                                <span className="uppercase tracking-tight leading-none truncate">{row.team_short_name || row.team_name}</span>
                                             </div>
                                         </td>
                                     )}

@@ -31,8 +31,8 @@ export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({ standi
                 <table className="w-full text-xs md:text-sm text-left">
                     <thead className="text-[10px] md:text-xs uppercase bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
                         <tr>
-                            <th className="px-1 py-2 md:px-4 md:py-3 text-center w-8 md:w-12"></th>
-                            <th className="px-1 py-2 md:px-4 md:py-3 whitespace-nowrap">Team</th>
+                            <th className="sticky left-0 z-20 bg-gray-50 dark:bg-gray-800 px-1 py-2 md:px-4 md:py-3 text-center w-10 md:w-14"></th>
+                            <th className="sticky left-10 md:left-14 z-20 bg-gray-50 dark:bg-gray-800 px-1 py-2 md:px-4 md:py-3 whitespace-nowrap w-[100px] md:w-[140px] border-r border-gray-100 dark:border-gray-700">Team</th>
                             <th className="px-1 py-2 md:px-4 md:py-3 text-center whitespace-nowrap">P</th>
                             <th className="px-1 py-2 md:px-4 md:py-3 text-center whitespace-nowrap">PD</th>
                             <th className="px-1 py-2 md:px-4 md:py-3 text-center whitespace-nowrap">PCT</th>
@@ -52,24 +52,32 @@ export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({ standi
                             );
                             const nameText = standing.team?.short_name || standing.team?.name || 'Unknown';
 
+                            // Sticky cells need opaque backgrounds since the scrolling stat
+                            // cells slide underneath. Match the row tint with solid equivalents.
+                            const stickyBg = isGold
+                                ? 'bg-amber-50 dark:bg-amber-950 group-hover:bg-amber-100 dark:group-hover:bg-amber-900'
+                                : isSilver
+                                    ? 'bg-slate-50 dark:bg-slate-900 group-hover:bg-slate-100 dark:group-hover:bg-slate-800'
+                                    : 'bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-800';
+
                             return (
                                 <tr
                                     key={standing.id}
                                     className={`
-                                        border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors
+                                        group border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors
                                         ${isGold ? 'bg-amber-500/10 hover:bg-amber-500/20 dark:bg-amber-500/5 dark:hover:bg-amber-500/10 border-l-4 border-l-amber-500' :
                                           isSilver ? 'bg-slate-300/20 hover:bg-slate-300/30 dark:bg-slate-300/10 dark:hover:bg-slate-300/20 border-l-4 border-l-slate-400' :
                                           index < 4 ? 'border-l-4 border-l-green-500' : ''}
                                     `}
                                 >
-                                    <td className="px-1 py-2 md:px-4 md:py-4 text-center">
+                                    <td className={`sticky left-0 z-10 ${stickyBg} px-1 py-2 md:px-4 md:py-4 text-center w-10 md:w-14`}>
                                         {standing.team?.id ? (
                                             <Link to={`/teams/${standing.team.id}`} className="block hover:opacity-80 transition-opacity">
                                                 {logoImg}
                                             </Link>
                                         ) : logoImg}
                                     </td>
-                                    <td className="px-1 py-2 md:px-4 md:py-4 font-semibold text-sffl-navy dark:text-white whitespace-nowrap">
+                                    <td className={`sticky left-10 md:left-14 z-10 ${stickyBg} px-1 py-2 md:px-4 md:py-4 font-semibold text-sffl-navy dark:text-white whitespace-nowrap w-[100px] md:w-[140px] border-r border-gray-100 dark:border-gray-800`}>
                                         {standing.team?.id ? (
                                             <Link
                                                 to={`/teams/${standing.team.id}`}

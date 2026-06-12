@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { getCompetitions, getMatches, getStandings, type Match, type Competition, type PaginatedResponse } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { Spinner } from '../../components/ui';
@@ -8,6 +8,8 @@ import { MatchCard } from '../../components/matches/MatchCard';
 import { MatchStandingsTable } from '../../components/matches/MatchStandingsTable';
 
 export const MatchHub = () => {
+    const [searchParams] = useSearchParams();
+    const compParam = searchParams.get('comp');
     const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>('');
     const [statusFilter, setStatusFilter] = useState<'ALL' | 'LIVE' | 'FINISHED' | 'SCHEDULED'>('ALL');
     const [collapsedDates, setCollapsedDates] = useState<Record<string, boolean>>({});
@@ -19,11 +21,36 @@ export const MatchHub = () => {
     });
     const competitions = (competitionsData?.data || []).filter(c => c.status !== 'inactive');
 
+    // Anchor the default selection to the most recent match's competition
+    // rather than competitions[0] (which is sorted by created_at and can look
+    // random if newer competitions were marked inactive).
+    const { data: latestMatchPage, isFetched: latestMatchFetched } = useQuery({
+        queryKey: ['publicLatestMatchForDefault'],
+        queryFn: () => getMatches(undefined, 1, 1),
+        staleTime: 60_000,
+    });
+    const latestMatchCompetitionId = latestMatchPage?.data?.[0]?.competition?.id;
+
+    // Seed once on mount: honor ?comp= from the URL (e.g. "View All" from the
+    // home page) when valid; otherwise pick the competition of the most recent
+    // match; finally fall back to the first active competition. After seeding
+    // we never override the user's manual dropdown choice.
     useEffect(() => {
-        if (competitions.length > 0 && !selectedCompetitionId) {
+        if (competitions.length === 0 || selectedCompetitionId) return;
+
+        if (compParam && competitions.some(c => c.id === compParam)) {
+            setSelectedCompetitionId(compParam);
+            return;
+        }
+
+        if (!latestMatchFetched) return;
+
+        if (latestMatchCompetitionId && competitions.some(c => c.id === latestMatchCompetitionId)) {
+            setSelectedCompetitionId(latestMatchCompetitionId);
+        } else {
             setSelectedCompetitionId(competitions[0].id);
         }
-    }, [competitions, selectedCompetitionId]);
+    }, [competitions, selectedCompetitionId, compParam, latestMatchFetched, latestMatchCompetitionId]);
 
     const { data: standingsData, isLoading: standingsLoading } = useQuery({
         queryKey: ['publicStandings', selectedCompetitionId],
