@@ -2,9 +2,8 @@ import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { getNews } from '../../services/api';
-import { Loader } from '../../components/ui/Loader';
 import { Pagination } from '../../components/ui/Pagination';
-import { LightboxImage } from '../../components/ui';
+import { LightboxImage, Spinner } from '../../components/ui';
 
 export const NewsList = () => {
     const [currentPage, setCurrentPage] = useState(1);
@@ -23,10 +22,6 @@ export const NewsList = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }, [currentPage]);
 
-    if (loading) {
-        return <Loader />;
-    }
-
     return (
         <div className="space-y-4 md:space-y-8">
             {/* Header */}
@@ -35,7 +30,10 @@ export const NewsList = () => {
                 <p className="text-gray-300 mt-2 text-lg">Latest updates from the SFFL</p>
             </div>
 
+            {loading && <Spinner label="Loading news…" className="py-16" />}
+
             {/* News Grid */}
+            {!loading && (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {news.map((article) => (
                     <div
@@ -90,13 +88,24 @@ export const NewsList = () => {
                     </div>
                 ))}
             </div>
+            )}
+
+            {/* Empty state */}
+            {!loading && news.length === 0 && (
+                <div className="bg-gray-100 dark:bg-gray-800 p-12 rounded-xl text-center">
+                    <div className="text-4xl mb-3">📰</div>
+                    <p className="text-gray-500 text-lg font-semibold">No news articles yet.</p>
+                </div>
+            )}
 
             {/* Pagination Controls */}
-            <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-            />
+            {!loading && totalPages > 1 && (
+                <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                />
+            )}
         </div>
     );
 };

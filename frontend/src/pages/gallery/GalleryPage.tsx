@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getGallery, getCompetitions, type Competition } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
+import { Spinner } from '../../components/ui';
 import { Pagination } from '../../components/ui/Pagination';
 
 const ALL = 'ALL';
@@ -49,7 +50,9 @@ export const GalleryPage = () => {
         return `https://${url}`;
     };
 
-    if (loadingComps || (loading && !galleryData)) {
+    // Only the initial competitions fetch blocks the page. Changing the
+    // competition filter spins the gallery area in place (below) instead.
+    if (loadingComps) {
         return <Loader />;
     }
 
@@ -97,7 +100,11 @@ export const GalleryPage = () => {
                 </p>
             </div>
 
-            {gallery.length === 0 ? (
+            {loading ? (
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg">
+                    <Spinner label="Loading gallery…" className="py-16" />
+                </div>
+            ) : gallery.length === 0 ? (
                 <div className="bg-gray-100 dark:bg-gray-800 p-12 rounded-xl text-center">
                     <div className="text-4xl mb-3">📸</div>
                     <p className="text-gray-500 text-lg font-semibold">No gallery entries yet for this competition.</p>

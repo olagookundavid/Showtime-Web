@@ -163,7 +163,11 @@ export const MatchHub = () => {
                         </div>
                     </div>
 
-                    {matches.length === 0 && !matchesLoading && !initialMatchesLoading ? (
+                    {initialMatchesLoading ? (
+                        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl shadow-sm">
+                            <Spinner label="Loading matches…" className="py-16" />
+                        </div>
+                    ) : matches.length === 0 && !matchesLoading ? (
                         <div className="bg-gray-100 dark:bg-gray-800 p-12 rounded-xl text-center">
                             <div className="text-4xl mb-3">⚽</div>
                             <p className="text-gray-500 text-lg font-semibold">No matches found for this filter.</p>
