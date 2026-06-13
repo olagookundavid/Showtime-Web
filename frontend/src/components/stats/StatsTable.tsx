@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { PlayerStat, TeamStat } from '../../services/api';
 import { Link } from 'react-router-dom';
 import { LightboxImage, Spinner } from '../ui';
@@ -50,12 +50,117 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
 
     const visibleStatCols = STAT_COLS.filter(c => isPlayer || !c.playerOnly);
 
+    // ─── Floating sticky thead ────────────────────────────────────────────
+    // The table needs overflow-x-auto to allow horizontal scroll on narrow
+    // screens; that establishes a scroll container, which means a pure-CSS
+    // `position: sticky; top: 0` thead would pin to that container (not the
+    // viewport). Result: as the user scrolls the PAGE, the thead scrolls off
+    // with the table. To get "header sticks to the screen", we render a
+    // cloned thead in a `position: fixed; top: 0` overlay whenever the real
+    // thead has scrolled above the viewport and the table is still visible.
+    // Horizontal scrolling is kept in sync (original ↔ clone) so the columns
+    // always line up under the pinned header.
+    const containerRef = useRef<HTMLDivElement>(null);
+    const cloneScrollRef = useRef<HTMLDivElement>(null);
+    const [floatHead, setFloatHead] = useState({ visible: false, left: 0, width: 0, scrollLeft: 0 });
+
+    useEffect(() => {
+        let raf = 0;
+        const update = () => {
+            raf = 0;
+            const c = containerRef.current;
+            if (!c) return;
+            const rect = c.getBoundingClientRect();
+            const thead = c.querySelector('thead');
+            const theadHeight = thead?.getBoundingClientRect().height ?? 0;
+            // Pin when the table's own top has scrolled above the viewport AND
+            // the table still has rows in view beneath where the pinned header
+            // would sit.
+            const visible = rect.top < 0 && rect.bottom > theadHeight;
+            setFloatHead({
+                visible,
+                left: Math.round(rect.left),
+                width: Math.round(rect.width),
+                scrollLeft: c.scrollLeft,
+            });
+        };
+        const schedule = () => {
+            if (raf) return;
+            raf = requestAnimationFrame(update);
+        };
+        update();
+        window.addEventListener('scroll', schedule, { passive: true });
+        window.addEventListener('resize', schedule);
+        const c = containerRef.current;
+        c?.addEventListener('scroll', schedule, { passive: true });
+        return () => {
+            window.removeEventListener('scroll', schedule);
+            window.removeEventListener('resize', schedule);
+            c?.removeEventListener('scroll', schedule);
+            if (raf) cancelAnimationFrame(raf);
+        };
+    }, [data.length]);
+
+    // Mirror the original's horizontal scroll into the clone so its sticky-
+    // left cells line up under the body's sticky-left columns.
+    useEffect(() => {
+        const clone = cloneScrollRef.current;
+        if (clone && clone.scrollLeft !== floatHead.scrollLeft) {
+            clone.scrollLeft = floatHead.scrollLeft;
+        }
+    }, [floatHead.scrollLeft, floatHead.visible]);
+
     // Clicking a stat header ranks league-wide leaders first (server-side
     // sort, so it spans every page); clicking it again returns to A→Z.
     const handleHeaderClick = (key: string) => {
         if (!onSortChange) return;
         onSortChange(sortBy === key ? '' : key);
     };
+
+    const colgroupEl = (
+        <colgroup>
+            <col className="w-10 md:w-12" />
+            <col className="w-[160px] md:w-[210px]" />
+            {isPlayer && <col className="w-[72px] md:w-[90px]" />}
+            {visibleStatCols.map(col => (
+                <col key={col.key} className="w-[60px] md:w-[72px]" />
+            ))}
+        </colgroup>
+    );
+
+    const theadEl = (
+        <thead className="text-[10px] md:text-xs bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
+            <tr>
+                <th className={`sticky left-0 z-20 ${STICKY_HEAD_BG} px-2 py-4 md:px-4 text-center border-r border-gray-100 dark:border-gray-700`}>#</th>
+                <th className={`sticky left-10 md:left-12 z-20 ${STICKY_HEAD_BG} px-2 py-4 md:px-4 text-left whitespace-nowrap uppercase border-r border-gray-100 dark:border-gray-700`}>{isPlayer ? 'Player' : 'Team'}</th>
+                {isPlayer && (
+                    <th className={`${STICKY_HEAD_BG} px-2 py-4 md:px-4 text-left whitespace-nowrap uppercase border-r border-gray-100 dark:border-gray-700`}>Team</th>
+                )}
+                {visibleStatCols.map((col, i) => {
+                    const isActive = sortBy === col.key;
+                    const isLast = i === visibleStatCols.length - 1;
+                    return (
+                        <th
+                            key={col.key}
+                            className={`p-0 ${isLast ? '' : 'border-r border-gray-100 dark:border-gray-700'} ${STICKY_HEAD_BG} ${isActive ? 'border-b-2 border-b-sffl-red' : ''}`}
+                        >
+                            <button
+                                type="button"
+                                onClick={() => handleHeaderClick(col.key)}
+                                title={isActive ? `${col.title} — click to clear sort` : `${col.title} — click to sort by leaders`}
+                                className={`flex flex-col items-center justify-center leading-tight py-3 px-1 w-full whitespace-nowrap cursor-pointer select-none transition-colors hover:text-sffl-red ${isActive ? 'text-sffl-red font-black' : ''}`}
+                            >
+                                {col.top && <span className="text-[9px] md:text-[10px] font-semibold opacity-70">{col.top}</span>}
+                                <span className="font-bold">
+                                    {col.bottom}{isActive ? ' ▾' : ''}
+                                </span>
+                            </button>
+                        </th>
+                    );
+                })}
+            </tr>
+        </thead>
+    );
 
     // Loading shows a spinner rather than the empty state, so changing a
     // filter never flashes "No stats" before the new data arrives.
@@ -72,74 +177,20 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
     }
 
     return (
-        <div className="overflow-hidden rounded-lg md:rounded-xl shadow-lg bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700">
-            <div className="px-3 py-2.5 md:px-6 md:py-4 bg-sffl-navy text-white font-bold text-sm md:text-lg">
-                {isPlayer ? 'Player Statistics' : 'Team Statistics'}
-            </div>
-            {/* Bounded-height scroll container so the sticky thead has somewhere
-                to "stick" against. Without max-h, the thead's nearest scrolling
-                ancestor would be the page, but page-scroll sticky only works
-                when no overflow:auto/hidden sits between the cell and the
-                viewport — which we can't avoid here because the table needs
-                horizontal scroll. Trade-off: long stat lists scroll inside the
-                card; the column meanings stay visible the whole time. */}
-            <div className="overflow-auto max-h-[70vh] md:max-h-[75vh]">
+        <>
+            <div className="overflow-hidden rounded-lg md:rounded-xl shadow-lg bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700">
+                <div className="px-3 py-2.5 md:px-6 md:py-4 bg-sffl-navy text-white font-bold text-sm md:text-lg">
+                    {isPlayer ? 'Player Statistics' : 'Team Statistics'}
+                </div>
                 {/* table-fixed + colgroup locks widths so the single sticky
                     "name" column has a predictable right edge regardless of
                     content length. Player view: # + Player stick; Team chip
                     scrolls with the stats. Team view: # + Team stick. */}
-                <table className="w-max text-xs md:text-sm text-center border-collapse table-fixed">
-                    <colgroup>
-                        <col className="w-10 md:w-12" />
-                        <col className="w-[160px] md:w-[210px]" />
-                        {isPlayer && <col className="w-[72px] md:w-[90px]" />}
-                        {visibleStatCols.map(col => (
-                            <col key={col.key} className="w-[60px] md:w-[72px]" />
-                        ))}
-                    </colgroup>
-                    <thead className="text-[10px] md:text-xs bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
-                        {/* Sticky thead so column meanings stay visible while the
-                            user scrolls long stat lists. Corner cells (sticky-left
-                            + sticky-top) need a higher z than the row-only sticky
-                            cells below so they don't get covered when both axes
-                            scroll simultaneously. */}
-                        <tr>
-                            <th className={`sticky left-0 top-0 z-30 ${STICKY_HEAD_BG} px-2 py-4 md:px-4 text-center border-r border-gray-100 dark:border-gray-700`}>#</th>
-                            <th className={`sticky left-10 md:left-12 top-0 z-30 ${STICKY_HEAD_BG} px-2 py-4 md:px-4 text-left whitespace-nowrap uppercase border-r border-gray-100 dark:border-gray-700`}>{isPlayer ? 'Player' : 'Team'}</th>
-                            {isPlayer && (
-                                <th className={`sticky top-0 z-20 ${STICKY_HEAD_BG} px-2 py-4 md:px-4 text-left whitespace-nowrap uppercase border-r border-gray-100 dark:border-gray-700`}>Team</th>
-                            )}
-
-                            {/* Stacked two-line headers — click to rank league-wide leaders.
-                                Header bg uses the opaque STICKY_HEAD_BG (not col.bg) so rows
-                                scrolling under the sticky thead don't show through; the active-
-                                sort signal is conveyed via text color + arrow rather than a
-                                translucent red wash. */}
-                            {visibleStatCols.map((col, i) => {
-                                const isActive = sortBy === col.key;
-                                const isLast = i === visibleStatCols.length - 1;
-                                return (
-                                    <th
-                                        key={col.key}
-                                        className={`sticky top-0 z-20 p-0 ${isLast ? '' : 'border-r border-gray-100 dark:border-gray-700'} ${STICKY_HEAD_BG} ${isActive ? 'border-b-2 border-b-sffl-red' : ''}`}
-                                    >
-                                        <button
-                                            type="button"
-                                            onClick={() => handleHeaderClick(col.key)}
-                                            title={isActive ? `${col.title} — click to clear sort` : `${col.title} — click to sort by leaders`}
-                                            className={`flex flex-col items-center justify-center leading-tight py-3 px-1 w-full whitespace-nowrap cursor-pointer select-none transition-colors hover:text-sffl-red ${isActive ? 'text-sffl-red font-black' : ''}`}
-                                        >
-                                            {col.top && <span className="text-[9px] md:text-[10px] font-semibold opacity-70">{col.top}</span>}
-                                            <span className="font-bold">
-                                                {col.bottom}{isActive ? ' ▾' : ''}
-                                            </span>
-                                        </button>
-                                    </th>
-                                );
-                            })}
-                        </tr>
-                    </thead>
-                    <tbody>
+                <div ref={containerRef} className="overflow-x-auto">
+                    <table className="w-max text-xs md:text-sm text-center border-collapse table-fixed">
+                        {colgroupEl}
+                        {theadEl}
+                        <tbody>
                         {data.map((row: any, index: number) => {
                             return (
                                 <tr
@@ -232,7 +283,26 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                         })}
                     </tbody>
                 </table>
+                </div>
             </div>
-        </div>
+
+            {/* Floating pinned thead — only mounts while the real header has
+                scrolled off the top. Mirrors the original's left/width and
+                horizontal scroll so sticky-left columns line up under the
+                rows below. */}
+            {floatHead.visible && (
+                <div
+                    className="fixed top-0 z-50 shadow-md"
+                    style={{ left: floatHead.left, width: floatHead.width }}
+                >
+                    <div ref={cloneScrollRef} className="overflow-x-hidden">
+                        <table className="w-max text-xs md:text-sm text-center border-collapse table-fixed">
+                            {colgroupEl}
+                            {theadEl}
+                        </table>
+                    </div>
+                </div>
+            )}
+        </>
     );
 };

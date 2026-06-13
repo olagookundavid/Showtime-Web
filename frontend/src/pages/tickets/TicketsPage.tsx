@@ -240,6 +240,11 @@ export const TicketsPage = () => {
                                                         <div className="text-xl md:text-3xl font-black mt-0.5 md:mt-1">₦{tier.price.toLocaleString()}</div>
                                                     </div>
                                                     <div className="p-3 md:p-4 bg-gray-50 dark:bg-gray-700">
+                                                        {tier.description && (
+                                                            <p className="text-xs md:text-sm text-gray-600 dark:text-gray-300 leading-relaxed mb-3 whitespace-pre-line">
+                                                                {tier.description}
+                                                            </p>
+                                                        )}
                                                         {tier.capacity > 0 && (
                                                             <div className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                                                                 {isSoldOut ? (
