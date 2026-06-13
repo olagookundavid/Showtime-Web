@@ -76,7 +76,14 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
             <div className="px-3 py-2.5 md:px-6 md:py-4 bg-sffl-navy text-white font-bold text-sm md:text-lg">
                 {isPlayer ? 'Player Statistics' : 'Team Statistics'}
             </div>
-            <div className="overflow-x-auto">
+            {/* Bounded-height scroll container so the sticky thead has somewhere
+                to "stick" against. Without max-h, the thead's nearest scrolling
+                ancestor would be the page, but page-scroll sticky only works
+                when no overflow:auto/hidden sits between the cell and the
+                viewport — which we can't avoid here because the table needs
+                horizontal scroll. Trade-off: long stat lists scroll inside the
+                card; the column meanings stay visible the whole time. */}
+            <div className="overflow-auto max-h-[70vh] md:max-h-[75vh]">
                 {/* table-fixed + colgroup locks widths so the single sticky
                     "name" column has a predictable right edge regardless of
                     content length. Player view: # + Player stick; Team chip
@@ -91,21 +98,30 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                         ))}
                     </colgroup>
                     <thead className="text-[10px] md:text-xs bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
+                        {/* Sticky thead so column meanings stay visible while the
+                            user scrolls long stat lists. Corner cells (sticky-left
+                            + sticky-top) need a higher z than the row-only sticky
+                            cells below so they don't get covered when both axes
+                            scroll simultaneously. */}
                         <tr>
-                            <th className={`sticky left-0 z-20 ${STICKY_HEAD_BG} px-2 py-4 md:px-4 text-center border-r border-gray-100 dark:border-gray-700`}>#</th>
-                            <th className={`sticky left-10 md:left-12 z-20 ${STICKY_HEAD_BG} px-2 py-4 md:px-4 text-left whitespace-nowrap uppercase border-r border-gray-100 dark:border-gray-700`}>{isPlayer ? 'Player' : 'Team'}</th>
+                            <th className={`sticky left-0 top-0 z-30 ${STICKY_HEAD_BG} px-2 py-4 md:px-4 text-center border-r border-gray-100 dark:border-gray-700`}>#</th>
+                            <th className={`sticky left-10 md:left-12 top-0 z-30 ${STICKY_HEAD_BG} px-2 py-4 md:px-4 text-left whitespace-nowrap uppercase border-r border-gray-100 dark:border-gray-700`}>{isPlayer ? 'Player' : 'Team'}</th>
                             {isPlayer && (
-                                <th className="px-2 py-4 md:px-4 text-left whitespace-nowrap uppercase border-r border-gray-100 dark:border-gray-700">Team</th>
+                                <th className={`sticky top-0 z-20 ${STICKY_HEAD_BG} px-2 py-4 md:px-4 text-left whitespace-nowrap uppercase border-r border-gray-100 dark:border-gray-700`}>Team</th>
                             )}
 
-                            {/* Stacked two-line headers — click to rank league-wide leaders */}
+                            {/* Stacked two-line headers — click to rank league-wide leaders.
+                                Header bg uses the opaque STICKY_HEAD_BG (not col.bg) so rows
+                                scrolling under the sticky thead don't show through; the active-
+                                sort signal is conveyed via text color + arrow rather than a
+                                translucent red wash. */}
                             {visibleStatCols.map((col, i) => {
                                 const isActive = sortBy === col.key;
                                 const isLast = i === visibleStatCols.length - 1;
                                 return (
                                     <th
                                         key={col.key}
-                                        className={`p-0 ${isLast ? '' : 'border-r border-gray-100 dark:border-gray-700'} ${col.bg} ${isActive ? 'bg-sffl-red/10 dark:bg-sffl-red/20' : ''}`}
+                                        className={`sticky top-0 z-20 p-0 ${isLast ? '' : 'border-r border-gray-100 dark:border-gray-700'} ${STICKY_HEAD_BG} ${isActive ? 'border-b-2 border-b-sffl-red' : ''}`}
                                     >
                                         <button
                                             type="button"
@@ -153,32 +169,39 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                                                 </div>
                                             </Link>
                                         ) : (
-                                            <Link
-                                                to={`/teams/${row.team_id}`}
-                                                className="flex items-center space-x-2 md:space-x-3 min-w-0 hover:text-sffl-red transition-colors"
-                                            >
+                                            // Logo stays outside the Link so its built-in lightbox
+                                            // (preventDefault) doesn't swallow navigation; the name
+                                            // alone is the click target for the team page.
+                                            <div className="flex items-center space-x-2 md:space-x-3 min-w-0">
                                                 <LightboxImage
                                                     src={row.team_logo || 'https://via.placeholder.com/30'}
                                                     alt={row.team_name}
                                                     thumbnailClassName="w-6 h-6 md:w-8 md:h-8 object-contain rounded-md shadow-sm"
                                                 />
-                                                <span className="uppercase text-xs md:text-sm tracking-tight truncate">{row.team_name}</span>
-                                            </Link>
+                                                <Link
+                                                    to={`/teams/${row.team_id}`}
+                                                    className="uppercase text-xs md:text-sm tracking-tight truncate hover:text-sffl-red transition-colors"
+                                                >
+                                                    {row.team_name}
+                                                </Link>
+                                            </div>
                                         )}
                                     </td>
                                     {isPlayer && (
                                         <td className="px-2 py-2 md:px-4 md:py-4 text-[10px] md:text-xs font-bold text-gray-600 dark:text-gray-400 whitespace-nowrap text-left border-r border-gray-50 dark:border-gray-800 overflow-hidden">
-                                            <Link
-                                                to={`/teams/${row.team_id}`}
-                                                className="flex items-center space-x-2 min-w-0 hover:text-sffl-red transition-colors"
-                                            >
+                                            <div className="flex items-center space-x-2 min-w-0">
                                                 <LightboxImage
                                                     src={row.team_logo || 'https://via.placeholder.com/20'}
                                                     alt=""
                                                     thumbnailClassName="w-4 h-4 md:w-5 md:h-5 object-contain rounded-sm opacity-70"
                                                 />
-                                                <span className="uppercase tracking-tight leading-none truncate">{row.team_short_name || row.team_name}</span>
-                                            </Link>
+                                                <Link
+                                                    to={`/teams/${row.team_id}`}
+                                                    className="uppercase tracking-tight leading-none truncate hover:text-sffl-red transition-colors"
+                                                >
+                                                    {row.team_short_name || row.team_name}
+                                                </Link>
+                                            </div>
                                         </td>
                                     )}
 

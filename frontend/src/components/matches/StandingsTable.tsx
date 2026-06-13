@@ -33,21 +33,27 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCom
                 <span>Team Standings</span>
                 {isCompleted && <span className="text-xs bg-amber-500 text-sffl-navy px-2 py-0.5 rounded-full font-black uppercase tracking-wider">Season Completed</span>}
             </div>
-            <div className="overflow-x-auto custom-scrollbar">
+            {/* Bounded-height scroll container so the sticky thead can pin while
+                rows scroll inside it. See StatsTable for the rationale. */}
+            <div className="overflow-auto custom-scrollbar max-h-[70vh] md:max-h-[75vh]">
                 <table className="w-full text-xs md:text-sm text-left">
                     <thead className="text-[10px] md:text-xs uppercase bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
+                        {/* Sticky thead so the abbreviation columns (P/W/D/L/PF…)
+                            stay visible while the user scrolls. Corner cells
+                            (left + top) need a higher z than the row-only sticky
+                            position cells below. */}
                         <tr>
-                            <th className="sticky left-0 z-20 bg-gray-50 dark:bg-gray-800 px-2.5 py-3 md:px-4 md:py-3 text-center w-10 md:w-14">Pos</th>
-                            <th className="sticky left-10 md:left-14 z-20 bg-gray-50 dark:bg-gray-800 px-2.5 py-3 md:px-4 md:py-3 whitespace-nowrap w-[130px] md:w-[200px] border-r border-gray-100 dark:border-gray-700">Team</th>
-                            <th className="px-2.5 py-3 md:px-4 md:py-3 text-center whitespace-nowrap">P</th>
-                            <th className="px-2.5 py-3 md:px-4 md:py-3 text-center whitespace-nowrap">W</th>
-                            <th className="px-2.5 py-3 md:px-4 md:py-3 text-center whitespace-nowrap">D</th>
-                            <th className="px-2.5 py-3 md:px-4 md:py-3 text-center whitespace-nowrap">L</th>
-                            <th className="px-2.5 py-3 md:px-4 md:py-3 text-center whitespace-nowrap">PF</th>
-                            <th className="px-2.5 py-3 md:px-4 md:py-3 text-center whitespace-nowrap">PA</th>
-                            <th className="px-2.5 py-3 md:px-4 md:py-3 text-center whitespace-nowrap">PD</th>
-                            <th className="px-2.5 py-3 md:px-4 md:py-3 text-center whitespace-nowrap">PCT</th>
-                            <th className="px-2.5 py-3 md:px-4 md:py-3 text-center">L5</th>
+                            <th className="sticky left-0 top-0 z-30 bg-gray-50 dark:bg-gray-800 px-2.5 py-3 md:px-4 md:py-3 text-center w-10 md:w-14">Pos</th>
+                            <th className="sticky left-10 md:left-14 top-0 z-30 bg-gray-50 dark:bg-gray-800 px-2.5 py-3 md:px-4 md:py-3 whitespace-nowrap w-[130px] md:w-[200px] border-r border-gray-100 dark:border-gray-700">Team</th>
+                            <th className="sticky top-0 z-20 bg-gray-50 dark:bg-gray-800 px-2.5 py-3 md:px-4 md:py-3 text-center whitespace-nowrap">P</th>
+                            <th className="sticky top-0 z-20 bg-gray-50 dark:bg-gray-800 px-2.5 py-3 md:px-4 md:py-3 text-center whitespace-nowrap">W</th>
+                            <th className="sticky top-0 z-20 bg-gray-50 dark:bg-gray-800 px-2.5 py-3 md:px-4 md:py-3 text-center whitespace-nowrap">D</th>
+                            <th className="sticky top-0 z-20 bg-gray-50 dark:bg-gray-800 px-2.5 py-3 md:px-4 md:py-3 text-center whitespace-nowrap">L</th>
+                            <th className="sticky top-0 z-20 bg-gray-50 dark:bg-gray-800 px-2.5 py-3 md:px-4 md:py-3 text-center whitespace-nowrap">PF</th>
+                            <th className="sticky top-0 z-20 bg-gray-50 dark:bg-gray-800 px-2.5 py-3 md:px-4 md:py-3 text-center whitespace-nowrap">PA</th>
+                            <th className="sticky top-0 z-20 bg-gray-50 dark:bg-gray-800 px-2.5 py-3 md:px-4 md:py-3 text-center whitespace-nowrap">PD</th>
+                            <th className="sticky top-0 z-20 bg-gray-50 dark:bg-gray-800 px-2.5 py-3 md:px-4 md:py-3 text-center whitespace-nowrap">PCT</th>
+                            <th className="sticky top-0 z-20 bg-gray-50 dark:bg-gray-800 px-2.5 py-3 md:px-4 md:py-3 text-center">L5</th>
                         </tr>
                     </thead>
                     <tbody>
