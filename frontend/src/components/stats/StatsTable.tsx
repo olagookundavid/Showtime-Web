@@ -62,7 +62,7 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
     // always line up under the pinned header.
     const containerRef = useRef<HTMLDivElement>(null);
     const cloneScrollRef = useRef<HTMLDivElement>(null);
-    const [floatHead, setFloatHead] = useState({ visible: false, left: 0, width: 0, scrollLeft: 0 });
+    const [floatHead, setFloatHead] = useState({ visible: false, left: 0, width: 0, scrollLeft: 0, top: 0 });
 
     useEffect(() => {
         let raf = 0;
@@ -71,17 +71,23 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
             const c = containerRef.current;
             if (!c) return;
             const rect = c.getBoundingClientRect();
+            // The site's <nav> is sticky at top-0 — pin the floating thead
+            // beneath it, not at the absolute viewport top, otherwise the nav
+            // covers it (same z-50) and the header looks invisible.
+            const nav = document.querySelector('nav');
+            const navBottom = nav?.getBoundingClientRect().bottom ?? 0;
             const thead = c.querySelector('thead');
             const theadHeight = thead?.getBoundingClientRect().height ?? 0;
-            // Pin when the table's own top has scrolled above the viewport AND
-            // the table still has rows in view beneath where the pinned header
-            // would sit.
-            const visible = rect.top < 0 && rect.bottom > theadHeight;
+            // Pin when the table's own top has scrolled above the nav (so the
+            // original thead is hidden) AND the table body extends past where
+            // the pinned header would sit.
+            const visible = rect.top < navBottom && rect.bottom > navBottom + theadHeight;
             setFloatHead({
                 visible,
                 left: Math.round(rect.left),
                 width: Math.round(rect.width),
                 scrollLeft: c.scrollLeft,
+                top: Math.round(navBottom),
             });
         };
         const schedule = () => {
@@ -287,13 +293,15 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
             </div>
 
             {/* Floating pinned thead — only mounts while the real header has
-                scrolled off the top. Mirrors the original's left/width and
-                horizontal scroll so sticky-left columns line up under the
-                rows below. */}
+                scrolled off the top. Pinned below the sticky nav (top:
+                navBottom) so the nav stays usable. z-40 sits between the
+                z-50 nav and the z-40 mobile menu (they don't co-occur with
+                this view). Background is opaque so body rows scrolling
+                underneath don't bleed through. */}
             {floatHead.visible && (
                 <div
-                    className="fixed top-0 z-50 shadow-md"
-                    style={{ left: floatHead.left, width: floatHead.width }}
+                    className="fixed z-40 shadow-md bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
+                    style={{ top: floatHead.top, left: floatHead.left, width: floatHead.width }}
                 >
                     <div ref={cloneScrollRef} className="overflow-x-hidden">
                         <table className="w-max text-xs md:text-sm text-center border-collapse table-fixed">

@@ -29,7 +29,7 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCom
     // during PAGE scroll.
     const containerRef = useRef<HTMLDivElement>(null);
     const cloneScrollRef = useRef<HTMLDivElement>(null);
-    const [floatHead, setFloatHead] = useState({ visible: false, left: 0, width: 0, scrollLeft: 0 });
+    const [floatHead, setFloatHead] = useState({ visible: false, left: 0, width: 0, scrollLeft: 0, top: 0 });
 
     useEffect(() => {
         let raf = 0;
@@ -38,14 +38,18 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCom
             const c = containerRef.current;
             if (!c) return;
             const rect = c.getBoundingClientRect();
+            // Pin beneath the sticky <nav> so it stays visible. See StatsTable.
+            const nav = document.querySelector('nav');
+            const navBottom = nav?.getBoundingClientRect().bottom ?? 0;
             const thead = c.querySelector('thead');
             const theadHeight = thead?.getBoundingClientRect().height ?? 0;
-            const visible = rect.top < 0 && rect.bottom > theadHeight;
+            const visible = rect.top < navBottom && rect.bottom > navBottom + theadHeight;
             setFloatHead({
                 visible,
                 left: Math.round(rect.left),
                 width: Math.round(rect.width),
                 scrollLeft: c.scrollLeft,
+                top: Math.round(navBottom),
             });
         };
         const schedule = () => {
@@ -194,8 +198,8 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCom
             {/* Floating pinned thead — see StatsTable for the rationale. */}
             {floatHead.visible && (
                 <div
-                    className="fixed top-0 z-50 shadow-md"
-                    style={{ left: floatHead.left, width: floatHead.width }}
+                    className="fixed z-40 shadow-md bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
+                    style={{ top: floatHead.top, left: floatHead.left, width: floatHead.width }}
                 >
                     <div ref={cloneScrollRef} className="overflow-x-hidden">
                         <table className="w-full text-xs md:text-sm text-left" style={{ width: floatHead.width }}>
