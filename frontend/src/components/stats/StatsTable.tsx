@@ -18,10 +18,10 @@ interface StatsTableProps {
 // `top` empty and just show the bottom label.
 const STAT_COLS = [
     { key: 'apps', top: '', bottom: 'Apps', title: 'Appearances (Games Played)', bg: '', playerOnly: true },
-    { key: 'passing_attempts', top: 'Passing', bottom: 'ATT', title: 'Pass Attempts', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
-    { key: 'completed_passes', top: 'Passing', bottom: 'COMP', title: 'Pass Completions', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
-    { key: 'passing_tds', top: 'Passing', bottom: 'TDs', title: 'Passing Touchdowns', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
-    { key: 'interceptions_thrown', top: 'Passing', bottom: 'INT', title: 'Interceptions Thrown', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
+    { key: 'passing_attempts', top: 'Pass', bottom: 'ATT', title: 'Pass Attempts', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
+    { key: 'completed_passes', top: 'Pass', bottom: 'COMP', title: 'Pass Completions', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
+    { key: 'passing_tds', top: 'Pass', bottom: 'TDs', title: 'Passing Touchdowns', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
+    { key: 'interceptions_thrown', top: 'Int', bottom: 'Thrown', title: 'Interceptions Thrown', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
     { key: 'qb_sacks', top: 'QB', bottom: 'Sacks', title: 'QB Sacks Accounted (QB fault)', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
     { key: 'rushing_attempts', top: 'Rush', bottom: 'ATT', title: 'Rushing Attempts', bg: 'bg-green-50/30 dark:bg-green-900/10' },
     { key: 'rushing_tds', top: 'Rush', bottom: 'TDs', title: 'Rushing Touchdowns', bg: 'bg-green-50/30 dark:bg-green-900/10' },
