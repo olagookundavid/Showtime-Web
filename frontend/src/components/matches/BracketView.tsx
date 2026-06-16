@@ -7,10 +7,12 @@ import { Spinner } from '../ui';
 /**
  * Knockout bracket for a KNOCKOUT-format competition.
  *
- * The tree is derived purely from feeds_match_id pointers: a match with no
- * pointer is the final (the Bowl); every other match sits one column to the
- * left of the match it feeds. Round labels are display-only. TBD slots render
- * until the feeder match finishes and auto-advance fills them in.
+ * Columns are ordered by each match's STAGE tag (Wildcard → Quarter-Finals →
+ * Semi-Finals → Bowl) — the admin tags every playoff match with its stage, so
+ * the bracket arranges itself without needing advancement wiring. This also
+ * lets a single stage hold several matches (e.g. two-legged semifinals).
+ * Where no stage tags exist (older / wizard brackets), we fall back to the
+ * feeds_match_id pointer depth.
  */
 
 interface BracketViewProps {
@@ -25,6 +27,35 @@ export interface BracketColumn {
     matches: Match[];
 }
 
+// The fixed knockout stages, in playing order. `value` is what's stored in the
+// match's `round`; `label` is what the admin picks in the form.
+export const KNOCKOUT_STAGES = [
+    { value: 'Wildcard', label: 'Wildcard' },
+    { value: 'Quarter-Final', label: 'Playoffs 1 — Quarter-Finals' },
+    { value: 'Semi-Final', label: 'Playoffs 2 — Semi-Finals' },
+    { value: 'Bowl', label: 'Bowl — Final' },
+] as const;
+
+// Friendly column titles per stage rank.
+const STAGE_TITLES = ['Wildcard', 'Quarter-Finals', 'Semi-Finals', 'Bowl'];
+const UNKNOWN_RANK = 99;
+
+// Rank a round/stage label robustly — recognises the manual stage values, the
+// wizard's "Playoff 1/2" labels, and common synonyms. Order of checks matters:
+// "Quarter-Final"/"Semi-Final" contain "final", so they must be tested before
+// the bowl/final check.
+export const stageRank = (round?: string): number => {
+    const r = (round || '').toLowerCase();
+    if (!r) return UNKNOWN_RANK;
+    if (r.includes('wild')) return 0;
+    if (r.includes('quarter') || r.includes('playoff 1') || r.includes('playoffs 1')) return 1;
+    if (r.includes('semi') || r.includes('playoff 2') || r.includes('playoffs 2')) return 2;
+    if (r.includes('bowl') || r.includes('final')) return 3;
+    return UNKNOWN_RANK;
+};
+
+export const isBowlStage = (round?: string): boolean => stageRank(round) === 3;
+
 export const winnerSide = (m: Match): 'HOME' | 'AWAY' | null => {
     if (m.status !== 'FINISHED' || m.home_score == null || m.away_score == null) return null;
     if (m.home_score > m.away_score) return 'HOME';
@@ -34,9 +65,29 @@ export const winnerSide = (m: Match): 'HOME' | 'AWAY' | null => {
 
 export const buildBracketColumns = (matches: Match[]): BracketColumn[] => {
     if (matches.length === 0) return [];
-    const byId = new Map(matches.map(m => [m.id, m]));
 
-    // Depth = hops from this match to the final. Cycle-guarded.
+    const sortCol = (col: Match[]) =>
+        col.sort((a, b) => (a.bracket_pos ?? 999) - (b.bracket_pos ?? 999) || a.date.localeCompare(b.date));
+
+    // Primary path: order by stage tag when any match carries a recognised one.
+    const anyStaged = matches.some(m => stageRank(m.round) !== UNKNOWN_RANK);
+    if (anyStaged) {
+        const groups = new Map<number, Match[]>();
+        matches.forEach(m => {
+            const rank = stageRank(m.round);
+            if (!groups.has(rank)) groups.set(rank, []);
+            groups.get(rank)!.push(m);
+        });
+        return [...groups.keys()]
+            .sort((a, b) => a - b)
+            .map(rank => ({
+                title: rank === UNKNOWN_RANK ? 'Other' : STAGE_TITLES[rank],
+                matches: sortCol(groups.get(rank)!),
+            }));
+    }
+
+    // Fallback: derive columns from feeds_match_id pointer depth (hops to final).
+    const byId = new Map(matches.map(m => [m.id, m]));
     const depthCache = new Map<string, number>();
     const depthOf = (m: Match, seen: Set<string>): number => {
         const cached = depthCache.get(m.id);
@@ -49,22 +100,16 @@ export const buildBracketColumns = (matches: Match[]): BracketColumn[] => {
         depthCache.set(m.id, d);
         return d;
     };
-
     const maxDepth = Math.max(...matches.map(m => depthOf(m, new Set())));
     const cols: Match[][] = Array.from({ length: maxDepth + 1 }, () => []);
-    matches.forEach(m => {
-        cols[maxDepth - depthOf(m, new Set())].push(m);
-    });
+    matches.forEach(m => { cols[maxDepth - depthOf(m, new Set())].push(m); });
 
     return cols
         .filter(col => col.length > 0)
         .map((col, i, arr) => {
-            col.sort((a, b) => (a.bracket_pos ?? 999) - (b.bracket_pos ?? 999) || a.date.localeCompare(b.date));
-            // Use the admin's round label when the column agrees on one.
+            sortCol(col);
             const labels = [...new Set(col.map(m => m.round).filter(Boolean))];
-            const title = labels.length === 1
-                ? labels[0]!
-                : i === arr.length - 1 ? 'Final' : `Round ${i + 1}`;
+            const title = labels.length === 1 ? labels[0]! : i === arr.length - 1 ? 'Final' : `Round ${i + 1}`;
             return { title, matches: col };
         });
 };
@@ -97,13 +142,21 @@ const TeamRow = ({ m, side }: { m: Match; side: 'HOME' | 'AWAY' }) => {
 };
 
 // championOf finds the decided winner of the bracket: the team that won the
-// terminal match (the Bowl). Undefined until the final is FINISHED.
+// Bowl (the final). Prefers the match tagged with the Bowl stage; falls back to
+// the lone match that advances nowhere. Undefined until the final is FINISHED.
 export const championOf = (matches: Match[]): Match['home_team'] | undefined => {
-    const finals = matches.filter(m => !m.feeds_match_id);
-    if (finals.length !== 1) return undefined;
-    const side = winnerSide(finals[0]);
+    const bowls = matches.filter(m => isBowlStage(m.round));
+    let final: Match | undefined;
+    if (bowls.length === 1) {
+        final = bowls[0];
+    } else if (bowls.length === 0) {
+        const noFeed = matches.filter(m => !m.feeds_match_id);
+        if (noFeed.length === 1) final = noFeed[0];
+    }
+    if (!final) return undefined;
+    const side = winnerSide(final);
     if (!side) return undefined;
-    return side === 'HOME' ? finals[0].home_team : finals[0].away_team;
+    return side === 'HOME' ? final.home_team : final.away_team;
 };
 
 /** Gold champion card shown to the right of the Bowl once it has been won. */

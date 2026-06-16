@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
@@ -10,6 +10,7 @@ import { Loader } from '../../components/ui/Loader';
 import { AdminTeamSheetModal } from '../../components/admin/AdminTeamSheetModal';
 import { AdminImportMatchModal } from '../../components/admin/AdminImportMatchModal';
 import { AdminKnockoutBracket } from '../../components/admin/AdminKnockoutBracket';
+import { KNOCKOUT_STAGES } from '../../components/matches/BracketView';
 
 interface FormData {
     competition_id: string;
@@ -36,7 +37,6 @@ const emptyForm: FormData = {
     round: '', bracket_pos: '', feeds_match_id: '', feeds_slot: 'HOME',
 };
 
-const ROUND_SUGGESTIONS = ['Wildcard', 'Playoff 1', 'Playoff 2', 'Semi Final', 'Bowl'];
 
 export const AdminMatches = () => {
     const queryClient = useQueryClient();
@@ -113,27 +113,10 @@ export const AdminMatches = () => {
     const formIsKnockout = formComp?.format === 'KNOCKOUT';
     const bracketTargets: Match[] = (bracketMatchesData?.data || []).filter(m => m.id !== editingId);
 
-    // Teams still alive in the bracket: in it, and not beaten in a finished
-    // game. Eliminated teams can't be picked for knockout matches.
-    const aliveInfo = useMemo(() => {
-        const all = bracketMatchesData?.data || [];
-        const inBracket = new Set<string>();
-        const eliminated = new Set<string>();
-        all.forEach(m => {
-            if (m.home_team?.id) inBracket.add(m.home_team.id);
-            if (m.away_team?.id) inBracket.add(m.away_team.id);
-            if (m.status === 'FINISHED' && m.home_score != null && m.away_score != null && m.home_score !== m.away_score) {
-                const loser = m.home_score < m.away_score ? m.home_team?.id : m.away_team?.id;
-                if (loser) eliminated.add(loser);
-            }
-        });
-        return { inBracket, eliminated };
-    }, [bracketMatchesData]);
-
-    const selectableTeams = (current: string): Team[] => {
-        if (!formIsKnockout || aliveInfo.inBracket.size === 0) return teams;
-        return teams.filter(t => t.id === current || (aliveInfo.inBracket.has(t.id) && !aliveInfo.eliminated.has(t.id)));
-    };
+    // The admin controls every knockout matchup by hand (including both legs of
+    // a two-legged tie), so the team picker shows all teams — no elimination
+    // filtering, which would wrongly hide a team that lost only one leg.
+    const selectableTeams = (_current: string): Team[] => teams;
     const teams: Team[] = teamsData?.data || [];
     const matches: Match[] = matchesData?.data || [];
     const totalPages = matchesData?.total_pages || 1;
@@ -157,8 +140,6 @@ export const AdminMatches = () => {
             ...emptyForm,
             competition_id: filterComp,
             round: round || '',
-            // Brackets are usually built before the games are played.
-            status: isKnockout ? 'SCHEDULED' : emptyForm.status,
         });
         setShowModal(true);
     };
@@ -214,6 +195,10 @@ export const AdminMatches = () => {
         }
         if (!formIsKnockout && (!form.home_team_id || !form.away_team_id)) {
             toast.error('Home and Away teams are required');
+            return;
+        }
+        if (formIsKnockout && !form.round) {
+            toast.error('Pick the stage (Wildcard, Quarter-Final, Semi-Final or Bowl)');
             return;
         }
         if (formIsKnockout && form.status === 'FINISHED' && form.home_score !== '' && form.home_score === form.away_score) {
@@ -312,15 +297,13 @@ export const AdminMatches = () => {
                     >
                         {competitions.map(c => <option key={c.id} value={c.id} className="truncate">{c.name}</option>)}
                     </select>
-                    {!isKnockout && (
-                        <button
-                            onClick={() => openCreate()}
-                            disabled={isCompleted}
-                            className="px-4 py-2 min-h-[44px] bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            + Add Match
-                        </button>
-                    )}
+                    <button
+                        onClick={() => openCreate()}
+                        disabled={isCompleted}
+                        className="px-4 py-2 min-h-[44px] bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        + Add Match
+                    </button>
                 </div>
             </div>
 
@@ -339,6 +322,7 @@ export const AdminMatches = () => {
                     matches={matches}
                     teams={teams}
                     isCompleted={isCompleted}
+                    onAdd={(stage?: string) => openCreate(stage)}
                     onEdit={openEdit}
                     onDelete={id => setDeleteConfirm(id)}
                     onTeamSheet={m => setTeamSheetMatch(m)}
@@ -508,43 +492,46 @@ export const AdminMatches = () => {
                                     <div className="text-xs font-black text-purple-700 dark:text-purple-400 uppercase tracking-widest">Bracket Setup</div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Round</label>
-                                            <input type="text" list="round-suggestions" value={form.round} onChange={e => set('round', e.target.value)}
-                                                className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="e.g. Wildcard, Playoff 1, Bowl" />
-                                            <datalist id="round-suggestions">
-                                                {ROUND_SUGGESTIONS.map(r => <option key={r} value={r} />)}
-                                            </datalist>
+                                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Stage *</label>
+                                            <select value={form.round} onChange={e => set('round', e.target.value)}
+                                                className="w-full min-h-[44px] border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2">
+                                                <option value="">Select stage…</option>
+                                                {KNOCKOUT_STAGES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                            </select>
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Position in Round</label>
+                                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Order in Stage</label>
                                             <input type="number" min="1" value={form.bracket_pos} onChange={e => set('bracket_pos', e.target.value)}
-                                                className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="1 = top of the round" />
+                                                className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="1 = top of the column" />
                                         </div>
                                     </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Winner Advances To</label>
-                                            <select value={form.feeds_match_id} onChange={e => set('feeds_match_id', e.target.value)}
-                                                className="w-full min-h-[44px] border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2">
-                                                <option value="">None — this is the final (Bowl)</option>
-                                                {bracketTargets.map(m => (
-                                                    <option key={m.id} value={m.id} className="truncate">
-                                                        {(m.round ? `${m.round}: ` : '') + (m.home_team?.short_name || 'TBD') + ' vs ' + (m.away_team?.short_name || 'TBD') + ` (${m.date.substring(0, 10)})`}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                    <details className="text-sm">
+                                        <summary className="cursor-pointer text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Auto-advance (optional — for live brackets)</summary>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+                                            <div>
+                                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Winner Advances To</label>
+                                                <select value={form.feeds_match_id} onChange={e => set('feeds_match_id', e.target.value)}
+                                                    className="w-full min-h-[44px] border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2">
+                                                    <option value="">None</option>
+                                                    {bracketTargets.map(m => (
+                                                        <option key={m.id} value={m.id} className="truncate">
+                                                            {(m.round ? `${m.round}: ` : '') + (m.home_team?.short_name || 'TBD') + ' vs ' + (m.away_team?.short_name || 'TBD') + ` (${m.date.substring(0, 10)})`}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className={form.feeds_match_id ? '' : 'opacity-40 pointer-events-none'}>
+                                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">As</label>
+                                                <select value={form.feeds_slot} onChange={e => set('feeds_slot', e.target.value)}
+                                                    className="w-full min-h-[44px] border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2">
+                                                    <option value="HOME">Home team</option>
+                                                    <option value="AWAY">Away team</option>
+                                                </select>
+                                            </div>
                                         </div>
-                                        <div className={form.feeds_match_id ? '' : 'opacity-40 pointer-events-none'}>
-                                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">As</label>
-                                            <select value={form.feeds_slot} onChange={e => set('feeds_slot', e.target.value)}
-                                                className="w-full min-h-[44px] border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2">
-                                                <option value="HOME">Home team</option>
-                                                <option value="AWAY">Away team</option>
-                                            </select>
-                                        </div>
-                                    </div>
+                                    </details>
                                     <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                                        Set the first-round teams by hand (byes too). When a match is marked FINISHED, the winner is placed automatically in the match it feeds.
+                                        Pick the stage and set Home/Away yourself. The bracket arranges matches by stage — a two-legged tie is just two matches tagged the same stage. Auto-advance is only needed for live single-leg brackets.
                                     </p>
                                 </div>
                             )}

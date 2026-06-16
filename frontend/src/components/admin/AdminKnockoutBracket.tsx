@@ -23,11 +23,20 @@ interface AdminKnockoutBracketProps {
     matches: Match[];
     teams: Team[];
     isCompleted: boolean;
+    onAdd: (stage?: string) => void;
     onEdit: (m: Match) => void;
     onDelete: (id: string) => void;
     onTeamSheet: (m: Match) => void;
     onImport: (m: Match) => void;
 }
+
+// Stage value to seed a new match with when the admin adds to a given column.
+const STAGE_FOR_TITLE: Record<string, string> = {
+    'Wildcard': 'Wildcard',
+    'Quarter-Finals': 'Quarter-Final',
+    'Semi-Finals': 'Semi-Final',
+    'Bowl': 'Bowl',
+};
 
 interface EntryForm {
     bye: boolean;
@@ -233,9 +242,10 @@ const TeamLine = ({ m, side }: { m: Match; side: 'HOME' | 'AWAY' }) => {
     );
 };
 
-export const AdminKnockoutBracket = ({ competitionId, matches, teams, isCompleted, onEdit, onDelete, onTeamSheet, onImport }: AdminKnockoutBracketProps) => {
+export const AdminKnockoutBracket = ({ competitionId, matches, teams, isCompleted, onAdd, onEdit, onDelete, onTeamSheet, onImport }: AdminKnockoutBracketProps) => {
     const queryClient = useQueryClient();
     const [resetting, setResetting] = useState(false);
+    const [showWizard, setShowWizard] = useState(false);
 
     if (matches.length === 0) {
         if (isCompleted) {
@@ -245,7 +255,32 @@ export const AdminKnockoutBracket = ({ competitionId, matches, teams, isComplete
                 </div>
             );
         }
-        return <SetupWizard competitionId={competitionId} teams={teams} />;
+        if (showWizard) {
+            return (
+                <div className="space-y-3">
+                    <button onClick={() => setShowWizard(false)} className="text-xs font-bold text-sffl-red hover:underline">← Back to manual entry</button>
+                    <SetupWizard competitionId={competitionId} teams={teams} />
+                </div>
+            );
+        }
+        return (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-8 md:p-12 text-center space-y-5">
+                <div className="text-5xl">🏈</div>
+                <h3 className="text-lg font-black text-sffl-navy dark:text-white uppercase">Build the playoff bracket</h3>
+                <div className="max-w-md mx-auto text-sm text-gray-500 dark:text-gray-400 text-left space-y-2">
+                    <p><span className="font-black text-sffl-navy dark:text-white">Add matches manually</span> — create each game, set Home/Away yourself, and tag its stage (Wildcard, Quarter-Final, Semi-Final, Bowl). Two-legged ties are just two matches with the same stage. Best for entering historical seasons.</p>
+                    <p><span className="font-black text-sffl-navy dark:text-white">Or use the wizard</span> — pick the teams and it generates a clean single-elimination tree with auto-advancing winners. Best for a fresh forward season.</p>
+                </div>
+                <div className="flex flex-wrap justify-center gap-3">
+                    <button onClick={() => onAdd()} className="px-5 py-2.5 min-h-[44px] bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">
+                        + Add Matches Manually
+                    </button>
+                    <button onClick={() => setShowWizard(true)} className="px-5 py-2.5 min-h-[44px] border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-bold rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">
+                        🪄 Use the Wizard
+                    </button>
+                </div>
+            </div>
+        );
     }
 
     const columns = buildBracketColumns(matches);
@@ -271,7 +306,7 @@ export const AdminKnockoutBracket = ({ competitionId, matches, teams, isComplete
         <div className="space-y-4">
             <div className="flex items-center justify-between gap-3">
                 <p className="text-xs text-gray-400 dark:text-gray-500 font-semibold">
-                    Enter scores via <span className="font-black">Edit / Score</span> — winners advance automatically. The bracket structure is fixed; reset it to start over.
+                    Matches are grouped by their <span className="font-black">stage</span>. Add games to any stage and set Home/Away and scores via <span className="font-black">Edit / Score</span>.
                 </p>
                 {!isCompleted && (
                     <button
@@ -316,9 +351,9 @@ export const AdminKnockoutBracket = ({ competitionId, matches, teams, isComplete
                                                         <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500">
                                                             Winner → {target ? `${target.round || 'next round'} (${m.feeds_slot === 'AWAY' ? 'away' : 'home'})` : 'next round'}
                                                         </span>
-                                                    ) : (
+                                                    ) : isLast ? (
                                                         <span className="text-[10px] font-bold text-sffl-red">🏆 Championship game</span>
-                                                    )}
+                                                    ) : null}
                                                 </div>
                                                 {!isCompleted && (
                                                     <div className="flex border-t border-gray-100 dark:border-gray-700 divide-x divide-gray-100 dark:divide-gray-700">
@@ -331,6 +366,14 @@ export const AdminKnockoutBracket = ({ competitionId, matches, teams, isComplete
                                             </div>
                                         );
                                     })}
+                                    {!isCompleted && (
+                                        <button
+                                            onClick={() => onAdd(STAGE_FOR_TITLE[col.title])}
+                                            className="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl py-2.5 text-[11px] font-bold text-gray-400 dark:text-gray-500 hover:border-sffl-red hover:text-sffl-red transition-colors"
+                                        >
+                                            + Add to {col.title}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         );
