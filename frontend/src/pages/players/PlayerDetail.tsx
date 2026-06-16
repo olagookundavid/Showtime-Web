@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
-import { getPlayerById, getPlayerStatById, getCompetitions, getStatDates } from '../../services/api';
+import { getPlayerById, getPlayerStatById, getCompetitions, getStatDates, sortCompetitionsBySeason } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { Spinner } from '../../components/ui';
 import { useSearchParams } from 'react-router-dom';
@@ -33,7 +33,9 @@ export const PlayerDetail = () => {
         queryKey: ['publicCompetitions'],
         queryFn: () => getCompetitions(1, 100),
     });
-    const competitions = (competitionsData?.data || []).filter(c => c.status !== 'inactive');
+    const competitions = sortCompetitionsBySeason(
+        (competitionsData?.data || []).filter(c => c.status !== 'inactive')
+    );
 
     const { data: datesData } = useQuery({
         queryKey: ['statDates', compId],
