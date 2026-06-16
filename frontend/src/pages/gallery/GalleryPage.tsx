@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getGallery, getCompetitions, type Competition } from '../../services/api';
+import { getGallery, getCompetitions, getMatches, sortCompetitionsBySeason, type Competition } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { Spinner } from '../../components/ui';
 import { Pagination } from '../../components/ui/Pagination';
@@ -16,13 +16,28 @@ export const GalleryPage = () => {
         queryKey: ['publicCompetitions'],
         queryFn: () => getCompetitions(1, 100),
     });
-    const competitions: Competition[] = (competitionsData?.data || []).filter(c => c.status !== 'inactive');
+    const competitions: Competition[] = sortCompetitionsBySeason(
+        (competitionsData?.data || []).filter(c => c.status !== 'inactive')
+    );
+
+    // Default to the competition of the most recent match so the gallery lands
+    // on the currently-active stage instead of just the newest competition row.
+    const { data: latestMatchPage, isFetched: latestMatchFetched } = useQuery({
+        queryKey: ['publicLatestMatchForDefault'],
+        queryFn: () => getMatches(undefined, 1, 1),
+        staleTime: 60_000,
+    });
+    const latestMatchCompetitionId = latestMatchPage?.data?.[0]?.competition?.id;
 
     useEffect(() => {
-        if (!selectedCompetitionId && competitions.length > 0) {
+        if (selectedCompetitionId || competitions.length === 0) return;
+        if (!latestMatchFetched) return;
+        if (latestMatchCompetitionId && competitions.some(c => c.id === latestMatchCompetitionId)) {
+            setSelectedCompetitionId(latestMatchCompetitionId);
+        } else {
             setSelectedCompetitionId(competitions[0].id);
         }
-    }, [competitions, selectedCompetitionId]);
+    }, [competitions, selectedCompetitionId, latestMatchFetched, latestMatchCompetitionId]);
 
     const competitionFilter = selectedCompetitionId === ALL ? undefined : selectedCompetitionId;
 

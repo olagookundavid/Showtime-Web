@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getCompetitions, getStandings } from '../../services/api';
+import { getCompetitions, getStandings, getMatches, sortCompetitionsBySeason } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { StandingsTable } from '../../components/matches/StandingsTable';
 import { BracketView } from '../../components/matches/BracketView';
@@ -17,16 +17,36 @@ export const StandingsPage = () => {
         queryKey: ['publicCompetitions'],
         queryFn: () => getCompetitions(1, 100),
     });
-    const competitions = (competitionsData?.data || []).filter(c => c.status !== 'inactive');
+    const competitions = sortCompetitionsBySeason(
+        (competitionsData?.data || []).filter(c => c.status !== 'inactive')
+    );
+
+    // Pick the competition of the most recent match so the default lands on
+    // the currently-running stage (regular season → playoffs → bowl) instead
+    // of just the newest competition row.
+    const { data: latestMatchPage, isFetched: latestMatchFetched } = useQuery({
+        queryKey: ['publicLatestMatchForDefault'],
+        queryFn: () => getMatches(undefined, 1, 1),
+        staleTime: 60_000,
+    });
+    const latestMatchCompetitionId = latestMatchPage?.data?.[0]?.competition?.id;
 
     useEffect(() => {
         if (competitions.length === 0 || selectedCompetitionId) return;
+
         if (compParam && competitions.some(c => c.id === compParam)) {
             setSelectedCompetitionId(compParam);
+            return;
+        }
+
+        if (!latestMatchFetched) return;
+
+        if (latestMatchCompetitionId && competitions.some(c => c.id === latestMatchCompetitionId)) {
+            setSelectedCompetitionId(latestMatchCompetitionId);
         } else {
             setSelectedCompetitionId(competitions[0].id);
         }
-    }, [competitions, selectedCompetitionId, compParam]);
+    }, [competitions, selectedCompetitionId, compParam, latestMatchFetched, latestMatchCompetitionId]);
 
     // When arriving with ?team=X, scroll the highlighted row into the viewport
     // so the user can see their team immediately even if the table is long.

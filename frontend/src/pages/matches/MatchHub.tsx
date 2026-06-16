@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { getCompetitions, getMatches, getStandings, getTeams, type Match, type Competition, type PaginatedResponse } from '../../services/api';
+import { getCompetitions, getMatches, getStandings, getTeams, sortCompetitionsBySeason, type Match, type Competition, type PaginatedResponse } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { Spinner } from '../../components/ui';
 import { MatchCard } from '../../components/matches/MatchCard';
@@ -38,7 +38,9 @@ export const MatchHub = () => {
         queryKey: ['publicCompetitions'],
         queryFn: () => getCompetitions(1, 100),
     });
-    const competitions = (competitionsData?.data || []).filter(c => c.status !== 'inactive');
+    const competitions = sortCompetitionsBySeason(
+        (competitionsData?.data || []).filter(c => c.status !== 'inactive')
+    );
 
     // Anchor the default selection to the most recent match's competition
     // rather than competitions[0] (which is sorted by created_at and can look

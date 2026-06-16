@@ -154,6 +154,41 @@ export interface Competition {
     format?: string; // LEAGUE | KNOCKOUT
 }
 
+// Sort competitions newest-season first. We parse the trailing Roman numeral
+// in the name (e.g. "Showtime Bowl Series XIV" → 14) so the order is based on
+// the actual season, not the creation timestamp — that way late data fixes
+// don't flip XIV above/below XIII at random. Within a season, stages run
+// chronologically: regular season → playoff → bowl. Competitions with no
+// numeral fall to the bottom.
+const ROMAN_VALUES: Record<string, number> = { I: 1, V: 5, X: 10, L: 50, C: 100, D: 500, M: 1000 };
+const romanToInt = (s: string): number => {
+    let result = 0;
+    for (let i = 0; i < s.length; i++) {
+        const curr = ROMAN_VALUES[s[i]] ?? 0;
+        const next = ROMAN_VALUES[s[i + 1]] ?? 0;
+        result += next > curr ? -curr : curr;
+    }
+    return result;
+};
+const seasonNumberFromName = (name: string): number => {
+    const match = name.match(/\b([IVXLCDM]+)\s*$/i);
+    return match ? romanToInt(match[1].toUpperCase()) : 0;
+};
+const stageOrder = (name: string): number => {
+    const n = name.toLowerCase();
+    if (n.includes('regular')) return 1;
+    if (n.includes('playoff')) return 2;
+    if (n.includes('bowl')) return 3;
+    return 4;
+};
+export const sortCompetitionsBySeason = <C extends { name: string }>(comps: C[]): C[] => {
+    return [...comps].sort((a, b) => {
+        const seasonDiff = seasonNumberFromName(b.name) - seasonNumberFromName(a.name);
+        if (seasonDiff !== 0) return seasonDiff;
+        return stageOrder(a.name) - stageOrder(b.name);
+    });
+};
+
 export interface Team {
     id: string;
     name: string;
