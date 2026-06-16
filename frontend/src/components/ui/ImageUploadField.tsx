@@ -58,8 +58,8 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 1 * 1024 * 1024) {
-      toast.error('File size exceeds 1MB limit');
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size exceeds 5MB limit');
       return;
     }
 
@@ -171,7 +171,7 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
           </button>
 
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            {helperText || 'JPG, PNG or WEBP. Max 1MB (will be compressed).'}
+            {helperText || 'JPG, PNG or WEBP. Max 5MB (will be compressed).'}
           </p>
 
           {(error || uploadError) && (
