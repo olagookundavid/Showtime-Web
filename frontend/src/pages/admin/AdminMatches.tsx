@@ -198,7 +198,7 @@ export const AdminMatches = () => {
             return;
         }
         if (formIsKnockout && !form.round) {
-            toast.error('Pick the stage (Wildcard, Quarter-Final, Semi-Final or Bowl)');
+            toast.error('Pick the stage (Wildcard, Playoff 1, Playoff 2 or Bowl)');
             return;
         }
         if (formIsKnockout && form.status === 'FINISHED' && form.home_score !== '' && form.home_score === form.away_score) {

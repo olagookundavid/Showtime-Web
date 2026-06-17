@@ -31,13 +31,13 @@ export interface BracketColumn {
 // match's `round`; `label` is what the admin picks in the form.
 export const KNOCKOUT_STAGES = [
     { value: 'Wildcard', label: 'Wildcard' },
-    { value: 'Quarter-Final', label: 'Playoffs 1 — Quarter-Finals' },
-    { value: 'Semi-Final', label: 'Playoffs 2 — Semi-Finals' },
+    { value: 'Playoff 1', label: 'Playoffs 1' },
+    { value: 'Playoff 2', label: 'Playoffs 2' },
     { value: 'Bowl', label: 'Bowl — Final' },
 ] as const;
 
 // Friendly column titles per stage rank.
-const STAGE_TITLES = ['Wildcard', 'Quarter-Finals', 'Semi-Finals', 'Bowl'];
+const STAGE_TITLES = ['Wildcard', 'Playoffs 1', 'Playoffs 2', 'Bowl'];
 const UNKNOWN_RANK = 99;
 
 // Rank a round/stage label robustly — recognises the manual stage values, the

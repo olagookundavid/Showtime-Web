@@ -33,8 +33,8 @@ interface AdminKnockoutBracketProps {
 // Stage value to seed a new match with when the admin adds to a given column.
 const STAGE_FOR_TITLE: Record<string, string> = {
     'Wildcard': 'Wildcard',
-    'Quarter-Finals': 'Quarter-Final',
-    'Semi-Finals': 'Semi-Final',
+    'Playoffs 1': 'Playoff 1',
+    'Playoffs 2': 'Playoff 2',
     'Bowl': 'Bowl',
 };
 
@@ -268,7 +268,7 @@ export const AdminKnockoutBracket = ({ competitionId, matches, teams, isComplete
                 <div className="text-5xl">🏈</div>
                 <h3 className="text-lg font-black text-sffl-navy dark:text-white uppercase">Build the playoff bracket</h3>
                 <div className="max-w-md mx-auto text-sm text-gray-500 dark:text-gray-400 text-left space-y-2">
-                    <p><span className="font-black text-sffl-navy dark:text-white">Add matches manually</span> — create each game, set Home/Away yourself, and tag its stage (Wildcard, Quarter-Final, Semi-Final, Bowl). Two-legged ties are just two matches with the same stage. Best for entering historical seasons.</p>
+                    <p><span className="font-black text-sffl-navy dark:text-white">Add matches manually</span> — create each game, set Home/Away yourself, and tag its stage (Wildcard, Playoff 1, Playoff 2, Bowl). Two-legged ties are just two matches with the same stage. Best for entering historical seasons.</p>
                     <p><span className="font-black text-sffl-navy dark:text-white">Or use the wizard</span> — pick the teams and it generates a clean single-elimination tree with auto-advancing winners. Best for a fresh forward season.</p>
                 </div>
                 <div className="flex flex-wrap justify-center gap-3">

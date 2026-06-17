@@ -7,7 +7,7 @@ interface NavbarProps {
     onMoreClick?: () => void;
 }
 
-export const Navbar = ({ onMoreClick }: NavbarProps) => {
+export const Navbar = (_props: NavbarProps) => {
     const [aboutDropdownOpen, setAboutDropdownOpen] = useState(false);
     const [storeDropdownOpen, setStoreDropdownOpen] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -65,17 +65,18 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
             <div className="max-w-shell mx-auto px-4 py-2.5 md:py-3">
                 <div className="flex items-center justify-between text-white">
                     {/* Logo - Left */}
-                    <Link to="/" className="flex items-center flex-shrink-0">
+                    <Link to="/" className="flex items-center flex-shrink-0" aria-label="Showtime Home">
                         <img
-                            src="https://images.leaguerepublic.com/data/images/738010788/107.png"
-                            alt="SFFL Logo"
-                            className="w-12 h-12 sm:w-16 sm:h-16 object-contain bg-white rounded-full p-1 transition-all duration-300 hover:scale-110 shadow-sm"
+                            src="/images/branding/showtime-logo.png"
+                            alt="Showtime Flag Football"
+                            className="w-12 h-12 sm:w-14 sm:h-14 object-contain transition-all duration-300 hover:scale-110"
                         />
                     </Link>
 
                     {/* Main Navigation - Center. gap-5 at lg, gap-6 at xl so
                         the 8 items breathe properly once the viewport is wide. */}
                     <div className="hidden lg:flex items-center gap-5 xl:gap-6 uppercase font-bold text-xs xl:text-sm tracking-wide">
+                        <Link to="/" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105">Home</Link>
                         <Link to="/matches" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105">Matches</Link>
                         <Link to="/standings" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105">Standings</Link>
                         <Link to="/teams" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105">Teams</Link>
@@ -142,14 +143,9 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                     </div>
 
                     {/* Actions / Auth - Right. Gap is intentionally tight here
-                        because the right rail already carries 3 chunks (placeholder
-                        link, cart icon, auth block) and used to overflow. */}
+                        because the right rail already carries 3 chunks
+                        (cart icon, auth block) and used to overflow. */}
                     <div className="hidden lg:flex items-center gap-3">
-                        {/* Own a Team link placeholder */}
-                        <span className="text-gray-300 hover:text-sffl-red transition-colors font-bold text-xs tracking-wider cursor-pointer">
-                            OWN A TEAM
-                        </span>
-
                         {/* Cart icon with item-count badge */}
                         <Link
                             to="/store/cart"
@@ -251,15 +247,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                         </span>
                     )}
 
-                    {/* Mobile Menu Button - REPLACED BY BOTTOM NAV but kept as fallback/trigger if needed */}
-                    <button
-                        onClick={onMoreClick}
-                        className="lg:hidden text-white focus:outline-none p-1"
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>
-                    </button>
+                    {/* Mobile More button removed — BottomNav handles mobile navigation */}
                 </div>
             </div>
 

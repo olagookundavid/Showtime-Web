@@ -117,6 +117,24 @@ const faqCategories = [
                 a: "Player eligibility, transfers, and roster management are governed by official league regulations to ensure competitive balance."
             }
         ]
+    },
+    {
+        title: "Own A Team",
+        icon: "🏟️",
+        faqs: [
+            {
+                q: "How can I own a team in Showtime Flag Football?",
+                a: "We welcome passionate individuals and organisations who want to be part of the Showtime franchise. Team ownership opportunities are available on a case-by-case basis and are subject to league approval. To express your interest or get more information, please reach out to us directly at showtime@sffl.football and a member of our team will get back to you."
+            },
+            {
+                q: "What does owning a team involve?",
+                a: "Team owners are responsible for managing their franchise within the Showtime framework — including player recruitment, team operations, and upholding league standards. Full guidance is provided upon approval. Contact us at showtime@sffl.football to start the conversation."
+            },
+            {
+                q: "Is there a cost to owning a team?",
+                a: "Ownership structures vary and are discussed directly with prospective owners. For detailed information on fees, obligations, and benefits, contact our team at showtime@sffl.football."
+            }
+        ]
     }
 ];
 
