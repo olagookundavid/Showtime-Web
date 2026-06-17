@@ -7,7 +7,7 @@ interface NavbarProps {
     onMoreClick?: () => void;
 }
 
-export const Navbar = (_props: NavbarProps) => {
+export const Navbar = ({ onMoreClick }: NavbarProps) => {
     const [aboutDropdownOpen, setAboutDropdownOpen] = useState(false);
     const [storeDropdownOpen, setStoreDropdownOpen] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -247,7 +247,16 @@ export const Navbar = (_props: NavbarProps) => {
                         </span>
                     )}
 
-                    {/* Mobile More button removed — BottomNav handles mobile navigation */}
+                    {/* Mobile Menu Button - More icon */}
+                    <button
+                        onClick={onMoreClick}
+                        className="lg:hidden text-white focus:outline-none p-1 ml-2"
+                        aria-label="Open navigation menu"
+                    >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
                 </div>
             </div>
 

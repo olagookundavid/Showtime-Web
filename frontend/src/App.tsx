@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -6,13 +7,17 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { Layout } from './components/layout/Layout';
 import { ScrollToTop } from './components/common/ScrollToTop';
 import { LandingPage } from './pages/LandingPage';
-import { StorePage } from './pages/StorePage';
-import { ProductDetailPage } from './pages/ProductDetailPage';
-import { CheckoutPage } from './pages/CheckoutPage';
-import { OrderConfirmationPage } from './pages/OrderConfirmationPage';
-import { MyOrdersPage } from './pages/MyOrdersPage';
-import { ProductReviewsPage } from './pages/ProductReviewsPage';
-import { CartPage } from './pages/CartPage';
+import { Loader } from './components/ui/Loader';
+
+// Lazy load Store Pages
+const StorePage = lazy(() => import('./pages/StorePage').then(m => ({ default: m.StorePage })));
+const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage').then(m => ({ default: m.ProductDetailPage })));
+const CheckoutPage = lazy(() => import('./pages/CheckoutPage').then(m => ({ default: m.CheckoutPage })));
+const OrderConfirmationPage = lazy(() => import('./pages/OrderConfirmationPage').then(m => ({ default: m.OrderConfirmationPage })));
+const MyOrdersPage = lazy(() => import('./pages/MyOrdersPage').then(m => ({ default: m.MyOrdersPage })));
+const ProductReviewsPage = lazy(() => import('./pages/ProductReviewsPage').then(m => ({ default: m.ProductReviewsPage })));
+const CartPage = lazy(() => import('./pages/CartPage').then(m => ({ default: m.CartPage })));
+
 import { AboutShowtimeFlag } from './pages/about/AboutShowtimeFlag';
 import { MediaGuidelines } from './pages/about/MediaGuidelines';
 import { GameplayRules } from './pages/about/GameplayRules';
@@ -40,31 +45,38 @@ import { PlayersPage } from './pages/players/PlayersPage';
 import { PlayerDetail } from './pages/players/PlayerDetail';
 import { TeamsPage } from './pages/teams/TeamsPage';
 import { TeamDetail } from './pages/teams/TeamDetail';
-import { AdminLayout } from './pages/admin/AdminLayout';
-import { Dashboard } from './pages/admin/Dashboard';
-import { AdminMatches } from './pages/admin/AdminMatches';
-import { AdminNews } from './pages/admin/AdminNews';
-import { AdminGallery } from './pages/admin/AdminGallery';
-import { AdminPlayers } from './pages/admin/AdminPlayers';
-import { AdminStats } from './pages/admin/AdminStats';
-import { AdminStandings } from './pages/admin/AdminStandings';
-import { AdminTickets } from './pages/admin/AdminTickets';
-import { AdminEventDays } from './pages/admin/AdminEventDays';
-import AdminUsers from './pages/admin/AdminUsers';
-import AdminTeams from './pages/admin/AdminTeams';
-import AdminCompetitions from './pages/admin/AdminCompetitions';
-import { AdminAnalytics } from './pages/admin/AdminAnalytics';
-import { AdminInventory } from './pages/admin/AdminInventory';
-import { AdminStore } from './pages/admin/AdminStore';
-import { AdminOrderDetail } from './pages/admin/AdminOrderDetail';
-import { AdminTOTW } from './pages/admin/AdminTOTW';
-import { TOTWPage } from './pages/stats/TOTWPage';
-import TeamHeadLayout from './pages/team-head/TeamHeadLayout';
-import TeamHeadOverview from './pages/team-head/TeamHeadOverview';
-import TeamHeadPlayers from './pages/team-head/TeamHeadPlayers';
-import TeamTickets from './pages/team-head/TeamTickets';
-import { SellerLayout } from './pages/seller/SellerLayout';
-import { SellerPortal } from './pages/seller/SellerPortal';
+
+// Lazy load Admin Pages
+const AdminLayout = lazy(() => import('./pages/admin/AdminLayout').then(m => ({ default: m.AdminLayout })));
+const Dashboard = lazy(() => import('./pages/admin/Dashboard').then(m => ({ default: m.Dashboard })));
+const AdminMatches = lazy(() => import('./pages/admin/AdminMatches').then(m => ({ default: m.AdminMatches })));
+const AdminNews = lazy(() => import('./pages/admin/AdminNews').then(m => ({ default: m.AdminNews })));
+const AdminGallery = lazy(() => import('./pages/admin/AdminGallery').then(m => ({ default: m.AdminGallery })));
+const AdminPlayers = lazy(() => import('./pages/admin/AdminPlayers').then(m => ({ default: m.AdminPlayers })));
+const AdminStats = lazy(() => import('./pages/admin/AdminStats').then(m => ({ default: m.AdminStats })));
+const AdminStandings = lazy(() => import('./pages/admin/AdminStandings').then(m => ({ default: m.AdminStandings })));
+const AdminTickets = lazy(() => import('./pages/admin/AdminTickets').then(m => ({ default: m.AdminTickets })));
+const AdminEventDays = lazy(() => import('./pages/admin/AdminEventDays').then(m => ({ default: m.AdminEventDays })));
+const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
+const AdminTeams = lazy(() => import('./pages/admin/AdminTeams'));
+const AdminCompetitions = lazy(() => import('./pages/admin/AdminCompetitions'));
+const AdminAnalytics = lazy(() => import('./pages/admin/AdminAnalytics').then(m => ({ default: m.AdminAnalytics })));
+const AdminInventory = lazy(() => import('./pages/admin/AdminInventory').then(m => ({ default: m.AdminInventory })));
+const AdminStore = lazy(() => import('./pages/admin/AdminStore').then(m => ({ default: m.AdminStore })));
+const AdminOrderDetail = lazy(() => import('./pages/admin/AdminOrderDetail').then(m => ({ default: m.AdminOrderDetail })));
+const AdminTOTW = lazy(() => import('./pages/admin/AdminTOTW').then(m => ({ default: m.AdminTOTW })));
+const TOTWPage = lazy(() => import('./pages/stats/TOTWPage').then(m => ({ default: m.TOTWPage })));
+
+// Lazy load Team Head Pages
+const TeamHeadLayout = lazy(() => import('./pages/team-head/TeamHeadLayout'));
+const TeamHeadOverview = lazy(() => import('./pages/team-head/TeamHeadOverview'));
+const TeamHeadPlayers = lazy(() => import('./pages/team-head/TeamHeadPlayers'));
+const TeamTickets = lazy(() => import('./pages/team-head/TeamTickets'));
+
+// Lazy load Seller Pages
+const SellerLayout = lazy(() => import('./pages/seller/SellerLayout').then(m => ({ default: m.SellerLayout })));
+const SellerPortal = lazy(() => import('./pages/seller/SellerPortal').then(m => ({ default: m.SellerPortal })));
+
 import { Toaster } from 'react-hot-toast';
 import { FloatingThemeToggle } from './components/common/FloatingThemeToggle';
 import './index.css';
@@ -78,7 +90,8 @@ function App() {
         <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
         <BrowserRouter>
           <ScrollToTop />
-          <Routes>
+          <Suspense fallback={<Loader />}>
+            <Routes>
             {/* Public Routes with Layout */}
             <Route element={<Layout />}>
               <Route path="/" element={<LandingPage />} />
@@ -179,6 +192,7 @@ function App() {
             {/* Catch-all route to redirect back to home automatically */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </Suspense>
         </BrowserRouter>
         </CartProvider>
       </AuthProvider>
