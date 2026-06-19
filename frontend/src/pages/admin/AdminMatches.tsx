@@ -201,10 +201,7 @@ export const AdminMatches = () => {
             toast.error('Pick the stage (Wildcard, Playoff 1, Playoff 2 or Bowl)');
             return;
         }
-        if (formIsKnockout && form.status === 'FINISHED' && form.home_score !== '' && form.home_score === form.away_score) {
-            toast.error('Knockout matches cannot end in a draw');
-            return;
-        }
+
 
         setSaving(true);
         try {

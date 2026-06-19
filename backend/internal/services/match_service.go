@@ -457,14 +457,6 @@ func (s *MatchService) validateKnockoutMatch(ctx context.Context, match *domain.
 		match.BracketPos = nil
 		return nil
 	}
-	if match.Status == domain.MatchStatusFinished {
-		if match.HomeTeamID == "" || match.AwayTeamID == "" {
-			return fmt.Errorf("a knockout match cannot finish with a TBD team")
-		}
-		if match.HomeScore != nil && match.AwayScore != nil && *match.HomeScore == *match.AwayScore {
-			return fmt.Errorf("knockout matches cannot end in a draw")
-		}
-	}
 	return s.validateBracketLink(ctx, match)
 }
 
