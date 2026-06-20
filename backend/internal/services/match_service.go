@@ -149,11 +149,12 @@ func (s *MatchService) GetCompetitions(ctx context.Context, page, limit int, sea
 	var res []dto.CompetitionResponse
 	for _, c := range competitions {
 		res = append(res, dto.CompetitionResponse{
-			ID:     c.ID,
-			Name:   c.Name,
-			Logo:   c.Logo,
-			Status: c.Status,
-			Format: c.Format,
+			ID:                   c.ID,
+			Name:                 c.Name,
+			Logo:                 c.Logo,
+			Status:               c.Status,
+			Format:               c.Format,
+			PlayoffCompetitionID: c.PlayoffCompetitionID,
 		})
 	}
 

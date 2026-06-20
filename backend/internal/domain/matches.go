@@ -12,13 +12,14 @@ const (
 )
 
 type Competition struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Logo      string    `json:"logo"`
-	Status    string    `json:"status"`
-	Format    string    `json:"format"` // LEAGUE | KNOCKOUT
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID                   string    `json:"id"`
+	Name                 string    `json:"name"`
+	Logo                 string    `json:"logo"`
+	Status               string    `json:"status"`
+	Format               string    `json:"format"` // LEAGUE | KNOCKOUT
+	PlayoffCompetitionID *string   `json:"playoff_competition_id,omitempty"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
 }
 
 type Team struct {

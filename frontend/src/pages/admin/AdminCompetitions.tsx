@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader } from '../../components/ui/Loader';
-import { getAdminCompetitions, createCompetition, updateCompetition, deleteCompetition } from '../../services/api';
+import { getAdminCompetitions, createCompetition, updateCompetition, deleteCompetition, getCompetitions } from '../../services/api';
 import { ImageUploadField, LightboxImage } from '../../components/ui';
 
 
@@ -11,6 +11,7 @@ interface Competition {
     logo: string;
     status?: string;
     format?: string;
+    playoff_competition_id?: string | null;
 }
 
 const AdminCompetitions = () => {
@@ -36,30 +37,40 @@ const AdminCompetitions = () => {
     // Modal
     const [showModal, setShowModal] = useState(false);
     const [editing, setEditing] = useState<Competition | null>(null);
-    const [form, setForm] = useState({ name: '', logo: '', status: 'active', format: 'LEAGUE' });
+    const [form, setForm] = useState({ name: '', logo: '', status: 'active', format: 'LEAGUE', playoff_competition_id: '' });
     const [saving, setSaving] = useState(false);
+
+    const { data: allCompsData } = useQuery({
+        queryKey: ['allCompetitionsLinkable'],
+        queryFn: () => getCompetitions(1, 100),
+    });
+    const knockoutComps = (allCompsData?.data || []).filter(c => c.format === 'KNOCKOUT');
 
 
 
     const openCreate = () => {
         setEditing(null);
-        setForm({ name: '', logo: '', status: 'active', format: 'LEAGUE' });
+        setForm({ name: '', logo: '', status: 'active', format: 'LEAGUE', playoff_competition_id: '' });
         setShowModal(true);
     };
 
     const openEdit = (c: Competition) => {
         setEditing(c);
-        setForm({ name: c.name, logo: c.logo, status: c.status || 'active', format: c.format || 'LEAGUE' });
+        setForm({ name: c.name, logo: c.logo, status: c.status || 'active', format: c.format || 'LEAGUE', playoff_competition_id: c.playoff_competition_id || '' });
         setShowModal(true);
     };
 
     const handleSave = async () => {
         setSaving(true);
         try {
+            const payload = {
+                ...form,
+                playoff_competition_id: form.format === 'LEAGUE' ? (form.playoff_competition_id || null) : null
+            };
             if (editing) {
-                await updateCompetition(editing.id, form);
+                await updateCompetition(editing.id, payload);
             } else {
-                await createCompetition(form);
+                await createCompetition(payload);
             }
             queryClient.invalidateQueries({ queryKey: ['adminCompetitionsData'] });
             setShowModal(false);
@@ -192,6 +203,14 @@ const AdminCompetitions = () => {
                                         </span>
                                     )}
                                 </div>
+                                {comp.playoff_competition_id && (
+                                    <div className="mt-1 mb-3 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5 bg-gray-50 dark:bg-gray-700/50 px-2 py-1.5 rounded-lg border border-gray-100 dark:border-gray-700/50 w-fit">
+                                        <span>🔗 Playoff:</span>
+                                        <span className="font-semibold text-sffl-navy dark:text-gray-200">
+                                            {(allCompsData?.data || []).find(c => c.id === comp.playoff_competition_id)?.name || 'Linked Playoff'}
+                                        </span>
+                                    </div>
+                                )}
                                 <div className="flex gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
                                     <button onClick={() => openEdit(comp)}
                                         className="flex-1 text-xs font-bold bg-blue-50 text-blue-600 hover:text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 py-2 min-h-[44px] rounded-lg shadow-sm hover:shadow-md hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all duration-300 hover:scale-[1.02] active:scale-95">
@@ -274,6 +293,24 @@ const AdminCompetitions = () => {
                                     Knockout competitions show a bracket instead of standings. Winners advance automatically.
                                 </p>
                             </div>
+
+                            {form.format === 'LEAGUE' && (
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Playoff Stage</label>
+                                    <select value={form.playoff_competition_id} onChange={e => setForm(f => ({ ...f, playoff_competition_id: e.target.value }))}
+                                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red">
+                                        <option value="">-- No Playoff Stage --</option>
+                                        {knockoutComps.map(kc => (
+                                            <option key={kc.id} value={kc.id}>
+                                                {kc.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                                        Link a knockout stage (playoffs/bowl) to this regular season competition.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
                             <button onClick={() => setShowModal(false)} className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">Cancel</button>

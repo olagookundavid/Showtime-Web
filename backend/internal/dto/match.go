@@ -2,25 +2,28 @@ package dto
 
 // --- Competitions ---
 type CreateCompetitionRequest struct {
-	Name   string `json:"name" binding:"required"`
-	Logo   string `json:"logo"`
-	Status string `json:"status"` // e.g. active, inactive, archived
-	Format string `json:"format"` // LEAGUE | KNOCKOUT
+	Name                 string  `json:"name" binding:"required"`
+	Logo                 string  `json:"logo"`
+	Status               string  `json:"status"` // e.g. active, inactive, archived
+	Format               string  `json:"format"` // LEAGUE | KNOCKOUT
+	PlayoffCompetitionID *string `json:"playoff_competition_id"`
 }
 
 type UpdateCompetitionRequest struct {
-	Name   *string `json:"name"`
-	Logo   *string `json:"logo"`
-	Status *string `json:"status"`
-	Format *string `json:"format"`
+	Name                 *string `json:"name"`
+	Logo                 *string `json:"logo"`
+	Status               *string `json:"status"`
+	Format               *string `json:"format"`
+	PlayoffCompetitionID *string `json:"playoff_competition_id"`
 }
 
 type CompetitionResponse struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Logo   string `json:"logo"`
-	Status string `json:"status"`
-	Format string `json:"format"`
+	ID                   string  `json:"id"`
+	Name                 string  `json:"name"`
+	Logo                 string  `json:"logo"`
+	Status               string  `json:"status"`
+	Format               string  `json:"format"`
+	PlayoffCompetitionID *string `json:"playoff_competition_id"`
 }
 
 // --- Teams ---

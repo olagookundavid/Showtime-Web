@@ -565,10 +565,11 @@ func (h *MatchHandler) CreateCompetition(c *gin.Context) {
 	}
 
 	comp := &domain.Competition{
-		Name:   req.Name,
-		Logo:   req.Logo,
-		Status: status,
-		Format: format,
+		Name:                 req.Name,
+		Logo:                 req.Logo,
+		Status:               status,
+		Format:               format,
+		PlayoffCompetitionID: req.PlayoffCompetitionID,
 	}
 
 	if err := h.service.CreateCompetition(c.Request.Context(), comp); err != nil {
@@ -605,11 +606,12 @@ func (h *MatchHandler) UpdateCompetition(c *gin.Context) {
 	}
 
 	comp := &domain.Competition{
-		ID:     id,
-		Name:   req.Name,
-		Logo:   req.Logo,
-		Status: req.Status,
-		Format: format,
+		ID:                   id,
+		Name:                 req.Name,
+		Logo:                 req.Logo,
+		Status:               req.Status,
+		Format:               format,
+		PlayoffCompetitionID: req.PlayoffCompetitionID,
 	}
 
 	if err := h.service.UpdateCompetition(c.Request.Context(), comp); err != nil {

@@ -5,6 +5,7 @@ import {
     getStatDates,
     getTOTW,
     getLatestTOTW,
+    sortCompetitionsBySeason,
     type Competition
 } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
@@ -31,7 +32,28 @@ export const TOTWPage = () => {
         queryKey: ['publicCompsList'],
         queryFn: () => getCompetitions(1, 100),
     });
-    const comps: Competition[] = (compData?.data || []).filter(c => c.status !== 'inactive');
+    const comps: Competition[] = sortCompetitionsBySeason(
+        (compData?.data || []).filter(c => c.status !== 'inactive')
+    );
+    const leagueComps = comps.filter(c => c.format !== 'KNOCKOUT');
+    const selectedCompObj = comps.find(c => c.id === selectedComp);
+    
+    // Find linked playoff for selected comp
+    const linkedPlayoff = selectedCompObj?.playoff_competition_id
+        ? comps.find(c => c.id === selectedCompObj.playoff_competition_id)
+        : null;
+
+    // Reverse: if currently on a KNOCKOUT, find its parent league
+    const parentLeague = !linkedPlayoff
+        ? comps.find(c => c.playoff_competition_id === selectedComp)
+        : null;
+
+    const dropdownComps = leagueComps.slice();
+    if (selectedCompObj && selectedCompObj.format === 'KNOCKOUT') {
+        if (!dropdownComps.some(c => c.id === selectedCompObj.id)) {
+            dropdownComps.push(selectedCompObj);
+        }
+    }
 
     const { data: dates = [], isLoading: loadingDates } = useQuery({
         queryKey: ['publicStatDates', selectedComp],
@@ -56,8 +78,10 @@ export const TOTWPage = () => {
     useEffect(() => {
         if (latestInit?.date && !selectedComp && !selectedDate) {
             if (latestInit.data.length > 0) {
-                setSelectedComp(latestInit.data[0].competition_id);
-                setSelectedDate(latestInit.date.substring(0, 10));
+                setTimeout(() => {
+                    setSelectedComp(latestInit.data[0].competition_id);
+                    setSelectedDate(latestInit.date.substring(0, 10));
+                }, 0);
             }
         }
     }, [latestInit, selectedComp, selectedDate]);
@@ -65,13 +89,17 @@ export const TOTWPage = () => {
     // Auto-select latest competition and date
     useEffect(() => {
         if (comps.length > 0 && !selectedComp) {
-            setSelectedComp(comps[0].id);
+            setTimeout(() => {
+                setSelectedComp(leagueComps[0]?.id || comps[0].id);
+            }, 0);
         }
-    }, [comps, selectedComp]);
+    }, [comps, selectedComp, leagueComps]);
 
     useEffect(() => {
         if (dates.length > 0 && !selectedDate) {
-            setSelectedDate(dates[0].substring(0, 10));
+            setTimeout(() => {
+                setSelectedDate(dates[0].substring(0, 10));
+            }, 0);
         }
     }, [dates, selectedDate]);
 
@@ -92,7 +120,7 @@ export const TOTWPage = () => {
                     </p>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto relative z-10">
+                <div className="flex flex-col sm:flex-row items-end gap-4 w-full md:w-auto relative z-10">
                     <div className="flex-1 sm:w-64">
                         <label className="block text-[10px] font-black uppercase text-gray-400 mb-1 tracking-widest pl-1">Competition</label>
                         <div className="relative">
@@ -102,10 +130,26 @@ export const TOTWPage = () => {
                                 onChange={e => setSelectedComp(e.target.value)}
                                 className="w-full bg-white/10 hover:bg-white/20 border border-white/20 text-white pl-10 pr-4 py-3 rounded-2xl font-bold text-sm transition-all outline-none focus:ring-2 focus:ring-sffl-red cursor-pointer"
                             >
-                                {comps.map(c => <option key={c.id} value={c.id} className="text-black">{c.name}</option>)}
+                                {dropdownComps.map(c => <option key={c.id} value={c.id} className="text-black">{c.name}</option>)}
                             </select>
                         </div>
                     </div>
+                    {(linkedPlayoff || parentLeague) && (
+                        <button
+                            onClick={() => setSelectedComp(linkedPlayoff ? linkedPlayoff.id : parentLeague!.id)}
+                            className="px-5 py-3 h-[46px] bg-sffl-red text-white font-bold rounded-2xl shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap text-xs w-full sm:w-auto"
+                        >
+                            {linkedPlayoff ? (
+                                <>
+                                    <span>🏆</span> Switch to Playoffs
+                                </>
+                            ) : (
+                                <>
+                                    <span>←</span> Back to Season
+                                </>
+                            )}
+                        </button>
+                    )}
                     <div className="flex-1 sm:w-48">
                         <label className="block text-[10px] font-black uppercase text-gray-400 mb-1 tracking-widest pl-1">Match Day</label>
                         <div className="relative">

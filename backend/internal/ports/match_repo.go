@@ -87,7 +87,7 @@ func (r *PostgresMatchRepository) GetCompetitions(ctx context.Context, page, lim
 		return nil, 0, err
 	}
 
-	query := `SELECT id, name, logo, status, format, created_at, updated_at ` + baseQuery +
+	query := `SELECT id, name, logo, status, format, playoff_competition_id, created_at, updated_at ` + baseQuery +
 		` ORDER BY created_at DESC LIMIT $` + strconv.Itoa(argCount) + ` OFFSET $` + strconv.Itoa(argCount+1)
 	args = append(args, limit, offset)
 
@@ -100,7 +100,7 @@ func (r *PostgresMatchRepository) GetCompetitions(ctx context.Context, page, lim
 	var competitions []domain.Competition
 	for rows.Next() {
 		var c domain.Competition
-		if err := rows.Scan(&c.ID, &c.Name, &c.Logo, &c.Status, &c.Format, &c.CreatedAt, &c.UpdatedAt); err != nil {
+		if err := rows.Scan(&c.ID, &c.Name, &c.Logo, &c.Status, &c.Format, &c.PlayoffCompetitionID, &c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, 0, err
 		}
 		competitions = append(competitions, c)
@@ -109,9 +109,9 @@ func (r *PostgresMatchRepository) GetCompetitions(ctx context.Context, page, lim
 }
 
 func (r *PostgresMatchRepository) GetCompetitionByID(ctx context.Context, id string) (*domain.Competition, error) {
-	query := `SELECT id, name, logo, status, format, created_at, updated_at FROM competitions WHERE id = $1`
+	query := `SELECT id, name, logo, status, format, playoff_competition_id, created_at, updated_at FROM competitions WHERE id = $1`
 	var c domain.Competition
-	err := r.db.QueryRow(ctx, query, id).Scan(&c.ID, &c.Name, &c.Logo, &c.Status, &c.Format, &c.CreatedAt, &c.UpdatedAt)
+	err := r.db.QueryRow(ctx, query, id).Scan(&c.ID, &c.Name, &c.Logo, &c.Status, &c.Format, &c.PlayoffCompetitionID, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -119,13 +119,21 @@ func (r *PostgresMatchRepository) GetCompetitionByID(ctx context.Context, id str
 }
 
 func (r *PostgresMatchRepository) CreateCompetition(ctx context.Context, comp *domain.Competition) error {
-	query := `INSERT INTO competitions (name, logo, status, format) VALUES ($1, $2, $3, $4) RETURNING id, created_at, updated_at`
-	return r.db.QueryRow(ctx, query, comp.Name, comp.Logo, comp.Status, comp.Format).Scan(&comp.ID, &comp.CreatedAt, &comp.UpdatedAt)
+	var playoffID *string
+	if comp.PlayoffCompetitionID != nil && *comp.PlayoffCompetitionID != "" {
+		playoffID = comp.PlayoffCompetitionID
+	}
+	query := `INSERT INTO competitions (name, logo, status, format, playoff_competition_id) VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at, updated_at`
+	return r.db.QueryRow(ctx, query, comp.Name, comp.Logo, comp.Status, comp.Format, playoffID).Scan(&comp.ID, &comp.CreatedAt, &comp.UpdatedAt)
 }
 
 func (r *PostgresMatchRepository) UpdateCompetition(ctx context.Context, comp *domain.Competition) error {
-	query := `UPDATE competitions SET name=$1, logo=$2, status=$3, format=$4, updated_at=NOW() WHERE id=$5`
-	_, err := r.db.Exec(ctx, query, comp.Name, comp.Logo, comp.Status, comp.Format, comp.ID)
+	var playoffID *string
+	if comp.PlayoffCompetitionID != nil && *comp.PlayoffCompetitionID != "" {
+		playoffID = comp.PlayoffCompetitionID
+	}
+	query := `UPDATE competitions SET name=$1, logo=$2, status=$3, format=$4, playoff_competition_id=$5, updated_at=NOW() WHERE id=$6`
+	_, err := r.db.Exec(ctx, query, comp.Name, comp.Logo, comp.Status, comp.Format, playoffID, comp.ID)
 	return err
 }
 

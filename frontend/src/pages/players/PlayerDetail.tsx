@@ -36,6 +36,34 @@ export const PlayerDetail = () => {
     const competitions = sortCompetitionsBySeason(
         (competitionsData?.data || []).filter(c => c.status !== 'inactive')
     );
+    const leagueComps = competitions.filter(c => c.format !== 'KNOCKOUT');
+    const selectedComp = competitions.find(c => c.id === compId);
+    
+    // Find linked playoff for selected comp
+    const linkedPlayoff = selectedComp?.playoff_competition_id
+        ? competitions.find(c => c.id === selectedComp.playoff_competition_id)
+        : null;
+
+    // Reverse: if currently on a KNOCKOUT, find its parent league
+    const parentLeague = !linkedPlayoff
+        ? competitions.find(c => c.playoff_competition_id === compId)
+        : null;
+
+    const dropdownComps = leagueComps.slice();
+    if (selectedComp && selectedComp.format === 'KNOCKOUT') {
+        if (!dropdownComps.some(c => c.id === selectedComp.id)) {
+            dropdownComps.push(selectedComp);
+        }
+    }
+
+    const handleCompChange = (newCompId: string) => {
+        const params = new URLSearchParams(searchParams);
+        if (newCompId) params.set('comp', newCompId);
+        else params.delete('comp');
+        params.delete('date'); 
+        params.delete('match');
+        setSearchParams(params, { replace: true });
+    };
 
     const { data: datesData } = useQuery({
         queryKey: ['statDates', compId],
@@ -129,25 +157,36 @@ export const PlayerDetail = () => {
                         </h2>
                         
                         <div className="flex flex-wrap items-center gap-3">
-                            <div className="flex flex-col gap-1 min-w-[160px]">
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Competition</label>
-                                <select
-                                    value={compId}
-                                    onChange={(e) => {
-                                        const params = new URLSearchParams(searchParams);
-                                        if (e.target.value) params.set('comp', e.target.value);
-                                        else params.delete('comp');
-                                        params.delete('date'); 
-                                        params.delete('match');
-                                        setSearchParams(params, { replace: true });
-                                    }}
-                                    className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-1.5 text-xs font-bold outline-none focus:ring-2 focus:ring-sffl-red transition-all"
-                                >
-                                    <option value="">All Competitions</option>
-                                    {competitions.map(c => (
-                                        <option key={c.id} value={c.id}>{c.name}</option>
-                                    ))}
-                                </select>
+                            <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+                                <div className="flex flex-col gap-1 min-w-[160px]">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Competition</label>
+                                    <select
+                                        value={compId}
+                                        onChange={(e) => handleCompChange(e.target.value)}
+                                        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-1.5 text-xs font-bold outline-none focus:ring-2 focus:ring-sffl-red transition-all"
+                                    >
+                                        <option value="">All Competitions</option>
+                                        {dropdownComps.map(c => (
+                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                {(linkedPlayoff || parentLeague) && (
+                                    <button
+                                        onClick={() => handleCompChange(linkedPlayoff ? linkedPlayoff.id : parentLeague!.id)}
+                                        className="px-3 py-1.5 h-[32px] bg-sffl-red text-white font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-1.5 whitespace-nowrap text-xs w-full sm:w-auto"
+                                    >
+                                        {linkedPlayoff ? (
+                                            <>
+                                                <span>🏆</span> Switch to Playoffs
+                                            </>
+                                        ) : (
+                                            <>
+                                                <span>←</span> Back to Season
+                                            </>
+                                        )}
+                                    </button>
+                                )}
                             </div>
 
                             <div className={`flex flex-col gap-1 min-w-[140px] transition-opacity duration-300 ${!compId ? 'opacity-40' : 'opacity-100'}`}>

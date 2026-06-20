@@ -19,6 +19,25 @@ export const GalleryPage = () => {
     const competitions: Competition[] = sortCompetitionsBySeason(
         (competitionsData?.data || []).filter(c => c.status !== 'inactive')
     );
+    const leagueComps = competitions.filter(c => c.format !== 'KNOCKOUT');
+    const selectedComp = competitions.find(c => c.id === selectedCompetitionId);
+    
+    // Find linked playoff for selected comp
+    const linkedPlayoff = selectedComp?.playoff_competition_id
+        ? competitions.find(c => c.id === selectedComp.playoff_competition_id)
+        : null;
+
+    // Reverse: if currently on a KNOCKOUT, find its parent league
+    const parentLeague = !linkedPlayoff
+        ? competitions.find(c => c.playoff_competition_id === selectedCompetitionId)
+        : null;
+
+    const dropdownComps = leagueComps.slice();
+    if (selectedComp && selectedComp.format === 'KNOCKOUT') {
+        if (!dropdownComps.some(c => c.id === selectedComp.id)) {
+            dropdownComps.push(selectedComp);
+        }
+    }
 
     // Default to the competition of the most recent match so the gallery lands
     // on the currently-active stage instead of just the newest competition row.
@@ -35,7 +54,7 @@ export const GalleryPage = () => {
         if (latestMatchCompetitionId && competitions.some(c => c.id === latestMatchCompetitionId)) {
             setSelectedCompetitionId(latestMatchCompetitionId);
         } else {
-            setSelectedCompetitionId(competitions[0].id);
+            setSelectedCompetitionId(leagueComps[0]?.id || competitions[0]?.id);
         }
     }, [competitions, selectedCompetitionId, latestMatchFetched, latestMatchCompetitionId]);
 
@@ -81,27 +100,45 @@ export const GalleryPage = () => {
                 </div>
 
                 {competitions.length > 0 && (
-                    <div>
-                        <label className="block text-xs uppercase text-gray-400 font-bold mb-1 tracking-wider">Competition</label>
-                        <div className="relative">
-                            <select
-                                value={selectedCompetitionId}
-                                onChange={(e) => handleCompetitionChange(e.target.value)}
-                                className="appearance-none bg-white/10 border border-white/20 text-white py-3 px-6 pr-12 rounded-xl focus:outline-none focus:ring-2 focus:ring-sffl-red font-bold text-base md:text-lg w-full md:min-w-[260px] cursor-pointer hover:bg-white/20 transition-colors"
-                            >
-                                {competitions.map((c) => (
-                                    <option key={c.id} value={c.id} className="text-black bg-white">
-                                        {c.name} {c.status && !['active', 'completed'].includes(c.status) ? `[${c.status.toUpperCase()}]` : ''}
-                                    </option>
-                                ))}
-                                <option value={ALL} className="text-black bg-white">All competitions</option>
-                            </select>
-                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-white">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
+                    <div className="mt-4 md:mt-0 flex flex-col md:flex-row md:items-end gap-3">
+                        <div className="flex-1 min-w-[260px]">
+                            <label className="block text-xs uppercase text-gray-400 font-bold mb-1 tracking-wider">Competition</label>
+                            <div className="relative">
+                                <select
+                                    value={selectedCompetitionId}
+                                    onChange={(e) => handleCompetitionChange(e.target.value)}
+                                    className="w-full appearance-none bg-white/10 border border-white/20 text-white py-3 px-6 pr-12 rounded-xl focus:outline-none focus:ring-2 focus:ring-sffl-red font-bold text-base md:text-lg cursor-pointer hover:bg-white/20 transition-colors"
+                                >
+                                    {dropdownComps.map((c) => (
+                                        <option key={c.id} value={c.id} className="text-black bg-white">
+                                            {c.name} {c.status && !['active', 'completed'].includes(c.status) ? `[${c.status.toUpperCase()}]` : ''}
+                                        </option>
+                                    ))}
+                                    <option value={ALL} className="text-black bg-white">All competitions</option>
+                                </select>
+                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-white">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </div>
                             </div>
                         </div>
+                        {(linkedPlayoff || parentLeague) && (
+                            <button
+                                onClick={() => handleCompetitionChange(linkedPlayoff ? linkedPlayoff.id : parentLeague!.id)}
+                                className="px-5 py-3 h-[52px] md:h-[50px] bg-sffl-red text-white font-bold rounded-xl shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap text-base"
+                            >
+                                {linkedPlayoff ? (
+                                    <>
+                                        <span>🏆</span> Switch to Playoffs
+                                    </>
+                                ) : (
+                                    <>
+                                        <span>←</span> Back to Season
+                                    </>
+                                )}
+                            </button>
+                        )}
                     </div>
                 )}
             </div>

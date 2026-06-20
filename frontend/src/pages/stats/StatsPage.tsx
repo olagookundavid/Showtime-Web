@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getCompetitions, getPlayerStats, getTeamStats, getStatDates, getTeams, sortCompetitionsBySeason } from '../../services/api';
+import { getCompetitions, getPlayerStats, getTeamStats, getStatDates, getTeams, sortCompetitionsBySeason, type Competition } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { StatsTable } from '../../components/stats/StatsTable';
 import { useSearchParams } from 'react-router-dom';
@@ -48,6 +48,34 @@ export const StatsPage = () => {
     const competitions = sortCompetitionsBySeason(
         (competitionsData?.data || []).filter(c => c.status !== 'inactive')
     );
+    const leagueComps = competitions.filter(c => c.format !== 'KNOCKOUT');
+    const selectedComp = competitions.find(c => c.id === selectedCompetitionId);
+    
+    // Find linked playoff for selected comp
+    const linkedPlayoff = selectedComp?.playoff_competition_id
+        ? competitions.find(c => c.id === selectedComp.playoff_competition_id)
+        : null;
+
+    // Reverse: if currently on a KNOCKOUT, find its parent league
+    const parentLeague = !linkedPlayoff
+        ? competitions.find(c => c.playoff_competition_id === selectedCompetitionId)
+        : null;
+
+    const dropdownComps = leagueComps.slice();
+    if (selectedComp && selectedComp.format === 'KNOCKOUT') {
+        if (!dropdownComps.some(c => c.id === selectedComp.id)) {
+            dropdownComps.push(selectedComp);
+        }
+    }
+
+    const handleCompChange = (compId: string) => {
+        setSelectedCompetitionId(compId);
+        const params = new URLSearchParams(searchParams);
+        if (compId) params.set('comp', compId);
+        else params.delete('comp');
+        params.delete('date');
+        setSearchParams(params, { replace: true });
+    };
 
     const { data: datesData, isLoading: datesLoading } = useQuery({
         queryKey: ['statDates', selectedCompetitionId],
@@ -174,27 +202,38 @@ export const StatsPage = () => {
                         </div>
                     </div>
 
-                    <div className="w-full sm:w-auto">
-                        <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">Competition</label>
-                        <select
-                            value={selectedCompetitionId}
-                            onChange={(e) => {
-                                setSelectedCompetitionId(e.target.value);
-                                const params = new URLSearchParams(searchParams);
-                                if (e.target.value) params.set('comp', e.target.value);
-                                else params.delete('comp');
-                                params.delete('date');
-                                setSearchParams(params, { replace: true });
-                            }}
-                            className="bg-white/10 border border-white/20 text-white p-2 rounded-lg font-bold text-sm min-w-full sm:min-w-[200px] cursor-pointer hover:bg-white/20 transition-colors w-full"
-                        >
-                            <option value="" className="text-black bg-white">All Competitions</option>
-                            {competitions.map((c: any) => (
-                                <option key={c.id} value={c.id} className="text-black bg-white">
-                                    {c.name} {c.status && !['active', 'completed'].includes(c.status) ? `[${c.status.toUpperCase()}]` : ''}
-                                </option>
-                            ))}
-                        </select>
+                    <div className="w-full sm:w-auto flex flex-col md:flex-row md:items-end gap-3">
+                        <div className="flex-1 min-w-[200px]">
+                            <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">Competition</label>
+                            <select
+                                value={selectedCompetitionId}
+                                onChange={(e) => handleCompChange(e.target.value)}
+                                className="w-full bg-white/10 border border-white/20 text-white p-2 rounded-lg font-bold text-sm cursor-pointer hover:bg-white/20 transition-colors"
+                            >
+                                <option value="" className="text-black bg-white">All Competitions</option>
+                                {dropdownComps.map((c: Competition) => (
+                                    <option key={c.id} value={c.id} className="text-black bg-white">
+                                        {c.name} {c.status && !['active', 'completed'].includes(c.status) ? `[${c.status.toUpperCase()}]` : ''}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        {(linkedPlayoff || parentLeague) && (
+                            <button
+                                onClick={() => handleCompChange(linkedPlayoff ? linkedPlayoff.id : parentLeague!.id)}
+                                className="px-4 py-2 h-[38px] bg-sffl-red text-white font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap text-xs w-full sm:w-auto"
+                            >
+                                {linkedPlayoff ? (
+                                    <>
+                                        <span>🏆</span> Switch to Playoffs
+                                    </>
+                                ) : (
+                                    <>
+                                        <span>←</span> Back to Season
+                                    </>
+                                )}
+                            </button>
+                        )}
                     </div>
 
                     <div className={`w-full sm:w-auto transition-opacity duration-300 ${!selectedCompetitionId ? 'opacity-40' : 'opacity-100'}`}>

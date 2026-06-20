@@ -20,6 +20,25 @@ export const StandingsPage = () => {
     const competitions = sortCompetitionsBySeason(
         (competitionsData?.data || []).filter(c => c.status !== 'inactive')
     );
+    const leagueComps = competitions.filter(c => c.format !== 'KNOCKOUT');
+    const selectedComp = competitions.find(c => c.id === selectedCompetitionId);
+    
+    // Find linked playoff for selected comp
+    const linkedPlayoff = selectedComp?.playoff_competition_id
+        ? competitions.find(c => c.id === selectedComp.playoff_competition_id)
+        : null;
+
+    // Reverse: if currently on a KNOCKOUT, find its parent league
+    const parentLeague = !linkedPlayoff
+        ? competitions.find(c => c.playoff_competition_id === selectedCompetitionId)
+        : null;
+
+    const dropdownComps = leagueComps.slice();
+    if (selectedComp && selectedComp.format === 'KNOCKOUT') {
+        if (!dropdownComps.some(c => c.id === selectedComp.id)) {
+            dropdownComps.push(selectedComp);
+        }
+    }
 
     // Pick the competition of the most recent match so the default lands on
     // the currently-running stage (regular season → playoffs → bowl) instead
@@ -44,7 +63,7 @@ export const StandingsPage = () => {
         if (latestMatchCompetitionId && competitions.some(c => c.id === latestMatchCompetitionId)) {
             setSelectedCompetitionId(latestMatchCompetitionId);
         } else {
-            setSelectedCompetitionId(competitions[0].id);
+            setSelectedCompetitionId(leagueComps[0]?.id || competitions[0]?.id);
         }
     }, [competitions, selectedCompetitionId, compParam, latestMatchFetched, latestMatchCompetitionId]);
 
@@ -86,26 +105,44 @@ export const StandingsPage = () => {
 
                 {/* Competition Selector - Mobile Optimized */}
                 {competitions.length > 0 && (
-                    <div className="mt-3 md:mt-0 w-full md:w-auto">
-                        <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">Competition</label>
-                        <div className="relative">
-                            <select
-                                value={selectedCompetitionId}
-                                onChange={(e) => setSelectedCompetitionId(e.target.value)}
-                                className="appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm min-w-full md:min-w-[260px] cursor-pointer hover:bg-white/20 transition-colors"
-                            >
-                                {competitions.map((c: any) => (
-                                    <option key={c.id} value={c.id} className="text-black bg-white">
-                                        {c.name} {c.status && !['active', 'completed'].includes(c.status) ? `[${c.status.toUpperCase()}]` : ''}
-                                    </option>
-                                ))}
-                            </select>
-                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-white">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
+                    <div className="mt-3 md:mt-0 w-full md:w-auto flex flex-col md:flex-row md:items-end gap-3">
+                        <div className="flex-1 min-w-[260px]">
+                            <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">Competition</label>
+                            <div className="relative">
+                                <select
+                                    value={selectedCompetitionId}
+                                    onChange={(e) => setSelectedCompetitionId(e.target.value)}
+                                    className="w-full appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm cursor-pointer hover:bg-white/20 transition-colors"
+                                >
+                                    {dropdownComps.map((c: any) => (
+                                        <option key={c.id} value={c.id} className="text-black bg-white">
+                                            {c.name} {c.status && !['active', 'completed'].includes(c.status) ? `[${c.status.toUpperCase()}]` : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-white">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </div>
                             </div>
                         </div>
+                        {(linkedPlayoff || parentLeague) && (
+                            <button
+                                onClick={() => setSelectedCompetitionId(linkedPlayoff ? linkedPlayoff.id : parentLeague!.id)}
+                                className="px-4 py-2 h-[38px] bg-sffl-red text-white font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap text-xs"
+                            >
+                                {linkedPlayoff ? (
+                                    <>
+                                        <span>🏆</span> Switch to Playoffs
+                                    </>
+                                ) : (
+                                    <>
+                                        <span>←</span> Back to Season
+                                    </>
+                                )}
+                            </button>
+                        )}
                     </div>
                 )}
             </div>

@@ -1,4 +1,6 @@
 export const GameplayRules = () => {
+    const pdfUrl = "https://images.leaguerepublic.com/data/editor-docs/350033916/1758027708066-showtime_flag_rule_book2025_1.pdf";
+
     return (
         <div className="space-y-4 md:space-y-8">
             <div className="bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
@@ -6,74 +8,73 @@ export const GameplayRules = () => {
                 <p className="text-gray-300 mt-2">Official Showtime Flag Football League rules</p>
             </div>
 
-            <section className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-md space-y-6">
-                <div className="bg-sffl-red text-white p-6 rounded-xl">
-                    <h2 className="text-2xl font-bold mb-2">Official Rule Book</h2>
-                    <p className="text-gray-100 mb-4">
-                        For the complete and official rules, please download the full rule book below.
-                    </p>
+            {/* Desktop & Tablet Layout: Embedded PDF Viewer */}
+            <section className="hidden md:block bg-white dark:bg-gray-800 p-6 md:p-8 rounded-xl shadow-md space-y-6">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-200 dark:border-gray-700 pb-4 gap-4">
+                    <div>
+                        <h2 className="text-2xl font-bold text-sffl-navy dark:text-white">Official Rule Book</h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            Browse the official guidelines, regulations, and gameplay rules below.
+                        </p>
+                    </div>
                     <a
-                        href="https://images.leaguerepublic.com/data/editor-docs/350033916/1758027708066-showtime_flag_rule_book2025_1.pdf"
+                        href={pdfUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 bg-white text-sffl-red font-bold py-3 px-6 rounded-lg hover:bg-gray-100 transition"
+                        className="inline-flex items-center gap-2 bg-sffl-red hover:bg-red-700 text-white font-bold py-2.5 px-5 rounded-lg shadow transition active:scale-95"
                     >
                         <span>📥</span>
-                        <span>Download Rule Book (PDF)</span>
+                        <span>Download PDF</span>
                     </a>
                 </div>
 
-                <h2 className="text-2xl font-bold text-sffl-navy dark:text-white">Quick Reference</h2>
-
-                <div className="space-y-4">
-                    <div className="border-l-4 border-sffl-red pl-4">
-                        <h3 className="font-bold text-lg text-sffl-navy dark:text-white">Team Composition</h3>
-                        <p className="text-gray-700 dark:text-gray-300">
-                            Teams consist of 7 players on the field at a time. A minimum of 5 players
-                            is required to start a game.
-                        </p>
-                    </div>
-
-                    <div className="border-l-4 border-sffl-red pl-4">
-                        <h3 className="font-bold text-lg text-sffl-navy dark:text-white">Game Duration</h3>
-                        <p className="text-gray-700 dark:text-gray-300">
-                            Games are played in two 20-minute halves with a running clock, except for
-                            the final 2 minutes of each half.
-                        </p>
-                    </div>
-
-                    <div className="border-l-4 border-sffl-red pl-4">
-                        <h3 className="font-bold text-lg text-sffl-navy dark:text-white">Scoring</h3>
-                        <ul className="text-gray-700 dark:text-gray-300 list-disc list-inside space-y-1">
-                            <li>Touchdown: 6 points</li>
-                            <li>Extra point (from 5 yards): 1 point</li>
-                            <li>Extra point (from 10 yards): 2 points</li>
-                            <li>Safety: 2 points</li>
-                        </ul>
-                    </div>
-
-                    <div className="border-l-4 border-sffl-red pl-4">
-                        <h3 className="font-bold text-lg text-sffl-navy dark:text-white">Flag Pulling</h3>
-                        <p className="text-gray-700 dark:text-gray-300">
-                            A legal flag pull occurs when a defensive player removes one flag from the
-                            ball carrier. The play ends immediately at the spot of the flag pull.
-                        </p>
-                    </div>
-
-                    <div className="border-l-4 border-sffl-red pl-4">
-                        <h3 className="font-bold text-lg text-sffl-navy dark:text-white">No Contact Rule</h3>
-                        <p className="text-gray-700 dark:text-gray-300">
-                            Flag football is a non-contact sport. Blocking, tackling, and unnecessary
-                            contact will result in penalties.
-                        </p>
-                    </div>
+                <div className="w-full bg-gray-100 dark:bg-gray-900 rounded-xl p-2 border border-gray-200 dark:border-gray-700 shadow-inner">
+                    <iframe
+                        src={`${pdfUrl}#toolbar=1`}
+                        title="Showtime Flag Football Rule Book"
+                        className="w-full h-[800px] rounded-lg border-0 bg-white"
+                        loading="lazy"
+                    />
                 </div>
+            </section>
 
-                <div className="bg-gray-100 dark:bg-gray-700 p-6 rounded-xl mt-8">
-                    <p className="text-sm text-gray-600 dark:text-gray-400 italic">
-                        Note: This is a quick reference only. All official rulings are based on the
-                        complete rule book. Teams and players are expected to be familiar with all rules.
-                    </p>
+            {/* Mobile Layout: Premium Preview Card */}
+            <section className="block md:hidden bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md space-y-6">
+                <div className="bg-gradient-to-br from-sffl-navy to-blue-900 text-white p-6 rounded-xl relative overflow-hidden shadow-lg">
+                    {/* Decorative Background Icon */}
+                    <div className="absolute right-[-20px] bottom-[-20px] text-white/10 text-9xl font-black pointer-events-none select-none">
+                        PDF
+                    </div>
+
+                    <div className="relative z-10 space-y-4">
+                        <span className="inline-block bg-sffl-red text-white text-xs font-bold uppercase tracking-widest px-2.5 py-1 rounded">
+                            Official Document
+                        </span>
+                        <h2 className="text-2xl font-bold tracking-tight">Official Rule Book</h2>
+                        <p className="text-gray-200 text-sm leading-relaxed">
+                            Access the complete, official Showtime Flag Football League rules directly on your device.
+                        </p>
+                        
+                        <div className="flex flex-col gap-3 pt-2">
+                            <a
+                                href={pdfUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-full text-center bg-sffl-red hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition active:scale-95 shadow-md flex items-center justify-center gap-2"
+                            >
+                                <span>📖</span>
+                                <span>Open Rule Book</span>
+                            </a>
+                            <a
+                                href={pdfUrl}
+                                download
+                                className="w-full text-center bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold py-3 px-6 rounded-lg transition active:scale-95 flex items-center justify-center gap-2"
+                            >
+                                <span>📥</span>
+                                <span>Download PDF</span>
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </section>
         </div>

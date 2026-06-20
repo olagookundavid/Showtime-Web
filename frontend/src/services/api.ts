@@ -152,6 +152,7 @@ export interface Competition {
     logo: string;
     status: string;
     format?: string; // LEAGUE | KNOCKOUT
+    playoff_competition_id?: string | null;
 }
 
 // Sort competitions newest-season first. We parse the trailing Roman numeral
@@ -749,12 +750,12 @@ export const getAdminCompetitions = async (page: number = 1, limit: number = 100
     return response.data;
 };
 
-export const createCompetition = async (payload: { name: string; logo: string; status?: string; format?: string }) => {
+export const createCompetition = async (payload: { name: string; logo: string; status?: string; format?: string; playoff_competition_id?: string | null }) => {
     const response = await api.post('/admin/competitions', payload);
     return response.data;
 };
 
-export const updateCompetition = async (id: string, payload: { name: string; logo: string; status?: string; format?: string }) => {
+export const updateCompetition = async (id: string, payload: { name: string; logo: string; status?: string; format?: string; playoff_competition_id?: string | null }) => {
     const response = await api.put(`/admin/competitions/${id}`, payload);
     return response.data;
 };
