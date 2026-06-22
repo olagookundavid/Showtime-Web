@@ -28,6 +28,7 @@ interface FormData {
     bracket_pos: string;
     feeds_match_id: string;
     feeds_slot: string;
+    second_leg_match_id: string;
 }
 
 const emptyForm: FormData = {
@@ -35,6 +36,7 @@ const emptyForm: FormData = {
     date: '', start_time: '12:00', venue: 'Showtime Arena', status: 'FINISHED',
     home_score: '', away_score: '', highlights_url: '', ticket_url: '',
     round: '', bracket_pos: '', feeds_match_id: '', feeds_slot: 'HOME',
+    second_leg_match_id: '',
 };
 
 
@@ -184,6 +186,7 @@ export const AdminMatches = () => {
             bracket_pos: m.bracket_pos?.toString() ?? '',
             feeds_match_id: m.feeds_match_id || '',
             feeds_slot: m.feeds_slot || 'HOME',
+            second_leg_match_id: m.second_leg_match_id || '',
         });
         setShowModal(true);
     };
@@ -221,6 +224,7 @@ export const AdminMatches = () => {
                 bracket_pos: formIsKnockout && form.bracket_pos !== '' ? parseInt(form.bracket_pos) : null,
                 feeds_match_id: formIsKnockout && form.feeds_match_id ? form.feeds_match_id : null,
                 feeds_slot: formIsKnockout && form.feeds_match_id ? form.feeds_slot : undefined,
+                second_leg_match_id: formIsKnockout && form.second_leg_match_id ? form.second_leg_match_id : null,
             };
             if (editingId) {
                 await updateMatch(editingId, payload);
@@ -231,7 +235,7 @@ export const AdminMatches = () => {
             }
             queryClient.invalidateQueries({ queryKey: ['adminMatches'] });
             setShowModal(false);
-        } catch (err: any) {
+        } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             console.error(err);
             toast.error(err.response?.data?.message || err.response?.data?.error || 'Failed to save match');
         }
@@ -244,7 +248,7 @@ export const AdminMatches = () => {
             queryClient.invalidateQueries({ queryKey: ['adminMatches'] });
             setDeleteConfirm(null);
             toast.success('Match deleted successfully');
-        } catch (err: any) {
+        } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             console.error(err);
             toast.error(err.response?.data?.message || err.response?.data?.error || 'Failed to delete match');
         }
@@ -384,6 +388,11 @@ export const AdminMatches = () => {
                                                                 {m.round}
                                                             </span>
                                                         )}
+                                                        {m.second_leg_match_id && (
+                                                            <span className="ml-1 px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-[10px] font-bold tracking-wide normal-case">
+                                                                2L
+                                                            </span>
+                                                        )}
                                                     </td>
                                                     <td className="px-4 py-3 font-bold text-gray-900 dark:text-gray-100">
                                                         {m.status === 'FINISHED' ? `${m.home_score} - ${m.away_score}` : '—'}
@@ -501,6 +510,18 @@ export const AdminMatches = () => {
                                             <input type="number" min="1" value={form.bracket_pos} onChange={e => set('bracket_pos', e.target.value)}
                                                 className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="1 = top of the column" />
                                         </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Second Leg Match (Optional)</label>
+                                        <select value={form.second_leg_match_id} onChange={e => set('second_leg_match_id', e.target.value)}
+                                            className="w-full min-h-[44px] border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2">
+                                            <option value="">None</option>
+                                            {bracketTargets.map(m => (
+                                                <option key={m.id} value={m.id} className="truncate">
+                                                    {(m.round ? `${m.round}: ` : '') + (m.home_team?.short_name || 'TBD') + ' vs ' + (m.away_team?.short_name || 'TBD') + ` (${m.date.substring(0, 10)})`}
+                                                </option>
+                                            ))}
+                                        </select>
                                     </div>
                                     <details className="text-sm">
                                         <summary className="cursor-pointer text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Auto-advance (optional — for live brackets)</summary>

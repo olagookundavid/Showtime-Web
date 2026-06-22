@@ -3,7 +3,7 @@ import {
     CalendarIcon,
     TableCellsIcon,
     TicketIcon,
-    UserGroupIcon,
+    ShoppingBagIcon,
     ChartBarIcon,
     HomeIcon,
 } from '@heroicons/react/24/outline';
@@ -11,7 +11,7 @@ import {
     CalendarIcon as CalendarSolid,
     TableCellsIcon as TableSolid,
     TicketIcon as TicketSolid,
-    UserGroupIcon as UserGroupSolid,
+    ShoppingBagIcon as ShoppingBagSolid,
     ChartBarIcon as ChartBarSolid,
     HomeIcon as HomeSolid,
 } from '@heroicons/react/24/solid';
@@ -29,7 +29,7 @@ export const BottomNav = (_props: BottomNavProps) => {
         { name: 'Standings', path: '/standings', icon: TableCellsIcon, solidIcon: TableSolid },
         { name: 'Stats', path: '/stats', icon: ChartBarIcon, solidIcon: ChartBarSolid },
         { name: 'Tickets', path: '/tickets', icon: TicketIcon, solidIcon: TicketSolid },
-        { name: 'Players', path: '/players', icon: UserGroupIcon, solidIcon: UserGroupSolid },
+        { name: 'Store', path: '/store', icon: ShoppingBagIcon, solidIcon: ShoppingBagSolid },
     ];
 
     const isActive = (path: string, exact = false) => {

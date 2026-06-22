@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { getMatchDetail } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { LightboxImage } from '../../components/ui';
@@ -22,6 +22,17 @@ function formatDate(raw: string | null | undefined): string {
 
 export const MatchDetail = () => {
     const { id } = useParams<{ id: string }>();
+    const [searchParams] = useSearchParams();
+    const compParam = searchParams.get('comp');
+    const teamParam = searchParams.get('team');
+
+    const backLink = (() => {
+        const params = new URLSearchParams();
+        if (compParam) params.set('comp', compParam);
+        if (teamParam) params.set('team', teamParam);
+        const q = params.toString();
+        return q ? `/matches?${q}` : '/matches';
+    })();
 
     const { data: matchDetail, isLoading, isError } = useQuery({
         queryKey: ['publicMatchDetail', id],
@@ -38,7 +49,7 @@ export const MatchDetail = () => {
                 <div className="text-6xl mb-6">🏈</div>
                 <h1 className="text-3xl font-black text-sffl-navy dark:text-white mb-3">Match Not Found</h1>
                 <p className="text-gray-500 mb-8">This match could not be loaded. It may have been removed.</p>
-                <Link to="/matches" className="px-6 py-3 bg-sffl-red text-white font-bold rounded-xl hover:bg-red-700 transition-colors">
+                <Link to={backLink} className="px-6 py-3 bg-sffl-red text-white font-bold rounded-xl hover:bg-red-700 transition-colors">
                     ← Back to Matches
                 </Link>
             </div>
@@ -51,7 +62,7 @@ export const MatchDetail = () => {
         return (
             <div className="text-center py-20">
                 <p className="text-gray-500">Match data unavailable.</p>
-                <Link to="/matches" className="text-sffl-red hover:underline font-semibold mt-4 block">← Back</Link>
+                <Link to={backLink} className="text-sffl-red hover:underline font-semibold mt-4 block">← Back</Link>
             </div>
         );
     }
@@ -75,7 +86,7 @@ export const MatchDetail = () => {
         <div className="space-y-4 md:space-y-8 pb-16">
 
             {/* Back nav */}
-            <Link to="/matches" className="inline-flex items-center gap-1.5 text-sffl-red hover:underline font-bold text-xs uppercase tracking-wider">
+            <Link to={backLink} className="inline-flex items-center gap-1.5 text-sffl-red hover:underline font-bold text-xs uppercase tracking-wider">
                 ← Back to Matches
             </Link>
 

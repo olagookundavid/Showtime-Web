@@ -62,6 +62,7 @@ type Match struct {
 	BracketPos   *int    `json:"bracket_pos,omitempty"`
 	FeedsMatchID *string `json:"feeds_match_id,omitempty"`
 	FeedsSlot    string  `json:"feeds_slot,omitempty"` // HOME | AWAY
+	SecondLegMatchID *string `json:"second_leg_match_id,omitempty"`
 
 	// Relations (Joined fields)
 	Competition *Competition `json:"competition,omitempty"`

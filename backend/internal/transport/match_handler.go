@@ -196,6 +196,7 @@ func (h *MatchHandler) CreateMatch(c *gin.Context) {
 		BracketPos:    req.BracketPos,
 		FeedsMatchID:  req.FeedsMatchID,
 		FeedsSlot:     strings.ToUpper(req.FeedsSlot),
+		SecondLegMatchID: req.SecondLegMatchID,
 	}
 
 	if match.Status == "" {
@@ -251,6 +252,7 @@ func (h *MatchHandler) UpdateMatch(c *gin.Context) {
 		BracketPos:    req.BracketPos,
 		FeedsMatchID:  req.FeedsMatchID,
 		FeedsSlot:     strings.ToUpper(req.FeedsSlot),
+		SecondLegMatchID: req.SecondLegMatchID,
 	}
 
 	if req.Date != "" {

@@ -214,6 +214,7 @@ export interface Match {
     bracket_pos?: number;
     feeds_match_id?: string;
     feeds_slot?: 'HOME' | 'AWAY';
+    second_leg_match_id?: string | null;
 }
 
 export interface TeamSheetPlayer {
@@ -361,6 +362,7 @@ export interface CreateMatchPayload {
     bracket_pos?: number | null;
     feeds_match_id?: string | null;
     feeds_slot?: string;
+    second_leg_match_id?: string | null;
 }
 
 export interface CreatePlayerPayload {

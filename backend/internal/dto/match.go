@@ -57,6 +57,7 @@ type CreateMatchRequest struct {
 	BracketPos    *int    `json:"bracket_pos"`    // top-to-bottom order within a round
 	FeedsMatchID  *string `json:"feeds_match_id"` // winner advances into this match...
 	FeedsSlot     string  `json:"feeds_slot"`     // ...as HOME or AWAY
+	SecondLegMatchID *string `json:"second_leg_match_id"`
 }
 
 type UpdateMatchRequest struct {
@@ -75,6 +76,7 @@ type UpdateMatchRequest struct {
 	BracketPos    *int    `json:"bracket_pos"`
 	FeedsMatchID  *string `json:"feeds_match_id"`
 	FeedsSlot     string  `json:"feeds_slot"`
+	SecondLegMatchID *string `json:"second_leg_match_id"`
 }
 
 type MatchResponse struct {
@@ -94,6 +96,7 @@ type MatchResponse struct {
 	BracketPos    *int                 `json:"bracket_pos,omitempty"`
 	FeedsMatchID  *string              `json:"feeds_match_id,omitempty"`
 	FeedsSlot     string               `json:"feeds_slot,omitempty"`
+	SecondLegMatchID *string              `json:"second_leg_match_id,omitempty"`
 }
 
 // --- Brackets ---

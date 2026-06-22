@@ -21,6 +21,9 @@ export const PlayerDetail = () => {
     const compId = searchParams.get('comp') || '';
     const matchDate = searchParams.get('date') || '';
     const matchId = searchParams.get('match') || undefined;
+    const teamParam = searchParams.get('team') || '';
+
+    const backLink = teamParam ? `/players?team=${teamParam}` : '/players';
 
     const { data: player, isLoading: loadingPlayer, isError: error } = useQuery({
         queryKey: ['publicPlayer', id],
@@ -91,7 +94,7 @@ export const PlayerDetail = () => {
         return (
             <div className="text-center py-20">
                 <h1 className="text-4xl font-black text-sffl-navy dark:text-white mb-4">Player Not Found</h1>
-                <Link to="/players" className="text-sffl-red hover:underline font-semibold">Back to Players</Link>
+                <Link to={backLink} className="text-sffl-red hover:underline font-semibold">Back to Players</Link>
             </div>
         );
     }
@@ -99,7 +102,7 @@ export const PlayerDetail = () => {
     return (
         <div className="space-y-4 md:space-y-8">
             {/* Back Button */}
-            <Link to="/players" className="inline-flex items-center text-sffl-red hover:underline font-bold text-xs uppercase tracking-wider px-2">
+            <Link to={backLink} className="inline-flex items-center text-sffl-red hover:underline font-bold text-xs uppercase tracking-wider px-2">
                 ← Back to Players
             </Link>
 

@@ -6,6 +6,7 @@ import {
     getMatches,
     getStandings,
     getCompetitions,
+    getPlayers,
     sortCompetitionsBySeason,
     type Team,
 } from '../../services/api';
@@ -87,6 +88,13 @@ export const TeamDetail = () => {
         enabled: !!activeCompetitionId,
     });
     const teamStanding = standings?.find(s => s.team?.id === id);
+
+    const { data: playersData, isLoading: loadingPlayers } = useQuery({
+        queryKey: ['publicTeamPlayers', id],
+        queryFn: () => getPlayers(id, 1, 100),
+        enabled: !!id,
+    });
+    const players = playersData?.data || [];
 
     if (loadingTeam) return <Loader />;
 
@@ -191,14 +199,7 @@ export const TeamDetail = () => {
             </div>
 
             {/* ── Quick Links ────────────────────────────────────────────── */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3">
-                <Link
-                    to={activeCompetitionId ? `/players?comp=${activeCompetitionId}&team=${team.id}` : `/players?team=${team.id}`}
-                    className="bg-white dark:bg-gray-800 hover:bg-sffl-navy hover:text-white dark:hover:bg-sffl-navy border border-gray-100 dark:border-gray-700 rounded-xl p-3 md:p-4 text-center transition-all group shadow-sm hover:shadow-md"
-                >
-                    <div className="text-xl md:text-2xl mb-1">👥</div>
-                    <div className="text-[10px] md:text-xs uppercase font-black tracking-wider text-sffl-navy dark:text-white group-hover:text-white">Players</div>
-                </Link>
+            <div className="grid grid-cols-3 gap-2 md:gap-3">
                 <Link
                     to={activeCompetitionId ? `/stats?comp=${activeCompetitionId}&team=${team.id}` : `/stats?team=${team.id}`}
                     className="bg-white dark:bg-gray-800 hover:bg-sffl-navy hover:text-white dark:hover:bg-sffl-navy border border-gray-100 dark:border-gray-700 rounded-xl p-3 md:p-4 text-center transition-all group shadow-sm hover:shadow-md"
@@ -220,6 +221,62 @@ export const TeamDetail = () => {
                     <div className="text-xl md:text-2xl mb-1">⚽</div>
                     <div className="text-[10px] md:text-xs uppercase font-black tracking-wider text-sffl-navy dark:text-white group-hover:text-white">Matches</div>
                 </Link>
+            </div>
+
+            {/* ── Team Roster ─────────────────────────────────────────────── */}
+            <div className="space-y-4 pt-4">
+                <h2 className="text-xl md:text-2xl font-black text-sffl-navy dark:text-white flex items-center gap-2">
+                    <span className="text-sffl-red">●</span> TEAM ROSTER
+                </h2>
+                {loadingPlayers ? (
+                    <div className="flex justify-center py-8">
+                        <div className="w-6 h-6 border-2 border-sffl-red border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                ) : players.length === 0 ? (
+                    <div className="bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700 rounded-xl p-8 text-center text-gray-500">
+                        No players listed for this team yet.
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
+                        {players.map((player) => (
+                            <Link
+                                key={player.id}
+                                to={`/players/${player.id}?team=${team.id}`}
+                                className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md hover:scale-[1.01] active:scale-99 transition-all overflow-hidden border border-gray-100 dark:border-gray-700 flex flex-col group"
+                            >
+                                {/* Player Image */}
+                                <div className="relative h-32 sm:h-48 overflow-hidden bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+                                    {player.image ? (
+                                        <img
+                                            src={player.image}
+                                            alt={player.name}
+                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                        />
+                                    ) : (
+                                        <div className="text-sffl-navy/40 dark:text-white/30 text-xl md:text-3xl font-black">
+                                            #{player.jersey_number}
+                                        </div>
+                                    )}
+                                    <div className="absolute top-2 right-2 bg-sffl-red text-white font-black text-[9px] md:text-xs px-2 py-0.5 rounded-full shadow">
+                                        #{player.jersey_number}
+                                    </div>
+                                </div>
+                                {/* Player Info */}
+                                <div className="p-3 border-t border-gray-100 dark:border-gray-700 flex-1 flex flex-col justify-between">
+                                    <div>
+                                        <h3 className="text-xs md:text-base font-black text-sffl-navy dark:text-white truncate uppercase">{player.name}</h3>
+                                        <div className="text-[10px] md:text-xs text-sffl-red font-bold truncate mt-0.5 uppercase">
+                                            {player.position}
+                                        </div>
+                                    </div>
+                                    <div className="mt-2 text-sffl-red font-bold text-[9px] md:text-xs uppercase tracking-wider flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                                        Profile <span>→</span>
+                                    </div>
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
+                )}
             </div>
 
         </div>

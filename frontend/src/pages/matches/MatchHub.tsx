@@ -78,19 +78,28 @@ export const MatchHub = () => {
     useEffect(() => {
         if (competitions.length === 0 || selectedCompetitionId) return;
 
-        if (compParam && competitions.some(c => c.id === compParam)) {
-            setSelectedCompetitionId(compParam);
-            return;
-        }
+        const timer = setTimeout(() => {
+            let initialCompId = '';
+            if (compParam && competitions.some(c => c.id === compParam)) {
+                initialCompId = compParam;
+            } else if (latestMatchFetched) {
+                if (latestMatchCompetitionId && competitions.some(c => c.id === latestMatchCompetitionId)) {
+                    initialCompId = latestMatchCompetitionId;
+                } else {
+                    initialCompId = leagueComps[0]?.id || competitions[0]?.id;
+                }
+            }
 
-        if (!latestMatchFetched) return;
+            if (initialCompId) {
+                setSelectedCompetitionId(initialCompId);
+                const params = new URLSearchParams(searchParams);
+                params.set('comp', initialCompId);
+                setSearchParams(params, { replace: true });
+            }
+        }, 0);
 
-        if (latestMatchCompetitionId && competitions.some(c => c.id === latestMatchCompetitionId)) {
-            setSelectedCompetitionId(latestMatchCompetitionId);
-        } else {
-            setSelectedCompetitionId(leagueComps[0]?.id || competitions[0]?.id);
-        }
-    }, [competitions, selectedCompetitionId, compParam, latestMatchFetched, latestMatchCompetitionId]);
+        return () => clearTimeout(timer);
+    }, [competitions, selectedCompetitionId, compParam, latestMatchFetched, latestMatchCompetitionId, leagueComps, searchParams, setSearchParams]);
 
     const selectedCompetition = competitions.find(c => c.id === selectedCompetitionId);
     const isCompleted = selectedCompetition?.status === 'completed';
@@ -126,13 +135,11 @@ export const MatchHub = () => {
         enabled: !!selectedCompetitionId,
     });
 
-    const rawMatches = infiniteMatchesData?.pages?.reduce((acc: Match[], p: PaginatedResponse<Match>) => acc.concat(p?.data || []), []) || [];
-    // If a team filter is active, keep only matches where the team plays.
-    // Done client-side since the matches API doesn't accept a team_id yet.
     const matches = useMemo(() => {
+        const rawMatches = infiniteMatchesData?.pages?.reduce((acc: Match[], p: PaginatedResponse<Match>) => acc.concat(p?.data || []), []) || [];
         if (!teamParam) return rawMatches;
         return rawMatches.filter(m => m.home_team?.id === teamParam || m.away_team?.id === teamParam);
-    }, [rawMatches, teamParam]);
+    }, [infiniteMatchesData, teamParam]);
     const hasMore = hasNextPage;
     const loading = loadingComps || initialMatchesLoading;
 
@@ -153,6 +160,9 @@ export const MatchHub = () => {
 
     const handleCompetitionChange = (compId: string) => {
         setSelectedCompetitionId(compId);
+        const params = new URLSearchParams(searchParams);
+        params.set('comp', compId);
+        setSearchParams(params, { replace: true });
     };
 
     const toggleDateCollapse = (date: string) => {
@@ -323,7 +333,12 @@ export const MatchHub = () => {
                                                     <div ref={isLastOverall ? lastMatchElementRef : null} key={match.id}>
                                                         <MatchCard
                                                             match={match}
-                                                            onClick={() => navigate(`/matches/${match.id}`)}
+                                                            onClick={() => {
+                                                                const params = new URLSearchParams();
+                                                                if (selectedCompetitionId) params.set('comp', selectedCompetitionId);
+                                                                if (teamParam) params.set('team', teamParam);
+                                                                navigate(`/matches/${match.id}?${params.toString()}`);
+                                                            }}
                                                         />
                                                     </div>
                                                 );

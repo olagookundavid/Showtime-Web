@@ -267,6 +267,7 @@ func (s *MatchService) GetMatches(ctx context.Context, competitionID string, sta
 			BracketPos:    m.BracketPos,
 			FeedsMatchID:  m.FeedsMatchID,
 			FeedsSlot:     m.FeedsSlot,
+			SecondLegMatchID: m.SecondLegMatchID,
 		})
 	}
 

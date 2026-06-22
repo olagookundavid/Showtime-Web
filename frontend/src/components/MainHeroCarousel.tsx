@@ -31,7 +31,7 @@ export const MainHeroCarousel = () => {
     if (slides.length === 0) return null;
 
     return (
-        <div className="relative h-[250px] md:h-[450px] overflow-hidden rounded-xl md:rounded-3xl shadow-2xl bg-sffl-navy/5">
+        <div className="relative h-[350px] md:h-[650px] overflow-hidden rounded-xl md:rounded-3xl shadow-2xl bg-sffl-navy/5">
             {/* Slides */}
             {slides.map((slide, index) => (
                 <div

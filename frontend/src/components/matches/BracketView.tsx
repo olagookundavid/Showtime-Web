@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -37,7 +38,7 @@ export const KNOCKOUT_STAGES = [
 ] as const;
 
 // Friendly column titles per stage rank.
-const STAGE_TITLES = ['Wildcard', 'Playoffs 1', 'Playoffs 2', 'Bowl'];
+const STAGE_TITLES = ['Wildcard', 'Playoffs', 'Playoffs 2', 'Bowl'];
 const UNKNOWN_RANK = 99;
 
 // Rank a round/stage label robustly — recognises the manual stage values, the
@@ -114,15 +115,79 @@ export const buildBracketColumns = (matches: Match[]): BracketColumn[] => {
         });
 };
 
-const TeamRow = ({ m, side }: { m: Match; side: 'HOME' | 'AWAY' }) => {
+const TeamRow = ({ m, side, secondLeg }: { m: Match; side: 'HOME' | 'AWAY'; secondLeg?: Match }) => {
     const team = side === 'HOME' ? m.home_team : m.away_team;
-    const score = side === 'HOME' ? m.home_score : m.away_score;
-    const winner = winnerSide(m);
-    const finished = winner !== null;
-    const isWinner = winner === side;
     const isTbd = !team?.id;
 
-    return (
+    // Determine scores if secondLeg exists
+    let scoreL1: number | string = '';
+    let scoreL2: number | string = '';
+    let scoreAgg: number | string = '';
+
+    if (secondLeg) {
+        // L1 Score
+        if (m.status === 'FINISHED' || m.status === 'LIVE') {
+            scoreL1 = side === 'HOME' ? (m.home_score ?? 0) : (m.away_score ?? 0);
+        } else {
+            scoreL1 = '-';
+        }
+
+        // L2 Score
+        if (secondLeg.status === 'FINISHED' || secondLeg.status === 'LIVE') {
+            const isHomeInL2 = secondLeg.home_team?.id === team?.id;
+            scoreL2 = isHomeInL2 ? (secondLeg.home_score ?? 0) : (secondLeg.away_score ?? 0);
+        } else {
+            scoreL2 = '-';
+        }
+
+        // AGG Score
+        const numL1 = typeof scoreL1 === 'number' ? scoreL1 : 0;
+        const numL2 = typeof scoreL2 === 'number' ? scoreL2 : 0;
+        if (scoreL1 !== '-' || scoreL2 !== '-') {
+            scoreAgg = numL1 + numL2;
+        } else {
+            scoreAgg = '-';
+        }
+    } else {
+        scoreL1 = side === 'HOME' ? (m.home_score ?? '') : (m.away_score ?? '');
+    }
+
+    // Determine aggregate winner highlight
+    let isWinner = false;
+    let finished = false;
+
+    if (secondLeg) {
+        const bothFinished = m.status === 'FINISHED' && secondLeg.status === 'FINISHED';
+        if (bothFinished) {
+            finished = true;
+            
+            // Calculate total aggregate scores for home team (m.home_team) and away team (m.away_team)
+            const homeL1 = m.home_score ?? 0;
+            const awayL1 = m.away_score ?? 0;
+            
+            const homeL2 = secondLeg.home_team?.id === m.home_team?.id 
+                ? (secondLeg.home_score ?? 0) 
+                : (secondLeg.away_score ?? 0);
+            const awayL2 = secondLeg.home_team?.id === m.away_team?.id 
+                ? (secondLeg.home_score ?? 0) 
+                : (secondLeg.away_score ?? 0);
+
+            const aggHome = homeL1 + homeL2;
+            const aggAway = awayL1 + awayL2;
+
+            if (side === 'HOME') {
+                isWinner = aggHome > aggAway;
+            } else {
+                isWinner = aggAway > aggHome;
+            }
+        }
+    } else {
+        const winner = winnerSide(m);
+        finished = winner !== null;
+        isWinner = winner === side;
+    }
+
+    const content = (
         <div className={`flex items-center gap-2 px-3 py-2 ${finished && !isWinner ? 'opacity-50' : ''}`}>
             {team?.logo ? (
                 <img src={team.logo} alt={team.name} className="w-6 h-6 object-contain shrink-0" />
@@ -134,10 +199,31 @@ const TeamRow = ({ m, side }: { m: Match; side: 'HOME' | 'AWAY' }) => {
             <span className={`text-xs truncate flex-1 ${isTbd ? 'text-gray-400 dark:text-gray-500 italic font-semibold' : isWinner ? 'font-black text-sffl-navy dark:text-white' : 'font-bold text-gray-700 dark:text-gray-300'}`}>
                 {isTbd ? 'TBD' : team.name.toUpperCase()}
             </span>
-            <span className={`text-sm tabular-nums ${isWinner ? 'font-black text-sffl-red' : 'font-bold text-gray-500 dark:text-gray-400'}`}>
-                {m.status === 'FINISHED' || m.status === 'LIVE' ? score ?? '' : ''}
-            </span>
+            {secondLeg ? (
+                <div className="flex gap-4 text-xs font-semibold tabular-nums text-gray-500 dark:text-gray-400">
+                    <span className="w-6 text-center">{scoreL1}</span>
+                    <span className="w-6 text-center">{scoreL2}</span>
+                    <span className={`w-8 text-center font-black ${isWinner ? 'text-sffl-red' : 'text-gray-700 dark:text-gray-300'}`}>{scoreAgg}</span>
+                </div>
+            ) : (
+                <span className={`text-sm tabular-nums ${isWinner ? 'font-black text-sffl-red' : 'font-bold text-gray-500 dark:text-gray-400'}`}>
+                    {m.status === 'FINISHED' || m.status === 'LIVE' ? scoreL1 : ''}
+                </span>
+            )}
         </div>
+    );
+
+    if (isTbd) {
+        return content;
+    }
+
+    return (
+        <Link
+            to={`/teams/${team.id}`}
+            className="block hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+        >
+            {content}
+        </Link>
     );
 };
 
@@ -204,19 +290,27 @@ export const ChampionCard = ({ team, compact = false }: { team: NonNullable<Matc
     );
 };
 
-const MatchCard = ({ m, isFinal }: { m: Match; isFinal: boolean }) => (
+const MatchCard = ({ m, secondLeg, isFinal }: { m: Match; secondLeg?: Match; isFinal: boolean }) => (
     <div className={`bg-white dark:bg-gray-800 rounded-xl border shadow-sm overflow-hidden w-full ${isFinal ? 'border-sffl-red/40 ring-1 ring-sffl-red/20' : 'border-gray-100 dark:border-gray-700'}`}>
         <div className="flex items-center justify-between px-3 py-1.5 bg-gray-50 dark:bg-gray-900/40 border-b border-gray-100 dark:border-gray-700">
             <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
                 {new Date(m.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             </span>
-            <span className={`text-[9px] font-black uppercase tracking-widest ${m.status === 'LIVE' ? 'text-red-500 animate-pulse' : m.status === 'FINISHED' ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`}>
-                {m.status === 'FINISHED' ? 'FT' : m.status}
-            </span>
+            {secondLeg ? (
+                <div className="flex gap-4 text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                    <span className="w-6 text-center">L1</span>
+                    <span className="w-6 text-center">L2</span>
+                    <span className="w-8 text-center text-sffl-red">AGG</span>
+                </div>
+            ) : (
+                <span className={`text-[9px] font-black uppercase tracking-widest ${m.status === 'LIVE' ? 'text-red-500 animate-pulse' : m.status === 'FINISHED' ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                    {m.status === 'FINISHED' ? 'FT' : m.status}
+                </span>
+            )}
         </div>
         <div className="divide-y divide-gray-50 dark:divide-gray-700/50">
-            <TeamRow m={m} side="HOME" />
-            <TeamRow m={m} side="AWAY" />
+            <TeamRow m={m} side="HOME" secondLeg={secondLeg} />
+            <TeamRow m={m} side="AWAY" secondLeg={secondLeg} />
         </div>
     </div>
 );
@@ -228,8 +322,33 @@ export const BracketView = ({ competitionId, compact = false, viewAllLink }: Bra
         enabled: !!competitionId,
     });
 
-    const columns = useMemo(() => buildBracketColumns(data?.data || []), [data]);
-    const champion = useMemo(() => championOf(data?.data || []), [data]);
+    const allMatches = useMemo(() => data?.data || [], [data]);
+
+    // Build a lookup: leg1.id -> leg2 match object
+    const secondLegMap = useMemo(() => {
+        const map = new Map<string, Match>();
+        const allMatchesById = new Map(allMatches.map(m => [m.id, m]));
+        for (const m of allMatches) {
+            if (m.second_leg_match_id) {
+                const leg2 = allMatchesById.get(m.second_leg_match_id);
+                if (leg2) map.set(m.id, leg2);
+            }
+        }
+        return map;
+    }, [allMatches]);
+
+    // Keep track of which matches are marked as leg 2 of some tie
+    const secondLegIds = useMemo(() => {
+        return new Set(allMatches.flatMap(m => m.second_leg_match_id ? [m.second_leg_match_id] : []));
+    }, [allMatches]);
+
+    // Filter out Leg 2 matches from the bracket display list since they're rendered inline on the Leg 1 card
+    const filteredMatches = useMemo(() => {
+        return allMatches.filter(m => !secondLegIds.has(m.id));
+    }, [allMatches, secondLegIds]);
+
+    const columns = useMemo(() => buildBracketColumns(filteredMatches), [filteredMatches]);
+    const champion = useMemo(() => championOf(filteredMatches), [filteredMatches]);
 
     if (isLoading) {
         return (
@@ -265,7 +384,14 @@ export const BracketView = ({ competitionId, compact = false, viewAllLink }: Bra
                         <div key={col.title}>
                             <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 px-1 mb-2">{col.title}</div>
                             <div className="space-y-2">
-                                {col.matches.map(m => <MatchCard key={m.id} m={m} isFinal={!m.feeds_match_id && col === columns[columns.length - 1]} />)}
+                                {col.matches.map(m => (
+                                    <MatchCard
+                                        key={m.id}
+                                        m={m}
+                                        secondLeg={secondLegMap.get(m.id)}
+                                        isFinal={!m.feeds_match_id && col === columns[columns.length - 1]}
+                                    />
+                                ))}
                             </div>
                         </div>
                     ))}
@@ -290,7 +416,14 @@ export const BracketView = ({ competitionId, compact = false, viewAllLink }: Bra
                                 </div>
                                 {/* justify-around spreads matches so later rounds sit between their feeders */}
                                 <div className="flex flex-col justify-around flex-1 gap-3">
-                                    {col.matches.map(m => <MatchCard key={m.id} m={m} isFinal={isLast} />)}
+                                    {col.matches.map(m => (
+                                        <MatchCard
+                                            key={m.id}
+                                            m={m}
+                                            secondLeg={secondLegMap.get(m.id)}
+                                            isFinal={isLast}
+                                        />
+                                    ))}
                                 </div>
                             </div>
                         );

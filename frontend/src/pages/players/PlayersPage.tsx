@@ -14,7 +14,12 @@ export const PlayersPage = () => {
     // Keep state in sync if user navigates between team-card links.
     useEffect(() => {
         const t = searchParams.get('team') ?? '';
-        if (t !== selectedTeamId) setSelectedTeamId(t);
+        if (t !== selectedTeamId) {
+            const timer = setTimeout(() => {
+                setSelectedTeamId(t);
+            }, 0);
+            return () => clearTimeout(timer);
+        }
     }, [searchParams, selectedTeamId]);
 
     const handleTeamChange = (id: string) => {
@@ -147,7 +152,7 @@ export const PlayersPage = () => {
                                 </div>
 
                                 {/* Player Info - Link to profile */}
-                                <Link to={`/players/${player.id}`} className="p-2 md:p-6 flex-1 flex flex-col justify-between hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                                <Link to={`/players/${player.id}${selectedTeamId ? `?team=${selectedTeamId}` : ''}`} className="p-2 md:p-6 flex-1 flex flex-col justify-between hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                                     <div>
                                         <h3 className="text-xs md:text-2xl font-black text-sffl-navy dark:text-white truncate">{player.name}</h3>
                                         <div className="text-[10px] md:text-sm text-sffl-red font-bold truncate">
