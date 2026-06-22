@@ -32,7 +32,7 @@ interface AdminKnockoutBracketProps {
 
 // Stage value to seed a new match with when the admin adds to a given column.
 const STAGE_FOR_TITLE: Record<string, string> = {
-    'Wildcard': 'Wildcard',
+    'Wildcards': 'Wildcard',
     'Playoffs 1': 'Playoff 1',
     'Playoffs 2': 'Playoff 2',
     'Bowl': 'Bowl',
@@ -326,7 +326,7 @@ export const AdminKnockoutBracket = ({ competitionId, matches, teams, isComplete
                         return (
                             <div key={col.title} className="flex flex-col w-72">
                                 <div className={`text-center text-[10px] md:text-xs font-black uppercase tracking-widest mb-3 py-1.5 rounded-lg ${isLast ? 'bg-sffl-red text-white' : 'bg-sffl-navy text-white'}`}>
-                                    {isLast ? `🏆 ${col.title}` : col.title}
+                                    {isLast ? `🏆 ${col.title}` : col.title.startsWith('Playoffs') ? 'Playoffs' : col.title}
                                 </div>
                                 <div className="flex flex-col justify-around flex-1 gap-3">
                                     {col.matches.map(m => {
@@ -371,7 +371,7 @@ export const AdminKnockoutBracket = ({ competitionId, matches, teams, isComplete
                                             onClick={() => onAdd(STAGE_FOR_TITLE[col.title])}
                                             className="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl py-2.5 text-[11px] font-bold text-gray-400 dark:text-gray-500 hover:border-sffl-red hover:text-sffl-red transition-colors"
                                         >
-                                            + Add to {col.title}
+                                            + Add to {col.title.startsWith('Playoffs') ? 'Playoffs' : col.title}
                                         </button>
                                     )}
                                 </div>

@@ -22,3 +22,8 @@ scripts/historical-import/
 
 # Historical-data Excel source files — large, throwaway, kept locally only.
 docs/*.xlsx
+
+# Ignore scratch folders and their contents
+scratch/
+**/scratch/
+

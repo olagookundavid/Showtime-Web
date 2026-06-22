@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { useMemo } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getMatches, type Match } from '../../services/api';
@@ -38,7 +38,7 @@ export const KNOCKOUT_STAGES = [
 ] as const;
 
 // Friendly column titles per stage rank.
-const STAGE_TITLES = ['Wildcard', 'Playoffs', 'Playoffs 2', 'Bowl'];
+const STAGE_TITLES = ['Wildcards', 'Playoffs 1', 'Playoffs 2', 'Bowl'];
 const UNKNOWN_RANK = 99;
 
 // Rank a round/stage label robustly — recognises the manual stage values, the
@@ -48,8 +48,8 @@ const UNKNOWN_RANK = 99;
 export const stageRank = (round?: string): number => {
     const r = (round || '').toLowerCase();
     if (!r) return UNKNOWN_RANK;
-    if (r.includes('wild')) return 0;
-    if (r.includes('quarter') || r.includes('playoff 1') || r.includes('playoffs 1')) return 1;
+    if (r.includes('wild') || r.includes('quarter')) return 0;
+    if (r.includes('playoff 1') || r.includes('playoffs 1')) return 1;
     if (r.includes('semi') || r.includes('playoff 2') || r.includes('playoffs 2')) return 2;
     if (r.includes('bowl') || r.includes('final')) return 3;
     return UNKNOWN_RANK;
@@ -350,6 +350,20 @@ export const BracketView = ({ competitionId, compact = false, viewAllLink }: Bra
     const columns = useMemo(() => buildBracketColumns(filteredMatches), [filteredMatches]);
     const champion = useMemo(() => championOf(filteredMatches), [filteredMatches]);
 
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!isLoading && columns.length > 0) {
+            const timer = setTimeout(() => {
+                if (scrollContainerRef.current) {
+                    const el = scrollContainerRef.current;
+                    el.scrollLeft = el.scrollWidth;
+                }
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [isLoading, columns.length]);
+
     if (isLoading) {
         return (
             <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl shadow-sm">
@@ -382,7 +396,9 @@ export const BracketView = ({ competitionId, compact = false, viewAllLink }: Bra
                 <div className="p-3 space-y-4">
                     {columns.map(col => (
                         <div key={col.title}>
-                            <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 px-1 mb-2">{col.title}</div>
+                            <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 px-1 mb-2">
+                                {col.title.startsWith('Playoffs') ? 'Playoffs' : col.title}
+                            </div>
                             <div className="space-y-2">
                                 {col.matches.map(m => (
                                     <MatchCard
@@ -405,14 +421,14 @@ export const BracketView = ({ competitionId, compact = false, viewAllLink }: Bra
             <div className="md:hidden text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 px-1">
                 Swipe to follow the road to the Bowl →
             </div>
-            <div className="overflow-x-auto pb-4 -mx-2 px-2">
+            <div ref={scrollContainerRef} className="overflow-x-auto pb-4 -mx-2 px-2">
                 <div className="flex gap-4 md:gap-8 min-w-max items-stretch">
                     {columns.map((col, i) => {
                         const isLast = i === columns.length - 1;
                         return (
                             <div key={col.title} className="flex flex-col w-56 md:w-64">
                                 <div className={`text-center text-[10px] md:text-xs font-black uppercase tracking-widest mb-3 py-1.5 rounded-lg ${isLast ? 'bg-sffl-red text-white' : 'bg-sffl-navy text-white'}`}>
-                                    {isLast ? `🏆 ${col.title}` : col.title}
+                                    {isLast ? `🏆 ${col.title}` : col.title.startsWith('Playoffs') ? 'Playoffs' : col.title}
                                 </div>
                                 {/* justify-around spreads matches so later rounds sit between their feeders */}
                                 <div className="flex flex-col justify-around flex-1 gap-3">
