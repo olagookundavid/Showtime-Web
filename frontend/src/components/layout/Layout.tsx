@@ -4,6 +4,7 @@ import { Footer } from './Footer';
 import { BottomNav } from './BottomNav';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { LatestMatchesCarousel } from './LatestMatchesCarousel';
 import {
     XMarkIcon,
     InformationCircleIcon,
@@ -53,9 +54,11 @@ export const Layout = () => {
             </div>
 
             <Navbar onMoreClick={() => setIsMoreMenuOpen(true)} />
+            {location.pathname === '/' && <LatestMatchesCarousel />}
             <main className="flex-grow w-full max-w-page mx-auto px-2 sm:px-6 lg:px-8 py-3 md:py-8 relative z-10 overscroll-y-none">
                 <Outlet />
             </main>
+
             <Footer />
 
             <BottomNav onMoreClick={() => setIsMoreMenuOpen(prev => !prev)} />

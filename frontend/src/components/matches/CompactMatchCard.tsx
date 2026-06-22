@@ -12,6 +12,9 @@ interface CompactMatchCardProps {
 export const CompactMatchCard: React.FC<CompactMatchCardProps> = ({ match, onClick, hideHeaderAndVenue = false }) => {
     const isFinished = match.status === 'FINISHED';
     const isLive = match.status === 'LIVE';
+    const isBye = match.competition?.format === 'KNOCKOUT' &&
+        ((match.home_team?.id && !match.away_team?.id && match.status === 'FINISHED') ||
+         (!match.home_team?.id && match.away_team?.id && match.status === 'FINISHED'));
 
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
@@ -31,13 +34,15 @@ export const CompactMatchCard: React.FC<CompactMatchCardProps> = ({ match, onCli
 
     return (
         <div
-            onClick={onClick}
-            className="flex-none w-[260px] md:w-[280px] bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden transition-all duration-300 hover:shadow-xl hover:scale-[1.02] cursor-pointer group snap-center"
+            onClick={isBye ? undefined : onClick}
+            className={`flex-none w-[260px] md:w-[280px] bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden snap-center ${
+                isBye ? 'cursor-default' : 'transition-all duration-300 hover:shadow-xl hover:scale-[1.02] cursor-pointer'
+            }`}
         >
             {/* Header */}
             {!hideHeaderAndVenue && (
                 <div className={`py-2 px-4 text-center text-[10px] font-black uppercase tracking-widest ${isLive ? 'bg-sffl-red text-white animate-pulse' : 'bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300'}`}>
-                    {isLive ? 'LIVE NOW' : isFinished ? 'Final Result' : `${formatDate(match.date)} • ${formatTime(match.start_time, match.date)}`}
+                    {isLive ? 'LIVE NOW' : isBye ? 'PLAYOFF BYE' : isFinished ? 'Final Result' : `${formatDate(match.date)} • ${formatTime(match.start_time, match.date)}`}
                 </div>
             )}
 
@@ -65,7 +70,7 @@ export const CompactMatchCard: React.FC<CompactMatchCardProps> = ({ match, onCli
 
                 {/* Score vs VS */}
                 <div className="flex flex-col items-center justify-center px-2">
-                    {isFinished || isLive ? (
+                    {(isFinished || isLive) && !isBye ? (
                         <div className="text-xl md:text-2xl font-black text-sffl-navy dark:text-white italic tracking-tighter">
                             {match.home_score} - {match.away_score}
                         </div>
@@ -77,11 +82,13 @@ export const CompactMatchCard: React.FC<CompactMatchCardProps> = ({ match, onCli
                 {/* Away Team */}
                 <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
                     <LightboxImage 
-                        src={match.away_team?.logo || ''} 
-                        alt={match.away_team?.name} 
+                        src={isBye ? '/images/default_football.png' : (match.away_team?.logo || '')} 
+                        alt={isBye ? 'BYE' : (match.away_team?.name || 'BYE')} 
                         thumbnailClassName="w-10 h-10 md:w-12 md:h-12 rounded-md object-contain bg-gray-50 dark:bg-gray-900/50 p-1"
                     />
-                    {match.away_team?.id ? (
+                    {isBye ? (
+                        <span className="text-[10px] md:text-xs font-bold text-gray-400 dark:text-gray-500 italic truncate pb-1 uppercase">BYE</span>
+                    ) : match.away_team?.id ? (
                         <Link
                             to={`/teams/${match.away_team.id}`}
                             onClick={(e) => e.stopPropagation()}

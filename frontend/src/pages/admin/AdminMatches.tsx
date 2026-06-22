@@ -157,8 +157,9 @@ export const AdminMatches = () => {
         const homeId = m.home_team?.id || (m as any).home_team_id ||
             teams.find(t => t.name === m.home_team?.name)?.id || '';
 
-        const awayId = m.away_team?.id || (m as any).away_team_id ||
-            teams.find(t => t.name === m.away_team?.name)?.id || '';
+        const isBye = m.status === 'FINISHED' && ((m.home_team?.id && !m.away_team?.id) || (!m.home_team?.id && m.away_team?.id));
+        const awayId = isBye ? 'BYE' : (m.away_team?.id || (m as any).away_team_id ||
+            teams.find(t => t.name === m.away_team?.name)?.id || '');
 
         // Robust time parsing
         let displayTime = m.start_time || '';
@@ -192,7 +193,8 @@ export const AdminMatches = () => {
     };
 
     const handleSave = async () => {
-        if (form.status === 'FINISHED' && (form.home_score === '' || form.away_score === '')) {
+        const isBye = formIsKnockout && (form.away_team_id === 'BYE' || (form.home_team_id && !form.away_team_id && form.status === 'FINISHED'));
+        if (form.status === 'FINISHED' && !isBye && (form.home_score === '' || form.away_score === '')) {
             toast.error('Home and Away scores are required for finished matches');
             return;
         }
@@ -208,16 +210,21 @@ export const AdminMatches = () => {
 
         setSaving(true);
         try {
+            const saveAwayId = form.away_team_id === 'BYE' ? '' : form.away_team_id;
+            const saveStatus = form.away_team_id === 'BYE' ? 'FINISHED' : form.status;
+            const saveHomeScore = form.away_team_id === 'BYE' ? null : (form.home_score !== '' ? parseInt(form.home_score) : null);
+            const saveAwayScore = form.away_team_id === 'BYE' ? null : (form.away_score !== '' ? parseInt(form.away_score) : null);
+
             const payload: CreateMatchPayload = {
                 competition_id: form.competition_id,
                 home_team_id: form.home_team_id,
-                away_team_id: form.away_team_id,
+                away_team_id: saveAwayId,
                 date: form.date,
                 start_time: form.start_time,
                 venue: form.venue,
-                status: form.status,
-                home_score: form.home_score !== '' ? parseInt(form.home_score) : null,
-                away_score: form.away_score !== '' ? parseInt(form.away_score) : null,
+                status: saveStatus,
+                home_score: saveHomeScore,
+                away_score: saveAwayScore,
                 highlights_url: form.highlights_url,
                 ticket_url: form.ticket_url,
                 round: formIsKnockout ? form.round : undefined,
@@ -488,6 +495,7 @@ export const AdminMatches = () => {
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{formIsKnockout ? 'Away Team' : 'Away Team *'}</label>
                                     <select value={form.away_team_id} onChange={e => set('away_team_id', e.target.value)} className="w-full min-h-[44px] z-50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2">
                                         <option value="" className="truncate">{formIsKnockout ? 'TBD — filled by bracket' : 'Select...'}</option>
+                                        {formIsKnockout && <option value="BYE">BYE (PLAYOFF BYE)</option>}
                                         {selectableTeams(form.away_team_id).map(t => <option key={t.id} value={t.id} className="truncate">{t.name.toUpperCase()}</option>)}
                                     </select>
                                 </div>

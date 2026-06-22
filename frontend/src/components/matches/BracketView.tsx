@@ -58,6 +58,10 @@ export const stageRank = (round?: string): number => {
 export const isBowlStage = (round?: string): boolean => stageRank(round) === 3;
 
 export const winnerSide = (m: Match): 'HOME' | 'AWAY' | null => {
+    const isBye = stageRank(m.round) === 0 && ((m.home_team?.id && !m.away_team?.id) || (!m.home_team?.id && m.away_team?.id));
+    if (isBye) {
+        return m.home_team?.id ? 'HOME' : 'AWAY';
+    }
     if (m.status !== 'FINISHED' || m.home_score == null || m.away_score == null) return null;
     if (m.home_score > m.away_score) return 'HOME';
     if (m.away_score > m.home_score) return 'AWAY';
@@ -117,7 +121,8 @@ export const buildBracketColumns = (matches: Match[]): BracketColumn[] => {
 
 const TeamRow = ({ m, side, secondLeg }: { m: Match; side: 'HOME' | 'AWAY'; secondLeg?: Match }) => {
     const team = side === 'HOME' ? m.home_team : m.away_team;
-    const isTbd = !team?.id;
+    const isBye = stageRank(m.round) === 0 && ((m.home_team?.id && !m.away_team?.id) || (!m.home_team?.id && m.away_team?.id));
+    const isTbd = !team?.id && !isBye;
 
     // Determine scores if secondLeg exists
     let scoreL1: number | string = '';
@@ -193,11 +198,11 @@ const TeamRow = ({ m, side, secondLeg }: { m: Match; side: 'HOME' | 'AWAY'; seco
                 <img src={team.logo} alt={team.name} className="w-6 h-6 object-contain shrink-0" />
             ) : (
                 <div className="w-6 h-6 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-[9px] font-black text-gray-500 dark:text-gray-400 shrink-0">
-                    {isTbd ? '?' : (team.short_name || team.name.substring(0, 2)).toUpperCase().substring(0, 3)}
+                    {isTbd ? '?' : isBye && !team?.id ? 'BYE' : (team.short_name || team.name.substring(0, 2)).toUpperCase().substring(0, 3)}
                 </div>
             )}
             <span className={`text-xs truncate flex-1 ${isTbd ? 'text-gray-400 dark:text-gray-500 italic font-semibold' : isWinner ? 'font-black text-sffl-navy dark:text-white' : 'font-bold text-gray-700 dark:text-gray-300'}`}>
-                {isTbd ? 'TBD' : team.name.toUpperCase()}
+                {isTbd ? 'TBD' : isBye && !team?.id ? 'BYE' : team.name.toUpperCase()}
             </span>
             {secondLeg ? (
                 <div className="flex gap-4 text-xs font-semibold tabular-nums text-gray-500 dark:text-gray-400">
@@ -213,7 +218,7 @@ const TeamRow = ({ m, side, secondLeg }: { m: Match; side: 'HOME' | 'AWAY'; seco
         </div>
     );
 
-    if (isTbd) {
+    if (isTbd || (isBye && !team?.id)) {
         return content;
     }
 

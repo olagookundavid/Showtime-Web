@@ -74,13 +74,17 @@ export const MatchDetail = () => {
     const awaySheet = team_sheet?.away_team ?? [];
     const hasTeamSheet = homeSheet.length > 0 || awaySheet.length > 0;
 
+    const isBye = match.competition?.format === 'KNOCKOUT' &&
+        ((match.home_team?.id && !match.away_team?.id && match.status === 'FINISHED') ||
+         (!match.home_team?.id && match.away_team?.id && match.status === 'FINISHED'));
+
     const statusConfig = {
         LIVE:      { label: 'LIVE', cls: 'bg-red-500 animate-pulse' },
         FINISHED:  { label: 'FULL TIME', cls: 'bg-emerald-600' },
         SCHEDULED: { label: 'UPCOMING', cls: 'bg-blue-500' },
         POSTPONED: { label: 'POSTPONED', cls: 'bg-amber-500' },
     } as const;
-    const statusInfo = statusConfig[match.status as keyof typeof statusConfig] ?? { label: match.status, cls: 'bg-gray-500' };
+    const statusInfo = isBye ? { label: 'PLAYOFF BYE', cls: 'bg-emerald-600' } : (statusConfig[match.status as keyof typeof statusConfig] ?? { label: match.status, cls: 'bg-gray-500' });
 
     return (
         <div className="space-y-4 md:space-y-8 pb-16">
@@ -90,22 +94,19 @@ export const MatchDetail = () => {
                 ← Back to Matches
             </Link>
 
-            {/* ── Scoreboard ── */}
-            <div className="relative bg-sffl-navy rounded-3xl overflow-hidden shadow-2xl">
-                {/* Background texture */}
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.06)_0%,_transparent_60%)]" />
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgba(206,17,38,0.15)_0%,_transparent_60%)]" />
-
-                <div className="relative z-10 p-6 md:p-10">
+            {/* Match Card Header */}
+            <div className="bg-sffl-navy rounded-2xl shadow-2xl overflow-hidden border border-white/5 relative">
+                <div className="absolute inset-0 bg-cover bg-center opacity-10" style={{ backgroundImage: `url('/images/card_pattern.svg')` }} />
+                <div className="relative p-6 md:p-12">
                     {/* Competition + date */}
                     <div className="text-center mb-8">
                         <span className={`inline-block px-4 py-1.5 rounded-full text-xs font-black tracking-widest ${statusInfo.cls} text-white mb-3`}>
                             {statusInfo.label}
                         </span>
                         <p className="text-gray-300 text-sm font-semibold">
-                            {match.competition?.name}  •  {formatDate(match.date)}
+                            {match.competition?.name} {!isBye && ` • ${formatDate(match.date)}`}
                         </p>
-                        {match.venue && (
+                        {match.venue && !isBye && (
                             <p className="text-gray-500 text-xs mt-1">📍 {match.venue}</p>
                         )}
                     </div>
@@ -145,7 +146,14 @@ export const MatchDetail = () => {
 
                         {/* Score / Time */}
                         <div className="flex flex-col items-center gap-1 md:gap-2 flex-shrink-0">
-                            {isFinishedOrLive ? (
+                            {isBye ? (
+                                <div className="bg-white/10 backdrop-blur-sm px-4 md:px-8 py-2 md:py-4 rounded-xl md:rounded-2xl text-center border border-white/10">
+                                    <div className="text-white font-black text-xl md:text-4xl tracking-tight">
+                                        BYE
+                                    </div>
+                                    <div className="text-gray-400 text-[10px] md:text-xs mt-0.5 md:mt-1 font-semibold">AUTO QUALIFIED</div>
+                                </div>
+                            ) : isFinishedOrLive ? (
                                 <div className="text-white font-black text-3xl md:text-7xl tracking-tighter leading-none tabular-nums flex items-center">
                                     {match.home_score ?? 0}
                                     <span className="text-gray-500 mx-1 md:mx-2 font-light">-</span>
@@ -164,8 +172,14 @@ export const MatchDetail = () => {
 
                         {/* Away */}
                         <div className="flex flex-col items-center gap-3 flex-1 min-w-0">
-                            <div className="w-16 h-16 md:w-28 md:h-28 bg-white rounded-full overflow-hidden shadow-xl ring-4 ring-white/10 flex-shrink-0">
-                                {awayTeam?.logo ? (
+                            <div className="w-16 h-16 md:w-28 md:h-28 bg-white rounded-full overflow-hidden shadow-xl ring-4 ring-white/10 flex-shrink-0 flex items-center justify-center">
+                                {isBye ? (
+                                    <img 
+                                        src="/images/default_football.png" 
+                                        alt="BYE" 
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : awayTeam?.logo ? (
                                     <LightboxImage 
                                         src={awayTeam.logo} 
                                         alt={awayTeam.name} 
@@ -179,7 +193,12 @@ export const MatchDetail = () => {
                                 )}
                             </div>
                             <div className="text-center w-full">
-                                {awayTeam?.id ? (
+                                {isBye ? (
+                                    <>
+                                        <h2 className="text-white font-black text-sm md:text-2xl leading-tight truncate px-1">BYE</h2>
+                                        <span className="text-gray-400 text-[10px] md:text-xs font-bold uppercase tracking-wider">AUTO QUALIFIED</span>
+                                    </>
+                                ) : awayTeam?.id ? (
                                     <Link to={`/teams/${awayTeam.id}`} className="block group/team">
                                         <h2 className="text-white font-black text-sm md:text-2xl leading-tight truncate px-1 group-hover/team:text-sffl-red transition-colors">{awayTeam?.name}</h2>
                                         <span className="text-gray-400 text-[10px] md:text-xs font-bold uppercase tracking-wider">{awayTeam?.short_name}</span>
@@ -224,7 +243,8 @@ export const MatchDetail = () => {
             )}
 
             {/* ── Team Sheets ── */}
-            <div className="bg-white dark:bg-gray-800/80 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/50 overflow-hidden">
+            {!isBye && (
+                <div className="bg-white dark:bg-gray-800/80 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/50 overflow-hidden">
                 <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-700/50 flex items-center justify-between">
                     <h3 className="text-xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">Team Sheets</h3>
                     {hasTeamSheet && (
@@ -344,7 +364,8 @@ export const MatchDetail = () => {
 
                     </div>
                 )}
-            </div>
+                </div>
+            )}
         </div>
     );
 };

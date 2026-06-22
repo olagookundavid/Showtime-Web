@@ -2,8 +2,8 @@ import { MainHeroCarousel } from '../components/MainHeroCarousel';
 import { HeroCarousel } from '../components/HeroCarousel';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { useRef, useEffect } from 'react';
-import { getMatches, getNews, getEventDayByDate } from '../services/api';
+import { useRef } from 'react';
+import { getMatches, getNews } from '../services/api';
 import { CompactMatchCard } from '../components/matches/CompactMatchCard';
 import { Loader } from '../components/ui/Loader';
 import { ArrowRightIcon } from '@heroicons/react/24/outline';
@@ -11,11 +11,6 @@ import { TOTWWidget } from '../components/widgets/TOTWWidget';
 import { LightboxImage } from '../components/ui/LightboxImage';
 
 export const LandingPage = () => {
-    const { data: finishedMatchesData, isLoading: loadingFinished } = useQuery({
-        queryKey: ['publicMatches', 'FINISHED', 5],
-        queryFn: () => getMatches(undefined, 1, 5, 'FINISHED'),
-    });
-
     const { data: scheduledMatchesData, isLoading: loadingScheduled } = useQuery({
         queryKey: ['publicMatches', 'SCHEDULED', 5],
         queryFn: () => getMatches(undefined, 1, 5, 'SCHEDULED'),
@@ -31,7 +26,6 @@ export const LandingPage = () => {
         queryFn: () => getNews(1, 6),
     });
 
-    const resultsRef = useRef<HTMLDivElement>(null);
     const scheduledRef = useRef<HTMLDivElement>(null);
 
     const scrollLeft = (ref: React.RefObject<HTMLDivElement | null>) => {
@@ -42,130 +36,13 @@ export const LandingPage = () => {
         ref.current?.scrollBy({ left: 320, behavior: 'smooth' });
     };
 
-    const latestResults = finishedMatchesData?.data || [];
     const upcomingMatches = scheduledMatchesData?.data || [];
     const latestNote = newsData?.data?.[0] || null;
     const teamNews = teamNewsData?.data || [];
 
-    // Latest finished match drives the competition+week strip above the carousel
-    // and the "View All" destination, so users land on the same competition they
-    // were just looking at.
-    const latestMatch = latestResults[0];
-    const latestMatchDate = latestMatch?.date?.substring(0, 10);
-    const { data: latestEventDay } = useQuery({
-        queryKey: ['publicEventDayForLatest', latestMatchDate],
-        queryFn: () => getEventDayByDate(latestMatchDate!),
-        enabled: !!latestMatchDate,
-        retry: false,
-        staleTime: 60_000,
-    });
-    const latestWeekLabel = latestEventDay?.title || (latestMatchDate
-        ? new Date(latestMatch!.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-        : '');
-    const resultsViewAllHref = latestMatch?.competition?.id
-        ? `/matches?comp=${latestMatch.competition.id}`
-        : '/matches';
-
-    useEffect(() => {
-        if (latestResults.length <= 1) return;
-        
-        const interval = setInterval(() => {
-            if (resultsRef.current) {
-                const maxScrollLeft = resultsRef.current.scrollWidth - resultsRef.current.clientWidth;
-                if (resultsRef.current.scrollLeft >= maxScrollLeft - 10) {
-                    resultsRef.current.scrollTo({ left: 0, behavior: 'smooth' });
-                } else {
-                    resultsRef.current.scrollBy({ left: 280, behavior: 'smooth' });
-                }
-            }
-        }, 5000);
-
-        return () => clearInterval(interval);
-    }, [latestResults]);
 
     return (
         <div className="space-y-6 md:space-y-12 pt-4">
-            {/* Latest Results */}
-            <section className="px-1">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-lg md:text-4xl font-black italic text-sffl-navy dark:text-white transition-colors duration-300">
-                        LATEST <span className="text-sffl-red">RESULTS</span>
-                    </h2>
-                    <div className="flex items-center gap-3 md:gap-4">
-                        <a 
-                            href="https://www.youtube.com/@ShowtimeFlagFootball" 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1.5 md:gap-2 bg-[#FF0000] hover:bg-[#CC0000] text-white text-[10px] md:text-xs font-black uppercase tracking-wider px-2.5 py-1.5 md:px-4 md:py-2 rounded-full shadow-lg transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer"
-                        >
-                            <svg className="w-3.5 h-3.5 md:w-4 md:h-4 fill-current" viewBox="0 0 24 24">
-                                <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816-.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 4-8 4z"/>
-                            </svg>
-                            <span>Watch Highlights</span>
-                        </a>
-                        <Link to={resultsViewAllHref} className="text-sffl-red text-xs md:text-sm font-semibold hover:underline">View All &rarr;</Link>
-                    </div>
-                </div>
-
-                {loadingFinished ? (
-                    <Loader />
-                ) : latestResults.length > 0 ? (
-                    <div className="relative group px-2 md:px-4">
-                        {/* Left Arrow */}
-                        <button 
-                            onClick={() => scrollLeft(resultsRef)}
-                            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-sffl-navy dark:bg-gray-800 hover:bg-sffl-red dark:hover:bg-sffl-red text-white p-1.5 md:p-2.5 rounded-full shadow-xl transition-all duration-300 flex items-center justify-center cursor-pointer border-2 border-white/20"
-                        >
-                            <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                            </svg>
-                        </button>
-
-                        <div 
-                            ref={resultsRef}
-                            className="flex overflow-x-auto gap-4 pb-4 snap-x snap-mandatory no-scrollbar -mx-1 px-1"
-                        >
-                            {latestResults.map(match => (
-                                <CompactMatchCard key={match.id} match={match} hideHeaderAndVenue={true} />
-                            ))}
-                        </div>
-
-                        {/* Right Arrow */}
-                        <button
-                            onClick={() => scrollRight(resultsRef)}
-                            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-sffl-navy dark:bg-gray-800 hover:bg-sffl-red dark:hover:bg-sffl-red text-white p-1.5 md:p-2.5 rounded-full shadow-xl transition-all duration-300 flex items-center justify-center cursor-pointer border-2 border-white/20"
-                        >
-                            <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                        </button>
-                    </div>
-                ) : (
-                    <div className="flex flex-col items-center justify-center py-16 bg-gradient-to-br from-sffl-navy/5 to-sffl-red/5 dark:from-sffl-navy/30 dark:to-sffl-red/10 rounded-3xl border-2 border-dashed border-sffl-navy/10 dark:border-gray-700">
-                        <span className="text-5xl mb-4">🏈</span>
-                        <h3 className="text-xl font-black italic text-sffl-navy dark:text-white tracking-tight">NO RECENT RESULTS</h3>
-                        <p className="text-gray-500 dark:text-gray-400 font-medium mt-2 text-sm">Results will be posted here right after game day.</p>
-                    </div>
-                )}
-
-                {/* Compact competition + week strip — sits directly under the carousel */}
-                {latestMatch?.competition && (
-                    <div className="flex items-center gap-2 px-1 md:px-2 text-xs md:text-sm">
-                        <span className="font-black uppercase tracking-tight text-sffl-navy dark:text-white truncate">
-                            {latestMatch.competition.name}
-                        </span>
-                        {latestWeekLabel && (
-                            <>
-                                <span className="text-gray-300 dark:text-gray-600">·</span>
-                                <span className="italic font-semibold text-gray-500 dark:text-gray-400 truncate">
-                                    {latestWeekLabel}
-                                </span>
-                            </>
-                        )}
-                    </div>
-                )}
-            </section>
-
             {/* Hero Carousel Section */}
             <section className="px-1">
                 <MainHeroCarousel />

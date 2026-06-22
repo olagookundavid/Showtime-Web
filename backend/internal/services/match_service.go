@@ -123,12 +123,21 @@ func (s *MatchService) advanceWinnerDepth(ctx context.Context, matchID string, d
 	}
 
 	var winner *string
-	if m.Status == domain.MatchStatusFinished && m.HomeScore != nil && m.AwayScore != nil {
-		switch {
-		case *m.HomeScore > *m.AwayScore && m.HomeTeamID != "":
-			winner = &m.HomeTeamID
-		case *m.AwayScore > *m.HomeScore && m.AwayTeamID != "":
-			winner = &m.AwayTeamID
+	if m.Status == domain.MatchStatusFinished {
+		isBye := (m.HomeTeamID != "" && m.AwayTeamID == "") || (m.HomeTeamID == "" && m.AwayTeamID != "")
+		if isBye {
+			if m.HomeTeamID != "" {
+				winner = &m.HomeTeamID
+			} else {
+				winner = &m.AwayTeamID
+			}
+		} else if m.HomeScore != nil && m.AwayScore != nil {
+			switch {
+			case *m.HomeScore > *m.AwayScore && m.HomeTeamID != "":
+				winner = &m.HomeTeamID
+			case *m.AwayScore > *m.HomeScore && m.AwayTeamID != "":
+				winner = &m.AwayTeamID
+			}
 		}
 	}
 	if err := s.repo.SetMatchSlot(ctx, *m.FeedsMatchID, m.FeedsSlot, winner); err != nil {
@@ -377,6 +386,10 @@ func (s *MatchService) GenerateBracket(ctx context.Context, competitionID string
 	mkMatch := func(level int, home, away string, parentID *string, slot string) (string, error) {
 		posCounter[level]++
 		pos := posCounter[level]
+		status := domain.MatchStatusScheduled
+		if level == 0 && (home == "" || away == "") && (home != "" || away != "") {
+			status = domain.MatchStatusFinished
+		}
 		m := &domain.Match{
 			CompetitionID: competitionID,
 			HomeTeamID:    home,
@@ -384,7 +397,7 @@ func (s *MatchService) GenerateBracket(ctx context.Context, competitionID string
 			Date:          baseDate.AddDate(0, 0, 7*level), // one week per round; admin adjusts later
 			StartTime:     startTime,
 			Venue:         req.Venue,
-			Status:        domain.MatchStatusScheduled,
+			Status:        status,
 			Round:         labels[level],
 			BracketPos:    &pos,
 			FeedsMatchID:  parentID,
@@ -405,9 +418,11 @@ func (s *MatchService) GenerateBracket(ctx context.Context, competitionID string
 		if span == 1 {
 			en := req.Entries[lo]
 			if en.Bye {
-				// No first-round game: the team goes straight into its
-				// next-round slot.
 				teamID := en.TeamID
+				_, err := mkMatch(0, teamID, "", parentID, slot)
+				if err != nil {
+					return err
+				}
 				return s.repo.SetMatchSlot(ctx, *parentID, slot, &teamID)
 			}
 			_, err := mkMatch(0, en.HomeTeamID, en.AwayTeamID, parentID, slot)
@@ -471,7 +486,8 @@ func (s *MatchService) CreateMatch(ctx context.Context, match *domain.Match) err
 		return fmt.Errorf("competition is completed and cannot be modified")
 	}
 
-	if match.Status == domain.MatchStatusFinished && (match.HomeScore == nil || match.AwayScore == nil) {
+	isBye := knockout && (match.HomeTeamID == "" || match.AwayTeamID == "")
+	if match.Status == domain.MatchStatusFinished && !isBye && (match.HomeScore == nil || match.AwayScore == nil) {
 		return fmt.Errorf("home and away scores are required for finished matches")
 	}
 	if err := s.validateKnockoutMatch(ctx, match, knockout); err != nil {
@@ -501,7 +517,8 @@ func (s *MatchService) UpdateMatch(ctx context.Context, match *domain.Match) err
 		return fmt.Errorf("competition is completed and cannot be modified")
 	}
 
-	if match.Status == domain.MatchStatusFinished && (match.HomeScore == nil || match.AwayScore == nil) {
+	isBye := knockout && (match.HomeTeamID == "" || match.AwayTeamID == "")
+	if match.Status == domain.MatchStatusFinished && !isBye && (match.HomeScore == nil || match.AwayScore == nil) {
 		return fmt.Errorf("home and away scores are required for finished matches")
 	}
 	if err := s.validateKnockoutMatch(ctx, match, knockout); err != nil {

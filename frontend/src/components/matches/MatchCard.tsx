@@ -12,6 +12,9 @@ interface MatchCardProps {
 export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
     const isFinished = match.status === 'FINISHED';
     const isLive = match.status === 'LIVE';
+    const isBye = match.competition?.format === 'KNOCKOUT' &&
+        ((match.home_team?.id && !match.away_team?.id && match.status === 'FINISHED') ||
+         (!match.home_team?.id && match.away_team?.id && match.status === 'FINISHED'));
 
     const formatDate = (dateString: string) => {
         const options: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: 'numeric' };
@@ -35,13 +38,15 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
 
     return (
         <div
-            onClick={onClick}
-            className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden border border-gray-100 dark:border-gray-700 group"
+            onClick={isBye ? undefined : onClick}
+            className={`bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden group ${
+                isBye ? 'cursor-default' : 'hover:shadow-xl transition-all duration-300 cursor-pointer hover:border-blue-500/50'
+            }`}
         >
             {/* Header: Date/Time or Status */}
             <div className={`p-2.5 md:p-3 text-center text-[10px] md:text-sm font-bold uppercase tracking-wider ${isLive ? 'bg-sffl-red text-white animate-pulse' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-white'}`}>
                 {match.round && <span className="mr-2 px-1.5 py-0.5 rounded bg-sffl-navy/80 text-white text-[9px] md:text-xs">{match.round}</span>}
-                {isLive ? 'LIVE NOW' : isFinished ? 'Final Score' : `${formatDate(match.date)} • ${formatTime(match.start_time, match.date)}`}
+                {isLive ? 'LIVE NOW' : isBye ? 'PLAYOFF BYE' : isFinished ? 'Final Score' : `${formatDate(match.date)} • ${formatTime(match.start_time, match.date)}`}
             </div>
 
             {/* Teams & Score - Condensed for Density */}
@@ -68,7 +73,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
 
                 {/* Score vs VS */}
                 <div className="flex flex-col items-center justify-center w-1/3">
-                    {isFinished || isLive ? (
+                    {(isFinished || isLive) && !isBye ? (
                         <div className="text-base md:text-4xl font-black text-sffl-navy dark:text-white whitespace-nowrap">
                             {match.home_score} - {match.away_score}
                         </div>
@@ -80,7 +85,9 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
 
                 {/* Away Team */}
                 <div className="flex items-center justify-end gap-1.5 w-1/3 text-right">
-                    {match.away_team?.id ? (
+                    {isBye ? (
+                        <span className="font-bold text-[10px] md:text-sm text-gray-400 dark:text-gray-500 italic leading-tight truncate uppercase">BYE</span>
+                    ) : match.away_team?.id ? (
                         <Link
                             to={`/teams/${match.away_team.id}`}
                             onClick={(e) => e.stopPropagation()}
@@ -92,15 +99,15 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
                         <span className="font-bold text-[10px] md:text-sm text-gray-400 dark:text-gray-500 italic leading-tight truncate uppercase">TBD</span>
                     )}
                     <LightboxImage
-                        src={match.away_team?.logo || 'https://via.placeholder.com/60'}
-                        alt={match.away_team?.name}
+                        src={isBye ? '/images/default_football.png' : (match.away_team?.logo || 'https://via.placeholder.com/60')}
+                        alt={isBye ? 'BYE' : (match.away_team?.name || 'BYE')}
                         thumbnailClassName="w-6 h-6 md:w-16 md:h-16 object-contain rounded-md"
                     />
                 </div>
             </div>
 
             {/* Footer Actions - Compact */}
-            {(!isFinished || (isFinished && match.highlights_url)) && (
+            {(!isFinished || (isFinished && match.highlights_url)) && !isBye && (
                 <div className="p-2 md:p-4 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row justify-center gap-1.5 md:gap-3 bg-gray-50 dark:bg-gray-700/50">
                     {isFinished ? (
                         <button
