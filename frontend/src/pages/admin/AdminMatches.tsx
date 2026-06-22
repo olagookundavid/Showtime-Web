@@ -111,7 +111,7 @@ export const AdminMatches = () => {
     const competitions: Competition[] = (compsData?.data || []).filter(c => c.status !== 'inactive');
     const selectedCompData = competitions.find(c => c.id === filterComp);
     const isCompleted = selectedCompData?.status === 'completed';
-    const formComp = competitions.find(c => c.id === form.competition_id);
+    const formComp = (compsData?.data || []).find(c => c.id === form.competition_id);
     const formIsKnockout = formComp?.format === 'KNOCKOUT';
     const bracketTargets: Match[] = (bracketMatchesData?.data || []).filter(m => m.id !== editingId);
 
@@ -150,9 +150,8 @@ export const AdminMatches = () => {
         console.log('Editing match:', m);
         setEditingId(m.id);
 
-        // Smart lookup for IDs if they are missing but names are present
         const compId = m.competition?.id || (m as any).competition_id ||
-            competitions.find(c => c.name === m.competition?.name)?.id || '';
+            (compsData?.data || []).find(c => c.name === m.competition?.name)?.id || '';
 
         const homeId = m.home_team?.id || (m as any).home_team_id ||
             teams.find(t => t.name === m.home_team?.name)?.id || '';
@@ -473,7 +472,7 @@ export const AdminMatches = () => {
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Competition *</label>
                                     <select value={form.competition_id} onChange={e => set('competition_id', e.target.value)} className="w-full min-h-[44px] z-50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-sffl-red">
                                         <option value="" className="truncate">Select...</option>
-                                        {competitions.map(c => <option key={c.id} value={c.id} className="truncate">{c.name}</option>)}
+                                        {(compsData?.data || []).filter(c => c.status !== 'inactive' || c.id === form.competition_id).map(c => <option key={c.id} value={c.id} className="truncate">{c.name}</option>)}
                                     </select>
                                 </div>
                                 <div>

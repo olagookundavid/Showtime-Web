@@ -205,7 +205,7 @@ func (h *MatchHandler) CreateMatch(c *gin.Context) {
 
 	// Validation: Finished matches must have scores (except knockout byes where one team is empty)
 	if match.Status == domain.MatchStatusFinished {
-		isBye := match.HomeTeamID == "" || match.AwayTeamID == ""
+		isBye := (match.HomeTeamID != "" && match.AwayTeamID == "") || (match.HomeTeamID == "" && match.AwayTeamID != "")
 		if !isBye && (match.HomeScore == nil || match.AwayScore == nil) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Home and Away scores must be provided for finished matches"})
 			return
@@ -281,7 +281,7 @@ func (h *MatchHandler) UpdateMatch(c *gin.Context) {
 
 	// Validation: Finished matches must have scores (except knockout byes where one team is empty)
 	if match.Status == domain.MatchStatusFinished {
-		isBye := match.HomeTeamID == "" || match.AwayTeamID == ""
+		isBye := (match.HomeTeamID != "" && match.AwayTeamID == "") || (match.HomeTeamID == "" && match.AwayTeamID != "")
 		if !isBye && (match.HomeScore == nil || match.AwayScore == nil) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Home and Away scores must be provided when finishing a match"})
 			return

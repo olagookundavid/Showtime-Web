@@ -115,13 +115,13 @@ export const MatchDetail = () => {
                     <div className="flex items-center justify-between gap-2 md:gap-8">
                         {/* Home */}
                         <div className="flex flex-col items-center gap-3 flex-1 min-w-0">
-                            <div className="w-16 h-16 md:w-28 md:h-28 bg-white rounded-full overflow-hidden shadow-xl ring-4 ring-white/10 flex-shrink-0">
+                            <div className="w-16 h-16 md:w-28 md:h-28 bg-white rounded-full overflow-hidden shadow-xl ring-4 ring-white/10 flex-shrink-0 flex items-center justify-center">
                                 {homeTeam?.logo ? (
                                     <LightboxImage 
                                         src={homeTeam.logo} 
                                         alt={homeTeam.name} 
                                         thumbnailClassName="w-full h-full"
-                                        imgClassName="w-full h-full object-cover"
+                                        imgClassName="w-full h-full object-contain p-2 md:p-4"
                                     />
                                 ) : (
                                     <div className="w-full h-full bg-gray-200 flex items-center justify-center text-lg font-black text-gray-500">
@@ -184,7 +184,7 @@ export const MatchDetail = () => {
                                         src={awayTeam.logo} 
                                         alt={awayTeam.name} 
                                         thumbnailClassName="w-full h-full"
-                                        imgClassName="w-full h-full object-cover"
+                                        imgClassName="w-full h-full object-contain p-2 md:p-4"
                                     />
                                 ) : (
                                     <div className="w-full h-full bg-gray-200 flex items-center justify-center text-lg font-black text-gray-500">

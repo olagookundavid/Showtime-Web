@@ -486,7 +486,7 @@ func (s *MatchService) CreateMatch(ctx context.Context, match *domain.Match) err
 		return fmt.Errorf("competition is completed and cannot be modified")
 	}
 
-	isBye := knockout && (match.HomeTeamID == "" || match.AwayTeamID == "")
+	isBye := knockout && ((match.HomeTeamID != "" && match.AwayTeamID == "") || (match.HomeTeamID == "" && match.AwayTeamID != ""))
 	if match.Status == domain.MatchStatusFinished && !isBye && (match.HomeScore == nil || match.AwayScore == nil) {
 		return fmt.Errorf("home and away scores are required for finished matches")
 	}
@@ -509,6 +509,18 @@ func (s *MatchService) CreateMatch(ctx context.Context, match *domain.Match) err
 }
 
 func (s *MatchService) UpdateMatch(ctx context.Context, match *domain.Match) error {
+	existing, err := s.repo.GetMatchByID(ctx, match.ID)
+	if err != nil {
+		return err
+	}
+	if existing == nil {
+		return fmt.Errorf("match not found")
+	}
+
+	if match.CompetitionID == "" {
+		match.CompetitionID = existing.CompetitionID
+	}
+
 	completed, knockout, err := s.competitionState(ctx, match.CompetitionID)
 	if err != nil {
 		return err
@@ -517,7 +529,7 @@ func (s *MatchService) UpdateMatch(ctx context.Context, match *domain.Match) err
 		return fmt.Errorf("competition is completed and cannot be modified")
 	}
 
-	isBye := knockout && (match.HomeTeamID == "" || match.AwayTeamID == "")
+	isBye := knockout && ((match.HomeTeamID != "" && match.AwayTeamID == "") || (match.HomeTeamID == "" && match.AwayTeamID != ""))
 	if match.Status == domain.MatchStatusFinished && !isBye && (match.HomeScore == nil || match.AwayScore == nil) {
 		return fmt.Errorf("home and away scores are required for finished matches")
 	}
