@@ -3,6 +3,8 @@
 *.dll
 *.so
 *.dylib
+/main
+
 
 # Test binaries
 *_test

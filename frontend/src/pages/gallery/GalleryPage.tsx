@@ -32,12 +32,10 @@ export const GalleryPage = () => {
         ? competitions.find(c => c.playoff_competition_id === selectedCompetitionId)
         : null;
 
-    const dropdownComps = leagueComps.slice();
-    if (selectedComp && selectedComp.format === 'KNOCKOUT') {
-        if (!dropdownComps.some(c => c.id === selectedComp.id)) {
-            dropdownComps.push(selectedComp);
-        }
-    }
+    const isCurrentPlayoff = selectedComp?.format === 'KNOCKOUT';
+    const dropdownComps = isCurrentPlayoff
+        ? competitions.filter(c => c.format === 'KNOCKOUT')
+        : leagueComps;
 
     // Default to the competition of the most recent match so the gallery lands
     // on the currently-active stage instead of just the newest competition row.

@@ -12,10 +12,27 @@ export const MatchHub = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const compParam = searchParams.get('comp');
     const teamParam = searchParams.get('team');
-    const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>('');
-    const [statusFilter, setStatusFilter] = useState<'ALL' | 'LIVE' | 'FINISHED' | 'SCHEDULED'>('ALL');
+
+    // Load persisted filters from sessionStorage
+    const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>(() => {
+        return sessionStorage.getItem('sffl_matches_comp') || '';
+    });
+    const [statusFilter, setStatusFilter] = useState<'ALL' | 'LIVE' | 'FINISHED' | 'SCHEDULED'>(() => {
+        return (sessionStorage.getItem('sffl_matches_status') as any) || 'ALL';
+    });
     const [collapsedDates, setCollapsedDates] = useState<Record<string, boolean>>({});
     const navigate = useNavigate();
+
+    // Persist filters to sessionStorage on change
+    useEffect(() => {
+        if (selectedCompetitionId) {
+            sessionStorage.setItem('sffl_matches_comp', selectedCompetitionId);
+        }
+    }, [selectedCompetitionId]);
+
+    useEffect(() => {
+        sessionStorage.setItem('sffl_matches_status', statusFilter);
+    }, [statusFilter]);
 
     // When the page is opened via /matches?team=X (e.g. from a Team Hub
     // quick-link), look up the team so we can label the active filter.
@@ -54,12 +71,10 @@ export const MatchHub = () => {
         ? competitions.find(c => c.playoff_competition_id === selectedCompetitionId)
         : null;
 
-    const dropdownComps = leagueComps.slice();
-    if (selectedComp && selectedComp.format === 'KNOCKOUT') {
-        if (!dropdownComps.some(c => c.id === selectedComp.id)) {
-            dropdownComps.push(selectedComp);
-        }
-    }
+    const isCurrentPlayoff = selectedComp?.format === 'KNOCKOUT';
+    const dropdownComps = isCurrentPlayoff
+        ? competitions.filter(c => c.format === 'KNOCKOUT')
+        : leagueComps;
 
     // Anchor the default selection to the most recent match's competition
     // rather than competitions[0] (which is sorted by created_at and can look
@@ -76,13 +91,22 @@ export const MatchHub = () => {
     // match; finally fall back to the first active competition. After seeding
     // we never override the user's manual dropdown choice.
     useEffect(() => {
-        if (competitions.length === 0 || selectedCompetitionId) return;
+        if (competitions.length === 0) return;
+
+        // If URL has a specific compParam, always prioritize it
+        if (compParam && competitions.some(c => c.id === compParam)) {
+            if (selectedCompetitionId !== compParam) {
+                setSelectedCompetitionId(compParam);
+            }
+            return;
+        }
+
+        // Otherwise, if we already have a selected competition, do nothing
+        if (selectedCompetitionId) return;
 
         const timer = setTimeout(() => {
             let initialCompId = '';
-            if (compParam && competitions.some(c => c.id === compParam)) {
-                initialCompId = compParam;
-            } else if (latestMatchFetched) {
+            if (latestMatchFetched) {
                 if (latestMatchCompetitionId && competitions.some(c => c.id === latestMatchCompetitionId)) {
                     initialCompId = latestMatchCompetitionId;
                 } else {
@@ -368,7 +392,7 @@ export const MatchHub = () => {
                 </div>
 
                 {/* Right Column: Standings or Bracket (1/3 width) — sticky sidebar */}
-                <div className="lg:col-span-1 lg:sticky lg:top-[90px] self-start space-y-6">
+                <div className="hidden lg:block lg:col-span-1 lg:sticky lg:top-[90px] self-start space-y-6">
                     {isKnockout ? (
                         <div className="space-y-6">
                             <BracketView

@@ -10,6 +10,7 @@ interface NavbarProps {
 export const Navbar = ({ onMoreClick }: NavbarProps) => {
     const [aboutDropdownOpen, setAboutDropdownOpen] = useState(false);
     const [storeDropdownOpen, setStoreDropdownOpen] = useState(false);
+    const [statsDropdownOpen, setStatsDropdownOpen] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [mobileStoreOpen, setMobileStoreOpen] = useState(false);
     const { isAuthenticated, user, logout } = useAuth();
@@ -17,6 +18,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
     const navigate = useNavigate();
     const dropdownTimeoutRef = useRef<number | null>(null);
     const storeTimeoutRef = useRef<number | null>(null);
+    const statsTimeoutRef = useRef<number | null>(null);
 
     useEffect(() => {
         if (mobileMenuOpen) {
@@ -55,6 +57,19 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
         }, 200);
     };
 
+    const handleStatsEnter = () => {
+        if (statsTimeoutRef.current) {
+            clearTimeout(statsTimeoutRef.current);
+        }
+        setStatsDropdownOpen(true);
+    };
+
+    const handleStatsLeave = () => {
+        statsTimeoutRef.current = setTimeout(() => {
+            setStatsDropdownOpen(false);
+        }, 200);
+    };
+
     const handleLogout = () => {
         logout();
         navigate('/');
@@ -80,7 +95,28 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                         <Link to="/matches" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105">Matches</Link>
                         <Link to="/standings" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105">Standings</Link>
                         <Link to="/teams" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105">Teams</Link>
-                        <Link to="/stats" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105">Stats</Link>
+                        {/* Stats Dropdown */}
+                        <div 
+                            className="relative group"
+                            onMouseEnter={handleStatsEnter}
+                            onMouseLeave={handleStatsLeave}
+                        >
+                            <Link to="/stats" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105 flex items-center gap-1 uppercase">
+                                Stats
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </Link>
+
+                            {statsDropdownOpen && (
+                                <div className="absolute top-full left-0 w-48 z-50 pt-2">
+                                    <div className="bg-white dark:bg-gray-800 text-sffl-navy dark:text-white rounded-lg shadow-2xl py-2 normal-case font-bold text-sm border border-gray-200 dark:border-gray-700">
+                                        <Link to="/stats?tab=players" className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors font-bold">Player Stats</Link>
+                                        <Link to="/stats?tab=teams" className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors font-bold">Team Stats</Link>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                         <Link to="/news" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105">News</Link>
                         <Link to="/gallery" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105">Gallery</Link>
                         

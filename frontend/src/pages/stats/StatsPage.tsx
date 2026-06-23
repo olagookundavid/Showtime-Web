@@ -13,11 +13,14 @@ export const StatsPage = () => {
     const urlPlayerId = searchParams.get('player_id');
     const urlSearch = searchParams.get('search');
     const urlTeam = searchParams.get('team');
+    const urlTab = searchParams.get('tab');
 
     const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>(urlComp || '');
     const [selectedDate, setSelectedDate] = useState<string>(urlDate || '');
     const [searchQuery, setSearchQuery] = useState(urlSearch || '');
-    const [activeTab, setActiveTab] = useState<'players' | 'teams'>('players');
+    const [activeTab, setActiveTab] = useState<'players' | 'teams'>(
+        urlTab === 'teams' ? 'teams' : 'players'
+    );
     const [page, setPage] = useState(1);
     const [sortBy, setSortBy] = useState('');
     const [showLegend, setShowLegend] = useState(false);
@@ -32,6 +35,9 @@ export const StatsPage = () => {
         setActiveTab(tab);
         setSortBy('');
         setPage(1);
+        const params = new URLSearchParams(searchParams);
+        params.set('tab', tab);
+        setSearchParams(params, { replace: true });
     };
 
     // Sync state with URL params when they change
@@ -39,7 +45,10 @@ export const StatsPage = () => {
         if (urlComp && urlComp !== selectedCompetitionId) setSelectedCompetitionId(urlComp);
         if (urlDate && urlDate !== selectedDate) setSelectedDate(urlDate);
         if (urlSearch && urlSearch !== searchQuery) setSearchQuery(urlSearch);
-    }, [urlComp, urlDate, urlSearch]);
+        
+        // Robust tab sync (defaults to 'players' if urlTab is not explicitly 'teams')
+        setActiveTab(urlTab === 'teams' ? 'teams' : 'players');
+    }, [urlComp, urlDate, urlSearch, urlTab]);
 
     const { data: competitionsData, isLoading: compLoading } = useQuery({
         queryKey: ['publicCompetitions'],
@@ -61,12 +70,10 @@ export const StatsPage = () => {
         ? competitions.find(c => c.playoff_competition_id === selectedCompetitionId)
         : null;
 
-    const dropdownComps = leagueComps.slice();
-    if (selectedComp && selectedComp.format === 'KNOCKOUT') {
-        if (!dropdownComps.some(c => c.id === selectedComp.id)) {
-            dropdownComps.push(selectedComp);
-        }
-    }
+    const isCurrentPlayoff = selectedComp?.format === 'KNOCKOUT';
+    const dropdownComps = isCurrentPlayoff
+        ? competitions.filter(c => c.format === 'KNOCKOUT')
+        : leagueComps;
 
     const handleCompChange = (compId: string) => {
         setSelectedCompetitionId(compId);
@@ -202,8 +209,24 @@ export const StatsPage = () => {
                         </div>
                     </div>
 
-                    <div className="w-full sm:w-auto flex flex-col md:flex-row md:items-end gap-3">
-                        <div className="flex-1 min-w-[200px]">
+                    <div className="w-full sm:w-auto flex flex-col gap-2 justify-end">
+                        <button
+                            onClick={() => handleCompChange(linkedPlayoff ? linkedPlayoff.id : parentLeague!.id)}
+                            className={`px-4 py-2 bg-sffl-red text-white font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap text-xs w-full ${
+                                (linkedPlayoff || parentLeague) ? 'visible opacity-100' : 'invisible opacity-0 pointer-events-none'
+                            }`}
+                        >
+                            {linkedPlayoff ? (
+                                <>
+                                    <span>🏆</span> Switch to Playoffs
+                                </>
+                            ) : (
+                                <>
+                                    <span>←</span> Back to Season
+                                </>
+                            )}
+                        </button>
+                        <div className="min-w-[200px]">
                             <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">Competition</label>
                             <select
                                 value={selectedCompetitionId}
@@ -218,22 +241,6 @@ export const StatsPage = () => {
                                 ))}
                             </select>
                         </div>
-                        {(linkedPlayoff || parentLeague) && (
-                            <button
-                                onClick={() => handleCompChange(linkedPlayoff ? linkedPlayoff.id : parentLeague!.id)}
-                                className="px-4 py-2 h-[38px] bg-sffl-red text-white font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap text-xs w-full sm:w-auto"
-                            >
-                                {linkedPlayoff ? (
-                                    <>
-                                        <span>🏆</span> Switch to Playoffs
-                                    </>
-                                ) : (
-                                    <>
-                                        <span>←</span> Back to Season
-                                    </>
-                                )}
-                            </button>
-                        )}
                     </div>
 
                     <div className={`w-full sm:w-auto transition-opacity duration-300 ${!selectedCompetitionId ? 'opacity-40' : 'opacity-100'}`}>

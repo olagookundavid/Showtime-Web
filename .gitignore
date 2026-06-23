@@ -15,6 +15,7 @@ coverage
 .env
 .env.*
 # Delve debug binaries (VS Code Go extension)
+backend/main
 
 # Throwaway historical-import tooling — script + generated reports + python cache.
 # This folder will be deleted once the historical backfill is finished.

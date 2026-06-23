@@ -109,7 +109,7 @@ export default function Home() {
                     <h2 className="text-4xl font-black italic tracking-tighter text-sffl-navy dark:text-white transition-colors duration-300">
                         <span className="text-sffl-red mr-3 shadow-md">●</span> LATEST RESULTS
                     </h2>
-                    <Link to="/matches" className="text-sffl-red dark:text-red-400 font-bold hover:underline py-2.5 px-5 rounded-full flex items-center min-h-[44px] bg-white/30 dark:bg-white/5 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-white/10 active:scale-95 transition-all duration-300 border border-black/5 dark:border-white/5">
+                    <Link to="/matches" className="hidden sm:flex text-sffl-red dark:text-red-400 font-bold hover:underline py-2.5 px-5 rounded-full items-center min-h-[44px] bg-white/30 dark:bg-white/5 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-white/10 active:scale-95 transition-all duration-300 border border-black/5 dark:border-white/5">
                         View All <span className="ml-2">→</span>
                     </Link>
                 </div>

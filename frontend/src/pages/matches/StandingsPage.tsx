@@ -7,11 +7,19 @@ import { StandingsTable } from '../../components/matches/StandingsTable';
 import { BracketView } from '../../components/matches/BracketView';
 
 export const StandingsPage = () => {
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const compParam = searchParams.get('comp');
     const teamParam = searchParams.get('team');
-    const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>('');
+    const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>(() => {
+        return sessionStorage.getItem('sffl_standings_comp') || '';
+    });
     const [showLegend, setShowLegend] = useState(false);
+
+    useEffect(() => {
+        if (selectedCompetitionId) {
+            sessionStorage.setItem('sffl_standings_comp', selectedCompetitionId);
+        }
+    }, [selectedCompetitionId]);
 
     const { data: competitionsData, isLoading: compLoading } = useQuery({
         queryKey: ['publicCompetitions'],
@@ -33,12 +41,10 @@ export const StandingsPage = () => {
         ? competitions.find(c => c.playoff_competition_id === selectedCompetitionId)
         : null;
 
-    const dropdownComps = leagueComps.slice();
-    if (selectedComp && selectedComp.format === 'KNOCKOUT') {
-        if (!dropdownComps.some(c => c.id === selectedComp.id)) {
-            dropdownComps.push(selectedComp);
-        }
-    }
+    const isCurrentPlayoff = selectedComp?.format === 'KNOCKOUT';
+    const dropdownComps = isCurrentPlayoff
+        ? competitions.filter(c => c.format === 'KNOCKOUT')
+        : leagueComps;
 
     // Pick the competition of the most recent match so the default lands on
     // the currently-running stage (regular season → playoffs → bowl) instead
@@ -51,21 +57,44 @@ export const StandingsPage = () => {
     const latestMatchCompetitionId = latestMatchPage?.data?.[0]?.competition?.id;
 
     useEffect(() => {
-        if (competitions.length === 0 || selectedCompetitionId) return;
+        if (competitions.length === 0) return;
 
         if (compParam && competitions.some(c => c.id === compParam)) {
-            setSelectedCompetitionId(compParam);
+            if (selectedCompetitionId !== compParam) {
+                setSelectedCompetitionId(compParam);
+            }
             return;
         }
 
+        if (selectedCompetitionId) return;
+
         if (!latestMatchFetched) return;
 
-        if (latestMatchCompetitionId && competitions.some(c => c.id === latestMatchCompetitionId)) {
-            setSelectedCompetitionId(latestMatchCompetitionId);
-        } else {
-            setSelectedCompetitionId(leagueComps[0]?.id || competitions[0]?.id);
-        }
-    }, [competitions, selectedCompetitionId, compParam, latestMatchFetched, latestMatchCompetitionId]);
+        const timer = setTimeout(() => {
+            let initialCompId = '';
+            if (latestMatchCompetitionId && competitions.some(c => c.id === latestMatchCompetitionId)) {
+                initialCompId = latestMatchCompetitionId;
+            } else {
+                initialCompId = leagueComps[0]?.id || competitions[0]?.id;
+            }
+
+            if (initialCompId) {
+                setSelectedCompetitionId(initialCompId);
+                const params = new URLSearchParams(searchParams);
+                params.set('comp', initialCompId);
+                setSearchParams(params, { replace: true });
+            }
+        }, 0);
+
+        return () => clearTimeout(timer);
+    }, [competitions, selectedCompetitionId, compParam, latestMatchFetched, latestMatchCompetitionId, leagueComps, searchParams, setSearchParams]);
+
+    const handleCompetitionChange = (compId: string) => {
+        setSelectedCompetitionId(compId);
+        const params = new URLSearchParams(searchParams);
+        params.set('comp', compId);
+        setSearchParams(params, { replace: true });
+    };
 
     // When arriving with ?team=X, scroll the highlighted row into the viewport
     // so the user can see their team immediately even if the table is long.
@@ -111,7 +140,7 @@ export const StandingsPage = () => {
                             <div className="relative">
                                 <select
                                     value={selectedCompetitionId}
-                                    onChange={(e) => setSelectedCompetitionId(e.target.value)}
+                                    onChange={(e) => handleCompetitionChange(e.target.value)}
                                     className="w-full appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm cursor-pointer hover:bg-white/20 transition-colors"
                                 >
                                     {dropdownComps.map((c: any) => (
@@ -129,7 +158,7 @@ export const StandingsPage = () => {
                         </div>
                         {(linkedPlayoff || parentLeague) && (
                             <button
-                                onClick={() => setSelectedCompetitionId(linkedPlayoff ? linkedPlayoff.id : parentLeague!.id)}
+                                onClick={() => handleCompetitionChange(linkedPlayoff ? linkedPlayoff.id : parentLeague!.id)}
                                 className="px-4 py-2 h-[38px] bg-sffl-red text-white font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap text-xs"
                             >
                                 {linkedPlayoff ? (

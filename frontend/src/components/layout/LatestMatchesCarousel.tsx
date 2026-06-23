@@ -60,13 +60,13 @@ export const LatestMatchesCarousel = () => {
 
     return (
         <div className="w-full bg-sffl-navy border-b border-white/10 dark:bg-black relative select-none">
-            <div className="max-w-shell mx-auto relative px-8 flex flex-col justify-center">
+            <div className="max-w-shell mx-auto relative px-2 sm:px-8 flex flex-col justify-center">
                 {/* Row 1: Scrollable Matches (Height increased by 60%) */}
                 <div className="relative flex items-center h-[76px] w-full">
                     {/* Left Arrow */}
                     <button
                         onClick={scrollLeft}
-                        className="absolute left-1 md:left-2 top-1/2 -translate-y-1/2 z-20 bg-white/10 hover:bg-sffl-red hover:scale-105 text-white p-1 rounded-full shadow-lg transition-all duration-300 flex items-center justify-center cursor-pointer"
+                        className="hidden sm:flex absolute left-1 md:left-2 top-1/2 -translate-y-1/2 z-20 bg-white/10 hover:bg-sffl-red hover:scale-105 text-white p-1 rounded-full shadow-lg transition-all duration-300 items-center justify-center cursor-pointer"
                         aria-label="Scroll left"
                     >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -75,7 +75,7 @@ export const LatestMatchesCarousel = () => {
                     </button>
 
                     {/* Left Blur/Fade Overlay */}
-                    <div className="absolute left-0 top-0 bottom-0 w-8 md:w-16 bg-gradient-to-r from-sffl-navy dark:from-black to-transparent pointer-events-none z-10" />
+                    <div className="hidden sm:block absolute left-0 top-0 bottom-0 w-8 md:w-16 bg-gradient-to-r from-sffl-navy dark:from-black to-transparent pointer-events-none z-10" />
 
                     {/* Scroll Container */}
                     <div
@@ -98,18 +98,16 @@ export const LatestMatchesCarousel = () => {
                                                     <img 
                                                         src={match.home_team.logo} 
                                                         alt={match.home_team.name} 
-                                                        className="w-5 h-5 object-contain rounded"
+                                                        className="w-5 h-5 object-contain"
                                                     />
                                                 ) : (
-                                                    <div className="w-5 h-5 bg-white/10 rounded flex items-center justify-center text-[8px] text-white">H</div>
+                                                    <span className="w-5 h-5 bg-white/10 rounded flex items-center justify-center text-[10px] text-gray-400">T1</span>
                                                 )}
-                                                <span className="text-[11px] font-bold text-gray-200 dark:text-gray-100 truncate uppercase group-hover:text-white transition-colors">
-                                                    {match.home_team?.short_name || match.home_team?.name}
-                                                </span>
+                                                <span className="font-bold text-[11px] md:text-xs text-white truncate">{match.home_team?.name}</span>
                                             </div>
-                                            <span className="text-[11px] font-extrabold text-white">
-                                                {match.home_score ?? 0}
-                                            </span>
+                                            {match.status === 'FINISHED' && (
+                                                <span className="font-black text-[11px] md:text-xs text-white/90">{match.home_score}</span>
+                                            )}
                                         </div>
                                         {/* Away Team */}
                                         <div className="flex items-center justify-between gap-1.5 min-w-0">
@@ -118,30 +116,24 @@ export const LatestMatchesCarousel = () => {
                                                     <img 
                                                         src={match.away_team.logo} 
                                                         alt={match.away_team.name} 
-                                                        className="w-5 h-5 object-contain rounded"
+                                                        className="w-5 h-5 object-contain"
                                                     />
                                                 ) : (
-                                                    <div className="w-5 h-5 bg-white/10 rounded flex items-center justify-center text-[8px] text-white">A</div>
+                                                    <span className="w-5 h-5 bg-white/10 rounded flex items-center justify-center text-[10px] text-gray-400">T2</span>
                                                 )}
-                                                <span className="text-[11px] font-bold text-gray-200 dark:text-gray-100 truncate uppercase group-hover:text-white transition-colors">
-                                                    {match.away_team?.short_name || match.away_team?.name}
-                                                </span>
+                                                <span className="font-bold text-[11px] md:text-xs text-white truncate">{match.away_team?.name}</span>
                                             </div>
-                                            <span className="text-[11px] font-extrabold text-white">
-                                                {match.away_score ?? 0}
-                                            </span>
+                                            {match.status === 'FINISHED' && (
+                                                <span className="font-black text-[11px] md:text-xs text-white/90">{match.away_score}</span>
+                                            )}
                                         </div>
                                     </div>
-
-                                    {/* Divider and status */}
-                                    <div className="border-l border-white/10 pl-2.5 ml-1 flex flex-col justify-center items-center text-[8px] font-black tracking-widest min-w-[42px] shrink-0 text-right">
-                                        <span className={isLive ? 'text-sffl-red animate-pulse' : 'text-gray-400 dark:text-gray-500'}>
-                                            {isLive ? 'LIVE' : 'FINAL'}
-                                        </span>
-                                        {!isLive && match.date && (
-                                            <span className="text-[7.5px] text-gray-500 font-bold mt-0.5 whitespace-nowrap">
-                                                {new Date(match.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                                            </span>
+                                    {/* Action Column */}
+                                    <div className="flex flex-col items-end justify-center min-w-[50px] pl-2 border-l border-white/10">
+                                        {isLive ? (
+                                            <span className="bg-sffl-red text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded animate-pulse">LIVE</span>
+                                        ) : (
+                                            <span className="text-[8px] md:text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">{match.status}</span>
                                         )}
                                     </div>
                                 </Link>
@@ -150,12 +142,12 @@ export const LatestMatchesCarousel = () => {
                     </div>
 
                     {/* Right Blur/Fade Overlay */}
-                    <div className="absolute right-0 top-0 bottom-0 w-8 md:w-16 bg-gradient-to-l from-sffl-navy dark:from-black to-transparent pointer-events-none z-10" />
+                    <div className="hidden sm:block absolute right-0 top-0 bottom-0 w-8 md:w-16 bg-gradient-to-l from-sffl-navy dark:from-black to-transparent pointer-events-none z-10" />
 
                     {/* Right Arrow */}
                     <button
                         onClick={scrollRight}
-                        className="absolute right-1 md:right-2 top-1/2 -translate-y-1/2 z-20 bg-white/10 hover:bg-sffl-red hover:scale-105 text-white p-1 rounded-full shadow-lg transition-all duration-300 flex items-center justify-center cursor-pointer"
+                        className="hidden sm:flex absolute right-1 md:right-2 top-1/2 -translate-y-1/2 z-20 bg-white/10 hover:bg-sffl-red hover:scale-105 text-white p-1 rounded-full shadow-lg transition-all duration-300 items-center justify-center cursor-pointer"
                         aria-label="Scroll right"
                     >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -165,27 +157,34 @@ export const LatestMatchesCarousel = () => {
                 </div>
 
                 {/* Row 2: Sleek integrated bottom bar (No vertical space) */}
-                <div className="flex items-center justify-between border-t border-white/5 py-1.5 px-4 w-full">
-                    <div className="flex items-center gap-2">
-                        <span className="text-[9px] md:text-[10px] font-black tracking-widest text-white/95 uppercase">
+                <div className="flex items-center justify-between border-t border-white/5 py-1.5 px-2 sm:px-4 w-full">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-[7.5px] sm:text-[9px] md:text-[10px] font-black tracking-widest text-white/95 uppercase whitespace-nowrap">
                             LATEST RESULTS
                         </span>
                         {latestMatch?.competition && (
                             <>
-                                <span className="text-white/20 text-[9px]">•</span>
-                                <span className="text-[8px] md:text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                                <span className="text-white/20 text-[7px] sm:text-[9px]">•</span>
+                                <span className="text-[6.5px] sm:text-[8px] md:text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider truncate max-w-[150px] sm:max-w-none">
                                     {latestMatch.competition.name}
-                                    {latestMatch.date && ` · ${new Date(latestMatch.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`}
                                 </span>
+                                {latestMatch.date && (
+                                    <>
+                                        <span className="text-white/20 text-[7px] sm:text-[9px]">•</span>
+                                        <span className="text-[6.5px] sm:text-[8px] md:text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                                            {new Date(latestMatch.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                        </span>
+                                    </>
+                                )}
                             </>
                         )}
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 flex-shrink-0">
                         <a 
                             href="https://www.youtube.com/@ShowtimeFlagFootball" 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className="flex items-center gap-1 bg-[#FF0000] hover:bg-[#CC0000] text-white text-[8px] md:text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded shadow-sm transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer"
+                            className="flex items-center gap-1 bg-[#FF0000] hover:bg-[#CC0000] text-white text-[7.5px] sm:text-[8.5px] md:text-[9px] font-black uppercase tracking-wider px-3.5 py-1 rounded shadow-sm transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer whitespace-nowrap"
                         >
                             <svg className="w-2.5 h-2.5 fill-current" viewBox="0 0 24 24">
                                 <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816-.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 4-8 4z"/>
@@ -194,7 +193,7 @@ export const LatestMatchesCarousel = () => {
                         </a>
                         <Link 
                             to={resultsViewAllHref} 
-                            className="text-[8px] md:text-[9px] font-black uppercase tracking-wider text-sffl-red hover:text-white transition-colors"
+                            className="hidden sm:inline text-[7.5px] sm:text-[8.5px] md:text-[9px] font-black uppercase tracking-wider text-sffl-red hover:text-white transition-colors"
                         >
                             View All &rarr;
                         </Link>
