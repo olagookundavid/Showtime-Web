@@ -295,11 +295,12 @@ export const TicketsPage = () => {
 
             {/* Purchase Modal */}
             {selectedTier && selectedEventDay && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full p-8 shadow-2xl animate-in">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 overflow-y-auto flex items-start justify-center p-4 md:p-6">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full p-6 md:p-8 shadow-2xl animate-in my-auto">
                         <h3 className="text-2xl font-black text-sffl-navy dark:text-white mb-4">
                             Purchase Tickets
                         </h3>
+
 
                         <div className="space-y-4 mb-6">
                             {/* Event Info */}
