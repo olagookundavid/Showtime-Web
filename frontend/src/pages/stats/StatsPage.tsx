@@ -15,12 +15,21 @@ export const StatsPage = () => {
     const urlTeam = searchParams.get('team');
     const urlTab = searchParams.get('tab');
 
-    const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>(urlComp || '');
-    const [selectedDate, setSelectedDate] = useState<string>(urlDate || '');
-    const [searchQuery, setSearchQuery] = useState(urlSearch || '');
-    const [activeTab, setActiveTab] = useState<'players' | 'teams'>(
-        urlTab === 'teams' ? 'teams' : 'players'
-    );
+    const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>(() => {
+        return urlComp || sessionStorage.getItem('sffl_stats_comp') || '';
+    });
+    const [selectedDate, setSelectedDate] = useState<string>(() => {
+        return urlDate || sessionStorage.getItem('sffl_stats_date') || '';
+    });
+    const [searchQuery, setSearchQuery] = useState(() => {
+        return urlSearch || sessionStorage.getItem('sffl_stats_search') || '';
+    });
+    const [activeTab, setActiveTab] = useState<'players' | 'teams'>(() => {
+        const storedTab = sessionStorage.getItem('sffl_stats_tab');
+        if (urlTab === 'teams' || urlTab === 'players') return urlTab;
+        if (storedTab === 'teams' || storedTab === 'players') return storedTab;
+        return 'players';
+    });
     const [page, setPage] = useState(1);
     const [sortBy, setSortBy] = useState('');
     const [showLegend, setShowLegend] = useState(false);
@@ -40,15 +49,61 @@ export const StatsPage = () => {
         setSearchParams(params, { replace: true });
     };
 
-    // Sync state with URL params when they change
+    // Persist filters to sessionStorage on change
+    useEffect(() => {
+        sessionStorage.setItem('sffl_stats_comp', selectedCompetitionId);
+    }, [selectedCompetitionId]);
+
+    useEffect(() => {
+        sessionStorage.setItem('sffl_stats_date', selectedDate);
+    }, [selectedDate]);
+
+    useEffect(() => {
+        sessionStorage.setItem('sffl_stats_search', searchQuery);
+    }, [searchQuery]);
+
+    useEffect(() => {
+        sessionStorage.setItem('sffl_stats_tab', activeTab);
+    }, [activeTab]);
+
+    // Sync state with URL params when they change (e.g. back button / direct navigation)
     useEffect(() => {
         if (urlComp && urlComp !== selectedCompetitionId) setSelectedCompetitionId(urlComp);
-        if (urlDate && urlDate !== selectedDate) setSelectedDate(urlDate);
-        if (urlSearch && urlSearch !== searchQuery) setSearchQuery(urlSearch);
+        if (urlDate !== null && urlDate !== selectedDate) setSelectedDate(urlDate);
+        if (urlSearch !== null && urlSearch !== searchQuery) setSearchQuery(urlSearch);
         
-        // Robust tab sync (defaults to 'players' if urlTab is not explicitly 'teams')
-        setActiveTab(urlTab === 'teams' ? 'teams' : 'players');
+        const targetTab = urlTab === 'teams' ? 'teams' : 'players';
+        if (urlTab && targetTab !== activeTab) {
+            setActiveTab(targetTab);
+        }
     }, [urlComp, urlDate, urlSearch, urlTab]);
+
+    // Sync restored/default state back to URL parameters if they are missing
+    useEffect(() => {
+        const params = new URLSearchParams(searchParams);
+        let updated = false;
+
+        if (selectedCompetitionId && !params.has('comp')) {
+            params.set('comp', selectedCompetitionId);
+            updated = true;
+        }
+        if (selectedDate && !params.has('date')) {
+            params.set('date', selectedDate);
+            updated = true;
+        }
+        if (searchQuery && !params.has('search')) {
+            params.set('search', searchQuery);
+            updated = true;
+        }
+        if (activeTab && !params.has('tab')) {
+            params.set('tab', activeTab);
+            updated = true;
+        }
+
+        if (updated) {
+            setSearchParams(params, { replace: true });
+        }
+    }, [selectedCompetitionId, selectedDate, searchQuery, activeTab, searchParams, setSearchParams]);
 
     const { data: competitionsData, isLoading: compLoading } = useQuery({
         queryKey: ['publicCompetitions'],
@@ -77,6 +132,7 @@ export const StatsPage = () => {
 
     const handleCompChange = (compId: string) => {
         setSelectedCompetitionId(compId);
+        setSelectedDate('');
         const params = new URLSearchParams(searchParams);
         if (compId) params.set('comp', compId);
         else params.delete('comp');
@@ -89,18 +145,6 @@ export const StatsPage = () => {
         queryFn: () => getStatDates(selectedCompetitionId),
     });
     const statDates = datesData || [];
-
-
-
-    // Reset date to 'All' when competition changes
-    useEffect(() => {
-        if (selectedCompetitionId) {
-            setSelectedDate('');
-            const params = new URLSearchParams(searchParams);
-            params.delete('date');
-            setSearchParams(params, { replace: true });
-        }
-    }, [selectedCompetitionId]);
 
     // Default to 'All' (empty string) instead of first date
     useEffect(() => {

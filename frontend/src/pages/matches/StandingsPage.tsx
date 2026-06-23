@@ -66,7 +66,14 @@ export const StandingsPage = () => {
             return;
         }
 
-        if (selectedCompetitionId) return;
+        if (selectedCompetitionId) {
+            if (!compParam) {
+                const params = new URLSearchParams(searchParams);
+                params.set('comp', selectedCompetitionId);
+                setSearchParams(params, { replace: true });
+            }
+            return;
+        }
 
         if (!latestMatchFetched) return;
 
