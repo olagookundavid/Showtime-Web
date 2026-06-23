@@ -457,6 +457,87 @@ If you didn't request this, you can safely ignore this email. Someone may have e
 </html>`, otpCode)
 }
 
+// BuildReferralEmail generates a premium ticket referral code confirmation email
+func BuildReferralEmail(name, code, referralLink string) string {
+	return fmt.Sprintf(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IT'S SHOWTIME — Your Referral Code</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f0f2f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="background-color: #f0f2f5; padding: 40px 20px;">
+<tr>
+<td align="center">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
+
+`+brandHeader()+`
+
+<!-- Hero Banner -->
+<tr>
+<td style="background: linear-gradient(135deg, #0f172a 0%%, #1e293b 50%%, #0f172a 100%%); padding: 36px 40px 28px; text-align: center;">
+<h1 style="color: #ffffff; font-size: 26px; font-weight: 700; margin: 16px 0 6px;">Your Referral Code is Ready!</h1>
+<p style="color: `+sfflRed+`; font-size: 14px; font-weight: 600; margin: 0;">SHARE AND EARN 🏈</p>
+</td>
+</tr>
+
+<!-- Greeting -->
+<tr>
+<td style="padding: 32px 40px 0;">
+<p style="color: #334155; font-size: 16px; font-weight: 700; margin: 0 0 12px;">Hi %s,</p>
+<p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0;">
+Thank you for joining the ShowTime Flag Football League referral program. Share your code or referral link with friends and colleagues to earn payouts when they buy tickets!
+</p>
+</td>
+</tr>
+
+<!-- Referral Code Card -->
+<tr>
+<td style="padding: 24px 40px 8px;">
+<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #0f172a 0%%, #1e293b 100%%); border-radius: 12px; overflow: hidden; border: 2px solid `+sfflRed+`;">
+<tr>
+<td style="padding: 28px; text-align: center;">
+<p style="color: `+sfflRed+`; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; margin: 0 0 10px;">🎫 Your Referral Code</p>
+<p style="color: #ffffff; font-size: 32px; font-weight: 800; letter-spacing: 4px; margin: 0; font-family: 'Courier New', monospace;">%s</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<!-- Referral Link Card -->
+<tr>
+<td style="padding: 8px 40px 24px;">
+<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+<tr>
+<td style="padding: 20px; text-align: center;">
+<p style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; margin: 0 0 8px;">🔗 Your Unique Referral Link</p>
+<p style="margin: 0 0 16px;"><a href="%s" target="_blank" style="color: `+sfflRed+`; font-size: 14px; font-weight: 700; word-break: break-all; text-decoration: none;">%s</a></p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="display: inline-table; margin: 0 auto;">
+<tr>
+<td style="background-color: `+sfflRed+`; border-radius: 8px;">
+<a href="%s" target="_blank" style="display: inline-block; padding: 12px 24px; color: #ffffff; font-size: 14px; font-weight: 700; text-decoration: none; border-radius: 8px;">Get Tickets Using Link</a>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+`+brandFooter()+`
+
+</table>
+</td>
+</tr>
+</table>
+</body>
+</html>`, name, code, referralLink, referralLink, referralLink)
+}
+
+
 // formatNaira formats an integer amount to a comma-separated string
 func formatNaira(amount int) string {
 	s := fmt.Sprintf("%d", amount)

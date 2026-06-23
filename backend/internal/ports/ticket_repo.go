@@ -47,6 +47,10 @@ type TicketRepository interface {
 	GetTotalTicketsSold(ctx context.Context) (int, error)
 	GetRecentSales(ctx context.Context, limit int) ([]domain.Ticket, error)
 	CountByTeamAndEventDay(ctx context.Context, teamID string, eventDayID string) (int, error)
+	CreateReferralCode(ctx context.Context, rc *domain.TicketReferralCode) error
+	GetReferralCode(ctx context.Context, code string) (*domain.TicketReferralCode, error)
+	LookupReferralsByName(ctx context.Context, name string) ([]domain.TicketReferralCode, error)
+	ListReferralStats(ctx context.Context, search string, page int, limit int) ([]domain.ReferralStats, int, error)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -289,8 +293,8 @@ func NewTicketRepository(db *pgxpool.Pool) *PostgresTicketRepository {
 
 func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ticket) error {
 	query := `
-		INSERT INTO tickets (event_day_id, tier_id, email, phone, name, user_id, quantity, unit_price, total_amount, status, paystack_reference, paystack_access_code, ticket_code, team_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+		INSERT INTO tickets (event_day_id, tier_id, email, phone, name, user_id, quantity, unit_price, total_amount, status, paystack_reference, paystack_access_code, ticket_code, team_id, referral_code)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 		ON CONFLICT (paystack_reference) DO NOTHING
 		RETURNING id, created_at, updated_at
 	`
@@ -299,6 +303,7 @@ func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ti
 		ticket.EventDayID, ticket.TierID, ticket.Email, ticket.Phone, ticket.Name, ticket.UserID,
 		ticket.Quantity, ticket.UnitPrice, ticket.TotalAmount, ticket.Status,
 		ticket.PaystackReference, ticket.PaystackAccessCode, ticket.TicketCode, ticket.TeamID,
+		ticket.ReferralCode,
 	).Scan(&ticket.ID, &ticket.CreatedAt, &ticket.UpdatedAt)
 
 	if err != nil {
@@ -312,7 +317,7 @@ func (r *PostgresTicketRepository) GetByID(ctx context.Context, id string) (*dom
 	query := `
 		SELECT t.id, t.event_day_id, t.tier_id, t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
 			t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
-			t.checked_in_at, t.checked_in_by, t.created_at, t.updated_at,
+			t.checked_in_at, t.checked_in_by, t.referral_code, t.created_at, t.updated_at,
 			ed.title, ed.date, ed.venue,
 			tt.name, tt.price
 		FROM tickets t
@@ -327,7 +332,7 @@ func (r *PostgresTicketRepository) GetByReference(ctx context.Context, reference
 	query := `
 		SELECT t.id, t.event_day_id, t.tier_id, t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
 			t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
-			t.checked_in_at, t.checked_in_by, t.created_at, t.updated_at,
+			t.checked_in_at, t.checked_in_by, t.referral_code, t.created_at, t.updated_at,
 			ed.title, ed.date, ed.venue,
 			tt.name, tt.price
 		FROM tickets t
@@ -342,7 +347,7 @@ func (r *PostgresTicketRepository) GetByCode(ctx context.Context, code string) (
 	query := `
 		SELECT t.id, t.event_day_id, t.tier_id, t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
 			t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
-			t.checked_in_at, t.checked_in_by, t.created_at, t.updated_at,
+			t.checked_in_at, t.checked_in_by, t.referral_code, t.created_at, t.updated_at,
 			ed.title, ed.date, ed.venue,
 			tt.name, tt.price
 		FROM tickets t
@@ -363,7 +368,7 @@ func (r *PostgresTicketRepository) scanTicketRow(ctx context.Context, query stri
 		&t.ID, &t.EventDayID, &t.TierID, &t.Email, &t.Phone, &t.Name, &t.UserID,
 		&t.Quantity, &t.UnitPrice, &t.TotalAmount,
 		&t.Status, &t.PaystackReference, &t.PaystackAccessCode, &t.TicketCode, &t.TeamID,
-		&t.CheckedInAt, &t.CheckedInBy, &t.CreatedAt, &t.UpdatedAt,
+		&t.CheckedInAt, &t.CheckedInBy, &t.ReferralCode, &t.CreatedAt, &t.UpdatedAt,
 		&edTitle, &edDate, &edVenue,
 		&tierName, &tierPrice,
 	)
@@ -399,7 +404,7 @@ func (r *PostgresTicketRepository) SearchByEmail(ctx context.Context, email stri
 	query := `
 		SELECT t.id, t.event_day_id, t.tier_id, t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
 			t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
-			t.checked_in_at, t.checked_in_by, t.created_at, t.updated_at,
+			t.checked_in_at, t.checked_in_by, t.referral_code, t.created_at, t.updated_at,
 			ed.title, tt.name
 		FROM tickets t
 		JOIN event_days ed ON t.event_day_id = ed.id
@@ -420,10 +425,9 @@ func (r *PostgresTicketRepository) SearchByEmail(ctx context.Context, email stri
 		var edTitle, tierName string
 		if err := rows.Scan(
 			&t.ID, &t.EventDayID, &t.TierID, &t.Email, &t.Phone, &t.Name, &t.UserID,
-
 			&t.Quantity, &t.UnitPrice, &t.TotalAmount,
 			&t.Status, &t.PaystackReference, &t.PaystackAccessCode, &t.TicketCode, &t.TeamID,
-			&t.CheckedInAt, &t.CheckedInBy, &t.CreatedAt, &t.UpdatedAt,
+			&t.CheckedInAt, &t.CheckedInBy, &t.ReferralCode, &t.CreatedAt, &t.UpdatedAt,
 			&edTitle, &tierName,
 		); err != nil {
 			return nil, err
@@ -491,7 +495,7 @@ func (r *PostgresTicketRepository) List(ctx context.Context, eventDayID string, 
 	dataQuery := `
 		SELECT t.id, t.event_day_id, t.tier_id, t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
 			t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
-			t.checked_in_at, t.checked_in_by, t.created_at, t.updated_at,
+			t.checked_in_at, t.checked_in_by, t.referral_code, t.created_at, t.updated_at,
 			ed.title, tt.name
 		FROM tickets t
 		JOIN event_days ed ON t.event_day_id = ed.id
@@ -527,10 +531,9 @@ func (r *PostgresTicketRepository) List(ctx context.Context, eventDayID string, 
 		var edTitle, tierName string
 		if err := rows.Scan(
 			&t.ID, &t.EventDayID, &t.TierID, &t.Email, &t.Phone, &t.Name, &t.UserID,
-
 			&t.Quantity, &t.UnitPrice, &t.TotalAmount,
 			&t.Status, &t.PaystackReference, &t.PaystackAccessCode, &t.TicketCode, &t.TeamID,
-			&t.CheckedInAt, &t.CheckedInBy, &t.CreatedAt, &t.UpdatedAt,
+			&t.CheckedInAt, &t.CheckedInBy, &t.ReferralCode, &t.CreatedAt, &t.UpdatedAt,
 			&edTitle, &tierName,
 		); err != nil {
 			return nil, 0, err
@@ -580,7 +583,7 @@ func (r *PostgresTicketRepository) GetRecentSales(ctx context.Context, limit int
 	query := `
 		SELECT t.id, t.event_day_id, t.tier_id, t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
 			t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
-			t.checked_in_at, t.checked_in_by, t.created_at, t.updated_at,
+			t.checked_in_at, t.checked_in_by, t.referral_code, t.created_at, t.updated_at,
 			ed.title, tt.name
 		FROM tickets t
 		JOIN event_days ed ON t.event_day_id = ed.id
@@ -601,10 +604,9 @@ func (r *PostgresTicketRepository) GetRecentSales(ctx context.Context, limit int
 		var edTitle, tierName string
 		if err := rows.Scan(
 			&t.ID, &t.EventDayID, &t.TierID, &t.Email, &t.Phone, &t.Name, &t.UserID,
-
 			&t.Quantity, &t.UnitPrice, &t.TotalAmount,
 			&t.Status, &t.PaystackReference, &t.PaystackAccessCode, &t.TicketCode, &t.TeamID,
-			&t.CheckedInAt, &t.CheckedInBy, &t.CreatedAt, &t.UpdatedAt,
+			&t.CheckedInAt, &t.CheckedInBy, &t.ReferralCode, &t.CreatedAt, &t.UpdatedAt,
 			&edTitle, &tierName,
 		); err != nil {
 			return nil, err
@@ -621,4 +623,104 @@ func (r *PostgresTicketRepository) CountByTeamAndEventDay(ctx context.Context, t
 	var count int
 	err := r.db.QueryRow(ctx, query, teamID, eventDayID).Scan(&count)
 	return count, err
+}
+
+func (r *PostgresTicketRepository) CreateReferralCode(ctx context.Context, rc *domain.TicketReferralCode) error {
+	query := `
+		INSERT INTO ticket_referral_codes (code, name, email)
+		VALUES ($1, $2, $3)
+		RETURNING id, created_at, updated_at
+	`
+	return r.db.QueryRow(ctx, query, rc.Code, rc.Name, rc.Email).
+		Scan(&rc.ID, &rc.CreatedAt, &rc.UpdatedAt)
+}
+
+func (r *PostgresTicketRepository) GetReferralCode(ctx context.Context, code string) (*domain.TicketReferralCode, error) {
+	query := `
+		SELECT id, code, name, email, created_at, updated_at
+		FROM ticket_referral_codes
+		WHERE UPPER(code) = UPPER($1)
+	`
+	var rc domain.TicketReferralCode
+	err := r.db.QueryRow(ctx, query, code).Scan(&rc.ID, &rc.Code, &rc.Name, &rc.Email, &rc.CreatedAt, &rc.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &rc, nil
+}
+
+func (r *PostgresTicketRepository) LookupReferralsByName(ctx context.Context, name string) ([]domain.TicketReferralCode, error) {
+	query := `
+		SELECT id, code, name, email, created_at, updated_at
+		FROM ticket_referral_codes
+		WHERE LOWER(name) LIKE LOWER($1)
+		ORDER BY created_at DESC
+	`
+	rows, err := r.db.Query(ctx, query, "%"+name+"%")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []domain.TicketReferralCode
+	for rows.Next() {
+		var rc domain.TicketReferralCode
+		if err := rows.Scan(&rc.ID, &rc.Code, &rc.Name, &rc.Email, &rc.CreatedAt, &rc.UpdatedAt); err != nil {
+			return nil, err
+		}
+		list = append(list, rc)
+	}
+	return list, nil
+}
+
+func (r *PostgresTicketRepository) ListReferralStats(ctx context.Context, search string, page int, limit int) ([]domain.ReferralStats, int, error) {
+	countQuery := `SELECT COUNT(*) FROM ticket_referral_codes WHERE 1=1`
+	var countArgs []interface{}
+	if search != "" {
+		countQuery += ` AND (name ILIKE $1 OR code ILIKE $1)`
+		countArgs = append(countArgs, "%"+search+"%")
+	}
+
+	var total int
+	err := r.db.QueryRow(ctx, countQuery, countArgs...).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	dataQuery := `
+		SELECT tr.id, tr.code, tr.name, tr.email, tr.created_at,
+		       COALESCE(SUM(t.quantity)::integer, 0) AS tickets_sold,
+		       COALESCE(SUM(t.total_amount)::integer, 0) AS total_revenue
+		FROM ticket_referral_codes tr
+		LEFT JOIN tickets t ON t.referral_code = tr.code AND t.status IN ('PAID', 'USED')
+		WHERE 1=1
+	`
+	var dataArgs []interface{}
+	argIdx := 1
+	if search != "" {
+		dataQuery += fmt.Sprintf(" AND (tr.name ILIKE $%d OR tr.code ILIKE $%d)", argIdx, argIdx)
+		dataArgs = append(dataArgs, "%"+search+"%")
+		argIdx++
+	}
+	dataQuery += " GROUP BY tr.id, tr.code, tr.name, tr.email, tr.created_at"
+	dataQuery += " ORDER BY tr.created_at DESC"
+	dataQuery += fmt.Sprintf(" LIMIT $%d OFFSET $%d", argIdx, argIdx+1)
+	dataArgs = append(dataArgs, limit, (page-1)*limit)
+
+	rows, err := r.db.Query(ctx, dataQuery, dataArgs...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var stats []domain.ReferralStats
+	for rows.Next() {
+		var s domain.ReferralStats
+		err := rows.Scan(&s.ID, &s.Code, &s.Name, &s.Email, &s.CreatedAt, &s.TicketsSold, &s.TotalRevenue)
+		if err != nil {
+			return nil, 0, err
+		}
+		stats = append(stats, s)
+	}
+	return stats, total, nil
 }

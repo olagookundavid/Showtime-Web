@@ -3,8 +3,10 @@ package services
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
+
 
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
@@ -40,7 +42,11 @@ type ITicketService interface {
 	AdminCheckin(ctx context.Context, id string, checkedInBy string) error
 	List(ctx context.Context, eventDayID string, status string, page int, limit int) ([]dto.TicketResponse, int, error)
 	ExpirePastTickets(ctx context.Context) error
+	CreateReferralCode(ctx context.Context, req dto.CreateReferralRequest) (*dto.ReferralResponse, error)
+	LookupReferralByName(ctx context.Context, name string) ([]dto.ReferralResponse, error)
+	ListReferralStats(ctx context.Context, search string, page int, limit int) ([]dto.ReferralStatsResponse, int, error)
 }
+
 
 type TicketService struct {
 	eventDayRepo ports.EventDayRepository
@@ -310,6 +316,14 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 		authURL = paystackResp.Data.AuthorizationURL
 	}
 
+	var referralCode *string = nil
+	if req.ReferralCode != nil && *req.ReferralCode != "" {
+		rc, err := s.ticketRepo.GetReferralCode(ctx, *req.ReferralCode)
+		if err == nil && rc != nil {
+			referralCode = &rc.Code
+		}
+	}
+
 	// 6. Create ticket with collision protection
 	var ticket *domain.Ticket
 	maxRetries := 5
@@ -329,7 +343,9 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 			PaystackReference:  paystackRef,
 			PaystackAccessCode: paystackAccessCode,
 			TicketCode:         GenerateTicketCode(),
+			ReferralCode:       referralCode,
 		}
+
 
 		if err := s.ticketRepo.Create(ctx, ticket); err != nil {
 			// Check if it's a unique constraint violation on ticket_code
@@ -668,6 +684,11 @@ func ticketToResponse(t *domain.Ticket) *dto.TicketResponse {
 		CreatedAt:   t.CreatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 
+	if t.ReferralCode != nil {
+		res.ReferralCode = *t.ReferralCode
+	}
+
+
 	if t.PaystackReference != nil {
 		res.PaystackReference = *t.PaystackReference
 	}
@@ -695,3 +716,110 @@ func ticketToResponse(t *domain.Ticket) *dto.TicketResponse {
 func (s *TicketService) generateTicketCode() string {
 	return GenerateTicketCode()
 }
+
+func (s *TicketService) CreateReferralCode(ctx context.Context, req dto.CreateReferralRequest) (*dto.ReferralResponse, error) {
+	var code string
+	maxRetries := 10
+	var lastErr error
+
+	for i := 0; i < maxRetries; i++ {
+		code = GenerateReferralCode()
+
+		// Check if code already exists
+		existing, err := s.ticketRepo.GetReferralCode(ctx, code)
+		if err == nil && existing != nil {
+			continue // collision, retry
+		}
+
+		rc := &domain.TicketReferralCode{
+			Code:  code,
+			Name:  req.Name,
+			Email: req.Email,
+		}
+
+		if err := s.ticketRepo.CreateReferralCode(ctx, rc); err != nil {
+			if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "unique") {
+				lastErr = err
+				continue
+			}
+			return nil, fmt.Errorf("failed to create referral code: %w", err)
+		}
+
+		// Success!
+		lastErr = nil
+
+		// Send email if address is provided
+		if req.Email != nil && *req.Email != "" && s.email != nil {
+			emailAddr := *req.Email
+			name := req.Name
+			codeCopy := code
+			_ = SubmitJob(func() {
+				frontendURL := os.Getenv("FRONTEND_URL")
+				if frontendURL == "" {
+					frontendURL = "http://localhost:5173"
+				}
+				referralLink := fmt.Sprintf("%s/tickets?ref=%s", frontendURL, codeCopy)
+
+				subject := "SFFL Referral Code Generated! 🏈"
+				body := email.BuildReferralEmail(name, codeCopy, referralLink)
+				if err := s.email.SendEmail(emailAddr, subject, body); err != nil {
+					fmt.Printf("Failed to send referral email to %s: %v\n", emailAddr, err)
+				}
+			})
+		}
+
+		return &dto.ReferralResponse{
+			ID:        rc.ID,
+			Code:      rc.Code,
+			Name:      rc.Name,
+			Email:     rc.Email,
+			CreatedAt: rc.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		}, nil
+	}
+
+	if lastErr != nil {
+		return nil, fmt.Errorf("failed to generate unique referral code: %w", lastErr)
+	}
+	return nil, fmt.Errorf("failed to generate unique referral code after %d attempts", maxRetries)
+}
+
+func (s *TicketService) LookupReferralByName(ctx context.Context, name string) ([]dto.ReferralResponse, error) {
+	list, err := s.ticketRepo.LookupReferralsByName(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+
+	responses := []dto.ReferralResponse{}
+	for _, rc := range list {
+		responses = append(responses, dto.ReferralResponse{
+			ID:        rc.ID,
+			Code:      rc.Code,
+			Name:      rc.Name,
+			Email:     rc.Email,
+			CreatedAt: rc.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		})
+	}
+	return responses, nil
+}
+
+func (s *TicketService) ListReferralStats(ctx context.Context, search string, page int, limit int) ([]dto.ReferralStatsResponse, int, error) {
+	stats, total, err := s.ticketRepo.ListReferralStats(ctx, search, page, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	responses := []dto.ReferralStatsResponse{}
+	for _, rs := range stats {
+		responses = append(responses, dto.ReferralStatsResponse{
+			ID:           rs.ID,
+			Code:         rs.Code,
+			Name:         rs.Name,
+			Email:        rs.Email,
+			TicketsSold:  rs.TicketsSold,
+			TotalRevenue: rs.TotalRevenue,
+			CreatedAt:    rs.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		})
+	}
+	return responses, total, nil
+}
+

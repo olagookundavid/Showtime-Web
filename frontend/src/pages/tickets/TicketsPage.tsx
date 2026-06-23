@@ -37,6 +37,7 @@ export const TicketsPage = () => {
     const [email, setEmail] = useState('');
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
+    const [referralCode, setReferralCode] = useState('');
     const [useAccountEmail, setUseAccountEmail] = useState(false);
     const [userProfile, setUserProfile] = useState<AuthUser | null>(null);
     const [purchasing, setPurchasing] = useState(false);
@@ -80,6 +81,14 @@ export const TicketsPage = () => {
         }
     }, [useAccountEmail, userProfile]);
 
+    // Sync referral code from URL if present
+    useEffect(() => {
+        const refParam = searchParams.get('ref');
+        if (refParam) {
+            setReferralCode(refParam);
+        }
+    }, [searchParams]);
+
     const handlePurchase = async () => {
         if (!selectedEventDay || !selectedTier || !email || !name) {
             setError('Full Name and Email are required');
@@ -96,6 +105,7 @@ export const TicketsPage = () => {
                 name,
                 phone,
                 quantity,
+                referral_code: referralCode.trim() || undefined,
             };
 
             const result = await purchaseTicket(payload);
@@ -165,11 +175,21 @@ export const TicketsPage = () => {
             </div>
 
             {fellBackFromMissingDate && (
-                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 p-4 rounded-xl text-sm">
-                    <strong className="font-bold">No event found for {dateParam}.</strong>{' '}
-                    Showing all upcoming events instead.
-                </div>
-            )}
+                  <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 p-4 rounded-xl text-sm">
+                      <strong className="font-bold">No event found for {dateParam}.</strong>{' '}
+                      Showing all upcoming events instead.
+                  </div>
+              )}
+
+              <div className="bg-gradient-to-r from-red-600/10 to-transparent border border-red-500/20 p-4 rounded-xl flex justify-between items-center gap-4 dark:text-gray-200">
+                  <div>
+                      <h4 className="font-bold text-sm">Earn rewards by inviting friends! 🏈</h4>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Generate a referral code and get payouts for every ticket sold.</p>
+                  </div>
+                  <Link to="/tickets/referrals" className="bg-sffl-red hover:bg-[#A52323] text-white text-xs font-bold px-4 py-2 rounded-lg transition shrink-0">
+                      Get Referral Link
+                  </Link>
+              </div>
 
             {loading ? (
                 <div className="flex justify-center py-16">
@@ -358,6 +378,21 @@ export const TicketsPage = () => {
                                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none"
                                 />
                                 <p className="text-xs text-gray-500 mt-1">We may call you regarding your ticket</p>
+                            </div>
+
+                            {/* Referral Code */}
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                                    Referral Code <span className="text-gray-500 font-normal ml-1">(optional)</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={referralCode}
+                                    onChange={(e) => setReferralCode(e.target.value)}
+                                    placeholder="SFFL-XXXX"
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none uppercase"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">If you were referred, enter the referrer's code</p>
                             </div>
 
                             {/* Quantity */}

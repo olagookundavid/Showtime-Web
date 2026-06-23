@@ -35,7 +35,11 @@ type ITicketHandler interface {
 	AdminCheckin(c *gin.Context)
 	ListTickets(c *gin.Context)
 	SearchByEmail(c *gin.Context)
+	CreateReferralCode(c *gin.Context)
+	LookupReferralByName(c *gin.Context)
+	ListReferralStats(c *gin.Context)
 }
+
 
 type TicketHandler struct {
 	service  services.ITicketService
@@ -440,3 +444,78 @@ func (h *TicketHandler) ListTickets(c *gin.Context) {
 		"total_pages": totalPages,
 	})
 }
+
+// @Summary Create referral code
+// @Tags tickets
+// @Accept json
+// @Produce json
+// @Param request body dto.CreateReferralRequest true "Create referral request"
+// @Success 201 {object} dto.ReferralResponse
+// @Router /api/v1/tickets/referrals [post]
+func (h *TicketHandler) CreateReferralCode(c *gin.Context) {
+	var req dto.CreateReferralRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	resp, err := h.service.CreateReferralCode(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, resp)
+}
+
+// @Summary Lookup referral codes by name
+// @Tags tickets
+// @Produce json
+// @Param name query string true "Referrer name"
+// @Success 200 {array} dto.ReferralResponse
+// @Router /api/v1/tickets/referrals/lookup [get]
+func (h *TicketHandler) LookupReferralByName(c *gin.Context) {
+	name := c.Query("name")
+	if name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "name query parameter is required"})
+		return
+	}
+
+	resp, err := h.service.LookupReferralByName(c.Request.Context(), name)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+// @Summary List referral stats (admin)
+// @Tags tickets
+// @Produce json
+// @Param search query string false "Search name or code"
+// @Param page query int false "Page number"
+// @Param limit query int false "Items per page"
+// @Success 200
+// @Router /api/v1/admin/tickets/referrals [get]
+func (h *TicketHandler) ListReferralStats(c *gin.Context) {
+	search := c.Query("search")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+
+	stats, total, err := h.service.ListReferralStats(c.Request.Context(), search, page, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	totalPages := (total + limit - 1) / limit
+	c.JSON(http.StatusOK, gin.H{
+		"data":        stats,
+		"total":       total,
+		"page":        page,
+		"limit":       limit,
+		"total_pages": totalPages,
+	})
+}
+

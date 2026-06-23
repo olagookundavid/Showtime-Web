@@ -65,6 +65,7 @@ type Ticket struct {
 	TeamID             *string      `json:"team_id,omitempty"`
 	CheckedInAt        *time.Time   `json:"checked_in_at,omitempty"`
 	CheckedInBy        *string      `json:"checked_in_by,omitempty"`
+	ReferralCode       *string      `json:"referral_code,omitempty"`
 	CreatedAt          time.Time    `json:"created_at"`
 	UpdatedAt          time.Time    `json:"updated_at"`
 
@@ -73,3 +74,26 @@ type Ticket struct {
 	Tier     *TicketTier `json:"tier,omitempty"`
 	Team     *Team       `json:"team,omitempty"`
 }
+
+// ─── Ticket Referral Code ──────────────────────────────────────────────────────
+
+type TicketReferralCode struct {
+	ID        string    `json:"id"`
+	Code      string    `json:"code"`
+	Name      string    `json:"name"`
+	Email     *string   `json:"email,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type ReferralStats struct {
+	ID           string    `json:"id"`
+	Code         string    `json:"code"`
+	Name         string    `json:"name"`
+	Email        *string   `json:"email,omitempty"`
+	TicketsSold  int       `json:"tickets_sold"`
+	TotalRevenue int       `json:"total_revenue"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+

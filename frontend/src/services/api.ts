@@ -580,6 +580,7 @@ export interface TicketResponse {
     event_title?: string;
     event_date?: string;
     event_venue?: string;
+    referral_code?: string;
     created_at: string;
 }
 
@@ -590,7 +591,9 @@ export interface PurchaseTicketPayload {
     name: string;
     phone: string;
     quantity: number;
+    referral_code?: string;
 }
+
 
 // Event Day endpoints
 export const getEventDays = async (code?: string): Promise<EventDayResponse[]> => {
@@ -1473,4 +1476,47 @@ export const deleteAdminProductReview = async (id: string): Promise<any> => {
     return response.data;
 };
 
+// ─── Ticket Referrals ────────────────────────────────────────────────────────
+
+export interface CreateReferralPayload {
+    name: string;
+    email?: string;
+}
+
+export interface ReferralResponse {
+    id: string;
+    code: string;
+    name: string;
+    email?: string;
+    created_at: string;
+}
+
+export interface ReferralStatsResponse {
+    id: string;
+    code: string;
+    name: string;
+    email?: string;
+    tickets_sold: number;
+    total_revenue: number;
+    created_at: string;
+}
+
+export const createReferralCode = async (payload: CreateReferralPayload): Promise<ReferralResponse> => {
+    const response = await api.post<ReferralResponse>('/tickets/referrals', payload);
+    return response.data;
+};
+
+export const lookupReferrals = async (name: string): Promise<ReferralResponse[]> => {
+    const response = await api.get<ReferralResponse[]>(`/tickets/referrals/lookup?name=${encodeURIComponent(name)}`);
+    return response.data;
+};
+
+export const adminListReferrals = async (page = 1, limit = 10, search?: string) => {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (search) params.append('search', search);
+    const response = await api.get<PaginatedResponse<ReferralStatsResponse>>(`/admin/tickets/referrals?${params}`);
+    return response.data;
+};
+
 export default api;
+

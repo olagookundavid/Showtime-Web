@@ -62,12 +62,13 @@ type TicketTierResponse struct {
 // ─── Ticket DTOs ──────────────────────────────────────────────────────────────
 
 type PurchaseTicketRequest struct {
-	EventDayID string `json:"event_day_id" binding:"required"`
-	TierID     string `json:"tier_id" binding:"required"`
-	Email      string `json:"email" binding:"required,email"`
-	Name       string `json:"name" binding:"required"`
-	Phone      string `json:"phone"`
-	Quantity   int    `json:"quantity" binding:"required,min=1,max=10"`
+	EventDayID   string  `json:"event_day_id" binding:"required"`
+	TierID       string  `json:"tier_id" binding:"required"`
+	Email        string  `json:"email" binding:"required,email"`
+	Name         string  `json:"name" binding:"required"`
+	Phone        string  `json:"phone"`
+	Quantity     int     `json:"quantity" binding:"required,min=1,max=10"`
+	ReferralCode *string `json:"referral_code,omitempty"`
 }
 
 type TicketResponse struct {
@@ -86,6 +87,7 @@ type TicketResponse struct {
 	CheckedInAt       *string `json:"checked_in_at,omitempty"`
 	CheckedInBy       *string `json:"checked_in_by,omitempty"`
 	AuthorizationURL  string  `json:"authorization_url,omitempty"`
+	ReferralCode      string  `json:"referral_code,omitempty"`
 	// Joined fields
 	TierName   string `json:"tier_name,omitempty"`
 	EventTitle string `json:"event_title,omitempty"`
@@ -97,3 +99,29 @@ type TicketResponse struct {
 type CheckinRequest struct {
 	CheckedInBy string `json:"checked_in_by" binding:"required"`
 }
+
+// ─── Ticket Referral Code DTOs ──────────────────────────────────────────────────
+
+type CreateReferralRequest struct {
+	Name  string  `json:"name" binding:"required"`
+	Email *string `json:"email,omitempty"`
+}
+
+type ReferralResponse struct {
+	ID        string  `json:"id"`
+	Code      string  `json:"code"`
+	Name      string  `json:"name"`
+	Email     *string `json:"email,omitempty"`
+	CreatedAt string  `json:"created_at"`
+}
+
+type ReferralStatsResponse struct {
+	ID           string  `json:"id"`
+	Code         string  `json:"code"`
+	Name         string  `json:"name"`
+	Email        *string `json:"email,omitempty"`
+	TicketsSold  int     `json:"tickets_sold"`
+	TotalRevenue int     `json:"total_revenue"`
+	CreatedAt    string  `json:"created_at"`
+}
+

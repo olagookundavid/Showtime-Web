@@ -219,6 +219,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		ticketsGroup.GET("", app.Handlers.TicketHandler.ListTickets)
 		ticketsGroup.GET("/search", app.Handlers.TicketHandler.SearchByEmail)
 		ticketsGroup.GET("/lookup/:code", app.Handlers.TicketHandler.LookupByCode)
+		ticketsGroup.GET("/referrals", app.Handlers.TicketHandler.ListReferralStats)
 	}
 
 	totwGroup := adminRoutes.Group("/totw")
@@ -349,6 +350,8 @@ func SetupTicketRoutes(r *gin.RouterGroup, app *api.Application) {
 		ticketRoutes.POST("/webhook", app.Handlers.TicketHandler.Webhook)
 		ticketRoutes.POST("/verify/:reference", app.Handlers.TicketHandler.VerifyTicket)
 		ticketRoutes.GET("/:reference", app.Handlers.TicketHandler.GetTicket)
+		ticketRoutes.POST("/referrals", app.Handlers.TicketHandler.CreateReferralCode)
+		ticketRoutes.GET("/referrals/lookup", app.Handlers.TicketHandler.LookupReferralByName)
 	}
 }
 
