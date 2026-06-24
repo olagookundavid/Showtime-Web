@@ -10,7 +10,7 @@ import {
 } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { LightboxImage } from '../../components/ui';
-import { StarIcon, CalendarIcon, TrophyIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import { StarIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import { Link, useSearchParams } from 'react-router-dom';
 
 const GROUP_CONFIG = [
@@ -120,24 +120,28 @@ export const TOTWPage = () => {
                     </p>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-end gap-4 w-full md:w-auto relative z-10">
+                <div className="flex flex-col sm:flex-row items-end gap-3 w-full md:w-auto relative z-10">
                     <div className="flex-1 sm:w-64">
-                        <label className="block text-[10px] font-black uppercase text-gray-400 mb-1 tracking-widest pl-1">Competition</label>
+                        <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">Competition</label>
                         <div className="relative">
-                            <TrophyIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                             <select
                                 value={selectedComp}
                                 onChange={e => setSelectedComp(e.target.value)}
-                                className="w-full bg-white/10 hover:bg-white/20 border border-white/20 text-white pl-10 pr-4 py-3 rounded-2xl font-bold text-sm transition-all outline-none focus:ring-2 focus:ring-sffl-red cursor-pointer"
+                                className="w-full appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm cursor-pointer hover:bg-white/20 transition-colors"
                             >
-                                {dropdownComps.map(c => <option key={c.id} value={c.id} className="text-black">{c.name}</option>)}
+                                {dropdownComps.map(c => <option key={c.id} value={c.id} className="text-black bg-white">{c.name}</option>)}
                             </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-white">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </div>
                         </div>
                     </div>
                     {(linkedPlayoff || parentLeague) && (
                         <button
                             onClick={() => setSelectedComp(linkedPlayoff ? linkedPlayoff.id : parentLeague!.id)}
-                            className="px-5 py-3 h-[46px] bg-sffl-red text-white font-bold rounded-2xl shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap text-xs w-full sm:w-auto"
+                            className="px-4 py-2 h-[38px] bg-sffl-red text-white font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap text-xs md:text-sm w-full sm:w-auto"
                         >
                             {linkedPlayoff ? (
                                 <>
@@ -151,16 +155,15 @@ export const TOTWPage = () => {
                         </button>
                     )}
                     <div className="flex-1 sm:w-48">
-                        <label className="block text-[10px] font-black uppercase text-gray-400 mb-1 tracking-widest pl-1">Match Day</label>
+                        <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">Match Day</label>
                         <div className="relative">
-                            <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                             <select
                                 value={selectedDate}
                                 onChange={e => setSelectedDate(e.target.value)}
-                                className="w-full bg-white/10 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm font-bold text-white focus:ring-2 focus:ring-sffl-red outline-none transition-all appearance-none cursor-pointer hover:bg-white/20"
+                                className="w-full appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm cursor-pointer hover:bg-white/20 transition-colors"
                             >
                                 {dates.map(date => (
-                                    <option key={date} value={date.substring(0, 10)} className="text-gray-900">
+                                    <option key={date} value={date.substring(0, 10)} className="text-black bg-white">
                                         {new Date(date).toLocaleDateString('en-US', { 
                                             weekday: 'long', 
                                             month: 'short', 
@@ -170,6 +173,11 @@ export const TOTWPage = () => {
                                     </option>
                                 ))}
                             </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-white">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </div>
                         </div>
                     </div>
                 </div>

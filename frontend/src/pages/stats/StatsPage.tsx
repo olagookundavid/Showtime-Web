@@ -253,60 +253,74 @@ export const StatsPage = () => {
                         </div>
                     </div>
 
-                    <div className="w-full sm:w-auto flex flex-col gap-2 justify-end">
-                        <button
-                            onClick={() => handleCompChange(linkedPlayoff ? linkedPlayoff.id : parentLeague!.id)}
-                            className={`px-4 py-2 bg-sffl-red text-white font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap text-xs w-full ${
-                                (linkedPlayoff || parentLeague) ? 'visible opacity-100' : 'invisible opacity-0 pointer-events-none'
-                            }`}
-                        >
-                            {linkedPlayoff ? (
-                                <>
-                                    <span>🏆</span> Switch to Playoffs
-                                </>
-                            ) : (
-                                <>
-                                    <span>←</span> Back to Season
-                                </>
-                            )}
-                        </button>
+                    <div className="w-full sm:w-auto flex flex-col sm:flex-row sm:items-end gap-3">
                         <div className="min-w-[200px]">
                             <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">Competition</label>
-                            <select
-                                value={selectedCompetitionId}
-                                onChange={(e) => handleCompChange(e.target.value)}
-                                className="w-full bg-white/10 border border-white/20 text-white p-2 rounded-lg font-bold text-sm cursor-pointer hover:bg-white/20 transition-colors"
-                            >
-                                <option value="" className="text-black bg-white">All Competitions</option>
-                                {dropdownComps.map((c: Competition) => (
-                                    <option key={c.id} value={c.id} className="text-black bg-white">
-                                        {c.name} {c.status && !['active', 'completed'].includes(c.status) ? `[${c.status.toUpperCase()}]` : ''}
-                                    </option>
-                                ))}
-                            </select>
+                            <div className="relative">
+                                <select
+                                    value={selectedCompetitionId}
+                                    onChange={(e) => handleCompChange(e.target.value)}
+                                    className="w-full appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm cursor-pointer hover:bg-white/20 transition-colors"
+                                >
+                                    <option value="" className="text-black bg-white">All Competitions</option>
+                                    {dropdownComps.map((c: Competition) => (
+                                        <option key={c.id} value={c.id} className="text-black bg-white">
+                                            {c.name} {c.status && !['active', 'completed'].includes(c.status) ? `[${c.status.toUpperCase()}]` : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-white">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </div>
+                            </div>
                         </div>
+                        {(linkedPlayoff || parentLeague) && (
+                            <button
+                                onClick={() => handleCompChange(linkedPlayoff ? linkedPlayoff.id : parentLeague!.id)}
+                                className="px-4 py-2 h-[38px] bg-sffl-red text-white font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap text-xs md:text-sm"
+                            >
+                                {linkedPlayoff ? (
+                                    <>
+                                        <span>🏆</span> Switch to Playoffs
+                                    </>
+                                ) : (
+                                    <>
+                                        <span>←</span> Back to Season
+                                    </>
+                                )}
+                            </button>
+                        )}
                     </div>
 
                     <div className={`w-full sm:w-auto transition-opacity duration-300 ${!selectedCompetitionId ? 'opacity-40' : 'opacity-100'}`}>
                         <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">Event Day</label>
-                        <select
-                            value={selectedDate}
-                            onChange={(e) => {
-                                setSelectedDate(e.target.value);
-                                const params = new URLSearchParams(searchParams);
-                                params.set('date', e.target.value);
-                                setSearchParams(params, { replace: true });
-                            }}
-                            disabled={!selectedCompetitionId}
-                            className="bg-white/10 border border-white/20 text-white p-2 rounded-lg font-bold text-sm min-w-full sm:min-w-[160px] cursor-pointer hover:bg-white/20 transition-colors w-full disabled:cursor-not-allowed"
-                        >
-                             <option value="" className="text-black bg-white">All Event Days</option>
-                            {statDates.map((date: string) => (
-                                <option key={date} value={date} className="text-black bg-white">
-                                    {date}
-                                </option>
-                            ))}
-                        </select>
+                        <div className="relative">
+                            <select
+                                value={selectedDate}
+                                onChange={(e) => {
+                                    setSelectedDate(e.target.value);
+                                    const params = new URLSearchParams(searchParams);
+                                    params.set('date', e.target.value);
+                                    setSearchParams(params, { replace: true });
+                                }}
+                                disabled={!selectedCompetitionId}
+                                className="w-full appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm min-w-full sm:min-w-[160px] cursor-pointer hover:bg-white/20 transition-colors disabled:cursor-not-allowed"
+                            >
+                                 <option value="" className="text-black bg-white">All Event Days</option>
+                                {statDates.map((date: string) => (
+                                    <option key={date} value={date} className="text-black bg-white">
+                                        {date}
+                                    </option>
+                                ))}
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-white">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
