@@ -161,7 +161,11 @@ export interface Competition {
 // don't flip XIV above/below XIII at random. Within a season, stages run
 // chronologically: regular season → playoff → bowl. Competitions with no
 // numeral fall to the bottom.
-const ROMAN_VALUES: Record<string, number> = { I: 1, V: 5, X: 10, L: 50, C: 100, D: 500, M: 1000 };
+//
+// The matcher only accepts I/V/X/L (cap at 89) — C/D/M aren't realistic
+// season numbers for a sports league and accepting them mis-parses names like
+// "Community Cup CC" as season 200 (CC = 100 + 100), shoving them to the top.
+const ROMAN_VALUES: Record<string, number> = { I: 1, V: 5, X: 10, L: 50 };
 const romanToInt = (s: string): number => {
     let result = 0;
     for (let i = 0; i < s.length; i++) {
@@ -172,7 +176,7 @@ const romanToInt = (s: string): number => {
     return result;
 };
 const seasonNumberFromName = (name: string): number => {
-    const match = name.match(/\b([IVXLCDM]+)\s*$/i);
+    const match = name.match(/\b([IVXL]+)\s*$/i);
     return match ? romanToInt(match[1].toUpperCase()) : 0;
 };
 const stageOrder = (name: string): number => {

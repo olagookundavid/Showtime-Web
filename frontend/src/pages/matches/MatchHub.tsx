@@ -13,22 +13,16 @@ export const MatchHub = () => {
     const compParam = searchParams.get('comp');
     const teamParam = searchParams.get('team');
 
-    // Load persisted filters from sessionStorage
-    const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>(() => {
-        return sessionStorage.getItem('sffl_matches_comp') || '';
-    });
+    // The competition filter is NOT persisted across visits — we always
+    // recompute the default from the most recent match so users land on the
+    // active stage, not whatever they last picked. The status filter still
+    // persists within the tab since it's a personal preference.
+    const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>('');
     const [statusFilter, setStatusFilter] = useState<'ALL' | 'LIVE' | 'FINISHED' | 'SCHEDULED'>(() => {
         return (sessionStorage.getItem('sffl_matches_status') as any) || 'ALL';
     });
     const [collapsedDates, setCollapsedDates] = useState<Record<string, boolean>>({});
     const navigate = useNavigate();
-
-    // Persist filters to sessionStorage on change
-    useEffect(() => {
-        if (selectedCompetitionId) {
-            sessionStorage.setItem('sffl_matches_comp', selectedCompetitionId);
-        }
-    }, [selectedCompetitionId]);
 
     useEffect(() => {
         sessionStorage.setItem('sffl_matches_status', statusFilter);
