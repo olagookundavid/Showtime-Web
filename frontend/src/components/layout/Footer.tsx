@@ -1,11 +1,16 @@
+import { Link } from 'react-router-dom';
 import { CopyableEmail } from '../common/CopyableEmail';
 
 export const Footer = () => {
     return (
         <footer className="bg-sffl-navy dark:bg-gray-950 text-white p-4 md:p-8 mt-auto border-t border-gray-800 dark:border-gray-700">
-            <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-center md:text-left">
+            {/* Mobile: 1-col stack. Tablet: 2-col grid. Desktop: flex row with
+                space evenly distributed between columns regardless of their
+                content width, so the Branding column's wider wordmark doesn't
+                visually distort the spacing of the link columns. */}
+            <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-8 text-center sm:text-left lg:flex lg:flex-row lg:justify-between lg:items-start">
                 {/* Branding */}
-                <div className="flex flex-col items-center md:items-start text-center md:text-left group cursor-pointer">
+                <div className="flex flex-col items-center sm:items-start group cursor-pointer">
                     <div className="flex items-center gap-2 mb-3 md:mb-4">
                         <img
                             src="https://images.leaguerepublic.com/data/images/738010788/107.png"
@@ -21,19 +26,31 @@ export const Footer = () => {
                     </p>
                 </div>
 
-                {/* Links */}
+                {/* About — who/what Showtime is */}
                 <div className="flex flex-col space-y-1 md:space-y-2">
-                    <h4 className="font-bold uppercase text-sffl-red text-xs md:text-base mb-1 md:mb-2 tracking-widest">League</h4>
-                    <a href="/about/rules" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Official Rules</a>
-                    <a href="/about/arena" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Showtime Arena</a>
-                    <a href="/about/faq" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">FAQs</a>
+                    <h4 className="font-bold uppercase text-sffl-red text-xs md:text-base mb-1 md:mb-2 tracking-widest">About</h4>
+                    <Link to="/about/showtime-flag" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">About Showtime</Link>
+                    <Link to="/about/our-team" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Our Team</Link>
+                    <Link to="/about/arena" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Showtime Arena</Link>
+                    <Link to="/about/education" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Education</Link>
+                    <Link to="/about/sponsorships" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Sponsorships</Link>
+                </div>
+
+                {/* Rules & Policy — game rules + conduct + media */}
+                <div className="flex flex-col space-y-1 md:space-y-2">
+                    <h4 className="font-bold uppercase text-sffl-red text-xs md:text-base mb-1 md:mb-2 tracking-widest">Rules &amp; Policy</h4>
+                    <Link to="/about/rules" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Gameplay Rules</Link>
+                    <Link to="/about/byelaws" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Showtime Byelaws</Link>
+                    <Link to="/about/media-guidelines" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Media Guidelines</Link>
+                    <Link to="/about/faq" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">FAQs</Link>
+                    <Link to="/about/whistleblower" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Whistleblower</Link>
                 </div>
 
                 {/* Socials / Contact */}
-                <div>
+                <div className="flex flex-col items-center sm:items-start">
                     <h4 className="font-bold uppercase text-sffl-red text-xs md:text-base mb-1 md:mb-2 tracking-widest">Connect</h4>
                     <p className="text-gray-400 text-[10px] md:text-sm">Follow us on social media for live updates.</p>
-                    <div className="mt-3 md:mt-4 flex justify-center md:justify-start space-x-3 md:space-x-4">
+                    <div className="mt-3 md:mt-4 flex space-x-3 md:space-x-4">
                         <a
                             href="https://www.youtube.com/@ShowtimeFlagFootball"
                             target="_blank"
@@ -79,7 +96,7 @@ export const Footer = () => {
                             </svg>
                         </a>
                     </div>
-                    <div className="mt-4 md:mt-6 flex justify-center md:justify-start">
+                    <div className="mt-4 md:mt-6">
                         <CopyableEmail email="showtime@sffl.football" label="Contact Us:" className="bg-gray-800 dark:bg-gray-900 border border-gray-700 text-gray-300 hover:text-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-[10px] md:text-sm transition-colors" />
                     </div>
                 </div>

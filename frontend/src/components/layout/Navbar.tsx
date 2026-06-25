@@ -8,15 +8,16 @@ interface NavbarProps {
 }
 
 export const Navbar = ({ onMoreClick }: NavbarProps) => {
-    const [aboutDropdownOpen, setAboutDropdownOpen] = useState(false);
+    const [leagueDropdownOpen, setLeagueDropdownOpen] = useState(false);
     const [storeDropdownOpen, setStoreDropdownOpen] = useState(false);
     const [statsDropdownOpen, setStatsDropdownOpen] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [mobileStoreOpen, setMobileStoreOpen] = useState(false);
+    const [mobileLeagueOpen, setMobileLeagueOpen] = useState(false);
     const { isAuthenticated, user, logout } = useAuth();
     const { count: cartCount } = useCart();
     const navigate = useNavigate();
-    const dropdownTimeoutRef = useRef<number | null>(null);
+    const leagueTimeoutRef = useRef<number | null>(null);
     const storeTimeoutRef = useRef<number | null>(null);
     const statsTimeoutRef = useRef<number | null>(null);
 
@@ -31,17 +32,17 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
         };
     }, [mobileMenuOpen]);
 
-    const handleDropdownEnter = () => {
-        if (dropdownTimeoutRef.current) {
-            clearTimeout(dropdownTimeoutRef.current);
+    const handleLeagueEnter = () => {
+        if (leagueTimeoutRef.current) {
+            clearTimeout(leagueTimeoutRef.current);
         }
-        setAboutDropdownOpen(true);
+        setLeagueDropdownOpen(true);
     };
 
-    const handleDropdownLeave = () => {
-        dropdownTimeoutRef.current = setTimeout(() => {
-            setAboutDropdownOpen(false);
-        }, 200); 
+    const handleLeagueLeave = () => {
+        leagueTimeoutRef.current = setTimeout(() => {
+            setLeagueDropdownOpen(false);
+        }, 200);
     };
 
     const handleStoreEnter = () => {
@@ -88,13 +89,34 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                         />
                     </Link>
 
-                    {/* Main Navigation - Center. gap-5 at lg, gap-6 at xl so
-                        the 8 items breathe properly once the viewport is wide. */}
-                    <div className="hidden lg:flex items-center gap-5 xl:gap-6 uppercase font-bold text-xs xl:text-sm tracking-wide">
+                    {/* Main Navigation - Center. Wider spacing now that the
+                        About Us dropdown is gone — the remaining items get
+                        room to breathe. */}
+                    <div className="hidden lg:flex items-center gap-9 xl:gap-12 uppercase font-bold text-xs xl:text-sm tracking-wide">
                         <Link to="/" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105">Home</Link>
-                        <Link to="/matches" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105">Matches</Link>
-                        <Link to="/standings" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105">Standings</Link>
-                        <Link to="/teams" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105">Teams</Link>
+                        {/* League Dropdown — groups Matches, Standings, Teams */}
+                        <div
+                            className="relative group"
+                            onMouseEnter={handleLeagueEnter}
+                            onMouseLeave={handleLeagueLeave}
+                        >
+                            <button className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105 flex items-center gap-1 uppercase">
+                                League
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+
+                            {leagueDropdownOpen && (
+                                <div className="absolute top-full left-0 w-48 z-50 pt-2">
+                                    <div className="bg-white dark:bg-gray-800 text-sffl-navy dark:text-white rounded-lg shadow-2xl py-2 normal-case font-bold text-sm border border-gray-200 dark:border-gray-700">
+                                        <Link to="/matches" className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors font-bold">Matches</Link>
+                                        <Link to="/standings" className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors font-bold">Standings</Link>
+                                        <Link to="/teams" className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors font-bold">Teams</Link>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                         {/* Stats Dropdown */}
                         <div 
                             className="relative group"
@@ -118,6 +140,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                             )}
                         </div>
                         <Link to="/news" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105">News</Link>
+                        <span aria-hidden="true" className="h-7 w-[2px] rounded-sm bg-gray-400" />
                         <Link to="/gallery" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105">Gallery</Link>
                         
                         {/* Store Dropdown */}
@@ -146,35 +169,6 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                             )}
                         </div>
 
-                        {/* About Us Dropdown */}
-                        <div
-                            className="relative group"
-                            onMouseEnter={handleDropdownEnter}
-                            onMouseLeave={handleDropdownLeave}
-                        >
-                            <button className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105 flex items-center gap-1 uppercase">
-                                ABOUT US
-                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
-                            </button>
-
-                            {aboutDropdownOpen && (
-                                <div className="absolute top-full left-0 w-64 z-50 pt-2">
-                                    <div className="bg-white dark:bg-gray-800 text-sffl-navy dark:text-white rounded-lg shadow-2xl py-2 normal-case font-semibold text-sm border border-gray-200 dark:border-gray-700">
-                                        <Link to="/about/showtime-flag" className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors">About Showtime</Link>
-                                        <Link to="/about/our-team" className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors">Our Team</Link>
-                                        <Link to="/about/media-guidelines" className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors">Media Guidelines</Link>
-                                        <Link to="/about/rules" className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors">Gameplay Rules</Link>
-                                        <Link to="/about/byelaws" className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors">Showtime Byelaws</Link>
-                                        <Link to="/about/arena" className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors">Showtime Arena</Link>
-                                        <Link to="/about/education" className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors">Education</Link>
-                                        <Link to="/about/whistleblower" className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors">Whistleblower</Link>
-                                        <Link to="/about/faq" className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors">FAQ</Link>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
                     </div>
 
                     {/* Actions / Auth - Right. Gap is intentionally tight here
@@ -302,8 +296,33 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                 <div className="container mx-auto px-6 py-8 pb-32 min-h-full flex flex-col">
                     <div className="flex flex-col space-y-2 text-center">
 
-                        <button 
-                            onClick={() => setMobileStoreOpen(!mobileStoreOpen)} 
+                        <Link to="/" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors uppercase">Home</Link>
+
+                        {/* League accordion — groups Matches, Standings, Teams */}
+                        <button
+                            onClick={() => setMobileLeagueOpen(!mobileLeagueOpen)}
+                            className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors flex items-center justify-center gap-2 w-full uppercase"
+                        >
+                            League
+                            <svg className={`w-4 h-4 transition-transform duration-200 ${mobileLeagueOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                        {mobileLeagueOpen && (
+                            <div className="bg-gray-800/50 rounded-xl py-2 px-4 space-y-2 flex flex-col items-center">
+                                <Link to="/matches" onClick={() => setMobileMenuOpen(false)} className="text-gray-300 hover:text-white text-base font-bold py-2 transition-colors">Matches</Link>
+                                <Link to="/standings" onClick={() => setMobileMenuOpen(false)} className="text-gray-300 hover:text-white text-base font-bold py-2 transition-colors">Standings</Link>
+                                <Link to="/teams" onClick={() => setMobileMenuOpen(false)} className="text-gray-300 hover:text-white text-base font-bold py-2 transition-colors">Teams</Link>
+                            </div>
+                        )}
+
+                        <Link to="/players" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors uppercase">Players</Link>
+                        <Link to="/stats" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors uppercase">Stats</Link>
+                        <Link to="/news" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors uppercase">News</Link>
+                        <Link to="/gallery" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors uppercase">Gallery</Link>
+
+                        <button
+                            onClick={() => setMobileStoreOpen(!mobileStoreOpen)}
                             className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors flex items-center justify-center gap-2 w-full uppercase"
                         >
                             Store
@@ -320,22 +339,6 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                                 )}
                             </div>
                         )}
-
-                        {/* About Section */}
-                        <div className="border-t border-gray-700/50 pt-6 mt-4 pb-2">
-                            <div className="text-sffl-red tracking-widest font-black uppercase mb-4 text-sm">ABOUT US</div>
-                            <div className="grid grid-cols-2 gap-y-4 gap-x-2 text-left px-4">
-                                <Link to="/about/showtime-flag" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-sm font-medium">About Showtime</Link>
-                                <Link to="/about/our-team" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-sm font-medium">Our Team</Link>
-                                <Link to="/about/media-guidelines" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-sm font-medium">Media Guidelines</Link>
-                                <Link to="/about/rules" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-sm font-medium">Gameplay Rules</Link>
-                                <Link to="/about/byelaws" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-sm font-medium">Showtime Byelaws</Link>
-                                <Link to="/about/arena" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-sm font-medium">Showtime Arena</Link>
-                                <Link to="/about/education" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-sm font-medium">Education</Link>
-                                <Link to="/about/whistleblower" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-sm font-medium">Whistleblower</Link>
-                                <Link to="/about/faq" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-sm font-medium">FAQ</Link>
-                            </div>
-                        </div>
 
                         {/* Mobile Auth */}
                         <div className="mt-8 pt-8 border-t border-gray-700/50 w-full max-w-sm mx-auto">

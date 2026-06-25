@@ -1,37 +1,26 @@
 import { useQuery } from '@tanstack/react-query';
-import { useRef, useEffect } from 'react';
+import { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { getMatches } from '../../services/api';
 import { Loader } from '../ui/Loader';
 
-export const LatestMatchesCarousel = () => {
-    const { data: finishedMatchesData, isLoading } = useQuery({
-        queryKey: ['publicMatches', 'FINISHED', 10],
-        queryFn: () => getMatches(undefined, 1, 10, 'FINISHED'),
-        staleTime: 60_000,
-    });
+// Shared query — React Query dedupes by key so the carousel and info strip
+// don't double-fetch when both are on the page.
+const useLatestFinishedMatches = () => useQuery({
+    queryKey: ['publicMatches', 'FINISHED', 10],
+    queryFn: () => getMatches(undefined, 1, 10, 'FINISHED'),
+    staleTime: 60_000,
+});
 
+/**
+ * The scrolling tile row of latest finished matches. Used on every page as
+ * part of the sticky chrome below the navbar. Does NOT include the info
+ * strip — see LatestMatchesInfoStrip.
+ */
+export const LatestMatchesCarousel = () => {
+    const { data: finishedMatchesData, isLoading } = useLatestFinishedMatches();
     const matches = finishedMatchesData?.data || [];
     const scrollContainerRef = useRef<HTMLDivElement>(null);
-
-    // Auto-scroll logic (smooth loop scroll)
-    useEffect(() => {
-        if (matches.length <= 1) return;
-
-        const interval = setInterval(() => {
-            if (scrollContainerRef.current) {
-                const container = scrollContainerRef.current;
-                const maxScrollLeft = container.scrollWidth - container.clientWidth;
-                if (container.scrollLeft >= maxScrollLeft - 10) {
-                    container.scrollTo({ left: 0, behavior: 'smooth' });
-                } else {
-                    container.scrollBy({ left: 240, behavior: 'smooth' });
-                }
-            }
-        }, 5000);
-
-        return () => clearInterval(interval);
-    }, [matches]);
 
     const scrollLeft = () => {
         scrollContainerRef.current?.scrollBy({ left: -240, behavior: 'smooth' });
@@ -53,15 +42,9 @@ export const LatestMatchesCarousel = () => {
         return null;
     }
 
-    const latestMatch = matches[0];
-    const resultsViewAllHref = latestMatch?.competition?.id
-        ? `/matches?comp=${latestMatch.competition.id}`
-        : '/matches';
-
     return (
         <div className="w-full bg-sffl-navy border-b border-white/10 dark:bg-black relative select-none">
             <div className="max-w-shell mx-auto relative px-2 sm:px-8 flex flex-col justify-center">
-                {/* Row 1: Scrollable Matches (Height increased by 60%) */}
                 <div className="relative flex items-center h-[76px] w-full">
                     {/* Left Arrow */}
                     <button
@@ -95,9 +78,9 @@ export const LatestMatchesCarousel = () => {
                                         <div className="flex items-center justify-between gap-1.5 min-w-0">
                                             <div className="flex items-center gap-2 min-w-0">
                                                 {match.home_team?.logo ? (
-                                                    <img 
-                                                        src={match.home_team.logo} 
-                                                        alt={match.home_team.name} 
+                                                    <img
+                                                        src={match.home_team.logo}
+                                                        alt={match.home_team.name}
                                                         className="w-5 h-5 object-contain"
                                                     />
                                                 ) : (
@@ -113,9 +96,9 @@ export const LatestMatchesCarousel = () => {
                                         <div className="flex items-center justify-between gap-1.5 min-w-0">
                                             <div className="flex items-center gap-2 min-w-0">
                                                 {match.away_team?.logo ? (
-                                                    <img 
-                                                        src={match.away_team.logo} 
-                                                        alt={match.away_team.name} 
+                                                    <img
+                                                        src={match.away_team.logo}
+                                                        alt={match.away_team.name}
                                                         className="w-5 h-5 object-contain"
                                                     />
                                                 ) : (
@@ -128,14 +111,13 @@ export const LatestMatchesCarousel = () => {
                                             )}
                                         </div>
                                     </div>
-                                    {/* Action Column */}
-                                    <div className="flex flex-col items-end justify-center min-w-[50px] pl-2 border-l border-white/10">
-                                        {isLive ? (
+                                    {/* Action Column — only for LIVE matches; the score itself
+                                        already tells you a finished match is done. */}
+                                    {isLive && (
+                                        <div className="flex flex-col items-end justify-center min-w-[50px] pl-2 border-l border-white/10">
                                             <span className="bg-sffl-red text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded animate-pulse">LIVE</span>
-                                        ) : (
-                                            <span className="text-[8px] md:text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">{match.status}</span>
-                                        )}
-                                    </div>
+                                        </div>
+                                    )}
                                 </Link>
                             );
                         })}
@@ -155,8 +137,30 @@ export const LatestMatchesCarousel = () => {
                         </svg>
                     </button>
                 </div>
+            </div>
+        </div>
+    );
+};
 
-                {/* Row 2: Sleek integrated bottom bar (No vertical space) */}
+/**
+ * The "LATEST RESULTS · Competition · Date  Watch Highlights | View All →"
+ * info strip that previously sat directly under the carousel. Home page only,
+ * and intentionally NOT sticky so it scrolls away with the rest of the page.
+ */
+export const LatestMatchesInfoStrip = () => {
+    const { data: finishedMatchesData } = useLatestFinishedMatches();
+    const matches = finishedMatchesData?.data || [];
+
+    if (matches.length === 0) return null;
+
+    const latestMatch = matches[0];
+    const resultsViewAllHref = latestMatch?.competition?.id
+        ? `/matches?comp=${latestMatch.competition.id}`
+        : '/matches';
+
+    return (
+        <div className="w-full bg-sffl-navy border-b border-white/10 dark:bg-black select-none">
+            <div className="max-w-shell mx-auto px-2 sm:px-8">
                 <div className="flex items-center justify-between border-t border-white/5 py-1.5 px-2 sm:px-4 w-full">
                     <div className="flex items-center gap-1.5 min-w-0">
                         <span className="text-[7.5px] sm:text-[9px] md:text-[10px] font-black tracking-widest text-white/95 uppercase whitespace-nowrap">
@@ -180,9 +184,9 @@ export const LatestMatchesCarousel = () => {
                         )}
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                        <a 
-                            href="https://www.youtube.com/@ShowtimeFlagFootball" 
-                            target="_blank" 
+                        <a
+                            href="https://www.youtube.com/@ShowtimeFlagFootball"
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-1 bg-[#FF0000] hover:bg-[#CC0000] text-white text-[7.5px] sm:text-[8.5px] md:text-[9px] font-black uppercase tracking-wider px-3.5 py-1 rounded shadow-sm transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer whitespace-nowrap"
                         >
@@ -191,8 +195,8 @@ export const LatestMatchesCarousel = () => {
                             </svg>
                             <span>Watch Highlights</span>
                         </a>
-                        <Link 
-                            to={resultsViewAllHref} 
+                        <Link
+                            to={resultsViewAllHref}
                             className="hidden sm:inline text-[7.5px] sm:text-[8.5px] md:text-[9px] font-black uppercase tracking-wider text-sffl-red hover:text-white transition-colors"
                         >
                             View All &rarr;

@@ -1,0 +1,7 @@
+# Google AdSense authorized sellers file.
+# Authorizes Google to sell ad inventory for this domain; missing/incorrect
+# ads.txt throttles AdSense revenue.
+#
+# TODO after AdSense approval: replace pub-0000000000000000 with your real
+# publisher ID — the digits from your ca-pub-XXXX client ID (drop the "ca-").
+google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0

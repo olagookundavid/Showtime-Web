@@ -4,7 +4,7 @@ import { Footer } from './Footer';
 import { BottomNav } from './BottomNav';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { LatestMatchesCarousel } from './LatestMatchesCarousel';
+import { LatestMatchesCarousel, LatestMatchesInfoStrip } from './LatestMatchesCarousel';
 import {
     XMarkIcon,
     InformationCircleIcon,
@@ -53,8 +53,17 @@ export const Layout = () => {
                 <div className="absolute inset-0 [background:radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.05)_100%)] dark:[background:radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)]" />
             </div>
 
-            <Navbar onMoreClick={() => setIsMoreMenuOpen(true)} />
-            {location.pathname === '/' && <LatestMatchesCarousel />}
+            {/* Sticky chrome: navbar + scores carousel travel together at the
+                top of every page. The Navbar already declares its own `sticky
+                top-0` (kept for any layouts that mount it standalone); inside
+                this wrapper the outer sticky is what actually pins. */}
+            <div className="sticky top-0 z-50">
+                <Navbar onMoreClick={() => setIsMoreMenuOpen(true)} />
+                <LatestMatchesCarousel />
+            </div>
+            {/* Home-only info strip sits below the sticky chrome and scrolls
+                away with the rest of the page. */}
+            {location.pathname === '/' && <LatestMatchesInfoStrip />}
             <main className="flex-grow w-full max-w-page mx-auto px-2 sm:px-6 lg:px-8 py-3 md:py-8 relative z-10 overscroll-y-none">
                 <Outlet />
             </main>

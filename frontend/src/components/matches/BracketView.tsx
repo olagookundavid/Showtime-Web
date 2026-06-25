@@ -255,7 +255,11 @@ export const ChampionCard = ({ team, compact = false }: { team: NonNullable<Matc
     if (compact) {
         return (
             <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-500 text-amber-950">
-                <span className="text-2xl drop-shadow">👑</span>
+                <img
+                    src="/images/branding/showtime-bowl-trophy.png"
+                    alt="Showtime Bowl trophy"
+                    className="h-7 w-auto object-contain drop-shadow"
+                />
                 {team.logo ? (
                     <img src={team.logo} alt={team.name} className="w-9 h-9 object-contain drop-shadow" />
                 ) : (
@@ -276,7 +280,11 @@ export const ChampionCard = ({ team, compact = false }: { team: NonNullable<Matc
                 Champion
             </div>
             <div className="flex flex-col justify-center items-center flex-1 gap-3 rounded-xl border-2 border-amber-400/70 bg-gradient-to-b from-amber-50 via-yellow-50 to-amber-100 dark:from-amber-900/30 dark:via-yellow-900/20 dark:to-amber-900/10 shadow-lg p-6 text-center">
-                <div className="text-5xl drop-shadow-md animate-bounce">👑</div>
+                <img
+                    src="/images/branding/showtime-bowl-trophy.png"
+                    alt="Showtime Bowl trophy"
+                    className="h-20 md:h-24 w-auto object-contain drop-shadow-md animate-bounce"
+                />
                 {team.logo ? (
                     <img src={team.logo} alt={team.name} className="w-20 h-20 md:w-24 md:h-24 object-contain drop-shadow-lg" />
                 ) : (

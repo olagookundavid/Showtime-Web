@@ -10,7 +10,8 @@
 
     /* Page CONTENT width — used by Layout's <main>. Every page inherits this
        via Layout, so new pages don't need their own max-width. */
-    --max-width-page: 72rem; /* 1152px (Tailwind's 6xl) */
+    --max-width-page: 76rem; /* 1216px — a touch wider than 6xl, still narrower
+                                 than the shell so the letterbox stays visible. */
 
     /* Chrome width — used by Navbar/Footer. Slightly wider than --max-width-page
        so the header and footer extend past the content edges (Amazon-style

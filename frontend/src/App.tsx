@@ -81,6 +81,7 @@ const SellerPortal = lazy(() => import('./pages/seller/SellerPortal').then(m => 
 
 import { Toaster } from 'react-hot-toast';
 import { FloatingThemeToggle } from './components/common/FloatingThemeToggle';
+import { AdSenseScript } from './components/monetization';
 import './index.css';
 
 function App() {
@@ -92,6 +93,7 @@ function App() {
         <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
         <BrowserRouter>
           <ScrollToTop />
+          <AdSenseScript />
           <Suspense fallback={<Loader />}>
             <Routes>
             {/* Public Routes with Layout */}
