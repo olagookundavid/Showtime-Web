@@ -70,12 +70,13 @@ export const MatchHub = () => {
         ? competitions.filter(c => c.format === 'KNOCKOUT')
         : leagueComps;
 
-    // Anchor the default selection to the most recent match's competition
-    // rather than competitions[0] (which is sorted by created_at and can look
-    // random if newer competitions were marked inactive).
+    // Anchor the default selection to the most recently PLAYED match's
+    // competition (FINISHED only). Without the status filter, future scheduled
+    // playoff matches would be "newer" than the regular season's last result,
+    // so the page would switch to the playoffs before any playoff is played.
     const { data: latestMatchPage, isFetched: latestMatchFetched } = useQuery({
         queryKey: ['publicLatestMatchForDefault'],
-        queryFn: () => getMatches(undefined, 1, 1),
+        queryFn: () => getMatches(undefined, 1, 1, 'FINISHED'),
         staleTime: 60_000,
     });
     const latestMatchCompetitionId = latestMatchPage?.data?.[0]?.competition?.id;

@@ -51,7 +51,7 @@ export const StandingsPage = () => {
     // of just the newest competition row.
     const { data: latestMatchPage, isFetched: latestMatchFetched } = useQuery({
         queryKey: ['publicLatestMatchForDefault'],
-        queryFn: () => getMatches(undefined, 1, 1),
+        queryFn: () => getMatches(undefined, 1, 1, 'FINISHED'),
         staleTime: 60_000,
     });
     const latestMatchCompetitionId = latestMatchPage?.data?.[0]?.competition?.id;
