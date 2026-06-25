@@ -185,13 +185,13 @@ export const LatestMatchesInfoStrip = () => {
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                         <a
-                            href="https://www.youtube.com/@ShowtimeFlagFootball"
+                            href="https://www.youtube.com/@ShowtimeFlagFootball/streams"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-1 bg-[#FF0000] hover:bg-[#CC0000] text-white text-[7.5px] sm:text-[8.5px] md:text-[9px] font-black uppercase tracking-wider px-3.5 py-1 rounded shadow-sm transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer whitespace-nowrap"
                         >
                             <svg className="w-2.5 h-2.5 fill-current" viewBox="0 0 24 24">
-                                <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816-.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 4-8 4z"/>
+                                <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816-.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 4-8 4z" />
                             </svg>
                             <span>Watch Highlights</span>
                         </a>
