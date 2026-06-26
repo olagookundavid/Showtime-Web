@@ -24,7 +24,8 @@ func AdminOnlyMiddleware(authService services.IAuthService) gin.HandlerFunc {
 			return
 		}
 
-		if userProfile.UserType != "admin" {
+		// app_admin is the superuser and has every privilege an admin has
+		if userProfile.UserType != "admin" && userProfile.UserType != "app_admin" {
 			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden: requires admin privileges", "details": "user is not an admin"})
 			c.Abort()
 			return

@@ -28,8 +28,8 @@ func TeamHeadOrAdminMiddleware(authService services.IAuthService, tmService serv
 			return
 		}
 
-		// Admins get full access
-		if userProfile.UserType == "admin" {
+		// Admins (and the app_admin superuser) get full access
+		if userProfile.UserType == "admin" || userProfile.UserType == "app_admin" {
 			c.Next()
 			return
 		}

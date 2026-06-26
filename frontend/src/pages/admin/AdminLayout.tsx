@@ -78,9 +78,10 @@ export const AdminLayout = () => {
 
     const adminLinks = (() => {
         if (!user) return [];
-        // Administrator (gift tickets) is reserved for App Admins only
+        // app_admin is the superuser: sees everything, including the Administrator (gift) section.
+        // Administrator is reserved for app_admin, so hide it from a plain admin.
+        if (user.role === 'app_admin') return allLinks;
         if (user.role === 'admin') return allLinks.filter(l => l.name !== 'Administrator');
-        if (user.role === 'app_admin') return allLinks.filter(l => ['Administrator'].includes(l.name));
         if (user.role === 'ticketer') return allLinks.filter(l => ['Tickets', 'Referrals'].includes(l.name));
 
         if (user.role === 'referee') return allLinks.filter(l => ['Matches', 'Standings', 'Stats', 'Players', 'Teams', 'Team of the Week'].includes(l.name));
@@ -94,9 +95,7 @@ export const AdminLayout = () => {
         const isDashboard = location.pathname === '/admin' || location.pathname === '/admin/';
         
         if (isDashboard) {
-            if (user.role === 'app_admin') {
-                navigate('/admin/administrator');
-            } else if (user.role === 'ticketer') {
+            if (user.role === 'ticketer') {
                 navigate('/admin/tickets');
             } else if (user.role === 'referee' || user.role === 'stats') {
                 navigate('/admin/matches');

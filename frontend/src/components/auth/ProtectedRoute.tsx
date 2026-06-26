@@ -24,13 +24,17 @@ export const ProtectedRoute = ({ children, requireAdmin = false, requireRole }: 
         return <Navigate to="/login" replace />;
     }
 
-    if (requireAdmin && user?.role !== 'admin') {
+    // app_admin is the superuser: it can reach anything an admin can.
+    const isSuperUser = user?.role === 'admin' || user?.role === 'app_admin';
+
+    if (requireAdmin && !isSuperUser) {
         return <Navigate to="/" replace />;
     }
 
     if (requireRole) {
         const roles = Array.isArray(requireRole) ? requireRole : [requireRole];
-        if (!roles.includes(user?.role || '')) {
+        const allowed = roles.includes(user?.role || '') || (isSuperUser && roles.includes('admin'));
+        if (!allowed) {
             return <Navigate to="/" replace />;
         }
     }

@@ -25,7 +25,7 @@ func TicketerOrAdminMiddleware(authService services.IAuthService) gin.HandlerFun
 			return
 		}
 
-		if userProfile.UserType != "admin" && userProfile.UserType != "ticketer" {
+		if userProfile.UserType != "admin" && userProfile.UserType != "ticketer" && userProfile.UserType != "app_admin" {
 			c.JSON(http.StatusForbidden, gin.H{
 				"error":   "forbidden: requires admin or ticketer privileges",
 				"details": "user role is " + userProfile.UserType,

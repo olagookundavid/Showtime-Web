@@ -25,6 +25,12 @@ func RolesAllowedMiddleware(authService services.IAuthService, allowedRoles ...s
 			return
 		}
 
+		// app_admin is the superuser and is allowed on every role-gated route
+		if userProfile.UserType == "app_admin" {
+			c.Next()
+			return
+		}
+
 		isAllowed := false
 		for _, role := range allowedRoles {
 			if userProfile.UserType == role {
