@@ -623,6 +623,21 @@ export const purchaseTicket = async (payload: PurchaseTicketPayload): Promise<Ti
     return response.data;
 };
 
+export interface GiftTicketPayload {
+    event_day_id: string;
+    tier_id: string;
+    email: string;
+    name: string;
+    phone?: string;
+    quantity: number;
+}
+
+// App Admin: issue a complimentary ticket (no payment, sends confirmation email)
+export const giftTicket = async (payload: GiftTicketPayload): Promise<TicketResponse> => {
+    const response = await api.post<TicketResponse>('/admin/administrator/gift-ticket', payload);
+    return response.data;
+};
+
 export const getTicketByReference = async (reference: string): Promise<TicketResponse> => {
     const response = await api.get<TicketResponse>(`/tickets/${reference}`);
     return response.data;

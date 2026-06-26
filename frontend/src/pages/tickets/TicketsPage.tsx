@@ -90,8 +90,8 @@ export const TicketsPage = () => {
     }, [searchParams]);
 
     const handlePurchase = async () => {
-        if (!selectedEventDay || !selectedTier || !email || !name) {
-            setError('Full Name and Email are required');
+        if (!selectedEventDay || !selectedTier || !email || !name || !phone.trim()) {
+            setError('Full Name, Email and Phone Number are required');
             return;
         }
         setError('');
@@ -369,7 +369,7 @@ export const TicketsPage = () => {
                             {/* Phone */}
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                                    Phone Number <span className="text-gray-500 font-normal ml-1">(optional)</span>
+                                    Phone Number <span className="text-sffl-red ml-1">*</span>
                                 </label>
                                 <input
                                     type="tel"
@@ -377,6 +377,7 @@ export const TicketsPage = () => {
                                     onChange={(e) => setPhone(e.target.value)}
                                     placeholder="e.g. +234..."
                                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none"
+                                    required
                                 />
                                 <p className="text-xs text-gray-500 mt-1">We may call you regarding your ticket</p>
                             </div>
@@ -436,7 +437,7 @@ export const TicketsPage = () => {
                             >Cancel</button>
                             <button
                                 onClick={handlePurchase}
-                                disabled={purchasing || !email || !name}
+                                disabled={purchasing || !email || !name || !phone.trim()}
                                 className="flex-1 bg-sffl-red hover:bg-[#A52323] text-white font-bold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {purchasing ? (

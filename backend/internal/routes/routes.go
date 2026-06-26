@@ -222,6 +222,13 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		ticketsGroup.GET("/referrals", app.Handlers.TicketHandler.ListReferralStats)
 	}
 
+	// Administrator section — only App Admins can issue complimentary tickets
+	administratorGroup := adminRoutes.Group("/administrator")
+	administratorGroup.Use(middlewares.RolesAllowedMiddleware(app.AuthService, "app_admin"))
+	{
+		administratorGroup.POST("/gift-ticket", app.Handlers.TicketHandler.GiftTicket)
+	}
+
 	totwGroup := adminRoutes.Group("/totw")
 	totwGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
 	{

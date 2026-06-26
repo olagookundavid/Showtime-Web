@@ -8,7 +8,8 @@ import {
     Bars3Icon,
     ChartBarIcon,
     UserGroupIcon,
-    ShieldCheckIcon
+    ShieldCheckIcon,
+    GiftIcon
 } from '@heroicons/react/24/outline';
 import {
     Squares2X2Icon as SquaresSolid,
@@ -17,7 +18,8 @@ import {
     NewspaperIcon as NewspaperSolid,
     ChartBarIcon as ChartBarSolid,
     UserGroupIcon as UserGroupSolid,
-    ShieldCheckIcon as ShieldCheckSolid
+    ShieldCheckIcon as ShieldCheckSolid,
+    GiftIcon as GiftSolid
 } from '@heroicons/react/24/solid';
 
 interface AdminBottomNavProps {
@@ -33,6 +35,11 @@ export const AdminBottomNav = ({ onMoreClick }: AdminBottomNavProps) => {
     }
 
     const navItems = (() => {
+        if (user?.role === 'app_admin') {
+            return [
+                { name: 'Gift', path: '/admin/administrator', icon: GiftIcon, solidIcon: GiftSolid },
+            ];
+        }
         if (user?.role === 'referee') {
             return [
                 { name: 'Match', path: '/admin/matches', icon: CalendarIcon, solidIcon: CalendarSolid },

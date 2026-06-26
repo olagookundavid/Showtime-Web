@@ -13,7 +13,8 @@ import {
     CalendarIcon,
     TicketIcon,
     NewspaperIcon,
-    BuildingStorefrontIcon
+    BuildingStorefrontIcon,
+    GiftIcon
 } from '@heroicons/react/24/outline';
 
 export const AdminLayout = () => {
@@ -72,11 +73,14 @@ export const AdminLayout = () => {
         { name: 'Users', path: '/admin/users', icon: UsersIcon },
         { name: 'Inventory', path: '/admin/inventory', icon: BuildingStorefrontIcon },
         { name: 'Online Store', path: '/admin/store', icon: BuildingStorefrontIcon },
+        { name: 'Administrator', path: '/admin/administrator', icon: GiftIcon },
     ];
 
     const adminLinks = (() => {
         if (!user) return [];
-        if (user.role === 'admin') return allLinks;
+        // Administrator (gift tickets) is reserved for App Admins only
+        if (user.role === 'admin') return allLinks.filter(l => l.name !== 'Administrator');
+        if (user.role === 'app_admin') return allLinks.filter(l => ['Administrator'].includes(l.name));
         if (user.role === 'ticketer') return allLinks.filter(l => ['Tickets', 'Referrals'].includes(l.name));
 
         if (user.role === 'referee') return allLinks.filter(l => ['Matches', 'Standings', 'Stats', 'Players', 'Teams', 'Team of the Week'].includes(l.name));
@@ -90,7 +94,9 @@ export const AdminLayout = () => {
         const isDashboard = location.pathname === '/admin' || location.pathname === '/admin/';
         
         if (isDashboard) {
-            if (user.role === 'ticketer') {
+            if (user.role === 'app_admin') {
+                navigate('/admin/administrator');
+            } else if (user.role === 'ticketer') {
                 navigate('/admin/tickets');
             } else if (user.role === 'referee' || user.role === 'stats') {
                 navigate('/admin/matches');

@@ -65,6 +65,7 @@ const AdminAnalytics = lazy(() => import('./pages/admin/AdminAnalytics').then(m 
 const AdminInventory = lazy(() => import('./pages/admin/AdminInventory').then(m => ({ default: m.AdminInventory })));
 const AdminStore = lazy(() => import('./pages/admin/AdminStore').then(m => ({ default: m.AdminStore })));
 const AdminReferrals = lazy(() => import('./pages/admin/AdminReferrals').then(m => ({ default: m.AdminReferrals })));
+const AdminGiftTicket = lazy(() => import('./pages/admin/AdminGiftTicket').then(m => ({ default: m.AdminGiftTicket })));
 const AdminOrderDetail = lazy(() => import('./pages/admin/AdminOrderDetail').then(m => ({ default: m.AdminOrderDetail })));
 const AdminTOTW = lazy(() => import('./pages/admin/AdminTOTW').then(m => ({ default: m.AdminTOTW })));
 const TOTWPage = lazy(() => import('./pages/stats/TOTWPage').then(m => ({ default: m.TOTWPage })));
@@ -151,7 +152,7 @@ function App() {
 
             {/* Admin Routes (No Layout) */}
             <Route path="/admin" element={
-              <ProtectedRoute requireRole={['admin', 'ticketer', 'referee', 'stats']}>
+              <ProtectedRoute requireRole={['admin', 'app_admin', 'ticketer', 'referee', 'stats']}>
                 <AdminLayout />
               </ProtectedRoute>
             }>
@@ -166,6 +167,7 @@ function App() {
               <Route path="standings" element={<AdminStandings />} />
               <Route path="tickets" element={<AdminTickets />} />
               <Route path="referrals" element={<AdminReferrals />} />
+              <Route path="administrator" element={<AdminGiftTicket />} />
               <Route path="event-days" element={<AdminEventDays />} />
               <Route path="users" element={<AdminUsers />} />
               <Route path="teams" element={<AdminTeams />} />

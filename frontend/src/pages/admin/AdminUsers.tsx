@@ -108,6 +108,7 @@ const AdminUsers = () => {
                     <option value="referee" className="truncate">Referee</option>
                     <option value="stats" className="truncate">Stats Admin</option>
                     <option value="seller" className="truncate">Store Seller</option>
+                    <option value="app_admin" className="truncate">App Admin</option>
                     <option value="admin" className="truncate">Admin</option>
                 </select>
             )

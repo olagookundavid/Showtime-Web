@@ -66,9 +66,20 @@ type PurchaseTicketRequest struct {
 	TierID       string  `json:"tier_id" binding:"required"`
 	Email        string  `json:"email" binding:"required,email"`
 	Name         string  `json:"name" binding:"required"`
-	Phone        string  `json:"phone"`
+	Phone        string  `json:"phone" binding:"required"`
 	Quantity     int     `json:"quantity" binding:"required,min=1,max=10"`
 	ReferralCode *string `json:"referral_code,omitempty"`
+}
+
+// GiftTicketRequest is used by an App Admin to issue a complimentary ticket
+// (no payment) that still triggers the full confirmation email.
+type GiftTicketRequest struct {
+	EventDayID string `json:"event_day_id" binding:"required"`
+	TierID     string `json:"tier_id" binding:"required"`
+	Email      string `json:"email" binding:"required,email"`
+	Name       string `json:"name" binding:"required"`
+	Phone      string `json:"phone"`
+	Quantity   int    `json:"quantity" binding:"required,min=1,max=10"`
 }
 
 type TicketResponse struct {

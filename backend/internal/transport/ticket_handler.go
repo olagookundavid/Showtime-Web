@@ -27,6 +27,7 @@ type ITicketHandler interface {
 	CreateTier(c *gin.Context)
 	DeleteTier(c *gin.Context)
 	Purchase(c *gin.Context)
+	GiftTicket(c *gin.Context)
 	Webhook(c *gin.Context)
 	GetTicket(c *gin.Context)
 	LookupByCode(c *gin.Context)
@@ -252,6 +253,30 @@ func (h *TicketHandler) Purchase(c *gin.Context) {
 	}
 
 	result, err := h.service.Purchase(c.Request.Context(), req, callbackURL)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, result)
+}
+
+// GiftTicket godoc
+// @Summary Issue a complimentary ticket (App Admin only)
+// @Tags tickets
+// @Accept json
+// @Produce json
+// @Param body body dto.GiftTicketRequest true "Gift ticket request"
+// @Success 201 {object} dto.TicketResponse
+// @Router /api/v1/admin/administrator/gift-ticket [post]
+func (h *TicketHandler) GiftTicket(c *gin.Context) {
+	var req dto.GiftTicketRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	result, err := h.service.GiftTicket(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

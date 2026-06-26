@@ -33,6 +33,7 @@ type ITicketService interface {
 
 	// Tickets
 	Purchase(ctx context.Context, req dto.PurchaseTicketRequest, callbackURL string) (*dto.TicketResponse, error)
+	GiftTicket(ctx context.Context, req dto.GiftTicketRequest) (*dto.TicketResponse, error)
 	HandleWebhook(ctx context.Context, reference string) error
 	VerifyAndUpdate(ctx context.Context, reference string) (*dto.TicketResponse, error)
 	GetByReference(ctx context.Context, reference string) (*dto.TicketResponse, error)
@@ -393,6 +394,102 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 		AuthorizationURL: authURL,
 		TierName:         tier.Name,
 		CreatedAt:        ticket.CreatedAt.Format("2006-01-02T15:04:05Z"),
+	}
+	if ticket.PaystackReference != nil {
+		res.PaystackReference = *ticket.PaystackReference
+	}
+
+	return res, nil
+}
+
+// GiftTicket issues a complimentary ticket without going through payment.
+// The ticket is created as PAID immediately and the standard confirmation
+// email (with the ticket code) is sent, exactly like a normal purchase.
+func (s *TicketService) GiftTicket(ctx context.Context, req dto.GiftTicketRequest) (*dto.TicketResponse, error) {
+	// 1. Look up tier and event day
+	tier, err := s.tierRepo.GetByID(ctx, req.TierID)
+	if err != nil {
+		return nil, fmt.Errorf("tier not found: %w", err)
+	}
+
+	eventDay, err := s.eventDayRepo.GetByID(ctx, req.EventDayID)
+	if err != nil {
+		return nil, fmt.Errorf("event day not found: %w", err)
+	}
+
+	// 2. Ensure the tier actually belongs to the selected event day
+	if tier.EventDayID != req.EventDayID {
+		return nil, fmt.Errorf("tier does not belong to the selected event day")
+	}
+
+	// 3. Respect capacity if one is set
+	if tier.Capacity > 0 && (tier.SoldCount+req.Quantity) > tier.Capacity {
+		remaining := tier.Capacity - tier.SoldCount
+		return nil, fmt.Errorf("not enough tickets available, only %d remaining", remaining)
+	}
+
+	// 4. Create the ticket as a free, already-paid comp ticket.
+	//    Retry on the (extremely unlikely) ticket_code / reference collision.
+	reference := "SFFL-GIFT-" + uuid.New().String()[:8]
+
+	var ticket *domain.Ticket
+	maxRetries := 5
+	var lastErr error
+
+	for i := 0; i < maxRetries; i++ {
+		ref := reference
+		ticket = &domain.Ticket{
+			EventDayID:        req.EventDayID,
+			TierID:            req.TierID,
+			Email:             req.Email,
+			Phone:             req.Phone,
+			Name:              req.Name,
+			Quantity:          req.Quantity,
+			UnitPrice:         0,
+			TotalAmount:       0,
+			Status:            domain.TicketStatusPaid,
+			PaystackReference: &ref,
+			TicketCode:        GenerateTicketCode(),
+		}
+
+		if err := s.ticketRepo.Create(ctx, ticket); err != nil {
+			if strings.Contains(err.Error(), "tickets_ticket_code_key") || strings.Contains(err.Error(), "duplicate key value") {
+				lastErr = err
+				reference = "SFFL-GIFT-" + uuid.New().String()[:8]
+				continue
+			}
+			return nil, fmt.Errorf("failed to create ticket: %w", err)
+		}
+
+		lastErr = nil
+		break
+	}
+
+	if lastErr != nil {
+		return nil, fmt.Errorf("failed to generate unique ticket after %d attempts: %w", maxRetries, lastErr)
+	}
+
+	// 5. Update inventory and send the confirmation email
+	_ = s.tierRepo.IncrementSoldCount(ctx, ticket.TierID, ticket.Quantity)
+
+	ticket.Tier = tier
+	ticket.EventDay = eventDay
+	s.sendPurchaseEmail(ticket)
+
+	res := &dto.TicketResponse{
+		ID:          ticket.ID,
+		EventDayID:  ticket.EventDayID,
+		TierID:      ticket.TierID,
+		Email:       ticket.Email,
+		Phone:       ticket.Phone,
+		Name:        ticket.Name,
+		Quantity:    ticket.Quantity,
+		UnitPrice:   ticket.UnitPrice,
+		TotalAmount: ticket.TotalAmount,
+		Status:      string(ticket.Status),
+		TierName:    tier.Name,
+		TicketCode:  ticket.TicketCode,
+		CreatedAt:   ticket.CreatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 	if ticket.PaystackReference != nil {
 		res.PaystackReference = *ticket.PaystackReference

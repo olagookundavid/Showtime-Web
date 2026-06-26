@@ -6,7 +6,7 @@ interface User {
     name: string;
     email: string;
     phone?: string;
-    role: 'admin' | 'user' | 'team_head' | 'ticketer' | 'referee' | 'stats' | 'seller';
+    role: 'admin' | 'app_admin' | 'user' | 'team_head' | 'ticketer' | 'referee' | 'stats' | 'seller';
 }
 
 interface AuthContextType {
