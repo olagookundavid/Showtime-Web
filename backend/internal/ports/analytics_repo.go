@@ -47,11 +47,11 @@ func (r *PostgresAnalyticsRepository) GetUsersByRole(ctx context.Context) (map[s
 
 func (r *PostgresAnalyticsRepository) GetSalesByTier(ctx context.Context) ([]SalesByTierResult, error) {
 	query := `
-		SELECT tt.name as tier_name, COALESCE(SUM(t.total_amount), 0) as total_amount, COALESCE(SUM(t.quantity), 0) as quantity
+		SELECT COALESCE(tt.name, t.tier_name) as tier_name, COALESCE(SUM(t.total_amount), 0) as total_amount, COALESCE(SUM(t.quantity), 0) as quantity
 		FROM tickets t
-		JOIN ticket_tiers tt ON t.tier_id = tt.id
+		LEFT JOIN ticket_tiers tt ON t.tier_id = tt.id
 		WHERE t.status IN ('PAID', 'USED')
-		GROUP BY tt.name
+		GROUP BY COALESCE(tt.name, t.tier_name)
 		ORDER BY total_amount DESC
 	`
 	rows, err := r.db.Query(ctx, query)

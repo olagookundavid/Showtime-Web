@@ -293,8 +293,12 @@ func NewTicketRepository(db *pgxpool.Pool) *PostgresTicketRepository {
 
 func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ticket) error {
 	query := `
-		INSERT INTO tickets (event_day_id, tier_id, email, phone, name, user_id, quantity, unit_price, total_amount, status, paystack_reference, paystack_access_code, ticket_code, team_id, referral_code)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+		INSERT INTO tickets (event_day_id, tier_id, email, phone, name, user_id, quantity, unit_price, total_amount, status, paystack_reference, paystack_access_code, ticket_code, team_id, referral_code, event_title, event_date, event_venue, tier_name)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+			COALESCE((SELECT title FROM event_days WHERE id = $1), ''),
+			(SELECT date FROM event_days WHERE id = $1),
+			COALESCE((SELECT venue FROM event_days WHERE id = $1), ''),
+			COALESCE((SELECT name FROM ticket_tiers WHERE id = $2), ''))
 		ON CONFLICT (paystack_reference) DO NOTHING
 		RETURNING id, created_at, updated_at
 	`
@@ -315,14 +319,14 @@ func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ti
 
 func (r *PostgresTicketRepository) GetByID(ctx context.Context, id string) (*domain.Ticket, error) {
 	query := `
-		SELECT t.id, t.event_day_id, t.tier_id, t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
+		SELECT t.id, COALESCE(t.event_day_id::text, ''), COALESCE(t.tier_id::text, ''), t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
 			t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
 			t.checked_in_at, t.checked_in_by, t.referral_code, t.created_at, t.updated_at,
-			ed.title, ed.date, ed.venue,
-			tt.name, tt.price
+			COALESCE(ed.title, t.event_title), COALESCE(ed.date, t.event_date), COALESCE(ed.venue, t.event_venue),
+			COALESCE(tt.name, t.tier_name), COALESCE(tt.price, t.unit_price)
 		FROM tickets t
-		JOIN event_days ed ON t.event_day_id = ed.id
-		JOIN ticket_tiers tt ON t.tier_id = tt.id
+		LEFT JOIN event_days ed ON t.event_day_id = ed.id
+		LEFT JOIN ticket_tiers tt ON t.tier_id = tt.id
 		WHERE t.id = $1
 	`
 	return r.scanTicketRow(ctx, query, id)
@@ -330,14 +334,14 @@ func (r *PostgresTicketRepository) GetByID(ctx context.Context, id string) (*dom
 
 func (r *PostgresTicketRepository) GetByReference(ctx context.Context, reference string) (*domain.Ticket, error) {
 	query := `
-		SELECT t.id, t.event_day_id, t.tier_id, t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
+		SELECT t.id, COALESCE(t.event_day_id::text, ''), COALESCE(t.tier_id::text, ''), t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
 			t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
 			t.checked_in_at, t.checked_in_by, t.referral_code, t.created_at, t.updated_at,
-			ed.title, ed.date, ed.venue,
-			tt.name, tt.price
+			COALESCE(ed.title, t.event_title), COALESCE(ed.date, t.event_date), COALESCE(ed.venue, t.event_venue),
+			COALESCE(tt.name, t.tier_name), COALESCE(tt.price, t.unit_price)
 		FROM tickets t
-		JOIN event_days ed ON t.event_day_id = ed.id
-		JOIN ticket_tiers tt ON t.tier_id = tt.id
+		LEFT JOIN event_days ed ON t.event_day_id = ed.id
+		LEFT JOIN ticket_tiers tt ON t.tier_id = tt.id
 		WHERE t.paystack_reference = $1
 	`
 	return r.scanTicketRow(ctx, query, reference)
@@ -345,14 +349,14 @@ func (r *PostgresTicketRepository) GetByReference(ctx context.Context, reference
 
 func (r *PostgresTicketRepository) GetByCode(ctx context.Context, code string) (*domain.Ticket, error) {
 	query := `
-		SELECT t.id, t.event_day_id, t.tier_id, t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
+		SELECT t.id, COALESCE(t.event_day_id::text, ''), COALESCE(t.tier_id::text, ''), t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
 			t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
 			t.checked_in_at, t.checked_in_by, t.referral_code, t.created_at, t.updated_at,
-			ed.title, ed.date, ed.venue,
-			tt.name, tt.price
+			COALESCE(ed.title, t.event_title), COALESCE(ed.date, t.event_date), COALESCE(ed.venue, t.event_venue),
+			COALESCE(tt.name, t.tier_name), COALESCE(tt.price, t.unit_price)
 		FROM tickets t
-		JOIN event_days ed ON t.event_day_id = ed.id
-		JOIN ticket_tiers tt ON t.tier_id = tt.id
+		LEFT JOIN event_days ed ON t.event_day_id = ed.id
+		LEFT JOIN ticket_tiers tt ON t.tier_id = tt.id
 		WHERE UPPER(t.ticket_code) = UPPER($1)
 	`
 	return r.scanTicketRow(ctx, query, code)
@@ -402,13 +406,13 @@ func (r *PostgresTicketRepository) scanTicketRow(ctx context.Context, query stri
 
 func (r *PostgresTicketRepository) SearchByEmail(ctx context.Context, email string) ([]domain.Ticket, error) {
 	query := `
-		SELECT t.id, t.event_day_id, t.tier_id, t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
+		SELECT t.id, COALESCE(t.event_day_id::text, ''), COALESCE(t.tier_id::text, ''), t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
 			t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
 			t.checked_in_at, t.checked_in_by, t.referral_code, t.created_at, t.updated_at,
-			ed.title, tt.name
+			COALESCE(ed.title, t.event_title), COALESCE(tt.name, t.tier_name)
 		FROM tickets t
-		JOIN event_days ed ON t.event_day_id = ed.id
-		JOIN ticket_tiers tt ON t.tier_id = tt.id
+		LEFT JOIN event_days ed ON t.event_day_id = ed.id
+		LEFT JOIN ticket_tiers tt ON t.tier_id = tt.id
 		WHERE LOWER(t.email) = LOWER($1)
 		ORDER BY t.created_at DESC
 		LIMIT 20
@@ -493,13 +497,13 @@ func (r *PostgresTicketRepository) List(ctx context.Context, eventDayID string, 
 
 	// Data query
 	dataQuery := `
-		SELECT t.id, t.event_day_id, t.tier_id, t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
+		SELECT t.id, COALESCE(t.event_day_id::text, ''), COALESCE(t.tier_id::text, ''), t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
 			t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
 			t.checked_in_at, t.checked_in_by, t.referral_code, t.created_at, t.updated_at,
-			ed.title, tt.name
+			COALESCE(ed.title, t.event_title), COALESCE(tt.name, t.tier_name)
 		FROM tickets t
-		JOIN event_days ed ON t.event_day_id = ed.id
-		JOIN ticket_tiers tt ON t.tier_id = tt.id
+		LEFT JOIN event_days ed ON t.event_day_id = ed.id
+		LEFT JOIN ticket_tiers tt ON t.tier_id = tt.id
 		WHERE 1=1`
 
 	dataArgs := []interface{}{}
@@ -581,13 +585,13 @@ func (r *PostgresTicketRepository) GetTotalTicketsSold(ctx context.Context) (int
 
 func (r *PostgresTicketRepository) GetRecentSales(ctx context.Context, limit int) ([]domain.Ticket, error) {
 	query := `
-		SELECT t.id, t.event_day_id, t.tier_id, t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
+		SELECT t.id, COALESCE(t.event_day_id::text, ''), COALESCE(t.tier_id::text, ''), t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
 			t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
 			t.checked_in_at, t.checked_in_by, t.referral_code, t.created_at, t.updated_at,
-			ed.title, tt.name
+			COALESCE(ed.title, t.event_title), COALESCE(tt.name, t.tier_name)
 		FROM tickets t
-		JOIN event_days ed ON t.event_day_id = ed.id
-		JOIN ticket_tiers tt ON t.tier_id = tt.id
+		LEFT JOIN event_days ed ON t.event_day_id = ed.id
+		LEFT JOIN ticket_tiers tt ON t.tier_id = tt.id
 		WHERE t.status IN ('PAID', 'USED')
 		ORDER BY t.created_at DESC
 		LIMIT $1
