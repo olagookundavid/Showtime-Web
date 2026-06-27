@@ -130,8 +130,10 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		galleryGroup.DELETE("/:id", app.Handlers.GalleryHandler.DeleteGallery)
 	}
 
+	// Hero slides are app_admin-only — they control what shows on the public
+	// homepage carousel, so we keep the privilege narrow (same as gift-ticket).
 	heroSlideGroup := adminRoutes.Group("/hero-slides")
-	heroSlideGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
+	heroSlideGroup.Use(middlewares.RolesAllowedMiddleware(app.AuthService, "app_admin"))
 	{
 		heroSlideGroup.GET("", app.Handlers.HeroSlideHandler.List)
 		heroSlideGroup.POST("", app.Handlers.HeroSlideHandler.Create)

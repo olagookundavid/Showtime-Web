@@ -82,7 +82,9 @@ export const AdminLayout = () => {
         // app_admin is the superuser: sees everything, including the Administrator (gift) section.
         // Administrator is reserved for app_admin, so hide it from a plain admin.
         if (user.role === 'app_admin') return allLinks;
-        if (user.role === 'admin') return allLinks.filter(l => l.name !== 'Administrator');
+        // Administrator (gift ticket) AND Hero Slides are reserved for app_admin
+        // — same privilege level since both alter what fans see/receive.
+        if (user.role === 'admin') return allLinks.filter(l => !['Administrator', 'Hero Slides'].includes(l.name));
         if (user.role === 'ticketer') return allLinks.filter(l => ['Tickets', 'Referrals'].includes(l.name));
 
         if (user.role === 'referee') return allLinks.filter(l => ['Matches', 'Standings', 'Stats', 'Players', 'Teams', 'Team of the Week'].includes(l.name));
