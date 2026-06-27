@@ -20,6 +20,7 @@ type Handlers struct {
 	TOTWHandler                 transport.ITOTWHandler
 	StoreHandler                transport.IStoreHandler
 	ImportHandler               transport.IImportHandler
+	HeroSlideHandler            transport.IHeroSlideHandler
 }
 
 func NewHandlers(
@@ -38,6 +39,7 @@ func NewHandlers(
 	totwHandler transport.ITOTWHandler,
 	storeHandler transport.IStoreHandler,
 	importHandler transport.IImportHandler,
+	heroSlideHandler transport.IHeroSlideHandler,
 ) Handlers {
 	return Handlers{
 		AuthHandler:                 authHandler,
@@ -55,6 +57,7 @@ func NewHandlers(
 		TOTWHandler:                 totwHandler,
 		StoreHandler:                storeHandler,
 		ImportHandler:               importHandler,
+		HeroSlideHandler:            heroSlideHandler,
 	}
 }
 

@@ -145,6 +145,55 @@ export const getGallery = async (page = 1, limit = 10, competitionId?: string) =
     return response.data;
 };
 
+// ─── Hero Slides ──────────────────────────────────────────────────────────────
+export interface HeroSlide {
+    id: string;
+    image_url: string;
+    display_order: number;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface CreateHeroSlidePayload {
+    image_url: string;
+    display_order?: number;
+    is_active?: boolean;
+}
+
+export interface UpdateHeroSlidePayload {
+    image_url?: string;
+    display_order?: number;
+    is_active?: boolean;
+}
+
+// Public: only active slides — what MainHeroCarousel renders.
+export const getHeroSlides = async (): Promise<HeroSlide[]> => {
+    const response = await api.get<{ data: HeroSlide[] }>('/hero-slides');
+    return response.data.data || [];
+};
+
+// Admin: list ALL (active + inactive).
+export const getAdminHeroSlides = async (): Promise<HeroSlide[]> => {
+    const response = await api.get<{ data: HeroSlide[] }>('/admin/hero-slides');
+    return response.data.data || [];
+};
+
+export const createHeroSlide = async (payload: CreateHeroSlidePayload): Promise<HeroSlide> => {
+    const response = await api.post<HeroSlide>('/admin/hero-slides', payload);
+    return response.data;
+};
+
+export const updateHeroSlide = async (id: string, payload: UpdateHeroSlidePayload) => {
+    const response = await api.put(`/admin/hero-slides/${id}`, payload);
+    return response.data;
+};
+
+export const deleteHeroSlide = async (id: string) => {
+    const response = await api.delete(`/admin/hero-slides/${id}`);
+    return response.data;
+};
+
 // ─── Match Hub Types ──────────────────────────────────────────────────────────
 export interface Competition {
     id: string;

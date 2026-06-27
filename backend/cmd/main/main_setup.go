@@ -233,6 +233,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	totwRepo := ports.NewTOTWRepository(pool)
 	storeRepo := ports.NewStoreRepository(pool)
 	importRepo := ports.NewImportRepository(pool)
+	heroSlideRepo := ports.NewHeroSlideRepository(pool)
 
 	// External Clients
 	paystackClient := services.NewPaystackClient()
@@ -259,6 +260,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	totwService := services.NewTOTWService(totwRepo)
 	storeService := services.NewStoreService(storeRepo, paystackClient, emailService, storageService)
 	importService := services.NewImportService(importRepo, matchRepo)
+	heroSlideService := services.NewHeroSlideService(heroSlideRepo)
 
 	// Transport / Handlers
 	authHandler := transport.NewAuthHandler(authService)
@@ -276,7 +278,8 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	totwHandler := transport.NewTOTWHandler(totwService)
 	storeHandler := transport.NewStoreHandler(storeService, paystackClient)
 	importHandler := transport.NewImportHandler(importService)
+	heroSlideHandler := transport.NewHeroSlideHandler(heroSlideService)
 
-	h := handlers.NewHandlers(authHandler, newsHandler, galleryHandler, matchHandler, playerHandler, ticketHandler, tmHandler, analyticsHandler, tmAllocHandler, statsHandler, inventoryHandler, uploadHandler, totwHandler, storeHandler, importHandler)
+	h := handlers.NewHandlers(authHandler, newsHandler, galleryHandler, matchHandler, playerHandler, ticketHandler, tmHandler, analyticsHandler, tmAllocHandler, statsHandler, inventoryHandler, uploadHandler, totwHandler, storeHandler, importHandler, heroSlideHandler)
 	return h, auditService, authService, tmService, ticketService, storageService
 }

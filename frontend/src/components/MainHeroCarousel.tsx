@@ -1,22 +1,33 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { getHeroSlides } from '../services/api';
 
-interface Slide {
-    id: number;
-    image: string;
-}
+// Local seed shown if the API returns nothing (e.g. fresh deploy before an
+// admin has added any slides). Lives in /public so it's bundled with the
+// frontend deploy.
+const FALLBACK_SLIDES = [
+    { id: 'fallback-1', image_url: '/images/branding/main-hero-1.jpeg' },
+];
 
 export const MainHeroCarousel = () => {
     const [currentSlide, setCurrentSlide] = useState(0);
 
-    // Add more images to this array here
-    const slides: Slide[] = [
-        {
-            id: 1,
-            image: '/images/branding/main-hero-1.jpeg',
-        },
-    ];
+    const { data: apiSlides } = useQuery({
+        queryKey: ['publicHeroSlides'],
+        queryFn: getHeroSlides,
+        staleTime: 60_000,
+    });
+
+    const slides = apiSlides && apiSlides.length > 0
+        ? apiSlides.map(s => ({ id: s.id, image_url: s.image_url }))
+        : FALLBACK_SLIDES;
 
     const hasMultipleSlides = slides.length > 1;
+
+    // Keep currentSlide in range if the slide count shrinks (e.g. admin deletes).
+    useEffect(() => {
+        if (currentSlide >= slides.length) setCurrentSlide(0);
+    }, [slides.length, currentSlide]);
 
     useEffect(() => {
         if (!hasMultipleSlides) return;
@@ -31,6 +42,10 @@ export const MainHeroCarousel = () => {
     if (slides.length === 0) return null;
 
     return (
+        /* Fixed-height box (cap). The slide image fills it via background-size:
+           100% 100% — stretches to fit exactly, no crop and no letterbox. The
+           recommended 2:1 source ratio keeps distortion minimal at typical
+           viewport sizes. */
         <div className="relative h-[350px] md:h-[650px] overflow-hidden rounded-xl md:rounded-3xl shadow-2xl bg-sffl-navy/5">
             {/* Slides */}
             {slides.map((slide, index) => (
@@ -39,8 +54,8 @@ export const MainHeroCarousel = () => {
                     className={`absolute inset-0 transition-all duration-1000 ease-in-out ${index === currentSlide ? 'opacity-100 scale-100 z-10' : 'opacity-0 scale-105 z-0'}`}
                 >
                     <div
-                        className="w-full h-full bg-cover bg-center transition-transform duration-[10000ms]"
-                        style={{ backgroundImage: `url(${slide.image})` }}
+                        className="w-full h-full bg-center transition-transform duration-[10000ms]"
+                        style={{ backgroundImage: `url(${slide.image_url})`, backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat' }}
                     />
                 </div>
             ))}

@@ -50,6 +50,7 @@ func Routes(app *api.Application) *gin.Engine {
 	SetupTeamHeadRoutes(v1_api, app)
 	SetupNewsRoutes(v1_api, app)
 	SetupGalleryRoutes(v1_api, app)
+	SetupHeroSlideRoutes(v1_api, app)
 	SetupMatchRoutes(v1_api, app)
 	SetupPlayerRoutes(v1_api, app)
 	SetupTicketRoutes(v1_api, app)
@@ -127,6 +128,15 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		galleryGroup.POST("", app.Handlers.GalleryHandler.CreateGallery)
 		galleryGroup.PUT("/:id", app.Handlers.GalleryHandler.UpdateGallery)
 		galleryGroup.DELETE("/:id", app.Handlers.GalleryHandler.DeleteGallery)
+	}
+
+	heroSlideGroup := adminRoutes.Group("/hero-slides")
+	heroSlideGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
+	{
+		heroSlideGroup.GET("", app.Handlers.HeroSlideHandler.List)
+		heroSlideGroup.POST("", app.Handlers.HeroSlideHandler.Create)
+		heroSlideGroup.PUT("/:id", app.Handlers.HeroSlideHandler.Update)
+		heroSlideGroup.DELETE("/:id", app.Handlers.HeroSlideHandler.Delete)
 	}
 
 	inventoryGroup := adminRoutes.Group("/inventory")
@@ -297,6 +307,14 @@ func SetupGalleryRoutes(r *gin.RouterGroup, app *api.Application) {
 	{
 		galleryRoutes.GET("", app.Handlers.GalleryHandler.GetGallery)
 		galleryRoutes.GET("/:id", app.Handlers.GalleryHandler.GetGalleryByID)
+	}
+}
+
+func SetupHeroSlideRoutes(r *gin.RouterGroup, app *api.Application) {
+	heroSlideRoutes := r.Group("/hero-slides")
+	{
+		// Public: only active slides for the homepage carousel.
+		heroSlideRoutes.GET("", app.Handlers.HeroSlideHandler.ListPublic)
 	}
 }
 
