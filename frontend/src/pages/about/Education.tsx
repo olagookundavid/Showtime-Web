@@ -22,7 +22,7 @@ export const Education = () => {
                         </p>
                     </div>
                     <a
-                        href="https://www.sffl.football/data/documents/785216042-flag_football_route_tree.pdf"
+                        href="https://cdn.showtimeflag.football/pdfs/showtime_flag_football_route_tree.pdf"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="bg-sffl-red hover:bg-red-700 text-white font-bold py-3 px-8 rounded-lg transition shadow-md whitespace-nowrap"

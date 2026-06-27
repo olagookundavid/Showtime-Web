@@ -44,6 +44,7 @@ export const Footer = () => {
                     <Link to="/about/media-guidelines" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Media Guidelines</Link>
                     <Link to="/about/faq" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">FAQs</Link>
                     <Link to="/about/whistleblower" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Whistleblower</Link>
+                    <Link to="/about/privacy" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Privacy Policy</Link>
                 </div>
 
                 {/* Socials / Contact */}

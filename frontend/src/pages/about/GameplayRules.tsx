@@ -1,5 +1,5 @@
 export const GameplayRules = () => {
-    const pdfUrl = "https://images.leaguerepublic.com/data/editor-docs/350033916/1758027708066-showtime_flag_rule_book2025_1.pdf";
+    const pdfUrl = "https://cdn.showtimeflag.football/pdfs/showtime_flag_rule_book.pdf";
 
     return (
         <div className="space-y-4 md:space-y-8">

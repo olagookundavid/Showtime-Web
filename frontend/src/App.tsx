@@ -28,6 +28,7 @@ import { FAQ } from './pages/about/FAQ';
 import { Whistleblower } from './pages/about/Whistleblower';
 import { OurTeam } from './pages/about/OurTeam';
 import { Sponsorships } from './pages/about/Sponsorships';
+import { PrivacyPolicy } from './pages/about/PrivacyPolicy';
 import { NewsList } from './pages/news/NewsList';
 import { MatchHub } from './pages/matches/MatchHub';
 import { MatchDetail } from './pages/matches/MatchDetail';
@@ -148,6 +149,7 @@ function App() {
               <Route path="/about/whistleblower" element={<Whistleblower />} />
               <Route path="/about/our-team" element={<OurTeam />} />
               <Route path="/about/sponsorships" element={<Sponsorships />} />
+              <Route path="/about/privacy" element={<PrivacyPolicy />} />
             </Route>
 
             {/* Admin Routes (No Layout) */}

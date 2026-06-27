@@ -1,5 +1,5 @@
 export const ShowtimeByelaws = () => {
-    const pdfUrl = "https://images.leaguerepublic.com/data/editor-docs/350033916/1751668190326-showtime_bye_laws_and_constitution.pdf";
+    const pdfUrl = "https://cdn.showtimeflag.football/pdfs/showtime_bye_laws_and_constitution.pdf";
 
     return (
         <div className="space-y-4 md:space-y-8">
