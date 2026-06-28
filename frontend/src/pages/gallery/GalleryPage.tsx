@@ -98,8 +98,24 @@ export const GalleryPage = () => {
                 </div>
 
                 {competitions.length > 0 && (
-                    <div className="mt-4 md:mt-0 flex flex-col md:flex-row md:items-end gap-3">
-                        <div className="flex-1 min-w-[260px]">
+                    <div className="mt-4 md:mt-0 flex flex-col gap-2 md:w-[280px]">
+                        {(linkedPlayoff || parentLeague) && (
+                            <button
+                                onClick={() => handleCompetitionChange(linkedPlayoff ? linkedPlayoff.id : parentLeague!.id)}
+                                className="w-full px-4 py-2 bg-sffl-red text-white font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap text-xs md:text-sm"
+                            >
+                                {linkedPlayoff ? (
+                                    <>
+                                        <span>🏆</span> Switch to Playoffs
+                                    </>
+                                ) : (
+                                    <>
+                                        <span>←</span> Back to Season
+                                    </>
+                                )}
+                            </button>
+                        )}
+                        <div className="min-w-[260px]">
                             <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">Competition</label>
                             <div className="relative">
                                 <select
@@ -121,22 +137,6 @@ export const GalleryPage = () => {
                                 </div>
                             </div>
                         </div>
-                        {(linkedPlayoff || parentLeague) && (
-                            <button
-                                onClick={() => handleCompetitionChange(linkedPlayoff ? linkedPlayoff.id : parentLeague!.id)}
-                                className="px-4 py-2 h-[38px] bg-sffl-red text-white font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap text-xs md:text-sm"
-                            >
-                                {linkedPlayoff ? (
-                                    <>
-                                        <span>🏆</span> Switch to Playoffs
-                                    </>
-                                ) : (
-                                    <>
-                                        <span>←</span> Back to Season
-                                    </>
-                                )}
-                            </button>
-                        )}
                     </div>
                 )}
             </div>

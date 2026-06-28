@@ -160,7 +160,23 @@ export const PlayerDetail = () => {
                         </h2>
                         
                         <div className="flex flex-wrap items-center gap-3">
-                            <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+                            <div className="flex flex-col gap-2 sm:w-[180px]">
+                                {(linkedPlayoff || parentLeague) && (
+                                    <button
+                                        onClick={() => handleCompChange(linkedPlayoff ? linkedPlayoff.id : parentLeague!.id)}
+                                        className="w-full px-3 py-1.5 bg-sffl-red text-white font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-1.5 whitespace-nowrap text-xs"
+                                    >
+                                        {linkedPlayoff ? (
+                                            <>
+                                                <span>🏆</span> Switch to Playoffs
+                                            </>
+                                        ) : (
+                                            <>
+                                                <span>←</span> Back to Season
+                                            </>
+                                        )}
+                                    </button>
+                                )}
                                 <div className="flex flex-col gap-1 min-w-[160px]">
                                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Competition</label>
                                     <select
@@ -174,22 +190,6 @@ export const PlayerDetail = () => {
                                         ))}
                                     </select>
                                 </div>
-                                {(linkedPlayoff || parentLeague) && (
-                                    <button
-                                        onClick={() => handleCompChange(linkedPlayoff ? linkedPlayoff.id : parentLeague!.id)}
-                                        className="px-3 py-1.5 h-[32px] bg-sffl-red text-white font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-1.5 whitespace-nowrap text-xs w-full sm:w-auto"
-                                    >
-                                        {linkedPlayoff ? (
-                                            <>
-                                                <span>🏆</span> Switch to Playoffs
-                                            </>
-                                        ) : (
-                                            <>
-                                                <span>←</span> Back to Season
-                                            </>
-                                        )}
-                                    </button>
-                                )}
                             </div>
 
                             <div className={`flex flex-col gap-1 min-w-[140px] transition-opacity duration-300 ${!compId ? 'opacity-40' : 'opacity-100'}`}>
