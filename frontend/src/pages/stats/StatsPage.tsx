@@ -253,7 +253,23 @@ export const StatsPage = () => {
                         </div>
                     </div>
 
-                    <div className="w-full sm:w-auto flex flex-col sm:flex-row sm:items-end gap-3">
+                    <div className="w-full sm:w-auto flex flex-col gap-2 sm:w-[220px]">
+                        {(linkedPlayoff || parentLeague) && (
+                            <button
+                                onClick={() => handleCompChange(linkedPlayoff ? linkedPlayoff.id : parentLeague!.id)}
+                                className="w-full px-4 py-2 bg-sffl-red text-white font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap text-xs md:text-sm"
+                            >
+                                {linkedPlayoff ? (
+                                    <>
+                                        <span>🏆</span> Switch to Playoffs
+                                    </>
+                                ) : (
+                                    <>
+                                        <span>←</span> Back to Season
+                                    </>
+                                )}
+                            </button>
+                        )}
                         <div className="min-w-[200px]">
                             <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">Competition</label>
                             <div className="relative">
@@ -276,22 +292,6 @@ export const StatsPage = () => {
                                 </div>
                             </div>
                         </div>
-                        {(linkedPlayoff || parentLeague) && (
-                            <button
-                                onClick={() => handleCompChange(linkedPlayoff ? linkedPlayoff.id : parentLeague!.id)}
-                                className="px-4 py-2 h-[38px] bg-sffl-red text-white font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap text-xs md:text-sm"
-                            >
-                                {linkedPlayoff ? (
-                                    <>
-                                        <span>🏆</span> Switch to Playoffs
-                                    </>
-                                ) : (
-                                    <>
-                                        <span>←</span> Back to Season
-                                    </>
-                                )}
-                            </button>
-                        )}
                     </div>
 
                     <div className={`w-full sm:w-auto transition-opacity duration-300 ${!selectedCompetitionId ? 'opacity-40' : 'opacity-100'}`}>

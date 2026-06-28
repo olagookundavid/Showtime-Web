@@ -201,7 +201,7 @@ const TeamRow = ({ m, side, secondLeg }: { m: Match; side: 'HOME' | 'AWAY'; seco
                     {isTbd ? '?' : isBye && !team?.id ? 'BYE' : (team.short_name || team.name.substring(0, 2)).toUpperCase().substring(0, 3)}
                 </div>
             )}
-            <span className={`text-xs truncate flex-1 ${isTbd ? 'text-gray-400 dark:text-gray-500 italic font-semibold' : isWinner ? 'font-black text-sffl-navy dark:text-white' : 'font-bold text-gray-700 dark:text-gray-300'}`}>
+            <span className={`text-xs flex-1 ${secondLeg ? 'leading-tight' : 'truncate'} ${isTbd ? 'text-gray-400 dark:text-gray-500 italic font-semibold' : isWinner ? 'font-black text-sffl-navy dark:text-white' : 'font-bold text-gray-700 dark:text-gray-300'}`}>
                 {isTbd ? 'TBD' : isBye && !team?.id ? 'BYE' : team.name.toUpperCase()}
             </span>
             {secondLeg ? (
@@ -438,8 +438,13 @@ export const BracketView = ({ competitionId, compact = false, viewAllLink }: Bra
                 <div className="flex gap-4 md:gap-8 min-w-max items-stretch">
                     {columns.map((col, i) => {
                         const isLast = i === columns.length - 1;
+                        // Two-legged cards carry three extra score columns (L1/L2/AGG),
+                        // so widen the column when any match in it is two-legged — gives
+                        // the team name room to display in full instead of ellipsizing.
+                        const hasTwoLeg = col.matches.some(m => secondLegMap.has(m.id));
+                        const colWidth = hasTwoLeg ? 'w-72 md:w-80' : 'w-56 md:w-64';
                         return (
-                            <div key={col.title} className="flex flex-col w-56 md:w-64">
+                            <div key={col.title} className={`flex flex-col ${colWidth}`}>
                                 <div className={`text-center text-[10px] md:text-xs font-black uppercase tracking-widest mb-3 py-1.5 rounded-lg ${isLast ? 'bg-sffl-red text-white' : 'bg-sffl-navy text-white'}`}>
                                     {isLast ? `🏆 ${col.title}` : col.title.startsWith('Playoffs') ? 'Playoffs' : col.title}
                                 </div>
