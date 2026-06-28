@@ -19,6 +19,28 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
+// Global 401 handler: when the token is expired/invalid, clear it and bounce
+// the user to login. Without this, a stale token fails every call silently
+// while ProtectedRoute still shows the user as "logged in" (in-memory user
+// stays populated), which looks like a broken app. Only redirect for a real
+// session — skip the login endpoints themselves so a bad-credentials 401 on
+// the login form is handled by the form, not a hard redirect.
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        const status = error?.response?.status;
+        const url: string = error?.config?.url || '';
+        const isAuthEndpoint = /\/auth\/(login|register|forgot-password|reset-password)/.test(url);
+        if (status === 401 && !isAuthEndpoint) {
+            localStorage.removeItem('showtime_access_token');
+            if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+                window.location.assign('/login');
+            }
+        }
+        return Promise.reject(error);
+    }
+);
+
 // ─── Auth Types ───────────────────────────────────────────────────────────────
 export interface AuthUser {
     id: string;

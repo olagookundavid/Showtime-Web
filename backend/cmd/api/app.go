@@ -23,4 +23,5 @@ type Application struct {
 	TeamManagerService services.ITeamManagerService
 	TicketService      *services.TicketService
 	StorageService     ports.StorageService
+	ImageGCService     *services.ImageGCService
 }

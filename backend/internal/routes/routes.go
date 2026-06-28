@@ -2,6 +2,8 @@ package routes
 
 import (
 	"expvar"
+	"os"
+
 	"pkg-common/commonAuth"
 
 	"showtime-backend/cmd/api"
@@ -26,12 +28,18 @@ func Routes(app *api.Application) *gin.Engine {
 
 	r.NoRoute(helpers.NotFoundResponse)
 	r.NoMethod(helpers.MethodNotAllowedResponse)
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	// Swagger publishes the full API surface; keep it off in production.
+	if os.Getenv("IS_PROD") != "true" {
+		r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	}
 	r.MaxMultipartMemory = 32 << 20 // 32 MB
 
 	// Root endpoints
 	r.GET("/healthcheck", helpers.HealthcheckHandler(app.Config.Env))
-	r.GET("/debug/vars", commonAuth.WrapHTTPHandler(expvar.Handler()))
+	// expvar exposes runtime internals (and can leak command-line flags such as
+	// the DB DSN / token key) — lock it behind admin auth instead of public.
+	debugGroup := r.Group("/debug", commonAuth.TokenMiddleware(app.TokenMaker), middlewares.AdminOnlyMiddleware(app.AuthService))
+	debugGroup.GET("/vars", commonAuth.WrapHTTPHandler(expvar.Handler()))
 
 	// Group: /api/v1/
 	rls := commonAuth.RateLimitStruct{
@@ -39,7 +47,7 @@ func Routes(app *api.Application) *gin.Engine {
 		Rps:            int(app.Config.Limiter.Rps),
 		Burst:          app.Config.Limiter.Burst,
 	}
-	v1_api := r.Group("/api/v1", commonAuth.RecoverPanic(), commonAuth.RateLimit(rls), commonAuth.Metrics(), middlewares.AuditLoggerMiddleware(app.AuditService))
+	v1_api := r.Group("/api/v1", commonAuth.RecoverPanic(), middlewares.SecurityHeaders(), commonAuth.RateLimit(rls), commonAuth.Metrics(), middlewares.AuditLoggerMiddleware(app.AuditService))
 	{
 		v1_api.GET("/healthcheck", helpers.HealthcheckHandler(app.Config.Env))
 	}
@@ -282,10 +290,11 @@ func SetupAuthRoutes(r *gin.RouterGroup, app *api.Application) {
 			limitedAuth.POST("/register", app.Handlers.AuthHandler.Register)
 			limitedAuth.POST("/login", app.Handlers.AuthHandler.Login)
 			limitedAuth.POST("/forgot-password", app.Handlers.AuthHandler.SendPasswordResetOTP)
+			// reset-password MUST be rate-limited — it's the OTP brute-force surface.
+			limitedAuth.POST("/reset-password", app.Handlers.AuthHandler.ResetPassword)
 		}
 
 		authRoutes.POST("/logout", app.Handlers.AuthHandler.Logout)
-		authRoutes.POST("/reset-password", app.Handlers.AuthHandler.ResetPassword)
 	}
 
 	// Authenticated routes

@@ -5,7 +5,6 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -363,7 +362,6 @@ func (h *TicketHandler) LookupByCode(c *gin.Context) {
 	code := c.Param("code")
 	ticket, err := h.service.GetByCode(c.Request.Context(), code)
 	if err != nil {
-		fmt.Printf("DEBUG: LookupByCode error for code %s: %v\n", code, err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "ticket not found"})
 		return
 	}
@@ -405,7 +403,6 @@ func (h *TicketHandler) SearchByEmail(c *gin.Context) {
 
 	tickets, err := h.service.SearchByEmail(c.Request.Context(), email)
 	if err != nil {
-		fmt.Printf("DEBUG: SearchByEmail error for email %s: %v\n", email, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

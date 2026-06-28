@@ -61,6 +61,14 @@ func openDB(cfg config.Config, ctx context.Context) (*pgxpool.Pool, error) {
 	// Disable prepared statements for compatibility with PgBouncer in transaction mode
 	poolConfig.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
 
+	// Size the pool explicitly. pgxpool defaults to max(4, numCPU) connections,
+	// which on a small single instance silently caps throughput exactly when
+	// launch-day traffic spikes. Driven by env so it can be tuned against the
+	// DB/pooler limit without a redeploy.
+	poolConfig.MaxConns = int32(envInt("DB_MAX_CONNS", 20))
+	poolConfig.MinConns = int32(envInt("DB_MIN_CONNS", 2))
+	poolConfig.MaxConnIdleTime = 5 * time.Minute
+
 	// Pin session timezone to Lagos so CURRENT_DATE / NOW() match the
 	// timezone admins and users expect. Without this, on a UTC-hosted DB
 	// (Koyeb default), events would appear/disappear an hour around
@@ -103,6 +111,36 @@ func loadPort() int {
 	return port
 }
 
+// envInt reads an int env var, falling back to def when unset/invalid.
+func envInt(key string, def int) int {
+	if v, err := strconv.Atoi(os.Getenv(key)); err == nil {
+		return v
+	}
+	return def
+}
+
+// envFloat reads a float env var, falling back to def when unset/invalid.
+func envFloat(key string, def float64) float64 {
+	if v, err := strconv.ParseFloat(os.Getenv(key), 64); err == nil {
+		return v
+	}
+	return def
+}
+
+// envBool reads a bool env var. Only the literal "false" disables; any other
+// value (including unset) yields def — so a flag that defaults true stays true
+// unless explicitly turned off.
+func envBool(key string, def bool) bool {
+	switch os.Getenv(key) {
+	case "true":
+		return true
+	case "false":
+		return false
+	default:
+		return def
+	}
+}
+
 func loadModeEnv() bool {
 	godotenv.Load()
 	return (os.Getenv("IS_PROD")) == "true"
@@ -133,9 +171,14 @@ func flagSetup(dbUrl string, tokenDeets map[string]string) *config.Config {
 	flag.StringVar(&cfg.Env, "env", "development", "Environment (development|staging|production)")
 	//db and settings
 	flag.StringVar(&cfg.Db.Dsn, "db-dsn", dbUrl, "PostgreSQL DSN")
-	flag.Float64Var(&cfg.Limiter.Rps, "limiter-rps", 2, "Rate limiter maximum requests per second")
-	flag.IntVar(&cfg.Limiter.Burst, "limiter-burst", 4, "Rate limiter maximum burst")
-	flag.BoolVar(&cfg.Limiter.Enabled, "limiter-enabled", false, "Enable rate limiter")
+	// Rate limiter driven by env so it's actually ON in prod (the previous
+	// default of disabled left every non-auth/non-checkout endpoint open to
+	// floods on a scale-to-zero instance). Defaults are generous enough that
+	// normal users never hit them; the stricter per-route limiters on
+	// auth/purchase/checkout still apply on top.
+	flag.Float64Var(&cfg.Limiter.Rps, "limiter-rps", envFloat("LIMITER_RPS", 20), "Rate limiter maximum requests per second")
+	flag.IntVar(&cfg.Limiter.Burst, "limiter-burst", envInt("LIMITER_BURST", 40), "Rate limiter maximum burst")
+	flag.BoolVar(&cfg.Limiter.Enabled, "limiter-enabled", envBool("LIMITER_ENABLED", true), "Enable rate limiter")
 
 	//tokenDeets
 	flag.StringVar(&cfg.Token.TokenKey, "token-key", tokenDeets["token_key"], "Token Key")
@@ -161,6 +204,18 @@ func cronjobs(app *api.Application) {
 		app.Logger.Info("Running OTP cleanup job...", nil)
 		if err := app.AuthService.CleanupExpiredOTPs(context.Background()); err != nil {
 			app.Logger.Error(fmt.Sprintf("OTP cleanup failed: %v", err), nil)
+		}
+	})
+
+	// Run daily at 02:00 AM to sweep orphaned images from object storage.
+	// No-op unless R2_GC_ENABLED=true; logs candidates only until R2_GC_DRY_RUN=false.
+	c.AddFunc("0 2 * * *", func() {
+		if app.ImageGCService == nil || !app.ImageGCService.Enabled {
+			return
+		}
+		app.Logger.Info("Running orphaned-image GC sweep...", nil)
+		if err := app.ImageGCService.SweepOrphans(context.Background()); err != nil {
+			app.Logger.Error(fmt.Sprintf("Image GC sweep failed: %v", err), nil)
 		}
 	})
 

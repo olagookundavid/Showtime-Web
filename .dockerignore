@@ -7,3 +7,5 @@ tmp
 dist
 build
 *.log
+backend/scratch
+**/*_test.go

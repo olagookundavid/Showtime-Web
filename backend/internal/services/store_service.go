@@ -168,9 +168,12 @@ func (s *StoreService) GetStoreProduct(ctx context.Context, id string) (*dto.Sto
 }
 
 func generateOrderReference() string {
-	// UUID-derived suffix to avoid collisions on the UNIQUE order_reference column.
+	// Full 128-bit UUID suffix (not truncated): the public order-confirmation
+	// endpoint looks orders up by this reference, so it doubles as a capability
+	// token. A short 10-char suffix was enumerable and leaked customer PII; the
+	// full value makes guessing infeasible.
 	id := strings.ReplaceAll(uuid.New().String(), "-", "")
-	return fmt.Sprintf("SFFL-ORD-%s", strings.ToUpper(id[:10]))
+	return fmt.Sprintf("SFFL-ORD-%s", strings.ToUpper(id))
 }
 
 func mapOrderToResponse(o *domain.Order) dto.OrderResponse {
@@ -227,6 +230,14 @@ func (s *StoreService) CreateOrder(ctx context.Context, userID *string, req dto.
 			return nil, fmt.Errorf("failed to fetch product %s: %w", reqItem.ProductID, err)
 		}
 
+		// Soft-deleted / deactivated products must not be purchasable even if a
+		// client kept or guessed the ID. The storefront listing hides inactive
+		// products but the checkout fetch is by-ID and doesn't filter, so guard
+		// here.
+		if !p.IsActive {
+			return nil, fmt.Errorf("product %q is no longer available", p.Name)
+		}
+
 		unitPrice := p.Price
 		var variantLabel string
 
@@ -263,7 +274,10 @@ func (s *StoreService) CreateOrder(ctx context.Context, userID *string, req dto.
 		})
 	}
 
-	paystackRef := fmt.Sprintf("sffl-pay-%s", uuid.New().String()[:8])
+	// Full UUID (not truncated) — this reference is what Paystack echoes back to
+	// the public confirmation page and is matched by the by-ref lookup, so it
+	// must be unguessable.
+	paystackRef := fmt.Sprintf("sffl-pay-%s", strings.ReplaceAll(uuid.New().String(), "-", ""))
 	orderRef := generateOrderReference()
 
 	// Naira -> kobo using math.Round so a 0.01 float drift can't cost a kobo.
@@ -613,6 +627,21 @@ func (s *StoreService) ListOrders(ctx context.Context, page, limit int, userID *
 }
 
 func (s *StoreService) UpdateFulfillmentStatus(ctx context.Context, id string, status string) (*dto.OrderResponse, error) {
+	// Guard: never ship/deliver an order that hasn't been paid for. Without
+	// this an admin misclick could move a pending/failed order straight to
+	// "shipped" (goods without payment). Pending/cancelled transitions stay
+	// allowed (e.g. preparing before capture is not a thing here, and cancel
+	// is routed through CancelOrder which restores stock).
+	if status == "shipped" || status == "delivered" {
+		existing, err := s.repo.GetOrder(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if existing.PaymentStatus != "paid" {
+			return nil, fmt.Errorf("cannot mark order as %s: payment status is %q (must be paid)", status, existing.PaymentStatus)
+		}
+	}
+
 	err := s.repo.UpdateOrderFulfillmentStatus(ctx, id, status)
 	if err != nil {
 		return nil, err

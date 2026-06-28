@@ -27,6 +27,7 @@ type IAuthRepository interface {
 	SaveOTP(ctx context.Context, email, code, purpose string, expiry time.Duration) error
 	VerifyOTP(ctx context.Context, email, code, purpose string) (bool, error)
 	MarkOTPUsed(ctx context.Context, email, code, purpose string) error
+	InvalidateActiveOTPs(ctx context.Context, email, purpose string) error
 	DeleteExpiredOTPs(ctx context.Context) error
 }
 
@@ -270,6 +271,15 @@ func (m AuthRepository) VerifyOTP(ctx context.Context, email, code, purpose stri
 func (m AuthRepository) MarkOTPUsed(ctx context.Context, email, code, purpose string) error {
 	query := `UPDATE otps SET used = TRUE WHERE email = $1 AND otp_code = $2 AND purpose = $3`
 	_, err := m.Db.Exec(ctx, query, email, code, purpose)
+	return err
+}
+
+// InvalidateActiveOTPs burns every still-valid OTP for an email+purpose. Called
+// after a wrong reset-password guess so each issued OTP allows only a single
+// attempt — turning the 6-digit code from brute-forceable into one-shot.
+func (m AuthRepository) InvalidateActiveOTPs(ctx context.Context, email, purpose string) error {
+	query := `UPDATE otps SET used = TRUE WHERE email = $1 AND purpose = $2 AND used = FALSE`
+	_, err := m.Db.Exec(ctx, query, email, purpose)
 	return err
 }
 

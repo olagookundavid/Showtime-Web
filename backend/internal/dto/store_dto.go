@@ -105,7 +105,7 @@ type SavedAddressResponse struct {
 type OrderItemRequest struct {
 	ProductID string  `json:"product_id" binding:"required,uuid"`
 	VariantID *string `json:"variant_id" binding:"omitempty,uuid"` // Optional variant selection
-	Quantity  int     `json:"quantity" binding:"required,min=1"`
+	Quantity  int     `json:"quantity" binding:"required,min=1,max=100"`
 }
 
 // CheckoutRequest represents client billing and delivery order package
@@ -118,7 +118,7 @@ type CheckoutRequest struct {
 	ShippingCity       string             `json:"shipping_city" binding:"required"`
 	ShippingAddress    string             `json:"shipping_address" binding:"required"`
 	ShippingPostalCode string             `json:"shipping_postal_code"`
-	Items              []OrderItemRequest `json:"items" binding:"required,dive,required"`
+	Items              []OrderItemRequest `json:"items" binding:"required,min=1,max=50,dive,required"`
 }
 
 // CheckoutResponse represents initialized Paystack payment parameters

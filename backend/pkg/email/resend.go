@@ -25,7 +25,7 @@ func NewResendService() *ResendService {
 func (s *ResendService) SendEmail(to, subject, htmlBody string) error {
 	apiKey := os.Getenv("RESEND_API_KEY")
 	if apiKey == "" {
-		fmt.Printf("⚠️ RESEND_API_KEY not set. Skipping email to: %s | Subject: %s\n", to, subject)
+		fmt.Println("⚠️ RESEND_API_KEY not set — skipping outbound email")
 		return nil
 	}
 
@@ -46,6 +46,5 @@ func (s *ResendService) SendEmail(to, subject, htmlBody string) error {
 		return fmt.Errorf("failed to send email via sdk: %w", err)
 	}
 
-	fmt.Printf("✅ Email sent successfully via SDK to %s\n", to)
 	return nil
 }

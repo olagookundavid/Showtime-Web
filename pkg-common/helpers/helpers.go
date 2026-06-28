@@ -316,12 +316,22 @@ func BuildCORSConfig() cors.Config {
 		normalized[NormalizeOrigin(o)] = struct{}{}
 	}
 
+	isProd := os.Getenv("IS_PROD") == "true"
+	hasExplicitAllowlist := len(normalized) > 0
+
+	// The *.vercel.app wildcard combined with AllowCredentials lets ANY attacker
+	// deploy a vercel site and make credentialed cross-origin requests. Disable
+	// it in production once an explicit CORS_ALLOW_ORIGINS allowlist is set. If a
+	// prod deploy has no allowlist yet, fall back to the old behavior (don't
+	// break the live site) but warn loudly so it gets configured.
+	allowVercelWildcard := !isProd || !hasExplicitAllowlist
+	if isProd && !hasExplicitAllowlist {
+		logger.GetSingletonLogger().Error("CORS: production without CORS_ALLOW_ORIGINS — falling back to *.vercel.app wildcard. Set an explicit allowlist to secure cross-origin credentialed requests.", nil)
+	}
+
 	return cors.Config{
 		AllowOriginFunc: func(origin string) bool {
 			origin = NormalizeOrigin(origin)
-
-			// Debug log (remove in prod)
-			logger.GetSingletonLogger().Info("CORS check for: "+origin, nil)
 
 			// 1. Exact match (production domains)
 			if _, ok := normalized[origin]; ok {
@@ -333,8 +343,8 @@ func BuildCORSConfig() cors.Config {
 				return true
 			}
 
-			// 3. Allow Vercel previews
-			if strings.HasSuffix(origin, ".vercel.app") {
+			// 3. Allow Vercel previews (gated: see allowVercelWildcard above)
+			if allowVercelWildcard && strings.HasSuffix(origin, ".vercel.app") {
 				return true
 			}
 

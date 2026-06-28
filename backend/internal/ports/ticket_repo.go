@@ -185,6 +185,22 @@ func (r *PostgresEventDayRepository) ListAll(ctx context.Context) ([]domain.Even
 }
 
 func (r *PostgresEventDayRepository) Delete(ctx context.Context, id string) error {
+	// Guard: refuse to delete an event that has paid tickets. After migration
+	// 034, deleting the event nulls tier_id/event_day_id on sold tickets (it
+	// no longer cascades the rows away), which silently detaches paid tickets
+	// from their tier and wipes the live sold_count source of truth. Snapshot
+	// columns keep the display data, but losing the relational link is
+	// destructive and irreversible — so block it. Mirrors the per-tier guard.
+	var paidCount int
+	if err := r.db.QueryRow(ctx,
+		`SELECT COUNT(*) FROM tickets WHERE event_day_id = $1 AND status = 'PAID'`, id,
+	).Scan(&paidCount); err != nil {
+		return err
+	}
+	if paidCount > 0 {
+		return fmt.Errorf("cannot delete event day: %d paid ticket(s) exist for it", paidCount)
+	}
+
 	// Delete tiers first (cascade), then event day
 	_, err := r.db.Exec(ctx, `DELETE FROM ticket_tiers WHERE event_day_id = $1`, id)
 	if err != nil {
@@ -259,7 +275,11 @@ func (r *PostgresTicketTierRepository) GetByID(ctx context.Context, id string) (
 }
 
 func (r *PostgresTicketTierRepository) IncrementSoldCount(ctx context.Context, id string, qty int) error {
-	query := `UPDATE ticket_tiers SET sold_count = sold_count + $1, updated_at = NOW() WHERE id = $2`
+	// Capacity-guarded so the denormalized counter can never run past capacity
+	// (defense-in-depth on top of the reservation in ticket Create). capacity = 0
+	// means unlimited.
+	query := `UPDATE ticket_tiers SET sold_count = sold_count + $1, updated_at = NOW()
+	          WHERE id = $2 AND (capacity = 0 OR sold_count + $1 <= capacity)`
 	_, err := r.db.Exec(ctx, query, qty, id)
 	return err
 }
@@ -291,7 +311,49 @@ func NewTicketRepository(db *pgxpool.Pool) *PostgresTicketRepository {
 	return &PostgresTicketRepository{db: db}
 }
 
+// pendingReservationTTL bounds how long an unpaid PENDING ticket holds capacity.
+// Abandoned purchases (user closes the Paystack tab, no webhook ever lands) stop
+// counting against capacity after this window, so they can't permanently block
+// sales while still preventing concurrent overselling within the window.
+const pendingReservationTTL = "30 minutes"
+
 func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ticket) error {
+	// Reserve capacity and insert atomically. We lock the tier row FOR UPDATE so
+	// concurrent purchases of the last seats serialize and each one sees the
+	// others' in-flight reservations — closing the check-then-insert race that
+	// previously let a tier oversell. Mirrors the store's checkout locking.
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	// Lock the tier and read its capacity. capacity = 0 means unlimited.
+	var capacity int
+	if err := tx.QueryRow(ctx,
+		`SELECT capacity FROM ticket_tiers WHERE id = $1 FOR UPDATE`, ticket.TierID,
+	).Scan(&capacity); err != nil {
+		return fmt.Errorf("tier not found for capacity check: %w", err)
+	}
+
+	if capacity > 0 {
+		// Count seats already held: all PAID/USED tickets plus PENDING tickets
+		// still inside the reservation window.
+		var reserved int
+		if err := tx.QueryRow(ctx,
+			`SELECT COALESCE(SUM(quantity), 0) FROM tickets
+			 WHERE tier_id = $1
+			   AND (status IN ('PAID', 'USED')
+			        OR (status = 'PENDING' AND created_at > NOW() - INTERVAL '`+pendingReservationTTL+`'))`,
+			ticket.TierID,
+		).Scan(&reserved); err != nil {
+			return err
+		}
+		if reserved+ticket.Quantity > capacity {
+			return fmt.Errorf("not enough tickets available, only %d remaining", capacity-reserved)
+		}
+	}
+
 	query := `
 		INSERT INTO tickets (event_day_id, tier_id, email, phone, name, user_id, quantity, unit_price, total_amount, status, paystack_reference, paystack_access_code, ticket_code, team_id, referral_code, event_title, event_date, event_venue, tier_name)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
@@ -303,18 +365,17 @@ func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ti
 		RETURNING id, created_at, updated_at
 	`
 
-	err := r.db.QueryRow(ctx, query,
+	err = tx.QueryRow(ctx, query,
 		ticket.EventDayID, ticket.TierID, ticket.Email, ticket.Phone, ticket.Name, ticket.UserID,
 		ticket.Quantity, ticket.UnitPrice, ticket.TotalAmount, ticket.Status,
 		ticket.PaystackReference, ticket.PaystackAccessCode, ticket.TicketCode, ticket.TeamID,
 		ticket.ReferralCode,
 	).Scan(&ticket.ID, &ticket.CreatedAt, &ticket.UpdatedAt)
-
 	if err != nil {
 		return err
 	}
 
-	return nil
+	return tx.Commit(ctx)
 }
 
 func (r *PostgresTicketRepository) GetByID(ctx context.Context, id string) (*domain.Ticket, error) {

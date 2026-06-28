@@ -219,6 +219,23 @@ func (h *AuthHandler) UpdateUserRole(c *gin.Context) {
 		return
 	}
 
+	// Privilege-escalation guard: only an app_admin may grant the elevated
+	// admin / app_admin roles. The route admits plain admins (for assigning
+	// lesser roles like ticketer/team_head), so without this an admin could
+	// self-promote to app_admin and unlock the superuser tier.
+	if req.Role == "admin" || req.Role == "app_admin" {
+		payload, perr := helpers.GetTokenPayloadFromContext(c)
+		if perr != nil || payload == nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
+		caller, cerr := h.AuthService.ReturnUserProfile(c.Request.Context(), payload.UserId)
+		if cerr != nil || caller == nil || caller.UserType != "app_admin" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "only an app_admin can assign the admin or app_admin role"})
+			return
+		}
+	}
+
 	err := h.AuthService.UpdateUserRole(c.Request.Context(), id, req.Role)
 	if err != nil {
 		switch {

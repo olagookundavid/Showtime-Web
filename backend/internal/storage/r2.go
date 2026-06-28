@@ -90,12 +90,10 @@ func (s *R2StorageService) DeleteObject(ctx context.Context, imageURL string) er
 
 	// Extract object key from public URL
 	// If the URL doesn't start with our public URL, it's probably not our object
-	if !strings.HasPrefix(imageURL, s.publicURL) {
+	objectKey, ok := s.ObjectKeyFromURL(imageURL)
+	if !ok {
 		return nil
 	}
-
-	objectKey := strings.TrimPrefix(imageURL, s.publicURL)
-	objectKey = strings.TrimPrefix(objectKey, "/")
 
 	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: aws.String(s.bucketName),
@@ -106,4 +104,61 @@ func (s *R2StorageService) DeleteObject(ctx context.Context, imageURL string) er
 	}
 
 	return nil
+}
+
+// DeleteObjectByKey removes an object by its raw key.
+func (s *R2StorageService) DeleteObjectByKey(ctx context.Context, key string) error {
+	if key == "" {
+		return nil
+	}
+	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(s.bucketName),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete object %s: %w", key, err)
+	}
+	return nil
+}
+
+// ObjectKeyFromURL maps one of our public URLs back to its object key. Returns
+// ok=false for empty or external URLs (not under our public URL prefix).
+func (s *R2StorageService) ObjectKeyFromURL(url string) (string, bool) {
+	if url == "" || !strings.HasPrefix(url, s.publicURL) {
+		return "", false
+	}
+	key := strings.TrimPrefix(url, s.publicURL)
+	key = strings.TrimPrefix(key, "/")
+	if key == "" {
+		return "", false
+	}
+	return key, true
+}
+
+// ListObjects returns every object in the bucket, following pagination.
+func (s *R2StorageService) ListObjects(ctx context.Context) ([]ports.StorageObject, error) {
+	var objects []ports.StorageObject
+	paginator := s3.NewListObjectsV2Paginator(s.client, &s3.ListObjectsV2Input{
+		Bucket: aws.String(s.bucketName),
+	})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list bucket objects: %w", err)
+		}
+		for _, obj := range page.Contents {
+			if obj.Key == nil {
+				continue
+			}
+			var modified time.Time
+			if obj.LastModified != nil {
+				modified = *obj.LastModified
+			}
+			objects = append(objects, ports.StorageObject{
+				Key:          *obj.Key,
+				LastModified: modified,
+			})
+		}
+	}
+	return objects, nil
 }

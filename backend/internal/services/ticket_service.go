@@ -498,6 +498,27 @@ func (s *TicketService) GiftTicket(ctx context.Context, req dto.GiftTicketReques
 	return res, nil
 }
 
+// verifyTicketPayment is the authoritative money check before a ticket is
+// marked PAID. A "success" status from Paystack is NOT enough on its own — we
+// must confirm the amount actually charged matches the ticket's total (in
+// kobo) and the currency is NGN. Without this, an underpaid or mismatched
+// transaction could fulfill a ticket. Returns nil only when the payment is
+// genuinely valid for this ticket.
+func verifyTicketPayment(verifyResp *PaystackVerifyResponse, ticket *domain.Ticket) error {
+	if verifyResp == nil || verifyResp.Data.Status != "success" {
+		return fmt.Errorf("payment not successful")
+	}
+	expectedKobo := ticket.TotalAmount * 100
+	if verifyResp.Data.Amount < expectedKobo {
+		return fmt.Errorf("payment amount mismatch: charged %d kobo, expected %d kobo", verifyResp.Data.Amount, expectedKobo)
+	}
+	// Currency may be empty on older/edge responses; only reject a definite mismatch.
+	if verifyResp.Data.Currency != "" && verifyResp.Data.Currency != "NGN" {
+		return fmt.Errorf("unexpected payment currency %q", verifyResp.Data.Currency)
+	}
+	return nil
+}
+
 func (s *TicketService) HandleWebhook(ctx context.Context, reference string) error {
 	// 1. Verify with Paystack
 	verifyResp, err := s.paystack.VerifyTransaction(reference)
@@ -516,12 +537,12 @@ func (s *TicketService) HandleWebhook(ctx context.Context, reference string) err
 		return nil
 	}
 
-	// 4. Update based on payment status
-	if verifyResp.Data.Status == "success" {
+	// 4. Update based on payment status — verify the money, not just the status.
+	if err := verifyTicketPayment(verifyResp, ticket); err == nil {
 		if err := s.ticketRepo.UpdateStatus(ctx, ticket.ID, domain.TicketStatusPaid); err != nil {
 			return err
 		}
-		// Increment sold count on tier
+		// Increment sold count on tier (capacity-guarded, idempotent-bounded)
 		err = s.tierRepo.IncrementSoldCount(ctx, ticket.TierID, ticket.Quantity)
 		s.sendPurchaseEmail(ticket)
 		return err
@@ -587,8 +608,8 @@ func (s *TicketService) VerifyAndUpdate(ctx context.Context, reference string) (
 		return nil, fmt.Errorf("failed to verify transaction: %w", err)
 	}
 
-	// 4. Update status based on Paystack response
-	if verifyResp.Data.Status == "success" {
+	// 4. Update status based on Paystack response — verify the money, not just status.
+	if err := verifyTicketPayment(verifyResp, ticket); err == nil {
 		if err := s.ticketRepo.UpdateStatus(ctx, ticket.ID, domain.TicketStatusPaid); err != nil {
 			return nil, err
 		}
@@ -624,7 +645,7 @@ func (s *TicketService) AdminCheckin(ctx context.Context, id string, checkedInBy
 	// If pending, try to verify payment first
 	if ticket.Status == domain.TicketStatusPending && ticket.PaystackReference != nil {
 		verifyResp, verifyErr := s.paystack.VerifyTransaction(*ticket.PaystackReference)
-		if verifyErr == nil && verifyResp.Data.Status == "success" {
+		if verifyErr == nil && verifyTicketPayment(verifyResp, ticket) == nil {
 			_ = s.ticketRepo.UpdateStatus(ctx, ticket.ID, domain.TicketStatusPaid)
 			_ = s.tierRepo.IncrementSoldCount(ctx, ticket.TierID, ticket.Quantity)
 			s.sendPurchaseEmail(ticket)

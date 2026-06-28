@@ -93,6 +93,10 @@ func (s *AuthService) ResetPassword(ctx context.Context, req dto.ResetPasswordRe
 		return err
 	}
 	if !valid {
+		// Burn any active reset OTPs on a wrong guess so a 6-digit code can't be
+		// brute-forced — the attacker must request a fresh OTP each time (which
+		// is rate-limited and notifies the real owner).
+		_ = s.AuthRepository.InvalidateActiveOTPs(ctx, req.Email, "password_reset")
 		return errors.New("invalid or expired OTP")
 	}
 
@@ -163,9 +167,12 @@ func (s *AuthService) CleanupExpiredOTPs(ctx context.Context) error {
 
 func (s *AuthService) Login(ctx context.Context, req dto.LoginRequest) (*dto.LoginResponse, error) {
 
+	// Return one generic error for both "no such account" and "wrong password"
+	// so the login endpoint can't be used to enumerate which emails are
+	// registered. ErrNoUserRecordExist == "incorrect email or password".
 	user, err := s.AuthRepository.GetUserByEmail(ctx, req.Email)
 	if err != nil {
-		return nil, appErrors.ErrAccountNotFound
+		return nil, appErrors.ErrNoUserRecordExist
 	}
 
 	if user.Password.Hash == nil {
@@ -177,7 +184,7 @@ func (s *AuthService) Login(ctx context.Context, req dto.LoginRequest) (*dto.Log
 		return nil, err
 	}
 	if !match {
-		return nil, appErrors.ErrIncorrectPassword
+		return nil, appErrors.ErrNoUserRecordExist
 	}
 
 	return loginUserWithTokens(s, user)

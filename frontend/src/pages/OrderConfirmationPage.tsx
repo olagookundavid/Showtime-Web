@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams, Link } from 'react-router-dom';
-import { getOrderByReference } from '../services/api';
+import { getOrderByReference, verifyStorePayment } from '../services/api';
 import { Loader } from '../components/ui/Loader';
 import { OrderLifecycleStepper } from '../components/store/OrderLifecycleStepper';
 import { useCart } from '../contexts/CartContext';
@@ -11,6 +11,20 @@ export const OrderConfirmationPage = () => {
     const reference = searchParams.get('reference') || searchParams.get('trxref');
     const { removeItem } = useCart();
     const cartClearedRef = useRef(false);
+    const verifyFiredRef = useRef(false);
+
+    // Don't rely solely on the Paystack webhook to confirm payment. On landing,
+    // proactively ask the backend to verify this reference with Paystack once.
+    // /store/verify is idempotent (it only transitions based on Paystack's
+    // authoritative response), so if the webhook is delayed or missed the
+    // customer still gets a 'paid' order instead of "pending" forever.
+    useEffect(() => {
+        if (!reference || verifyFiredRef.current) return;
+        verifyFiredRef.current = true;
+        verifyStorePayment(reference).catch(() => {
+            /* polling below still picks up the webhook-driven update */
+        });
+    }, [reference]);
 
     // Poll the order until payment_status moves off 'pending'. The Paystack
     // webhook lands milliseconds-to-seconds after the redirect — stop polling

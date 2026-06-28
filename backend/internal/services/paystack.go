@@ -40,7 +40,8 @@ type PaystackVerifyResponse struct {
 	Data    struct {
 		Status    string `json:"status"`
 		Reference string `json:"reference"`
-		Amount    int    `json:"amount"`
+		Amount    int    `json:"amount"` // in kobo (Naira * 100)
+		Currency  string `json:"currency"`
 		Channel   string `json:"channel"`
 		PaidAt    string `json:"paid_at"`
 	} `json:"data"`

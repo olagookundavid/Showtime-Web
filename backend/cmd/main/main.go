@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 	"pkg-common/logger"
+	"strings"
 	"sync"
+	"time"
 
 	"pkg-common/token"
 	"showtime-backend/cmd/api"
@@ -70,11 +72,42 @@ func main() {
 	})
 	defer log.Sync()
 
+	// Fail loud (not silent) on misconfigured outbound integrations. These are
+	// not fatal so dev can run without them, but in prod a missing key means
+	// emails silently vanish / payments can't be verified — surface it at boot.
+	if mode {
+		if os.Getenv("RESEND_API_KEY") == "" {
+			log.Error("RESEND_API_KEY is not set in production — ticket/order emails will NOT be sent", nil)
+		}
+		paystackKey := os.Getenv("PAYSTACK_SECRET_KEY")
+		if paystackKey == "" {
+			log.Error("PAYSTACK_SECRET_KEY is not set in production — payment verification will fail", nil)
+		} else if strings.HasPrefix(paystackKey, "pk_") {
+			log.Error("PAYSTACK_SECRET_KEY looks like a PUBLISHABLE key (pk_...) — server payment verification/refunds need the SECRET key (sk_...)", nil)
+		}
+		// The committed dev key is a guessable ascending sequence. Using it (or
+		// any short key) in prod means admin tokens can be forged — rotate it.
+		tokenKey := os.Getenv("TOKEN_KEY")
+		if tokenKey == "12345678901234567890123456789012" || len(tokenKey) < 32 {
+			log.Error("TOKEN_KEY is weak/default in production — generate a strong 32-byte secret and set it via the platform secret store immediately", nil)
+		}
+	}
+
 	dbUrl := loadDbUrl(log)
 	tokenDeets := loadTokenDetails(log)
 
 	cfg := flagSetup(dbUrl, tokenDeets)
-	runMigrations(dbUrl, log)
+
+	// Auto-run migrations on boot by default (preserves existing behavior).
+	// Set AUTO_MIGRATE=false in prod once migrations are run as a separate,
+	// gated deploy step — so a bad/in-progress migration can't take the app
+	// down on a cold start, and repeated scale-to-zero wakes don't re-run
+	// migration logic against the live DB.
+	if envBool("AUTO_MIGRATE", true) {
+		runMigrations(dbUrl, log)
+	} else {
+		log.Info("AUTO_MIGRATE=false — skipping boot migrations (run them via deploy step)", nil)
+	}
 
 	ctx := context.Background()
 	pool, err := openDB(*cfg, ctx)
@@ -100,6 +133,16 @@ func main() {
 	// defer examplePub.Close()
 
 	appHandlers, auditService, authService, tmService, ticketService, storageService := wireDependencies(pool, tokenMaker, log)
+
+	// Orphaned-image GC. Off + dry-run by default so it can't delete in-use
+	// images before its candidate logs have been reviewed (see image_gc_service).
+	imageGC := services.NewImageGCService(
+		pool, storageService, log,
+		envBool("R2_GC_ENABLED", false),
+		envBool("R2_GC_DRY_RUN", true),
+		time.Duration(envInt("R2_GC_TTL_HOURS", 24))*time.Hour,
+	)
+
 	app := &api.Application{
 		Wg:                 sync.WaitGroup{},
 		Config:             *cfg,
@@ -111,6 +154,7 @@ func main() {
 		TeamManagerService: tmService,
 		TicketService:      ticketService,
 		StorageService:     storageService,
+		ImageGCService:     imageGC,
 	}
 	cronjobs(app)
 
