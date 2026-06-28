@@ -19,22 +19,25 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
-// Global 401 handler: when the token is expired/invalid, clear it and bounce
-// the user to login. Without this, a stale token fails every call silently
-// while ProtectedRoute still shows the user as "logged in" (in-memory user
-// stays populated), which looks like a broken app. Only redirect for a real
-// session — skip the login endpoints themselves so a bad-credentials 401 on
-// the login form is handled by the form, not a hard redirect.
+// Global 401 handler: when a LOGGED-IN user's token expires/goes invalid, clear
+// it and send them to the home page (the app is anon-first — we never bounce to
+// a login wall). Critically, this must NOT fire for anonymous visitors: an anon
+// user legitimately gets 401s from authenticated calls (e.g. the session probe
+// /auth/profile on load, or saved-addresses on the store). So we only act when a
+// token was actually present (a real session that went bad), and we skip the
+// auth endpoints (login/register/reset have their own forms, /auth/profile is
+// the anon session probe).
 api.interceptors.response.use(
     (response) => response,
     (error) => {
         const status = error?.response?.status;
         const url: string = error?.config?.url || '';
-        const isAuthEndpoint = /\/auth\/(login|register|forgot-password|reset-password)/.test(url);
-        if (status === 401 && !isAuthEndpoint) {
+        const hadToken = typeof localStorage !== 'undefined' && !!localStorage.getItem('showtime_access_token');
+        const isAuthEndpoint = /\/auth\/(login|register|forgot-password|reset-password|profile)/.test(url);
+        if (status === 401 && hadToken && !isAuthEndpoint) {
             localStorage.removeItem('showtime_access_token');
-            if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
-                window.location.assign('/login');
+            if (typeof window !== 'undefined' && window.location.pathname !== '/') {
+                window.location.assign('/');
             }
         }
         return Promise.reject(error);

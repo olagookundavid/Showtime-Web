@@ -21,7 +21,9 @@ export const ProtectedRoute = ({ children, requireAdmin = false, requireRole }: 
     }
 
     if (!isAuthenticated) {
-        return <Navigate to="/login" replace />;
+        // Send unauthenticated visitors home rather than to the login page —
+        // the app is anon-first; they can log in from the nav when they want.
+        return <Navigate to="/" replace />;
     }
 
     // app_admin is the superuser: it can reach anything an admin can.

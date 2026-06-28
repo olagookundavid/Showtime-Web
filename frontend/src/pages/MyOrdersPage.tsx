@@ -28,7 +28,7 @@ export const MyOrdersPage = () => {
     });
 
     if (!isAuthenticated) {
-        return <Navigate to="/login" replace />;
+        return <Navigate to="/" replace />;
     }
 
     const orders = data?.data || [];
