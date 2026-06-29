@@ -20,13 +20,13 @@ api.interceptors.request.use((config) => {
 });
 
 // Global 401 handler: when a LOGGED-IN user's token expires/goes invalid, clear
-// it and send them to the home page (the app is anon-first — we never bounce to
-// a login wall). Critically, this must NOT fire for anonymous visitors: an anon
-// user legitimately gets 401s from authenticated calls (e.g. the session probe
-// /auth/profile on load, or saved-addresses on the store). So we only act when a
-// token was actually present (a real session that went bad), and we skip the
-// auth endpoints (login/register/reset have their own forms, /auth/profile is
-// the anon session probe).
+// it and send them to login. Critically, this must NOT fire for anonymous
+// visitors — that was the bug where a brand-new visitor hit the login page on
+// load. An anon user legitimately gets 401s from authenticated calls (e.g. the
+// session probe /auth/profile on load, or saved-addresses on the store). So we
+// only act when a token was actually present (a real session that went bad),
+// and we skip the auth endpoints (login/register/reset have their own forms,
+// /auth/profile is the anon session probe).
 api.interceptors.response.use(
     (response) => response,
     (error) => {
@@ -36,8 +36,8 @@ api.interceptors.response.use(
         const isAuthEndpoint = /\/auth\/(login|register|forgot-password|reset-password|profile)/.test(url);
         if (status === 401 && hadToken && !isAuthEndpoint) {
             localStorage.removeItem('showtime_access_token');
-            if (typeof window !== 'undefined' && window.location.pathname !== '/') {
-                window.location.assign('/');
+            if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+                window.location.assign('/login');
             }
         }
         return Promise.reject(error);
