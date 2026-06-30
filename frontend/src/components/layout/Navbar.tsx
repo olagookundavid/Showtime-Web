@@ -203,6 +203,14 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                                             Admin
                                         </Link>
                                     )}
+                                    {user?.role === 'app_admin' && (
+                                        <Link
+                                            to="/admin"
+                                            className="bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white font-bold px-3 py-1.5 rounded transition text-xs shadow-sm"
+                                        >
+                                            App Admin
+                                        </Link>
+                                    )}
                                     {user?.role === 'referee' && (
                                         <Link
                                             to="/admin/matches"
@@ -348,6 +356,11 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                                     {user?.role === 'admin' && (
                                         <Link to="/admin" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-sffl-red hover:bg-[#A52323] text-white font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
                                             Admin Panel
+                                        </Link>
+                                    )}
+                                    {user?.role === 'app_admin' && (
+                                        <Link to="/admin" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
+                                            App Admin Panel
                                         </Link>
                                     )}
                                     {user?.role === 'referee' && (

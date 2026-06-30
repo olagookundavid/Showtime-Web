@@ -104,6 +104,12 @@ export const Layout = () => {
                                         <span className="font-black text-sm uppercase italic tracking-wider">Admin Panel</span>
                                     </Link>
                                 )}
+                                {user?.role === 'app_admin' && (
+                                    <Link to="/admin" onClick={() => setIsMoreMenuOpen(false)} className="flex items-center gap-3 p-4 bg-gradient-to-r from-amber-500 to-yellow-600 text-white rounded-2xl col-span-2 shadow-lg active:scale-[0.98] transition-all border border-amber-300/40">
+                                        <WrenchIcon className="w-5 h-5 text-white" />
+                                        <span className="font-black text-sm uppercase italic tracking-wider">App Admin Panel</span>
+                                    </Link>
+                                )}
                                 {user?.role === 'referee' && (
                                     <Link to="/admin/matches" onClick={() => setIsMoreMenuOpen(false)} className="flex items-center gap-3 p-4 bg-sffl-navy dark:bg-gray-800 text-white rounded-2xl col-span-2 shadow-lg active:scale-[0.98] transition-all border border-transparent dark:border-gray-700">
                                         <WrenchIcon className="w-5 h-5 text-sffl-red" />
