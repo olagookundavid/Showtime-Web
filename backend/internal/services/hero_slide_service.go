@@ -30,12 +30,13 @@ func NewHeroSlideService(repo ports.HeroSlideRepository) IHeroSlideService {
 
 func heroSlideToResponse(s *domain.HeroSlide) dto.HeroSlideResponse {
 	return dto.HeroSlideResponse{
-		ID:           s.ID,
-		ImageURL:     s.ImageURL,
-		DisplayOrder: s.DisplayOrder,
-		IsActive:     s.IsActive,
-		CreatedAt:    s.CreatedAt,
-		UpdatedAt:    s.UpdatedAt,
+		ID:             s.ID,
+		ImageURL:       s.ImageURL,
+		MobileImageURL: s.MobileImageURL,
+		DisplayOrder:   s.DisplayOrder,
+		IsActive:       s.IsActive,
+		CreatedAt:      s.CreatedAt,
+		UpdatedAt:      s.UpdatedAt,
 	}
 }
 
@@ -72,9 +73,10 @@ func (s *HeroSlideService) Create(ctx context.Context, req dto.CreateHeroSlideRe
 	}
 
 	slide := &domain.HeroSlide{
-		ImageURL:     req.ImageURL,
-		DisplayOrder: displayOrder,
-		IsActive:     isActive,
+		ImageURL:       req.ImageURL,
+		MobileImageURL: req.MobileImageURL,
+		DisplayOrder:   displayOrder,
+		IsActive:       isActive,
 	}
 	if err := s.repo.Create(ctx, slide); err != nil {
 		return nil, err
@@ -84,7 +86,7 @@ func (s *HeroSlideService) Create(ctx context.Context, req dto.CreateHeroSlideRe
 }
 
 func (s *HeroSlideService) Update(ctx context.Context, id string, req dto.UpdateHeroSlideRequest) error {
-	return s.repo.Update(ctx, id, req.ImageURL, req.DisplayOrder, req.IsActive)
+	return s.repo.Update(ctx, id, req.ImageURL, req.MobileImageURL, req.DisplayOrder, req.IsActive)
 }
 
 func (s *HeroSlideService) Delete(ctx context.Context, id string) error {

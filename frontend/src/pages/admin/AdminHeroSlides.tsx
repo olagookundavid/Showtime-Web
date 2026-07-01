@@ -22,6 +22,7 @@ export const AdminHeroSlides = () => {
 
     const [showModal, setShowModal] = useState(false);
     const [pendingImageUrl, setPendingImageUrl] = useState('');
+    const [pendingMobileImageUrl, setPendingMobileImageUrl] = useState('');
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [deleteConfirm, setDeleteConfirm] = useState<HeroSlide | null>(null);
@@ -41,16 +42,25 @@ export const AdminHeroSlides = () => {
         try {
             await createHeroSlide({
                 image_url: pendingImageUrl,
+                mobile_image_url: pendingMobileImageUrl || undefined,
                 display_order: sortedSlides.length, // append to end
                 is_active: true,
             });
             refresh();
             setShowModal(false);
             setPendingImageUrl('');
+            setPendingMobileImageUrl('');
         } catch (err: any) {
             setError(err.response?.data?.error || 'Failed to add slide');
         }
         setSaving(false);
+    };
+
+    // Set/replace/clear the optional mobile image on an existing slide. Persists
+    // immediately (the carousel falls back to the desktop image when empty).
+    const handleSetMobile = async (slide: HeroSlide, url: string) => {
+        await updateHeroSlide(slide.id, { mobile_image_url: url });
+        refresh();
     };
 
     const handleToggleActive = async (slide: HeroSlide) => {
@@ -170,6 +180,18 @@ export const AdminHeroSlides = () => {
                                         Delete
                                     </button>
                                 </div>
+                                <div className="pt-3 border-t border-gray-100 dark:border-gray-700">
+                                    <ImageUploadField
+                                        label="Mobile Image (optional)"
+                                        value={slide.mobile_image_url || ''}
+                                        onChange={(url) => handleSetMobile(slide, url)}
+                                        folder="hero-slides"
+                                        maxSizeMB={15}
+                                        compression={{ maxSizeMB: 3, maxWidthOrHeight: 1440 }}
+                                        helperText="Square ~1080×1080. Falls back to the desktop image on phones if empty."
+                                        isCommitted
+                                    />
+                                </div>
                             </div>
                         </div>
                     ))}
@@ -189,13 +211,23 @@ export const AdminHeroSlides = () => {
                         </div>
                         <div className="p-6 space-y-4">
                             <ImageUploadField
-                                label="Slide Image"
+                                label="Desktop Image"
                                 value={pendingImageUrl}
                                 onChange={(url) => setPendingImageUrl(url)}
                                 folder="hero-slides"
                                 maxSizeMB={15}
                                 compression={{ maxSizeMB: 4, maxWidthOrHeight: 2560 }}
                                 helperText="JPG, PNG or WEBP. 2:1 ratio (1920×960 or 2000×1000). Max 15MB."
+                                isCommitted={saving}
+                            />
+                            <ImageUploadField
+                                label="Mobile Image (optional)"
+                                value={pendingMobileImageUrl}
+                                onChange={(url) => setPendingMobileImageUrl(url)}
+                                folder="hero-slides"
+                                maxSizeMB={15}
+                                compression={{ maxSizeMB: 3, maxWidthOrHeight: 1440 }}
+                                helperText="Square ~1080×1080 for phones. Leave empty to reuse the desktop image."
                                 isCommitted={saving}
                             />
                             {error && (
@@ -206,7 +238,7 @@ export const AdminHeroSlides = () => {
                         </div>
                         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
                             <button
-                                onClick={() => setShowModal(false)}
+                                onClick={() => { setShowModal(false); setPendingImageUrl(''); setPendingMobileImageUrl(''); }}
                                 className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
                             >
                                 Cancel

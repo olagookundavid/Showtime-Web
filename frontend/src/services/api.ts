@@ -174,6 +174,7 @@ export const getGallery = async (page = 1, limit = 10, competitionId?: string) =
 export interface HeroSlide {
     id: string;
     image_url: string;
+    mobile_image_url?: string;
     display_order: number;
     is_active: boolean;
     created_at: string;
@@ -182,12 +183,14 @@ export interface HeroSlide {
 
 export interface CreateHeroSlidePayload {
     image_url: string;
+    mobile_image_url?: string;
     display_order?: number;
     is_active?: boolean;
 }
 
 export interface UpdateHeroSlidePayload {
     image_url?: string;
+    mobile_image_url?: string;
     display_order?: number;
     is_active?: boolean;
 }

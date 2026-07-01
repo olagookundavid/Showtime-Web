@@ -18,9 +18,10 @@ export const MainHeroCarousel = () => {
         staleTime: 60_000,
     });
 
-    const slides = apiSlides && apiSlides.length > 0
-        ? apiSlides.map(s => ({ id: s.id, image_url: s.image_url }))
-        : FALLBACK_SLIDES;
+    const slides: { id: string; image_url: string; mobile_image_url?: string }[] =
+        apiSlides && apiSlides.length > 0
+            ? apiSlides.map(s => ({ id: s.id, image_url: s.image_url, mobile_image_url: s.mobile_image_url }))
+            : FALLBACK_SLIDES;
 
     const hasMultipleSlides = slides.length > 1;
 
@@ -42,10 +43,11 @@ export const MainHeroCarousel = () => {
     if (slides.length === 0) return null;
 
     return (
-        /* Fixed-height box (cap). The slide image fills it via background-size:
-           100% 100% — stretches to fit exactly, no crop and no letterbox. The
-           recommended 2:1 source ratio keeps distortion minimal at typical
-           viewport sizes. */
+        /* Fixed-height box (cap). Slides fill it with background-size: cover
+           (aspect ratio preserved, cropped to fit) — NOT 100% 100%, which
+           stretched the wide desktop image into the near-square mobile box and
+           visibly deformed it. On phones we prefer a square mobile_image_url
+           when the admin uploaded one, falling back to the desktop image. */
         <div className="relative h-[350px] md:h-[650px] overflow-hidden rounded-xl md:rounded-3xl shadow-2xl bg-sffl-navy/5">
             {/* Slides */}
             {slides.map((slide, index) => (
@@ -53,9 +55,15 @@ export const MainHeroCarousel = () => {
                     key={slide.id}
                     className={`absolute inset-0 transition-all duration-1000 ease-in-out ${index === currentSlide ? 'opacity-100 scale-100 z-10' : 'opacity-0 scale-105 z-0'}`}
                 >
+                    {/* Mobile: square variant when provided, else the desktop image (cropped) */}
                     <div
-                        className="w-full h-full bg-center transition-transform duration-[10000ms]"
-                        style={{ backgroundImage: `url(${slide.image_url})`, backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat' }}
+                        className="md:hidden w-full h-full bg-center bg-cover bg-no-repeat transition-transform duration-[10000ms]"
+                        style={{ backgroundImage: `url(${slide.mobile_image_url || slide.image_url})` }}
+                    />
+                    {/* Desktop: wide 2:1 image */}
+                    <div
+                        className="hidden md:block w-full h-full bg-center bg-cover bg-no-repeat transition-transform duration-[10000ms]"
+                        style={{ backgroundImage: `url(${slide.image_url})` }}
                     />
                 </div>
             ))}

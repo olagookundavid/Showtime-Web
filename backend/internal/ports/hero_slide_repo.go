@@ -12,7 +12,7 @@ import (
 
 type HeroSlideRepository interface {
 	Create(ctx context.Context, slide *domain.HeroSlide) error
-	Update(ctx context.Context, id string, imageURL *string, displayOrder *int, isActive *bool) error
+	Update(ctx context.Context, id string, imageURL, mobileImageURL *string, displayOrder *int, isActive *bool) error
 	FindAll(ctx context.Context, activeOnly bool) ([]*domain.HeroSlide, error)
 	FindByID(ctx context.Context, id string) (*domain.HeroSlide, error)
 	Count(ctx context.Context) (int, error)
@@ -29,14 +29,14 @@ func NewHeroSlideRepository(db *pgxpool.Pool) HeroSlideRepository {
 
 func (r *HeroSlidePGRepository) Create(ctx context.Context, slide *domain.HeroSlide) error {
 	query := `
-		INSERT INTO hero_slides (image_url, display_order, is_active)
-		VALUES ($1, $2, $3)
+		INSERT INTO hero_slides (image_url, mobile_image_url, display_order, is_active)
+		VALUES ($1, $2, $3, $4)
 		RETURNING id, created_at, updated_at
 	`
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	err := r.db.QueryRow(ctx, query, slide.ImageURL, slide.DisplayOrder, slide.IsActive).
+	err := r.db.QueryRow(ctx, query, slide.ImageURL, slide.MobileImageURL, slide.DisplayOrder, slide.IsActive).
 		Scan(&slide.ID, &slide.CreatedAt, &slide.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("failed to create hero slide: %w", err)
@@ -44,7 +44,7 @@ func (r *HeroSlidePGRepository) Create(ctx context.Context, slide *domain.HeroSl
 	return nil
 }
 
-func (r *HeroSlidePGRepository) Update(ctx context.Context, id string, imageURL *string, displayOrder *int, isActive *bool) error {
+func (r *HeroSlidePGRepository) Update(ctx context.Context, id string, imageURL, mobileImageURL *string, displayOrder *int, isActive *bool) error {
 	// Dynamic UPDATE — only set columns the caller actually passed.
 	query := `UPDATE hero_slides SET updated_at = NOW()`
 	args := []interface{}{}
@@ -53,6 +53,11 @@ func (r *HeroSlidePGRepository) Update(ctx context.Context, id string, imageURL 
 	if imageURL != nil {
 		query += fmt.Sprintf(", image_url = $%d", argIdx)
 		args = append(args, *imageURL)
+		argIdx++
+	}
+	if mobileImageURL != nil {
+		query += fmt.Sprintf(", mobile_image_url = $%d", argIdx)
+		args = append(args, *mobileImageURL)
 		argIdx++
 	}
 	if displayOrder != nil {
@@ -84,7 +89,7 @@ func (r *HeroSlidePGRepository) Update(ctx context.Context, id string, imageURL 
 
 func (r *HeroSlidePGRepository) FindAll(ctx context.Context, activeOnly bool) ([]*domain.HeroSlide, error) {
 	query := `
-		SELECT id, image_url, display_order, is_active, created_at, updated_at
+		SELECT id, image_url, COALESCE(mobile_image_url, ''), display_order, is_active, created_at, updated_at
 		FROM hero_slides
 	`
 	if activeOnly {
@@ -104,7 +109,7 @@ func (r *HeroSlidePGRepository) FindAll(ctx context.Context, activeOnly bool) ([
 	var slides []*domain.HeroSlide
 	for rows.Next() {
 		var s domain.HeroSlide
-		if err := rows.Scan(&s.ID, &s.ImageURL, &s.DisplayOrder, &s.IsActive, &s.CreatedAt, &s.UpdatedAt); err != nil {
+		if err := rows.Scan(&s.ID, &s.ImageURL, &s.MobileImageURL, &s.DisplayOrder, &s.IsActive, &s.CreatedAt, &s.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan hero slide: %w", err)
 		}
 		slides = append(slides, &s)
@@ -114,7 +119,7 @@ func (r *HeroSlidePGRepository) FindAll(ctx context.Context, activeOnly bool) ([
 
 func (r *HeroSlidePGRepository) FindByID(ctx context.Context, id string) (*domain.HeroSlide, error) {
 	query := `
-		SELECT id, image_url, display_order, is_active, created_at, updated_at
+		SELECT id, image_url, COALESCE(mobile_image_url, ''), display_order, is_active, created_at, updated_at
 		FROM hero_slides WHERE id = $1
 	`
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
@@ -122,7 +127,7 @@ func (r *HeroSlidePGRepository) FindByID(ctx context.Context, id string) (*domai
 
 	var s domain.HeroSlide
 	err := r.db.QueryRow(ctx, query, id).
-		Scan(&s.ID, &s.ImageURL, &s.DisplayOrder, &s.IsActive, &s.CreatedAt, &s.UpdatedAt)
+		Scan(&s.ID, &s.ImageURL, &s.MobileImageURL, &s.DisplayOrder, &s.IsActive, &s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, nil

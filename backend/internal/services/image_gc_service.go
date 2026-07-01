@@ -61,6 +61,7 @@ var referencedImageQueries = []string{
 	`SELECT image_url FROM store_product_images WHERE image_url IS NOT NULL AND image_url <> ''`,
 	`SELECT image_url FROM store_product_variants WHERE image_url IS NOT NULL AND image_url <> ''`,
 	`SELECT image_url FROM hero_slides WHERE image_url IS NOT NULL AND image_url <> ''`,
+	`SELECT mobile_image_url FROM hero_slides WHERE mobile_image_url IS NOT NULL AND mobile_image_url <> ''`,
 }
 
 // collectReferencedKeys returns the set of object keys still referenced by the
