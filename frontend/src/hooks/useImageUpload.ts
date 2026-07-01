@@ -19,16 +19,22 @@ export const useImageUpload = () => {
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
 
-  const uploadImage = async (file: File, folder: string): Promise<string | null> => {
+  const uploadImage = async (
+    file: File,
+    folder: string,
+    compression?: { maxSizeMB?: number; maxWidthOrHeight?: number },
+  ): Promise<string | null> => {
     setIsUploading(true);
     setError(null);
     setProgress(0);
 
     try {
-      // 1. Compress Image
+      // 1. Compress Image. Defaults keep most images light (~1MB / 1920px);
+      // callers can override for full-width surfaces (e.g. hero slides) that
+      // need higher-resolution output.
       const options = {
-        maxSizeMB: 1,
-        maxWidthOrHeight: 1920,
+        maxSizeMB: compression?.maxSizeMB ?? 1,
+        maxWidthOrHeight: compression?.maxWidthOrHeight ?? 1920,
         useWebWorker: true,
         fileType: 'image/webp'
       };

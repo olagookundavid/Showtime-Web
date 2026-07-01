@@ -12,6 +12,12 @@ interface ImageUploadFieldProps {
   error?: string;
   helperText?: string;
   isCommitted?: boolean;
+  // Max accepted file size in MB (default 5). Larger for full-width surfaces
+  // like hero slides where higher-resolution source images are expected.
+  maxSizeMB?: number;
+  // Optional compression override (output). Defaults to ~1MB / 1920px; raise
+  // for full-width surfaces (hero slides) that need higher-quality output.
+  compression?: { maxSizeMB?: number; maxWidthOrHeight?: number };
   // 'single' (default) keeps the preview as the currently-selected image and
   // shows "Change Image". 'picker' clears the preview after each successful
   // upload — used when the parent immediately consumes the URL into a list
@@ -27,6 +33,8 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
   error,
   helperText,
   isCommitted = false,
+  maxSizeMB = 5,
+  compression,
   mode = 'single',
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -58,8 +66,8 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('File size exceeds 5MB limit');
+    if (file.size > maxSizeMB * 1024 * 1024) {
+      toast.error(`File size exceeds ${maxSizeMB}MB limit`);
       return;
     }
 
@@ -68,7 +76,7 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
     setPreview(objectUrl);
 
     try {
-      const publicUrl = await uploadImage(file, folder);
+      const publicUrl = await uploadImage(file, folder, compression);
       if (publicUrl) {
         // If there was a previous uncommitted upload, delete it
         if (uncommittedUrlRef.current && uncommittedUrlRef.current !== value) {
@@ -171,7 +179,7 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
           </button>
 
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            {helperText || 'JPG, PNG or WEBP. Max 5MB (will be compressed).'}
+            {helperText || `JPG, PNG or WEBP. Max ${maxSizeMB}MB (will be compressed).`}
           </p>
 
           {(error || uploadError) && (

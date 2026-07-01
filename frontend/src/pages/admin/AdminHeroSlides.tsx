@@ -193,7 +193,9 @@ export const AdminHeroSlides = () => {
                                 value={pendingImageUrl}
                                 onChange={(url) => setPendingImageUrl(url)}
                                 folder="hero-slides"
-                                helperText="JPG, PNG or WEBP. 2:1 ratio (1920×960 or 2000×1000). Max 5MB."
+                                maxSizeMB={15}
+                                compression={{ maxSizeMB: 4, maxWidthOrHeight: 2560 }}
+                                helperText="JPG, PNG or WEBP. 2:1 ratio (1920×960 or 2000×1000). Max 15MB."
                                 isCommitted={saving}
                             />
                             {error && (
