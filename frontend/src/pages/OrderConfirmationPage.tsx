@@ -135,7 +135,7 @@ export const OrderConfirmationPage = () => {
                     <div className="invoice-header bg-sffl-navy text-white p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-700 print:bg-white print:text-sffl-navy print:border-b-2 print:border-sffl-navy print:p-0 print:pb-4">
                         <div className="flex items-center gap-4">
                             <img
-                                src="https://images.leaguerepublic.com/data/images/738010788/107.png"
+                                src="/images/branding/showtime-logo.png"
                                 alt="Showtime Flag Football"
                                 className="w-14 h-14 object-contain bg-white rounded-full p-1 print:bg-transparent print:p-0 print:w-16 print:h-16"
                             />

@@ -8,7 +8,7 @@ interface ImageUploadFieldProps {
   label: string;
   value: string;
   onChange: (url: string) => void;
-  folder: 'players' | 'teams' | 'competitions' | 'news' | 'hero-slides';
+  folder: 'players' | 'teams' | 'competitions' | 'news' | 'hero-slides' | 'season';
   error?: string;
   helperText?: string;
   isCommitted?: boolean;

@@ -44,7 +44,7 @@ export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({ standi
                             const isSilver = isCompleted && index === 1;
                             const logoImg = (
                                 <img
-                                    src={standing.team?.logo || 'https://via.placeholder.com/30'}
+                                    src={standing.team?.logo || '/images/default_football.png'}
                                     alt={standing.team?.name || 'Team'}
                                     className="w-5 h-5 md:w-8 md:h-8 object-contain rounded-md mx-auto"
                                     title={standing.team?.name || 'Team'}

@@ -188,13 +188,17 @@ func flagSetup(dbUrl string, tokenDeets map[string]string) *config.Config {
 	return &cfg
 }
 
-func cronjobs(app *api.Application) {
+// cronjobs wires up and starts the background scheduler. All jobs share ctx so a
+// shutdown that cancels ctx aborts any in-flight job (releasing its DB
+// connection) instead of leaving pool.Close() to block forever. The scheduler
+// and its cancel func are stored on app so shutdown can stop them.
+func cronjobs(app *api.Application, ctx context.Context, cancel context.CancelFunc) {
 	c := cron.New()
 
 	// Run every day at midnight (00:00)
 	c.AddFunc("0 0 * * *", func() {
 		app.Logger.Info("Running daily ticket expiration job...", nil)
-		if err := app.TicketService.ExpirePastTickets(context.Background()); err != nil {
+		if err := app.TicketService.ExpirePastTickets(ctx); err != nil {
 			app.Logger.Error(fmt.Sprintf("Ticket expiration failed: %v", err), nil)
 		}
 	})
@@ -202,7 +206,7 @@ func cronjobs(app *api.Application) {
 	// Run daily at 01:00 AM to cleanup OTPs
 	c.AddFunc("0 1 * * *", func() {
 		app.Logger.Info("Running OTP cleanup job...", nil)
-		if err := app.AuthService.CleanupExpiredOTPs(context.Background()); err != nil {
+		if err := app.AuthService.CleanupExpiredOTPs(ctx); err != nil {
 			app.Logger.Error(fmt.Sprintf("OTP cleanup failed: %v", err), nil)
 		}
 	})
@@ -214,13 +218,16 @@ func cronjobs(app *api.Application) {
 			return
 		}
 		app.Logger.Info("Running orphaned-image GC sweep...", nil)
-		if err := app.ImageGCService.SweepOrphans(context.Background()); err != nil {
+		if err := app.ImageGCService.SweepOrphans(ctx); err != nil {
 			app.Logger.Error(fmt.Sprintf("Image GC sweep failed: %v", err), nil)
 		}
 	})
 
 	app.Logger.Info("Starting scheduler...", nil)
 	c.Start()
+
+	app.Cron = c
+	app.CronCancel = cancel
 }
 
 func runMigrations(dsn string, log *logger.Logger) {
@@ -289,6 +296,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	storeRepo := ports.NewStoreRepository(pool)
 	importRepo := ports.NewImportRepository(pool)
 	heroSlideRepo := ports.NewHeroSlideRepository(pool)
+	seasonRepo := ports.NewSeasonRepository(pool)
 
 	// External Clients
 	paystackClient := services.NewPaystackClient()
@@ -316,6 +324,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	storeService := services.NewStoreService(storeRepo, paystackClient, emailService, storageService)
 	importService := services.NewImportService(importRepo, matchRepo)
 	heroSlideService := services.NewHeroSlideService(heroSlideRepo)
+	seasonService := services.NewSeasonService(seasonRepo)
 
 	// Transport / Handlers
 	authHandler := transport.NewAuthHandler(authService)
@@ -334,7 +343,8 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	storeHandler := transport.NewStoreHandler(storeService, paystackClient)
 	importHandler := transport.NewImportHandler(importService)
 	heroSlideHandler := transport.NewHeroSlideHandler(heroSlideService)
+	seasonHandler := transport.NewSeasonHandler(seasonService)
 
-	h := handlers.NewHandlers(authHandler, newsHandler, galleryHandler, matchHandler, playerHandler, ticketHandler, tmHandler, analyticsHandler, tmAllocHandler, statsHandler, inventoryHandler, uploadHandler, totwHandler, storeHandler, importHandler, heroSlideHandler)
+	h := handlers.NewHandlers(authHandler, newsHandler, galleryHandler, matchHandler, playerHandler, ticketHandler, tmHandler, analyticsHandler, tmAllocHandler, statsHandler, inventoryHandler, uploadHandler, totwHandler, storeHandler, importHandler, heroSlideHandler, seasonHandler)
 	return h, auditService, authService, tmService, ticketService, storageService
 }

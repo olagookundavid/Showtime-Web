@@ -2,13 +2,6 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getHeroSlides } from '../services/api';
 
-// Local seed shown if the API returns nothing (e.g. fresh deploy before an
-// admin has added any slides). Lives in /public so it's bundled with the
-// frontend deploy.
-const FALLBACK_SLIDES = [
-    { id: 'fallback-1', image_url: '/images/branding/main-hero-1.jpeg' },
-];
-
 export const MainHeroCarousel = () => {
     const [currentSlide, setCurrentSlide] = useState(0);
 
@@ -18,10 +11,13 @@ export const MainHeroCarousel = () => {
         staleTime: 60_000,
     });
 
+    // Admin-driven. With no slides we render nothing (see the early return
+    // below) instead of a placeholder image, so the carousel takes up zero
+    // space until an admin adds slides.
     const slides: { id: string; image_url: string; mobile_image_url?: string }[] =
         apiSlides && apiSlides.length > 0
             ? apiSlides.map(s => ({ id: s.id, image_url: s.image_url, mobile_image_url: s.mobile_image_url }))
-            : FALLBACK_SLIDES;
+            : [];
 
     const hasMultipleSlides = slides.length > 1;
 

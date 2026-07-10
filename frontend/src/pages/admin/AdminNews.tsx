@@ -6,16 +6,20 @@ import {
     type News, type CreateNewsPayload,
 } from '../../services/api';
 import { ImageUploadField } from '../../components/ui';
+import { NewsContentEditor } from '../../components/admin/NewsContentEditor';
+import { parseYouTubeId, youTubeThumbnailUrl } from '../../utils/newsContent';
 
 
 interface FormData {
     title: string; slug: string; excerpt: string; content: string;
-    featured_image: string; author: string; category: string;
+    featured_image: string; featured_media_type: 'image' | 'youtube'; featured_youtube_url: string;
+    author: string; category: string;
 }
 
 const emptyForm: FormData = {
     title: '', slug: '', excerpt: '', content: '',
-    featured_image: '', author: '', category: '',
+    featured_image: '', featured_media_type: 'image', featured_youtube_url: '',
+    author: '', category: '',
 };
 
 const slugify = (text: string) =>
@@ -58,18 +62,28 @@ export const AdminNews = () => {
 
         setForm({
             title: n.title, slug: n.slug, excerpt: n.excerpt || '', content: n.content,
-            featured_image: n.featured_image || '', author: n.author || '', category: matchedCategory
+            featured_image: n.featured_image || '',
+            featured_media_type: n.featured_media_type === 'youtube' ? 'youtube' : 'image',
+            featured_youtube_url: n.featured_youtube_url || '',
+            author: n.author || '', category: matchedCategory
         });
         setShowModal(true);
     };
 
     const handleSave = async () => {
+        if (form.featured_media_type === 'youtube' && !parseYouTubeId(form.featured_youtube_url)) {
+            alert('Please enter a valid YouTube link for the featured video.');
+            return;
+        }
         setSaving(true);
         try {
             const payload: CreateNewsPayload = {
                 title: form.title, slug: form.slug || slugify(form.title),
                 excerpt: form.excerpt, content: form.content,
-                featured_image: form.featured_image, author: form.author, category: form.category,
+                featured_image: form.featured_image,
+                featured_media_type: form.featured_media_type,
+                featured_youtube_url: form.featured_media_type === 'youtube' ? form.featured_youtube_url : '',
+                author: form.author, category: form.category,
             };
             if (editingId) await updateNews(editingId, payload);
             else await createNews(payload);
@@ -237,16 +251,66 @@ export const AdminNews = () => {
                                 <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Category</label><select value={form.category} onChange={e => set('category', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-[44px] z-50"><option value="" className="truncate">Select...</option>{['General', 'Match Report', 'Transfer News', 'Interview', 'Analysis', 'Commissioner\'s Note', 'Community'].map(c => <option key={c} value={c} className="truncate">{c}</option>)}</select></div>
                             </div>
                             <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Excerpt</label><textarea value={form.excerpt} onChange={e => set('excerpt', e.target.value)} rows={2} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="Short summary..." /></div>
-                            <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Content *</label><textarea value={form.content} onChange={e => set('content', e.target.value)} rows={8} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="Article content..." /></div>
                             <div>
-                                <ImageUploadField
-                                    label="Featured Image"
-                                    value={form.featured_image}
-                                    onChange={(url) => set('featured_image', url)}
-                                    folder="news"
-                                    helperText="Upload a featured image.  "
-                                    isCommitted={saving}
-                                />
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Content *</label>
+                                <NewsContentEditor value={form.content} onChange={v => set('content', v)} />
+                            </div>
+                            <div className="space-y-3">
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Featured Media</label>
+                                <div className="flex gap-2">
+                                    {(['image', 'youtube'] as const).map(t => (
+                                        <button
+                                            key={t}
+                                            type="button"
+                                            onClick={() => setForm(p => ({ ...p, featured_media_type: t }))}
+                                            className={`px-4 py-1.5 text-xs font-bold rounded-lg border transition ${form.featured_media_type === t
+                                                ? 'border-sffl-red text-sffl-red bg-sffl-red/10'
+                                                : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'}`}
+                                        >
+                                            {t === 'image' ? '📷 Photo' : '▶ YouTube Video'}
+                                        </button>
+                                    ))}
+                                </div>
+                                {form.featured_media_type === 'image' ? (
+                                    <ImageUploadField
+                                        label="Featured Image"
+                                        value={form.featured_image}
+                                        onChange={(url) => set('featured_image', url)}
+                                        folder="news"
+                                        maxSizeMB={10}
+                                        compression={{ maxSizeMB: 2, maxWidthOrHeight: 2560 }}
+                                        helperText="JPG, PNG or WEBP. Max 10MB (will be compressed)."
+                                        isCommitted={saving}
+                                    />
+                                ) : (
+                                    <div className="space-y-2">
+                                        <input
+                                            type="text"
+                                            value={form.featured_youtube_url}
+                                            onChange={e => set('featured_youtube_url', e.target.value)}
+                                            placeholder="https://www.youtube.com/watch?v=..."
+                                            className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2"
+                                        />
+                                        {(() => {
+                                            const videoId = parseYouTubeId(form.featured_youtube_url);
+                                            if (videoId) {
+                                                return (
+                                                    <div className="relative w-48 rounded-lg overflow-hidden">
+                                                        <img src={youTubeThumbnailUrl(videoId)} alt="Video preview" className="w-full" />
+                                                        <div className="absolute inset-0 flex items-center justify-center">
+                                                            <div className="w-8 h-8 bg-sffl-red/90 rounded-full flex items-center justify-center">
+                                                                <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }
+                                            return form.featured_youtube_url
+                                                ? <p className="text-xs text-red-500">Not a recognizable YouTube link yet.</p>
+                                                : <p className="text-xs text-gray-500 dark:text-gray-400">Paste a YouTube link — the video will be embedded on the article page.</p>;
+                                        })()}
+                                    </div>
+                                )}
                             </div>
 
                         </div>

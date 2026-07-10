@@ -4,6 +4,9 @@ import { useParams, Link } from 'react-router-dom';
 import { getNewsBySlug, getNews } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { LightboxImage } from '../../components/ui';
+import { NewsContent } from '../../components/news/NewsContent';
+import { YouTubeEmbed } from '../../components/news/YouTubeEmbed';
+import { parseYouTubeId } from '../../utils/newsContent';
 
 export const NewsDetail = () => {
     const { slug } = useParams<{ slug: string }>();
@@ -49,19 +52,33 @@ export const NewsDetail = () => {
 
             {/* Article Header */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-xl">
-                {/* Featured Image */}
-                <div className="h-96 overflow-hidden relative">
-                    {article.featured_image ? (
-                        <LightboxImage
-                            src={article.featured_image}
-                            alt={article.title}
-                            thumbnailClassName="w-full h-full"
-                            imgClassName="w-full h-full object-cover"
-                        />
-                    ) : (
-                        <div className="w-full h-full bg-gray-200 flex items-center justify-center">No Image</div>
-                    )}
-                </div>
+                {/* Featured Media: YouTube embed or photo */}
+                {(() => {
+                    const heroVideoId = article.featured_media_type === 'youtube'
+                        ? parseYouTubeId(article.featured_youtube_url)
+                        : null;
+                    if (heroVideoId) {
+                        return (
+                            <div className="aspect-video w-full">
+                                <YouTubeEmbed videoId={heroVideoId} title={article.title} />
+                            </div>
+                        );
+                    }
+                    return (
+                        <div className="h-96 overflow-hidden relative">
+                            {article.featured_image ? (
+                                <LightboxImage
+                                    src={article.featured_image}
+                                    alt={article.title}
+                                    thumbnailClassName="w-full h-full"
+                                    imgClassName="w-full h-full object-cover"
+                                />
+                            ) : (
+                                <div className="w-full h-full bg-gray-200 flex items-center justify-center">No Image</div>
+                            )}
+                        </div>
+                    );
+                })()}
 
                 {/* Content */}
                 <div className="p-8 md:p-12">
@@ -84,9 +101,7 @@ export const NewsDetail = () => {
 
                     {/* Article Body */}
                     <div className="prose prose-lg max-w-none text-gray-700 dark:text-gray-300 leading-relaxed space-y-4">
-                        {article.content.split('\n\n').map((paragraph, index) => (
-                            <p key={index}>{paragraph}</p>
-                        ))}
+                        <NewsContent content={article.content} />
                     </div>
                 </div>
             </div>

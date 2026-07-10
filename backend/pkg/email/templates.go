@@ -1,10 +1,13 @@
 package email
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+	"strings"
+)
 
 // Shared brand constants
 const (
-	logoURL     = "https://images.leaguerepublic.com/data/images/738010788/107.png"
 	brandName   = "ShowTime Flag Football League"
 	tagline     = "The premier flag football league in Lagos. Building community through sport."
 	youtubeURL  = "https://www.youtube.com/@ShowtimeFlagFootball"
@@ -13,6 +16,25 @@ const (
 	facebookURL = "https://web.facebook.com/Showtimeffl"
 	sfflRed     = "#dc2626"
 	sfflNavy    = "#0f172a"
+)
+
+// Email images must be absolute URLs; they're served from the deployed
+// frontend's public folder so the brand assets live in one place (the same
+// files the site itself uses). Override with EMAIL_ASSET_BASE_URL if the
+// frontend ever moves.
+var assetBaseURL = func() string {
+	if v := os.Getenv("EMAIL_ASSET_BASE_URL"); v != "" {
+		return strings.TrimRight(v, "/")
+	}
+	return "https://www.showtimeflag.football"
+}()
+
+var (
+	logoURL       = assetBaseURL + "/images/branding/showtime-logo.png"
+	youtubeIcon   = assetBaseURL + "/images/social/youtube.png"
+	instagramIcon = assetBaseURL + "/images/social/instagram.png"
+	xIcon         = assetBaseURL + "/images/social/x.png"
+	facebookIcon  = assetBaseURL + "/images/social/facebook.png"
 )
 
 // brandHeader returns the shared branded logo + name header bar with red top border
@@ -96,25 +118,25 @@ func brandFooter() string {
 <!-- YouTube -->
 <td style="padding: 0 6px;">
 <a href="%s" target="_blank" style="display: inline-block; width: 36px; height: 36px; background-color: #374151; border-radius: 50%%%%; text-align: center; line-height: 36px; text-decoration: none;">
-<img src="https://cdn-icons-png.flaticon.com/512/1384/1384060.png" alt="YouTube" width="18" height="18" style="vertical-align: middle;" />
+<img src="%s" alt="YouTube" width="18" height="18" style="vertical-align: middle;" />
 </a>
 </td>
 <!-- Instagram -->
 <td style="padding: 0 6px;">
 <a href="%s" target="_blank" style="display: inline-block; width: 36px; height: 36px; background-color: #374151; border-radius: 50%%%%; text-align: center; line-height: 36px; text-decoration: none;">
-<img src="https://cdn-icons-png.flaticon.com/512/2111/2111463.png" alt="Instagram" width="18" height="18" style="vertical-align: middle;" />
+<img src="%s" alt="Instagram" width="18" height="18" style="vertical-align: middle;" />
 </a>
 </td>
 <!-- X / Twitter -->
 <td style="padding: 0 6px;">
 <a href="%s" target="_blank" style="display: inline-block; width: 36px; height: 36px; background-color: #374151; border-radius: 50%%%%; text-align: center; line-height: 36px; text-decoration: none;">
-<img src="https://cdn-icons-png.flaticon.com/512/5968/5968958.png" alt="X" width="18" height="18" style="vertical-align: middle;" />
+<img src="%s" alt="X" width="18" height="18" style="vertical-align: middle;" />
 </a>
 </td>
 <!-- Facebook -->
 <td style="padding: 0 6px;">
 <a href="%s" target="_blank" style="display: inline-block; width: 36px; height: 36px; background-color: #374151; border-radius: 50%%%%; text-align: center; line-height: 36px; text-decoration: none;">
-<img src="https://cdn-icons-png.flaticon.com/512/733/733547.png" alt="Facebook" width="18" height="18" style="vertical-align: middle;" />
+<img src="%s" alt="Facebook" width="18" height="18" style="vertical-align: middle;" />
 </a>
 </td>
 </tr>
@@ -140,7 +162,7 @@ func brandFooter() string {
 
 </table>
 </td>
-</tr>`, sfflNavy, logoURL, sfflRed, tagline, youtubeURL, instaURL, twitterURL, facebookURL, sfflRed)
+</tr>`, sfflNavy, logoURL, sfflRed, tagline, youtubeURL, youtubeIcon, instaURL, instagramIcon, twitterURL, xIcon, facebookURL, facebookIcon, sfflRed)
 }
 
 // PurchaseEmailHTML generates a premium ticket confirmation email

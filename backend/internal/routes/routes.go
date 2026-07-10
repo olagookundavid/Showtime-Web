@@ -59,6 +59,7 @@ func Routes(app *api.Application) *gin.Engine {
 	SetupNewsRoutes(v1_api, app)
 	SetupGalleryRoutes(v1_api, app)
 	SetupHeroSlideRoutes(v1_api, app)
+	SetupSeasonRoutes(v1_api, app)
 	SetupMatchRoutes(v1_api, app)
 	SetupPlayerRoutes(v1_api, app)
 	SetupTicketRoutes(v1_api, app)
@@ -147,6 +148,18 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		heroSlideGroup.POST("", app.Handlers.HeroSlideHandler.Create)
 		heroSlideGroup.PUT("/:id", app.Handlers.HeroSlideHandler.Update)
 		heroSlideGroup.DELETE("/:id", app.Handlers.HeroSlideHandler.Delete)
+	}
+
+	// Team of the Season graphics + MVPs — admin/app_admin managed content.
+	seasonGroup := adminRoutes.Group("/season")
+	seasonGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
+	{
+		seasonGroup.GET("/graphics", app.Handlers.SeasonHandler.ListGraphics)
+		seasonGroup.PUT("/graphics", app.Handlers.SeasonHandler.UpsertGraphic)
+		seasonGroup.GET("/mvps", app.Handlers.SeasonHandler.ListMVPsAdmin)
+		seasonGroup.POST("/mvps", app.Handlers.SeasonHandler.CreateMVP)
+		seasonGroup.PUT("/mvps/:id", app.Handlers.SeasonHandler.UpdateMVP)
+		seasonGroup.DELETE("/mvps/:id", app.Handlers.SeasonHandler.DeleteMVP)
 	}
 
 	inventoryGroup := adminRoutes.Group("/inventory")
@@ -326,6 +339,15 @@ func SetupHeroSlideRoutes(r *gin.RouterGroup, app *api.Application) {
 	{
 		// Public: only active slides for the homepage carousel.
 		heroSlideRoutes.GET("", app.Handlers.HeroSlideHandler.ListPublic)
+	}
+}
+
+func SetupSeasonRoutes(r *gin.RouterGroup, app *api.Application) {
+	seasonRoutes := r.Group("/season")
+	{
+		// Public: the two Team-of-the-Season graphics and the active MVPs.
+		seasonRoutes.GET("/graphics", app.Handlers.SeasonHandler.ListGraphics)
+		seasonRoutes.GET("/mvps", app.Handlers.SeasonHandler.ListMVPsPublic)
 	}
 }
 

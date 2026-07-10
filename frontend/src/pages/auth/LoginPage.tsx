@@ -39,7 +39,7 @@ export const LoginPage = () => {
                 {/* Header */}
                 <div className="text-center mb-8">
                     <img
-                        src="https://images.leaguerepublic.com/data/images/738010788/107.png"
+                        src="/images/branding/showtime-logo.png"
                         alt="SFFL Logo"
                         className="w-20 h-20 mx-auto mb-4 bg-white rounded-full p-2"
                     />

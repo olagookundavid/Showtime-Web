@@ -58,9 +58,24 @@ func shutdown(app *api.Application, srv *http.Server, shutdownError chan error) 
 			defer cancel()
 			err := srv.Shutdown(ctx)
 			if err != nil {
+				// Report and return — the channel is unbuffered and read exactly
+				// once, so a second send below would deadlock this goroutine.
 				shutdownError <- err
+				return
 			}
 			app.Logger.Info("completing background tasks", map[string]interface{}{"addr": srv.Addr})
+
+			// Stop the scheduler and cancel any in-flight job. This must happen
+			// before main's deferred pool.Close(): a running job holds a DB
+			// connection, and pool.Close() blocks until every connection is
+			// returned — cancelling the job's context aborts its query so the
+			// connection is released and the process can actually exit.
+			if app.Cron != nil {
+				app.Cron.Stop()
+			}
+			if app.CronCancel != nil {
+				app.CronCancel()
+			}
 
 			// Close audit service to flush batches
 			if app.AuditService != nil {

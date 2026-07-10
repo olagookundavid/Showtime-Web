@@ -30,15 +30,15 @@ func NewNewsRepository(db *pgxpool.Pool) NewsRepository {
 
 func (r *NewsPGRepository) Create(ctx context.Context, news *domain.News) error {
 	query := `
-		INSERT INTO news (title, slug, excerpt, content, featured_image, author, category, published_at, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		INSERT INTO news (title, slug, excerpt, content, featured_image, featured_media_type, featured_youtube_url, author, category, published_at, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		RETURNING id
 	`
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	err := r.db.QueryRow(ctx, query,
-		news.Title, news.Slug, news.Excerpt, news.Content, news.FeaturedImage, news.Author, news.Category, news.PublishedAt, news.CreatedAt, news.UpdatedAt,
+		news.Title, news.Slug, news.Excerpt, news.Content, news.FeaturedImage, news.FeaturedMediaType, news.FeaturedYoutubeURL, news.Author, news.Category, news.PublishedAt, news.CreatedAt, news.UpdatedAt,
 	).Scan(&news.ID)
 
 	if err != nil {
@@ -51,14 +51,14 @@ func (r *NewsPGRepository) Create(ctx context.Context, news *domain.News) error 
 func (r *NewsPGRepository) Update(ctx context.Context, news *domain.News) error {
 	query := `
 		UPDATE news
-		SET title = $2, slug = $3, excerpt = $4, content = $5, featured_image = $6, author = $7, category = $8, published_at = $9, updated_at = $10
+		SET title = $2, slug = $3, excerpt = $4, content = $5, featured_image = $6, featured_media_type = $7, featured_youtube_url = $8, author = $9, category = $10, published_at = $11, updated_at = $12
 		WHERE id = $1
 	`
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	tag, err := r.db.Exec(ctx, query,
-		news.ID, news.Title, news.Slug, news.Excerpt, news.Content, news.FeaturedImage, news.Author, news.Category, news.PublishedAt, news.UpdatedAt,
+		news.ID, news.Title, news.Slug, news.Excerpt, news.Content, news.FeaturedImage, news.FeaturedMediaType, news.FeaturedYoutubeURL, news.Author, news.Category, news.PublishedAt, news.UpdatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to update news item: %w", err)
@@ -91,7 +91,7 @@ func (r *NewsPGRepository) FindAll(ctx context.Context, q dto.PaginationQuery) (
 		argCount++
 	}
 
-	query := `SELECT id, title, slug, excerpt, content, featured_image, author, category, published_at, created_at, updated_at, count(*) OVER() ` +
+	query := `SELECT id, title, slug, excerpt, content, featured_image, featured_media_type, featured_youtube_url, author, category, published_at, created_at, updated_at, count(*) OVER() ` +
 		baseQuery + ` ORDER BY published_at DESC LIMIT $` + strconv.Itoa(argCount) + ` OFFSET $` + strconv.Itoa(argCount+1)
 
 	args = append(args, q.Limit, offset)
@@ -111,7 +111,7 @@ func (r *NewsPGRepository) FindAll(ctx context.Context, q dto.PaginationQuery) (
 	for rows.Next() {
 		var n domain.News
 		if err := rows.Scan(
-			&n.ID, &n.Title, &n.Slug, &n.Excerpt, &n.Content, &n.FeaturedImage, &n.Author, &n.Category, &n.PublishedAt, &n.CreatedAt, &n.UpdatedAt, &total,
+			&n.ID, &n.Title, &n.Slug, &n.Excerpt, &n.Content, &n.FeaturedImage, &n.FeaturedMediaType, &n.FeaturedYoutubeURL, &n.Author, &n.Category, &n.PublishedAt, &n.CreatedAt, &n.UpdatedAt, &total,
 		); err != nil {
 			return nil, 0, fmt.Errorf("failed to scan news item: %w", err)
 		}
@@ -122,13 +122,13 @@ func (r *NewsPGRepository) FindAll(ctx context.Context, q dto.PaginationQuery) (
 }
 
 func (r *NewsPGRepository) FindByID(ctx context.Context, id string) (*domain.News, error) {
-	query := `SELECT id, title, slug, excerpt, content, featured_image, author, category, published_at, created_at, updated_at FROM news WHERE id = $1`
+	query := `SELECT id, title, slug, excerpt, content, featured_image, featured_media_type, featured_youtube_url, author, category, published_at, created_at, updated_at FROM news WHERE id = $1`
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	var n domain.News
 	err := r.db.QueryRow(ctx, query, id).Scan(
-		&n.ID, &n.Title, &n.Slug, &n.Excerpt, &n.Content, &n.FeaturedImage, &n.Author, &n.Category, &n.PublishedAt, &n.CreatedAt, &n.UpdatedAt,
+		&n.ID, &n.Title, &n.Slug, &n.Excerpt, &n.Content, &n.FeaturedImage, &n.FeaturedMediaType, &n.FeaturedYoutubeURL, &n.Author, &n.Category, &n.PublishedAt, &n.CreatedAt, &n.UpdatedAt,
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {

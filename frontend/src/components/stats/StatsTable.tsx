@@ -231,7 +231,7 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                                             // alone is the click target for the team page.
                                             <div className="flex items-center space-x-2 md:space-x-3 min-w-0">
                                                 <LightboxImage
-                                                    src={row.team_logo || 'https://via.placeholder.com/30'}
+                                                    src={row.team_logo || '/images/default_football.png'}
                                                     alt={row.team_name}
                                                     thumbnailClassName="w-6 h-6 md:w-8 md:h-8 object-contain rounded-md shadow-sm"
                                                 />
@@ -248,7 +248,7 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                                         <td className="px-2 py-2 md:px-4 md:py-4 text-[10px] md:text-xs font-bold text-gray-600 dark:text-gray-400 whitespace-nowrap text-left border-r border-gray-50 dark:border-gray-800 overflow-hidden">
                                             <div className="flex items-center space-x-2 min-w-0">
                                                 <LightboxImage
-                                                    src={row.team_logo || 'https://via.placeholder.com/20'}
+                                                    src={row.team_logo || '/images/default_football.png'}
                                                     alt=""
                                                     thumbnailClassName="w-4 h-4 md:w-5 md:h-5 object-contain rounded-sm opacity-70"
                                                 />

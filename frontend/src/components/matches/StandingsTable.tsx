@@ -142,7 +142,7 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCom
                                     <td className={`sticky left-10 md:left-14 z-10 ${stickyBg} px-2.5 py-3 md:px-4 md:py-4 font-semibold text-sffl-navy dark:text-white whitespace-nowrap text-left w-[130px] md:w-[200px] border-r border-gray-100 dark:border-gray-800`}>
                                         <div className="flex items-center space-x-1 md:space-x-3">
                                             <LightboxImage
-                                                src={standing.team?.logo || 'https://via.placeholder.com/30'}
+                                                src={standing.team?.logo || '/images/default_football.png'}
                                                 alt={standing.team?.name || 'Team'}
                                                 thumbnailClassName="w-5 h-5 md:w-8 md:h-8 object-contain rounded-md"
                                             />

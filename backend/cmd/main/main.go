@@ -156,7 +156,10 @@ func main() {
 		StorageService:     storageService,
 		ImageGCService:     imageGC,
 	}
-	cronjobs(app)
+	// Scheduled jobs share a cancellable context so shutdown can abort any
+	// in-flight job before the DB pool is closed (see server.shutdown).
+	cronCtx, cronCancel := context.WithCancel(context.Background())
+	cronjobs(app, cronCtx, cronCancel)
 
 	err = server.Serve(app)
 	if err != nil {

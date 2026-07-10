@@ -11,14 +11,9 @@ export const Footer = () => {
             <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-8 text-center sm:text-left lg:flex lg:flex-row lg:justify-between lg:items-start">
                 {/* Branding */}
                 <div className="flex flex-col items-center sm:items-start group cursor-pointer">
-                    <div className="flex items-center gap-2 mb-3 md:mb-4">
-                        <img
-                            src="https://images.leaguerepublic.com/data/images/738010788/107.png"
-                            alt="SFFL Logo"
-                            className="w-8 h-8 md:w-16 md:h-16 object-contain bg-white rounded-full p-0.5 md:p-1 transition-all duration-300 group-hover:scale-125 group-hover:rotate-6 group-hover:shadow-xl"
-                        />
+                    <div className="flex items-center mb-3 md:mb-4">
                         <span className="text-xl md:text-3xl font-black italic tracking-tighter transition-all duration-300 group-hover:scale-110">
-                            SHOWTIME<span className="text-sffl-red">WEB</span>
+                            SHOWTIME<span className="text-sffl-red">FLAG</span>
                         </span>
                     </div>
                     <p className="text-gray-400 text-sm leading-relaxed max-w-xs">

@@ -51,6 +51,9 @@ func NewImageGCService(pool *pgxpool.Pool, storage ports.StorageService, log *lo
 // they could be deleted. When you add a new image/photo/logo column, add it here.
 var referencedImageQueries = []string{
 	`SELECT featured_image FROM news WHERE featured_image IS NOT NULL AND featured_image <> ''`,
+	// Inline body images embedded via [image:URL] / [image:URL|caption] tags in
+	// article content — without this they'd look orphaned and get swept.
+	`SELECT m[1] FROM news, regexp_matches(content, '\[image:([^|\]]+)', 'g') AS m`,
 	`SELECT players_photo_url FROM gallery WHERE players_photo_url IS NOT NULL AND players_photo_url <> ''`,
 	`SELECT fans_photo_url FROM gallery WHERE fans_photo_url IS NOT NULL AND fans_photo_url <> ''`,
 	`SELECT image FROM players WHERE image IS NOT NULL AND image <> ''`,
@@ -62,6 +65,8 @@ var referencedImageQueries = []string{
 	`SELECT image_url FROM store_product_variants WHERE image_url IS NOT NULL AND image_url <> ''`,
 	`SELECT image_url FROM hero_slides WHERE image_url IS NOT NULL AND image_url <> ''`,
 	`SELECT mobile_image_url FROM hero_slides WHERE mobile_image_url IS NOT NULL AND mobile_image_url <> ''`,
+	`SELECT image_url FROM season_graphics WHERE image_url IS NOT NULL AND image_url <> ''`,
+	`SELECT mobile_image_url FROM season_graphics WHERE mobile_image_url IS NOT NULL AND mobile_image_url <> ''`,
 }
 
 // collectReferencedKeys returns the set of object keys still referenced by the

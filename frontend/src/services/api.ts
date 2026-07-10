@@ -111,6 +111,8 @@ export interface News {
     excerpt: string;
     content: string;
     featured_image: string;
+    featured_media_type: 'image' | 'youtube';
+    featured_youtube_url: string;
     author: string;
     category: string;
     published_at: string;
@@ -220,6 +222,88 @@ export const updateHeroSlide = async (id: string, payload: UpdateHeroSlidePayloa
 export const deleteHeroSlide = async (id: string) => {
     const response = await api.delete(`/admin/hero-slides/${id}`);
     return response.data;
+};
+
+// ─── Team of the Season + MVPs ─────────────────────────────────────────────────
+export interface SeasonGraphic {
+    id: string;
+    category: 'offense' | 'defense';
+    image_url: string;
+    mobile_image_url?: string;
+}
+
+export interface SeasonMVP {
+    id: string;
+    player_id: string;
+    label: string;
+    display_order: number;
+    is_active: boolean;
+    player_name: string;
+    player_image: string;
+    player_jersey_number: number;
+    player_position: string;
+    team_name: string;
+    team_logo: string;
+}
+
+export interface UpsertSeasonGraphicPayload {
+    category: 'offense' | 'defense';
+    image_url: string;
+    mobile_image_url?: string;
+}
+
+export interface CreateSeasonMVPPayload {
+    player_id: string;
+    label: string;
+    display_order?: number;
+}
+
+export interface UpdateSeasonMVPPayload {
+    label?: string;
+    display_order?: number;
+    is_active?: boolean;
+}
+
+// Public
+export const getSeasonGraphics = async (): Promise<SeasonGraphic[]> => {
+    const res = await api.get<{ data: SeasonGraphic[] }>('/season/graphics');
+    return res.data.data || [];
+};
+
+export const getSeasonMVPs = async (): Promise<SeasonMVP[]> => {
+    const res = await api.get<{ data: SeasonMVP[] }>('/season/mvps');
+    return res.data.data || [];
+};
+
+// Admin
+export const getAdminSeasonGraphics = async (): Promise<SeasonGraphic[]> => {
+    const res = await api.get<{ data: SeasonGraphic[] }>('/admin/season/graphics');
+    return res.data.data || [];
+};
+
+export const upsertSeasonGraphic = async (payload: UpsertSeasonGraphicPayload): Promise<SeasonGraphic> => {
+    const res = await api.put<SeasonGraphic>('/admin/season/graphics', payload);
+    return res.data;
+};
+
+export const getAdminSeasonMVPs = async (): Promise<SeasonMVP[]> => {
+    const res = await api.get<{ data: SeasonMVP[] }>('/admin/season/mvps');
+    return res.data.data || [];
+};
+
+export const createSeasonMVP = async (payload: CreateSeasonMVPPayload): Promise<SeasonMVP> => {
+    const res = await api.post<SeasonMVP>('/admin/season/mvps', payload);
+    return res.data;
+};
+
+export const updateSeasonMVP = async (id: string, payload: UpdateSeasonMVPPayload) => {
+    const res = await api.put(`/admin/season/mvps/${id}`, payload);
+    return res.data;
+};
+
+export const deleteSeasonMVP = async (id: string) => {
+    const res = await api.delete(`/admin/season/mvps/${id}`);
+    return res.data;
 };
 
 // ─── Match Hub Types ──────────────────────────────────────────────────────────
@@ -415,6 +499,8 @@ export interface CreateNewsPayload {
     excerpt?: string;
     content: string;
     featured_image?: string;
+    featured_media_type?: 'image' | 'youtube';
+    featured_youtube_url?: string;
     author?: string;
     category?: string;
 }

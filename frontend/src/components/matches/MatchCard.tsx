@@ -54,7 +54,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
                 {/* Home Team */}
                 <div className="flex items-center gap-1.5 w-1/3">
                     <LightboxImage
-                        src={match.home_team?.logo || 'https://via.placeholder.com/60'}
+                        src={match.home_team?.logo || '/images/default_football.png'}
                         alt={match.home_team?.name}
                         thumbnailClassName="w-6 h-6 md:w-16 md:h-16 object-contain rounded-md"
                     />
@@ -99,7 +99,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
                         <span className="font-bold text-[10px] md:text-sm text-gray-400 dark:text-gray-500 italic leading-tight truncate uppercase">TBD</span>
                     )}
                     <LightboxImage
-                        src={isBye ? '/images/default_football.png' : (match.away_team?.logo || 'https://via.placeholder.com/60')}
+                        src={isBye ? '/images/default_football.png' : (match.away_team?.logo || '/images/default_football.png')}
                         alt={isBye ? 'BYE' : (match.away_team?.name || 'BYE')}
                         thumbnailClassName="w-6 h-6 md:w-16 md:h-16 object-contain rounded-md"
                     />

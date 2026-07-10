@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { getNews } from '../../services/api';
 import { Pagination } from '../../components/ui/Pagination';
 import { LightboxImage, Spinner } from '../../components/ui';
+import { parseYouTubeId, youTubeThumbnailUrl } from '../../utils/newsContent';
 
 export const NewsList = () => {
     const [currentPage, setCurrentPage] = useState(1);
@@ -40,20 +41,46 @@ export const NewsList = () => {
                         key={article.id}
                         className="group bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
                     >
-                        {/* Featured Image */}
+                        {/* Featured Media */}
                         <div className="h-48 overflow-hidden bg-gray-200 dark:bg-gray-700 relative group-image">
-                            {article.featured_image ? (
-                                <LightboxImage
-                                    src={article.featured_image}
-                                    alt={article.title}
-                                    thumbnailClassName="w-full h-full"
-                                    imgClassName="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                                />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                    No Image
-                                </div>
-                            )}
+                            {(() => {
+                                const videoId = article.featured_media_type === 'youtube'
+                                    ? parseYouTubeId(article.featured_youtube_url)
+                                    : null;
+                                if (videoId) {
+                                    return (
+                                        <Link to={`/news/${article.slug}`} className="block w-full h-full relative">
+                                            <img
+                                                src={youTubeThumbnailUrl(videoId)}
+                                                alt={article.title}
+                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                            />
+                                            <div className="absolute inset-0 flex items-center justify-center">
+                                                <div className="w-14 h-14 bg-sffl-red/90 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                                    <svg className="w-6 h-6 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
+                                                        <path d="M8 5v14l11-7z" />
+                                                    </svg>
+                                                </div>
+                                            </div>
+                                        </Link>
+                                    );
+                                }
+                                if (article.featured_image) {
+                                    return (
+                                        <LightboxImage
+                                            src={article.featured_image}
+                                            alt={article.title}
+                                            thumbnailClassName="w-full h-full"
+                                            imgClassName="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                        />
+                                    );
+                                }
+                                return (
+                                    <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                        No Image
+                                    </div>
+                                );
+                            })()}
                         </div>
 
                         {/* Content */}
