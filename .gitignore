@@ -21,10 +21,21 @@ backend/main
 # This folder will be deleted once the historical backfill is finished.
 scripts/historical-import/
 
-# Historical-data Excel source files — large, throwaway, kept locally only.
-docs/*.xlsx
+# Personal/info documents (office files, PDFs) — kept locally only, not code
+*.xlsx
+*.xls
+*.csv
+*.pdf
+*.doc
+*.docx
+*.ppt
+*.pptx
+*.key
+*.pages
+*.numbers
 
 # Ignore scratch folders and their contents
 scratch/
 **/scratch/
+
 
