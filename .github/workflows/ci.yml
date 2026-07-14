@@ -15,6 +15,15 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.25.x'
+      # The Swagger `docs` package is generated (gitignored), so it must be
+      # produced before `go build`, exactly as the Dockerfile does.
+      - name: Install swag (Swagger generator)
+        run: |
+          go install github.com/swaggo/swag/cmd/swag@v1.16.4
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Generate Swagger docs
+        working-directory: backend
+        run: swag init -g cmd/main/main.go
       - name: Build
         working-directory: backend
         run: go build ./...
