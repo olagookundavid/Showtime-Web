@@ -9,7 +9,7 @@ ALTER TABLE tickets
 ADD COLUMN team_id UUID NULL REFERENCES teams(id) ON DELETE SET NULL;
 
 CREATE TABLE IF NOT EXISTS team_ticket_allocations (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     event_day_id UUID NOT NULL REFERENCES event_days(id) ON DELETE CASCADE,
     team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
     allocated_count INT NOT NULL DEFAULT 0,
