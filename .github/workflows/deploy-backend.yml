@@ -59,3 +59,18 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to server
+    needs: build-and-push # only deploy if the image built & pushed successfully
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # The server's forced command runs the real deploy; this script is
+          # ignored by SSH. The pull+up+prune happens server-side.
+          script: "deploy"
