@@ -34,8 +34,10 @@ func Routes(app *api.Application) *gin.Engine {
 	}
 	r.MaxMultipartMemory = 32 << 20 // 32 MB
 
-	// Root endpoints
+	// Root endpoints. HEAD is registered too so uptime monitors that probe with
+	// HEAD (e.g. UptimeRobot's default) get 200, not a NoRoute 404.
 	r.GET("/healthcheck", helpers.HealthcheckHandler(app.Config.Env))
+	r.HEAD("/healthcheck", helpers.HealthcheckHandler(app.Config.Env))
 	// expvar exposes runtime internals (and can leak command-line flags such as
 	// the DB DSN / token key) — lock it behind admin auth instead of public.
 	debugGroup := r.Group("/debug", commonAuth.TokenMiddleware(app.TokenMaker), middlewares.AdminOnlyMiddleware(app.AuthService))
@@ -50,6 +52,7 @@ func Routes(app *api.Application) *gin.Engine {
 	v1_api := r.Group("/api/v1", commonAuth.RecoverPanic(), middlewares.SecurityHeaders(), commonAuth.RateLimit(rls), commonAuth.Metrics(), middlewares.AuditLoggerMiddleware(app.AuditService))
 	{
 		v1_api.GET("/healthcheck", helpers.HealthcheckHandler(app.Config.Env))
+		v1_api.HEAD("/healthcheck", helpers.HealthcheckHandler(app.Config.Env))
 	}
 
 	// Register all subroutes
