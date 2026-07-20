@@ -4,6 +4,7 @@ import { getPlayerById, getPlayerStatById, getCompetitions, getStatDates, sortCo
 import { Loader } from '../../components/ui/Loader';
 import { Spinner } from '../../components/ui';
 import { useSearchParams } from 'react-router-dom';
+import { SeasonPlayoffTabs } from '../../components/common/SeasonPlayoffTabs';
 
 const StatCard = ({ label, value }: { label: string, value: number }) => {
     return (
@@ -41,16 +42,6 @@ export const PlayerDetail = () => {
     );
     const leagueComps = competitions.filter(c => c.format !== 'KNOCKOUT');
     const selectedComp = competitions.find(c => c.id === compId);
-    
-    // Find linked playoff for selected comp
-    const linkedPlayoff = selectedComp?.playoff_competition_id
-        ? competitions.find(c => c.id === selectedComp.playoff_competition_id)
-        : null;
-
-    // Reverse: if currently on a KNOCKOUT, find its parent league
-    const parentLeague = !linkedPlayoff
-        ? competitions.find(c => c.playoff_competition_id === compId)
-        : null;
 
     const dropdownComps = leagueComps.slice();
     if (selectedComp && selectedComp.format === 'KNOCKOUT') {
@@ -161,22 +152,6 @@ export const PlayerDetail = () => {
                         
                         <div className="flex flex-wrap items-center gap-3">
                             <div className="flex flex-col gap-2 sm:w-[180px]">
-                                {(linkedPlayoff || parentLeague) && (
-                                    <button
-                                        onClick={() => handleCompChange(linkedPlayoff ? linkedPlayoff.id : parentLeague!.id)}
-                                        className="w-full px-3 py-1.5 bg-sffl-red text-white font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-1.5 whitespace-nowrap text-xs"
-                                    >
-                                        {linkedPlayoff ? (
-                                            <>
-                                                <span>🏆</span> Switch to Playoffs
-                                            </>
-                                        ) : (
-                                            <>
-                                                <span>←</span> Back to Season
-                                            </>
-                                        )}
-                                    </button>
-                                )}
                                 <div className="flex flex-col gap-1 min-w-[160px]">
                                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Competition</label>
                                     <select
@@ -220,6 +195,10 @@ export const PlayerDetail = () => {
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <div className="px-4 md:px-6 pt-4">
+                    <SeasonPlayoffTabs competitions={competitions} currentId={compId} onChange={handleCompChange} />
                 </div>
 
                 {loadingStats ? (

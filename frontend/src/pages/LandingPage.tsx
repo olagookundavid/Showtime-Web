@@ -68,7 +68,7 @@ export const LandingPage = () => {
                 ) : upcomingMatches.length > 0 ? (
                     <div className="relative group px-2 md:px-4">
                         {/* Left Arrow */}
-                        <button 
+                        <button
                             onClick={() => scrollLeft(scheduledRef)}
                             className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-sffl-navy dark:bg-gray-800 hover:bg-sffl-red dark:hover:bg-sffl-red text-white p-1.5 md:p-2.5 rounded-full shadow-xl transition-all duration-300 flex items-center justify-center cursor-pointer border-2 border-white/20"
                         >
@@ -77,7 +77,7 @@ export const LandingPage = () => {
                             </svg>
                         </button>
 
-                        <div 
+                        <div
                             ref={scheduledRef}
                             className="flex overflow-x-auto gap-4 pb-4 snap-x snap-mandatory no-scrollbar -mx-1 px-1"
                         >
@@ -87,7 +87,7 @@ export const LandingPage = () => {
                         </div>
 
                         {/* Right Arrow */}
-                        <button 
+                        <button
                             onClick={() => scrollRight(scheduledRef)}
                             className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-sffl-navy dark:bg-gray-800 hover:bg-sffl-red dark:hover:bg-sffl-red text-white p-1.5 md:p-2.5 rounded-full shadow-xl transition-all duration-300 flex items-center justify-center cursor-pointer border-2 border-white/20"
                         >
@@ -142,7 +142,8 @@ export const LandingPage = () => {
             <section className="px-1 mt-12">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-lg md:text-4xl font-black italic text-sffl-navy dark:text-white transition-colors duration-300">
-                        TEAM <span className="text-sffl-red">NEWS</span>
+                        {/* TEAM  */}
+                        <span className="text-sffl-red">NEWS</span>
                     </h2>
                     <Link to="/news" className="text-sffl-red text-sm font-semibold hover:underline flex items-center gap-1">
                         View All News &rarr;
@@ -154,19 +155,19 @@ export const LandingPage = () => {
                 ) : teamNews.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {teamNews.map(item => (
-                            <div 
-                                key={item.id} 
+                            <div
+                                key={item.id}
                                 className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 flex flex-col group border border-gray-100 dark:border-gray-700/50 hover:scale-[1.01]"
                             >
                                 <div className="h-48 overflow-hidden relative bg-gray-100 dark:bg-gray-900">
-                                    <LightboxImage 
-                                        src={item.featured_image || ''} 
-                                        alt={item.title} 
+                                    <LightboxImage
+                                        src={item.featured_image || ''}
+                                        alt={item.title}
                                         thumbnailClassName="w-full h-full"
                                         imgClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                     />
                                 </div>
-                                <Link 
+                                <Link
                                     to={`/news/${item.slug}`}
                                     className="p-5 flex flex-col flex-1"
                                 >

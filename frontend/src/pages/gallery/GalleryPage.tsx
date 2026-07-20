@@ -4,6 +4,7 @@ import { getGallery, getCompetitions, getMatches, sortCompetitionsBySeason, type
 import { Loader } from '../../components/ui/Loader';
 import { Spinner } from '../../components/ui';
 import { Pagination } from '../../components/ui/Pagination';
+import { SeasonPlayoffTabs } from '../../components/common/SeasonPlayoffTabs';
 
 const ALL = 'ALL';
 
@@ -21,16 +22,6 @@ export const GalleryPage = () => {
     );
     const leagueComps = competitions.filter(c => c.format !== 'KNOCKOUT');
     const selectedComp = competitions.find(c => c.id === selectedCompetitionId);
-    
-    // Find linked playoff for selected comp
-    const linkedPlayoff = selectedComp?.playoff_competition_id
-        ? competitions.find(c => c.id === selectedComp.playoff_competition_id)
-        : null;
-
-    // Reverse: if currently on a KNOCKOUT, find its parent league
-    const parentLeague = !linkedPlayoff
-        ? competitions.find(c => c.playoff_competition_id === selectedCompetitionId)
-        : null;
 
     const isCurrentPlayoff = selectedComp?.format === 'KNOCKOUT';
     const dropdownComps = isCurrentPlayoff
@@ -99,22 +90,6 @@ export const GalleryPage = () => {
 
                 {competitions.length > 0 && (
                     <div className="mt-4 md:mt-0 flex flex-col gap-2 md:w-[280px]">
-                        {(linkedPlayoff || parentLeague) && (
-                            <button
-                                onClick={() => handleCompetitionChange(linkedPlayoff ? linkedPlayoff.id : parentLeague!.id)}
-                                className="w-full px-4 py-2 bg-sffl-red text-white font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap text-xs md:text-sm"
-                            >
-                                {linkedPlayoff ? (
-                                    <>
-                                        <span>🏆</span> Switch to Playoffs
-                                    </>
-                                ) : (
-                                    <>
-                                        <span>←</span> Back to Season
-                                    </>
-                                )}
-                            </button>
-                        )}
                         <div className="min-w-[260px]">
                             <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">Competition</label>
                             <div className="relative">
@@ -140,6 +115,9 @@ export const GalleryPage = () => {
                     </div>
                 )}
             </div>
+
+            {/* Season | Playoffs toggle for the selected competition */}
+            <SeasonPlayoffTabs competitions={competitions} currentId={selectedCompetitionId} onChange={handleCompetitionChange} />
 
             {/* Description */}
             <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getCompetitions, getPlayerStats, getTeamStats, getStatDates, getTeams, sortCompetitionsBySeason, type Competition } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { StatsTable } from '../../components/stats/StatsTable';
+import { SeasonPlayoffTabs } from '../../components/common/SeasonPlayoffTabs';
 import { useSearchParams } from 'react-router-dom';
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
@@ -114,16 +115,6 @@ export const StatsPage = () => {
     );
     const leagueComps = competitions.filter(c => c.format !== 'KNOCKOUT');
     const selectedComp = competitions.find(c => c.id === selectedCompetitionId);
-    
-    // Find linked playoff for selected comp
-    const linkedPlayoff = selectedComp?.playoff_competition_id
-        ? competitions.find(c => c.id === selectedComp.playoff_competition_id)
-        : null;
-
-    // Reverse: if currently on a KNOCKOUT, find its parent league
-    const parentLeague = !linkedPlayoff
-        ? competitions.find(c => c.playoff_competition_id === selectedCompetitionId)
-        : null;
 
     const isCurrentPlayoff = selectedComp?.format === 'KNOCKOUT';
     const dropdownComps = isCurrentPlayoff
@@ -254,22 +245,6 @@ export const StatsPage = () => {
                     </div>
 
                     <div className="w-full sm:w-auto flex flex-col gap-2 sm:w-[220px]">
-                        {(linkedPlayoff || parentLeague) && (
-                            <button
-                                onClick={() => handleCompChange(linkedPlayoff ? linkedPlayoff.id : parentLeague!.id)}
-                                className="w-full px-4 py-2 bg-sffl-red text-white font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap text-xs md:text-sm"
-                            >
-                                {linkedPlayoff ? (
-                                    <>
-                                        <span>🏆</span> Switch to Playoffs
-                                    </>
-                                ) : (
-                                    <>
-                                        <span>←</span> Back to Season
-                                    </>
-                                )}
-                            </button>
-                        )}
                         <div className="min-w-[200px]">
                             <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">Competition</label>
                             <div className="relative">
@@ -339,6 +314,9 @@ export const StatsPage = () => {
                     </button>
                 </div>
             )}
+
+            {/* Season | Playoffs toggle for the selected competition */}
+            <SeasonPlayoffTabs competitions={competitions} currentId={selectedCompetitionId} onChange={handleCompChange} />
 
             {/* Tabs */}
             <div className="flex space-x-2 border-b border-gray-200 dark:border-gray-700 overflow-x-auto scrollbar-hide">

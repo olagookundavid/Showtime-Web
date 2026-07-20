@@ -7,6 +7,7 @@ import { Spinner } from '../../components/ui';
 import { MatchCard } from '../../components/matches/MatchCard';
 import { MatchStandingsTable } from '../../components/matches/MatchStandingsTable';
 import { BracketView } from '../../components/matches/BracketView';
+import { SeasonPlayoffTabs } from '../../components/common/SeasonPlayoffTabs';
 
 export const MatchHub = () => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -54,16 +55,6 @@ export const MatchHub = () => {
     );
     const leagueComps = competitions.filter(c => c.format !== 'KNOCKOUT');
     const selectedComp = competitions.find(c => c.id === selectedCompetitionId);
-    
-    // Find linked playoff for selected comp
-    const linkedPlayoff = selectedComp?.playoff_competition_id
-        ? competitions.find(c => c.id === selectedComp.playoff_competition_id)
-        : null;
-
-    // Reverse: if currently on a KNOCKOUT, find its parent league
-    const parentLeague = !linkedPlayoff
-        ? competitions.find(c => c.playoff_competition_id === selectedCompetitionId)
-        : null;
 
     const isCurrentPlayoff = selectedComp?.format === 'KNOCKOUT';
     const dropdownComps = isCurrentPlayoff
@@ -215,27 +206,10 @@ export const MatchHub = () => {
                     </div>
                 </div>
 
-                {/* Competition Selector — the playoff toggle sits BENEATH the
-                    dropdown (not beside it) so appearing it never widens the
-                    selector or pushes the day cards off the layout. */}
+                {/* Competition Selector — picks which competition/season. The
+                    Season|Playoffs toggle now lives in the content area below. */}
                 {competitions.length > 0 && (
                     <div className="mt-4 md:mt-0 flex flex-col gap-2 md:w-[280px]">
-                        {(linkedPlayoff || parentLeague) && (
-                            <button
-                                onClick={() => handleCompetitionChange(linkedPlayoff ? linkedPlayoff.id : parentLeague!.id)}
-                                className="w-full px-4 py-2 bg-sffl-red text-white font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap text-xs md:text-sm"
-                            >
-                                {linkedPlayoff ? (
-                                    <>
-                                        <span>🏆</span> Switch to Playoffs
-                                    </>
-                                ) : (
-                                    <>
-                                        <span>←</span> Back to Season
-                                    </>
-                                )}
-                            </button>
-                        )}
                         <div className="min-w-[260px]">
                             <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">Competition</label>
                             <div className="relative">
@@ -281,6 +255,7 @@ export const MatchHub = () => {
 
                 {/* Left Column: Matches (2/3 width) */}
                 <div className="lg:col-span-2 space-y-6">
+                    <SeasonPlayoffTabs competitions={competitions} currentId={selectedCompetitionId} onChange={handleCompetitionChange} />
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <h2 className="text-2xl font-bold text-sffl-navy dark:text-white flex items-center gap-2">
                             <span className="text-sffl-red">●</span> Fixtures & Results

@@ -5,6 +5,7 @@ import { getCompetitions, getStandings, getMatches, sortCompetitionsBySeason } f
 import { Loader } from '../../components/ui/Loader';
 import { StandingsTable } from '../../components/matches/StandingsTable';
 import { BracketView } from '../../components/matches/BracketView';
+import { SeasonPlayoffTabs } from '../../components/common/SeasonPlayoffTabs';
 
 export const StandingsPage = () => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -30,16 +31,6 @@ export const StandingsPage = () => {
     );
     const leagueComps = competitions.filter(c => c.format !== 'KNOCKOUT');
     const selectedComp = competitions.find(c => c.id === selectedCompetitionId);
-    
-    // Find linked playoff for selected comp
-    const linkedPlayoff = selectedComp?.playoff_competition_id
-        ? competitions.find(c => c.id === selectedComp.playoff_competition_id)
-        : null;
-
-    // Reverse: if currently on a KNOCKOUT, find its parent league
-    const parentLeague = !linkedPlayoff
-        ? competitions.find(c => c.playoff_competition_id === selectedCompetitionId)
-        : null;
 
     const isCurrentPlayoff = selectedComp?.format === 'KNOCKOUT';
     const dropdownComps = isCurrentPlayoff
@@ -163,25 +154,13 @@ export const StandingsPage = () => {
                                 </div>
                             </div>
                         </div>
-                        {(linkedPlayoff || parentLeague) && (
-                            <button
-                                onClick={() => handleCompetitionChange(linkedPlayoff ? linkedPlayoff.id : parentLeague!.id)}
-                                className="px-4 py-2 h-[38px] bg-sffl-red text-white font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap text-xs"
-                            >
-                                {linkedPlayoff ? (
-                                    <>
-                                        <span>🏆</span> Switch to Playoffs
-                                    </>
-                                ) : (
-                                    <>
-                                        <span>←</span> Back to Season
-                                    </>
-                                )}
-                            </button>
-                        )}
                     </div>
                 )}
             </div>
+
+            {competitions.length > 0 && (
+                <SeasonPlayoffTabs competitions={competitions} currentId={selectedCompetitionId} onChange={handleCompetitionChange} />
+            )}
 
             {dataLoading && !isKnockout && (
                 <div className="flex justify-center items-center gap-2 text-gray-500">
