@@ -166,7 +166,12 @@ export const AdminPlayByPlay = () => {
         queryKey: ['pbpMatches'],
         queryFn: () => getMatches(undefined, 1, 100),
     });
-    const matches: Match[] = matchesData?.data || [];
+    // Latest matches first — makes the most likely picks (today's/this week's
+    // games) sit at the top instead of scattered through whatever order the
+    // API returned.
+    const matches: Match[] = [...(matchesData?.data || [])].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
     const match = matches.find(m => m.id === matchId);
 
     const { data: teamSheet } = useQuery({
