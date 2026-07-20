@@ -118,6 +118,9 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		compGroup.DELETE("/:id", app.Handlers.MatchHandler.DeleteCompetition)
 		compGroup.POST("/:id/bracket", app.Handlers.MatchHandler.GenerateBracket)
 		compGroup.DELETE("/:id/bracket", app.Handlers.MatchHandler.ResetBracket)
+		// Step 3: per-competition play-by-play scoring rules.
+		compGroup.GET("/:id/game-rules", app.Handlers.PlayHandler.GetRules)
+		compGroup.PUT("/:id/game-rules", app.Handlers.PlayHandler.UpsertRules)
 	}
 
 	analyticsGroup := adminRoutes.Group("/analytics")
@@ -208,6 +211,17 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		matchesGroup.DELETE("/:id", app.Handlers.MatchHandler.DeleteMatch)
 		matchesGroup.POST("/:id/team-sheets", app.Handlers.MatchHandler.SaveTeamSheet)
 		matchesGroup.GET("/:id/team-sheets", app.Handlers.MatchHandler.GetAdminTeamSheet)
+		// Play-by-play entry (Step 1): admin logs plays for a match.
+		matchesGroup.GET("/:id/plays", app.Handlers.PlayHandler.ListPlays)
+		matchesGroup.POST("/:id/plays", app.Handlers.PlayHandler.CreatePlay)
+		matchesGroup.PUT("/:id/plays/:playId", app.Handlers.PlayHandler.UpdatePlay)
+		matchesGroup.DELETE("/:id/plays/:playId", app.Handlers.PlayHandler.DeletePlay)
+		// Step 2: derive box-score stats from the play log + commit them.
+		matchesGroup.GET("/:id/stats-compare", app.Handlers.PlayHandler.CompareStats)
+		matchesGroup.POST("/:id/stats-commit", app.Handlers.PlayHandler.CommitStats)
+		// Step 3: scoring rules for this match's competition + recompute score.
+		matchesGroup.GET("/:id/rules", app.Handlers.PlayHandler.GetMatchRules)
+		matchesGroup.POST("/:id/recompute-score", app.Handlers.PlayHandler.RecomputeScore)
 		matchesGroup.POST("/:id/import", app.Handlers.ImportHandler.ImportMatch)
 		matchesGroup.POST("/standings", app.Handlers.MatchHandler.CreateStanding)
 		matchesGroup.PUT("/standings/:id", app.Handlers.MatchHandler.UpdateStanding)
@@ -360,6 +374,7 @@ func SetupMatchRoutes(r *gin.RouterGroup, app *api.Application) {
 		matchRoutes.GET("/competitions", app.Handlers.MatchHandler.GetCompetitions)
 		matchRoutes.GET("", app.Handlers.MatchHandler.GetMatches)
 		matchRoutes.GET("/:id", app.Handlers.MatchHandler.GetMatchDetail)
+		matchRoutes.GET("/:id/plays", app.Handlers.PlayHandler.ListPlays)
 		matchRoutes.GET("/standings", app.Handlers.MatchHandler.GetStandings)
 		matchRoutes.GET("/teams", app.Handlers.MatchHandler.GetAllTeams)
 		matchRoutes.GET("/days", app.Handlers.MatchHandler.GetMatchDays)

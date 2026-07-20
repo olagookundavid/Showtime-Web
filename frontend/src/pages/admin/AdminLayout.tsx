@@ -59,6 +59,7 @@ export const AdminLayout = () => {
         { name: 'Dashboard', path: '/admin', icon: ChartBarIcon },
         { name: 'Analytics', path: '/admin/analytics', icon: ChartBarIcon },
         { name: 'Matches', path: '/admin/matches', icon: CalendarIcon },
+        { name: 'Play by Play', path: '/admin/play-by-play', icon: CalendarIcon },
         { name: 'Teams', path: '/admin/teams', icon: ShieldCheckIcon },
         { name: 'Competitions', path: '/admin/competitions', icon: TrophyIcon },
         { name: 'Players', path: '/admin/players', icon: UserGroupIcon },
@@ -88,8 +89,8 @@ export const AdminLayout = () => {
         if (user.role === 'admin') return allLinks.filter(l => !['Administrator', 'Hero Slides'].includes(l.name));
         if (user.role === 'ticketer') return allLinks.filter(l => ['Tickets', 'Referrals'].includes(l.name));
 
-        if (user.role === 'referee') return allLinks.filter(l => ['Matches', 'Standings', 'Stats', 'Players', 'Teams', 'Team of the Week'].includes(l.name));
-        if (user.role === 'stats') return allLinks.filter(l => ['Matches', 'Standings', 'Stats', 'Teams', 'Team of the Week'].includes(l.name));
+        if (user.role === 'referee') return allLinks.filter(l => ['Matches', 'Play by Play', 'Standings', 'Stats', 'Players', 'Teams', 'Team of the Week'].includes(l.name));
+        if (user.role === 'stats') return allLinks.filter(l => ['Matches', 'Play by Play', 'Standings', 'Stats', 'Teams', 'Team of the Week'].includes(l.name));
         return [];
     })();
 

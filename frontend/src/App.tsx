@@ -52,6 +52,7 @@ import { TeamDetail } from './pages/teams/TeamDetail';
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout').then(m => ({ default: m.AdminLayout })));
 const Dashboard = lazy(() => import('./pages/admin/Dashboard').then(m => ({ default: m.Dashboard })));
 const AdminMatches = lazy(() => import('./pages/admin/AdminMatches').then(m => ({ default: m.AdminMatches })));
+const AdminPlayByPlay = lazy(() => import('./pages/admin/AdminPlayByPlay').then(m => ({ default: m.AdminPlayByPlay })));
 const AdminNews = lazy(() => import('./pages/admin/AdminNews').then(m => ({ default: m.AdminNews })));
 const AdminGallery = lazy(() => import('./pages/admin/AdminGallery').then(m => ({ default: m.AdminGallery })));
 const AdminHeroSlides = lazy(() => import('./pages/admin/AdminHeroSlides').then(m => ({ default: m.AdminHeroSlides })));
@@ -163,6 +164,7 @@ function App() {
               <Route index element={<Dashboard />} />
               <Route path="analytics" element={<AdminAnalytics />} />
               <Route path="matches" element={<AdminMatches />} />
+              <Route path="play-by-play" element={<AdminPlayByPlay />} />
               <Route path="news" element={<AdminNews />} />
               <Route path="gallery" element={<AdminGallery />} />
               <Route path="hero-slides" element={<AdminHeroSlides />} />

@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { getMatchDetail } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { LightboxImage } from '../../components/ui';
+import { PlayByPlayTimeline } from '../../components/matches/PlayByPlayTimeline';
 
 function formatTime(raw: string | null | undefined): string {
     if (!raw) return '--:--';
@@ -40,6 +42,8 @@ export const MatchDetail = () => {
         enabled: !!id,
         retry: 1,
     });
+
+    const [activeTab, setActiveTab] = useState<'rating' | 'plays'>('rating');
 
     if (isLoading) return <Loader />;
 
@@ -242,11 +246,27 @@ export const MatchDetail = () => {
                 </div>
             )}
 
-            {/* ── Team Sheets ── */}
+            {/* ── Tabs: Player Rating (roster) | Play by Play ── */}
             {!isBye && (
+                <div>
+                    <div className="flex gap-1 mb-4 border-b border-gray-200 dark:border-gray-700">
+                        {([['rating', 'Player Rating'], ['plays', 'Play by Play']] as const).map(([key, label]) => (
+                            <button
+                                key={key}
+                                onClick={() => setActiveTab(key)}
+                                className={`px-5 py-2.5 -mb-px font-black text-sm uppercase tracking-tight transition-colors border-b-2 ${activeTab === key ? 'text-sffl-red border-sffl-red' : 'text-gray-400 border-transparent hover:text-sffl-navy dark:hover:text-white'}`}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {activeTab === 'plays' ? (
+                        <PlayByPlayTimeline matchId={match.id} isLive={match.status === 'LIVE'} showEmpty />
+                    ) : (
                 <div className="bg-white dark:bg-gray-800/80 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/50 overflow-hidden">
                 <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-700/50 flex items-center justify-between">
-                    <h3 className="text-xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">Team Sheets</h3>
+                    <h3 className="text-xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">Player Rating</h3>
                     {hasTeamSheet && (
                         <span className="text-xs text-gray-400 font-semibold">{homeSheet.length + awaySheet.length} players listed</span>
                     )}
@@ -364,6 +384,8 @@ export const MatchDetail = () => {
 
                     </div>
                 )}
+                </div>
+                    )}
                 </div>
             )}
         </div>

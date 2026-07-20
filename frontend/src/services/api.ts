@@ -1700,5 +1700,154 @@ export const adminListReferrals = async (page = 1, limit = 10, search?: string) 
     return response.data;
 };
 
+// ─── Play-by-Play (Step 1) ────────────────────────────────────────────────────
+
+// Official code strings from the stat sheet (FG = Flag Pull, KO = Throw-Off).
+export const PLAY_TYPE_CODES = ['CP', 'INC', 'TDP', 'INT', 'SACK', 'SCR', 'HM', 'TA', 'XP-P', 'RUN', 'QBR', 'SWP', 'REV', 'PAT-R', 'PUNT', 'KO', 'SAF'] as const;
+export const RESULT_CODES = ['1D', '1DG', 'TD', 'XP', 'XPF', 'TO', 'INT', 'OB', 'FG', 'DB', 'IH', 'EH', 'EG'] as const;
+export const PENALTY_CODES = ['FS', 'OFF', 'ENC', 'DOG', 'OPI', 'DPI', 'FGD', 'HLD', 'RPC', 'IMP', 'SUB', 'IF', 'MOT', 'FAV', 'UF'] as const;
+
+// Player subset hydrated onto a play (name + jersey for display).
+export interface PlayPlayer {
+    id: string;
+    name: string;
+    jersey_number: number;
+    position: string;
+}
+
+export interface GamePlay {
+    id: string;
+    match_id: string;
+    seq: number;
+    drive_no: number;
+    quarter: number;
+    clock?: string;
+    offense_team_id?: string;
+    down?: number;
+    to_go?: number;
+    ball_on?: string;
+    play_type?: string;
+    off_qb_id?: string;
+    target_id?: string;
+    yards?: number;
+    result?: string;
+    defender_id?: string;
+    dropped: boolean;
+    returned_for_td: boolean;
+    penalty?: string;
+    penalty_team_id?: string;
+    penalty_player_id?: string;
+    penalty_yards?: number;
+    home_score_after?: number;
+    away_score_after?: number;
+    notes?: string;
+    // Hydrated relations
+    offense_team?: Team;
+    off_qb?: PlayPlayer;
+    target?: PlayPlayer;
+    defender?: PlayPlayer;
+    penalty_player?: PlayPlayer;
+}
+
+// Mirrors backend dto.PlayRequest — every field optional; match_id is in the URL.
+export interface PlayPayload {
+    drive_no?: number;
+    quarter?: number;
+    clock?: string;
+    offense_team_id?: string;
+    down?: number | null;
+    to_go?: number | null;
+    ball_on?: string;
+    play_type?: string;
+    off_qb_id?: string;
+    target_id?: string;
+    yards?: number | null;
+    result?: string;
+    defender_id?: string;
+    dropped?: boolean;
+    returned_for_td?: boolean;
+    penalty?: string;
+    penalty_team_id?: string;
+    penalty_player_id?: string;
+    penalty_yards?: number | null;
+    home_score_after?: number | null;
+    away_score_after?: number | null;
+    notes?: string;
+    seq?: number;
+}
+
+// Public read (used by the match page timeline later).
+export const getMatchPlays = async (matchId: string): Promise<GamePlay[]> => {
+    const res = await api.get<{ data: GamePlay[] }>(`/matches/${matchId}/plays`);
+    return res.data.data || [];
+};
+
+// Admin read (same data, admin-gated route so the entry screen can load it).
+export const getAdminMatchPlays = async (matchId: string): Promise<GamePlay[]> => {
+    const res = await api.get<{ data: GamePlay[] }>(`/admin/matches/${matchId}/plays`);
+    return res.data.data || [];
+};
+
+export const createPlay = async (matchId: string, payload: PlayPayload): Promise<GamePlay> => {
+    const res = await api.post<{ data: GamePlay }>(`/admin/matches/${matchId}/plays`, payload);
+    return res.data.data;
+};
+
+export const updatePlay = async (matchId: string, playId: string, payload: PlayPayload): Promise<GamePlay> => {
+    const res = await api.put<{ data: GamePlay }>(`/admin/matches/${matchId}/plays/${playId}`, payload);
+    return res.data.data;
+};
+
+export const deletePlay = async (matchId: string, playId: string) => {
+    const res = await api.delete(`/admin/matches/${matchId}/plays/${playId}`);
+    return res.data;
+};
+
+// Step 2 — stats derived from the play log vs the currently-stored manual stats.
+export interface StatsCompare {
+    derived: PlayerStat[];
+    current: PlayerStat[];
+}
+
+export const getStatsCompare = async (matchId: string): Promise<StatsCompare> => {
+    const res = await api.get<StatsCompare>(`/admin/matches/${matchId}/stats-compare`);
+    return { derived: res.data.derived || [], current: res.data.current || [] };
+};
+
+export const commitDerivedStats = async (matchId: string): Promise<{ players: number }> => {
+    const res = await api.post<{ players: number }>(`/admin/matches/${matchId}/stats-commit`, {});
+    return res.data;
+};
+
+// Step 3 — scoring rules + score recompute.
+export interface GameRules {
+    competition_id: string;
+    td_points: number;
+    xp_run_points: number;
+    xp_pass_points: number;
+    safety_points: number;
+    def_return_points: number;
+    downs_per_series: number;
+    yards_to_first_down: number;
+    first_down_model: string;
+}
+
+export type GameRulesPayload = Omit<GameRules, 'competition_id'>;
+
+export const getGameRules = async (competitionId: string): Promise<GameRules> => {
+    const res = await api.get<{ data: GameRules }>(`/admin/competitions/${competitionId}/game-rules`);
+    return res.data.data;
+};
+
+export const upsertGameRules = async (competitionId: string, payload: GameRulesPayload): Promise<GameRules> => {
+    const res = await api.put<{ data: GameRules }>(`/admin/competitions/${competitionId}/game-rules`, payload);
+    return res.data.data;
+};
+
+export const recomputeScore = async (matchId: string): Promise<{ home_score: number; away_score: number }> => {
+    const res = await api.post<{ home_score: number; away_score: number }>(`/admin/matches/${matchId}/recompute-score`, {});
+    return res.data;
+};
+
 export default api;
 
