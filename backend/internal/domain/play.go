@@ -63,10 +63,16 @@ var (
 		"QBR": true, "SWP": true, "REV": true, "PAT-R": true, "PUNT": true,
 		"KO": true, "SAF": true,
 	}
+	// The official sheet's Result Codes list (13 codes) has no dedicated code
+	// for "incomplete" or "safety" as an outcome, so play entry and the
+	// derivation/scoring engines (services/play_stats.go, services/play_engine.go)
+	// use "INC" and "SAF" as practical extensions — accepted here alongside the
+	// 13 official codes so those flows validate correctly.
 	ResultCodes = map[string]bool{
 		"1D": true, "1DG": true, "TD": true, "XP": true, "XPF": true,
 		"TO": true, "INT": true, "OB": true, "FG": true, "DB": true,
 		"IH": true, "EH": true, "EG": true,
+		"INC": true, "SAF": true,
 	}
 	PenaltyCodes = map[string]bool{
 		"FS": true, "OFF": true, "ENC": true, "DOG": true, "OPI": true,

@@ -14,6 +14,7 @@ const RESULT_LABEL: Record<string, string> = {
     '1D': 'First down', '1DG': 'First & goal', TD: 'TOUCHDOWN', XP: 'Extra point good',
     XPF: 'Extra point failed', TO: 'Turnover on downs', INT: 'Intercepted', OB: 'Out of bounds',
     FG: 'Flag pull', DB: 'Dead ball', IH: 'Injury', EH: 'End of half', EG: 'End of game', SAF: 'SAFETY',
+    INC: 'Incomplete',
 };
 
 const isScore = (p: GamePlay) => p.result === 'TD' || p.result === 'XP' || p.result === 'SAF';
