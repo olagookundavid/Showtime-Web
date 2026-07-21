@@ -342,6 +342,7 @@ func SetupNewsRoutes(r *gin.RouterGroup, app *api.Application) {
 	newsRoutes := r.Group("/news")
 	{
 		newsRoutes.GET("", app.Handlers.NewsHandler.GetNews)
+		newsRoutes.GET("/slug/:slug", app.Handlers.NewsHandler.GetNewsBySlug)
 		newsRoutes.GET("/:id", app.Handlers.NewsHandler.GetNewsByID)
 	}
 }

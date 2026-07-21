@@ -11,19 +11,16 @@ import { parseYouTubeId, youTubeThumbnailUrl } from '../../utils/newsContent';
 
 
 interface FormData {
-    title: string; slug: string; excerpt: string; content: string;
+    title: string; excerpt: string; content: string;
     featured_image: string; featured_media_type: 'image' | 'youtube'; featured_youtube_url: string;
     author: string; category: string;
 }
 
 const emptyForm: FormData = {
-    title: '', slug: '', excerpt: '', content: '',
+    title: '', excerpt: '', content: '',
     featured_image: '', featured_media_type: 'image', featured_youtube_url: '',
     author: '', category: '',
 };
-
-const slugify = (text: string) =>
-    text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
 const PAGE_SIZE = 10;
 
@@ -61,7 +58,7 @@ export const AdminNews = () => {
         const matchedCategory = categories.find(c => c.toLowerCase() === dbCategory.toLowerCase()) || 'General';
 
         setForm({
-            title: n.title, slug: n.slug, excerpt: n.excerpt || '', content: n.content,
+            title: n.title, excerpt: n.excerpt || '', content: n.content,
             featured_image: n.featured_image || '',
             featured_media_type: n.featured_media_type === 'youtube' ? 'youtube' : 'image',
             featured_youtube_url: n.featured_youtube_url || '',
@@ -78,7 +75,7 @@ export const AdminNews = () => {
         setSaving(true);
         try {
             const payload: CreateNewsPayload = {
-                title: form.title, slug: form.slug || slugify(form.title),
+                title: form.title,
                 excerpt: form.excerpt, content: form.content,
                 featured_image: form.featured_image,
                 featured_media_type: form.featured_media_type,
@@ -102,7 +99,6 @@ export const AdminNews = () => {
     };
 
     const set = (field: keyof FormData, value: string) => setForm(p => ({ ...p, [field]: value }));
-    const handleTitleChange = (v: string) => setForm(p => ({ ...p, title: v, slug: slugify(v) }));
 
     return (
         <div className="space-y-6">
@@ -244,8 +240,7 @@ export const AdminNews = () => {
                     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                         <div className="p-6 border-b border-gray-200 dark:border-gray-700"><h2 className="text-2xl font-black text-sffl-navy dark:text-white">{editingId ? 'Edit Article' : 'New Article'}</h2></div>
                         <div className="p-6 space-y-4">
-                            <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Title *</label><input type="text" value={form.title} onChange={e => handleTitleChange(e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="Article title" /></div>
-                            <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Slug</label><input type="text" value={form.slug} onChange={e => set('slug', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-600 text-gray-500 dark:text-gray-400 rounded-lg px-3 py-2" /></div>
+                            <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Title *</label><input type="text" value={form.title} onChange={e => set('title', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="Article title" /></div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Author</label><input type="text" value={form.author} onChange={e => set('author', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-[44px]" placeholder="Author name" /></div>
                                 <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Category</label><select value={form.category} onChange={e => set('category', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-[44px] z-50"><option value="" className="truncate">Select...</option>{['General', 'Match Report', 'Transfer News', 'Interview', 'Analysis', 'Commissioner\'s Note', 'Community'].map(c => <option key={c} value={c} className="truncate">{c}</option>)}</select></div>

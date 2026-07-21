@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { getHeroSlides } from '../services/api';
 
 export const MainHeroCarousel = () => {
@@ -14,9 +15,9 @@ export const MainHeroCarousel = () => {
     // Admin-driven. With no slides we render nothing (see the early return
     // below) instead of a placeholder image, so the carousel takes up zero
     // space until an admin adds slides.
-    const slides: { id: string; image_url: string; mobile_image_url?: string }[] =
+    const slides: { id: string; image_url: string; mobile_image_url?: string; news_slug?: string }[] =
         apiSlides && apiSlides.length > 0
-            ? apiSlides.map(s => ({ id: s.id, image_url: s.image_url, mobile_image_url: s.mobile_image_url }))
+            ? apiSlides.map(s => ({ id: s.id, image_url: s.image_url, mobile_image_url: s.mobile_image_url, news_slug: s.news_slug }))
             : [];
 
     const hasMultipleSlides = slides.length > 1;
@@ -44,25 +45,36 @@ export const MainHeroCarousel = () => {
            stretched the wide desktop image into the near-square mobile box and
            visibly deformed it. On phones we prefer a square mobile_image_url
            when the admin uploaded one, falling back to the desktop image. */
-        <div className="relative h-[350px] md:h-[650px] overflow-hidden rounded-xl md:rounded-3xl shadow-2xl bg-sffl-navy/5">
-            {/* Slides */}
-            {slides.map((slide, index) => (
-                <div
-                    key={slide.id}
-                    className={`absolute inset-0 transition-all duration-1000 ease-in-out ${index === currentSlide ? 'opacity-100 scale-100 z-10' : 'opacity-0 scale-105 z-0'}`}
-                >
-                    {/* Mobile: square variant when provided, else the desktop image (cropped) */}
-                    <div
-                        className="md:hidden w-full h-full bg-center bg-cover bg-no-repeat transition-transform duration-[10000ms]"
-                        style={{ backgroundImage: `url(${slide.mobile_image_url || slide.image_url})` }}
-                    />
-                    {/* Desktop: wide 2:1 image */}
-                    <div
-                        className="hidden md:block w-full h-full bg-center bg-cover bg-no-repeat transition-transform duration-[10000ms]"
-                        style={{ backgroundImage: `url(${slide.image_url})` }}
-                    />
-                </div>
-            ))}
+        <div className="relative aspect-[16/9] md:aspect-auto md:h-[650px] w-full overflow-hidden rounded-xl md:rounded-3xl shadow-2xl bg-sffl-navy/5">
+            {/* Slides — clickable (opens the slide's article) when a news_slug is
+                linked; plain, non-interactive divs otherwise (legacy slides with
+                no article yet). */}
+            {slides.map((slide, index) => {
+                const className = `absolute inset-0 transition-all duration-1000 ease-in-out ${index === currentSlide ? 'opacity-100 scale-100 z-10' : 'opacity-0 scale-105 z-0'}`;
+                const backgrounds = (
+                    <>
+                        {/* Mobile: square variant when provided, else the desktop image */}
+                        <div
+                            className="md:hidden w-full h-full bg-center bg-cover bg-no-repeat transition-transform duration-[10000ms]"
+                            style={{ backgroundImage: `url(${slide.mobile_image_url || slide.image_url})` }}
+                        />
+                        {/* Desktop: wide 2:1 image */}
+                        <div
+                            className="hidden md:block w-full h-full bg-center bg-cover bg-no-repeat transition-transform duration-[10000ms]"
+                            style={{ backgroundImage: `url(${slide.image_url})` }}
+                        />
+                    </>
+                );
+                return slide.news_slug ? (
+                    <Link key={slide.id} to={`/news/${slide.news_slug}`} className={className}>
+                        {backgrounds}
+                    </Link>
+                ) : (
+                    <div key={slide.id} className={className}>
+                        {backgrounds}
+                    </div>
+                );
+            })}
 
             {/* Navigation Controls - Only if multiple slides */}
             {hasMultipleSlides && (

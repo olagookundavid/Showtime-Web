@@ -16,4 +16,7 @@ type News struct {
 	PublishedAt        time.Time `json:"published_at"`
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          time.Time `json:"updated_at"`
+	// IsHeroOnly marks an article authored from the Hero Slides admin: hidden
+	// from the public/admin news list, reachable only via its direct slug URL.
+	IsHeroOnly bool `json:"is_hero_only"`
 }

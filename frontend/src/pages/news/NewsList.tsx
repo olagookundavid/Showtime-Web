@@ -65,10 +65,11 @@ export const NewsList = () => {
                                         </Link>
                                     );
                                 }
-                                if (article.featured_image) {
+                                const featuredImg = article.featured_image || (article.category === "Commissioner's Note" ? '/images/leadership/adebare_adejumo.jpg' : null);
+                                if (featuredImg) {
                                     return (
                                         <LightboxImage
-                                            src={article.featured_image}
+                                            src={featuredImg}
                                             alt={article.title}
                                             thumbnailClassName="w-full h-full"
                                             imgClassName="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"

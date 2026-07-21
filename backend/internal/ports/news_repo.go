@@ -17,6 +17,7 @@ type NewsRepository interface {
 	Update(ctx context.Context, news *domain.News) error
 	FindAll(ctx context.Context, query dto.PaginationQuery) ([]*domain.News, int64, error)
 	FindByID(ctx context.Context, id string) (*domain.News, error)
+	FindBySlug(ctx context.Context, slug string) (*domain.News, error)
 	Delete(ctx context.Context, id string) error
 }
 
@@ -30,15 +31,15 @@ func NewNewsRepository(db *pgxpool.Pool) NewsRepository {
 
 func (r *NewsPGRepository) Create(ctx context.Context, news *domain.News) error {
 	query := `
-		INSERT INTO news (title, slug, excerpt, content, featured_image, featured_media_type, featured_youtube_url, author, category, published_at, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		INSERT INTO news (title, slug, excerpt, content, featured_image, featured_media_type, featured_youtube_url, author, category, published_at, created_at, updated_at, is_hero_only)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		RETURNING id
 	`
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	err := r.db.QueryRow(ctx, query,
-		news.Title, news.Slug, news.Excerpt, news.Content, news.FeaturedImage, news.FeaturedMediaType, news.FeaturedYoutubeURL, news.Author, news.Category, news.PublishedAt, news.CreatedAt, news.UpdatedAt,
+		news.Title, news.Slug, news.Excerpt, news.Content, news.FeaturedImage, news.FeaturedMediaType, news.FeaturedYoutubeURL, news.Author, news.Category, news.PublishedAt, news.CreatedAt, news.UpdatedAt, news.IsHeroOnly,
 	).Scan(&news.ID)
 
 	if err != nil {
@@ -71,7 +72,10 @@ func (r *NewsPGRepository) Update(ctx context.Context, news *domain.News) error 
 
 func (r *NewsPGRepository) FindAll(ctx context.Context, q dto.PaginationQuery) ([]*domain.News, int64, error) {
 	offset := (q.Page - 1) * q.Limit
-	baseQuery := ` FROM news WHERE 1=1 `
+	// is_hero_only articles are authored from the Hero Slides admin and must
+	// never appear in the public feed or the admin news list — only reachable
+	// directly via FindBySlug from the carousel link.
+	baseQuery := ` FROM news WHERE is_hero_only = FALSE `
 	args := []any{}
 	argCount := 1
 
@@ -122,19 +126,40 @@ func (r *NewsPGRepository) FindAll(ctx context.Context, q dto.PaginationQuery) (
 }
 
 func (r *NewsPGRepository) FindByID(ctx context.Context, id string) (*domain.News, error) {
-	query := `SELECT id, title, slug, excerpt, content, featured_image, featured_media_type, featured_youtube_url, author, category, published_at, created_at, updated_at FROM news WHERE id = $1`
+	query := `SELECT id, title, slug, excerpt, content, featured_image, featured_media_type, featured_youtube_url, author, category, published_at, created_at, updated_at, is_hero_only FROM news WHERE id = $1`
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	var n domain.News
 	err := r.db.QueryRow(ctx, query, id).Scan(
-		&n.ID, &n.Title, &n.Slug, &n.Excerpt, &n.Content, &n.FeaturedImage, &n.FeaturedMediaType, &n.FeaturedYoutubeURL, &n.Author, &n.Category, &n.PublishedAt, &n.CreatedAt, &n.UpdatedAt,
+		&n.ID, &n.Title, &n.Slug, &n.Excerpt, &n.Content, &n.FeaturedImage, &n.FeaturedMediaType, &n.FeaturedYoutubeURL, &n.Author, &n.Category, &n.PublishedAt, &n.CreatedAt, &n.UpdatedAt, &n.IsHeroOnly,
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to find news item: %w", err)
+	}
+	return &n, nil
+}
+
+// FindBySlug looks up a single article by slug, WITHOUT filtering is_hero_only
+// — a hero-carousel article must still resolve when linked to directly, even
+// though it's excluded from the list views.
+func (r *NewsPGRepository) FindBySlug(ctx context.Context, slug string) (*domain.News, error) {
+	query := `SELECT id, title, slug, excerpt, content, featured_image, featured_media_type, featured_youtube_url, author, category, published_at, created_at, updated_at, is_hero_only FROM news WHERE slug = $1`
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	var n domain.News
+	err := r.db.QueryRow(ctx, query, slug).Scan(
+		&n.ID, &n.Title, &n.Slug, &n.Excerpt, &n.Content, &n.FeaturedImage, &n.FeaturedMediaType, &n.FeaturedYoutubeURL, &n.Author, &n.Category, &n.PublishedAt, &n.CreatedAt, &n.UpdatedAt, &n.IsHeroOnly,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to find news item by slug: %w", err)
 	}
 	return &n, nil
 }

@@ -242,13 +242,15 @@ export default function Home() {
                         </Link>
                     </div>
                     <div className="space-y-6">
-                        {latestNews.length > 0 ? latestNews.map(article => (
+                        {latestNews.length > 0 ? latestNews.map(article => {
+                            const imageSrc = article.featured_image || (article.category === "Commissioner's Note" ? '/images/leadership/adebare_adejumo.jpg' : null);
+                            return (
                             <Link key={article.id} to={`/news/${article.slug}`} className="block bg-white/40 dark:bg-gray-900/40 backdrop-blur-md rounded-2xl shadow-xl overflow-hidden border border-white/30 dark:border-white/5 hover:shadow-2xl hover:-translate-y-1 active:scale-[0.98] transition-all duration-300 group">
                                 <div className="flex">
-                                    {article.featured_image && (
+                                    {imageSrc && (
                                         <div className="relative w-32 h-32 flex-shrink-0 overflow-hidden">
                                             <LightboxImage 
-                                                src={article.featured_image} 
+                                                src={imageSrc} 
                                                 alt={article.title} 
                                                 thumbnailClassName="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
                                             />
@@ -264,7 +266,8 @@ export default function Home() {
                                     </div>
                                 </div>
                             </Link>
-                        )) : (
+                        );
+                        }) : (
                             <div className="text-center py-20 bg-white/40 dark:bg-gray-900/40 backdrop-blur-md rounded-[2rem] border border-white/20 dark:border-white/5 shadow-xl">
                                 <p className="text-gray-500 dark:text-gray-300 font-medium text-lg">No news yet.</p>
                             </div>

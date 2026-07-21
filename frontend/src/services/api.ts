@@ -135,11 +135,10 @@ export const getNews = async (
     return response.data;
 };
 
-export const getNewsBySlug = async (slug: string) => {
+export const getNewsBySlug = async (slug: string): Promise<News | null> => {
     try {
-        const response = await api.get<PaginatedResponse<News>>(`/news?page=1&limit=100`);
-        const article = response.data.data.find((n) => n.slug === slug);
-        return article || null;
+        const response = await api.get<News>(`/news/slug/${encodeURIComponent(slug)}`);
+        return response.data;
     } catch (error) {
         console.error("Error fetching news by slug:", error);
         return null;
@@ -173,6 +172,21 @@ export const getGallery = async (page = 1, limit = 10, competitionId?: string) =
 };
 
 // ─── Hero Slides ──────────────────────────────────────────────────────────────
+// Every slide is backed by a hidden news article (authored inline, from this
+// admin — not the News admin) that opens when the slide is clicked. It's
+// "hidden" in the sense that it's excluded from /news and the News admin list;
+// see backend news.is_hero_only.
+export interface HeroSlideNews {
+    id: string;
+    slug: string;
+    title: string;
+    excerpt: string;
+    content: string;
+    category: string;
+    featured_media_type: 'image' | 'youtube';
+    featured_youtube_url: string;
+}
+
 export interface HeroSlide {
     id: string;
     image_url: string;
@@ -181,6 +195,18 @@ export interface HeroSlide {
     is_active: boolean;
     created_at: string;
     updated_at: string;
+    // Public (active-only) reads only get news_slug — enough to build the
+    // /news/{slug} link. Admin reads also get the full nested `news` object.
+    news_slug?: string;
+    news?: HeroSlideNews;
+}
+
+export interface HeroSlideNewsPayload {
+    title: string;
+    excerpt?: string;
+    content: string;
+    featured_media_type?: 'image' | 'youtube';
+    featured_youtube_url?: string;
 }
 
 export interface CreateHeroSlidePayload {
@@ -188,6 +214,7 @@ export interface CreateHeroSlidePayload {
     mobile_image_url?: string;
     display_order?: number;
     is_active?: boolean;
+    news: HeroSlideNewsPayload;
 }
 
 export interface UpdateHeroSlidePayload {
@@ -195,6 +222,7 @@ export interface UpdateHeroSlidePayload {
     mobile_image_url?: string;
     display_order?: number;
     is_active?: boolean;
+    news?: HeroSlideNewsPayload; // omit to leave the linked article untouched
 }
 
 // Public: only active slides — what MainHeroCarousel renders.
@@ -495,7 +523,6 @@ export const getPlayerById = async (id: string): Promise<Player> => {
 
 export interface CreateNewsPayload {
     title: string;
-    slug: string;
     excerpt?: string;
     content: string;
     featured_image?: string;

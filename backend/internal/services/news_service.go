@@ -10,13 +10,17 @@ import (
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/ports"
+	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type INewsService interface {
 	CreateNews(ctx context.Context, req dto.CreateNewsRequest) error
 	GetNews(ctx context.Context, query dto.PaginationQuery) (*dto.PaginatedResponse, error)
 	GetNewsByID(ctx context.Context, id string) (*dto.NewsResponse, error)
+	GetNewsBySlug(ctx context.Context, slug string) (*dto.NewsResponse, error)
 	UpdateNews(ctx context.Context, id string, req dto.CreateNewsRequest) error
 	DeleteNews(ctx context.Context, id string) error
 }
@@ -59,6 +63,29 @@ func (s *NewsService) scheduleImageDelete(url, reason string) {
 	}
 }
 
+var slugNonAlnumRe = regexp.MustCompile(`[^a-z0-9]+`)
+
+// slugify lowercases a title and replaces runs of non-alphanumeric characters
+// with a single hyphen, trimming leading/trailing hyphens.
+func slugify(title string) string {
+	s := strings.ToLower(strings.TrimSpace(title))
+	s = slugNonAlnumRe.ReplaceAllString(s, "-")
+	s = strings.Trim(s, "-")
+	if s == "" {
+		s = "showtime"
+	}
+	return s
+}
+
+// generateArticleSlug builds the URL slug for a news article server-side —
+// slugs are never admin-editable and never collide by construction: every
+// slug gets a short random suffix, so no DB round-trip or retry-on-conflict
+// loop is needed (the unique DB constraint on news.slug is just a backstop).
+func generateArticleSlug(title string) string {
+	suffix := strings.ToLower(strings.ReplaceAll(uuid.New().String(), "-", "")[:6])
+	return slugify(title) + "-" + suffix
+}
+
 func validateFeaturedMedia(req *dto.CreateNewsRequest) error {
 	if req.FeaturedMediaType == "" {
 		req.FeaturedMediaType = "image"
@@ -78,7 +105,7 @@ func (s *NewsService) CreateNews(ctx context.Context, req dto.CreateNewsRequest)
 	}
 	news := &domain.News{
 		Title:              req.Title,
-		Slug:               req.Slug,
+		Slug:               generateArticleSlug(req.Title),
 		Excerpt:            req.Excerpt,
 		Content:            req.Content,
 		FeaturedImage:      req.FeaturedImage,
@@ -146,6 +173,22 @@ func (s *NewsService) GetNewsByID(ctx context.Context, id string) (*dto.NewsResp
 	return &resp, nil
 }
 
+// GetNewsBySlug resolves a single article by slug regardless of is_hero_only —
+// used by the public article page so a hero-carousel-linked article still
+// opens even though it's excluded from GetNews's list results.
+func (s *NewsService) GetNewsBySlug(ctx context.Context, slug string) (*dto.NewsResponse, error) {
+	n, err := s.repo.FindBySlug(ctx, slug)
+	if err != nil {
+		return nil, err
+	}
+	if n == nil {
+		return nil, nil
+	}
+
+	resp := newsResponseFromDomain(n)
+	return &resp, nil
+}
+
 func (s *NewsService) UpdateNews(ctx context.Context, id string, req dto.CreateNewsRequest) error {
 	if err := validateFeaturedMedia(&req); err != nil {
 		return err
@@ -173,8 +216,10 @@ func (s *NewsService) UpdateNews(ctx context.Context, id string, req dto.CreateN
 		}
 	}
 
+	// Slug is intentionally never changed on update — it's generated once at
+	// creation and never admin-editable; changing it would break any link
+	// already shared.
 	existingNews.Title = req.Title
-	existingNews.Slug = req.Slug
 	existingNews.Excerpt = req.Excerpt
 	existingNews.Content = req.Content
 	existingNews.FeaturedImage = req.FeaturedImage
@@ -203,4 +248,3 @@ func (s *NewsService) DeleteNews(ctx context.Context, id string) error {
 	}
 	return s.repo.Delete(ctx, id)
 }
-

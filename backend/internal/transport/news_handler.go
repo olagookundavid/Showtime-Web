@@ -12,6 +12,7 @@ type INewsHandler interface {
 	CreateNews(c *gin.Context)
 	GetNews(c *gin.Context)
 	GetNewsByID(c *gin.Context)
+	GetNewsBySlug(c *gin.Context)
 	UpdateNews(c *gin.Context)
 	DeleteNews(c *gin.Context)
 }
@@ -98,6 +99,35 @@ func (h *NewsHandler) GetNewsByID(c *gin.Context) {
 	}
 
 	news, err := h.service.GetNewsByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch news"})
+		return
+	}
+	if news == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "News not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, news)
+}
+
+// GetNewsBySlug godoc
+// @Summary Get a news article by slug
+// @Description Get a single news article by its slug (resolves hero-carousel-only articles too)
+// @Tags news
+// @Accept json
+// @Produce json
+// @Param slug path string true "News slug"
+// @Success 200 {object} dto.NewsResponse
+// @Router /api/v1/news/slug/{slug} [get]
+func (h *NewsHandler) GetNewsBySlug(c *gin.Context) {
+	slug := c.Param("slug")
+	if slug == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "slug is required"})
+		return
+	}
+
+	news, err := h.service.GetNewsBySlug(c.Request.Context(), slug)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch news"})
 		return

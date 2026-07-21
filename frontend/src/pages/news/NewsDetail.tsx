@@ -64,11 +64,12 @@ export const NewsDetail = () => {
                             </div>
                         );
                     }
+                    const heroImg = article.featured_image || (article.category === "Commissioner's Note" ? '/images/leadership/adebare_adejumo.jpg' : null);
                     return (
                         <div className="h-96 overflow-hidden relative">
-                            {article.featured_image ? (
+                            {heroImg ? (
                                 <LightboxImage
-                                    src={article.featured_image}
+                                    src={heroImg}
                                     alt={article.title}
                                     thumbnailClassName="w-full h-full"
                                     imgClassName="w-full h-full object-cover"

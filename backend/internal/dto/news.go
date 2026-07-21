@@ -4,7 +4,6 @@ import "time"
 
 type CreateNewsRequest struct {
 	Title              string `json:"title" binding:"required"`
-	Slug               string `json:"slug" binding:"required"`
 	Excerpt            string `json:"excerpt"`
 	Content            string `json:"content" binding:"required"`
 	FeaturedImage      string `json:"featured_image"`
