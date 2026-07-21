@@ -12,6 +12,9 @@ type PlayerStat struct {
 	PassingAttempts     int       `json:"passing_attempts"`
 	RushingAttempts     int       `json:"rushing_attempts"`
 	CompletedPasses     int       `json:"completed_passes"`
+	PassingYards        int       `json:"passing_yards"`
+	RushingYards        int       `json:"rushing_yards"`
+	ReceivingYards      int       `json:"receiving_yards"`
 	PassingTDs          int       `json:"passing_tds"`
 	RushingTDs          int       `json:"rushing_tds"`
 	InterceptionsThrown int       `json:"interceptions_thrown"`
@@ -45,6 +48,9 @@ type AggregatedPlayerStat struct {
 	PassingAttempts     int    `json:"passing_attempts"`
 	RushingAttempts     int    `json:"rushing_attempts"`
 	CompletedPasses     int    `json:"completed_passes"`
+	PassingYards        int    `json:"passing_yards"`
+	RushingYards        int    `json:"rushing_yards"`
+	ReceivingYards      int    `json:"receiving_yards"`
 	PassingTDs          int    `json:"passing_tds"`
 	RushingTDs          int    `json:"rushing_tds"`
 	InterceptionsThrown int    `json:"interceptions_thrown"`
@@ -70,6 +76,9 @@ type AggregatedTeamStat struct {
 	PassingAttempts     int    `json:"passing_attempts"`
 	RushingAttempts     int    `json:"rushing_attempts"`
 	CompletedPasses     int    `json:"completed_passes"`
+	PassingYards        int    `json:"passing_yards"`
+	RushingYards        int    `json:"rushing_yards"`
+	ReceivingYards      int    `json:"receiving_yards"`
 	PassingTDs          int    `json:"passing_tds"`
 	RushingTDs          int    `json:"rushing_tds"`
 	InterceptionsThrown int    `json:"interceptions_thrown"`

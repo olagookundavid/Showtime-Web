@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"io"
 	"net/http"
 
 	"showtime-backend/internal/dto"
@@ -11,6 +12,7 @@ import (
 
 type IPlayHandler interface {
 	ListPlays(c *gin.Context)
+	StreamPlays(c *gin.Context)
 	CreatePlay(c *gin.Context)
 	UpdatePlay(c *gin.Context)
 	DeletePlay(c *gin.Context)
@@ -85,12 +87,13 @@ func (h *PlayHandler) UpdatePlay(c *gin.Context) {
 }
 
 func (h *PlayHandler) DeletePlay(c *gin.Context) {
+	matchID := c.Param("id")
 	playID := c.Param("playId")
 	if playID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Play ID is required"})
 		return
 	}
-	if err := h.service.DeletePlay(c.Request.Context(), playID); err != nil {
+	if err := h.service.DeletePlay(c.Request.Context(), matchID, playID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete play"})
 		return
 	}
@@ -193,4 +196,40 @@ func (h *PlayHandler) RecomputeScore(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Score recomputed", "home_score": home, "away_score": away})
+}
+
+// StreamPlays establishes a Server-Sent Events (SSE) stream for live play-by-play updates.
+func (h *PlayHandler) StreamPlays(c *gin.Context) {
+	matchID := c.Param("id")
+	if matchID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Match ID is required"})
+		return
+	}
+
+	c.Writer.Header().Set("Content-Type", "text/event-stream")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.Writer.Header().Set("Connection", "keep-alive")
+	c.Writer.Header().Set("Transfer-Encoding", "chunked")
+	c.Writer.Header().Set("X-Accel-Buffering", "no")
+	c.Writer.Flush()
+
+	clientChan := services.GlobalSSEBroker.Subscribe(matchID)
+	defer services.GlobalSSEBroker.Unsubscribe(matchID, clientChan)
+
+	c.Stream(func(w io.Writer) bool {
+		select {
+		case <-c.Request.Context().Done():
+			return false
+		case msg, ok := <-clientChan:
+			if !ok {
+				return false
+			}
+			_, err := w.Write([]byte(msg))
+			if err != nil {
+				return false
+			}
+			c.Writer.Flush()
+			return true
+		}
+	})
 }

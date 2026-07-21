@@ -66,15 +66,23 @@ func (s *PlayService) DeriveMatchStats(ctx context.Context, matchID string) ([]d
 	for _, p := range plays {
 		pt := strDerefTrim(p.PlayType)
 		res := strDerefTrim(p.Result)
+		yards := 0
+		if p.Yards != nil {
+			yards = *p.Yards
+		}
 
-		// Central: a flag pull or safety credits the defender regardless of play type.
+		// Central: a flag pull or safety credits the defender (or rusher) regardless of play type.
 		if res == "FG" {
-			if d := get(p.DefenderID); d != nil {
+			if r := get(p.RusherID); r != nil {
+				r.FlagPulls++
+			} else if d := get(p.DefenderID); d != nil {
 				d.FlagPulls++
 			}
 		}
 		if res == "SAF" {
-			if d := get(p.DefenderID); d != nil {
+			if r := get(p.RusherID); r != nil {
+				r.Safety++
+			} else if d := get(p.DefenderID); d != nil {
 				d.Safety++
 			}
 		}
@@ -84,9 +92,17 @@ func (s *PlayService) DeriveMatchStats(ctx context.Context, matchID string) ([]d
 			qb := get(p.OffQBID)
 			target := get(p.TargetID)
 			def := get(p.DefenderID)
+			rush := get(p.RusherID)
 			switch pt {
 			case "SACK":
-				if def != nil {
+				// Sack yardage is conventionally excluded from passing yards
+				// (it's a loss charged to the play, not a completed throw).
+				if qb != nil {
+					qb.QBSacks++
+				}
+				if rush != nil {
+					rush.DefSacks++
+				} else if def != nil {
 					def.DefSacks++
 				}
 			case "INT":
@@ -105,10 +121,12 @@ func (s *PlayService) DeriveMatchStats(ctx context.Context, matchID string) ([]d
 					qb.PassingAttempts++
 					qb.CompletedPasses++
 					qb.PassingTDs++
+					qb.PassingYards += yards
 				}
 				if target != nil {
 					target.Receptions++
 					target.ReceivingTDs++
+					target.ReceivingYards += yards
 				}
 			case "TA":
 				if qb != nil {
@@ -122,15 +140,19 @@ func (s *PlayService) DeriveMatchStats(ctx context.Context, matchID string) ([]d
 					if p.Dropped && target != nil {
 						target.Drops++
 					}
-					if def != nil {
+					if rush != nil {
+						rush.PassDeflections++
+					} else if def != nil {
 						def.PassDeflections++
 					}
 				} else {
 					if qb != nil {
 						qb.CompletedPasses++
+						qb.PassingYards += yards
 					}
 					if target != nil {
 						target.Receptions++
+						target.ReceivingYards += yards
 					}
 				}
 			}
@@ -139,6 +161,7 @@ func (s *PlayService) DeriveMatchStats(ctx context.Context, matchID string) ([]d
 			carrier := get(p.OffQBID)
 			if carrier != nil {
 				carrier.RushingAttempts++
+				carrier.RushingYards += yards
 				if res == "TD" {
 					carrier.RushingTDs++
 				}
@@ -210,6 +233,9 @@ func (s *PlayService) CommitDerivedStats(ctx context.Context, matchID string) (i
 			PassingAttempts:     d.PassingAttempts,
 			RushingAttempts:     d.RushingAttempts,
 			CompletedPasses:     d.CompletedPasses,
+			PassingYards:        d.PassingYards,
+			RushingYards:        d.RushingYards,
+			ReceivingYards:      d.ReceivingYards,
 			PassingTDs:          d.PassingTDs,
 			RushingTDs:          d.RushingTDs,
 			InterceptionsThrown: d.InterceptionsThrown,

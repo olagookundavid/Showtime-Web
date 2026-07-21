@@ -14,7 +14,7 @@ type IPlayService interface {
 	ListByMatch(ctx context.Context, matchID string) ([]*domain.GamePlay, error)
 	CreatePlay(ctx context.Context, matchID string, req dto.PlayRequest) (*domain.GamePlay, error)
 	UpdatePlay(ctx context.Context, matchID, playID string, req dto.PlayRequest) (*domain.GamePlay, error)
-	DeletePlay(ctx context.Context, playID string) error
+	DeletePlay(ctx context.Context, matchID, playID string) error
 
 	// Step 2 — stat derivation
 	DeriveMatchStats(ctx context.Context, matchID string) ([]domain.AggregatedPlayerStat, error)
@@ -63,7 +63,11 @@ func (s *PlayService) CreatePlay(ctx context.Context, matchID string, req dto.Pl
 	if err := s.repo.Create(ctx, p); err != nil {
 		return nil, err
 	}
-	return s.reload(ctx, matchID, p.ID)
+	res, err := s.reload(ctx, matchID, p.ID)
+	if err == nil && res != nil {
+		GlobalSSEBroker.Broadcast(matchID, "play_added", res)
+	}
+	return res, err
 }
 
 func (s *PlayService) UpdatePlay(ctx context.Context, matchID, playID string, req dto.PlayRequest) (*domain.GamePlay, error) {
@@ -88,11 +92,19 @@ func (s *PlayService) UpdatePlay(ctx context.Context, matchID, playID string, re
 	if err := s.repo.Update(ctx, p); err != nil {
 		return nil, err
 	}
-	return s.reload(ctx, matchID, p.ID)
+	res, err := s.reload(ctx, matchID, p.ID)
+	if err == nil && res != nil {
+		GlobalSSEBroker.Broadcast(matchID, "play_updated", res)
+	}
+	return res, err
 }
 
-func (s *PlayService) DeletePlay(ctx context.Context, playID string) error {
-	return s.repo.Delete(ctx, playID)
+func (s *PlayService) DeletePlay(ctx context.Context, matchID, playID string) error {
+	if err := s.repo.Delete(ctx, playID); err != nil {
+		return err
+	}
+	GlobalSSEBroker.Broadcast(matchID, "play_deleted", map[string]string{"id": playID})
+	return nil
 }
 
 // reload returns the freshly-hydrated play (with player/team names) from the list.
@@ -140,6 +152,7 @@ func requestToPlay(matchID string, req dto.PlayRequest) *domain.GamePlay {
 		Yards:           req.Yards,
 		Result:          blankToNil(req.Result),
 		DefenderID:      blankToNil(req.DefenderID),
+		RusherID:        blankToNil(req.RusherID),
 		Dropped:         req.Dropped != nil && *req.Dropped,
 		ReturnedForTD:   req.ReturnedForTD != nil && *req.ReturnedForTD,
 		Penalty:         blankToNil(req.Penalty),

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8089/api/v1';
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8089/api/v1';
 
 const api = axios.create({
     baseURL: API_URL,
@@ -1734,6 +1734,7 @@ export interface GamePlay {
     yards?: number;
     result?: string;
     defender_id?: string;
+    rusher_id?: string;
     dropped: boolean;
     returned_for_td: boolean;
     penalty?: string;
@@ -1748,6 +1749,7 @@ export interface GamePlay {
     off_qb?: PlayPlayer;
     target?: PlayPlayer;
     defender?: PlayPlayer;
+    rusher?: PlayPlayer;
     penalty_player?: PlayPlayer;
 }
 
@@ -1766,6 +1768,7 @@ export interface PlayPayload {
     yards?: number | null;
     result?: string;
     defender_id?: string;
+    rusher_id?: string;
     dropped?: boolean;
     returned_for_td?: boolean;
     penalty?: string;

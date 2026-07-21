@@ -125,5 +125,7 @@ func (s *PlayService) RecomputeScore(ctx context.Context, matchID string) (int, 
 		return 0, 0, err
 	}
 
+	GlobalSSEBroker.Broadcast(matchID, "score_updated", map[string]int{"home_score": home, "away_score": away})
+
 	return home, away, nil
 }

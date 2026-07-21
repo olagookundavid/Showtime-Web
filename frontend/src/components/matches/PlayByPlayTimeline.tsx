@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
-import { getMatchPlays, type GamePlay } from '../../services/api';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { API_URL, getMatchPlays, type GamePlay } from '../../services/api';
 
 const who = (p?: { name: string; jersey_number: number }) => (p ? (p.jersey_number ? `#${p.jersey_number} ${p.name}` : p.name) : '');
 
@@ -34,12 +35,34 @@ function describe(p: GamePlay): string {
 }
 
 export const PlayByPlayTimeline = ({ matchId, isLive, showEmpty = false }: { matchId: string; isLive: boolean; showEmpty?: boolean }) => {
+    const queryClient = useQueryClient();
+
     const { data: plays = [] } = useQuery({
         queryKey: ['publicMatchPlays', matchId],
         queryFn: () => getMatchPlays(matchId),
         enabled: !!matchId,
-        refetchInterval: isLive ? 8000 : false,
+        refetchInterval: isLive ? 30000 : false, // 30s fallback poll when live, SSE handles instant updates
     });
+
+    useEffect(() => {
+        if (!isLive || !matchId) return;
+
+        const streamUrl = `${API_URL}/matches/${matchId}/plays/stream`;
+        const es = new EventSource(streamUrl);
+
+        const invalidate = () => {
+            queryClient.invalidateQueries({ queryKey: ['publicMatchPlays', matchId] });
+        };
+
+        es.addEventListener('play_added', invalidate);
+        es.addEventListener('play_updated', invalidate);
+        es.addEventListener('play_deleted', invalidate);
+        es.addEventListener('score_updated', invalidate);
+
+        return () => {
+            es.close();
+        };
+    }, [matchId, isLive, queryClient]);
 
     if (plays.length === 0) {
         // In a tab we show a friendly empty state; inline (stacked) usage stays invisible.

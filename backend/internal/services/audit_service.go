@@ -93,7 +93,6 @@ func (s *AuditService) flushLogs(ids []string) (map[string]any, error) {
 			log.Printf("[ERROR] Failed to insert audit logs batch of %d: %v", len(logs), err)
 			return nil, err
 		}
-		log.Printf("[INFO] Successfully batched %d audit logs", len(logs))
 	}
 
 	return nil, nil

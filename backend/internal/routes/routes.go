@@ -377,6 +377,7 @@ func SetupMatchRoutes(r *gin.RouterGroup, app *api.Application) {
 		matchRoutes.GET("", app.Handlers.MatchHandler.GetMatches)
 		matchRoutes.GET("/:id", app.Handlers.MatchHandler.GetMatchDetail)
 		matchRoutes.GET("/:id/plays", app.Handlers.PlayHandler.ListPlays)
+		matchRoutes.GET("/:id/plays/stream", app.Handlers.PlayHandler.StreamPlays)
 		matchRoutes.GET("/standings", app.Handlers.MatchHandler.GetStandings)
 		matchRoutes.GET("/teams", app.Handlers.MatchHandler.GetAllTeams)
 		matchRoutes.GET("/days", app.Handlers.MatchHandler.GetMatchDays)

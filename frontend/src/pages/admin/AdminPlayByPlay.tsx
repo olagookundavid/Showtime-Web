@@ -57,6 +57,7 @@ interface Wizard {
     targetId: string;
     carrierId: string;
     defenderId: string;
+    rusherId: string;
     yards: string;
     result: string;
     dropped: boolean;
@@ -79,6 +80,7 @@ const emptyWizard: Wizard = {
     targetId: '',
     carrierId: '',
     defenderId: '',
+    rusherId: '',
     yards: '',
     result: '',
     dropped: false,
@@ -111,7 +113,7 @@ const toIntOrNull = (s: string): number | null => {
 // (jersey number shown alongside when present, but never required).
 const sortedRoster = (roster: TeamSheetPlayer[]) => [...roster].sort((a, b) => a.name.localeCompare(b.name));
 
-// ─── Player picker: choose by name, jersey shown when available ───────────────
+// ─── Player picker: searchable combobox (jersey # or name filtering) ────────────
 
 interface PlayerFieldProps {
     label: string;
@@ -120,23 +122,163 @@ interface PlayerFieldProps {
     roster: TeamSheetPlayer[];
 }
 
-const PlayerField = ({ label, value, onChange, roster }: PlayerFieldProps) => (
-    <div>
-        <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">{label}</label>
-        <select
-            value={value}
-            onChange={e => onChange(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-semibold text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-        >
-            <option value="">Select player…</option>
-            {sortedRoster(roster).map(p => (
-                <option key={p.player_id} value={p.player_id}>
-                    {p.name}{p.jersey_number ? ` (#${p.jersey_number})` : ''}{p.position ? ` — ${p.position}` : ''}
-                </option>
-            ))}
-        </select>
-    </div>
-);
+const PlayerField = ({ label, value, onChange, roster }: PlayerFieldProps) => {
+    const [query, setQuery] = useState('');
+    const [isOpen, setIsOpen] = useState(false);
+
+    const selectedPlayer = roster.find(p => p.player_id === value);
+
+    const filtered = sortedRoster(roster).filter(p => {
+        const q = query.toLowerCase().trim();
+        if (!q) return true;
+        const numMatch = p.jersey_number ? String(p.jersey_number) === q : false;
+        const nameMatch = p.name.toLowerCase().includes(q);
+        const posMatch = p.position ? p.position.toLowerCase().includes(q) : false;
+        return numMatch || nameMatch || posMatch;
+    });
+
+    return (
+        <div className="relative">
+            <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">{label}</label>
+            <div className="relative">
+                <input
+                    type="text"
+                    placeholder={selectedPlayer ? `${selectedPlayer.name}${selectedPlayer.jersey_number ? ` (#${selectedPlayer.jersey_number})` : ''}` : 'Type jersey # or name…'}
+                    value={isOpen ? query : (selectedPlayer ? `${selectedPlayer.name}${selectedPlayer.jersey_number ? ` (#${selectedPlayer.jersey_number})` : ''}` : '')}
+                    onFocus={() => { setIsOpen(true); setQuery(''); }}
+                    onChange={e => { setQuery(e.target.value); setIsOpen(true); }}
+                    onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-semibold text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-sffl-red focus:outline-none"
+                />
+                {value && (
+                    <button
+                        type="button"
+                        onClick={() => { onChange(''); setQuery(''); }}
+                        className="absolute right-2 top-2.5 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                    >
+                        ✕
+                    </button>
+                )}
+            </div>
+            {isOpen && (
+                <div className="absolute z-30 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800">
+                    <button
+                        type="button"
+                        onMouseDown={() => { onChange(''); setIsOpen(false); }}
+                        className="w-full px-3 py-2 text-left text-xs font-bold text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                        — Clear selection —
+                    </button>
+                    {filtered.length === 0 ? (
+                        <div className="px-3 py-2 text-xs text-gray-500">No matching player</div>
+                    ) : (
+                        filtered.map(p => (
+                            <button
+                                key={p.player_id}
+                                type="button"
+                                onMouseDown={() => { onChange(p.player_id); setIsOpen(false); setQuery(''); }}
+                                className={`w-full px-3 py-2 text-left text-sm font-semibold hover:bg-sffl-red/10 dark:hover:bg-sffl-red/20 ${p.player_id === value ? 'bg-sffl-red/10 text-sffl-red font-bold' : 'text-gray-900 dark:text-white'}`}
+                            >
+                                {p.jersey_number ? <span className="inline-block w-8 text-sffl-red font-bold">#{p.jersey_number}</span> : null}
+                                <span>{p.name}</span>
+                                {p.position ? <span className="ml-2 text-xs font-normal text-gray-400">({p.position})</span> : null}
+                            </button>
+                        ))
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ─── Game Situation Auto-Advancer ─────────────────────────────────────────────
+
+const flipSide = (side: Side): Side => side === 'home' ? 'away' : side === 'away' ? 'home' : '';
+
+const calculateNextSituation = (currentCtx: Ctx, payload: PlayPayload, downsPerSeries: number): Ctx => {
+    const nextCtx = { ...currentCtx };
+    const curDown = parseInt(currentCtx.down, 10) || 1;
+    const curToGo = parseInt(currentCtx.toGo, 10) || 10;
+    const yards = payload.yards ?? 0;
+    const res = payload.result || '';
+    const isTD = res === 'TD' || payload.returned_for_td;
+    const isXP = res === 'XP' || res === 'XPF';
+    const isINT = res === 'INT' || payload.play_type === 'INT';
+    const isTO = res === 'TO';
+    const isSAF = res === 'SAF';
+    const isFirstDown = res === '1D' || res === '1DG' || (yards > 0 && yards >= curToGo);
+
+    // A new drive starting elsewhere (possession change, or a kickoff/PAT
+    // return) makes the old numeric spot meaningless — and worse, still
+    // labeled with the wrong team's prefix. Clear it rather than guess; the
+    // admin types the real spot for the next play. Only a continuing drive
+    // (same team, same down sequence) extrapolates from the old spot.
+    const clearBallOn = () => { nextCtx.ballOn = ''; };
+    const advanceBallOn = () => {
+        if (!currentCtx.ballOn) return;
+        const parts = currentCtx.ballOn.trim().split(/\s+/);
+        if (parts.length === 2) {
+            const num = parseInt(parts[1], 10);
+            if (!isNaN(num)) nextCtx.ballOn = `${parts[0]} ${num + yards}`;
+        } else if (parts.length === 1) {
+            const num = parseInt(parts[0], 10);
+            if (!isNaN(num)) nextCtx.ballOn = `${num + yards}`;
+        }
+    };
+
+    // Touchdown: the scoring team stays "on offense" for the extra-point try
+    // that follows as a separate logged play.
+    if (isTD) {
+        nextCtx.down = '1';
+        nextCtx.toGo = '10';
+        clearBallOn();
+        return nextCtx;
+    }
+
+    // Extra point (good or failed) is always followed by a kickoff/throw-off
+    // to the other team — this is the actual possession change a scored
+    // touchdown sets up, not the TD play itself.
+    if (isXP || payload.play_type === 'KO') {
+        nextCtx.offense = flipSide(currentCtx.offense);
+        nextCtx.driveNo = currentCtx.driveNo + 1;
+        nextCtx.down = '1';
+        nextCtx.toGo = '10';
+        clearBallOn();
+        return nextCtx;
+    }
+
+    if (isINT || isTO || isSAF) {
+        nextCtx.offense = flipSide(currentCtx.offense);
+        nextCtx.driveNo = currentCtx.driveNo + 1;
+        nextCtx.down = '1';
+        nextCtx.toGo = '10';
+        clearBallOn();
+        return nextCtx;
+    }
+
+    if (isFirstDown) {
+        nextCtx.down = '1';
+        nextCtx.toGo = res === '1DG' ? 'Goal' : '10';
+        advanceBallOn();
+        return nextCtx;
+    }
+
+    // Turnover on downs — driven by the competition's actual configured
+    // downs-per-series (defaults to 4 only if the rule hasn't been set).
+    if (curDown >= downsPerSeries) {
+        nextCtx.offense = flipSide(currentCtx.offense);
+        nextCtx.driveNo = currentCtx.driveNo + 1;
+        nextCtx.down = '1';
+        nextCtx.toGo = '10';
+        clearBallOn();
+        return nextCtx;
+    }
+
+    nextCtx.down = String(curDown + 1);
+    nextCtx.toGo = String(Math.max(1, curToGo - yards));
+    advanceBallOn();
+    return nextCtx;
+};
 
 // A card that "lights up" as the admin reaches that step in the flow.
 const Section = ({ active, title, children }: { active: boolean; title: string; children: React.ReactNode }) => (
@@ -185,6 +327,16 @@ export const AdminPlayByPlay = () => {
         queryFn: () => getAdminMatchPlays(matchId),
         enabled: !!matchId,
     });
+
+    // Needed by the auto-advancer below so "downs per series" reflects the
+    // competition's actual configured rule instead of assuming 4.
+    const competitionId = match?.competition?.id || '';
+    const { data: activeRules } = useQuery({
+        queryKey: ['pbpRules', competitionId],
+        queryFn: () => getGameRules(competitionId),
+        enabled: !!competitionId,
+    });
+    const downsPerSeries = activeRules?.downs_per_series || 4;
 
     const homeRoster = teamSheet?.home_team || [];
     const awayRoster = teamSheet?.away_team || [];
@@ -246,6 +398,7 @@ export const AdminPlayByPlay = () => {
                 base.off_qb_id = w.qbId || undefined;
                 if (!base.off_qb_id) return { payload: null, error: 'Select the QB.' };
                 base.yards = toIntOrNull(w.yards);
+                base.rusher_id = w.rusherId || undefined;
                 switch (w.passOutcome) {
                     case 'complete':
                         base.play_type = w.passModifier || 'CP';
@@ -293,6 +446,7 @@ export const AdminPlayByPlay = () => {
                 if (!base.off_qb_id) return { payload: null, error: 'Select the carrier.' };
                 base.yards = toIntOrNull(w.yards);
                 base.result = w.result || 'FG';
+                base.rusher_id = w.rusherId || undefined;
                 if (base.result === 'FG' || base.result === 'SAF') base.defender_id = w.defenderId || undefined;
                 break;
             }
@@ -376,6 +530,8 @@ export const AdminPlayByPlay = () => {
             } else {
                 await createPlay(matchId, payload);
                 toast.success('Play added');
+                // Auto-advance down, distance, ball-on for the next play
+                setCtx(c => calculateNextSituation(c, payload, downsPerSeries));
             }
             await syncScoreAndStats();
             resetWizard();
@@ -421,6 +577,7 @@ export const AdminPlayByPlay = () => {
             nw.qbId = p.off_qb?.id || '';
             nw.targetId = p.target?.id || '';
             nw.defenderId = p.defender?.id || '';
+            nw.rusherId = p.rusher?.id || '';
             nw.yards = p.yards != null ? String(p.yards) : '';
             nw.dropped = p.dropped; nw.returnedForTd = p.returned_for_td;
             if (pt === 'TDP') nw.passOutcome = 'td';
@@ -434,6 +591,7 @@ export const AdminPlayByPlay = () => {
             nw.runStyle = pt as Wizard['runStyle'];
             nw.carrierId = p.off_qb?.id || '';
             nw.defenderId = p.defender?.id || '';
+            nw.rusherId = p.rusher?.id || '';
             nw.yards = p.yards != null ? String(p.yards) : '';
             nw.result = p.result || 'FG';
         } else if (pt === 'XP-P' || pt === 'PAT-R') {
@@ -545,6 +703,47 @@ export const AdminPlayByPlay = () => {
                                 <button key={k} className={chip(w.kind === k)} onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: k })}>{label}</button>
                             ))}
                         </div>
+
+                        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700/60">
+                            <div className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">⚡ Quick Play Presets</div>
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'pass', passOutcome: 'incomplete' })}
+                                    className="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md text-xs font-bold text-gray-700 dark:text-gray-200 transition-colors"
+                                >
+                                    🏈 Incomplete Pass
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'run', runStyle: 'RUN', yards: '5', result: 'FG' })}
+                                    className="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md text-xs font-bold text-gray-700 dark:text-gray-200 transition-colors"
+                                >
+                                    🏃 5-Yard Run
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'pass', passOutcome: 'sack', yards: '-6' })}
+                                    className="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md text-xs font-bold text-gray-700 dark:text-gray-200 transition-colors"
+                                >
+                                    💥 Sack (-6 yds)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'pass', passOutcome: 'td' })}
+                                    className="px-2.5 py-1 bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 rounded-md text-xs font-bold text-emerald-800 dark:text-emerald-200 transition-colors"
+                                >
+                                    🏆 Touchdown Pass
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'penalty', penaltyCode: 'FS', penaltyYards: '5' })}
+                                    className="px-2.5 py-1 bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-200 rounded-md text-xs font-bold text-amber-800 dark:text-amber-200 transition-colors"
+                                >
+                                    ⚑ False Start (-5 yds)
+                                </button>
+                            </div>
+                        </div>
                     </Section>
 
                     {/* PASS flow */}
@@ -615,7 +814,10 @@ export const AdminPlayByPlay = () => {
                                 )}
 
                                 {(w.passOutcome === 'int' || w.passOutcome === 'sack' || (w.passOutcome === 'complete' && w.result === 'FG') || (w.passOutcome === 'incomplete')) && (
-                                    <PlayerField label={`Defender (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.defenderId} onChange={v => setField('defenderId', v)} roster={defenseRoster} />
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <PlayerField label={`Rusher / Blitzer (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.rusherId} onChange={v => setField('rusherId', v)} roster={defenseRoster} />
+                                        <PlayerField label={`Coverage Defender (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.defenderId} onChange={v => setField('defenderId', v)} roster={defenseRoster} />
+                                    </div>
                                 )}
                             </div>
                         </Section>
@@ -644,7 +846,10 @@ export const AdminPlayByPlay = () => {
                                     </div>
                                 </div>
                                 {(w.result === 'FG' || w.result === 'SAF') && (
-                                    <PlayerField label={`Defender (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.defenderId} onChange={v => setField('defenderId', v)} roster={defenseRoster} />
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <PlayerField label={`Rusher / Blitzer (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.rusherId} onChange={v => setField('rusherId', v)} roster={defenseRoster} />
+                                        <PlayerField label={`Coverage Defender (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.defenderId} onChange={v => setField('defenderId', v)} roster={defenseRoster} />
+                                    </div>
                                 )}
                             </div>
                         </Section>
@@ -794,6 +999,7 @@ const PlayRow = ({ play, onEdit, onDelete }: { play: GamePlay; onEdit: () => voi
     if (play.off_qb) bits.push(who(play.off_qb));
     if (play.target) bits.push(`→ ${who(play.target)}`);
     if (play.yards != null) bits.push(`${play.yards >= 0 ? '+' : ''}${play.yards} yd`);
+    if (play.rusher) bits.push(`(rush ${who(play.rusher)})`);
     if (play.defender) bits.push(`(def ${who(play.defender)})`);
     if (play.penalty) bits.push(`⚑ ${play.penalty}${play.penalty_player ? ' ' + who(play.penalty_player) : ''}`);
 

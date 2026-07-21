@@ -69,8 +69,27 @@ func logError(msg string, data map[string]any) {
 	logger.Error(msg, data)
 }
 
+func logWarn(msg string, data map[string]any) {
+	logger := logger.GetSingletonLogger()
+
+	logger.Warn(msg, data)
+}
+
 func errorResponse(c *gin.Context, status int, message string) {
-	logError(message, nil)
+	// 4xx are client errors — bots probing /.env, typos, missing assets. Log
+	// them at Warn (no stack trace, lower severity) so they don't drown real
+	// server faults or flood the logs. Only 5xx keep Error-level stack traces.
+	fields := map[string]any{
+		"status": status,
+		"method": c.Request.Method,
+		"path":   c.Request.URL.Path,
+		"ip":     c.ClientIP(),
+	}
+	if status >= 500 {
+		logError(message, fields)
+	} else {
+		logWarn(message, fields)
+	}
 	responseBody := Response{
 		Status:  false,
 		Message: message,

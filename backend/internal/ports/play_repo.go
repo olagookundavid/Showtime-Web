@@ -35,14 +35,14 @@ func NewPlayRepository(db *pgxpool.Pool) PlayRepository {
 
 const playColumns = `
 	seq, drive_no, quarter, clock, offense_team_id, down, to_go, ball_on,
-	play_type, off_qb_id, target_id, yards, result, defender_id, dropped, returned_for_td,
+	play_type, off_qb_id, target_id, yards, result, defender_id, rusher_id, dropped, returned_for_td,
 	penalty, penalty_team_id, penalty_player_id, penalty_yards,
 	home_score_after, away_score_after, notes`
 
 func (r *PlayPGRepository) Create(ctx context.Context, p *domain.GamePlay) error {
 	query := `
 		INSERT INTO game_plays (match_id, ` + playColumns + `)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
 		RETURNING id, created_at, updated_at`
 
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
@@ -50,7 +50,7 @@ func (r *PlayPGRepository) Create(ctx context.Context, p *domain.GamePlay) error
 
 	err := r.db.QueryRow(ctx, query,
 		p.MatchID, p.Seq, p.DriveNo, p.Quarter, p.Clock, p.OffenseTeamID, p.Down, p.ToGo, p.BallOn,
-		p.PlayType, p.OffQBID, p.TargetID, p.Yards, p.Result, p.DefenderID, p.Dropped, p.ReturnedForTD,
+		p.PlayType, p.OffQBID, p.TargetID, p.Yards, p.Result, p.DefenderID, p.RusherID, p.Dropped, p.ReturnedForTD,
 		p.Penalty, p.PenaltyTeamID, p.PenaltyPlayerID, p.PenaltyYards,
 		p.HomeScoreAfter, p.AwayScoreAfter, p.Notes,
 	).Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt)
@@ -65,9 +65,9 @@ func (r *PlayPGRepository) Update(ctx context.Context, p *domain.GamePlay) error
 		UPDATE game_plays SET
 			seq = $2, drive_no = $3, quarter = $4, clock = $5, offense_team_id = $6,
 			down = $7, to_go = $8, ball_on = $9, play_type = $10, off_qb_id = $11,
-			target_id = $12, yards = $13, result = $14, defender_id = $15, dropped = $16,
-			returned_for_td = $17, penalty = $18, penalty_team_id = $19, penalty_player_id = $20,
-			penalty_yards = $21, home_score_after = $22, away_score_after = $23, notes = $24,
+			target_id = $12, yards = $13, result = $14, defender_id = $15, rusher_id = $16, dropped = $17,
+			returned_for_td = $18, penalty = $19, penalty_team_id = $20, penalty_player_id = $21,
+			penalty_yards = $22, home_score_after = $23, away_score_after = $24, notes = $25,
 			updated_at = NOW()
 		WHERE id = $1
 		RETURNING updated_at`
@@ -78,7 +78,7 @@ func (r *PlayPGRepository) Update(ctx context.Context, p *domain.GamePlay) error
 	err := r.db.QueryRow(ctx, query,
 		p.ID, p.Seq, p.DriveNo, p.Quarter, p.Clock, p.OffenseTeamID,
 		p.Down, p.ToGo, p.BallOn, p.PlayType, p.OffQBID,
-		p.TargetID, p.Yards, p.Result, p.DefenderID, p.Dropped,
+		p.TargetID, p.Yards, p.Result, p.DefenderID, p.RusherID, p.Dropped,
 		p.ReturnedForTD, p.Penalty, p.PenaltyTeamID, p.PenaltyPlayerID,
 		p.PenaltyYards, p.HomeScoreAfter, p.AwayScoreAfter, p.Notes,
 	).Scan(&p.UpdatedAt)
@@ -194,19 +194,21 @@ func (r *PlayPGRepository) ListByMatch(ctx context.Context, matchID string) ([]*
 		SELECT
 			gp.id, gp.match_id, gp.seq, gp.drive_no, gp.quarter, gp.clock, gp.offense_team_id,
 			gp.down, gp.to_go, gp.ball_on, gp.play_type, gp.off_qb_id, gp.target_id, gp.yards,
-			gp.result, gp.defender_id, gp.dropped, gp.returned_for_td, gp.penalty, gp.penalty_team_id,
+			gp.result, gp.defender_id, gp.rusher_id, gp.dropped, gp.returned_for_td, gp.penalty, gp.penalty_team_id,
 			gp.penalty_player_id, gp.penalty_yards, gp.home_score_after, gp.away_score_after, gp.notes,
 			gp.created_at, gp.updated_at,
 			ot.name, ot.short_name, ot.logo,
 			po.name, po.jersey_number, po.position,
 			pt.name, pt.jersey_number, pt.position,
 			pd.name, pd.jersey_number, pd.position,
+			pr.name, pr.jersey_number, pr.position,
 			pp.name, pp.jersey_number, pp.position
 		FROM game_plays gp
 		LEFT JOIN teams   ot ON gp.offense_team_id  = ot.id
 		LEFT JOIN players po ON gp.off_qb_id        = po.id
 		LEFT JOIN players pt ON gp.target_id        = pt.id
 		LEFT JOIN players pd ON gp.defender_id      = pd.id
+		LEFT JOIN players pr ON gp.rusher_id        = pr.id
 		LEFT JOIN players pp ON gp.penalty_player_id = pp.id
 		WHERE gp.match_id = $1
 		ORDER BY gp.seq ASC`
@@ -224,19 +226,20 @@ func (r *PlayPGRepository) ListByMatch(ctx context.Context, matchID string) ([]*
 	for rows.Next() {
 		var p domain.GamePlay
 		var otName, otShort, otLogo *string
-		var poName, poPos, ptName, ptPos, pdName, pdPos, ppName, ppPos *string
-		var poNum, ptNum, pdNum, ppNum *int
+		var poName, poPos, ptName, ptPos, pdName, pdPos, prName, prPos, ppName, ppPos *string
+		var poNum, ptNum, pdNum, prNum, ppNum *int
 
 		if err := rows.Scan(
 			&p.ID, &p.MatchID, &p.Seq, &p.DriveNo, &p.Quarter, &p.Clock, &p.OffenseTeamID,
 			&p.Down, &p.ToGo, &p.BallOn, &p.PlayType, &p.OffQBID, &p.TargetID, &p.Yards,
-			&p.Result, &p.DefenderID, &p.Dropped, &p.ReturnedForTD, &p.Penalty, &p.PenaltyTeamID,
+			&p.Result, &p.DefenderID, &p.RusherID, &p.Dropped, &p.ReturnedForTD, &p.Penalty, &p.PenaltyTeamID,
 			&p.PenaltyPlayerID, &p.PenaltyYards, &p.HomeScoreAfter, &p.AwayScoreAfter, &p.Notes,
 			&p.CreatedAt, &p.UpdatedAt,
 			&otName, &otShort, &otLogo,
 			&poName, &poNum, &poPos,
 			&ptName, &ptNum, &ptPos,
 			&pdName, &pdNum, &pdPos,
+			&prName, &prNum, &prPos,
 			&ppName, &ppNum, &ppPos,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan play: %w", err)
@@ -248,6 +251,7 @@ func (r *PlayPGRepository) ListByMatch(ctx context.Context, matchID string) ([]*
 		p.OffQB = hydratePlayer(p.OffQBID, poName, poNum, poPos)
 		p.Target = hydratePlayer(p.TargetID, ptName, ptNum, ptPos)
 		p.Defender = hydratePlayer(p.DefenderID, pdName, pdNum, pdPos)
+		p.Rusher = hydratePlayer(p.RusherID, prName, prNum, prPos)
 		p.PenaltyPlayer = hydratePlayer(p.PenaltyPlayerID, ppName, ppNum, ppPos)
 
 		out = append(out, &p)

@@ -28,6 +28,7 @@ type GamePlay struct {
 	Yards         *int    `json:"yards,omitempty"`
 	Result        *string `json:"result,omitempty"`
 	DefenderID    *string `json:"defender_id,omitempty"`
+	RusherID      *string `json:"rusher_id,omitempty"`
 	Dropped       bool    `json:"dropped"`
 	ReturnedForTD bool    `json:"returned_for_td"`
 
@@ -50,6 +51,7 @@ type GamePlay struct {
 	OffQB         *Player `json:"off_qb,omitempty"`
 	Target        *Player `json:"target,omitempty"`
 	Defender      *Player `json:"defender,omitempty"`
+	Rusher        *Player `json:"rusher,omitempty"`
 	PenaltyPlayer *Player `json:"penalty_player,omitempty"`
 }
 
