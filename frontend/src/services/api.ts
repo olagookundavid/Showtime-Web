@@ -1854,5 +1854,10 @@ export const recomputeScore = async (matchId: string): Promise<{ home_score: num
     return res.data;
 };
 
+export const commitScore = async (matchId: string): Promise<{ home_score: number; away_score: number }> => {
+    const res = await api.post<{ home_score: number; away_score: number }>(`/admin/matches/${matchId}/commit-score`, {});
+    return res.data;
+};
+
 export default api;
 

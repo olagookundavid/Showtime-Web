@@ -115,7 +115,22 @@ func (s *PlayService) RecomputeScore(ctx context.Context, matchID string) (int, 
 		}
 	}
 
-	// Persist the final score on the match and refresh standings.
+	GlobalSSEBroker.Broadcast(matchID, "score_updated", map[string]int{"home_score": home, "away_score": away})
+
+	return home, away, nil
+}
+
+// CommitScore takes the derived play-by-play score, persists it to the official match
+// record on matches table, and recalculates standings. Only called when admin commits.
+func (s *PlayService) CommitScore(ctx context.Context, matchID string) (int, int, error) {
+	home, away, err := s.RecomputeScore(ctx, matchID)
+	if err != nil {
+		return 0, 0, err
+	}
+	match, err := s.matchRepo.GetMatchByID(ctx, matchID)
+	if err != nil {
+		return 0, 0, err
+	}
 	match.HomeScore = &home
 	match.AwayScore = &away
 	if err := s.matchRepo.UpdateMatch(ctx, match); err != nil {
@@ -124,8 +139,5 @@ func (s *PlayService) RecomputeScore(ctx context.Context, matchID string) (int, 
 	if err := s.matchRepo.RecalculateStandings(ctx, match.CompetitionID); err != nil {
 		return 0, 0, err
 	}
-
-	GlobalSSEBroker.Broadcast(matchID, "score_updated", map[string]int{"home_score": home, "away_score": away})
-
 	return home, away, nil
 }

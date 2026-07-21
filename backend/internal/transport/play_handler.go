@@ -22,6 +22,7 @@ type IPlayHandler interface {
 	GetRules(c *gin.Context)
 	UpsertRules(c *gin.Context)
 	RecomputeScore(c *gin.Context)
+	CommitScore(c *gin.Context)
 }
 
 type PlayHandler struct {
@@ -196,6 +197,21 @@ func (h *PlayHandler) RecomputeScore(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Score recomputed", "home_score": home, "away_score": away})
+}
+
+// CommitScore persists the derived play-by-play score to the match record and recalculates standings.
+func (h *PlayHandler) CommitScore(c *gin.Context) {
+	matchID := c.Param("id")
+	if matchID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Match ID is required"})
+		return
+	}
+	home, away, err := h.service.CommitScore(c.Request.Context(), matchID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Score committed to match", "home_score": home, "away_score": away})
 }
 
 // StreamPlays establishes a Server-Sent Events (SSE) stream for live play-by-play updates.

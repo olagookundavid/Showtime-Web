@@ -218,12 +218,13 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		matchesGroup.POST("/:id/plays", app.Handlers.PlayHandler.CreatePlay)
 		matchesGroup.PUT("/:id/plays/:playId", app.Handlers.PlayHandler.UpdatePlay)
 		matchesGroup.DELETE("/:id/plays/:playId", app.Handlers.PlayHandler.DeletePlay)
-		// Step 2: derive box-score stats from the play log + commit them.
+		// Step 2: derive box-score stats from the play log + commit them (app_admin only).
 		matchesGroup.GET("/:id/stats-compare", app.Handlers.PlayHandler.CompareStats)
-		matchesGroup.POST("/:id/stats-commit", app.Handlers.PlayHandler.CommitStats)
-		// Step 3: scoring rules for this match's competition + recompute score.
+		matchesGroup.POST("/:id/stats-commit", middlewares.RolesAllowedMiddleware(app.AuthService, "app_admin"), app.Handlers.PlayHandler.CommitStats)
+		// Step 3: scoring rules for this match's competition + recompute score (commit app_admin only).
 		matchesGroup.GET("/:id/rules", app.Handlers.PlayHandler.GetMatchRules)
 		matchesGroup.POST("/:id/recompute-score", app.Handlers.PlayHandler.RecomputeScore)
+		matchesGroup.POST("/:id/commit-score", middlewares.RolesAllowedMiddleware(app.AuthService, "app_admin"), app.Handlers.PlayHandler.CommitScore)
 		matchesGroup.POST("/:id/import", app.Handlers.ImportHandler.ImportMatch)
 		matchesGroup.POST("/standings", app.Handlers.MatchHandler.CreateStanding)
 		matchesGroup.PUT("/standings/:id", app.Handlers.MatchHandler.UpdateStanding)

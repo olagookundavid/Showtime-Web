@@ -26,6 +26,7 @@ type IPlayService interface {
 	GetRules(ctx context.Context, competitionID string) (domain.GameRules, error)
 	UpsertRules(ctx context.Context, competitionID string, req dto.GameRulesRequest) (domain.GameRules, error)
 	RecomputeScore(ctx context.Context, matchID string) (home, away int, err error)
+	CommitScore(ctx context.Context, matchID string) (home, away int, err error)
 }
 
 type PlayService struct {

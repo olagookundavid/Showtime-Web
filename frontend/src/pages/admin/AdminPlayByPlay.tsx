@@ -967,7 +967,7 @@ export const AdminPlayByPlay = () => {
                     )}
 
                     {/* Step 3 — scoring engine tools */}
-                    <ScoreTools matchId={matchId} competitionId={match?.competition?.id || ''} />
+                    <ScoreTools matchId={matchId} competitionId={match?.competition?.id || ''} match={match?.match} plays={plays} />
 
                     {/* Logged plays */}
                     <div>
@@ -1034,12 +1034,31 @@ const RULE_FIELDS: { key: keyof GameRulesPayload; label: string }[] = [
     { key: 'yards_to_first_down', label: 'Yards to 1st down' },
 ];
 
-const ScoreTools = ({ matchId, competitionId }: { matchId: string; competitionId: string }) => {
+interface ScoreToolsProps {
+    matchId: string;
+    competitionId: string;
+    match?: MatchDetail['match'];
+    plays?: GamePlay[];
+}
+
+const ScoreTools = ({ matchId, competitionId, match, plays = [] }: ScoreToolsProps) => {
+    const { user } = useAuth();
+    const isAppAdmin = user?.role === 'app_admin';
     const queryClient = useQueryClient();
     const [recomputing, setRecomputing] = useState(false);
     const [editingRules, setEditingRules] = useState(false);
     const [rulesForm, setRulesForm] = useState<GameRulesPayload | null>(null);
     const [savingRules, setSavingRules] = useState(false);
+    const [committingScore, setCommittingScore] = useState(false);
+
+    // Compute PBP derived score from the last play snapshot in log
+    const lastPlayWithScore = [...plays].reverse().find(p => p.home_score_after != null && p.away_score_after != null);
+    const pbpHome = lastPlayWithScore?.home_score_after ?? 0;
+    const pbpAway = lastPlayWithScore?.away_score_after ?? 0;
+
+    const storedHome = match?.home_score ?? 0;
+    const storedAway = match?.away_score ?? 0;
+    const scoresMatch = pbpHome === storedHome && pbpAway === storedAway;
 
     const { data: rules } = useQuery({
         queryKey: ['pbpRules', competitionId],
@@ -1060,12 +1079,31 @@ const ScoreTools = ({ matchId, competitionId }: { matchId: string; competitionId
         setRecomputing(true);
         try {
             const res = await recomputeScore(matchId);
-            toast.success(`Score recomputed: ${res.home_score}–${res.away_score}`);
+            toast.success(`Play-by-Play running score refreshed: ${res.home_score}–${res.away_score}`);
             await queryClient.invalidateQueries({ queryKey: ['pbpPlays', matchId] });
         } catch (e: any) {
-            toast.error(e?.response?.data?.error || 'Failed to recompute score');
+            toast.error(e?.response?.data?.error || 'Failed to refresh score');
         } finally {
             setRecomputing(false);
+        }
+    };
+
+    const handleCommitScore = async () => {
+        if (!isAppAdmin) {
+            toast.error('Only App Admin can commit scores to the main match record');
+            return;
+        }
+        if (!confirm(`Commit Play-by-Play score (${pbpHome}–${pbpAway}) to overwrite official match record (${storedHome}–${storedAway}) and update standings?`)) return;
+        setCommittingScore(true);
+        try {
+            const res = await commitScore(matchId);
+            toast.success(`Official score updated to ${res.home_score}–${res.away_score} and standings refreshed!`);
+            await queryClient.invalidateQueries({ queryKey: ['pbpPlays', matchId] });
+            await queryClient.invalidateQueries({ queryKey: ['adminMatchDetail', matchId] });
+        } catch (e: any) {
+            toast.error(e?.response?.data?.error || 'Failed to commit score');
+        } finally {
+            setCommittingScore(false);
         }
     };
 
@@ -1088,14 +1126,64 @@ const ScoreTools = ({ matchId, competitionId }: { matchId: string; competitionId
         <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3">
             <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div>
-                    <h2 className="text-lg font-black text-sffl-navy dark:text-white">Scoring</h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">The score updates automatically after every play you add, edit, or delete. Use this button to force a refresh — mainly after you change the point values below.</p>
+                    <h2 className="text-lg font-black text-sffl-navy dark:text-white flex items-center gap-2">
+                        <span>Score Comparison & Commit</span>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${scoresMatch ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'}`}>
+                            {scoresMatch ? '✓ Scores Match' : '⚠️ Discrepancy'}
+                        </span>
+                    </h2>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        Logging plays computes a running score preview. Nothing touches the live match table or standings until an App Admin commits.
+                    </p>
                 </div>
                 <div className="flex gap-2">
-                    <button onClick={() => setEditingRules(o => !o)} className="px-3 py-2 border rounded-lg font-bold text-sm text-sffl-navy dark:text-gray-200 dark:border-gray-600">Scoring rules</button>
-                    <button onClick={recompute} disabled={recomputing} className="px-4 py-2 bg-sffl-navy text-white font-bold rounded-lg text-sm disabled:opacity-50">
-                        {recomputing ? 'Recomputing…' : 'Recompute score'}
+                    <button onClick={() => setEditingRules(o => !o)} className="px-3 py-2 border rounded-lg font-bold text-xs text-sffl-navy dark:text-gray-200 dark:border-gray-600">Scoring rules</button>
+                    <button onClick={recompute} disabled={recomputing} className="px-3 py-2 bg-gray-100 dark:bg-gray-700 font-bold rounded-lg text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-200 disabled:opacity-50">
+                        {recomputing ? 'Refreshing…' : 'Refresh PBP score'}
                     </button>
+                </div>
+            </div>
+
+            {/* Side-by-Side Comparison Box */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 my-2">
+                {/* Official Stored Match Score */}
+                <div className="p-3 bg-gray-50 dark:bg-gray-800/80 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col justify-between">
+                    <div className="text-[10px] font-black uppercase text-gray-400 dark:text-gray-400 tracking-wider">
+                        Official Stored Score (Matches Table)
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                        <span className="text-xs font-bold text-gray-700 dark:text-gray-200">
+                            {match?.home_team.short_name || 'Home'} vs {match?.away_team.short_name || 'Away'}
+                        </span>
+                        <span className="text-xl font-black font-mono text-sffl-navy dark:text-white">
+                            {storedHome} – {storedAway}
+                        </span>
+                    </div>
+                </div>
+
+                {/* Derived Play-by-Play Score */}
+                <div className="p-3 bg-gray-50 dark:bg-gray-800/80 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col justify-between">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase text-sffl-red tracking-wider">
+                            Play-by-Play Derived Score (Preview)
+                        </span>
+                        <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">
+                            {plays.length} logged play{plays.length === 1 ? '' : 's'}
+                        </span>
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                        <button
+                            onClick={handleCommitScore}
+                            disabled={!isAppAdmin || committingScore}
+                            title={!isAppAdmin ? 'Commit restricted to App Admin' : 'Commit PBP score to official match record'}
+                            className="px-3 py-1 bg-sffl-navy text-white font-bold rounded-lg text-xs hover:bg-sffl-navy/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                            {committingScore ? 'Committing…' : 'Commit PBP Score →'}
+                        </button>
+                        <span className="text-xl font-black font-mono text-sffl-navy dark:text-white">
+                            {pbpHome} – {pbpAway}
+                        </span>
+                    </div>
                 </div>
             </div>
 
@@ -1135,6 +1223,8 @@ const ScoreTools = ({ matchId, competitionId }: { matchId: string; competitionId
 // tooling for iterating — compare by eye against the public /stats page, then
 // Commit to write these onto the main stats table. Remove once finalised.
 const StatsCompare = ({ matchId }: { matchId: string }) => {
+    const { user } = useAuth();
+    const isAppAdmin = user?.role === 'app_admin';
     const [open, setOpen] = useState(false);
     const [committing, setCommitting] = useState(false);
 
@@ -1147,6 +1237,10 @@ const StatsCompare = ({ matchId }: { matchId: string }) => {
     const derived = data?.derived || [];
 
     const commit = async () => {
+        if (!isAppAdmin) {
+            toast.error('Only App Admin can commit stats to the main stats table');
+            return;
+        }
         if (!window.confirm('Write these play-by-play stats onto the main stats table? This overwrites the saved stats for this match.')) return;
         setCommitting(true);
         try {
@@ -1166,7 +1260,7 @@ const StatsCompare = ({ matchId }: { matchId: string }) => {
                     <h2 className="text-lg font-black text-sffl-navy dark:text-white">
                         Play-by-Play Stats <span className="text-[10px] font-black uppercase tracking-wider text-amber-500 align-middle">preview · not saved</span>
                     </h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Box score computed live from the plays above, shown exactly as the real stats table looks. Open the public <b>Stats</b> page to compare. Temporary tooling — removed once we trust the numbers.</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Box score computed live from the plays above, shown exactly as the real stats table looks. Open the public <b>Stats</b> page to compare.</p>
                 </div>
                 <button onClick={() => setOpen(o => !o)} className="px-4 py-2 border rounded-lg font-bold text-sm text-sffl-navy dark:text-gray-200 dark:border-gray-600">
                     {open ? 'Hide' : 'Show stats'}
@@ -1182,7 +1276,12 @@ const StatsCompare = ({ matchId }: { matchId: string }) => {
                     ) : (
                         <>
                             <StatsTable type="players" playerStats={derived} />
-                            <button onClick={commit} disabled={committing} className="mt-4 px-6 py-2.5 bg-sffl-navy text-white font-bold rounded-lg disabled:opacity-50">
+                            <button
+                                onClick={commit}
+                                disabled={!isAppAdmin || committing}
+                                title={!isAppAdmin ? 'Commit restricted to App Admin' : 'Write stats to main table'}
+                                className="mt-4 px-6 py-2.5 bg-sffl-navy text-white font-bold rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
                                 {committing ? 'Committing…' : 'Commit to main stats table →'}
                             </button>
                         </>
