@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { getMatches } from '../../services/api';
+import { getMatches, type Match } from '../../services/api';
 import { Loader } from '../ui/Loader';
 
 // Shared query — React Query dedupes by key so the carousel and info strip
@@ -12,14 +12,48 @@ const useLatestFinishedMatches = () => useQuery({
     staleTime: 60_000,
 });
 
+// Fetch more than 5 so we can sort soonest-first ourselves — the backend
+// orders matches by date DESC (newest first) for every status, which for
+// SCHEDULED matches puts the furthest-out game first. We want the *next* 5.
+const useUpcomingMatches = () => useQuery({
+    queryKey: ['publicMatches', 'SCHEDULED', 10],
+    queryFn: () => getMatches(undefined, 1, 10, 'SCHEDULED'),
+    staleTime: 60_000,
+});
+
+const soonestFirst = (matches: Match[]) =>
+    [...matches].sort((a, b) => {
+        const aTime = new Date(`${a.date?.split('T')[0]}T${(a.start_time || '00:00:00').split('T').pop()}`).getTime();
+        const bTime = new Date(`${b.date?.split('T')[0]}T${(b.start_time || '00:00:00').split('T').pop()}`).getTime();
+        return aTime - bTime;
+    });
+
 /**
- * The scrolling tile row of latest finished matches. Used on every page as
- * part of the sticky chrome below the navbar. Does NOT include the info
- * strip — see LatestMatchesInfoStrip.
+ * Builds the header match strip's content: when there are upcoming matches,
+ * show the next 5 upcoming + the 5 latest results; when there are none, fall
+ * back to the last 10 results so the strip still has something worth scrolling.
+ */
+const useHeaderMatches = () => {
+    const { data: finishedMatchesData, isLoading: loadingFinished } = useLatestFinishedMatches();
+    const { data: upcomingMatchesData, isLoading: loadingUpcoming } = useUpcomingMatches();
+
+    const finished = finishedMatchesData?.data || []; // already newest-first
+    const upcoming = soonestFirst(upcomingMatchesData?.data || []).slice(0, 5);
+
+    const matches = upcoming.length > 0
+        ? [...upcoming, ...finished.slice(0, 5)]
+        : finished.slice(0, 10);
+
+    return { matches, isLoading: loadingFinished || loadingUpcoming };
+};
+
+/**
+ * The scrolling tile row of upcoming + latest finished matches. Used on every
+ * page as part of the sticky chrome below the navbar. Does NOT include the
+ * info strip — see LatestMatchesInfoStrip.
  */
 export const LatestMatchesCarousel = () => {
-    const { data: finishedMatchesData, isLoading } = useLatestFinishedMatches();
-    const matches = finishedMatchesData?.data || [];
+    const { matches, isLoading } = useHeaderMatches();
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     const scrollLeft = () => {
@@ -128,11 +162,20 @@ export const LatestMatchesCarousel = () => {
                                             )}
                                         </div>
                                     </div>
-                                    {/* Action Column — only for LIVE matches; the score itself
-                                        already tells you a finished match is done. */}
-                                    {isLive && (
+                                    {/* Action Column — LIVE badge for live matches; the score
+                                        itself already tells you a finished match is done. A
+                                        SCHEDULED match has no score yet, so show its date/time
+                                        here instead so it doesn't read as a blank tile. */}
+                                    {isLive ? (
                                         <div className="flex flex-col items-end justify-center min-w-[50px] pl-2 border-l border-white/10">
                                             <span className="bg-sffl-red text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded animate-pulse">LIVE</span>
+                                        </div>
+                                    ) : match.status === 'SCHEDULED' && (
+                                        <div className="flex flex-col items-end justify-center min-w-[50px] pl-2 border-l border-white/10 gap-0.5">
+                                            <span className="text-[9px] font-bold text-gray-300 whitespace-nowrap">
+                                                {match.date ? new Date(match.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}
+                                            </span>
+                                            <span className="text-[8px] font-bold text-gray-500 uppercase tracking-wider">Upcoming</span>
                                         </div>
                                     )}
                                 </Link>

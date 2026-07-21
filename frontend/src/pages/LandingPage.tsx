@@ -5,20 +5,13 @@ import { HeroCarousel } from '../components/HeroCarousel';
 // import { SeasonShowcase } from '../components/widgets/SeasonShowcase';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { useRef } from 'react';
-import { getMatches, getNews } from '../services/api';
-import { CompactMatchCard } from '../components/matches/CompactMatchCard';
+import { getNews } from '../services/api';
 import { Loader } from '../components/ui/Loader';
 import { ArrowRightIcon } from '@heroicons/react/24/outline';
 import { TOTWWidget } from '../components/widgets/TOTWWidget';
 import { LightboxImage } from '../components/ui/LightboxImage';
 
 export const LandingPage = () => {
-    const { data: scheduledMatchesData, isLoading: loadingScheduled } = useQuery({
-        queryKey: ['publicMatches', 'SCHEDULED', 5],
-        queryFn: () => getMatches(undefined, 1, 5, 'SCHEDULED'),
-    });
-
     const { data: newsData, isLoading: loadingNews } = useQuery({
         queryKey: ['publicNews', "Commissioner's Note"],
         queryFn: () => getNews(1, 1, undefined, "Commissioner's Note"),
@@ -29,20 +22,8 @@ export const LandingPage = () => {
         queryFn: () => getNews(1, 6),
     });
 
-    const scheduledRef = useRef<HTMLDivElement>(null);
-
-    const scrollLeft = (ref: React.RefObject<HTMLDivElement | null>) => {
-        ref.current?.scrollBy({ left: -320, behavior: 'smooth' });
-    };
-
-    const scrollRight = (ref: React.RefObject<HTMLDivElement | null>) => {
-        ref.current?.scrollBy({ left: 320, behavior: 'smooth' });
-    };
-
-    const upcomingMatches = scheduledMatchesData?.data || [];
     const latestNote = newsData?.data?.[0] || null;
     const teamNews = teamNewsData?.data || [];
-
 
     return (
         <div className="space-y-6 md:space-y-12 pt-4">
@@ -55,94 +36,11 @@ export const LandingPage = () => {
                 the import above and this line to show it again. */}
             {/* <SeasonShowcase /> */}
 
-            {/* Upcoming Matches */}
+            {/* Team News — moved immediately after the hero so news is the
+                first thing visitors see below the carousel. */}
             <section className="px-1">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-lg md:text-4xl font-black italic text-sffl-navy dark:text-white transition-colors duration-300">
-                        UPCOMING <span className="text-sffl-red">MATCHES</span>
-                    </h2>
-                    <Link to="/tickets" className="text-sffl-navy dark:text-gray-300 text-sm font-semibold hover:underline">Get Tickets 🎟️</Link>
-                </div>
-                {loadingScheduled ? (
-                    <Loader />
-                ) : upcomingMatches.length > 0 ? (
-                    <div className="relative group px-2 md:px-4">
-                        {/* Left Arrow */}
-                        <button
-                            onClick={() => scrollLeft(scheduledRef)}
-                            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-sffl-navy dark:bg-gray-800 hover:bg-sffl-red dark:hover:bg-sffl-red text-white p-1.5 md:p-2.5 rounded-full shadow-xl transition-all duration-300 flex items-center justify-center cursor-pointer border-2 border-white/20"
-                        >
-                            <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                            </svg>
-                        </button>
-
-                        <div
-                            ref={scheduledRef}
-                            className="flex overflow-x-auto gap-4 pb-4 snap-x snap-mandatory no-scrollbar -mx-1 px-1"
-                        >
-                            {upcomingMatches.map(match => (
-                                <CompactMatchCard key={match.id} match={match} />
-                            ))}
-                        </div>
-
-                        {/* Right Arrow */}
-                        <button
-                            onClick={() => scrollRight(scheduledRef)}
-                            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-sffl-navy dark:bg-gray-800 hover:bg-sffl-red dark:hover:bg-sffl-red text-white p-1.5 md:p-2.5 rounded-full shadow-xl transition-all duration-300 flex items-center justify-center cursor-pointer border-2 border-white/20"
-                        >
-                            <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                        </button>
-                    </div>
-                ) : (
-                    <div className="flex flex-col items-center justify-center py-16 bg-gradient-to-br from-gray-50 to-blue-50/30 dark:from-gray-800/50 dark:to-sffl-navy/20 rounded-3xl border-2 border-dashed border-gray-200 dark:border-gray-700">
-                        <span className="text-5xl mb-4">📅</span>
-                        <h3 className="text-xl font-black italic text-sffl-navy dark:text-white tracking-tight">NO UPCOMING MATCHES</h3>
-                        <p className="text-gray-500 dark:text-gray-400 font-medium mt-2 text-sm">The next game day schedule is being finalized. Stay tuned!</p>
-                    </div>
-                )}
-            </section>
-
-            {/* News and TOTW Section */}
-            <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-2 md:px-0">
-                {/* Team of the Week Widget */}
-                <TOTWWidget />
-
-                {/* Commissioner's Note */}
-                <div className="bg-sffl-navy dark:bg-gray-800 text-white p-6 md:p-8 rounded-2xl shadow-xl border border-transparent dark:border-gray-700 flex flex-col h-full relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/4 w-32 h-32 bg-sffl-red/10 rounded-full blur-2xl group-hover:bg-sffl-red/20 transition-all duration-700"></div>
-                    <h3 className="text-xl md:text-2xl font-black italic mb-6 uppercase tracking-tighter relative z-10">Commissioner's <span className="text-sffl-red">Note</span></h3>
-                    {loadingNews ? (
-                        <div className="flex-1 flex justify-center items-center py-8">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-                        </div>
-                    ) : latestNote ? (
-                        <div className="relative z-10 flex flex-col h-full">
-                            <p className="text-gray-300 dark:text-gray-300 mb-8 italic flex-1 relative z-10 leading-relaxed text-sm md:text-base before:content-['\201C'] before:absolute before:-top-6 before:-left-4 before:text-7xl before:text-sffl-red/20 before:-z-10 after:content-['\201D'] after:relative after:-bottom-4 after:text-5xl after:text-sffl-red/20 after:leading-none">
-                                {latestNote.excerpt || latestNote.content.substring(0, 200) + '...'}
-                            </p>
-                            <Link to={`/news/${latestNote.slug}`} className="text-white bg-sffl-red/20 hover:bg-sffl-red/40 px-6 py-2.5 rounded-xl font-bold transition-all mt-auto inline-flex items-center justify-center gap-2 w-fit border border-sffl-red/30 hover:scale-[1.02] active:scale-95">
-                                Read Full Note <ArrowRightIcon className="w-4 h-4" />
-                            </Link>
-                        </div>
-                    ) : (
-                        <div className="flex-1 flex items-center justify-center border-2 border-dashed border-white/10 rounded-2xl">
-                            <p className="text-gray-400 dark:text-gray-500 italic font-medium">No commissioner's note at this time.</p>
-                        </div>
-                    )}
-                </div>
-            </section>
-
-            {/* Promotional Carousel */}
-            <HeroCarousel />
-
-            {/* Team News Section */}
-            <section className="px-1 mt-12">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-lg md:text-4xl font-black italic text-sffl-navy dark:text-white transition-colors duration-300">
-                        {/* TEAM  */}
                         <span className="text-sffl-red">NEWS</span>
                     </h2>
                     <Link to="/news" className="text-sffl-red text-sm font-semibold hover:underline flex items-center gap-1">
@@ -202,6 +100,39 @@ export const LandingPage = () => {
                     </div>
                 )}
             </section>
+
+            {/* TOTW + Commissioner's Note Section */}
+            <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-2 md:px-0">
+                {/* Team of the Week Widget */}
+                <TOTWWidget />
+
+                {/* Commissioner's Note */}
+                <div className="bg-sffl-navy dark:bg-gray-800 text-white p-6 md:p-8 rounded-2xl shadow-xl border border-transparent dark:border-gray-700 flex flex-col h-full relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/4 w-32 h-32 bg-sffl-red/10 rounded-full blur-2xl group-hover:bg-sffl-red/20 transition-all duration-700"></div>
+                    <h3 className="text-xl md:text-2xl font-black italic mb-6 uppercase tracking-tighter relative z-10">Commissioner's <span className="text-sffl-red">Note</span></h3>
+                    {loadingNews ? (
+                        <div className="flex-1 flex justify-center items-center py-8">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                        </div>
+                    ) : latestNote ? (
+                        <div className="relative z-10 flex flex-col h-full">
+                            <p className="text-gray-300 dark:text-gray-300 mb-8 italic flex-1 relative z-10 leading-relaxed text-sm md:text-base before:content-['\201C'] before:absolute before:-top-6 before:-left-4 before:text-7xl before:text-sffl-red/20 before:-z-10 after:content-['\201D'] after:relative after:-bottom-4 after:text-5xl after:text-sffl-red/20 after:leading-none">
+                                {latestNote.excerpt || latestNote.content.substring(0, 200) + '...'}
+                            </p>
+                            <Link to={`/news/${latestNote.slug}`} className="text-white bg-sffl-red/20 hover:bg-sffl-red/40 px-6 py-2.5 rounded-xl font-bold transition-all mt-auto inline-flex items-center justify-center gap-2 w-fit border border-sffl-red/30 hover:scale-[1.02] active:scale-95">
+                                Read Full Note <ArrowRightIcon className="w-4 h-4" />
+                            </Link>
+                        </div>
+                    ) : (
+                        <div className="flex-1 flex items-center justify-center border-2 border-dashed border-white/10 rounded-2xl">
+                            <p className="text-gray-400 dark:text-gray-500 italic font-medium">No commissioner's note at this time.</p>
+                        </div>
+                    )}
+                </div>
+            </section>
+
+            {/* Promotional Carousel */}
+            <HeroCarousel />
         </div>
     );
 };

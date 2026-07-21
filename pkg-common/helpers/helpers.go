@@ -215,7 +215,6 @@ func HealthcheckHandler(env string) gin.HandlerFunc {
 				"version":     vcs.Version(),
 			},
 		}
-		logger.GetSingletonLogger().Info("Health check successful", nil)
 		c.JSON(http.StatusOK, data)
 	}
 }

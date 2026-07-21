@@ -24,7 +24,9 @@ func Routes(app *api.Application) *gin.Engine {
 
 	r := gin.Default()
 
-	r.Use(cors.New(helpers.BuildCORSConfig()))
+	r.Use(gin.Recovery(), cors.New(helpers.BuildCORSConfig()), gin.LoggerWithConfig(gin.LoggerConfig{
+		SkipPaths: []string{"/healthcheck", "/api/v1/healthcheck"},
+	}))
 
 	r.NoRoute(helpers.NotFoundResponse)
 	r.NoMethod(helpers.MethodNotAllowedResponse)
