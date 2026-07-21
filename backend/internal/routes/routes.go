@@ -22,7 +22,7 @@ import (
 
 func Routes(app *api.Application) *gin.Engine {
 
-	r := gin.Default()
+	r := gin.New()
 
 	r.Use(gin.Recovery(), cors.New(helpers.BuildCORSConfig()), gin.LoggerWithConfig(gin.LoggerConfig{
 		SkipPaths: []string{"/healthcheck", "/api/v1/healthcheck"},

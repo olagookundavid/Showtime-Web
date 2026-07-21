@@ -97,7 +97,7 @@ export const LatestMatchesCarousel = () => {
                     {/* Scroll Container */}
                     <div
                         ref={scrollContainerRef}
-                        className="flex overflow-x-auto gap-3 py-2 snap-x snap-mandatory no-scrollbar w-full h-full items-center"
+                        className="flex overflow-x-auto gap-3 py-2 px-8 sm:px-12 md:px-14 snap-x snap-mandatory scroll-px-8 sm:scroll-px-12 md:scroll-px-14 no-scrollbar w-full h-full items-center"
                     >
                         {matches.map(match => {
                             const isLive = match.status === 'LIVE';
