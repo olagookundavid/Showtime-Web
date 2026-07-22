@@ -197,7 +197,6 @@ func cronjobs(app *api.Application, ctx context.Context, cancel context.CancelFu
 
 	// Run every day at midnight (00:00)
 	c.AddFunc("0 0 * * *", func() {
-		app.Logger.Info("Running daily ticket expiration job...", nil)
 		if err := app.TicketService.ExpirePastTickets(ctx); err != nil {
 			app.Logger.Error(fmt.Sprintf("Ticket expiration failed: %v", err), nil)
 		}
@@ -205,7 +204,6 @@ func cronjobs(app *api.Application, ctx context.Context, cancel context.CancelFu
 
 	// Run daily at 01:00 AM to cleanup OTPs
 	c.AddFunc("0 1 * * *", func() {
-		app.Logger.Info("Running OTP cleanup job...", nil)
 		if err := app.AuthService.CleanupExpiredOTPs(ctx); err != nil {
 			app.Logger.Error(fmt.Sprintf("OTP cleanup failed: %v", err), nil)
 		}
@@ -217,7 +215,6 @@ func cronjobs(app *api.Application, ctx context.Context, cancel context.CancelFu
 		if app.ImageGCService == nil || !app.ImageGCService.Enabled {
 			return
 		}
-		app.Logger.Info("Running orphaned-image GC sweep...", nil)
 		if err := app.ImageGCService.SweepOrphans(ctx); err != nil {
 			app.Logger.Error(fmt.Sprintf("Image GC sweep failed: %v", err), nil)
 		}
@@ -305,7 +302,6 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	if err != nil {
 		log.Fatal(fmt.Sprintf("FATAL: R2 Storage Service failed to initialize. Check R2 environment variables. Error: %v", err), nil)
 	}
-
 
 	// Services
 	auditService := services.NewAuditService(auditRepo, authRepo)
