@@ -618,6 +618,72 @@ one specific caveat in mind: rotating the token-signing key invalidates
 every existing user session immediately, so it was done deliberately during
 a low-traffic window rather than as a routine, anytime change.
 
+### Phase 18 — Centralized log viewing (Dozzle) with edge-gated access
+
+Once the core migration was stable, a lightweight way to view logs across
+all containers from a browser — without SSHing in each time — was added,
+matching the "how would a real microservice deployment do this" question
+that prompted it.
+
+**The tool choice was deliberately scoped to actual need.** A full
+aggregation stack (Grafana + Loki) was considered and explicitly deferred:
+it adds real ongoing complexity (log shipping, retention/label
+configuration, more containers) to gain capabilities — long history,
+cross-time search, alerting on log patterns — that weren't yet needed.
+**Dozzle** was chosen instead: a single, stateless container that reads
+directly from the Docker socket and gives a searchable, live-tailing web UI
+with zero configuration and zero log-shipping pipeline. It reuses the exact
+log data already capped by the Docker `daemon.json` settings from Phase
+14 — no new retention policy to design. The explicit trade span: Dozzle
+answers "let me see what's happening right now, in a browser," not "let me
+search what happened last month" — the latter remains the trigger for
+adopting Loki+Grafana later, not a gap in Dozzle itself.
+
+**One deliberate exception to the "never use `:latest`" rule from Phase 7,
+explained rather than silently contradicted:** Dozzle is stateless — no data
+volume, nothing an image upgrade could corrupt on disk. The version-pinning
+discipline exists specifically to protect stateful services (like Postgres)
+from an unplanned, breaking major-version jump; that risk doesn't apply
+here, so `:latest` was accepted as a reasonable trade for a simple log
+viewer.
+
+**Exposure decision — public, but edge-gated, not tunnel-only.** The first
+instinct (consistent with the Postgres GUI pattern) was to bind Dozzle to
+`127.0.0.1` only and require an SSH tunnel for access. This was upgraded to
+a public subdomain once it became clear a proper authentication layer could
+sit in front of it at no real cost: **Cloudflare Access** (part of
+Cloudflare Zero Trust, free at this scale) intercepts requests to the
+subdomain *at Cloudflare's edge*, before they ever reach the origin server,
+and requires verifying the operator's own email via a one-time code. This
+was chosen over a Caddy-level HTTP Basic Auth alternative specifically
+because it's identity-based rather than a shared static password, requires
+no password rotation, and keeps the "Cloudflare absorbs it first" posture
+already established for the API consistent across every exposed surface —
+not just the origin's TLS/DDoS layer, but its internal tooling too. The
+original SSH-tunnel loopback port was deliberately left in place alongside
+the new public route, as a fallback if Cloudflare or DNS is ever unavailable.
+
+**Two properties of the prior hardening work paid off for free here, worth
+noting explicitly:** the existing `DOCKER-USER` iptables allow-list (Phase
+16) restricts ports 80/443 to Cloudflare's ranges *generally*, not per
+hostname — so the new subdomain was automatically covered with zero
+firewall changes. And the existing Cloudflare Origin Certificate had been
+issued for `*.showtimeflag.football` (a wildcard), not just the API's exact
+hostname — confirmed via `openssl x509 ... -text` before building anything,
+rather than assumed — so no new certificate needed to be issued either. Both
+are examples of a general pattern worth carrying forward: design the first
+instance of a piece of infrastructure (a cert, a firewall rule) to
+accommodate the *next* thing you'll plausibly add, not just the one thing in
+front of you.
+
+**One easy mistake caught along the way:** a Cloudflare Access **policy**
+(the "who is allowed in" rule) was initially created on its own, via the
+standalone policy library, without being attached to the actual
+`logs.showtimeflag.football` **application**. A policy that exists but
+isn't attached to an application does nothing — Cloudflare's own UI surfaces
+this via a "Used by applications: --" field on the policy's detail page,
+which is the tell to check for after creating a policy this way.
+
 ---
 
 ## 3. Current Infrastructure
@@ -768,6 +834,19 @@ Two independent systems, covering two independent kinds of logs:
 | Disk space | `~/scripts/disk-check.sh` via cron, every 6h | Silent when healthy; emails past an 80% threshold. |
 | Backup health | `ERR` trap inside `~/scripts/pg-backup.sh` | Emails immediately on any backup failure. |
 | Alert delivery | `~/scripts/alert.sh` | Sends via the Resend API; used by both scripts above. |
+| Live log viewing | Dozzle, at a Cloudflare-Access-gated subdomain | On-demand, human-driven — not an alerting mechanism. Complements the automated alerts above rather than replacing them: alerts tell you *something* is wrong; Dozzle is where you go look at *what*. |
+
+**Dozzle** (`~/infra/dozzle/`) reads directly from the Docker socket
+(`/var/run/docker.sock:ro`) and serves a searchable, live-tailing log UI for
+every container, at `https://logs.<domain>` (proxied through Cloudflare,
+same as the API). It is gated by a **Cloudflare Access** application — an
+edge-level identity check (one-time email code) that runs *before* any
+request reaches the origin, rather than any authentication built into
+Dozzle or Caddy itself. A loopback-only port (`127.0.0.1:8888`) remains
+available as an SSH-tunnel fallback. Log history shown is bounded by the
+same Docker `daemon.json` caps described in 3.8 — Dozzle adds no retention
+of its own. See Journey Phase 18 for the full reasoning, including why this
+was chosen over a full Grafana+Loki stack at the current scale.
 
 ### 3.10 Scheduled jobs (cron)
 
@@ -833,6 +912,7 @@ immediate email alert.
 | `pg-backup.sh` retention (`RETENTION_DAYS`) | Local backup retention | Offsite retention is handled separately by an R2 lifecycle rule | `~/scripts/pg-backup.sh` | Change the local retention window; confirm disk space accommodates it | Longer retention costs local disk space, not R2 cost |
 | R2 lifecycle rule (30 days) | Offsite backup retention | Avoids the backup script itself needing delete permission | Cloudflare R2 dashboard → bucket → Settings → Object lifecycle rules | Adjust the day count in the dashboard | Shorter windows reduce disaster-recovery lookback; the script's local copies are a separate, shorter-lived safety net |
 | `disk-check.sh` `THRESHOLD` | Disk-space alert trigger | 80% chosen as an actionable-but-not-too-late warning point | `~/scripts/disk-check.sh` | Adjust the percentage | Too high risks missing the warning window; too low creates alert fatigue |
+| Cloudflare Access "Only me" policy | Gates `logs.<domain>` (and any future internal tool) to one email identity | Provides real auth for internal tools without adding a password to manage or any auth code to the tools themselves | Cloudflare dashboard → Zero Trust → Access → Applications/Policies | Attach the same reusable policy to any new self-hosted application rather than creating a duplicate; add more emails to the policy for more trusted operators | A policy edited or removed here takes effect immediately for every application it's attached to — check "Used by applications" before editing |
 
 ---
 
@@ -1146,10 +1226,19 @@ Open items, deliberately deferred rather than forgotten:
   affect others.** Currently deliberately shared for efficiency at this
   scale; the migration path (dump/restore into a dedicated instance) is
   straightforward if warranted later.
-- **Observability beyond uptime/disk/backup alerts.** No centralized log
-  aggregation, request tracing, or metrics dashboard yet — deferred as a
-  "later" item from the start of this project, appropriate for the current
-  scale but worth revisiting if traffic or team size grows.
+- **Grafana + Loki for real log aggregation.** Dozzle (Phase 18) covers live
+  viewing but not long history, cross-time search, or alerting on log
+  patterns. The concrete trigger to revisit this: wanting to search *across
+  time* rather than just watch live, or wanting to alert on a log pattern
+  (e.g. "page me if 5xx rate spikes") rather than a fixed threshold like
+  disk usage. Adding it later is additive — 2 more containers (Loki +
+  Grafana, using Docker's native Loki logging driver) on the existing `web`
+  network, gated by the same Cloudflare Access policy already built for
+  Dozzle.
+- **Request tracing / metrics dashboard.** No distributed tracing or a
+  Prometheus-style metrics layer yet — deferred as a "later" item from the
+  start of this project, appropriate for the current scale but worth
+  revisiting if traffic or team size grows.
 - **Consider PgBouncer** if/when `max_connections=100` becomes a real
   constraint under load, rather than raising it directly (which increases
   per-connection overhead linearly).

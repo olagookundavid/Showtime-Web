@@ -246,6 +246,32 @@ routine noise.
 - Disk-space and other resource-exhaustion alerts should fire with enough
   lead time to act (e.g., at 70-80% usage), not only once the resource is
   already exhausted.
+- **Match the log-visibility tool to the actual question being asked, not
+  to what a larger team's stack looks like.** "Let me see what's happening
+  right now, across every service, in a browser" is answered by a
+  lightweight, stateless, zero-configuration log *viewer* reading directly
+  from the container runtime's own logs — no shipping pipeline, no
+  aggregation database, no retention policy to design, because it doesn't
+  hold its own data at all. "Let me search across weeks of history" or
+  "alert me on a pattern in the logs" is a categorically different need,
+  answered by a real aggregation stack (a log database plus a
+  visualization layer) — genuinely more capability, at the real cost of
+  more moving parts, a log-shipping pipeline, and ongoing retention/label
+  configuration to maintain. Don't adopt the second tier until you actually
+  have the first tier's need (see §5 for the scaling trigger).
+- **Internal admin tools (log viewers, dashboards, anything not meant for
+  the public) need their own authentication story — decide it deliberately,
+  don't default to "reachable only by whoever finds the URL."** Two
+  reasonable patterns: gate it at the reverse proxy with HTTP Basic Auth
+  (simplest, no external dependency, but a static shared password with no
+  per-identity revocation), or — if a CDN/proxy already sits in front of
+  the deployment — an edge-level access-control product tied to real
+  identities (e.g. email-based one-time codes), which intercepts the
+  request *before it ever reaches the origin* and avoids managing a
+  password at all. The latter is usually the better trade when it's already
+  available for free at your scale, and it composes: once set up once, the
+  same identity policy can gate every subsequent internal tool with no new
+  auth code anywhere.
 
 ### 2.10 Backup and disaster-recovery philosophy
 
@@ -430,6 +456,13 @@ Treat each of these as a **trigger to reconsider**, not a fixed timeline:
   number of signals worth tracking outgrows a handful of threshold-based
   email alerts, or when correlating multiple signals during an incident
   becomes valuable (centralized logs, tracing, dashboards).
+- **Lightweight log viewer → real log aggregation:** when "watch it live in
+  a browser" stops being enough and you actually need to search *across
+  time* (last week's incident, not just right now) or alert on a pattern
+  within the logs themselves, rather than a simple external threshold. This
+  is a good example of a low-risk, additive upgrade — the viewer tier
+  requires no migration away from, since it reads the same underlying logs
+  the aggregation stack would also ingest.
 - **Best-effort backup retention → immutable/WORM backups:** once the data
   being protected justifies stronger guarantees than "the current credential
   happens to lack delete permission."
