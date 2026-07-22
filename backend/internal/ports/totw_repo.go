@@ -40,10 +40,10 @@ func (r *PostgresTOTWRepository) Delete(ctx context.Context, id string) error {
 
 func (r *PostgresTOTWRepository) GetByFilter(ctx context.Context, competitionID string, eventDay string) ([]domain.TOTWEntry, error) {
 	query := `
-		SELECT 
+		SELECT
 			totw.id, totw.competition_id, totw.event_day_date, totw.player_id, totw.position_group, totw.created_at,
-			p.name AS player_name, p.image AS player_image, p.jersey_number AS player_jersey_number, p.position AS player_position,
-			t.id AS team_id, t.name AS team_name, t.short_name AS team_short_name, t.logo AS team_logo
+			p.name AS player_name, COALESCE(p.image, '') AS player_image, p.jersey_number AS player_jersey_number, COALESCE(p.position, '') AS player_position,
+			t.id AS team_id, t.name AS team_name, COALESCE(t.short_name, '') AS team_short_name, COALESCE(t.logo, '') AS team_logo
 		FROM team_of_the_week totw
 		JOIN players p ON totw.player_id = p.id
 		JOIN teams t ON p.team_id = t.id
