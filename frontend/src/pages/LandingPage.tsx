@@ -8,7 +8,9 @@ import { useQuery } from '@tanstack/react-query';
 import { getNews } from '../services/api';
 import { Loader } from '../components/ui/Loader';
 import { ArrowRightIcon } from '@heroicons/react/24/outline';
-import { TOTWWidget } from '../components/widgets/TOTWWidget';
+// Team of the Week disabled for now (likely becoming a static image like
+// Team of the Season) — no TOTW API calls should fire until that's decided.
+// import { TOTWWidget } from '../components/widgets/TOTWWidget';
 import { LightboxImage } from '../components/ui/LightboxImage';
 
 export const LandingPage = () => {
@@ -101,11 +103,11 @@ export const LandingPage = () => {
                 )}
             </section>
 
-            {/* TOTW + Commissioner's Note Section */}
-            <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-2 md:px-0">
-                {/* Team of the Week Widget */}
-                <TOTWWidget />
-
+            {/* Commissioner's Note — was a 2-col grid with the Team of the Week
+                widget; TOTW is disabled for now (see import above), so this
+                goes full-width (capped) until TOTW is re-decided. */}
+            <section className="px-2 md:px-0">
+                <div className="max-w-2xl mx-auto">
                 {/* Commissioner's Note */}
                 <div className="bg-sffl-navy dark:bg-gray-800 text-white p-6 md:p-8 rounded-2xl shadow-xl border border-transparent dark:border-gray-700 flex flex-col h-full relative overflow-hidden group min-h-[320px]">
                     {/* Commissioner background image */}
@@ -150,6 +152,7 @@ export const LandingPage = () => {
                             <p className="text-gray-300 dark:text-gray-400 italic font-medium">No commissioner's note at this time.</p>
                         </div>
                     )}
+                </div>
                 </div>
             </section>
 

@@ -64,7 +64,7 @@ export const AdminLayout = () => {
         { name: 'Competitions', path: '/admin/competitions', icon: TrophyIcon },
         { name: 'Players', path: '/admin/players', icon: UserGroupIcon },
         { name: 'Stats', path: '/admin/stats', icon: ChartBarIcon },
-        { name: 'Team of the Week', path: '/admin/totw', icon: TrophyIcon },
+        // { name: 'Team of the Week', path: '/admin/totw', icon: TrophyIcon }, // disabled — see App.tsx
         { name: 'Team of the Season', path: '/admin/season', icon: TrophyIcon },
         { name: 'Standings', path: '/admin/standings', icon: TrophyIcon },
         { name: 'Tickets', path: '/admin/tickets', icon: TicketIcon },
