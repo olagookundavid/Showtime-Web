@@ -1763,6 +1763,7 @@ export interface GamePlay {
     defender_id?: string;
     rusher_id?: string;
     dropped: boolean;
+    batted_down: boolean;
     returned_for_td: boolean;
     penalty?: string;
     penalty_team_id?: string;
@@ -1797,6 +1798,7 @@ export interface PlayPayload {
     defender_id?: string;
     rusher_id?: string;
     dropped?: boolean;
+    batted_down?: boolean;
     returned_for_td?: boolean;
     penalty?: string;
     penalty_team_id?: string;

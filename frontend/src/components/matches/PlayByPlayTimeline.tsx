@@ -30,7 +30,12 @@ function describe(p: GamePlay): string {
     if (p.yards != null && (p.play_type === 'CP' || p.play_type === 'SCR' || p.play_type === 'TDP' || p.play_type === 'RUN' || p.play_type === 'QBR' || p.play_type === 'SWP' || p.play_type === 'REV' || p.play_type === 'SACK')) {
         parts.push(`${p.yards >= 0 ? '+' : ''}${p.yards} yd`);
     }
-    if (p.defender) parts.push(`(${who(p.defender)})`);
+    if (p.batted_down) {
+        const batter = p.rusher || p.defender;
+        parts.push(`— batted down${batter ? ` by ${who(batter)}` : ''}`);
+    } else if (p.defender) {
+        parts.push(`(${who(p.defender)})`);
+    }
     return parts.join(' ');
 }
 

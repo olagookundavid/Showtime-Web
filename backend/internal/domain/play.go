@@ -30,6 +30,7 @@ type GamePlay struct {
 	DefenderID    *string `json:"defender_id,omitempty"`
 	RusherID      *string `json:"rusher_id,omitempty"`
 	Dropped       bool    `json:"dropped"`
+	BattedDown    bool    `json:"batted_down"`
 	ReturnedForTD bool    `json:"returned_for_td"`
 
 	// Penalty.

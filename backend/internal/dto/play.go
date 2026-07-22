@@ -22,6 +22,7 @@ type PlayRequest struct {
 	DefenderID    *string `json:"defender_id"`
 	RusherID      *string `json:"rusher_id"`
 	Dropped       *bool   `json:"dropped"`
+	BattedDown    *bool   `json:"batted_down"`
 	ReturnedForTD *bool   `json:"returned_for_td"`
 
 	Penalty         *string `json:"penalty"`

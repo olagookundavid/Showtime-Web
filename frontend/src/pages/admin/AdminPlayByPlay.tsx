@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
@@ -19,6 +19,7 @@ import {
     type GamePlay,
     type PlayPayload,
     type GameRulesPayload,
+    type TeamStat,
 } from '../../services/api';
 import { StatsTable } from '../../components/stats/StatsTable';
 import { useAuth } from '../../contexts/AuthContext';
@@ -63,6 +64,7 @@ interface Wizard {
     yards: string;
     result: string;
     dropped: boolean;
+    battedDown: boolean;
     returnedForTd: boolean;
     safety: boolean;
     // penalty (attached or standalone)
@@ -86,6 +88,7 @@ const emptyWizard: Wizard = {
     yards: '',
     result: '',
     dropped: false,
+    battedDown: false,
     returnedForTd: false,
     safety: false,
     penaltyOn: false,
@@ -357,8 +360,8 @@ export const AdminPlayByPlay = () => {
         if (w.editingId) return;
         if (plays.length === 0) return;
         const last = plays[plays.length - 1];
-        const offense: Side = last.offense_team_id === match?.home_team.id ? 'home'
-            : last.offense_team_id === match?.away_team.id ? 'away' : '';
+        const offense: Side = last.offense_team_id === match?.home_team?.id ? 'home'
+            : last.offense_team_id === match?.away_team?.id ? 'away' : '';
         setCtx(c => ({
             ...c,
             quarter: last.quarter ?? c.quarter,
@@ -373,7 +376,7 @@ export const AdminPlayByPlay = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [plays, matchId]);
 
-    const offenseTeamId = ctx.offense === 'home' ? match?.home_team.id : ctx.offense === 'away' ? match?.away_team.id : undefined;
+    const offenseTeamId = ctx.offense === 'home' ? match?.home_team?.id : ctx.offense === 'away' ? match?.away_team?.id : undefined;
 
     const resetWizard = () => setW(emptyWizard);
 
@@ -418,6 +421,7 @@ export const AdminPlayByPlay = () => {
                         base.target_id = w.targetId || undefined;
                         base.result = 'INC';
                         base.dropped = w.dropped;
+                        base.batted_down = w.battedDown;
                         if (w.defenderId) base.defender_id = w.defenderId;
                         break;
                     case 'int':
@@ -477,7 +481,7 @@ export const AdminPlayByPlay = () => {
                 if (!w.penaltyCode) return { payload: null, error: 'Pick the penalty.' };
                 base.result = 'DB';
                 base.penalty = w.penaltyCode;
-                base.penalty_team_id = w.penaltyTeam === 'home' ? match?.home_team.id : match?.away_team.id;
+                base.penalty_team_id = w.penaltyTeam === 'home' ? match?.home_team?.id : match?.away_team?.id;
                 base.penalty_player_id = w.penaltyPlayerId || undefined;
                 base.penalty_yards = toIntOrNull(w.penaltyYards);
                 return { payload: base };
@@ -494,7 +498,7 @@ export const AdminPlayByPlay = () => {
         // Optional penalty attached to a play above.
         if (w.penaltyOn && w.penaltyCode) {
             base.penalty = w.penaltyCode;
-            base.penalty_team_id = w.penaltyTeam === 'home' ? match?.home_team.id : w.penaltyTeam === 'away' ? match?.away_team.id : undefined;
+            base.penalty_team_id = w.penaltyTeam === 'home' ? match?.home_team?.id : w.penaltyTeam === 'away' ? match?.away_team?.id : undefined;
             base.penalty_player_id = w.penaltyPlayerId || undefined;
             base.penalty_yards = toIntOrNull(w.penaltyYards);
         }
@@ -557,8 +561,8 @@ export const AdminPlayByPlay = () => {
 
     // Load an existing play back into the context + wizard for editing.
     const startEdit = (p: GamePlay) => {
-        const offense: Side = p.offense_team_id === match?.home_team.id ? 'home'
-            : p.offense_team_id === match?.away_team.id ? 'away' : '';
+        const offense: Side = p.offense_team_id === match?.home_team?.id ? 'home'
+            : p.offense_team_id === match?.away_team?.id ? 'away' : '';
         setCtx(c => ({
             ...c,
             quarter: p.quarter ?? 1,
@@ -581,7 +585,7 @@ export const AdminPlayByPlay = () => {
             nw.defenderId = p.defender?.id || '';
             nw.rusherId = p.rusher?.id || '';
             nw.yards = p.yards != null ? String(p.yards) : '';
-            nw.dropped = p.dropped; nw.returnedForTd = p.returned_for_td;
+            nw.dropped = p.dropped; nw.battedDown = p.batted_down; nw.returnedForTd = p.returned_for_td;
             if (pt === 'TDP') nw.passOutcome = 'td';
             else if (pt === 'INT') nw.passOutcome = 'int';
             else if (pt === 'SACK') { nw.passOutcome = 'sack'; nw.safety = p.result === 'SAF'; }
@@ -605,7 +609,7 @@ export const AdminPlayByPlay = () => {
             nw.kind = 'special'; nw.specialType = pt;
         } else if (p.penalty && !pt) {
             nw.kind = 'penalty'; nw.penaltyCode = p.penalty;
-            nw.penaltyTeam = p.penalty_team_id === match?.home_team.id ? 'home' : p.penalty_team_id === match?.away_team.id ? 'away' : '';
+            nw.penaltyTeam = p.penalty_team_id === match?.home_team?.id ? 'home' : p.penalty_team_id === match?.away_team?.id ? 'away' : '';
             nw.penaltyPlayerId = p.penalty_player?.id || '';
             nw.penaltyYards = p.penalty_yards != null ? String(p.penalty_yards) : '';
         } else if (['IH', 'EH', 'EG'].includes(p.result || '')) {
@@ -615,7 +619,7 @@ export const AdminPlayByPlay = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    const teamName = (side: Side) => side === 'home' ? match?.home_team.short_name || match?.home_team.name : side === 'away' ? match?.away_team.short_name || match?.away_team.name : '';
+    const teamName = (side: Side) => side === 'home' ? match?.home_team?.short_name || match?.home_team?.name : side === 'away' ? match?.away_team?.short_name || match?.away_team?.name : '';
 
     return (
         <div className="space-y-6 max-w-5xl">
@@ -665,8 +669,8 @@ export const AdminPlayByPlay = () => {
                                 <span className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Ball with</span>
                                 <select value={ctx.offense} onChange={e => setCtx({ ...ctx, offense: e.target.value as Side })} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 font-bold text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                                     <option value="">—</option>
-                                    <option value="home">{match?.home_team.short_name || match?.home_team.name}</option>
-                                    <option value="away">{match?.away_team.short_name || match?.away_team.name}</option>
+                                    <option value="home">{match?.home_team?.short_name || match?.home_team?.name || 'Home'}</option>
+                                    <option value="away">{match?.away_team?.short_name || match?.away_team?.name || 'Away'}</option>
                                 </select>
                             </label>
                             <label className="flex flex-col gap-1">
@@ -688,11 +692,11 @@ export const AdminPlayByPlay = () => {
                         </div>
                         <div className="grid grid-cols-2 gap-3 mt-3 max-w-xs">
                             <label className="flex flex-col gap-1">
-                                <span className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">{match?.home_team.short_name || 'Home'} score</span>
+                                <span className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">{match?.home_team?.short_name || 'Home'} score</span>
                                 <input type="number" value={ctx.homeScore} onChange={e => setCtx({ ...ctx, homeScore: e.target.value })} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 font-bold text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
                             </label>
                             <label className="flex flex-col gap-1">
-                                <span className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">{match?.away_team.short_name || 'Away'} score</span>
+                                <span className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">{match?.away_team?.short_name || 'Away'} score</span>
                                 <input type="number" value={ctx.awayScore} onChange={e => setCtx({ ...ctx, awayScore: e.target.value })} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 font-bold text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
                             </label>
                         </div>
@@ -792,9 +796,28 @@ export const AdminPlayByPlay = () => {
                                 )}
 
                                 {w.passOutcome === 'incomplete' && (
-                                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
-                                        <input type="checkbox" checked={w.dropped} onChange={e => setField('dropped', e.target.checked)} /> Dropped by receiver
-                                    </label>
+                                    <div className="space-y-2">
+                                        <div className="text-xs font-bold text-gray-600 dark:text-gray-300">Why was it incomplete? (optional)</div>
+                                        <div className="flex flex-wrap gap-2">
+                                            <button
+                                                type="button"
+                                                className={chip(w.dropped)}
+                                                onClick={() => setField('dropped', !w.dropped)}
+                                            >
+                                                🙈 Dropped
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className={chip(w.battedDown)}
+                                                onClick={() => setField('battedDown', !w.battedDown)}
+                                            >
+                                                🛡️ Batted Down
+                                            </button>
+                                        </div>
+                                        {w.battedDown && (
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">Name who batted it below (Rusher/Blitzer or Coverage Defender) — that's who gets credited with the deflection.</p>
+                                        )}
+                                    </div>
                                 )}
 
                                 {w.passOutcome === 'int' && (
@@ -898,8 +921,8 @@ export const AdminPlayByPlay = () => {
                         <Section active title="Penalty">
                             <div className="space-y-3">
                                 <div className="flex gap-2">
-                                    <button className={chip(w.penaltyTeam === 'home')} onClick={() => setField('penaltyTeam', 'home')}>{match?.home_team.short_name || 'Home'}</button>
-                                    <button className={chip(w.penaltyTeam === 'away')} onClick={() => setField('penaltyTeam', 'away')}>{match?.away_team.short_name || 'Away'}</button>
+                                    <button className={chip(w.penaltyTeam === 'home')} onClick={() => setField('penaltyTeam', 'home')}>{match?.home_team?.short_name || 'Home'}</button>
+                                    <button className={chip(w.penaltyTeam === 'away')} onClick={() => setField('penaltyTeam', 'away')}>{match?.away_team?.short_name || 'Away'}</button>
                                 </div>
                                 <select value={w.penaltyCode} onChange={e => setField('penaltyCode', e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                                     <option value="">Select penalty…</option>
@@ -934,8 +957,8 @@ export const AdminPlayByPlay = () => {
                             {w.penaltyOn && (
                                 <div className="space-y-3 mt-3">
                                     <div className="flex gap-2">
-                                        <button className={chip(w.penaltyTeam === 'home')} onClick={() => setField('penaltyTeam', 'home')}>{match?.home_team.short_name || 'Home'}</button>
-                                        <button className={chip(w.penaltyTeam === 'away')} onClick={() => setField('penaltyTeam', 'away')}>{match?.away_team.short_name || 'Away'}</button>
+                                        <button className={chip(w.penaltyTeam === 'home')} onClick={() => setField('penaltyTeam', 'home')}>{match?.home_team?.short_name || 'Home'}</button>
+                                        <button className={chip(w.penaltyTeam === 'away')} onClick={() => setField('penaltyTeam', 'away')}>{match?.away_team?.short_name || 'Away'}</button>
                                     </div>
                                     <select value={w.penaltyCode} onChange={e => setField('penaltyCode', e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                                         <option value="">Select penalty…</option>
@@ -1001,6 +1024,7 @@ const PlayRow = ({ play, onEdit, onDelete }: { play: GamePlay; onEdit: () => voi
     if (play.off_qb) bits.push(who(play.off_qb));
     if (play.target) bits.push(`→ ${who(play.target)}`);
     if (play.yards != null) bits.push(`${play.yards >= 0 ? '+' : ''}${play.yards} yd`);
+    if (play.batted_down) bits.push('🛡️ batted down');
     if (play.rusher) bits.push(`(rush ${who(play.rusher)})`);
     if (play.defender) bits.push(`(def ${who(play.defender)})`);
     if (play.penalty) bits.push(`⚑ ${play.penalty}${play.penalty_player ? ' ' + who(play.penalty_player) : ''}`);
@@ -1155,7 +1179,7 @@ const ScoreTools = ({ matchId, competitionId, match, plays = [] }: ScoreToolsPro
                     </div>
                     <div className="flex items-center justify-between mt-2">
                         <span className="text-xs font-bold text-gray-700 dark:text-gray-200">
-                            {match?.home_team.short_name || 'Home'} vs {match?.away_team.short_name || 'Away'}
+                            {match?.home_team?.short_name || match?.home_team?.name || 'Home'} vs {match?.away_team?.short_name || match?.away_team?.name || 'Away'}
                         </span>
                         <span className="text-xl font-black font-mono text-sffl-navy dark:text-white">
                             {storedHome} – {storedAway}
@@ -1229,6 +1253,8 @@ const StatsCompare = ({ matchId }: { matchId: string }) => {
     const isAppAdmin = user?.role === 'app_admin';
     const [open, setOpen] = useState(false);
     const [committing, setCommitting] = useState(false);
+    const [activeTab, setActiveTab] = useState<'players' | 'teams'>('players');
+    const [selectedTeamId, setSelectedTeamId] = useState<string>('all');
 
     const { data, isFetching } = useQuery({
         queryKey: ['pbpCompare', matchId],
@@ -1237,6 +1263,81 @@ const StatsCompare = ({ matchId }: { matchId: string }) => {
     });
 
     const derived = data?.derived || [];
+
+    // Extract unique teams involved in this match from derived player stats
+    const teamsList = useMemo(() => {
+        const map: Record<string, { id: string; name: string; shortName: string }> = {};
+        derived.forEach(p => {
+            if (p.team_id && !map[p.team_id]) {
+                map[p.team_id] = {
+                    id: p.team_id,
+                    name: p.team_name || 'Team',
+                    shortName: p.team_short_name || p.team_name || 'Team',
+                };
+            }
+        });
+        return Object.values(map);
+    }, [derived]);
+
+    // Derived team stats aggregated from derived player stats
+    const derivedTeamStats: TeamStat[] = useMemo(() => {
+        const map: Record<string, TeamStat> = {};
+        derived.forEach(p => {
+            if (!p.team_id) return;
+            if (!map[p.team_id]) {
+                map[p.team_id] = {
+                    team_id: p.team_id,
+                    team_name: p.team_name || '',
+                    team_short_name: p.team_short_name || '',
+                    team_logo: p.team_logo || '',
+                    passing_attempts: 0,
+                    rushing_attempts: 0,
+                    completed_passes: 0,
+                    passing_tds: 0,
+                    rushing_tds: 0,
+                    interceptions_thrown: 0,
+                    receptions: 0,
+                    receiving_tds: 0,
+                    extra_points_tds: 0,
+                    drops: 0,
+                    flag_pulls: 0,
+                    pass_deflections: 0,
+                    interceptions: 0,
+                    defensive_tds: 0,
+                    safety: 0,
+                    qb_sacks: 0,
+                    def_sacks: 0,
+                    defensive_xp_tds: 0,
+                };
+            }
+            const t = map[p.team_id];
+            t.passing_attempts += p.passing_attempts || 0;
+            t.rushing_attempts += p.rushing_attempts || 0;
+            t.completed_passes += p.completed_passes || 0;
+            t.passing_tds += p.passing_tds || 0;
+            t.rushing_tds += p.rushing_tds || 0;
+            t.interceptions_thrown += p.interceptions_thrown || 0;
+            t.receptions += p.receptions || 0;
+            t.receiving_tds += p.receiving_tds || 0;
+            t.extra_points_tds += p.extra_points_tds || 0;
+            t.drops += p.drops || 0;
+            t.flag_pulls += p.flag_pulls || 0;
+            t.pass_deflections += p.pass_deflections || 0;
+            t.interceptions += p.interceptions || 0;
+            t.defensive_tds += p.defensive_tds || 0;
+            t.safety += p.safety || 0;
+            t.qb_sacks += p.qb_sacks || 0;
+            t.def_sacks += p.def_sacks || 0;
+            t.defensive_xp_tds += p.defensive_xp_tds || 0;
+        });
+        return Object.values(map);
+    }, [derived]);
+
+    // Filter player stats by team selection
+    const filteredPlayerStats = useMemo(() => {
+        if (selectedTeamId === 'all') return derived;
+        return derived.filter(p => p.team_id === selectedTeamId);
+    }, [derived, selectedTeamId]);
 
     const commit = async () => {
         if (!isAppAdmin) {
@@ -1270,14 +1371,65 @@ const StatsCompare = ({ matchId }: { matchId: string }) => {
             </div>
 
             {open && (
-                <div className="mt-4">
+                <div className="mt-4 space-y-4">
                     {isFetching ? (
                         <p className="text-sm text-gray-500">Computing…</p>
                     ) : derived.length === 0 ? (
                         <p className="text-sm text-gray-500">No player stats derived yet — log some plays with players first.</p>
                     ) : (
                         <>
-                            <StatsTable type="players" playerStats={derived} />
+                            {/* Tabs & Team Filter Bar */}
+                            <div className="flex items-center justify-between gap-3 flex-wrap bg-gray-50 dark:bg-gray-800/60 p-2.5 rounded-xl border border-gray-200 dark:border-gray-700">
+                                {/* Player vs Team Tabs */}
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTab('players')}
+                                        className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-colors ${activeTab === 'players' ? 'bg-sffl-navy text-white shadow-sm' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100'}`}
+                                    >
+                                        🏃 Player Stats ({derived.length})
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTab('teams')}
+                                        className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-colors ${activeTab === 'teams' ? 'bg-sffl-navy text-white shadow-sm' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100'}`}
+                                    >
+                                        🛡️ Team Stats ({derivedTeamStats.length})
+                                    </button>
+                                </div>
+
+                                {/* Team Filter Pills (Player Stats view only) */}
+                                {activeTab === 'players' && teamsList.length > 0 && (
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="text-[11px] font-bold text-gray-400 mr-1">Filter Team:</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedTeamId('all')}
+                                            className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${selectedTeamId === 'all' ? 'bg-sffl-red text-white' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100'}`}
+                                        >
+                                            All Teams
+                                        </button>
+                                        {teamsList.map(t => (
+                                            <button
+                                                key={t.id}
+                                                type="button"
+                                                onClick={() => setSelectedTeamId(t.id)}
+                                                className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${selectedTeamId === t.id ? 'bg-sffl-red text-white' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100'}`}
+                                            >
+                                                {t.shortName}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Render Stats Table */}
+                            {activeTab === 'players' ? (
+                                <StatsTable type="players" playerStats={filteredPlayerStats} />
+                            ) : (
+                                <StatsTable type="teams" teamStats={derivedTeamStats} />
+                            )}
+
                             <button
                                 onClick={commit}
                                 disabled={!isAppAdmin || committing}

@@ -155,6 +155,7 @@ func requestToPlay(matchID string, req dto.PlayRequest) *domain.GamePlay {
 		DefenderID:      blankToNil(req.DefenderID),
 		RusherID:        blankToNil(req.RusherID),
 		Dropped:         req.Dropped != nil && *req.Dropped,
+		BattedDown:      req.BattedDown != nil && *req.BattedDown,
 		ReturnedForTD:   req.ReturnedForTD != nil && *req.ReturnedForTD,
 		Penalty:         blankToNil(req.Penalty),
 		PenaltyTeamID:   blankToNil(req.PenaltyTeamID),

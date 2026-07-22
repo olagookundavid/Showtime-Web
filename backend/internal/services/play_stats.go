@@ -140,10 +140,15 @@ func (s *PlayService) DeriveMatchStats(ctx context.Context, matchID string) ([]d
 					if p.Dropped && target != nil {
 						target.Drops++
 					}
-					if rush != nil {
-						rush.PassDeflections++
-					} else if def != nil {
-						def.PassDeflections++
+					// Only credit a Pass Deflection when the admin explicitly
+					// marked the pass as batted down — naming a defender alone
+					// no longer implies it (they may have just been in coverage).
+					if p.BattedDown {
+						if rush != nil {
+							rush.PassDeflections++
+						} else if def != nil {
+							def.PassDeflections++
+						}
 					}
 				} else {
 					if qb != nil {
