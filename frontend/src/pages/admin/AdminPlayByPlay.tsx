@@ -804,14 +804,14 @@ export const AdminPlayByPlay = () => {
                                                 className={chip(w.dropped)}
                                                 onClick={() => setField('dropped', !w.dropped)}
                                             >
-                                                🙈 Dropped
+                                                Dropped
                                             </button>
                                             <button
                                                 type="button"
                                                 className={chip(w.battedDown)}
                                                 onClick={() => setField('battedDown', !w.battedDown)}
                                             >
-                                                🛡️ Batted Down
+                                                Batted Down
                                             </button>
                                         </div>
                                         {w.battedDown && (
@@ -1024,7 +1024,7 @@ const PlayRow = ({ play, onEdit, onDelete }: { play: GamePlay; onEdit: () => voi
     if (play.off_qb) bits.push(who(play.off_qb));
     if (play.target) bits.push(`→ ${who(play.target)}`);
     if (play.yards != null) bits.push(`${play.yards >= 0 ? '+' : ''}${play.yards} yd`);
-    if (play.batted_down) bits.push('🛡️ batted down');
+    if (play.batted_down) bits.push('batted down');
     if (play.rusher) bits.push(`(rush ${who(play.rusher)})`);
     if (play.defender) bits.push(`(def ${who(play.defender)})`);
     if (play.penalty) bits.push(`⚑ ${play.penalty}${play.penalty_player ? ' ' + who(play.penalty_player) : ''}`);
