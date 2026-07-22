@@ -90,17 +90,17 @@ export const AdminStats = () => {
 
     // Auto-select Home Team when Match loads
     useEffect(() => {
-        if (activeMatch && (!selectedTeamId || (selectedTeamId !== activeMatch.home_team.id && selectedTeamId !== activeMatch.away_team.id))) {
+        if (activeMatch && activeMatch.home_team && (!selectedTeamId || (selectedTeamId !== activeMatch.home_team?.id && selectedTeamId !== activeMatch.away_team?.id))) {
             setSelectedTeamId(activeMatch.home_team.id);
         }
     }, [activeMatch, selectedTeamId]);
 
     let players: TeamSheetPlayer[] = [];
     if (teamSheetData && activeMatch) {
-        if (selectedTeamId === activeMatch.home_team.id) {
-            players = teamSheetData.home_team;
-        } else if (selectedTeamId === activeMatch.away_team.id) {
-            players = teamSheetData.away_team;
+        if (selectedTeamId === activeMatch.home_team?.id) {
+            players = teamSheetData.home_team || [];
+        } else if (selectedTeamId === activeMatch.away_team?.id) {
+            players = teamSheetData.away_team || [];
         }
     }
 
@@ -241,7 +241,7 @@ export const AdminStats = () => {
                         {matches.length === 0 && <option value="">No matches found</option>}
                         {matches.map(m => (
                             <option key={m.id} value={m.id}>
-                                {m.date.split('T')[0]} : {m.home_team.short_name?.toUpperCase()} vs {m.away_team.short_name?.toUpperCase()}
+                                {m.date.split('T')[0]} : {(m.home_team?.short_name || m.home_team?.name || 'Home').toUpperCase()} vs {(m.away_team?.short_name || m.away_team?.name || 'Away').toUpperCase()}
                             </option>
                         ))}
                     </select>
@@ -254,7 +254,7 @@ export const AdminStats = () => {
                         className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                         disabled={!activeMatch}
                     >
-                        {activeMatch ? (
+                        {activeMatch && activeMatch.home_team && activeMatch.away_team ? (
                             <>
                                 <option value={activeMatch.home_team.id}>{activeMatch.home_team.name}</option>
                                 <option value={activeMatch.away_team.id}>{activeMatch.away_team.name}</option>

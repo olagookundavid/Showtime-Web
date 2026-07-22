@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { PlayerStat, TeamStat } from '../../services/api';
 import { Link } from 'react-router-dom';
 import { LightboxImage, Spinner } from '../ui';
@@ -298,7 +299,7 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                 z-50 nav and the z-40 mobile menu (they don't co-occur with
                 this view). Background is opaque so body rows scrolling
                 underneath don't bleed through. */}
-            {floatHead.visible && (
+            {floatHead.visible && createPortal(
                 <div
                     className="fixed z-40 shadow-md bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
                     style={{ top: floatHead.top, left: floatHead.left, width: floatHead.width }}
@@ -309,7 +310,8 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                             {theadEl}
                         </table>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </>
     );

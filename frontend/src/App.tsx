@@ -86,6 +86,7 @@ const TeamTickets = lazy(() => import('./pages/team-head/TeamTickets'));
 const SellerLayout = lazy(() => import('./pages/seller/SellerLayout').then(m => ({ default: m.SellerLayout })));
 const SellerPortal = lazy(() => import('./pages/seller/SellerPortal').then(m => ({ default: m.SellerPortal })));
 
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { Toaster } from 'react-hot-toast';
 import { FloatingThemeToggle } from './components/common/FloatingThemeToggle';
 import { AdSenseScript } from './components/monetization';
@@ -101,8 +102,9 @@ function App() {
         <BrowserRouter>
           <ScrollToTop />
           <AdSenseScript />
-          <Suspense fallback={<Loader />}>
-            <Routes>
+          <ErrorBoundary>
+            <Suspense fallback={<Loader />}>
+              <Routes>
             {/* Public Routes with Layout */}
             <Route element={<Layout />}>
               <Route path="/" element={<LandingPage />} />
@@ -211,6 +213,7 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           </Suspense>
+          </ErrorBoundary>
         </BrowserRouter>
         </CartProvider>
       </AuthProvider>
