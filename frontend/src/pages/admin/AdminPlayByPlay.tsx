@@ -13,6 +13,7 @@ import {
     getGameRules,
     upsertGameRules,
     recomputeScore,
+    commitScore,
     type Match,
     type TeamSheetPlayer,
     type GamePlay,
@@ -20,6 +21,7 @@ import {
     type GameRulesPayload,
 } from '../../services/api';
 import { StatsTable } from '../../components/stats/StatsTable';
+import { useAuth } from '../../contexts/AuthContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -967,7 +969,7 @@ export const AdminPlayByPlay = () => {
                     )}
 
                     {/* Step 3 — scoring engine tools */}
-                    <ScoreTools matchId={matchId} competitionId={match?.competition?.id || ''} match={match?.match} plays={plays} />
+                    <ScoreTools matchId={matchId} competitionId={match?.competition?.id || ''} match={match} plays={plays} />
 
                     {/* Logged plays */}
                     <div>
@@ -1037,7 +1039,7 @@ const RULE_FIELDS: { key: keyof GameRulesPayload; label: string }[] = [
 interface ScoreToolsProps {
     matchId: string;
     competitionId: string;
-    match?: MatchDetail['match'];
+    match?: Match;
     plays?: GamePlay[];
 }
 
