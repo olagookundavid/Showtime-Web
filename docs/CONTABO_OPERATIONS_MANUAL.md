@@ -684,6 +684,59 @@ isn't attached to an application does nothing — Cloudflare's own UI surfaces
 this via a "Used by applications: --" field on the policy's detail page,
 which is the tell to check for after creating a policy this way.
 
+### Phase 19 — Closing the "invalid deploy takes down the backend" gap
+
+Two independent gaps were identified in the deploy pipeline, neither of which
+had caused a real incident yet, but both of which were live risks given a
+directly relevant near-miss earlier in this project (the `uuid-ossp`
+migration failure in Phase 9, which crashed the container on boot and was
+only caught by watching logs manually in real time).
+
+**Gap 1 — the test workflow and the deploy workflow never actually gated
+each other.** `ci.yml` ran `go vet`/`go test` as a separate, independent
+workflow; `deploy-backend.yml`'s image build only ran `go build` (via the
+Dockerfile). Code that compiled but failed a test or vet check would show
+red in `ci.yml` while `deploy-backend.yml` deployed it anyway — the two
+workflows shared no dependency. The fix: a `test` job was added directly
+inside `deploy-backend.yml` itself (rather than trying to make one workflow
+depend on a separate workflow's run, which GitHub Actions supports but only
+awkwardly, via `workflow_run` events), with `build-and-push` requiring
+`needs: test`. This makes the deploy pipeline fully self-contained: a test
+or vet failure now stops the pipeline before an image is ever built, with no
+dependency on `ci.yml` having run at all.
+
+**Gap 2 — a container that starts but then crashes was being treated as a
+successful deploy.** The original `deploy.sh` was `pull && up -d && prune`,
+with no verification that the new container was actually working — Docker
+reporting a container as "Started" says nothing about whether its process
+then immediately crash-loops. Worse, the unconditional `prune` step deleted
+the previous, known-good image immediately, removing the fastest rollback
+option at exactly the moment it might be needed. The fix: the script now
+captures the currently-running image's ID *before* pulling anything new,
+then polls Docker's own built-in `HEALTHCHECK` status (already defined in
+the Dockerfile, previously unused by the deploy script) for up to ~100
+seconds after starting the new container. Only a `healthy` status triggers
+the prune step, finalizing the deploy. Any other outcome — `unhealthy`, or
+never leaving `starting` within the timeout — triggers an immediate email
+alert and an **automatic rollback**: the script re-tags the previously
+captured image ID back onto the `:latest` tag and restarts the container
+with it, then exits non-zero so the CI `deploy` job visibly shows red.
+
+**A deliberate implementation detail:** the script's `set -euo pipefail`
+was changed to `set -uo pipefail` — `-e` (exit immediately on any failing
+command) was removed on purpose, because the script now contains
+*intentional* failure-handling branches (the health-poll loop, the rollback
+logic), and `-e` would abort the script the instant an inner command failed,
+before that deliberate recovery logic ever got to run. `-u` (undefined
+variables are errors) and `pipefail` were kept, since neither conflicts with
+the script's own explicit error handling.
+
+**Net effect:** an invalid backend change is now stopped at up to three
+independent points before it can affect production — failing tests/vet
+(before any image exists), a failing image build, or a failing health check
+after deployment (which self-heals via rollback rather than requiring a
+human to notice and intervene).
+
 ---
 
 ## 3. Current Infrastructure
@@ -879,10 +932,18 @@ was chosen over a full Grafana+Loki stack at the current scale.
 ### 3.12 Deployment workflow
 
 See §5.1 for the operational steps. In summary: `git push` to `main` on
-backend-relevant paths triggers a GitHub Actions build, which pushes a new
-image to `ghcr.io` and then, only on success, SSHes into the server (using
-the restricted deploy key) to run `~/scripts/deploy.sh`, which pulls the new
-image, recreates the container, and prunes old images.
+backend-relevant paths runs `go vet`/`go test` first; only if those pass does
+GitHub Actions build and push a new image to `ghcr.io`; only if *that*
+succeeds does it SSH into the server (using the restricted deploy key) to run
+`~/scripts/deploy.sh`. That script does not blindly trust the new container:
+it captures the currently-running image, pulls and starts the new one, then
+polls Docker's own `HEALTHCHECK` status for up to ~100 seconds. Only once the
+new container reports `healthy` does the script prune old images (finalizing
+the deploy). If it never becomes healthy — a crash, a bad migration, a bad
+env var — the script automatically re-tags and restarts the previously-running
+image, sends an alert, and exits non-zero (so the CI `deploy` job shows red).
+This closes the gap where a container that merely *starts* but then
+crash-loops would otherwise be silently accepted as "deployed."
 
 ### 3.13 Backups
 
@@ -913,6 +974,8 @@ immediate email alert.
 | R2 lifecycle rule (30 days) | Offsite backup retention | Avoids the backup script itself needing delete permission | Cloudflare R2 dashboard → bucket → Settings → Object lifecycle rules | Adjust the day count in the dashboard | Shorter windows reduce disaster-recovery lookback; the script's local copies are a separate, shorter-lived safety net |
 | `disk-check.sh` `THRESHOLD` | Disk-space alert trigger | 80% chosen as an actionable-but-not-too-late warning point | `~/scripts/disk-check.sh` | Adjust the percentage | Too high risks missing the warning window; too low creates alert fatigue |
 | Cloudflare Access "Only me" policy | Gates `logs.<domain>` (and any future internal tool) to one email identity | Provides real auth for internal tools without adding a password to manage or any auth code to the tools themselves | Cloudflare dashboard → Zero Trust → Access → Applications/Policies | Attach the same reusable policy to any new self-hosted application rather than creating a duplicate; add more emails to the policy for more trusted operators | A policy edited or removed here takes effect immediately for every application it's attached to — check "Used by applications" before editing |
+| `test` job + `needs: test` | Gates the image build on `go vet`/`go test` passing | Prevents code that compiles but fails tests/vet from ever being built into a deployable image | `.github/workflows/deploy-backend.yml` | Keep in sync with `ci.yml`'s backend job if that job's steps ever change | Removing this `needs:` would let failing code build and deploy again |
+| `deploy.sh` health-check loop (`MAX_ATTEMPTS`) | How long the script waits for the new container to report `healthy` before rolling back | ~100s matches the Dockerfile's own `start_period`/`retries` healthcheck timing | `~/scripts/deploy.sh` (and the repo reference copy) | Increase if the backend's own startup (migrations, connection pool warmup) legitimately takes longer than ~100s | Too short risks false-positive rollbacks of a slow-but-healthy boot; too long delays detecting a real failure |
 
 ---
 
@@ -924,7 +987,13 @@ immediate email alert.
 ```
 git push origin main    # on any backend-relevant path change
 ```
-Watch the Actions tab: `build-and-push` → `deploy`, both must go green.
+Watch the Actions tab: `test` → `build-and-push` → `deploy`, all three must
+go green. A `test` failure (vet or unit tests) stops the pipeline before an
+image is even built. A `deploy` failure means the new image was built and
+pushed, but never became healthy on the server — the script has already
+rolled the server back to the previous working image and sent an alert; the
+broken image is still in `ghcr.io` (tagged by commit SHA) for you to
+investigate at your own pace.
 
 **Manual full pipeline** (rebuild + redeploy current `main`, no code change):
 ```
@@ -965,8 +1034,20 @@ docker compose -f ~/infra/postgres/docker-compose.yml ps   # look for "healthy"
 
 ### 5.5 Rollback
 
-Every image is also tagged with its exact commit SHA at build time. To roll
-back:
+**Automatic (the common case):** `~/scripts/deploy.sh` already does this for
+you. If a newly-deployed image never reports `healthy`, the script re-tags
+and restarts the image that was running immediately before the deploy, sends
+an alert, and exits non-zero. Nothing manual is required to recover from a
+bad deploy — the server should already be back on the last-good image by the
+time you see the alert. Confirm with:
+```
+docker compose -f ~/apps/showtime/docker-compose.yml ps
+curl -s https://<api-domain>/api/v1/healthcheck
+```
+
+**Manual (rolling back further than one step, e.g. two deploys ago):** every
+image is also tagged with its exact commit SHA at build time, and these
+remain in `ghcr.io` regardless of local pruning:
 ```
 # on the server
 cd ~/apps/showtime
@@ -1195,6 +1276,38 @@ free and unlimited for public repositories — there is no minutes budget to
 protect.
 **Prevention:** check a repository's actual visibility/plan limits before
 optimizing around an assumed constraint.
+
+**Symptom (near-miss, not yet occurred in practice):** two separate GitHub
+Actions workflows — one running tests, one building and deploying — run
+independently on the same push event, so a red test run does not stop a
+deploy from happening.
+**Root cause:** `needs:` only creates dependencies between jobs *within the
+same workflow file*; two separate workflow files triggered by the same event
+have no relationship to each other by default.
+**Resolution:** added a `test` job directly inside the deploy workflow
+itself (rather than reaching for the more awkward cross-workflow
+`workflow_run` trigger), with `build-and-push` requiring `needs: test` —
+making the deploy pipeline fully self-contained.
+**Prevention:** if a build/deploy pipeline's correctness depends on a test
+suite passing, put that test step *in the same workflow*, gated with
+`needs:`, rather than trusting a separate, independently-triggered workflow
+to have already run and passed.
+
+**Symptom (near-miss, not yet occurred in practice):** a deploy script
+declares success (`docker compose up -d` returns immediately) and prunes the
+previous image, even though the new container could still crash moments
+later — as had already happened once with a bad migration (Phase 9).
+**Root cause:** "the container started" and "the container is actually
+working" are different facts; the deploy script was only checking the
+former.
+**Resolution:** the deploy script now polls the container's own Docker
+`HEALTHCHECK` status for a bounded window after starting it, only prunes the
+old image once that reports `healthy`, and automatically re-tags and
+restarts the previous image (plus sends an alert) if it never does.
+**Prevention:** a deploy is not "done" the moment a new container is
+started — it's done once that container is *observed* to be working, on a
+timescale that accounts for realistic startup work (migrations, connection
+pool warmup, etc).
 
 ---
 

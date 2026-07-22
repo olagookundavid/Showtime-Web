@@ -184,6 +184,34 @@ mechanism on your platform) is the general pattern.
 mutable tag.** The mutable tag is what you deploy day-to-day; the immutable
 tag is what makes rollback possible without rebuilding.
 
+**Gate the build on the test suite, in the same pipeline — not in a
+separate, independently-triggered one.** A common mistake: a test/lint
+workflow and a build/deploy workflow both trigger on the same event (e.g.
+push to main) but have no dependency on each other, because job-level
+`needs:` only works *within* a single workflow file. The result is that a
+red test run and a green deploy can happen side by side, with nothing
+actually stopping the deploy. Either put the test step in the same workflow
+as the build (simplest, self-contained), or use your CI platform's
+cross-workflow dependency mechanism explicitly and deliberately — don't
+assume two same-triggered workflows are implicitly sequenced.
+
+**A deploy is not "done" the moment the new process starts — verify it
+before finalizing.** "The container/process started" and "the
+container/process is actually working" are different facts, and treating
+the first as proof of the second is how a deploy can silently leave a
+crash-looping service in production. The deploy step should actively confirm
+the new version is healthy (a liveness/health endpoint, a defined readiness
+check) within a bounded timeout *before* doing anything irreversible, such as
+deleting the previous version's artifact. If the new version never becomes
+healthy, the deploy script should treat that as a failure — ideally
+rolling back to the last-known-good version automatically and alerting,
+rather than leaving a human to notice the outage first.
+
+**Don't let cleanup destroy your rollback path.** A deploy script that
+prunes/deletes the previous artifact *unconditionally*, rather than only
+after confirming the new one is healthy, removes the fastest recovery option
+at exactly the moment it might be needed.
+
 ### 2.7 Secrets management
 
 - Never in source control, never baked into a build artifact.
