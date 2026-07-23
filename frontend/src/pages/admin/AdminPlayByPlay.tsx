@@ -838,10 +838,15 @@ export const AdminPlayByPlay = () => {
                                     </div>
                                 )}
 
-                                {(w.passOutcome === 'int' || w.passOutcome === 'sack' || (w.passOutcome === 'complete' && w.result === 'FG') || (w.passOutcome === 'incomplete')) && (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <PlayerField label={`Rusher / Blitzer (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.rusherId} onChange={v => setField('rusherId', v)} roster={defenseRoster} />
-                                        <PlayerField label={`Coverage Defender (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.defenderId} onChange={v => setField('defenderId', v)} roster={defenseRoster} />
+                                {(w.passOutcome === 'int' || w.passOutcome === 'sack' || (w.passOutcome === 'complete' && w.result !== 'TD') || (w.passOutcome === 'incomplete')) && (
+                                    <div className="space-y-2">
+                                        {w.passOutcome === 'complete' && w.result !== 'TD' && (
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">💡 Picking a defender or blitzer below credits a Flag Pull (Tackle) on this play (e.g. 1st & Goal + Flag Pull).</p>
+                                        )}
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <PlayerField label={`Rusher / Blitzer (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.rusherId} onChange={v => setField('rusherId', v)} roster={defenseRoster} />
+                                            <PlayerField label={`Coverage Defender (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.defenderId} onChange={v => setField('defenderId', v)} roster={defenseRoster} />
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -870,10 +875,15 @@ export const AdminPlayByPlay = () => {
                                         ))}
                                     </div>
                                 </div>
-                                {(w.result === 'FG' || w.result === 'SAF') && (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <PlayerField label={`Rusher / Blitzer (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.rusherId} onChange={v => setField('rusherId', v)} roster={defenseRoster} />
-                                        <PlayerField label={`Coverage Defender (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.defenderId} onChange={v => setField('defenderId', v)} roster={defenseRoster} />
+                                {w.result !== 'TD' && (
+                                    <div className="space-y-2">
+                                        {w.result !== 'SAF' && (
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">💡 Picking a defender or blitzer below credits a Flag Pull (Tackle) on this play (e.g. 1st & Goal + Flag Pull).</p>
+                                        )}
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <PlayerField label={`Blitzer / Penetrator (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.rusherId} onChange={v => setField('rusherId', v)} roster={defenseRoster} />
+                                            <PlayerField label={`Tackler / Defender (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.defenderId} onChange={v => setField('defenderId', v)} roster={defenseRoster} />
+                                        </div>
                                     </div>
                                 )}
                             </div>

@@ -71,12 +71,13 @@ func (s *PlayService) DeriveMatchStats(ctx context.Context, matchID string) ([]d
 			yards = *p.Yards
 		}
 
-		// Central: a flag pull or safety credits the defender (or rusher) regardless of play type.
-		if res == "FG" {
-			if r := get(p.RusherID); r != nil {
-				r.FlagPulls++
-			} else if d := get(p.DefenderID); d != nil {
+		// Central: a flag pull credits the defender (or rusher) on non-sack, non-TD, non-turnover tackles.
+		// DefenderID is prioritized over RusherID for downfield tackles on completions/runs.
+		if pt != "SACK" && (res == "FG" || (res != "TD" && res != "INT" && res != "INC" && res != "SAF" && (p.DefenderID != nil || p.RusherID != nil))) {
+			if d := get(p.DefenderID); d != nil {
 				d.FlagPulls++
+			} else if r := get(p.RusherID); r != nil {
+				r.FlagPulls++
 			}
 		}
 		if res == "SAF" {
