@@ -520,6 +520,51 @@ func (s *MatchService) UpdateMatch(ctx context.Context, match *domain.Match) err
 	if match.CompetitionID == "" {
 		match.CompetitionID = existing.CompetitionID
 	}
+	if match.HomeTeamID == "" {
+		match.HomeTeamID = existing.HomeTeamID
+	}
+	if match.AwayTeamID == "" {
+		match.AwayTeamID = existing.AwayTeamID
+	}
+	if match.Date.IsZero() {
+		match.Date = existing.Date
+	}
+	if match.StartTime.IsZero() {
+		match.StartTime = existing.StartTime
+	}
+	if match.Venue == "" {
+		match.Venue = existing.Venue
+	}
+	if match.Status == "" {
+		match.Status = existing.Status
+	}
+	if match.HomeScore == nil {
+		match.HomeScore = existing.HomeScore
+	}
+	if match.AwayScore == nil {
+		match.AwayScore = existing.AwayScore
+	}
+	if match.HighlightsURL == nil {
+		match.HighlightsURL = existing.HighlightsURL
+	}
+	if match.TicketURL == nil {
+		match.TicketURL = existing.TicketURL
+	}
+	if match.Round == "" {
+		match.Round = existing.Round
+	}
+	if match.BracketPos == nil {
+		match.BracketPos = existing.BracketPos
+	}
+	if match.FeedsMatchID == nil {
+		match.FeedsMatchID = existing.FeedsMatchID
+	}
+	if match.FeedsSlot == "" {
+		match.FeedsSlot = existing.FeedsSlot
+	}
+	if match.SecondLegMatchID == nil {
+		match.SecondLegMatchID = existing.SecondLegMatchID
+	}
 
 	completed, knockout, err := s.competitionState(ctx, match.CompetitionID)
 	if err != nil {

@@ -265,9 +265,6 @@ func (h *MatchHandler) UpdateMatch(c *gin.Context) {
 		} else {
 			match.StartTime, _ = time.Parse(time.RFC3339, req.StartTime)
 		}
-	} else {
-		// Explicitly set to zero-time / midnight placeholder for TBD
-		match.StartTime, _ = time.Parse("15:04", "00:00")
 	}
 	if req.Status != "" {
 		match.Status = domain.MatchStatus(req.Status)

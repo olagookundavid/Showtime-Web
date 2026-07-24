@@ -174,7 +174,7 @@ export const AdminMatches = () => {
             competition_id: compId,
             home_team_id: homeId,
             away_team_id: awayId,
-            date: m.date,
+            date: m.date ? m.date.slice(0, 10) : '',
             start_time: displayTime,
             venue: m.venue || '',
             status: m.status,

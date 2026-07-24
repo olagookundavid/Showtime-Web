@@ -83,18 +83,18 @@ error. That is by design, not a bug.
 
 ### 1.3 Key design decisions at a glance
 
-| Decision | Choice made | Primary reason |
-|---|---|---|
-| Container platform | Docker + Compose (not Kubernetes) | Single VPS, single operator — Compose's simplicity matches the scale; k8s overhead isn't justified at this size. |
-| Database hosting | Self-hosted Postgres in a container, not a managed service | Cost, control over tuning/backups, and it was the explicit goal of the migration. |
-| Multi-tenancy model | One shared Postgres instance, one database + one least-privilege user per app | RAM/ops efficiency for a small VPS; the trade-off (shared blast radius, shared maintenance window) is acceptable at this scale. See §2, Phase 7. |
-| Reverse proxy | Caddy, not Nginx/Traefik | Automatic HTTPS, minimal config, best learning curve for a single operator. |
-| CI/CD | GitHub Actions → `ghcr.io` → SSH-triggered pull on the server | Free (public repo = unlimited Actions minutes), no build load on the production box, native `amd64` build matches the server (avoids cross-arch issues from an Apple Silicon dev machine). |
-| Secrets | Provider dashboards + server `.env` files, never in the image or git | Standard practice; keeps the image safe to be public. |
-| TLS | Caddy automatic Let's Encrypt initially, then a Cloudflare Origin Certificate once proxied | HTTP-01 challenges don't play well with a proxied domain; the Origin Cert avoids needing a custom Caddy build with a DNS-01 plugin. |
-| Origin protection | Cloudflare proxy + `DOCKER-USER` iptables allow-list of Cloudflare's ranges | UFW alone does not enforce this for Docker-published ports (see §7, "Docker bypasses UFW"). |
-| Backups | `pg_dump` nightly, offsite to a *separate*, bucket-scoped Cloudflare R2 bucket | Isolates backup credentials from the app's own storage credentials — an app compromise cannot also destroy backup history. |
-| Monitoring | External uptime monitor + server-side alert scripts emailing via Resend | A monitor **on** the server is useless the moment the server is the thing that's down. |
+| Decision            | Choice made                                                                                | Primary reason                                                                                                                                                                             |
+| ------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Container platform  | Docker + Compose (not Kubernetes)                                                          | Single VPS, single operator — Compose's simplicity matches the scale; k8s overhead isn't justified at this size.                                                                           |
+| Database hosting    | Self-hosted Postgres in a container, not a managed service                                 | Cost, control over tuning/backups, and it was the explicit goal of the migration.                                                                                                          |
+| Multi-tenancy model | One shared Postgres instance, one database + one least-privilege user per app              | RAM/ops efficiency for a small VPS; the trade-off (shared blast radius, shared maintenance window) is acceptable at this scale. See §2, Phase 7.                                           |
+| Reverse proxy       | Caddy, not Nginx/Traefik                                                                   | Automatic HTTPS, minimal config, best learning curve for a single operator.                                                                                                                |
+| CI/CD               | GitHub Actions → `ghcr.io` → SSH-triggered pull on the server                              | Free (public repo = unlimited Actions minutes), no build load on the production box, native `amd64` build matches the server (avoids cross-arch issues from an Apple Silicon dev machine). |
+| Secrets             | Provider dashboards + server `.env` files, never in the image or git                       | Standard practice; keeps the image safe to be public.                                                                                                                                      |
+| TLS                 | Caddy automatic Let's Encrypt initially, then a Cloudflare Origin Certificate once proxied | HTTP-01 challenges don't play well with a proxied domain; the Origin Cert avoids needing a custom Caddy build with a DNS-01 plugin.                                                        |
+| Origin protection   | Cloudflare proxy + `DOCKER-USER` iptables allow-list of Cloudflare's ranges                | UFW alone does not enforce this for Docker-published ports (see §7, "Docker bypasses UFW").                                                                                                |
+| Backups             | `pg_dump` nightly, offsite to a *separate*, bucket-scoped Cloudflare R2 bucket             | Isolates backup credentials from the app's own storage credentials — an app compromise cannot also destroy backup history.                                                                 |
+| Monitoring          | External uptime monitor + server-side alert scripts emailing via Resend                    | A monitor **on** the server is useless the moment the server is the thing that's down.                                                                                                     |
 
 ---
 
@@ -190,12 +190,12 @@ instinct:
 because this box was always intended to host more than one project. A
 comparison was made:
 
-| | Shared instance (chosen) | One instance per app |
-|---|---|---|
-| RAM | One instance's overhead — efficient on a modest VPS | Each instance adds baseline overhead |
-| Backups | One routine covers everything | N separate routines |
-| Upgrades | One upgrade event, but all apps share the maintenance window | Independent, but more moving parts |
-| Blast radius | A runaway query or compromise in one app's DB can affect Postgres-wide resources | Fully isolated |
+|              | Shared instance (chosen)                                                         | One instance per app                 |
+| ------------ | -------------------------------------------------------------------------------- | ------------------------------------ |
+| RAM          | One instance's overhead — efficient on a modest VPS                              | Each instance adds baseline overhead |
+| Backups      | One routine covers everything                                                    | N separate routines                  |
+| Upgrades     | One upgrade event, but all apps share the maintenance window                     | Independent, but more moving parts   |
+| Blast radius | A runaway query or compromise in one app's DB can affect Postgres-wide resources | Fully isolated                       |
 
 Shared won for a personal VPS of this scale, with isolation achieved instead
 at the **database + user** level: each app gets its own database and a
@@ -761,11 +761,11 @@ human to notice and intervene).
 Docker Engine installed from Docker's official `apt` repository. Compose
 projects are organized by convention:
 
-| Path | Contents |
-|---|---|
-| `~/infra/postgres/` | Postgres Compose file + `.env` (superuser password) |
-| `~/infra/caddy/` | Caddy Compose file, `Caddyfile`, `certs/` (Origin Cert) |
-| `~/apps/showtime/` | Backend Compose file + `.env` (all app secrets) |
+| Path                | Contents                                                |
+| ------------------- | ------------------------------------------------------- |
+| `~/infra/postgres/` | Postgres Compose file + `.env` (superuser password)     |
+| `~/infra/caddy/`    | Caddy Compose file, `Caddyfile`, `certs/` (Origin Cert) |
+| `~/apps/showtime/`  | Backend Compose file + `.env` (all app secrets)         |
 
 **Convention:** shared infrastructure lives under `~/infra/`; individual
 applications live under `~/apps/`. A second application would get its own
@@ -777,10 +777,10 @@ Two **external** Docker networks (created once with `docker network create
 <name>`, independent of any single Compose file, so multiple Compose
 projects can all join them):
 
-| Network | Members | Purpose |
-|---|---|---|
-| `web` | `caddy`, `showtime-backend` | Public-facing tier — only Caddy is meant to receive traffic from the internet. |
-| `database` | `postgres`, `showtime-backend` | Private data tier — Postgres is never attached to `web`. |
+| Network    | Members                        | Purpose                                                                        |
+| ---------- | ------------------------------ | ------------------------------------------------------------------------------ |
+| `web`      | `caddy`, `showtime-backend`    | Public-facing tier — only Caddy is meant to receive traffic from the internet. |
+| `database` | `postgres`, `showtime-backend` | Private data tier — Postgres is never attached to `web`.                       |
 
 Containers resolve each other by container name via Docker's built-in DNS
 (e.g., the backend's `DB_URL` uses host `postgres`, never an IP address).
@@ -833,12 +833,12 @@ the Origin Certificate satisfies by design.
 
 ### 3.6 Volumes and persistence
 
-| Volume | Attached to | Holds |
-|---|---|---|
-| `pgdata` (named volume) | `postgres` | All database files. Survives container recreation/image upgrades. |
-| `caddy_data` (named volume) | `caddy` | TLS state — **must** persist; losing it means re-requesting certificates. |
-| `caddy_config` (named volume) | `caddy` | Caddy's autosaved runtime config. |
-| `./certs/` (bind mount) | `caddy` | The Cloudflare Origin Certificate + key (`ro`). |
+| Volume                        | Attached to | Holds                                                                     |
+| ----------------------------- | ----------- | ------------------------------------------------------------------------- |
+| `pgdata` (named volume)       | `postgres`  | All database files. Survives container recreation/image upgrades.         |
+| `caddy_data` (named volume)   | `caddy`     | TLS state — **must** persist; losing it means re-requesting certificates. |
+| `caddy_config` (named volume) | `caddy`     | Caddy's autosaved runtime config.                                         |
+| `./certs/` (bind mount)       | `caddy`     | The Cloudflare Origin Certificate + key (`ro`).                           |
 
 Postgres uses a **named volume**, not a bind mount, which is the recommended
 default for databases (avoids file-ownership friction and reduces the risk
@@ -853,13 +853,13 @@ Every secret lives in one of two places: a provider's dashboard (Cloudflare,
 GitHub, Resend, Paystack, R2), or a `chmod 600` `.env` file on the server.
 Nothing secret is ever committed to git or baked into a Docker image.
 
-| Secret | Location |
-|---|---|
-| App secrets (`TOKEN_KEY`, Paystack, Resend, R2, `DB_URL`) | `~/apps/showtime/.env` |
-| Postgres superuser password | `~/infra/postgres/.env` |
-| `showtime` DB user password | `~/infra/postgres/showtime-db-password.txt` |
-| Backup R2 token | `~/.config/rclone/rclone.conf` |
-| CI deploy key | GitHub secret `DEPLOY_SSH_KEY`; public half in the server's `authorized_keys` |
+| Secret                                                    | Location                                                                      |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| App secrets (`TOKEN_KEY`, Paystack, Resend, R2, `DB_URL`) | `~/apps/showtime/.env`                                                        |
+| Postgres superuser password                               | `~/infra/postgres/.env`                                                       |
+| `showtime` DB user password                               | `~/infra/postgres/showtime-db-password.txt`                                   |
+| Backup R2 token                                           | `~/.config/rclone/rclone.conf`                                                |
+| CI deploy key                                             | GitHub secret `DEPLOY_SSH_KEY`; public half in the server's `authorized_keys` |
 
 After editing `~/apps/showtime/.env`, changes take effect with:
 `cd ~/apps/showtime && docker compose up -d --force-recreate`.
@@ -881,12 +881,12 @@ Two independent systems, covering two independent kinds of logs:
 
 ### 3.9 Monitoring
 
-| Layer | Tool | Behavior |
-|---|---|---|
-| Uptime | UptimeRobot (external) | Polls the public healthcheck URL every 5 minutes; emails on failure. |
-| Disk space | `~/scripts/disk-check.sh` via cron, every 6h | Silent when healthy; emails past an 80% threshold. |
-| Backup health | `ERR` trap inside `~/scripts/pg-backup.sh` | Emails immediately on any backup failure. |
-| Alert delivery | `~/scripts/alert.sh` | Sends via the Resend API; used by both scripts above. |
+| Layer            | Tool                                           | Behavior                                                                                                                                                                                             |
+| ---------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Uptime           | UptimeRobot (external)                         | Polls the public healthcheck URL every 5 minutes; emails on failure.                                                                                                                                 |
+| Disk space       | `~/scripts/disk-check.sh` via cron, every 6h   | Silent when healthy; emails past an 80% threshold.                                                                                                                                                   |
+| Backup health    | `ERR` trap inside `~/scripts/pg-backup.sh`     | Emails immediately on any backup failure.                                                                                                                                                            |
+| Alert delivery   | `~/scripts/alert.sh`                           | Sends via the Resend API; used by both scripts above.                                                                                                                                                |
 | Live log viewing | Dozzle, at a Cloudflare-Access-gated subdomain | On-demand, human-driven — not an alerting mechanism. Complements the automated alerts above rather than replacing them: alerts tell you *something* is wrong; Dozzle is where you go look at *what*. |
 
 **Dozzle** (`~/infra/dozzle/`) reads directly from the Docker socket
@@ -958,24 +958,24 @@ immediate email alert.
 
 ## 4. Configuration Reference
 
-| Setting | What it does | Why it exists | Where it lives | How to change safely | Impact of changing |
-|---|---|---|---|---|---|
-| `postgres:18` image tag | Pins the Postgres major version | Prevents an accidental major-version jump, which would break the on-disk data format | `~/infra/postgres/docker-compose.yml` | Never bump the major version without a deliberate dump/restore migration plan | Bumping the major version in place will likely prevent Postgres from starting at all against the existing volume |
-| `shared_buffers`, `effective_cache_size`, `work_mem`, `maintenance_work_mem`, `max_connections` | Postgres memory tuning | Balances DB cache performance against leaving RAM for other containers on a shared VPS | `command:` block in `~/infra/postgres/docker-compose.yml` | Edit values, then `docker compose up -d` (requires a container restart to take effect) | Setting `work_mem` too high is the most dangerous — it multiplies per sort operation *per connection*, and can exhaust memory under concurrent load |
-| Postgres port publish (`127.0.0.1:5432:5432`) | Exposes Postgres to the host machine only | Enables SSH-tunneled GUI access without exposing the database publicly | `~/infra/postgres/docker-compose.yml` | Never change the bind address from `127.0.0.1` to `0.0.0.0` or a bare port number | A bare `5432:5432` (no `127.0.0.1:` prefix) would expose the database to the entire internet |
-| `AUTO_MIGRATE` | Whether the backend runs DB migrations automatically on boot | Convenient default; trade-off is a bad migration can crash startup | `~/apps/showtime/.env` | Set `false` and run migrations as a separate, deliberate deploy step once migrations need more control | With it off, new migrations require a manual step (not yet built — see §8) |
-| `CORS_ALLOW_ORIGINS` | Explicit CORS allow-list | Without it, production silently falls back to trusting any `*.vercel.app` origin (a real credential-theft vector, since the API sends credentialed cookies) | `~/apps/showtime/.env` | Add/remove exact origins (comma-separated); always keep at least one value set in production | Removing this entirely in production re-opens the wildcard fallback |
-| `COOKIE_DOMAIN` | Sets the `Domain` attribute on the auth cookie | Left unset deliberately — produces a host-only cookie scoped to the API's own hostname | `~/apps/showtime/.env` (currently absent) | Only set this if multiple subdomains need to share one auth cookie | Setting it incorrectly can silently break login (browsers reject cookies whose domain doesn't match) |
-| Docker `log-opts` (`max-size`, `max-file`) | Caps container log file size | Prevents unbounded container logs from filling the disk | `/etc/docker/daemon.json` | Edit, then `sudo systemctl restart docker` (brief downtime for all containers) followed by recreating each Compose stack | Applies only to containers created *after* the change — existing containers must be recreated |
-| `logrotate` config for script logs | Rotates/compresses/expires `deploy.log`, `backup.log`, `monitor.log` | Prevents these growing unbounded | `/etc/logrotate.d/showtime` | Edit `rotate N` (count) and/or `weekly`/`daily` (frequency); test with `sudo logrotate -d <file>` before trusting it | Requires `su <user> <user>` if the log directory isn't root-owned, or rotation silently skips those files |
-| `DOCKER-USER` iptables rules | Restricts 80/443 to Cloudflare's IP ranges | The only enforcement point that actually applies to Docker-published ports (UFW alone does not) | Applied via `iptables`/`ip6tables`, persisted with `iptables-persistent` | Re-run the Cloudflare-range allow-list loop if Cloudflare's published ranges change; always keep the RELATED,ESTABLISHED accept rule and the SSH port unaffected | Getting the ordering or the catch-all `DROP` wrong can either leave the origin open or (if SSH were ever mistakenly included) lock out all access |
-| Cloudflare SSL/TLS mode | Controls how Cloudflare validates the origin's certificate | Must be `Full (strict)` to match the Origin Certificate | Cloudflare dashboard → SSL/TLS → Overview | Only change together with a matching certificate strategy on the origin | Mismatching this with what the origin actually presents can cause an SSL error loop for all visitors |
-| `pg-backup.sh` retention (`RETENTION_DAYS`) | Local backup retention | Offsite retention is handled separately by an R2 lifecycle rule | `~/scripts/pg-backup.sh` | Change the local retention window; confirm disk space accommodates it | Longer retention costs local disk space, not R2 cost |
-| R2 lifecycle rule (30 days) | Offsite backup retention | Avoids the backup script itself needing delete permission | Cloudflare R2 dashboard → bucket → Settings → Object lifecycle rules | Adjust the day count in the dashboard | Shorter windows reduce disaster-recovery lookback; the script's local copies are a separate, shorter-lived safety net |
-| `disk-check.sh` `THRESHOLD` | Disk-space alert trigger | 80% chosen as an actionable-but-not-too-late warning point | `~/scripts/disk-check.sh` | Adjust the percentage | Too high risks missing the warning window; too low creates alert fatigue |
-| Cloudflare Access "Only me" policy | Gates `logs.<domain>` (and any future internal tool) to one email identity | Provides real auth for internal tools without adding a password to manage or any auth code to the tools themselves | Cloudflare dashboard → Zero Trust → Access → Applications/Policies | Attach the same reusable policy to any new self-hosted application rather than creating a duplicate; add more emails to the policy for more trusted operators | A policy edited or removed here takes effect immediately for every application it's attached to — check "Used by applications" before editing |
-| `test` job + `needs: test` | Gates the image build on `go vet`/`go test` passing | Prevents code that compiles but fails tests/vet from ever being built into a deployable image | `.github/workflows/deploy-backend.yml` | Keep in sync with `ci.yml`'s backend job if that job's steps ever change | Removing this `needs:` would let failing code build and deploy again |
-| `deploy.sh` health-check loop (`MAX_ATTEMPTS`) | How long the script waits for the new container to report `healthy` before rolling back | ~100s matches the Dockerfile's own `start_period`/`retries` healthcheck timing | `~/scripts/deploy.sh` (and the repo reference copy) | Increase if the backend's own startup (migrations, connection pool warmup) legitimately takes longer than ~100s | Too short risks false-positive rollbacks of a slow-but-healthy boot; too long delays detecting a real failure |
+| Setting                                                                                         | What it does                                                                            | Why it exists                                                                                                                                               | Where it lives                                                           | How to change safely                                                                                                                                             | Impact of changing                                                                                                                                  |
+| ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `postgres:18` image tag                                                                         | Pins the Postgres major version                                                         | Prevents an accidental major-version jump, which would break the on-disk data format                                                                        | `~/infra/postgres/docker-compose.yml`                                    | Never bump the major version without a deliberate dump/restore migration plan                                                                                    | Bumping the major version in place will likely prevent Postgres from starting at all against the existing volume                                    |
+| `shared_buffers`, `effective_cache_size`, `work_mem`, `maintenance_work_mem`, `max_connections` | Postgres memory tuning                                                                  | Balances DB cache performance against leaving RAM for other containers on a shared VPS                                                                      | `command:` block in `~/infra/postgres/docker-compose.yml`                | Edit values, then `docker compose up -d` (requires a container restart to take effect)                                                                           | Setting `work_mem` too high is the most dangerous — it multiplies per sort operation *per connection*, and can exhaust memory under concurrent load |
+| Postgres port publish (`127.0.0.1:5432:5432`)                                                   | Exposes Postgres to the host machine only                                               | Enables SSH-tunneled GUI access without exposing the database publicly                                                                                      | `~/infra/postgres/docker-compose.yml`                                    | Never change the bind address from `127.0.0.1` to `0.0.0.0` or a bare port number                                                                                | A bare `5432:5432` (no `127.0.0.1:` prefix) would expose the database to the entire internet                                                        |
+| `AUTO_MIGRATE`                                                                                  | Whether the backend runs DB migrations automatically on boot                            | Convenient default; trade-off is a bad migration can crash startup                                                                                          | `~/apps/showtime/.env`                                                   | Set `false` and run migrations as a separate, deliberate deploy step once migrations need more control                                                           | With it off, new migrations require a manual step (not yet built — see §8)                                                                          |
+| `CORS_ALLOW_ORIGINS`                                                                            | Explicit CORS allow-list                                                                | Without it, production silently falls back to trusting any `*.vercel.app` origin (a real credential-theft vector, since the API sends credentialed cookies) | `~/apps/showtime/.env`                                                   | Add/remove exact origins (comma-separated); always keep at least one value set in production                                                                     | Removing this entirely in production re-opens the wildcard fallback                                                                                 |
+| `COOKIE_DOMAIN`                                                                                 | Sets the `Domain` attribute on the auth cookie                                          | Left unset deliberately — produces a host-only cookie scoped to the API's own hostname                                                                      | `~/apps/showtime/.env` (currently absent)                                | Only set this if multiple subdomains need to share one auth cookie                                                                                               | Setting it incorrectly can silently break login (browsers reject cookies whose domain doesn't match)                                                |
+| Docker `log-opts` (`max-size`, `max-file`)                                                      | Caps container log file size                                                            | Prevents unbounded container logs from filling the disk                                                                                                     | `/etc/docker/daemon.json`                                                | Edit, then `sudo systemctl restart docker` (brief downtime for all containers) followed by recreating each Compose stack                                         | Applies only to containers created *after* the change — existing containers must be recreated                                                       |
+| `logrotate` config for script logs                                                              | Rotates/compresses/expires `deploy.log`, `backup.log`, `monitor.log`                    | Prevents these growing unbounded                                                                                                                            | `/etc/logrotate.d/showtime`                                              | Edit `rotate N` (count) and/or `weekly`/`daily` (frequency); test with `sudo logrotate -d <file>` before trusting it                                             | Requires `su <user> <user>` if the log directory isn't root-owned, or rotation silently skips those files                                           |
+| `DOCKER-USER` iptables rules                                                                    | Restricts 80/443 to Cloudflare's IP ranges                                              | The only enforcement point that actually applies to Docker-published ports (UFW alone does not)                                                             | Applied via `iptables`/`ip6tables`, persisted with `iptables-persistent` | Re-run the Cloudflare-range allow-list loop if Cloudflare's published ranges change; always keep the RELATED,ESTABLISHED accept rule and the SSH port unaffected | Getting the ordering or the catch-all `DROP` wrong can either leave the origin open or (if SSH were ever mistakenly included) lock out all access   |
+| Cloudflare SSL/TLS mode                                                                         | Controls how Cloudflare validates the origin's certificate                              | Must be `Full (strict)` to match the Origin Certificate                                                                                                     | Cloudflare dashboard → SSL/TLS → Overview                                | Only change together with a matching certificate strategy on the origin                                                                                          | Mismatching this with what the origin actually presents can cause an SSL error loop for all visitors                                                |
+| `pg-backup.sh` retention (`RETENTION_DAYS`)                                                     | Local backup retention                                                                  | Offsite retention is handled separately by an R2 lifecycle rule                                                                                             | `~/scripts/pg-backup.sh`                                                 | Change the local retention window; confirm disk space accommodates it                                                                                            | Longer retention costs local disk space, not R2 cost                                                                                                |
+| R2 lifecycle rule (30 days)                                                                     | Offsite backup retention                                                                | Avoids the backup script itself needing delete permission                                                                                                   | Cloudflare R2 dashboard → bucket → Settings → Object lifecycle rules     | Adjust the day count in the dashboard                                                                                                                            | Shorter windows reduce disaster-recovery lookback; the script's local copies are a separate, shorter-lived safety net                               |
+| `disk-check.sh` `THRESHOLD`                                                                     | Disk-space alert trigger                                                                | 80% chosen as an actionable-but-not-too-late warning point                                                                                                  | `~/scripts/disk-check.sh`                                                | Adjust the percentage                                                                                                                                            | Too high risks missing the warning window; too low creates alert fatigue                                                                            |
+| Cloudflare Access "Only me" policy                                                              | Gates `logs.<domain>` (and any future internal tool) to one email identity              | Provides real auth for internal tools without adding a password to manage or any auth code to the tools themselves                                          | Cloudflare dashboard → Zero Trust → Access → Applications/Policies       | Attach the same reusable policy to any new self-hosted application rather than creating a duplicate; add more emails to the policy for more trusted operators    | A policy edited or removed here takes effect immediately for every application it's attached to — check "Used by applications" before editing       |
+| `test` job + `needs: test`                                                                      | Gates the image build on `go vet`/`go test` passing                                     | Prevents code that compiles but fails tests/vet from ever being built into a deployable image                                                               | `.github/workflows/deploy-backend.yml`                                   | Keep in sync with `ci.yml`'s backend job if that job's steps ever change                                                                                         | Removing this `needs:` would let failing code build and deploy again                                                                                |
+| `deploy.sh` health-check loop (`MAX_ATTEMPTS`)                                                  | How long the script waits for the new container to report `healthy` before rolling back | ~100s matches the Dockerfile's own `start_period`/`retries` healthcheck timing                                                                              | `~/scripts/deploy.sh` (and the repo reference copy)                      | Increase if the backend's own startup (migrations, connection pool warmup) legitimately takes longer than ~100s                                                  | Too short risks false-positive rollbacks of a slow-but-healthy boot; too long delays detecting a real failure                                       |
 
 ---
 
@@ -1015,14 +1015,14 @@ docker compose -f ~/infra/caddy/docker-compose.yml restart caddy
 
 ### 5.3 Inspect logs
 
-| What | Where |
-|---|---|
-| Deploy history | `tail -f ~/deploy.log` |
+| What                     | Where                                                                  |
+| ------------------------ | ---------------------------------------------------------------------- |
+| Deploy history           | `tail -f ~/deploy.log`                                                 |
 | Backend application logs | `docker compose -f ~/apps/showtime/docker-compose.yml logs -f backend` |
-| Postgres logs | `docker compose -f ~/infra/postgres/docker-compose.yml logs -f` |
-| Caddy / TLS logs | `docker compose -f ~/infra/caddy/docker-compose.yml logs -f` |
-| Backup history | `tail ~/backups/backup.log` |
-| CI deploy output | GitHub Actions → the run → `deploy` job |
+| Postgres logs            | `docker compose -f ~/infra/postgres/docker-compose.yml logs -f`        |
+| Caddy / TLS logs         | `docker compose -f ~/infra/caddy/docker-compose.yml logs -f`           |
+| Backup history           | `tail ~/backups/backup.log`                                            |
+| CI deploy output         | GitHub Actions → the run → `deploy` job                                |
 
 ### 5.4 Health checks
 
@@ -1355,3 +1355,5 @@ Open items, deliberately deferred rather than forgotten:
 - **Consider PgBouncer** if/when `max_connections=100` becomes a real
   constraint under load, rather than raising it directly (which increases
   per-connection overhead linearly).
+
+
