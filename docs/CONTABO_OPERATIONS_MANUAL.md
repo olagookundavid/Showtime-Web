@@ -737,6 +737,62 @@ independent points before it can affect production — failing tests/vet
 after deployment (which self-heals via rollback rather than requiring a
 human to notice and intervene).
 
+### Phase 20 — Fixing an accidental outbound-traffic block in the `DOCKER-USER` firewall rules
+
+A real production bug was found and fixed: outbound emails (OTP codes,
+referral emails) started silently timing out, discovered via a container
+log grep showing `dial tcp ... i/o timeout` when the backend tried to reach
+Resend's API — not an authentication error, a raw connection timeout, which
+is the signature of a firewall silently dropping packets rather than an
+application-level failure.
+
+**Root cause.** The `DOCKER-USER` catch-all rules built in Phase 16 were
+written purely on destination port:
+```
+iptables -A DOCKER-USER -p tcp --dport 443 -j DROP
+```
+This does not distinguish **direction**. `DOCKER-USER` (part of the kernel's
+`FORWARD` path) is consulted for *any* forwarded traffic touching a
+container — not only inbound requests arriving at a published port, but
+also **outbound** requests a container itself initiates to the internet
+(e.g., the backend calling Resend's or Paystack's API on port 443). Since
+Resend's IP wasn't in the Cloudflare allow-list (it has nothing to do with
+Cloudflare), every outbound HTTPS call from the backend fell through to the
+catch-all `DROP dport 443` rule and was silently killed. **The Phase 16 fix
+correctly solved the inbound problem it was built for, but accidentally
+introduced a new outbound problem in doing so** — and because the two
+symptoms look completely different (an inbound test uses a raw TCP probe;
+the outbound break surfaced as application-level email/payment failures),
+it went unnoticed until logs were checked for an unrelated reason.
+
+**Why `docker compose pull` and other host-level operations were unaffected,
+which delayed noticing this:** those are initiated by the Docker daemon
+running directly on the host, not from inside a container's network
+namespace — genuinely host-originated traffic uses the `OUTPUT` chain, never
+`FORWARD`/`DOCKER-USER`. Only traffic actually originating *from inside a
+container* was affected, which meant the failure was invisible to every
+infrastructure-level check (deploys, `curl` from the host, healthchecks) and
+only visible from inside application code making its own outbound calls.
+
+**The fix — scope the restrictive rules to the external interface, not just
+the port.** Traffic genuinely arriving from the internet enters the host via
+its one public network interface (`eth0` on this server, confirmed with
+`ip route get 1.1.1.1` rather than assumed). Traffic a container sends
+*out* to the internet enters `DOCKER-USER` via a Docker bridge interface
+instead, never the external one. Adding `-i eth0` to both the Cloudflare
+allow-list rules and the catch-all `DROP` rules means they only ever
+evaluate genuinely inbound traffic — outbound container traffic now falls
+through the chain untouched, exactly as it did before Phase 16 was ever
+built, while inbound restriction to Cloudflare's ranges remains fully
+intact (re-verified from a genuinely external machine, per the Phase 16
+lesson about never trusting a self-test for this).
+
+**The general lesson, worth carrying forward explicitly:** a firewall change
+should always be verified in **both directions** it could plausibly affect —
+not just the direction being intentionally restricted. Testing only "is the
+thing I meant to block, blocked?" missed that the same rule set was also
+blocking something that was never meant to be touched at all.
+
 ---
 
 ## 3. Current Infrastructure
@@ -820,6 +876,15 @@ contains an explicit `ACCEPT` rule per Cloudflare-published CIDR range (both
 IPv4 and IPv6) for ports 80 and 443, an `ACCEPT` for already-established
 connections, and a catch-all `DROP` for ports 80 and 443 from any other
 source. These rules are persisted across reboots via `iptables-persistent`.
+
+**Every one of these rules (the Cloudflare allow-list and the catch-all
+`DROP`) is scoped with `-i eth0`** — matched only against traffic arriving
+via the server's external network interface. This is not optional detail:
+without the interface scope, the same rules also match **outbound** traffic
+a container sends to the internet (e.g., the backend calling Resend's or
+Paystack's API), since `DOCKER-USER` is consulted for that traffic too — see
+Journey Phase 20 for the real incident this caused and why the fix has to be
+interface-scoped, not just port-scoped.
 
 ### 3.5 TLS/SSL
 
@@ -968,7 +1033,7 @@ immediate email alert.
 | `COOKIE_DOMAIN`                                                                                 | Sets the `Domain` attribute on the auth cookie                                          | Left unset deliberately — produces a host-only cookie scoped to the API's own hostname                                                                      | `~/apps/showtime/.env` (currently absent)                                | Only set this if multiple subdomains need to share one auth cookie                                                                                               | Setting it incorrectly can silently break login (browsers reject cookies whose domain doesn't match)                                                |
 | Docker `log-opts` (`max-size`, `max-file`)                                                      | Caps container log file size                                                            | Prevents unbounded container logs from filling the disk                                                                                                     | `/etc/docker/daemon.json`                                                | Edit, then `sudo systemctl restart docker` (brief downtime for all containers) followed by recreating each Compose stack                                         | Applies only to containers created *after* the change — existing containers must be recreated                                                       |
 | `logrotate` config for script logs                                                              | Rotates/compresses/expires `deploy.log`, `backup.log`, `monitor.log`                    | Prevents these growing unbounded                                                                                                                            | `/etc/logrotate.d/showtime`                                              | Edit `rotate N` (count) and/or `weekly`/`daily` (frequency); test with `sudo logrotate -d <file>` before trusting it                                             | Requires `su <user> <user>` if the log directory isn't root-owned, or rotation silently skips those files                                           |
-| `DOCKER-USER` iptables rules                                                                    | Restricts 80/443 to Cloudflare's IP ranges                                              | The only enforcement point that actually applies to Docker-published ports (UFW alone does not)                                                             | Applied via `iptables`/`ip6tables`, persisted with `iptables-persistent` | Re-run the Cloudflare-range allow-list loop if Cloudflare's published ranges change; always keep the RELATED,ESTABLISHED accept rule and the SSH port unaffected | Getting the ordering or the catch-all `DROP` wrong can either leave the origin open or (if SSH were ever mistakenly included) lock out all access   |
+| `DOCKER-USER` iptables rules | Restricts *inbound* 80/443 to Cloudflare's IP ranges | The only enforcement point that actually applies to Docker-published ports (UFW alone does not) | Applied via `iptables`/`ip6tables`, **every Cloudflare-allow and catch-all-DROP rule scoped with `-i eth0`** (or your server's actual external interface — confirm with `ip route get 1.1.1.1`, don't assume the name), persisted with `iptables-persistent` | Re-run the Cloudflare-range allow-list loop if Cloudflare's published ranges change; always keep the RELATED,ESTABLISHED accept rule and the SSH port unaffected | Omitting the `-i <interface>` scope silently blocks *outbound* container traffic too (see Phase 20) — always re-test an outbound call (e.g. the Resend `/domains` check) after touching these rules, not just the inbound restriction |
 | Cloudflare SSL/TLS mode                                                                         | Controls how Cloudflare validates the origin's certificate                              | Must be `Full (strict)` to match the Origin Certificate                                                                                                     | Cloudflare dashboard → SSL/TLS → Overview                                | Only change together with a matching certificate strategy on the origin                                                                                          | Mismatching this with what the origin actually presents can cause an SSL error loop for all visitors                                                |
 | `pg-backup.sh` retention (`RETENTION_DAYS`)                                                     | Local backup retention                                                                  | Offsite retention is handled separately by an R2 lifecycle rule                                                                                             | `~/scripts/pg-backup.sh`                                                 | Change the local retention window; confirm disk space accommodates it                                                                                            | Longer retention costs local disk space, not R2 cost                                                                                                |
 | R2 lifecycle rule (30 days)                                                                     | Offsite backup retention                                                                | Avoids the backup script itself needing delete permission                                                                                                   | Cloudflare R2 dashboard → bucket → Settings → Object lifecycle rules     | Adjust the day count in the dashboard                                                                                                                            | Shorter windows reduce disaster-recovery lookback; the script's local copies are a separate, shorter-lived safety net                               |
@@ -1308,6 +1373,29 @@ restarts the previous image (plus sends an alert) if it never does.
 started — it's done once that container is *observed* to be working, on a
 timescale that accounts for realistic startup work (migrations, connection
 pool warmup, etc).
+
+**Symptom:** Outbound emails (OTP, referrals) silently stop sending; backend
+logs show `dial tcp <ip>:443: i/o timeout` when calling Resend's API — not
+an authentication or config error, a raw connection timeout. (The same root
+cause would also silently break Paystack payment calls, since they originate
+from the same container over the same port.)
+**Root cause:** the `DOCKER-USER` firewall rules built to restrict *inbound*
+traffic to Cloudflare's IP ranges (Phase 16) were written on destination
+port alone, with no direction/interface scoping. `DOCKER-USER` is consulted
+for outbound container traffic too, not just inbound — so the catch-all
+`DROP dport 443` rule was silently killing the backend's own outbound calls
+to any HTTPS service that isn't Cloudflare.
+**Resolution:** scoped every Cloudflare-allow and catch-all-DROP rule with
+`-i <external-interface>` (confirmed via `ip route get 1.1.1.1`, not
+assumed), so the rules only ever evaluate traffic genuinely arriving from
+the internet. Outbound container traffic now falls through the chain
+untouched, exactly as before Phase 16.
+**Prevention:** any firewall change should be verified in **every direction
+it could plausibly affect**, not only the direction it was intended to
+restrict. Here, only "is inbound correctly blocked?" was tested after Phase
+16 — "did I just break something else?" wasn't, and the two failure modes
+looked nothing alike (a network-level probe vs. an application-level email
+failure), which is exactly why it went unnoticed for a while.
 
 ---
 

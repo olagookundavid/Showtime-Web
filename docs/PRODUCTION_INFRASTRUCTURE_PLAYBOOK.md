@@ -356,6 +356,33 @@ routine noise.
   (worse) make a broken restriction appear to be working. Only a test
   originating from truly outside the perimeter is meaningful evidence
   either way.
+- **A firewall rule written purely on destination port, without a direction
+  or interface scope, restricts more than you think.** The kernel-level hook
+  chain used to filter traffic *to* published container ports (see above) is
+  frequently the *same* chain consulted for traffic a container sends *out*
+  to the internet — because both are "forwarded" traffic from the runtime's
+  perspective, not "traffic destined for the host itself." A rule meant to
+  say "only the CDN may reach port 443" but written as "drop anything on
+  port 443 not from the CDN" will also silently drop a container's own
+  outbound calls to any third-party HTTPS API (a payment provider, an email
+  service, anything) — because those calls also use port 443 and obviously
+  don't originate from the CDN's ranges. The fix is to scope the rule by
+  **network interface** (or an equivalent direction indicator on your
+  platform), not port alone: restrictive rules should only ever evaluate
+  traffic arriving via the host's external interface, never traffic arriving
+  via a container-network interface (which is what outbound traffic looks
+  like at this chain, right up until it's routed out). Confirm the real
+  external interface name directly (e.g. `ip route get <public-ip>`) rather
+  than assuming a conventional name.
+- **After any perimeter/firewall change, verify every direction it could
+  plausibly affect, not only the one you intended to restrict.** Testing
+  "is the thing I meant to block, blocked?" is necessary but not
+  sufficient — a rule can simultaneously succeed at the restriction you
+  wanted and silently break something you didn't intend to touch at all
+  (see the example above). The two failure modes often look nothing alike
+  (a network-level probe vs. a delayed, unrelated-looking application
+  error), which is exactly why the collateral damage tends to go unnoticed
+  until something downstream — an email, a payment — quietly stops working.
 
 ---
 
@@ -418,6 +445,15 @@ routine noise.
   Self-to-self connections frequently take a different internal path than
   genuine external traffic and can produce misleading test results in
   either direction.
+- **Writing a container-runtime firewall rule on port alone, with no
+  direction/interface scope.** The chain used to restrict inbound access to
+  a published port is frequently the same chain consulted for a container's
+  own outbound traffic. A rule meant to restrict who can *reach* port 443
+  can silently also block your own services from *calling out* on port 443
+  (a payment API, an email provider) — and because the two failures look
+  completely different (a network probe vs. a delayed application error),
+  the collateral damage can go unnoticed for a while. Scope by interface,
+  and test both directions after the change, every time.
 - **Assuming a copy-pasted fix (from a forum, an AI assistant, a
   colleague's unrelated project) matches your actual configuration.**
   Verify its stated root cause against your own observed state before
