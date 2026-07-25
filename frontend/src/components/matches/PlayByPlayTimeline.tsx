@@ -39,6 +39,14 @@ function describe(p: GamePlay): string {
     return parts.join(' ');
 }
 
+const formatDownAndDistance = (p: GamePlay): string => {
+    if (!p.down) return '';
+    const downOrdinal = p.down === 1 ? '1st' : p.down === 2 ? '2nd' : p.down === 3 ? '3rd' : `${p.down}th`;
+    if (p.to_go === 0 || p.result === '1DG') return `${downOrdinal} & Goal`;
+    if (p.to_go != null && p.to_go > 0) return `${downOrdinal} & ${p.to_go}`;
+    return `${downOrdinal} Down`;
+};
+
 export const PlayByPlayTimeline = ({ matchId, isLive, showEmpty = false }: { matchId: string; isLive: boolean; showEmpty?: boolean }) => {
     const queryClient = useQueryClient();
 
@@ -107,12 +115,19 @@ export const PlayByPlayTimeline = ({ matchId, isLive, showEmpty = false }: { mat
                         </div>
                         <ol className="space-y-1.5">
                             {drive.plays.map(p => (
-                                <li key={p.id} className={`flex items-start gap-3 rounded-lg px-2 py-1.5 ${isScore(p) ? 'bg-emerald-50 dark:bg-emerald-900/20' : ''}`}>
-                                    <span className="text-[11px] font-bold text-gray-400 w-16 shrink-0 pt-0.5 tabular-nums">
-                                        Q{p.quarter}{p.clock ? ` ${p.clock}` : ''}
-                                    </span>
+                                <li key={p.id} className={`flex items-start gap-2.5 sm:gap-3 rounded-xl p-2.5 transition-colors ${isScore(p) ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/40' : 'hover:bg-gray-50/80 dark:hover:bg-gray-700/40'}`}>
+                                    <div className="flex flex-col items-start gap-1 shrink-0 w-20 sm:w-24 pt-0.5">
+                                        <span className="text-[11px] font-bold text-gray-400 tabular-nums">
+                                            Q{p.quarter}{p.clock ? ` ${p.clock}` : ''}
+                                        </span>
+                                        {formatDownAndDistance(p) && (
+                                            <span className="inline-block px-1.5 py-0.5 text-[10px] font-black rounded-md bg-sffl-navy/10 text-sffl-navy dark:bg-blue-900/40 dark:text-blue-300 uppercase tracking-tight tabular-nums">
+                                                {formatDownAndDistance(p)}
+                                            </span>
+                                        )}
+                                    </div>
                                     <div className="min-w-0 flex-1">
-                                        <span className="text-sm text-gray-800 dark:text-gray-100">
+                                        <span className="text-xs sm:text-sm text-gray-800 dark:text-gray-100">
                                             {p.play_type && <span className="font-bold text-sffl-navy dark:text-white">{PLAY_LABEL[p.play_type] || p.play_type}: </span>}
                                             {describe(p)}
                                         </span>
