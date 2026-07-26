@@ -162,13 +162,13 @@ func loadTokenDetails(log *logger.Logger) map[string]string {
 	return tokenMap
 }
 
-func flagSetup(dbUrl string, tokenDeets map[string]string) *config.Config {
+func flagSetup(dbUrl, env string, tokenDeets map[string]string) *config.Config {
 
 	var cfg config.Config
 
 	//env and port
 	flag.IntVar(&cfg.Port, "port", loadPort(), "API server port")
-	flag.StringVar(&cfg.Env, "env", "development", "Environment (development|staging|production)")
+	flag.StringVar(&cfg.Env, "env", env, "Environment (dev|prod)")
 	//db and settings
 	flag.StringVar(&cfg.Db.Dsn, "db-dsn", dbUrl, "PostgreSQL DSN")
 	// Rate limiter driven by env so it's actually ON in prod (the previous

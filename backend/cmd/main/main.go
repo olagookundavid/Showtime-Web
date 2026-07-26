@@ -100,7 +100,7 @@ func main() {
 	dbUrl := loadDbUrl(log)
 	tokenDeets := loadTokenDetails(log)
 
-	cfg := flagSetup(dbUrl, tokenDeets)
+	cfg := flagSetup(dbUrl, env, tokenDeets)
 
 	// Auto-run migrations on boot by default (preserves existing behavior).
 	// Set AUTO_MIGRATE=false in prod once migrations are run as a separate,
