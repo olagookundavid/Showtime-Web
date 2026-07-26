@@ -60,7 +60,7 @@ func (m AuthRepository) Register(ctx context.Context, user domain.User) (*string
 }
 
 func (m AuthRepository) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
-	query := `SELECT id, full_name, email, password_hash, role, phone, created_at, updated_at FROM users WHERE email = $1`
+	query := `SELECT id, full_name, email, password_hash, role, phone, created_at, updated_at FROM users WHERE LOWER(email) = LOWER($1)`
 	var user domain.User
 	var phone sql.NullString
 
@@ -261,7 +261,7 @@ func (m AuthRepository) SaveOTP(ctx context.Context, email, code, purpose string
 func (m AuthRepository) VerifyOTP(ctx context.Context, email, code, purpose string) (bool, error) {
 	query := `SELECT EXISTS (
 		SELECT 1 FROM otps 
-		WHERE email = $1 AND otp_code = $2 AND purpose = $3 AND used = FALSE AND expires_at > NOW()
+		WHERE LOWER(email) = LOWER($1) AND otp_code = $2 AND purpose = $3 AND used = FALSE AND expires_at > NOW()
 	)`
 	var exists bool
 	err := m.Db.QueryRow(ctx, query, email, code, purpose).Scan(&exists)
@@ -269,7 +269,7 @@ func (m AuthRepository) VerifyOTP(ctx context.Context, email, code, purpose stri
 }
 
 func (m AuthRepository) MarkOTPUsed(ctx context.Context, email, code, purpose string) error {
-	query := `UPDATE otps SET used = TRUE WHERE email = $1 AND otp_code = $2 AND purpose = $3`
+	query := `UPDATE otps SET used = TRUE WHERE LOWER(email) = LOWER($1) AND otp_code = $2 AND purpose = $3`
 	_, err := m.Db.Exec(ctx, query, email, code, purpose)
 	return err
 }
@@ -278,7 +278,7 @@ func (m AuthRepository) MarkOTPUsed(ctx context.Context, email, code, purpose st
 // after a wrong reset-password guess so each issued OTP allows only a single
 // attempt — turning the 6-digit code from brute-forceable into one-shot.
 func (m AuthRepository) InvalidateActiveOTPs(ctx context.Context, email, purpose string) error {
-	query := `UPDATE otps SET used = TRUE WHERE email = $1 AND purpose = $2 AND used = FALSE`
+	query := `UPDATE otps SET used = TRUE WHERE LOWER(email) = LOWER($1) AND purpose = $2 AND used = FALSE`
 	_, err := m.Db.Exec(ctx, query, email, purpose)
 	return err
 }

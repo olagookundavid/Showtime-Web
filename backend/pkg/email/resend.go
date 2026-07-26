@@ -34,6 +34,8 @@ func (s *ResendService) SendEmail(to, subject, htmlBody string) error {
 		fromEmail = "Showtime <showtime@sffl.football>"
 	}
 
+	client := resend.NewClient(apiKey)
+
 	params := &resend.SendEmailRequest{
 		From:    fromEmail,
 		To:      []string{to},
@@ -41,7 +43,7 @@ func (s *ResendService) SendEmail(to, subject, htmlBody string) error {
 		Html:    htmlBody,
 	}
 
-	_, err := s.client.Emails.Send(params)
+	_, err := client.Emails.Send(params)
 	if err != nil {
 		return fmt.Errorf("failed to send email via sdk: %w", err)
 	}

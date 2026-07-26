@@ -62,13 +62,17 @@ func main() {
 
 	//Check version and exit
 	displayVersion("version")
+	env := "dev"
+	if mode {
+		env = "prod"
+	}
 
 	// Initialize logger
 	log := logger.GetLogger(logger.Options{
 		IsProduction: mode,
 		AppName:      "Showtime-Backend",
-		Environment:  "dev",
-		TraceID:      "project-app-id",
+		Environment:  env,
+		TraceID:      "Showtime-app-id",
 	})
 	defer log.Sync()
 

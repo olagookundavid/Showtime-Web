@@ -5,6 +5,7 @@ import { getMatchDetail } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { LightboxImage } from '../../components/ui';
 import { PlayByPlayTimeline } from '../../components/matches/PlayByPlayTimeline';
+import { PublicMatchStats } from '../../components/matches/PublicMatchStats';
 
 function formatTime(raw: string | null | undefined): string {
     if (!raw) return '--:--';
@@ -43,7 +44,7 @@ export const MatchDetail = () => {
         retry: 1,
     });
 
-    const [activeTab, setActiveTab] = useState<'rating' | 'plays'>('rating');
+    const [activeTab, setActiveTab] = useState<'rating' | 'plays' | 'stats'>('rating');
 
     if (isLoading) return <Loader />;
 
@@ -246,145 +247,164 @@ export const MatchDetail = () => {
                 </div>
             )}
 
-            {/* ── Tabs: Player Rating (roster) | Play by Play ── */}
+            {/* ── 3 Clean, Evenly Spaced Text Tabs (Former Format) ── */}
             {!isBye && (
-                <div>
-                    <div className="flex gap-1 mb-4 border-b border-gray-200 dark:border-gray-700">
-                        {([['rating', 'Player Rating'], ['plays', 'Play by Play']] as const).map(([key, label]) => (
-                            <button
-                                key={key}
-                                onClick={() => setActiveTab(key)}
-                                className={`px-5 py-2.5 -mb-px font-black text-sm uppercase tracking-tight transition-colors border-b-2 ${activeTab === key ? 'text-sffl-red border-sffl-red' : 'text-gray-400 border-transparent hover:text-sffl-navy dark:hover:text-white'}`}
-                            >
-                                {label}
-                            </button>
-                        ))}
+                <div className="space-y-6">
+                    {/* Evenly Spaced Border-Bottom Tab Bar */}
+                    <div className="grid grid-cols-3 border-b border-gray-200 dark:border-gray-700 mb-6 text-center">
+                        {([
+                            ['rating', 'Player Rating'],
+                            ['plays', 'Play by Play'],
+                            ['stats', 'Match Stats'],
+                        ] as const).map(([key, label]) => {
+                            const isActive = activeTab === key;
+                            return (
+                                <button
+                                    key={key}
+                                    type="button"
+                                    onClick={() => setActiveTab(key)}
+                                    className={`py-3 px-2 text-center -mb-px font-black text-xs md:text-sm uppercase tracking-tight transition-colors border-b-2 ${
+                                        isActive
+                                            ? 'text-sffl-red border-sffl-red'
+                                            : 'text-gray-400 border-transparent hover:text-sffl-navy dark:hover:text-white'
+                                    }`}
+                                >
+                                    {label}
+                                </button>
+                            );
+                        })}
                     </div>
 
-                    {activeTab === 'plays' ? (
-                        <PlayByPlayTimeline matchId={match.id} isLive={match.status === 'LIVE'} showEmpty />
-                    ) : (
-                <div className="bg-white dark:bg-gray-800/80 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/50 overflow-hidden">
-                <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-700/50 flex items-center justify-between">
-                    <h3 className="text-xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">Player Rating</h3>
-                    {hasTeamSheet && (
-                        <span className="text-xs text-gray-400 font-semibold">{homeSheet.length + awaySheet.length} players listed</span>
+                    {/* Tab 1: Player Rating (Roster) */}
+                    {activeTab === 'rating' && (
+                        <div className="bg-white dark:bg-gray-800/80 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/50 overflow-hidden">
+                            <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-700/50 flex items-center justify-between">
+                                <h3 className="text-xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">Player Rating</h3>
+                                {hasTeamSheet && (
+                                    <span className="text-xs text-gray-400 font-semibold">{homeSheet.length + awaySheet.length} players listed</span>
+                                )}
+                            </div>
+
+                            {!hasTeamSheet ? (
+                                <div className="py-14 text-center">
+                                    <p className="text-gray-500 dark:text-gray-400 font-semibold text-sm">No team sheet announced for this match yet.</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100 dark:divide-gray-700/50">
+                                    {/* Home Sheet */}
+                                    <div className="p-5">
+                                        <div className="flex items-center gap-3 mb-4">
+                                            {homeTeam?.logo && (
+                                                <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-gray-100 dark:ring-gray-700">
+                                                    <LightboxImage 
+                                                        src={homeTeam.logo} 
+                                                        alt={homeTeam.name} 
+                                                        thumbnailClassName="w-full h-full"
+                                                        imgClassName="w-full h-full object-cover" 
+                                                    />
+                                                </div>
+                                            )}
+                                            <h4 className="font-black text-base text-sffl-navy dark:text-white truncate">{homeTeam?.name}</h4>
+                                            <span className="ml-auto text-xs bg-sffl-navy/10 dark:bg-white/10 text-sffl-navy dark:text-gray-300 font-bold px-2.5 py-1 rounded-full flex-shrink-0">
+                                                {homeSheet.length}
+                                            </span>
+                                        </div>
+                                        {homeSheet.length === 0 ? (
+                                            <p className="text-gray-400 dark:text-gray-600 italic text-sm text-center py-4">No roster data</p>
+                                        ) : (
+                                            <div className="space-y-1">
+                                                {homeSheet.map(player => (
+                                                    <Link
+                                                        key={player.player_id}
+                                                        to={`/players/${player.player_id}?match=${match.id}&comp=${match.competition?.id}&date=${match.date?.split('T')[0]}`}
+                                                        className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors group"
+                                                    >
+                                                        {player.image ? (
+                                                            <LightboxImage 
+                                                                src={player.image} 
+                                                                alt={player.name} 
+                                                                thumbnailClassName="w-10 h-10 rounded-full flex-shrink-0 group-hover:scale-105 transition-transform shadow-sm" 
+                                                                imgClassName="w-full h-full object-cover"
+                                                            />
+                                                        ) : (
+                                                            <div className="w-10 h-10 rounded-full bg-sffl-navy/10 dark:bg-white/10 flex items-center justify-center text-xs font-black text-sffl-navy dark:text-gray-400 flex-shrink-0">
+                                                                #{player.jersey_number}
+                                                            </div>
+                                                        )}
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="font-bold text-sm text-gray-900 dark:text-gray-100 group-hover:text-sffl-red transition-colors truncate">{player.name}</div>
+                                                            <div className="text-xs text-gray-400 font-semibold">{player.position}</div>
+                                                        </div>
+                                                        <span className="text-sm font-black text-gray-300 dark:text-gray-600 flex-shrink-0">#{player.jersey_number}</span>
+                                                    </Link>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Away Sheet */}
+                                    <div className="p-5">
+                                        <div className="flex items-center gap-3 mb-4">
+                                            {awayTeam?.logo && (
+                                                <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-gray-100 dark:ring-gray-700">
+                                                    <LightboxImage 
+                                                        src={awayTeam.logo} 
+                                                        alt={awayTeam.name} 
+                                                        thumbnailClassName="w-full h-full"
+                                                        imgClassName="w-full h-full object-cover" 
+                                                    />
+                                                </div>
+                                            )}
+                                            <h4 className="font-black text-base text-sffl-navy dark:text-white truncate">{awayTeam?.name}</h4>
+                                            <span className="ml-auto text-xs bg-sffl-navy/10 dark:bg-white/10 text-sffl-navy dark:text-gray-300 font-bold px-2.5 py-1 rounded-full flex-shrink-0">
+                                                {awaySheet.length}
+                                            </span>
+                                        </div>
+                                        {awaySheet.length === 0 ? (
+                                            <p className="text-gray-400 dark:text-gray-600 italic text-sm text-center py-4">No roster data</p>
+                                        ) : (
+                                            <div className="space-y-1">
+                                                {awaySheet.map(player => (
+                                                    <Link
+                                                        key={player.player_id}
+                                                        to={`/players/${player.player_id}?match=${match.id}&comp=${match.competition?.id}&date=${match.date?.split('T')[0]}`}
+                                                        className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors group"
+                                                    >
+                                                        {player.image ? (
+                                                            <LightboxImage 
+                                                                src={player.image} 
+                                                                alt={player.name} 
+                                                                thumbnailClassName="w-10 h-10 rounded-full flex-shrink-0 group-hover:scale-105 transition-transform shadow-sm" 
+                                                                imgClassName="w-full h-full object-cover"
+                                                            />
+                                                        ) : (
+                                                            <div className="w-10 h-10 rounded-full bg-sffl-navy/10 dark:bg-white/10 flex items-center justify-center text-xs font-black text-sffl-navy dark:text-gray-400 flex-shrink-0">
+                                                                #{player.jersey_number}
+                                                            </div>
+                                                        )}
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="font-bold text-sm text-gray-900 dark:text-gray-100 group-hover:text-sffl-red transition-colors truncate">{player.name}</div>
+                                                            <div className="text-xs text-gray-400 font-semibold">{player.position}</div>
+                                                        </div>
+                                                        <span className="text-sm font-black text-gray-300 dark:text-gray-600 flex-shrink-0">#{player.jersey_number}</span>
+                                                    </Link>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     )}
-                </div>
 
-                {!hasTeamSheet ? (
-                    <div className="py-14 text-center">
-                        <div className="text-4xl mb-4">📋</div>
-                        <p className="text-gray-500 dark:text-gray-400 font-semibold text-sm">No team sheet announced for this match yet.</p>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100 dark:divide-gray-700/50">
+                    {/* Tab 2: Play-by-Play Timeline */}
+                    {activeTab === 'plays' && (
+                        <PlayByPlayTimeline matchId={match.id} isLive={match.status === 'LIVE'} showEmpty />
+                    )}
 
-                        {/* Home Sheet */}
-                        <div className="p-5">
-                            <div className="flex items-center gap-3 mb-4">
-                                {homeTeam?.logo && (
-                                    <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-gray-100 dark:ring-gray-700">
-                                        <LightboxImage 
-                                            src={homeTeam.logo} 
-                                            alt={homeTeam.name} 
-                                            thumbnailClassName="w-full h-full"
-                                            imgClassName="w-full h-full object-cover" 
-                                        />
-                                    </div>
-                                )}
-                                <h4 className="font-black text-base text-sffl-navy dark:text-white truncate">{homeTeam?.name}</h4>
-                                <span className="ml-auto text-xs bg-sffl-navy/10 dark:bg-white/10 text-sffl-navy dark:text-gray-300 font-bold px-2.5 py-1 rounded-full flex-shrink-0">
-                                    {homeSheet.length}
-                                </span>
-                            </div>
-                            {homeSheet.length === 0 ? (
-                                <p className="text-gray-400 dark:text-gray-600 italic text-sm text-center py-4">No roster data</p>
-                            ) : (
-                                <div className="space-y-1">
-                                    {homeSheet.map(player => (
-                                        <Link
-                                            key={player.player_id}
-                                            to={`/players/${player.player_id}?match=${match.id}&comp=${match.competition?.id}&date=${match.date?.split('T')[0]}`}
-                                            className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors group"
-                                        >
-                                            {player.image ? (
-                                                <LightboxImage 
-                                                    src={player.image} 
-                                                    alt={player.name} 
-                                                    thumbnailClassName="w-10 h-10 rounded-full flex-shrink-0 group-hover:scale-105 transition-transform shadow-sm" 
-                                                    imgClassName="w-full h-full object-cover"
-                                                />
-                                            ) : (
-                                                <div className="w-10 h-10 rounded-full bg-sffl-navy/10 dark:bg-white/10 flex items-center justify-center text-xs font-black text-sffl-navy dark:text-gray-400 flex-shrink-0">
-                                                    #{player.jersey_number}
-                                                </div>
-                                            )}
-                                            <div className="flex-1 min-w-0">
-                                                <div className="font-bold text-sm text-gray-900 dark:text-gray-100 group-hover:text-sffl-red transition-colors truncate">{player.name}</div>
-                                                <div className="text-xs text-gray-400 font-semibold">{player.position}</div>
-                                            </div>
-                                            <span className="text-sm font-black text-gray-300 dark:text-gray-600 flex-shrink-0">#{player.jersey_number}</span>
-                                        </Link>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Away Sheet */}
-                        <div className="p-5">
-                            <div className="flex items-center gap-3 mb-4">
-                                {awayTeam?.logo && (
-                                    <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-gray-100 dark:ring-gray-700">
-                                        <LightboxImage 
-                                            src={awayTeam.logo} 
-                                            alt={awayTeam.name} 
-                                            thumbnailClassName="w-full h-full"
-                                            imgClassName="w-full h-full object-cover" 
-                                        />
-                                    </div>
-                                )}
-                                <h4 className="font-black text-base text-sffl-navy dark:text-white truncate">{awayTeam?.name}</h4>
-                                <span className="ml-auto text-xs bg-sffl-navy/10 dark:bg-white/10 text-sffl-navy dark:text-gray-300 font-bold px-2.5 py-1 rounded-full flex-shrink-0">
-                                    {awaySheet.length}
-                                </span>
-                            </div>
-                            {awaySheet.length === 0 ? (
-                                <p className="text-gray-400 dark:text-gray-600 italic text-sm text-center py-4">No roster data</p>
-                            ) : (
-                                <div className="space-y-1">
-                                    {awaySheet.map(player => (
-                                        <Link
-                                            key={player.player_id}
-                                            to={`/players/${player.player_id}?match=${match.id}&comp=${match.competition?.id}&date=${match.date?.split('T')[0]}`}
-                                            className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors group"
-                                        >
-                                            {player.image ? (
-                                                <LightboxImage 
-                                                    src={player.image} 
-                                                    alt={player.name} 
-                                                    thumbnailClassName="w-10 h-10 rounded-full flex-shrink-0 group-hover:scale-105 transition-transform shadow-sm" 
-                                                    imgClassName="w-full h-full object-cover"
-                                                />
-                                            ) : (
-                                                <div className="w-10 h-10 rounded-full bg-sffl-navy/10 dark:bg-white/10 flex items-center justify-center text-xs font-black text-sffl-navy dark:text-gray-400 flex-shrink-0">
-                                                    #{player.jersey_number}
-                                                </div>
-                                            )}
-                                            <div className="flex-1 min-w-0">
-                                                <div className="font-bold text-sm text-gray-900 dark:text-gray-100 group-hover:text-sffl-red transition-colors truncate">{player.name}</div>
-                                                <div className="text-xs text-gray-400 font-semibold">{player.position}</div>
-                                            </div>
-                                            <span className="text-sm font-black text-gray-300 dark:text-gray-600 flex-shrink-0">#{player.jersey_number}</span>
-                                        </Link>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                    </div>
-                )}
-                </div>
+                    {/* Tab 3: Match Stats Table (Full Player Box Score & Team Totals with Filters) */}
+                    {activeTab === 'stats' && (
+                        <PublicMatchStats matchId={match.id} />
                     )}
                 </div>
             )}

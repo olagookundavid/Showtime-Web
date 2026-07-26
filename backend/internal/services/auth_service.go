@@ -148,14 +148,15 @@ func (s *AuthService) SendPasswordResetOTP(ctx context.Context, emailAddr string
 		return err
 	}
 
-	// Send Email
+	// Send Email asynchronously via worker pool for instant feedback
 	if s.EmailService != nil {
 		body := email.OTPEmailHTML(otp) // Use email package prefix
 		subject := "SFFL Password Reset Code"
-		err = s.EmailService.SendEmail(emailAddr, subject, body)
-		if err != nil {
-			fmt.Printf("Failed to send OTP email to %s: %v\n", emailAddr, err)
-		}
+		_ = SubmitJob(func() {
+			if err := s.EmailService.SendEmail(emailAddr, subject, body); err != nil {
+				fmt.Printf("⚠️ WARNING: Failed to send OTP email to %s: %v\n", emailAddr, err)
+			}
+		})
 	}
 
 	return nil
