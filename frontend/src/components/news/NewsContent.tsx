@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { LightboxImage } from '../ui';
 import { YouTubeEmbed } from './YouTubeEmbed';
+import { NewsReferenceCard } from './NewsReferenceCard';
 import {
     parseNewsContent, parseInlineMentions,
     type InlinePart,
@@ -66,6 +67,18 @@ export const NewsContent = ({ content }: { content: string }) => {
                         <div key={i} className="my-8 aspect-video rounded-xl overflow-hidden">
                             <YouTubeEmbed videoId={segment.videoId} title="Embedded video" />
                         </div>
+                    );
+                }
+                if (segment.type === 'news_ref') {
+                    return (
+                        <NewsReferenceCard
+                            key={i}
+                            url={segment.url}
+                            isInternal={segment.isInternal}
+                            slug={segment.slug}
+                            domain={segment.domain}
+                            title={segment.title}
+                        />
                     );
                 }
                 return segment.text

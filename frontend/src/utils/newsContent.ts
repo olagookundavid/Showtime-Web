@@ -13,11 +13,69 @@
 export type NewsSegment =
     | { type: 'text'; text: string }
     | { type: 'image'; url: string; caption: string }
-    | { type: 'youtube'; videoId: string };
+    | { type: 'youtube'; videoId: string }
+    | { type: 'news_ref'; url: string; isInternal: boolean; slug?: string; domain?: string; title?: string };
 
 export type InlinePart =
     | { type: 'text'; text: string }
     | { type: 'mention'; kind: 'team' | 'player'; id: string; name: string };
+
+export interface NewsRefData {
+    url: string;
+    isInternal: boolean;
+    slug?: string;
+    domain?: string;
+}
+
+/** Parses a URL or path to determine if it is an internal news article link or an external news page. */
+export const parseNewsRefUrl = (input: string): NewsRefData | null => {
+    const trimmed = (input || '').trim();
+    if (!trimmed) return null;
+
+    // Check relative internal path e.g. /news/slug or news/slug
+    const relativeMatch = trimmed.match(/^(?:\/)?news\/([a-zA-Z0-9_-]+)\/?$/);
+    if (relativeMatch) {
+        return {
+            url: `/news/${relativeMatch[1]}`,
+            isInternal: true,
+            slug: relativeMatch[1],
+        };
+    }
+
+    try {
+        const hasProtocol = /^https?:\/\//i.test(trimmed);
+        const parsed = new URL(hasProtocol ? trimmed : `https://${trimmed}`);
+        const newsPathMatch = parsed.pathname.match(/^\/news\/([a-zA-Z0-9_-]+)\/?$/);
+
+        const currentHost = typeof window !== 'undefined' ? window.location.host : '';
+        const cleanHost = parsed.hostname.replace(/^www\./, '');
+        const cleanCurrent = currentHost ? currentHost.split(':')[0].replace(/^www\./, '') : '';
+
+        const isLocalOrSameHost =
+            !hasProtocol ||
+            cleanHost === cleanCurrent ||
+            cleanCurrent === 'localhost' ||
+            cleanCurrent === '127.0.0.1' ||
+            cleanHost === 'showtime.com' ||
+            cleanHost === 'sffl.com';
+
+        if (newsPathMatch && isLocalOrSameHost) {
+            return {
+                url: `/news/${newsPathMatch[1]}`,
+                isInternal: true,
+                slug: newsPathMatch[1],
+            };
+        }
+
+        return {
+            url: parsed.toString(),
+            isInternal: false,
+            domain: cleanHost || parsed.hostname,
+        };
+    } catch {
+        return null;
+    }
+};
 
 /** Extracts the 11-char video id from any YouTube URL form (watch, youtu.be,
  *  shorts, live, embed) or from a bare id. Returns null when unparseable. */
@@ -50,10 +108,10 @@ export const youTubeEmbedUrl = (videoId: string) =>
 export const youTubeThumbnailUrl = (videoId: string) =>
     `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
 
-const MEDIA_TAG_RE = /\[(image|youtube):([^\]]+)\]/g;
+const MEDIA_TAG_RE = /\[(image|youtube|news):([^\]]+)\]/g;
 const MENTION_TAG_RE = /\[(team|player):([^|\]]+)\|([^\]]+)\]/g;
 
-/** Splits article content into text runs and block media (images / videos).
+/** Splits article content into text runs and block media (images / videos / news references).
  *  Media tags become blocks wherever they appear, so an admin who pastes a tag
  *  mid-paragraph still gets valid output. */
 export const parseNewsContent = (content: string): NewsSegment[] => {
@@ -70,10 +128,27 @@ export const parseNewsContent = (content: string): NewsSegment[] => {
             const url = (pipe === -1 ? body : body.slice(0, pipe)).trim();
             const caption = pipe === -1 ? '' : body.slice(pipe + 1).trim();
             if (url) segments.push({ type: 'image', url, caption });
-        } else {
+        } else if (kind === 'youtube') {
             const videoId = parseYouTubeId(body);
             if (videoId) segments.push({ type: 'youtube', videoId });
             else segments.push({ type: 'text', text: full });
+        } else if (kind === 'news') {
+            const pipe = body.indexOf('|');
+            const urlInput = (pipe === -1 ? body : body.slice(0, pipe)).trim();
+            const title = pipe === -1 ? '' : body.slice(pipe + 1).trim();
+            const refData = parseNewsRefUrl(urlInput);
+            if (refData) {
+                segments.push({
+                    type: 'news_ref',
+                    url: refData.url,
+                    isInternal: refData.isInternal,
+                    slug: refData.slug,
+                    domain: refData.domain,
+                    title: title || undefined,
+                });
+            } else {
+                segments.push({ type: 'text', text: full });
+            }
         }
         last = index + full.length;
     }
