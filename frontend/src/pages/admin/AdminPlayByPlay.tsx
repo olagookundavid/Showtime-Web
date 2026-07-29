@@ -28,7 +28,21 @@ import { useAuth } from '../../contexts/AuthContext';
 
 type Side = 'home' | 'away' | '';
 type Kind = '' | 'pass' | 'run' | 'xp' | 'special' | 'penalty' | 'event';
-type PassOutcome = 'complete' | 'incomplete' | 'td' | 'int' | 'sack' | 'ta';
+type PassOutcome = 'complete' | 'incomplete' | 'int' | 'ta';
+type RushOutcome = 'sack' | 'no_sack' | 'bat_down' | 'int';
+type SackResult = 'next_down' | 'safety';
+type PassDefenderAction = 'FG' | 'OB';
+type PassFinalOutcome = 'TD' | 'next_down' | 'INT' | 'TO' | 'pick6' | 'SAF';
+type IncompleteOption = 'dropped' | 'batted_down' | 'uncatchable';
+
+type RunStyle = 'RUN' | 'QBR';
+type RunDefenderAction = 'FG' | 'OB';
+type RunPlayOutcome = 'TD' | 'turnover' | 'next_down';
+
+type SpecialType = 'KO' | 'PUNT';
+type ReceiverOutcome = 'no_catch' | 'catch';
+type SpecialDefenderAction = 'FG' | 'OB';
+type SpecialPlayOutcome = 'TD' | 'next_down';
 
 interface Ctx {
     quarter: number;
@@ -44,53 +58,59 @@ interface Ctx {
 
 interface Wizard {
     kind: Kind;
-    // pass
+    // Pass flow
+    rushOutcome?: RushOutcome;
+    sackResult?: SackResult;
     passOutcome?: PassOutcome;
-    passModifier?: '' | 'SCR' | 'HM';
-    // run
-    runStyle?: 'RUN' | 'QBR' | 'SWP' | 'REV';
-    // xp
+    passDefenderAction?: PassDefenderAction;
+    passFinalOutcome?: PassFinalOutcome;
+    incompleteOption?: IncompleteOption;
+    
+    // Run flow
+    runStyle?: RunStyle;
+    runDefenderAction?: RunDefenderAction;
+    runPlayOutcome?: RunPlayOutcome;
+
+    // XP flow
     xpType?: 'PAT-R' | 'XP-P';
     xpResult?: 'XP' | 'XPF';
-    // special / event
-    specialType?: 'KO' | 'PUNT';
+
+    // Special flow
+    specialType?: SpecialType;
+    receiverOutcome?: ReceiverOutcome;
+    specialDefenderAction?: SpecialDefenderAction;
+    specialPlayOutcome?: SpecialPlayOutcome;
+
+    // Event flow
     eventKind?: 'IH' | 'EH' | 'EG';
-    // shared (player_id values, chosen by name — not all teams have jersey numbers yet)
+
+    // Player selections & inputs
     qbId: string;
     targetId: string;
     carrierId: string;
     defenderId: string;
     rusherId: string;
     yards: string;
-    result: string;
-    dropped: boolean;
-    battedDown: boolean;
-    returnedForTd: boolean;
-    safety: boolean;
-    // penalty (attached or standalone)
+    notes: string;
+
+    // Penalty (attached or standalone)
     penaltyOn: boolean;
     penaltyCode: string;
     penaltyTeam: Side;
     penaltyPlayerId: string;
     penaltyYards: string;
-    notes: string;
+
     editingId: string | null;
 }
 
 const emptyWizard: Wizard = {
     kind: '',
-    passModifier: '',
     qbId: '',
     targetId: '',
     carrierId: '',
     defenderId: '',
     rusherId: '',
     yards: '',
-    result: '',
-    dropped: false,
-    battedDown: false,
-    returnedForTd: false,
-    safety: false,
     penaltyOn: false,
     penaltyCode: '',
     penaltyTeam: '',
@@ -350,6 +370,8 @@ export const AdminPlayByPlay = () => {
     const offenseRoster = ctx.offense === 'home' ? homeRoster : ctx.offense === 'away' ? awayRoster : [];
     const defenseRoster = ctx.offense === 'home' ? awayRoster : ctx.offense === 'away' ? homeRoster : [];
     const penaltyRoster = w.penaltyTeam === 'home' ? homeRoster : w.penaltyTeam === 'away' ? awayRoster : [];
+    // An injury can be to any player on either team, so its picker spans both sheets.
+    const bothRoster = [...homeRoster, ...awayRoster];
 
     // Seed the context bar from the last logged play (no rules engine yet — just a
     // sensible starting point the admin can overtype). Depends on the `plays`
@@ -402,58 +424,100 @@ export const AdminPlayByPlay = () => {
                 if (ctx.offense === '') return { payload: null, error: 'Pick which team has the ball first.' };
                 base.off_qb_id = w.qbId || undefined;
                 if (!base.off_qb_id) return { payload: null, error: 'Select the QB.' };
-                base.yards = toIntOrNull(w.yards);
-                base.rusher_id = w.rusherId || undefined;
-                switch (w.passOutcome) {
-                    case 'complete':
-                        base.play_type = w.passModifier || 'CP';
-                        base.target_id = w.targetId || undefined;
-                        base.result = w.result || 'FG';
-                        if (base.result === 'FG') base.defender_id = w.defenderId || undefined;
-                        break;
-                    case 'td':
-                        base.play_type = 'TDP';
-                        base.target_id = w.targetId || undefined;
-                        base.result = 'TD';
-                        break;
-                    case 'incomplete':
-                        base.play_type = w.passModifier || 'INC';
-                        base.target_id = w.targetId || undefined;
+                if (!w.rushOutcome) return { payload: null, error: 'Select what happened on the Rush.' };
+
+                if (w.rushOutcome === 'sack') {
+                    if (!w.sackResult) return { payload: null, error: 'Select Sack result (Next Down or Safety).' };
+                    base.play_type = 'SACK';
+                    base.rusher_id = w.rusherId || undefined;
+                    base.yards = toIntOrNull(w.yards);
+                    base.result = w.sackResult === 'safety' ? 'SAF' : 'FG';
+                } else if (w.rushOutcome === 'bat_down') {
+                    base.play_type = 'INC';
+                    base.result = 'INC';
+                    base.rusher_id = w.rusherId || undefined;
+                    base.batted_down = true;
+                } else if (w.rushOutcome === 'int') {
+                    base.play_type = 'INT';
+                    base.result = 'INT';
+                    base.rusher_id = w.rusherId || undefined;
+                } else if (w.rushOutcome === 'no_sack') {
+                    base.rusher_id = w.rusherId || undefined;
+                    if (!w.passOutcome) return { payload: null, error: 'Select Pass outcome (Complete or Incomplete).' };
+
+                    if (w.passOutcome === 'complete') {
+                        if (!w.targetId) return { payload: null, error: 'Select Target receiver.' };
+                        base.target_id = w.targetId;
+                        base.yards = toIntOrNull(w.yards);
+                        base.defender_id = w.defenderId || undefined;
+
+                        if (!w.passFinalOutcome) return { payload: null, error: 'Select Final Outcome.' };
+
+                        // A completed pass can only end as a catch that stands: a
+                        // touchdown, a tackle short of the sticks (next down / turnover
+                        // on downs), or a safety. Interceptions are NOT completions —
+                        // they're recorded via the "Intercepted" pass outcome instead,
+                        // so they credit the defence (and never a reception here).
+                        switch (w.passFinalOutcome) {
+                            case 'TD':
+                                base.play_type = 'TDP';
+                                base.result = 'TD';
+                                break;
+                            case 'next_down':
+                                base.play_type = 'CP';
+                                base.result = w.passDefenderAction === 'OB' ? 'OB' : 'FG';
+                                break;
+                            case 'TO':
+                                base.play_type = 'CP';
+                                base.result = 'TO';
+                                break;
+                            case 'SAF':
+                                base.play_type = 'CP';
+                                base.result = 'SAF';
+                                break;
+                        }
+                    } else if (w.passOutcome === 'incomplete') {
+                        base.play_type = 'INC';
                         base.result = 'INC';
-                        base.dropped = w.dropped;
-                        base.batted_down = w.battedDown;
-                        if (w.defenderId) base.defender_id = w.defenderId;
-                        break;
-                    case 'int':
+                        base.target_id = w.targetId || undefined;
+
+                        if (w.incompleteOption === 'dropped') {
+                            base.dropped = true;
+                        } else if (w.incompleteOption === 'batted_down') {
+                            base.batted_down = true;
+                            base.defender_id = w.defenderId || undefined;
+                        }
+                    } else if (w.passOutcome === 'int') {
                         base.play_type = 'INT';
                         base.result = 'INT';
+                        base.target_id = w.targetId || undefined;
                         base.defender_id = w.defenderId || undefined;
-                        base.returned_for_td = w.returnedForTd;
-                        break;
-                    case 'sack':
-                        base.play_type = 'SACK';
-                        base.defender_id = w.defenderId || undefined;
-                        base.result = w.safety ? 'SAF' : 'FG';
-                        break;
-                    case 'ta':
+                        if (w.passFinalOutcome === 'pick6') base.returned_for_td = true;
+                    } else if (w.passOutcome === 'ta') {
                         base.play_type = 'TA';
                         base.result = 'INC';
-                        break;
-                    default:
-                        return { payload: null, error: 'Pick what happened on the pass.' };
+                    }
                 }
                 break;
             }
             case 'run': {
                 if (ctx.offense === '') return { payload: null, error: 'Pick which team has the ball first.' };
-                if (!w.runStyle) return { payload: null, error: 'Pick the run type.' };
+                if (!w.runStyle) return { payload: null, error: 'Pick the run style (Run or QB Run).' };
                 base.play_type = w.runStyle;
                 base.off_qb_id = w.carrierId || undefined;
                 if (!base.off_qb_id) return { payload: null, error: 'Select the carrier.' };
                 base.yards = toIntOrNull(w.yards);
-                base.result = w.result || 'FG';
-                base.rusher_id = w.rusherId || undefined;
-                if (base.result === 'FG' || base.result === 'SAF') base.defender_id = w.defenderId || undefined;
+                base.defender_id = w.defenderId || undefined;
+
+                if (!w.runPlayOutcome) return { payload: null, error: 'Select Play Outcome.' };
+
+                if (w.runPlayOutcome === 'TD') {
+                    base.result = 'TD';
+                } else if (w.runPlayOutcome === 'turnover') {
+                    base.result = 'TO';
+                } else if (w.runPlayOutcome === 'next_down') {
+                    base.result = w.runDefenderAction === 'OB' ? 'OB' : 'FG';
+                }
                 break;
             }
             case 'xp': {
@@ -472,8 +536,15 @@ export const AdminPlayByPlay = () => {
             case 'special': {
                 if (!w.specialType) return { payload: null, error: 'Throw-off or punt?' };
                 base.play_type = w.specialType;
-                base.result = 'DB';
-                base.offense_team_id = offenseTeamId; // may be blank for a throw-off
+                if (w.receiverOutcome === 'no_catch') {
+                    base.result = 'DB';
+                } else if (w.receiverOutcome === 'catch') {
+                    base.target_id = w.targetId || undefined;
+                    base.defender_id = w.defenderId || undefined;
+                    base.result = w.specialPlayOutcome === 'TD' ? 'TD' : (w.specialDefenderAction === 'OB' ? 'OB' : 'FG');
+                } else {
+                    base.result = 'DB';
+                }
                 break;
             }
             case 'penalty': {
@@ -489,14 +560,22 @@ export const AdminPlayByPlay = () => {
             case 'event': {
                 if (!w.eventKind) return { payload: null, error: 'Pick the game event.' };
                 base.result = w.eventKind;
+                // An injury names the affected player (stored in off_qb_id — an
+                // event row has no play_type, so no stat/score engine reads it).
+                if (w.eventKind === 'IH') {
+                    if (!w.qbId) return { payload: null, error: 'Select the injured player.' };
+                    base.off_qb_id = w.qbId;
+                }
                 return { payload: base };
             }
             default:
                 return { payload: null, error: 'Pick what happened.' };
         }
 
-        // Optional penalty attached to a play above.
-        if (w.penaltyOn && w.penaltyCode) {
+        // Optional penalty attached to a play above. Special teams shows an
+        // always-visible penalty box (no checkbox); every other play kind gates
+        // it behind the "Add a penalty" checkbox so a stale code can't attach.
+        if (w.penaltyCode && (w.penaltyOn || w.kind === 'special')) {
             base.penalty = w.penaltyCode;
             base.penalty_team_id = w.penaltyTeam === 'home' ? match?.home_team?.id : w.penaltyTeam === 'away' ? match?.away_team?.id : undefined;
             base.penalty_player_id = w.penaltyPlayerId || undefined;
@@ -577,44 +656,93 @@ export const AdminPlayByPlay = () => {
         }));
         // Best-effort reverse mapping into the wizard from the stored codes.
         const pt = p.play_type || '';
+        const res = p.result || '';
         const nw: Wizard = { ...emptyWizard, editingId: p.id, notes: p.notes || '' };
-        if (['CP', 'INC', 'TDP', 'SCR', 'HM', 'TA', 'INT', 'SACK'].includes(pt)) {
+
+        if (['CP', 'INC', 'TDP', 'INT', 'TA', 'SACK'].includes(pt)) {
             nw.kind = 'pass';
             nw.qbId = p.off_qb?.id || '';
             nw.targetId = p.target?.id || '';
             nw.defenderId = p.defender?.id || '';
             nw.rusherId = p.rusher?.id || '';
             nw.yards = p.yards != null ? String(p.yards) : '';
-            nw.dropped = p.dropped; nw.battedDown = p.batted_down; nw.returnedForTd = p.returned_for_td;
-            if (pt === 'TDP') nw.passOutcome = 'td';
-            else if (pt === 'INT') nw.passOutcome = 'int';
-            else if (pt === 'SACK') { nw.passOutcome = 'sack'; nw.safety = p.result === 'SAF'; }
-            else if (pt === 'TA') nw.passOutcome = 'ta';
-            else if (p.result === 'INC') { nw.passOutcome = 'incomplete'; nw.passModifier = (pt === 'SCR' || pt === 'HM') ? pt : ''; }
-            else { nw.passOutcome = 'complete'; nw.passModifier = (pt === 'SCR' || pt === 'HM') ? pt : ''; nw.result = p.result || 'FG'; }
-        } else if (['RUN', 'QBR', 'SWP', 'REV'].includes(pt)) {
+
+            if (pt === 'SACK') {
+                nw.rushOutcome = 'sack';
+                nw.sackResult = res === 'SAF' ? 'safety' : 'next_down';
+            } else if (pt === 'INC' && p.batted_down && !p.target) {
+                nw.rushOutcome = 'bat_down';
+            } else if (pt === 'INT' && !p.target) {
+                nw.rushOutcome = 'int';
+            } else if (pt === 'INT') {
+                // Interception with a target = the "Intercepted" pass outcome.
+                nw.rushOutcome = 'no_sack';
+                nw.passOutcome = 'int';
+                nw.passFinalOutcome = p.returned_for_td ? 'pick6' : 'INT';
+            } else if (pt === 'TA') {
+                nw.rushOutcome = 'no_sack';
+                nw.passOutcome = 'ta';
+            } else {
+                nw.rushOutcome = 'no_sack';
+                if (pt === 'INC') {
+                    nw.passOutcome = 'incomplete';
+                    if (p.dropped) nw.incompleteOption = 'dropped';
+                    else if (p.batted_down) nw.incompleteOption = 'batted_down';
+                    else nw.incompleteOption = 'uncatchable';
+                } else {
+                    nw.passOutcome = 'complete';
+                    nw.passDefenderAction = res === 'OB' ? 'OB' : 'FG';
+                    if (pt === 'TDP' || res === 'TD') nw.passFinalOutcome = 'TD';
+                    else if (res === 'TO') nw.passFinalOutcome = 'TO';
+                    else if (res === 'SAF') nw.passFinalOutcome = 'SAF';
+                    else nw.passFinalOutcome = 'next_down';
+                }
+            }
+        } else if (['RUN', 'QBR'].includes(pt)) {
             nw.kind = 'run';
-            nw.runStyle = pt as Wizard['runStyle'];
+            nw.runStyle = (pt === 'QBR' ? 'QBR' : 'RUN');
             nw.carrierId = p.off_qb?.id || '';
             nw.defenderId = p.defender?.id || '';
-            nw.rusherId = p.rusher?.id || '';
             nw.yards = p.yards != null ? String(p.yards) : '';
-            nw.result = p.result || 'FG';
+            nw.runDefenderAction = res === 'OB' ? 'OB' : 'FG';
+            if (res === 'TD') nw.runPlayOutcome = 'TD';
+            else if (res === 'TO') nw.runPlayOutcome = 'turnover';
+            else nw.runPlayOutcome = 'next_down';
         } else if (pt === 'XP-P' || pt === 'PAT-R') {
-            nw.kind = 'xp'; nw.xpType = pt; nw.xpResult = (p.result === 'XPF' ? 'XPF' : 'XP');
+            nw.kind = 'xp'; nw.xpType = pt; nw.xpResult = (res === 'XPF' ? 'XPF' : 'XP');
             nw.qbId = p.off_qb?.id || '';
             nw.targetId = p.target?.id || '';
             nw.carrierId = p.off_qb?.id || '';
         } else if (pt === 'KO' || pt === 'PUNT') {
-            nw.kind = 'special'; nw.specialType = pt;
+            nw.kind = 'special';
+            nw.specialType = pt as SpecialType;
+            if (p.target) {
+                nw.receiverOutcome = 'catch';
+                nw.targetId = p.target.id;
+                nw.defenderId = p.defender?.id || '';
+                nw.specialDefenderAction = res === 'OB' ? 'OB' : 'FG';
+                nw.specialPlayOutcome = res === 'TD' ? 'TD' : 'next_down';
+            } else {
+                nw.receiverOutcome = 'no_catch';
+            }
         } else if (p.penalty && !pt) {
             nw.kind = 'penalty'; nw.penaltyCode = p.penalty;
             nw.penaltyTeam = p.penalty_team_id === match?.home_team?.id ? 'home' : p.penalty_team_id === match?.away_team?.id ? 'away' : '';
             nw.penaltyPlayerId = p.penalty_player?.id || '';
             nw.penaltyYards = p.penalty_yards != null ? String(p.penalty_yards) : '';
-        } else if (['IH', 'EH', 'EG'].includes(p.result || '')) {
-            nw.kind = 'event'; nw.eventKind = p.result as Wizard['eventKind'];
+        } else if (['IH', 'EH', 'EG'].includes(res)) {
+            nw.kind = 'event'; nw.eventKind = res as Wizard['eventKind'];
+            if (res === 'IH') nw.qbId = p.off_qb?.id || '';
         }
+
+        if (p.penalty && pt) {
+            nw.penaltyOn = true;
+            nw.penaltyCode = p.penalty;
+            nw.penaltyTeam = p.penalty_team_id === match?.home_team?.id ? 'home' : p.penalty_team_id === match?.away_team?.id ? 'away' : '';
+            nw.penaltyPlayerId = p.penalty_player?.id || '';
+            nw.penaltyYards = p.penalty_yards != null ? String(p.penalty_yards) : '';
+        }
+
         setW(nw);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -715,28 +843,35 @@ export const AdminPlayByPlay = () => {
                             <div className="flex flex-wrap gap-2">
                                 <button
                                     type="button"
-                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'pass', passOutcome: 'incomplete' })}
+                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'pass', rushOutcome: 'no_sack', passOutcome: 'incomplete', incompleteOption: 'uncatchable' })}
                                     className="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md text-xs font-bold text-gray-700 dark:text-gray-200 transition-colors"
                                 >
                                     🏈 Incomplete Pass
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'run', runStyle: 'RUN', yards: '5', result: 'FG' })}
+                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'pass', rushOutcome: 'no_sack', passOutcome: 'complete', passDefenderAction: 'FG', passFinalOutcome: 'next_down' })}
                                     className="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md text-xs font-bold text-gray-700 dark:text-gray-200 transition-colors"
                                 >
-                                    🏃 5-Yard Run
+                                    ✅ Complete Pass
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'pass', passOutcome: 'sack', yards: '-6' })}
+                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'run', runStyle: 'RUN', runDefenderAction: 'FG', runPlayOutcome: 'next_down' })}
+                                    className="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md text-xs font-bold text-gray-700 dark:text-gray-200 transition-colors"
+                                >
+                                    🏃 Run
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'pass', rushOutcome: 'sack', sackResult: 'next_down', yards: '-6' })}
                                     className="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md text-xs font-bold text-gray-700 dark:text-gray-200 transition-colors"
                                 >
                                     💥 Sack (-6 yds)
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'pass', passOutcome: 'td' })}
+                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'pass', rushOutcome: 'no_sack', passOutcome: 'complete', passFinalOutcome: 'TD' })}
                                     className="px-2.5 py-1 bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 rounded-md text-xs font-bold text-emerald-800 dark:text-emerald-200 transition-colors"
                                 >
                                     🏆 Touchdown Pass
@@ -757,97 +892,122 @@ export const AdminPlayByPlay = () => {
                         <Section active title="The pass">
                             <div className="space-y-4">
                                 <PlayerField label={`QB (${teamName(ctx.offense)})`} value={w.qbId} onChange={v => setField('qbId', v)} roster={offenseRoster} />
-                                <div>
-                                    <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Outcome</div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {([['complete', 'Complete'], ['incomplete', 'Incomplete'], ['td', 'Touchdown'], ['int', 'Intercepted'], ['sack', 'Sacked'], ['ta', 'Thrown away']] as [PassOutcome, string][]).map(([o, label]) => (
-                                            <button key={o} className={chip(w.passOutcome === o)} onClick={() => setField('passOutcome', o)}>{label}</button>
-                                        ))}
-                                    </div>
-                                </div>
 
-                                {(w.passOutcome === 'complete' || w.passOutcome === 'incomplete') && (
-                                    <div className="flex gap-2">
-                                        <button className={chip(w.passModifier === 'SCR')} onClick={() => setField('passModifier', w.passModifier === 'SCR' ? '' : 'SCR')}>Screen</button>
-                                        <button className={chip(w.passModifier === 'HM')} onClick={() => setField('passModifier', w.passModifier === 'HM' ? '' : 'HM')}>Hail Mary</button>
-                                    </div>
-                                )}
-
-                                {(w.passOutcome === 'complete' || w.passOutcome === 'td' || w.passOutcome === 'incomplete') && (
-                                    <PlayerField label={`Target (${teamName(ctx.offense)})`} value={w.targetId} onChange={v => setField('targetId', v)} roster={offenseRoster} />
-                                )}
-
-                                {(w.passOutcome === 'complete' || w.passOutcome === 'td') && (
-                                    <label className="block">
-                                        <span className="text-xs font-bold text-gray-600 dark:text-gray-300">Yards</span>
-                                        <input type="number" value={w.yards} onChange={e => setField('yards', e.target.value)} className="ml-2 w-24 border rounded-lg px-2 py-1.5 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-                                    </label>
-                                )}
-
-                                {w.passOutcome === 'complete' && (
+                                {/* Section: Rush */}
+                                <div className="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-xl border border-gray-200 dark:border-gray-600 space-y-3">
+                                    <div className="text-xs font-bold text-sffl-navy dark:text-gray-200 uppercase tracking-wider">Rush</div>
+                                    <PlayerField label={`Rusher (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.rusherId} onChange={v => setField('rusherId', v)} roster={defenseRoster} />
                                     <div>
-                                        <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">How did it end?</div>
+                                        <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Rush Outcome</div>
                                         <div className="flex flex-wrap gap-2">
-                                            {[['FG', 'Flag pull'], ['1D', 'First down'], ['1DG', 'First & goal'], ['OB', 'Out of bounds'], ['DB', 'Dead ball']].map(([r, label]) => (
-                                                <button key={r} className={chip(w.result === r)} onClick={() => setField('result', r)}>{label}</button>
+                                            {([['sack', 'Sack'], ['no_sack', 'No Sack'], ['bat_down', 'Bat Down'], ['int', 'Interception']] as [RushOutcome, string][]).map(([ro, label]) => (
+                                                <button key={ro} className={chip(w.rushOutcome === ro)} onClick={() => setField('rushOutcome', ro)}>{label}</button>
                                             ))}
                                         </div>
                                     </div>
-                                )}
 
-                                {w.passOutcome === 'incomplete' && (
-                                    <div className="space-y-2">
-                                        <div className="text-xs font-bold text-gray-600 dark:text-gray-300">Why was it incomplete? (optional)</div>
-                                        <div className="flex flex-wrap gap-2">
-                                            <button
-                                                type="button"
-                                                className={chip(w.dropped)}
-                                                onClick={() => setField('dropped', !w.dropped)}
-                                            >
-                                                Dropped
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className={chip(w.battedDown)}
-                                                onClick={() => setField('battedDown', !w.battedDown)}
-                                            >
-                                                Batted Down
-                                            </button>
+                                    {w.rushOutcome === 'sack' && (
+                                        <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-600">
+                                            <label className="block">
+                                                <span className="text-xs font-bold text-gray-600 dark:text-gray-300">Yards lost</span>
+                                                <input type="number" value={w.yards} onChange={e => setField('yards', e.target.value)} placeholder="e.g. -6" className="ml-2 w-24 border rounded-lg px-2 py-1.5 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                                            </label>
+                                            <div>
+                                                <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Sack Result (Play Ends)</div>
+                                                <div className="flex gap-2">
+                                                    {([['next_down', 'Next Down'], ['safety', 'Safety']] as [SackResult, string][]).map(([sr, label]) => (
+                                                        <button key={sr} className={chip(w.sackResult === sr)} onClick={() => setField('sackResult', sr)}>{label}</button>
+                                                    ))}
+                                                </div>
+                                            </div>
                                         </div>
-                                        {w.battedDown && (
-                                            <p className="text-xs text-gray-500 dark:text-gray-400">Name who batted it below (Rusher/Blitzer or Coverage Defender) — that's who gets credited with the deflection.</p>
-                                        )}
-                                    </div>
-                                )}
+                                    )}
 
-                                {w.passOutcome === 'int' && (
-                                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
-                                        <input type="checkbox" checked={w.returnedForTd} onChange={e => setField('returnedForTd', e.target.checked)} /> Returned for touchdown
-                                    </label>
-                                )}
+                                    {w.rushOutcome === 'bat_down' && (
+                                        <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">Play ends as an incomplete pass batted down by the rusher.</p>
+                                    )}
 
-                                {w.passOutcome === 'sack' && (
-                                    <div className="space-y-2">
-                                        <label className="block">
-                                            <span className="text-xs font-bold text-gray-600 dark:text-gray-300">Yards lost</span>
-                                            <input type="number" value={w.yards} onChange={e => setField('yards', e.target.value)} placeholder="e.g. -6" className="ml-2 w-24 border rounded-lg px-2 py-1.5 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-                                        </label>
-                                        <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
-                                            <input type="checkbox" checked={w.safety} onChange={e => setField('safety', e.target.checked)} /> In own end zone (Safety)
-                                        </label>
-                                    </div>
-                                )}
+                                    {w.rushOutcome === 'int' && (
+                                        <p className="text-xs font-semibold text-red-600 dark:text-red-400">Play ends as an interception credited to the rusher.</p>
+                                    )}
+                                </div>
 
-                                {(w.passOutcome === 'int' || w.passOutcome === 'sack' || (w.passOutcome === 'complete' && w.result !== 'TD') || (w.passOutcome === 'incomplete')) && (
-                                    <div className="space-y-2">
-                                        {w.passOutcome === 'complete' && w.result !== 'TD' && (
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">💡 Picking a defender or blitzer below credits a Flag Pull (Tackle) on this play (e.g. 1st & Goal + Flag Pull).</p>
-                                        )}
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                            <PlayerField label={`Rusher / Blitzer (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.rusherId} onChange={v => setField('rusherId', v)} roster={defenseRoster} />
-                                            <PlayerField label={`Coverage Defender (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.defenderId} onChange={v => setField('defenderId', v)} roster={defenseRoster} />
+                                {/* Continue pass flow only if No Sack */}
+                                {w.rushOutcome === 'no_sack' && (
+                                    <>
+                                        <div>
+                                            <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Pass Outcome</div>
+                                            <div className="flex flex-wrap gap-2">
+                                                {([['complete', 'Complete'], ['incomplete', 'Incomplete'], ['int', 'Intercepted'], ['ta', 'Throw Away']] as [PassOutcome, string][]).map(([o, label]) => (
+                                                    <button key={o} className={chip(w.passOutcome === o)} onClick={() => setField('passOutcome', o)}>{label}</button>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
+
+                                        {w.passOutcome === 'complete' && (
+                                            <div className="space-y-4 pt-2 border-t border-gray-200 dark:border-gray-700">
+                                                <PlayerField label={`Target (${teamName(ctx.offense)})`} value={w.targetId} onChange={v => setField('targetId', v)} roster={offenseRoster} />
+                                                <label className="block">
+                                                    <span className="text-xs font-bold text-gray-600 dark:text-gray-300">Yards gained</span>
+                                                    <input type="number" value={w.yards} onChange={e => setField('yards', e.target.value)} className="ml-2 w-24 border rounded-lg px-2 py-1.5 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                                                </label>
+                                                <div>
+                                                    <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Defender Action</div>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {([['FG', 'Flag pull'], ['OB', 'Out of bounds']] as [PassDefenderAction, string][]).map(([da, label]) => (
+                                                            <button key={da} className={chip(w.passDefenderAction === da)} onClick={() => setField('passDefenderAction', da)}>{label}</button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                <PlayerField label={`Coverage Defender (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.defenderId} onChange={v => setField('defenderId', v)} roster={defenseRoster} />
+                                                <div>
+                                                    <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Final Outcome</div>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {([['TD', 'Touchdown'], ['next_down', 'Next Down'], ['TO', 'Turnover on downs'], ['SAF', 'Safety']] as [PassFinalOutcome, string][]).map(([fo, label]) => (
+                                                            <button key={fo} className={chip(w.passFinalOutcome === fo)} onClick={() => setField('passFinalOutcome', fo)}>{label}</button>
+                                                        ))}
+                                                    </div>
+                                                    <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Was it picked off? Use the <b>Intercepted</b> pass outcome above instead.</p>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {w.passOutcome === 'incomplete' && (
+                                            <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+                                                <PlayerField label={`Target (${teamName(ctx.offense)})`} value={w.targetId} onChange={v => setField('targetId', v)} roster={offenseRoster} />
+                                                <div>
+                                                    <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Incomplete Reason</div>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {([['dropped', 'Dropped'], ['batted_down', 'Batted Down'], ['uncatchable', 'Uncatchable']] as [IncompleteOption, string][]).map(([inc, label]) => (
+                                                            <button key={inc} className={chip(w.incompleteOption === inc)} onClick={() => setField('incompleteOption', inc)}>{label}</button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                {w.incompleteOption === 'batted_down' && (
+                                                    <PlayerField label={`Coverage Defender (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.defenderId} onChange={v => setField('defenderId', v)} roster={defenseRoster} />
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {w.passOutcome === 'int' && (
+                                            <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+                                                <PlayerField label={`Target Receiver (${teamName(ctx.offense)})`} value={w.targetId} onChange={v => setField('targetId', v)} roster={offenseRoster} />
+                                                <PlayerField label={`Interceptor / Defender (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.defenderId} onChange={v => setField('defenderId', v)} roster={defenseRoster} />
+                                                <div>
+                                                    <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Final Outcome</div>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {([['INT', 'Interception'], ['pick6', 'Pick 6 (Returned for TD)']] as [PassFinalOutcome, string][]).map(([fo, label]) => (
+                                                            <button key={fo} className={chip(w.passFinalOutcome === fo)} onClick={() => setField('passFinalOutcome', fo)}>{label}</button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {w.passOutcome === 'ta' && (
+                                            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">Pass thrown away to stop the clock or avoid loss — recorded as an incomplete pass (TA).</p>
+                                        )}
+                                    </>
                                 )}
                             </div>
                         </Section>
@@ -858,7 +1018,7 @@ export const AdminPlayByPlay = () => {
                         <Section active title="The run">
                             <div className="space-y-4">
                                 <div className="flex flex-wrap gap-2">
-                                    {([['RUN', 'Run'], ['QBR', 'QB run'], ['SWP', 'Sweep'], ['REV', 'Reverse']] as [Wizard['runStyle'], string][]).map(([s, label]) => (
+                                    {([['RUN', 'Run'], ['QBR', 'QB run']] as [RunStyle, string][]).map(([s, label]) => (
                                         <button key={s} className={chip(w.runStyle === s)} onClick={() => setField('runStyle', s)}>{label}</button>
                                     ))}
                                 </div>
@@ -868,24 +1028,22 @@ export const AdminPlayByPlay = () => {
                                     <input type="number" value={w.yards} onChange={e => setField('yards', e.target.value)} className="ml-2 w-24 border rounded-lg px-2 py-1.5 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
                                 </label>
                                 <div>
-                                    <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">How did it end?</div>
+                                    <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Defender Action</div>
                                     <div className="flex flex-wrap gap-2">
-                                        {[['FG', 'Flag pull'], ['1D', 'First down'], ['1DG', 'First & goal'], ['TD', 'Touchdown'], ['OB', 'Out of bounds'], ['SAF', 'Safety'], ['DB', 'Dead ball']].map(([r, label]) => (
-                                            <button key={r} className={chip(w.result === r)} onClick={() => setField('result', r)}>{label}</button>
+                                        {([['FG', 'Flag pull'], ['OB', 'Out of bounds']] as [RunDefenderAction, string][]).map(([da, label]) => (
+                                            <button key={da} className={chip(w.runDefenderAction === da)} onClick={() => setField('runDefenderAction', da)}>{label}</button>
                                         ))}
                                     </div>
                                 </div>
-                                {w.result !== 'TD' && (
-                                    <div className="space-y-2">
-                                        {w.result !== 'SAF' && (
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">💡 Picking a defender or blitzer below credits a Flag Pull (Tackle) on this play (e.g. 1st & Goal + Flag Pull).</p>
-                                        )}
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                            <PlayerField label={`Blitzer / Penetrator (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.rusherId} onChange={v => setField('rusherId', v)} roster={defenseRoster} />
-                                            <PlayerField label={`Tackler / Defender (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.defenderId} onChange={v => setField('defenderId', v)} roster={defenseRoster} />
-                                        </div>
+                                <PlayerField label={`Coverage Defender (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.defenderId} onChange={v => setField('defenderId', v)} roster={defenseRoster} />
+                                <div>
+                                    <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Play Outcome</div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {([['TD', 'Touchdown'], ['turnover', 'Turnover on downs'], ['next_down', 'Next Down']] as [RunPlayOutcome, string][]).map(([po, label]) => (
+                                            <button key={po} className={chip(w.runPlayOutcome === po)} onClick={() => setField('runPlayOutcome', po)}>{label}</button>
+                                        ))}
                                     </div>
-                                )}
+                                </div>
                             </div>
                         </Section>
                     )}
@@ -915,14 +1073,70 @@ export const AdminPlayByPlay = () => {
                         </Section>
                     )}
 
-                    {/* SPECIAL flow */}
+                    {/* SPECIAL flow (KO/Punt) */}
                     {w.kind === 'special' && (
                         <Section active title="Special teams">
-                            <div className="flex gap-2">
-                                <button className={chip(w.specialType === 'KO')} onClick={() => setField('specialType', 'KO')}>Throw-off</button>
-                                <button className={chip(w.specialType === 'PUNT')} onClick={() => setField('specialType', 'PUNT')}>Punt</button>
+                            <div className="space-y-4">
+                                <div className="flex gap-2">
+                                    {([['KO', 'Throw-off (KO)'], ['PUNT', 'Punt']] as [SpecialType, string][]).map(([st, label]) => (
+                                        <button key={st} className={chip(w.specialType === st)} onClick={() => setField('specialType', st)}>{label}</button>
+                                    ))}
+                                </div>
+
+                                {/* Always-visible Penalty box for Special Teams */}
+                                <div className="rounded-xl border border-amber-200 dark:border-amber-700/60 bg-amber-50/50 dark:bg-amber-900/10 p-3 space-y-2">
+                                    <div className="text-xs font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">⚑ Penalty on this play</div>
+                                    <div className="flex gap-2">
+                                        <button className={chip(w.penaltyTeam === 'home')} onClick={() => setField('penaltyTeam', w.penaltyTeam === 'home' ? '' : 'home')}>{match?.home_team?.short_name || 'Home'}</button>
+                                        <button className={chip(w.penaltyTeam === 'away')} onClick={() => setField('penaltyTeam', w.penaltyTeam === 'away' ? '' : 'away')}>{match?.away_team?.short_name || 'Away'}</button>
+                                    </div>
+                                    <select value={w.penaltyCode} onChange={e => setField('penaltyCode', e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                        <option value="">No penalty / Select penalty…</option>
+                                        {Object.entries(PENALTY_LABELS).map(([code, label]) => <option key={code} value={code}>{code} — {label}</option>)}
+                                    </select>
+                                    {w.penaltyCode && (
+                                        <div className="flex items-end gap-3">
+                                            <PlayerField label="Penalty Player (optional)" value={w.penaltyPlayerId} onChange={v => setField('penaltyPlayerId', v)} roster={penaltyRoster} />
+                                            <label className="block">
+                                                <span className="text-xs font-bold text-gray-600 dark:text-gray-300">Yards</span>
+                                                <input type="number" value={w.penaltyYards} onChange={e => setField('penaltyYards', e.target.value)} className="ml-2 w-20 border rounded-lg px-2 py-1.5 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                                            </label>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Receiver Outcome</div>
+                                    <div className="flex gap-2">
+                                        {([['no_catch', 'No Catch (Play ends)'], ['catch', 'Catch']] as [ReceiverOutcome, string][]).map(([ro, label]) => (
+                                            <button key={ro} className={chip(w.receiverOutcome === ro)} onClick={() => setField('receiverOutcome', ro)}>{label}</button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {w.receiverOutcome === 'catch' && (
+                                    <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+                                        <PlayerField label={`Who caught it? (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.targetId} onChange={v => setField('targetId', v)} roster={defenseRoster} />
+                                        <div>
+                                            <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Defender Action</div>
+                                            <div className="flex gap-2">
+                                                {([['FG', 'Flag pull'], ['OB', 'Out of bounds']] as [SpecialDefenderAction, string][]).map(([da, label]) => (
+                                                    <button key={da} className={chip(w.specialDefenderAction === da)} onClick={() => setField('specialDefenderAction', da)}>{label}</button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <PlayerField label={`Coverage Defender (${teamName(ctx.offense)})`} value={w.defenderId} onChange={v => setField('defenderId', v)} roster={offenseRoster} />
+                                        <div>
+                                            <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Play Outcome</div>
+                                            <div className="flex gap-2">
+                                                {([['TD', 'Touchdown'], ['next_down', 'Next Down']] as [SpecialPlayOutcome, string][]).map(([po, label]) => (
+                                                    <button key={po} className={chip(w.specialPlayOutcome === po)} onClick={() => setField('specialPlayOutcome', po)}>{label}</button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                            <p className="text-xs text-gray-500 mt-2">Use the “Ball on” and “Notes” fields to record the returner and resulting spot.</p>
                         </Section>
                     )}
 
@@ -950,16 +1164,23 @@ export const AdminPlayByPlay = () => {
                     {/* GAME EVENT flow */}
                     {w.kind === 'event' && (
                         <Section active title="Game event">
-                            <div className="flex flex-wrap gap-2">
-                                {([['IH', 'Injury'], ['EH', 'End of half'], ['EG', 'End of game']] as [Wizard['eventKind'], string][]).map(([e, label]) => (
-                                    <button key={e} className={chip(w.eventKind === e)} onClick={() => setField('eventKind', e)}>{label}</button>
-                                ))}
+                            <div className="space-y-4">
+                                <div className="flex flex-wrap gap-2">
+                                    {([['IH', 'Injury'], ['EH', 'End of half'], ['EG', 'End of game']] as [Wizard['eventKind'], string][]).map(([e, label]) => (
+                                        <button key={e} className={chip(w.eventKind === e)} onClick={() => setField('eventKind', e)}>{label}</button>
+                                    ))}
+                                </div>
+                                {w.eventKind === 'IH' && (
+                                    <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                                        <PlayerField label="Injured player (either team)" value={w.qbId} onChange={v => setField('qbId', v)} roster={bothRoster} />
+                                    </div>
+                                )}
                             </div>
                         </Section>
                     )}
 
-                    {/* Optional attached penalty (for non-penalty plays) */}
-                    {w.kind && w.kind !== 'penalty' && w.kind !== 'event' && (
+                    {/* Optional attached penalty (for non-penalty, non-special plays) */}
+                    {w.kind && w.kind !== 'penalty' && w.kind !== 'event' && w.kind !== 'special' && (
                         <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4">
                             <label className="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-200">
                                 <input type="checkbox" checked={w.penaltyOn} onChange={e => setField('penaltyOn', e.target.checked)} /> Add a penalty on this play
