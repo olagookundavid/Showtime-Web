@@ -793,6 +793,38 @@ not just the direction being intentionally restricted. Testing only "is the
 thing I meant to block, blocked?" missed that the same rule set was also
 blocking something that was never meant to be touched at all.
 
+### Phase 21 — Deliberately removing Dozzle's Cloudflare Access gate
+
+The Cloudflare Access requirement in front of Dozzle (Phase 18) — a
+one-time email code, roughly every 24 hours — was removed at the operator's
+explicit request, after the trade-off was stated plainly and a lower-friction
+alternative (extending the session duration to weeks/months instead of
+removing the gate) was offered and declined in favor of full removal.
+
+**The concrete risk, stated for the record rather than left implicit:**
+Dozzle streams live logs from every container, including the backend's
+application logs — which, as directly observed during the Phase 20
+incident investigation, include real user email addresses (e.g. in OTP send
+failures) and other request-level detail. With no authentication in front
+of it, `logs.showtimeflag.football` is readable by anyone who discovers the
+subdomain, for as long as this configuration stands. Cloudflare's proxy
+(DDoS/WAF absorption, origin-IP concealment) remains in front of the
+hostname regardless — only the **identity check** was removed, not the CDN
+layer itself.
+
+**What actually changed:** solely the Cloudflare Zero Trust Access
+**application** bound to this hostname was deleted. Caddy and Dozzle never
+performed any authentication themselves — Cloudflare Access was the entire
+mechanism — so no server-side configuration changed at all. The reusable
+"Only me" Access **policy** built in Phase 18 was left in place, unattached,
+available to gate a future internal tool if one is added later; only the
+application attaching it to Dozzle specifically was removed.
+
+**If this is ever revisited:** re-attaching the existing "Only me" policy to
+a new Access application for this hostname restores the previous protection
+with no other changes needed — see §4 Configuration Reference for exact
+steps.
+
 ---
 
 ## 3. Current Infrastructure
@@ -952,19 +984,23 @@ Two independent systems, covering two independent kinds of logs:
 | Disk space       | `~/scripts/disk-check.sh` via cron, every 6h   | Silent when healthy; emails past an 80% threshold.                                                                                                                                                   |
 | Backup health    | `ERR` trap inside `~/scripts/pg-backup.sh`     | Emails immediately on any backup failure.                                                                                                                                                            |
 | Alert delivery   | `~/scripts/alert.sh`                           | Sends via the Resend API; used by both scripts above.                                                                                                                                                |
-| Live log viewing | Dozzle, at a Cloudflare-Access-gated subdomain | On-demand, human-driven — not an alerting mechanism. Complements the automated alerts above rather than replacing them: alerts tell you *something* is wrong; Dozzle is where you go look at *what*. |
+| Live log viewing | Dozzle, at a public subdomain, **no authentication** (see below) | On-demand, human-driven — not an alerting mechanism. Complements the automated alerts above rather than replacing them: alerts tell you *something* is wrong; Dozzle is where you go look at *what*. |
 
 **Dozzle** (`~/infra/dozzle/`) reads directly from the Docker socket
 (`/var/run/docker.sock:ro`) and serves a searchable, live-tailing log UI for
 every container, at `https://logs.<domain>` (proxied through Cloudflare,
-same as the API). It is gated by a **Cloudflare Access** application — an
-edge-level identity check (one-time email code) that runs *before* any
-request reaches the origin, rather than any authentication built into
-Dozzle or Caddy itself. A loopback-only port (`127.0.0.1:8888`) remains
-available as an SSH-tunnel fallback. Log history shown is bounded by the
-same Docker `daemon.json` caps described in 3.8 — Dozzle adds no retention
-of its own. See Journey Phase 18 for the full reasoning, including why this
-was chosen over a full Grafana+Loki stack at the current scale.
+same as the API — DDoS/WAF absorption and origin-IP concealment still
+apply). **Unlike every other exposed surface on this server, this hostname
+has no authentication in front of it** — a Cloudflare Access identity gate
+was deliberately added in Phase 18 and then deliberately removed in Phase 21
+at the operator's request, after the risk was stated plainly (live logs
+include real user data, e.g. email addresses in OTP failures) and a
+lower-friction alternative was offered and declined. A loopback-only port
+(`127.0.0.1:8888`) remains available as an SSH-tunnel fallback that was
+never affected by this change. Log history shown is bounded by the same
+Docker `daemon.json` caps described in 3.8 — Dozzle adds no retention of its
+own. See Journey Phases 18 and 21 for the full reasoning on both the
+original design and the reversal.
 
 ### 3.10 Scheduled jobs (cron)
 
@@ -1038,7 +1074,7 @@ immediate email alert.
 | `pg-backup.sh` retention (`RETENTION_DAYS`)                                                     | Local backup retention                                                                  | Offsite retention is handled separately by an R2 lifecycle rule                                                                                             | `~/scripts/pg-backup.sh`                                                 | Change the local retention window; confirm disk space accommodates it                                                                                            | Longer retention costs local disk space, not R2 cost                                                                                                |
 | R2 lifecycle rule (30 days)                                                                     | Offsite backup retention                                                                | Avoids the backup script itself needing delete permission                                                                                                   | Cloudflare R2 dashboard → bucket → Settings → Object lifecycle rules     | Adjust the day count in the dashboard                                                                                                                            | Shorter windows reduce disaster-recovery lookback; the script's local copies are a separate, shorter-lived safety net                               |
 | `disk-check.sh` `THRESHOLD`                                                                     | Disk-space alert trigger                                                                | 80% chosen as an actionable-but-not-too-late warning point                                                                                                  | `~/scripts/disk-check.sh`                                                | Adjust the percentage                                                                                                                                            | Too high risks missing the warning window; too low creates alert fatigue                                                                            |
-| Cloudflare Access "Only me" policy                                                              | Gates `logs.<domain>` (and any future internal tool) to one email identity              | Provides real auth for internal tools without adding a password to manage or any auth code to the tools themselves                                          | Cloudflare dashboard → Zero Trust → Access → Applications/Policies       | Attach the same reusable policy to any new self-hosted application rather than creating a duplicate; add more emails to the policy for more trusted operators    | A policy edited or removed here takes effect immediately for every application it's attached to — check "Used by applications" before editing       |
+| Cloudflare Access "Only me" policy | Reusable email-identity policy; **currently unattached to anything** (was gating Dozzle, deliberately removed in Phase 21) | Kept in the policy library so a future internal tool can reuse it without recreating it | Cloudflare dashboard → Zero Trust → Access → Policies | To re-gate Dozzle (or gate a new tool): Access → Applications → Add/Edit application → attach this existing policy rather than creating a duplicate | A policy attached to an application takes effect immediately; check "Used by applications" on the policy's detail page to see what it currently protects (should read `--` unless something new has been attached) |
 | `test` job + `needs: test`                                                                      | Gates the image build on `go vet`/`go test` passing                                     | Prevents code that compiles but fails tests/vet from ever being built into a deployable image                                                               | `.github/workflows/deploy-backend.yml`                                   | Keep in sync with `ci.yml`'s backend job if that job's steps ever change                                                                                         | Removing this `needs:` would let failing code build and deploy again                                                                                |
 | `deploy.sh` health-check loop (`MAX_ATTEMPTS`)                                                  | How long the script waits for the new container to report `healthy` before rolling back | ~100s matches the Dockerfile's own `start_period`/`retries` healthcheck timing                                                                              | `~/scripts/deploy.sh` (and the repo reference copy)                      | Increase if the backend's own startup (migrations, connection pool warmup) legitimately takes longer than ~100s                                                  | Too short risks false-positive rollbacks of a slow-but-healthy boot; too long delays detecting a real failure                                       |
 
@@ -1434,8 +1470,14 @@ Open items, deliberately deferred rather than forgotten:
   (e.g. "page me if 5xx rate spikes") rather than a fixed threshold like
   disk usage. Adding it later is additive — 2 more containers (Loki +
   Grafana, using Docker's native Loki logging driver) on the existing `web`
-  network, gated by the same Cloudflare Access policy already built for
-  Dozzle.
+  network. Unlike Dozzle currently, this would be a good candidate to
+  actually gate with the still-available "Only me" Cloudflare Access policy
+  (see Phase 21) — a Grafana instance with saved dashboards/queries is more
+  worth protecting than the immediate convenience cost of re-attaching it.
+- **Re-evaluate Dozzle's public, unauthenticated exposure (Phase 21) if the
+  operator's risk tolerance changes**, or if Dozzle's logs ever start
+  surfacing more sensitive detail than they do today. Re-attaching the
+  existing "Only me" policy is a two-minute reversal, not a rebuild.
 - **Request tracing / metrics dashboard.** No distributed tracing or a
   Prometheus-style metrics layer yet — deferred as a "later" item from the
   start of this project, appropriate for the current scale but worth
