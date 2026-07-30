@@ -846,17 +846,10 @@ export const AdminPlayByPlay = () => {
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'run', runStyle: 'RUN', runDefenderAction: 'FG', runPlayOutcome: 'next_down' })}
+                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'run', runDefenderAction: 'FG', runPlayOutcome: 'next_down' })}
                                     className="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md text-xs font-bold text-gray-700 dark:text-gray-200 transition-colors"
                                 >
                                     🏃 Run
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'pass', rushOutcome: 'sack', sackResult: 'next_down', yards: '-6' })}
-                                    className="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md text-xs font-bold text-gray-700 dark:text-gray-200 transition-colors"
-                                >
-                                    💥 Sack (-6 yds)
                                 </button>
                                 <button
                                     type="button"
@@ -867,10 +860,17 @@ export const AdminPlayByPlay = () => {
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'penalty', penaltyCode: 'FS', penaltyYards: '5' })}
-                                    className="px-2.5 py-1 bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-200 rounded-md text-xs font-bold text-amber-800 dark:text-amber-200 transition-colors"
+                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'event', eventKind: 'EH' })}
+                                    className="px-2.5 py-1 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 rounded-md text-xs font-bold text-slate-800 dark:text-slate-200 transition-colors"
                                 >
-                                    ⚑ False Start (-5 yds)
+                                    ⏱️ End of Half
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'event', eventKind: 'OMW' })}
+                                    className="px-2.5 py-1 bg-rose-100 dark:bg-rose-900/40 hover:bg-rose-200 rounded-md text-xs font-bold text-rose-800 dark:text-rose-200 transition-colors"
+                                >
+                                    ⚠️ 1-Minute Warning
                                 </button>
                             </div>
                         </div>
