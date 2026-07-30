@@ -86,27 +86,45 @@ func (s *PlayService) RecomputeScore(ctx context.Context, matchID string) (int, 
 
 		res := strDerefTrim(p.Result)
 		pt := strDerefTrim(p.PlayType)
+
+		// Gender-based scoring (Scoring_Details.docx). The value of a TD/XP
+		// depends on the genders of the two players involved. A nil player →
+		// empty gender → treated as Male inside the domain helpers.
+		gq := genderOf(p.OffQB) // passer, or the runner/carrier on a run
+		gt := genderOf(p.Target)
+		gd := genderOf(p.Defender) // the interceptor on a pick-six
+		thirdDown := p.Down != nil && *p.Down == 3
+		isRun := pt == "RUN" || pt == "QBR"
+
 		switch res {
 		case "TD":
 			if p.ReturnedForTD {
-				addDef(rules.DefReturnPoints)
+				// Defensive TD (pick-six recorded as a TD): passer = QB who
+				// threw it, receiver = the interceptor.
+				addDef(domain.TouchdownPoints(gq, gd, thirdDown, true, false))
+			} else if isRun {
+				// Run TD — scored by the runner's own gender.
+				addOff(domain.TouchdownPoints(gq, gq, thirdDown, false, true))
 			} else {
-				addOff(rules.TDPoints)
+				// Offensive pass TD: passer = QB, receiver = target.
+				addOff(domain.TouchdownPoints(gq, gt, thirdDown, false, false))
 			}
 		case "XP":
-			switch pt {
-			case "XP-P":
-				addOff(rules.XPPassPoints)
-			case "PAT-R":
-				addOff(rules.XPRunPoints)
-			default:
-				addOff(rules.XPRunPoints)
+			if p.ReturnedForTD {
+				// Returned extra point → the defence scores it.
+				addDef(domain.ExtraPointPoints(gq, gd, true, false))
+			} else if pt == "PAT-R" {
+				addOff(domain.ExtraPointPoints(gq, gq, false, true))
+			} else { // XP-P (thrown extra point)
+				addOff(domain.ExtraPointPoints(gq, gt, false, false))
 			}
 		case "SAF":
+			// Safety stays a flat value (not gender-based).
 			addDef(rules.SafetyPoints)
 		case "INT":
 			if p.ReturnedForTD {
-				addDef(rules.DefReturnPoints)
+				// Pick-six recorded on an interception play.
+				addDef(domain.TouchdownPoints(gq, gd, thirdDown, true, false))
 			}
 		}
 
@@ -118,6 +136,15 @@ func (s *PlayService) RecomputeScore(ctx context.Context, matchID string) (int, 
 	GlobalSSEBroker.Broadcast(matchID, "score_updated", map[string]int{"home_score": home, "away_score": away})
 
 	return home, away, nil
+}
+
+// genderOf returns a player's gender, or "" (treated as Male by the scoring
+// helpers) when the player is absent.
+func genderOf(p *domain.Player) string {
+	if p == nil {
+		return ""
+	}
+	return p.Gender
 }
 
 // CommitScore takes the derived play-by-play score, persists it to the official match

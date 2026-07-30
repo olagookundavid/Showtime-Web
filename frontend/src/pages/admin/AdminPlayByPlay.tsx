@@ -82,7 +82,7 @@ interface Wizard {
     specialPlayOutcome?: SpecialPlayOutcome;
 
     // Event flow
-    eventKind?: 'IH' | 'EH' | 'EG';
+    eventKind?: 'IH' | 'EH' | 'EG' | 'OMW';
 
     // Player selections & inputs
     qbId: string;
@@ -502,8 +502,7 @@ export const AdminPlayByPlay = () => {
             }
             case 'run': {
                 if (ctx.offense === '') return { payload: null, error: 'Pick which team has the ball first.' };
-                if (!w.runStyle) return { payload: null, error: 'Pick the run style (Run or QB Run).' };
-                base.play_type = w.runStyle;
+                base.play_type = 'RUN';
                 base.off_qb_id = w.carrierId || undefined;
                 if (!base.off_qb_id) return { payload: null, error: 'Select the carrier.' };
                 base.yards = toIntOrNull(w.yards);
@@ -572,10 +571,8 @@ export const AdminPlayByPlay = () => {
                 return { payload: null, error: 'Pick what happened.' };
         }
 
-        // Optional penalty attached to a play above. Special teams shows an
-        // always-visible penalty box (no checkbox); every other play kind gates
-        // it behind the "Add a penalty" checkbox so a stale code can't attach.
-        if (w.penaltyCode && (w.penaltyOn || w.kind === 'special')) {
+        // Optional penalty attached to a play above.
+        if (w.penaltyCode) {
             base.penalty = w.penaltyCode;
             base.penalty_team_id = w.penaltyTeam === 'home' ? match?.home_team?.id : w.penaltyTeam === 'away' ? match?.away_team?.id : undefined;
             base.penalty_player_id = w.penaltyPlayerId || undefined;
@@ -784,7 +781,7 @@ export const AdminPlayByPlay = () => {
                     {/* Context bar */}
                     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
                         <div className="text-xs font-black uppercase tracking-wider text-sffl-navy dark:text-gray-200 mb-3">Game situation {w.editingId && <span className="text-amber-500">· editing play</span>}</div>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 text-sm">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-sm">
                             <label className="flex flex-col gap-1">
                                 <span className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Qtr</span>
                                 <input type="number" value={ctx.quarter} onChange={e => setCtx({ ...ctx, quarter: parseInt(e.target.value) || 1 })} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 font-bold text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
@@ -808,14 +805,6 @@ export const AdminPlayByPlay = () => {
                             <label className="flex flex-col gap-1">
                                 <span className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">To go</span>
                                 <input type="number" value={ctx.toGo} onChange={e => setCtx({ ...ctx, toGo: e.target.value })} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 font-bold text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-                            </label>
-                            <label className="flex flex-col gap-1">
-                                <span className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Ball on</span>
-                                <input value={ctx.ballOn} onChange={e => setCtx({ ...ctx, ballOn: e.target.value })} placeholder="e.g. SHK 35" className="w-full border border-gray-300 rounded-lg px-2 py-1.5 font-bold text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-                            </label>
-                            <label className="flex flex-col gap-1">
-                                <span className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Clock</span>
-                                <input value={ctx.clock} onChange={e => setCtx({ ...ctx, clock: e.target.value })} placeholder="MM:SS" className="w-full border border-gray-300 rounded-lg px-2 py-1.5 font-bold text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
                             </label>
                         </div>
                         <div className="grid grid-cols-2 gap-3 mt-3 max-w-xs">
@@ -1017,11 +1006,6 @@ export const AdminPlayByPlay = () => {
                     {w.kind === 'run' && (
                         <Section active title="The run">
                             <div className="space-y-4">
-                                <div className="flex flex-wrap gap-2">
-                                    {([['RUN', 'Run'], ['QBR', 'QB run']] as [RunStyle, string][]).map(([s, label]) => (
-                                        <button key={s} className={chip(w.runStyle === s)} onClick={() => setField('runStyle', s)}>{label}</button>
-                                    ))}
-                                </div>
                                 <PlayerField label={`Carrier (${teamName(ctx.offense)})`} value={w.carrierId} onChange={v => setField('carrierId', v)} roster={offenseRoster} />
                                 <label className="block">
                                     <span className="text-xs font-bold text-gray-600 dark:text-gray-300">Yards</span>
@@ -1166,7 +1150,7 @@ export const AdminPlayByPlay = () => {
                         <Section active title="Game event">
                             <div className="space-y-4">
                                 <div className="flex flex-wrap gap-2">
-                                    {([['IH', 'Injury'], ['EH', 'End of half'], ['EG', 'End of game']] as [Wizard['eventKind'], string][]).map(([e, label]) => (
+                                    {([['IH', 'Injury'], ['EH', 'End of half'], ['EG', 'End of game'], ['OMW', 'One Minute Warning']] as [Wizard['eventKind'], string][]).map(([e, label]) => (
                                         <button key={e} className={chip(w.eventKind === e)} onClick={() => setField('eventKind', e)}>{label}</button>
                                     ))}
                                 </div>
@@ -1179,29 +1163,25 @@ export const AdminPlayByPlay = () => {
                         </Section>
                     )}
 
-                    {/* Optional attached penalty (for non-penalty, non-special plays) */}
+                    {/* Always-visible Penalty box for Pass, Run, XP */}
                     {w.kind && w.kind !== 'penalty' && w.kind !== 'event' && w.kind !== 'special' && (
-                        <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-                            <label className="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-200">
-                                <input type="checkbox" checked={w.penaltyOn} onChange={e => setField('penaltyOn', e.target.checked)} /> Add a penalty on this play
-                            </label>
-                            {w.penaltyOn && (
-                                <div className="space-y-3 mt-3">
-                                    <div className="flex gap-2">
-                                        <button className={chip(w.penaltyTeam === 'home')} onClick={() => setField('penaltyTeam', 'home')}>{match?.home_team?.short_name || 'Home'}</button>
-                                        <button className={chip(w.penaltyTeam === 'away')} onClick={() => setField('penaltyTeam', 'away')}>{match?.away_team?.short_name || 'Away'}</button>
-                                    </div>
-                                    <select value={w.penaltyCode} onChange={e => setField('penaltyCode', e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                        <option value="">Select penalty…</option>
-                                        {Object.entries(PENALTY_LABELS).map(([code, label]) => <option key={code} value={code}>{code} — {label}</option>)}
-                                    </select>
-                                    <div className="flex items-end gap-3">
-                                        <PlayerField label="Player (optional)" value={w.penaltyPlayerId} onChange={v => setField('penaltyPlayerId', v)} roster={penaltyRoster} />
-                                        <label className="block">
-                                            <span className="text-xs font-bold text-gray-600 dark:text-gray-300">Yards</span>
-                                            <input type="number" value={w.penaltyYards} onChange={e => setField('penaltyYards', e.target.value)} className="ml-2 w-20 border rounded-lg px-2 py-1.5 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-                                        </label>
-                                    </div>
+                        <div className="rounded-xl border border-amber-200 dark:border-amber-700/60 bg-amber-50/50 dark:bg-amber-900/10 p-3 space-y-2">
+                            <div className="text-xs font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">⚑ Penalty on this play (Optional)</div>
+                            <div className="flex gap-2">
+                                <button className={chip(w.penaltyTeam === 'home')} onClick={() => setField('penaltyTeam', w.penaltyTeam === 'home' ? '' : 'home')}>{match?.home_team?.short_name || 'Home'}</button>
+                                <button className={chip(w.penaltyTeam === 'away')} onClick={() => setField('penaltyTeam', w.penaltyTeam === 'away' ? '' : 'away')}>{match?.away_team?.short_name || 'Away'}</button>
+                            </div>
+                            <select value={w.penaltyCode} onChange={e => setField('penaltyCode', e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                <option value="">No penalty / Select penalty…</option>
+                                {Object.entries(PENALTY_LABELS).map(([code, label]) => <option key={code} value={code}>{code} — {label}</option>)}
+                            </select>
+                            {w.penaltyCode && (
+                                <div className="flex items-end gap-3">
+                                    <PlayerField label="Penalty Player (optional)" value={w.penaltyPlayerId} onChange={v => setField('penaltyPlayerId', v)} roster={penaltyRoster} />
+                                    <label className="block">
+                                        <span className="text-xs font-bold text-gray-600 dark:text-gray-300">Yards</span>
+                                        <input type="number" value={w.penaltyYards} onChange={e => setField('penaltyYards', e.target.value)} className="ml-2 w-20 border rounded-lg px-2 py-1.5 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                                    </label>
                                 </div>
                             )}
                         </div>
@@ -1281,12 +1261,11 @@ const PlayRow = ({ play, onEdit, onDelete }: { play: GamePlay; onEdit: () => voi
 
 // ─── Step 3: scoring engine — recompute score + edit rules ────────────────────
 
+// Touchdown & extra-point values are gender-based (set in code from the league
+// scoring sheet — see docs/play-by-play-scoring-and-stats-rules.md), so they are
+// NOT edited here. Only Safety and the down settings remain adjustable.
 const RULE_FIELDS: { key: keyof GameRulesPayload; label: string }[] = [
-    { key: 'td_points', label: 'Touchdown' },
-    { key: 'xp_run_points', label: 'Extra pt (run)' },
-    { key: 'xp_pass_points', label: 'Extra pt (pass)' },
     { key: 'safety_points', label: 'Safety' },
-    { key: 'def_return_points', label: 'Defensive return' },
     { key: 'downs_per_series', label: 'Downs / series' },
     { key: 'yards_to_first_down', label: 'Yards to 1st down' },
 ];
@@ -1450,7 +1429,7 @@ const ScoreTools = ({ matchId, competitionId, match, plays = [] }: ScoreToolsPro
                         <p className="text-sm text-gray-500">Loading rules…</p>
                     ) : (
                         <>
-                            <p className="text-xs text-amber-600 dark:text-amber-400 mb-3 font-semibold">These are placeholder values — confirm them with the commissioner. They apply to the whole competition.</p>
+                            <p className="text-xs text-amber-600 dark:text-amber-400 mb-3 font-semibold">Touchdown &amp; extra-point points are <b>gender-based</b> (fixed in code from the league scoring sheet) and aren't set here. Only Safety and the down settings below are adjustable. Applies to the whole competition.</p>
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                 {RULE_FIELDS.map(f => (
                                     <label key={f.key} className="flex flex-col gap-1">

@@ -16,12 +16,14 @@ const PLAY_LABEL: Record<string, string> = {
 const RESULT_LABEL: Record<string, string> = {
     '1D': 'First down', '1DG': 'First & goal', TD: 'TOUCHDOWN', XP: 'Extra point good',
     XPF: 'Extra point failed', TO: 'Turnover on downs', INT: 'Intercepted', OB: 'Out of bounds',
-    FG: 'Flag pull', DB: 'Dead ball', IH: 'Injury', EH: 'End of half', EG: 'End of game', SAF: 'SAFETY',
-    INC: 'Incomplete',
+    FG: 'Flag pull', DB: 'Dead ball', IH: 'INJURY TIMEOUT', EH: 'End of Half', EG: 'End of Game', SAF: 'SAFETY',
+    INC: 'Incomplete', OMW: '1-MINUTE WARNING', '1MW': '1-MINUTE WARNING',
 };
 
 const isScore = (p: GamePlay) => p.result === 'TD' || p.result === 'XP' || p.result === 'SAF';
 const isInterception = (p: GamePlay) => p.result === 'INT' || p.play_type === 'INT';
+const isOneMinWarning = (p: GamePlay) => p.result === 'OMW' || p.result === '1MW';
+const isInjury = (p: GamePlay) => p.result === 'IH';
 
 function describe(p: GamePlay): string {
     if (p.penalty && !p.play_type) {
@@ -118,13 +120,37 @@ export const PlayByPlayTimeline = ({ matchId, isLive, showEmpty = false }: { mat
                             {drive.plays.map(p => {
                                 const scored = isScore(p);
                                 const intercepted = isInterception(p);
+                                const warning = isOneMinWarning(p);
+                                const injury = isInjury(p);
+                                const endPeriod = p.result === 'EH' || p.result === 'EG';
+
+                                if (endPeriod) {
+                                    return (
+                                        <li key={p.id} className="my-5 py-3 px-4 bg-slate-900 dark:bg-slate-950 text-white rounded-xl border border-slate-700 text-center font-black tracking-widest text-xs uppercase shadow-md flex items-center justify-between">
+                                            <span className="text-[11px] font-bold text-slate-400">Q{p.quarter}{p.clock ? ` · ${p.clock}` : ''}</span>
+                                            <span className="flex-1 text-center font-extrabold text-amber-300 tracking-widest">
+                                                ⏱️ {p.result === 'EH' ? 'END OF HALF' : 'END OF GAME'}
+                                            </span>
+                                            {(p.home_score_after != null && p.away_score_after != null) && (
+                                                <span className="text-xs font-black text-white tabular-nums">
+                                                    {p.home_score_after}–{p.away_score_after}
+                                                </span>
+                                            )}
+                                        </li>
+                                    );
+                                }
+
                                 return (
                                     <li key={p.id} className={`flex items-start gap-2.5 sm:gap-3 rounded-xl p-2.5 transition-colors ${
                                         scored
                                             ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/40'
                                             : intercepted
                                                 ? 'bg-red-50/90 dark:bg-red-950/30 border border-red-200/60 dark:border-red-800/40'
-                                                : 'hover:bg-gray-50/80 dark:hover:bg-gray-700/40'
+                                                : warning
+                                                    ? 'bg-rose-500/15 dark:bg-rose-950/40 border-2 border-rose-500/80 dark:border-rose-700 animate-pulse'
+                                                    : injury
+                                                        ? 'bg-amber-100/90 dark:bg-amber-950/50 border-2 border-amber-400/80 dark:border-amber-700'
+                                                        : 'hover:bg-gray-50/80 dark:hover:bg-gray-700/40'
                                     }`}>
                                         <div className="flex flex-col items-start gap-1 shrink-0 w-20 sm:w-24 pt-0.5">
                                             <span className="text-[11px] font-bold text-gray-400 tabular-nums">
@@ -147,7 +173,11 @@ export const PlayByPlayTimeline = ({ matchId, isLive, showEmpty = false }: { mat
                                                         ? 'text-emerald-600 dark:text-emerald-400'
                                                         : intercepted
                                                             ? 'text-red-600 dark:text-red-400'
-                                                            : 'text-gray-400'
+                                                            : warning
+                                                                ? 'text-rose-600 dark:text-rose-400 font-black'
+                                                                : injury
+                                                                    ? 'text-amber-700 dark:text-amber-300 font-extrabold'
+                                                                    : 'text-gray-400'
                                                 }`}>
                                                     · [{RESULT_LABEL[p.result] || p.result}]
                                                 </span>

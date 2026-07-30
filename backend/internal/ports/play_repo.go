@@ -198,11 +198,11 @@ func (r *PlayPGRepository) ListByMatch(ctx context.Context, matchID string) ([]*
 			gp.penalty_player_id, gp.penalty_yards, gp.home_score_after, gp.away_score_after, gp.notes,
 			gp.created_at, gp.updated_at,
 			ot.name, ot.short_name, ot.logo,
-			po.name, po.jersey_number, po.position,
-			pt.name, pt.jersey_number, pt.position,
-			pd.name, pd.jersey_number, pd.position,
-			pr.name, pr.jersey_number, pr.position,
-			pp.name, pp.jersey_number, pp.position
+			po.name, po.jersey_number, po.position, po.gender,
+			pt.name, pt.jersey_number, pt.position, pt.gender,
+			pd.name, pd.jersey_number, pd.position, pd.gender,
+			pr.name, pr.jersey_number, pr.position, pr.gender,
+			pp.name, pp.jersey_number, pp.position, pp.gender
 		FROM game_plays gp
 		LEFT JOIN teams   ot ON gp.offense_team_id  = ot.id
 		LEFT JOIN players po ON gp.off_qb_id        = po.id
@@ -226,7 +226,7 @@ func (r *PlayPGRepository) ListByMatch(ctx context.Context, matchID string) ([]*
 	for rows.Next() {
 		var p domain.GamePlay
 		var otName, otShort, otLogo *string
-		var poName, poPos, ptName, ptPos, pdName, pdPos, prName, prPos, ppName, ppPos *string
+		var poName, poPos, poGen, ptName, ptPos, ptGen, pdName, pdPos, pdGen, prName, prPos, prGen, ppName, ppPos, ppGen *string
 		var poNum, ptNum, pdNum, prNum, ppNum *int
 
 		if err := rows.Scan(
@@ -236,11 +236,11 @@ func (r *PlayPGRepository) ListByMatch(ctx context.Context, matchID string) ([]*
 			&p.PenaltyPlayerID, &p.PenaltyYards, &p.HomeScoreAfter, &p.AwayScoreAfter, &p.Notes,
 			&p.CreatedAt, &p.UpdatedAt,
 			&otName, &otShort, &otLogo,
-			&poName, &poNum, &poPos,
-			&ptName, &ptNum, &ptPos,
-			&pdName, &pdNum, &pdPos,
-			&prName, &prNum, &prPos,
-			&ppName, &ppNum, &ppPos,
+			&poName, &poNum, &poPos, &poGen,
+			&ptName, &ptNum, &ptPos, &ptGen,
+			&pdName, &pdNum, &pdPos, &pdGen,
+			&prName, &prNum, &prPos, &prGen,
+			&ppName, &ppNum, &ppPos, &ppGen,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan play: %w", err)
 		}
@@ -248,22 +248,22 @@ func (r *PlayPGRepository) ListByMatch(ctx context.Context, matchID string) ([]*
 		if p.OffenseTeamID != nil && otName != nil {
 			p.OffenseTeam = &domain.Team{ID: *p.OffenseTeamID, Name: *otName, ShortName: strDeref(otShort), Logo: strDeref(otLogo)}
 		}
-		p.OffQB = hydratePlayer(p.OffQBID, poName, poNum, poPos)
-		p.Target = hydratePlayer(p.TargetID, ptName, ptNum, ptPos)
-		p.Defender = hydratePlayer(p.DefenderID, pdName, pdNum, pdPos)
-		p.Rusher = hydratePlayer(p.RusherID, prName, prNum, prPos)
-		p.PenaltyPlayer = hydratePlayer(p.PenaltyPlayerID, ppName, ppNum, ppPos)
+		p.OffQB = hydratePlayer(p.OffQBID, poName, poNum, poPos, poGen)
+		p.Target = hydratePlayer(p.TargetID, ptName, ptNum, ptPos, ptGen)
+		p.Defender = hydratePlayer(p.DefenderID, pdName, pdNum, pdPos, pdGen)
+		p.Rusher = hydratePlayer(p.RusherID, prName, prNum, prPos, prGen)
+		p.PenaltyPlayer = hydratePlayer(p.PenaltyPlayerID, ppName, ppNum, ppPos, ppGen)
 
 		out = append(out, &p)
 	}
 	return out, nil
 }
 
-func hydratePlayer(id *string, name *string, num *int, pos *string) *domain.Player {
+func hydratePlayer(id *string, name *string, num *int, pos *string, gender *string) *domain.Player {
 	if id == nil || name == nil {
 		return nil
 	}
-	pl := &domain.Player{ID: *id, Name: *name, Position: strDeref(pos)}
+	pl := &domain.Player{ID: *id, Name: *name, Position: strDeref(pos), Gender: strDeref(gender)}
 	if num != nil {
 		pl.JerseyNumber = *num
 	}
