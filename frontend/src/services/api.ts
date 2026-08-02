@@ -1080,18 +1080,30 @@ export interface PlayerStat {
     passing_attempts: number;
     rushing_attempts: number;
     completed_passes: number;
+    incomplete_passes: number;
+    uncatchable_passes: number;
+    thrown_away_passes: number;
+    batted_down_passes: number;
+    targets: number;
+    passing_yards: number;
+    rushing_yards: number;
+    receiving_yards: number;
     passing_tds: number;
     rushing_tds: number;
     interceptions_thrown: number;
     receptions: number;
     receiving_tds: number;
     extra_points_tds: number;
+    xp_attempts: number;
+    xp_good: number;
+    xp_fail: number;
     drops: number;
     flag_pulls: number;
     pass_deflections: number;
     interceptions: number;
     defensive_tds: number;
     safety: number;
+    safety_conceded: number;
     qb_sacks: number;
     def_sacks: number;
     defensive_xp_tds: number;
@@ -1105,21 +1117,40 @@ export interface TeamStat {
     passing_attempts: number;
     rushing_attempts: number;
     completed_passes: number;
+    incomplete_passes: number;
+    uncatchable_passes: number;
+    thrown_away_passes: number;
+    batted_down_passes: number;
+    targets: number;
+    passing_yards: number;
+    rushing_yards: number;
+    receiving_yards: number;
     passing_tds: number;
     rushing_tds: number;
     interceptions_thrown: number;
     receptions: number;
     receiving_tds: number;
     extra_points_tds: number;
+    xp_attempts: number;
+    xp_good: number;
+    xp_fail: number;
     drops: number;
     flag_pulls: number;
     pass_deflections: number;
     interceptions: number;
     defensive_tds: number;
     safety: number;
+    safety_conceded: number;
     qb_sacks: number;
     def_sacks: number;
     defensive_xp_tds: number;
+    // Team-only stats
+    punts: number;
+    first_downs: number;
+    turnovers: number;
+    penalties: number;
+    penalty_yards: number;
+    total_plays: number;
 }
 
 export interface UpsertPlayerStatPayload {
@@ -1764,6 +1795,7 @@ export interface GamePlay {
     rusher_id?: string;
     dropped: boolean;
     batted_down: boolean;
+    uncatchable: boolean;
     returned_for_td: boolean;
     penalty?: string;
     penalty_team_id?: string;
@@ -1799,6 +1831,7 @@ export interface PlayPayload {
     rusher_id?: string;
     dropped?: boolean;
     batted_down?: boolean;
+    uncatchable?: boolean;
     returned_for_td?: boolean;
     penalty?: string;
     penalty_team_id?: string;

@@ -11,9 +11,59 @@ import (
 
 type StatsRepository interface {
 	UpsertPlayerStat(ctx context.Context, stat *domain.PlayerStat) error
+	UpsertTeamMatchStat(ctx context.Context, stat *domain.TeamMatchStat) error
 	GetPlayerStats(ctx context.Context, filter domain.StatsFilter) ([]domain.AggregatedPlayerStat, int, error)
 	GetTeamStats(ctx context.Context, filter domain.StatsFilter) ([]domain.AggregatedTeamStat, int, error)
 	GetStatDates(ctx context.Context, competitionID string) ([]string, error)
+}
+
+func (r *PostgresStatsRepository) UpsertTeamMatchStat(ctx context.Context, s *domain.TeamMatchStat) error {
+	query := `
+		INSERT INTO team_match_stats (
+			team_id, match_id, competition_id, match_date,
+			punts, first_downs, turnovers, penalties, penalty_yards, total_plays
+		) VALUES ($1, NULLIF($2,'')::uuid, NULLIF($3,'')::uuid, $4, $5, $6, $7, $8, $9, $10)
+		ON CONFLICT (team_id, match_id) DO UPDATE SET
+			competition_id = EXCLUDED.competition_id,
+			match_date = EXCLUDED.match_date,
+			punts = EXCLUDED.punts,
+			first_downs = EXCLUDED.first_downs,
+			turnovers = EXCLUDED.turnovers,
+			penalties = EXCLUDED.penalties,
+			penalty_yards = EXCLUDED.penalty_yards,
+			total_plays = EXCLUDED.total_plays,
+			updated_at = NOW()`
+	_, err := r.db.Exec(ctx, query,
+		s.TeamID, s.MatchID, s.CompetitionID, s.MatchDate,
+		s.Punts, s.FirstDowns, s.Turnovers, s.Penalties, s.PenaltyYards, s.TotalPlays)
+	return err
+}
+
+// buildTeamOnlyWhereClause mirrors buildStatsWhereClause for the team_match_stats
+// table (competition / match / date filters only — no player or search filters).
+func buildTeamOnlyWhereClause(filter domain.StatsFilter) (string, []interface{}) {
+	var conditions []string
+	var args []interface{}
+	argCount := 1
+	if filter.CompetitionID != "" {
+		conditions = append(conditions, fmt.Sprintf("tms.competition_id = $%d", argCount))
+		args = append(args, filter.CompetitionID)
+		argCount++
+		if filter.EventDay != nil {
+			conditions = append(conditions, fmt.Sprintf("tms.match_date = $%d", argCount))
+			args = append(args, filter.EventDay)
+			argCount++
+		}
+	} else if filter.MatchID != "" {
+		conditions = append(conditions, fmt.Sprintf("tms.match_id = $%d", argCount))
+		args = append(args, filter.MatchID)
+		argCount++
+	}
+	where := ""
+	if len(conditions) > 0 {
+		where = "WHERE " + strings.Join(conditions, " AND ")
+	}
+	return where, args
 }
 
 type PostgresStatsRepository struct {
@@ -33,13 +83,16 @@ func (r *PostgresStatsRepository) UpsertPlayerStat(ctx context.Context, stat *do
 			passing_tds, rushing_tds, interceptions_thrown,
 			receptions, receiving_tds, extra_points_tds, drops,
 			flag_pulls, pass_deflections, interceptions,
-			defensive_tds, safety, qb_sacks, def_sacks, defensive_xp_tds
+			defensive_tds, safety, qb_sacks, def_sacks, defensive_xp_tds,
+			incomplete_passes, uncatchable_passes, thrown_away_passes,
+			batted_down_passes, targets, xp_attempts, xp_good, xp_fail, safety_conceded
 		) VALUES (
 			$1, NULLIF($2, '')::uuid, NULLIF($3, '')::uuid, $4, $5,
 			$6, $7, $8, $9, $10,
 			$11, $12, $13, $14, $15,
 			$16, $17, $18, $19, $20,
-			$21, $22, $23, $24, $25, $26
+			$21, $22, $23, $24, $25, $26,
+			$27, $28, $29, $30, $31, $32, $33, $34, $35
 		)
 		ON CONFLICT (player_id, match_id) DO UPDATE SET
 			match_id = COALESCE(EXCLUDED.match_id, player_stats.match_id),
@@ -64,6 +117,15 @@ func (r *PostgresStatsRepository) UpsertPlayerStat(ctx context.Context, stat *do
 			qb_sacks = EXCLUDED.qb_sacks,
 			def_sacks = EXCLUDED.def_sacks,
 			defensive_xp_tds = EXCLUDED.defensive_xp_tds,
+			incomplete_passes = EXCLUDED.incomplete_passes,
+			uncatchable_passes = EXCLUDED.uncatchable_passes,
+			thrown_away_passes = EXCLUDED.thrown_away_passes,
+			batted_down_passes = EXCLUDED.batted_down_passes,
+			targets = EXCLUDED.targets,
+			xp_attempts = EXCLUDED.xp_attempts,
+			xp_good = EXCLUDED.xp_good,
+			xp_fail = EXCLUDED.xp_fail,
+			safety_conceded = EXCLUDED.safety_conceded,
 			updated_at = NOW()
 	`
 
@@ -76,6 +138,8 @@ func (r *PostgresStatsRepository) UpsertPlayerStat(ctx context.Context, stat *do
 		stat.FlagPulls, stat.PassDeflections, stat.Interceptions,
 		stat.DefensiveTDs, stat.Safety, stat.QBSacks, stat.DefSacks,
 		stat.DefensiveXPTDs,
+		stat.IncompletePasses, stat.UncatchablePasses, stat.ThrownAwayPasses,
+		stat.BattedDownPasses, stat.Targets, stat.XPAttempts, stat.XPGood, stat.XPFail, stat.SafetyConceded,
 	)
 	return err
 }
@@ -150,6 +214,15 @@ var statsSortColumns = map[string]string{
 	"defensive_tds":        "SUM(ps.defensive_tds)",
 	"defensive_xp_tds":     "SUM(ps.defensive_xp_tds)",
 	"safety":               "SUM(ps.safety)",
+	"incomplete_passes":    "SUM(ps.incomplete_passes)",
+	"uncatchable_passes":   "SUM(ps.uncatchable_passes)",
+	"thrown_away_passes":   "SUM(ps.thrown_away_passes)",
+	"batted_down_passes":   "SUM(ps.batted_down_passes)",
+	"targets":              "SUM(ps.targets)",
+	"xp_attempts":          "SUM(ps.xp_attempts)",
+	"xp_good":              "SUM(ps.xp_good)",
+	"xp_fail":              "SUM(ps.xp_fail)",
+	"safety_conceded":      "SUM(ps.safety_conceded)",
 }
 
 // statsOrderClause ranks by the requested stat (highest first, name as
@@ -224,7 +297,16 @@ func (r *PostgresStatsRepository) GetPlayerStats(ctx context.Context, filter dom
 			SUM(ps.safety) AS safety,
 			SUM(ps.qb_sacks) AS qb_sacks,
 			SUM(ps.def_sacks) AS def_sacks,
-			COALESCE(SUM(ps.defensive_xp_tds), 0) AS defensive_xp_tds
+			COALESCE(SUM(ps.defensive_xp_tds), 0) AS defensive_xp_tds,
+			SUM(ps.incomplete_passes) AS incomplete_passes,
+			SUM(ps.uncatchable_passes) AS uncatchable_passes,
+			SUM(ps.thrown_away_passes) AS thrown_away_passes,
+			SUM(ps.batted_down_passes) AS batted_down_passes,
+			SUM(ps.targets) AS targets,
+			SUM(ps.xp_attempts) AS xp_attempts,
+			SUM(ps.xp_good) AS xp_good,
+			SUM(ps.xp_fail) AS xp_fail,
+			SUM(ps.safety_conceded) AS safety_conceded
 		FROM player_stats ps
 		JOIN players p ON ps.player_id = p.id
 		JOIN teams t ON ps.team_id = t.id
@@ -255,6 +337,8 @@ func (r *PostgresStatsRepository) GetPlayerStats(ctx context.Context, filter dom
 			&s.FlagPulls, &s.PassDeflections, &s.Interceptions,
 			&s.DefensiveTDs, &s.Safety, &s.QBSacks, &s.DefSacks,
 			&s.DefensiveXPTDs,
+			&s.IncompletePasses, &s.UncatchablePasses, &s.ThrownAwayPasses,
+			&s.BattedDownPasses, &s.Targets, &s.XPAttempts, &s.XPGood, &s.XPFail, &s.SafetyConceded,
 		)
 		if err != nil {
 			return nil, 0, err
@@ -313,7 +397,16 @@ func (r *PostgresStatsRepository) GetTeamStats(ctx context.Context, filter domai
 			SUM(ps.safety) AS safety,
 			SUM(ps.qb_sacks) AS qb_sacks,
 			SUM(ps.def_sacks) AS def_sacks,
-			COALESCE(SUM(ps.defensive_xp_tds), 0) AS defensive_xp_tds
+			COALESCE(SUM(ps.defensive_xp_tds), 0) AS defensive_xp_tds,
+			SUM(ps.incomplete_passes) AS incomplete_passes,
+			SUM(ps.uncatchable_passes) AS uncatchable_passes,
+			SUM(ps.thrown_away_passes) AS thrown_away_passes,
+			SUM(ps.batted_down_passes) AS batted_down_passes,
+			SUM(ps.targets) AS targets,
+			SUM(ps.xp_attempts) AS xp_attempts,
+			SUM(ps.xp_good) AS xp_good,
+			SUM(ps.xp_fail) AS xp_fail,
+			SUM(ps.safety_conceded) AS safety_conceded
 		FROM player_stats ps
 		JOIN teams t ON ps.team_id = t.id
 		%s
@@ -341,11 +434,44 @@ func (r *PostgresStatsRepository) GetTeamStats(ctx context.Context, filter domai
 			&s.FlagPulls, &s.PassDeflections, &s.Interceptions,
 			&s.DefensiveTDs, &s.Safety, &s.QBSacks, &s.DefSacks,
 			&s.DefensiveXPTDs,
+			&s.IncompletePasses, &s.UncatchablePasses, &s.ThrownAwayPasses,
+			&s.BattedDownPasses, &s.Targets, &s.XPAttempts, &s.XPGood, &s.XPFail, &s.SafetyConceded,
 		)
 		if err != nil {
 			return nil, 0, err
 		}
 		stats = append(stats, s)
+	}
+
+	// Merge in the team-only stats (punts / first downs / turnovers / penalties /
+	// penalty yards / total plays) from team_match_stats, keyed by team.
+	if len(stats) > 0 {
+		tmsWhere, tmsArgs := buildTeamOnlyWhereClause(filter)
+		tmsQuery := fmt.Sprintf(`
+			SELECT tms.team_id,
+				COALESCE(SUM(tms.punts), 0), COALESCE(SUM(tms.first_downs), 0),
+				COALESCE(SUM(tms.turnovers), 0), COALESCE(SUM(tms.penalties), 0),
+				COALESCE(SUM(tms.penalty_yards), 0), COALESCE(SUM(tms.total_plays), 0)
+			FROM team_match_stats tms
+			%s
+			GROUP BY tms.team_id`, tmsWhere)
+		if trows, terr := r.db.Query(ctx, tmsQuery, tmsArgs...); terr == nil {
+			teamOnly := map[string][6]int{}
+			for trows.Next() {
+				var id string
+				var v [6]int
+				if err := trows.Scan(&id, &v[0], &v[1], &v[2], &v[3], &v[4], &v[5]); err == nil {
+					teamOnly[id] = v
+				}
+			}
+			trows.Close()
+			for i := range stats {
+				if v, ok := teamOnly[stats[i].TeamID]; ok {
+					stats[i].Punts, stats[i].FirstDowns, stats[i].Turnovers = v[0], v[1], v[2]
+					stats[i].Penalties, stats[i].PenaltyYards, stats[i].TotalPlays = v[3], v[4], v[5]
+				}
+			}
+		}
 	}
 
 	return stats, total, nil

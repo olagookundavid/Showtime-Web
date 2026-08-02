@@ -20,15 +20,26 @@ const STAT_COLS = [
     { key: 'apps', top: '', bottom: 'Apps', title: 'Appearances (Games Played)', bg: '', playerOnly: true },
     { key: 'passing_attempts', top: 'Pass', bottom: 'ATT', title: 'Pass Attempts', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
     { key: 'completed_passes', top: 'Pass', bottom: 'COMP', title: 'Pass Completions', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
+    { key: 'incomplete_passes', top: 'Pass', bottom: 'INC', title: 'Incomplete Passes', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
+    { key: 'passing_yards', top: 'Pass', bottom: 'YDS', title: 'Passing Yards', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
     { key: 'passing_tds', top: 'Pass', bottom: 'TDs', title: 'Passing Touchdowns', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
     { key: 'interceptions_thrown', top: 'Int', bottom: 'Thrown', title: 'Interceptions Thrown', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
+    { key: 'uncatchable_passes', top: 'Pass', bottom: 'Unc', title: 'Uncatchable Passes', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
+    { key: 'thrown_away_passes', top: 'Pass', bottom: 'TA', title: 'Thrown-Away Passes', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
+    { key: 'batted_down_passes', top: 'Pass', bottom: 'Batted', title: 'Batted-Down Passes (QB)', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
     { key: 'qb_sacks', top: 'QB', bottom: 'Sacks', title: 'QB Sacks Accounted (QB fault)', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
     { key: 'rushing_attempts', top: 'Rush', bottom: 'ATT', title: 'Rushing Attempts', bg: 'bg-green-50/30 dark:bg-green-900/10' },
+    { key: 'rushing_yards', top: 'Rush', bottom: 'YDS', title: 'Rushing Yards', bg: 'bg-green-50/30 dark:bg-green-900/10' },
     { key: 'rushing_tds', top: 'Rush', bottom: 'TDs', title: 'Rushing Touchdowns', bg: 'bg-green-50/30 dark:bg-green-900/10' },
     { key: 'receptions', top: '', bottom: 'Rec', title: 'Receptions', bg: 'bg-yellow-50/30 dark:bg-yellow-900/10' },
+    { key: 'targets', top: '', bottom: 'Tgt', title: 'Targets (thrown to)', bg: 'bg-yellow-50/30 dark:bg-yellow-900/10' },
+    { key: 'receiving_yards', top: 'Rec', bottom: 'YDS', title: 'Receiving Yards', bg: 'bg-yellow-50/30 dark:bg-yellow-900/10' },
     { key: 'receiving_tds', top: 'RC', bottom: 'TDs', title: 'Receiving Touchdowns', bg: 'bg-yellow-50/30 dark:bg-yellow-900/10' },
     { key: 'drops', top: '', bottom: 'Drops', title: 'Drops', bg: 'bg-yellow-50/30 dark:bg-yellow-900/10' },
-    { key: 'extra_points_tds', top: 'X-Pts', bottom: 'TDs', title: 'Extra Point Touchdowns', bg: 'bg-purple-50/30 dark:bg-purple-900/10' },
+    { key: 'xp_attempts', top: 'XP', bottom: 'Att', title: 'Extra-Point Attempts', bg: 'bg-purple-50/30 dark:bg-purple-900/10' },
+    { key: 'xp_good', top: 'XP', bottom: 'Good', title: 'Extra Points Made', bg: 'bg-purple-50/30 dark:bg-purple-900/10' },
+    { key: 'xp_fail', top: 'XP', bottom: 'Fail', title: 'Extra Points Failed', bg: 'bg-purple-50/30 dark:bg-purple-900/10' },
+    { key: 'extra_points_tds', top: 'X-Pts', bottom: 'TDs', title: 'Extra Point Touchdowns (scorer)', bg: 'bg-purple-50/30 dark:bg-purple-900/10' },
     { key: 'flag_pulls', top: 'Flag', bottom: 'Pulls', title: 'Flag Pulls (Tackles)', bg: 'bg-red-50/30 dark:bg-red-900/10' },
     { key: 'pass_deflections', top: 'Pass', bottom: 'Defl', title: 'Pass Deflections', bg: 'bg-red-50/30 dark:bg-red-900/10' },
     { key: 'interceptions', top: 'Def', bottom: 'INT', title: 'Interceptions Caught', bg: 'bg-red-50/30 dark:bg-red-900/10' },
@@ -36,6 +47,14 @@ const STAT_COLS = [
     { key: 'defensive_tds', top: 'Def', bottom: 'TDs', title: 'Defensive Touchdowns', bg: 'bg-red-50/30 dark:bg-red-900/10' },
     { key: 'defensive_xp_tds', top: 'Def XP', bottom: 'TDs', title: 'Defensive Extra-Point TDs (interception returned on an extra point)', bg: 'bg-red-50/30 dark:bg-red-900/10' },
     { key: 'safety', top: '', bottom: 'Safety', title: 'Safeties', bg: 'bg-red-50/30 dark:bg-red-900/10' },
+    { key: 'safety_conceded', top: 'Safety', bottom: 'Conc', title: 'Safeties Conceded (QB)', bg: 'bg-red-50/30 dark:bg-red-900/10' },
+    // Team-only stats — shown only in the team view.
+    { key: 'total_plays', top: 'Team', bottom: 'Plays', title: 'Total Plays (from scrimmage)', bg: 'bg-gray-50/40 dark:bg-gray-800/40', teamOnly: true },
+    { key: 'first_downs', top: 'Team', bottom: '1st Dn', title: 'First Downs', bg: 'bg-gray-50/40 dark:bg-gray-800/40', teamOnly: true },
+    { key: 'turnovers', top: 'Team', bottom: 'TO', title: 'Turnovers', bg: 'bg-gray-50/40 dark:bg-gray-800/40', teamOnly: true },
+    { key: 'punts', top: 'Team', bottom: 'Punts', title: 'Punts', bg: 'bg-gray-50/40 dark:bg-gray-800/40', teamOnly: true },
+    { key: 'penalties', top: 'Team', bottom: 'Pen', title: 'Penalties', bg: 'bg-gray-50/40 dark:bg-gray-800/40', teamOnly: true },
+    { key: 'penalty_yards', top: 'Pen', bottom: 'YDS', title: 'Penalty Yards', bg: 'bg-gray-50/40 dark:bg-gray-800/40', teamOnly: true },
 ];
 
 // Sticky-column styling. Each sticky `<th>` / `<td>` needs an opaque background
@@ -47,7 +66,7 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
     const isPlayer = type === 'players';
     const data = isPlayer ? playerStats : teamStats;
 
-    const visibleStatCols = STAT_COLS.filter(c => isPlayer || !c.playerOnly);
+    const visibleStatCols = STAT_COLS.filter(c => isPlayer ? !(c as { teamOnly?: boolean }).teamOnly : !c.playerOnly);
 
     // Clicking a stat header ranks league-wide leaders first (server-side
     // sort, so it spans every page); clicking it again returns to A→Z.
@@ -194,28 +213,19 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                                     </td>
                                 )}
 
-                                {/* Stat values */}
-                                {isPlayer && (
-                                    <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-medium text-gray-700 dark:text-gray-200">{row.apps || '-'}</td>
-                                )}
-                                <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-medium bg-blue-50/5 dark:bg-blue-900/5 text-gray-700 dark:text-gray-200">{row.passing_attempts}</td>
-                                <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-medium bg-blue-50/5 dark:bg-blue-900/5 text-gray-700 dark:text-gray-200">{row.completed_passes}</td>
-                                <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-bold bg-blue-50/10 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400">{row.passing_tds}</td>
-                                <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-medium bg-blue-50/5 dark:bg-blue-900/5 text-gray-700 dark:text-gray-200">{row.interceptions_thrown}</td>
-                                <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-medium bg-blue-50/5 dark:bg-blue-900/5 text-gray-700 dark:text-gray-200">{row.qb_sacks}</td>
-                                <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-medium bg-green-50/5 dark:bg-green-900/5 text-gray-700 dark:text-gray-200">{row.rushing_attempts}</td>
-                                <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-bold bg-green-50/10 dark:bg-green-900/10 text-green-600 dark:text-green-400">{row.rushing_tds}</td>
-                                <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-medium bg-yellow-50/5 dark:bg-yellow-900/5 text-gray-700 dark:text-gray-200">{row.receptions}</td>
-                                <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-bold bg-yellow-50/10 dark:bg-yellow-900/10 text-yellow-600 dark:text-yellow-400">{row.receiving_tds}</td>
-                                <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-medium bg-yellow-50/5 dark:bg-yellow-900/5 text-gray-700 dark:text-gray-200">{row.drops}</td>
-                                <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-bold bg-purple-50/10 dark:bg-purple-900/10 text-purple-600 dark:text-purple-400">{row.extra_points_tds}</td>
-                                <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-medium bg-red-50/5 dark:bg-red-900/5 text-gray-700 dark:text-gray-200">{row.flag_pulls}</td>
-                                <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-medium bg-red-50/5 dark:bg-red-900/5 text-gray-700 dark:text-gray-200">{row.pass_deflections}</td>
-                                <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-bold bg-red-50/10 dark:bg-red-900/10 text-red-600 dark:text-red-400">{row.interceptions}</td>
-                                <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-medium bg-red-50/5 dark:bg-red-900/5 text-gray-700 dark:text-gray-200">{row.def_sacks}</td>
-                                <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-bold bg-red-50/10 dark:bg-red-900/10 text-red-600 dark:text-red-400">{row.defensive_tds}</td>
-                                <td className="px-1 py-4 border-r border-gray-50 dark:border-gray-800 font-bold bg-red-50/10 dark:bg-red-900/10 text-red-600 dark:text-red-400">{row.defensive_xp_tds ?? 0}</td>
-                                <td className="px-1 py-4 bg-red-50/5 dark:bg-red-900/5 text-gray-700 dark:text-gray-200 font-medium">{row.safety}</td>
+                                {/* Stat values — rendered from visibleStatCols so header/body stay in sync */}
+                                {visibleStatCols.map((col, i) => {
+                                    const isLast = i === visibleStatCols.length - 1;
+                                    const value = col.key === 'apps' ? (row.apps || '-') : ((row as Record<string, number>)[col.key] ?? 0);
+                                    return (
+                                        <td
+                                            key={col.key}
+                                            className={`px-1 py-4 ${isLast ? '' : 'border-r border-gray-50 dark:border-gray-800'} font-medium text-gray-700 dark:text-gray-200 ${col.bg || ''}`}
+                                        >
+                                            {value}
+                                        </td>
+                                    );
+                                })}
                             </tr>
                         );
                     })}

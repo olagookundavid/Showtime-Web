@@ -12,6 +12,11 @@ type PlayerStat struct {
 	PassingAttempts     int       `json:"passing_attempts"`
 	RushingAttempts     int       `json:"rushing_attempts"`
 	CompletedPasses     int       `json:"completed_passes"`
+	IncompletePasses    int       `json:"incomplete_passes"`
+	UncatchablePasses   int       `json:"uncatchable_passes"`
+	ThrownAwayPasses    int       `json:"thrown_away_passes"`
+	BattedDownPasses    int       `json:"batted_down_passes"`
+	Targets             int       `json:"targets"`
 	PassingYards        int       `json:"passing_yards"`
 	RushingYards        int       `json:"rushing_yards"`
 	ReceivingYards      int       `json:"receiving_yards"`
@@ -21,12 +26,16 @@ type PlayerStat struct {
 	Receptions          int       `json:"receptions"`
 	ReceivingTDs        int       `json:"receiving_tds"`
 	ExtraPointsTDs      int       `json:"extra_points_tds"`
+	XPAttempts          int       `json:"xp_attempts"`
+	XPGood              int       `json:"xp_good"`
+	XPFail              int       `json:"xp_fail"`
 	Drops               int       `json:"drops"`
 	FlagPulls           int       `json:"flag_pulls"`
 	PassDeflections     int       `json:"pass_deflections"`
 	Interceptions       int       `json:"interceptions"`
 	DefensiveTDs        int       `json:"defensive_tds"`
 	Safety              int       `json:"safety"`
+	SafetyConceded      int       `json:"safety_conceded"`
 	QBSacks             int       `json:"qb_sacks"`
 	DefSacks            int       `json:"def_sacks"`
 	DefensiveXPTDs      int       `json:"defensive_xp_tds"`
@@ -48,6 +57,11 @@ type AggregatedPlayerStat struct {
 	PassingAttempts     int    `json:"passing_attempts"`
 	RushingAttempts     int    `json:"rushing_attempts"`
 	CompletedPasses     int    `json:"completed_passes"`
+	IncompletePasses    int    `json:"incomplete_passes"`
+	UncatchablePasses   int    `json:"uncatchable_passes"`
+	ThrownAwayPasses    int    `json:"thrown_away_passes"`
+	BattedDownPasses    int    `json:"batted_down_passes"`
+	Targets             int    `json:"targets"`
 	PassingYards        int    `json:"passing_yards"`
 	RushingYards        int    `json:"rushing_yards"`
 	ReceivingYards      int    `json:"receiving_yards"`
@@ -57,12 +71,16 @@ type AggregatedPlayerStat struct {
 	Receptions          int    `json:"receptions"`
 	ReceivingTDs        int    `json:"receiving_tds"`
 	ExtraPointsTDs      int    `json:"extra_points_tds"`
+	XPAttempts          int    `json:"xp_attempts"`
+	XPGood              int    `json:"xp_good"`
+	XPFail              int    `json:"xp_fail"`
 	Drops               int    `json:"drops"`
 	FlagPulls           int    `json:"flag_pulls"`
 	PassDeflections     int    `json:"pass_deflections"`
 	Interceptions       int    `json:"interceptions"`
 	DefensiveTDs        int    `json:"defensive_tds"`
 	Safety              int    `json:"safety"`
+	SafetyConceded      int    `json:"safety_conceded"`
 	QBSacks             int    `json:"qb_sacks"`
 	DefSacks            int    `json:"def_sacks"`
 	DefensiveXPTDs      int    `json:"defensive_xp_tds"`
@@ -76,6 +94,11 @@ type AggregatedTeamStat struct {
 	PassingAttempts     int    `json:"passing_attempts"`
 	RushingAttempts     int    `json:"rushing_attempts"`
 	CompletedPasses     int    `json:"completed_passes"`
+	IncompletePasses    int    `json:"incomplete_passes"`
+	UncatchablePasses   int    `json:"uncatchable_passes"`
+	ThrownAwayPasses    int    `json:"thrown_away_passes"`
+	BattedDownPasses    int    `json:"batted_down_passes"`
+	Targets             int    `json:"targets"`
 	PassingYards        int    `json:"passing_yards"`
 	RushingYards        int    `json:"rushing_yards"`
 	ReceivingYards      int    `json:"receiving_yards"`
@@ -85,15 +108,40 @@ type AggregatedTeamStat struct {
 	Receptions          int    `json:"receptions"`
 	ReceivingTDs        int    `json:"receiving_tds"`
 	ExtraPointsTDs      int    `json:"extra_points_tds"`
+	XPAttempts          int    `json:"xp_attempts"`
+	XPGood              int    `json:"xp_good"`
+	XPFail              int    `json:"xp_fail"`
 	Drops               int    `json:"drops"`
 	FlagPulls           int    `json:"flag_pulls"`
 	PassDeflections     int    `json:"pass_deflections"`
 	Interceptions       int    `json:"interceptions"`
 	DefensiveTDs        int    `json:"defensive_tds"`
 	Safety              int    `json:"safety"`
+	SafetyConceded      int    `json:"safety_conceded"`
 	QBSacks             int    `json:"qb_sacks"`
 	DefSacks            int    `json:"def_sacks"`
 	DefensiveXPTDs      int    `json:"defensive_xp_tds"`
+	// Team-only stats (not derived from any player's line — from team_match_stats).
+	Punts        int `json:"punts"`
+	FirstDowns   int `json:"first_downs"`
+	Turnovers    int `json:"turnovers"`
+	Penalties    int `json:"penalties"`
+	PenaltyYards int `json:"penalty_yards"`
+	TotalPlays   int `json:"total_plays"`
+}
+
+// TeamMatchStat is the team-only stat line for one team in one match.
+type TeamMatchStat struct {
+	TeamID        string
+	MatchID       string
+	CompetitionID string
+	MatchDate     time.Time
+	Punts         int
+	FirstDowns    int
+	Turnovers     int
+	Penalties     int
+	PenaltyYards  int
+	TotalPlays    int
 }
 
 type StatsFilter struct {

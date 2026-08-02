@@ -441,6 +441,7 @@ export const AdminPlayByPlay = () => {
                     base.play_type = 'INT';
                     base.result = 'INT';
                     base.rusher_id = w.rusherId || undefined;
+                    base.target_id = w.targetId || undefined;
                 } else if (w.rushOutcome === 'no_sack') {
                     base.rusher_id = w.rusherId || undefined;
                     if (!w.passOutcome) return { payload: null, error: 'Select Pass outcome (Complete or Incomplete).' };
@@ -486,6 +487,8 @@ export const AdminPlayByPlay = () => {
                         } else if (w.incompleteOption === 'batted_down') {
                             base.batted_down = true;
                             base.defender_id = w.defenderId || undefined;
+                        } else if (w.incompleteOption === 'uncatchable') {
+                            base.uncatchable = true;
                         }
                     } else if (w.passOutcome === 'int') {
                         base.play_type = 'INT';
@@ -685,7 +688,7 @@ export const AdminPlayByPlay = () => {
                     nw.passOutcome = 'incomplete';
                     if (p.dropped) nw.incompleteOption = 'dropped';
                     else if (p.batted_down) nw.incompleteOption = 'batted_down';
-                    else nw.incompleteOption = 'uncatchable';
+                    else if (p.uncatchable) nw.incompleteOption = 'uncatchable';
                 } else {
                     nw.passOutcome = 'complete';
                     nw.passDefenderAction = res === 'OB' ? 'OB' : 'FG';
@@ -917,7 +920,10 @@ export const AdminPlayByPlay = () => {
                                     )}
 
                                     {w.rushOutcome === 'int' && (
-                                        <p className="text-xs font-semibold text-red-600 dark:text-red-400">Play ends as an interception credited to the rusher.</p>
+                                        <div className="space-y-3">
+                                            <p className="text-xs font-semibold text-red-600 dark:text-red-400">Play ends as an interception credited to the rusher.</p>
+                                            <PlayerField label={`Target Receiver (${teamName(ctx.offense)})`} value={w.targetId} onChange={v => setField('targetId', v)} roster={offenseRoster} />
+                                        </div>
                                     )}
                                 </div>
 
@@ -1518,24 +1524,56 @@ const StatsCompare = ({ matchId }: { matchId: string }) => {
                     qb_sacks: 0,
                     def_sacks: 0,
                     defensive_xp_tds: 0,
+                    incomplete_passes: 0,
+                    uncatchable_passes: 0,
+                    thrown_away_passes: 0,
+                    batted_down_passes: 0,
+                    targets: 0,
+                    passing_yards: 0,
+                    rushing_yards: 0,
+                    receiving_yards: 0,
+                    xp_attempts: 0,
+                    xp_good: 0,
+                    xp_fail: 0,
+                    safety_conceded: 0,
+                    // Team-only stats aren't derived from player lines; the real
+                    // values come from the backend team stats after commit.
+                    punts: 0,
+                    first_downs: 0,
+                    turnovers: 0,
+                    penalties: 0,
+                    penalty_yards: 0,
+                    total_plays: 0,
                 };
             }
             const t = map[p.team_id];
             t.passing_attempts += p.passing_attempts || 0;
             t.rushing_attempts += p.rushing_attempts || 0;
             t.completed_passes += p.completed_passes || 0;
+            t.incomplete_passes += p.incomplete_passes || 0;
+            t.uncatchable_passes += p.uncatchable_passes || 0;
+            t.thrown_away_passes += p.thrown_away_passes || 0;
+            t.batted_down_passes += p.batted_down_passes || 0;
+            t.targets += p.targets || 0;
+            t.passing_yards += p.passing_yards || 0;
+            t.rushing_yards += p.rushing_yards || 0;
+            t.receiving_yards += p.receiving_yards || 0;
             t.passing_tds += p.passing_tds || 0;
             t.rushing_tds += p.rushing_tds || 0;
             t.interceptions_thrown += p.interceptions_thrown || 0;
             t.receptions += p.receptions || 0;
             t.receiving_tds += p.receiving_tds || 0;
             t.extra_points_tds += p.extra_points_tds || 0;
+            t.xp_attempts += p.xp_attempts || 0;
+            t.xp_good += p.xp_good || 0;
+            t.xp_fail += p.xp_fail || 0;
             t.drops += p.drops || 0;
             t.flag_pulls += p.flag_pulls || 0;
             t.pass_deflections += p.pass_deflections || 0;
             t.interceptions += p.interceptions || 0;
             t.defensive_tds += p.defensive_tds || 0;
             t.safety += p.safety || 0;
+            t.safety_conceded += p.safety_conceded || 0;
             t.qb_sacks += p.qb_sacks || 0;
             t.def_sacks += p.def_sacks || 0;
             t.defensive_xp_tds += p.defensive_xp_tds || 0;

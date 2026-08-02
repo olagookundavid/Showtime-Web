@@ -239,8 +239,10 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		playersGroup.DELETE("/:id", app.Handlers.PlayerHandler.DeletePlayer)
 	}
 
+	// Manual stat editing is reserved for App Admins (play-by-play is the primary
+	// path). Non-app-admins get the read-only stats views only.
 	statsGroup := adminRoutes.Group("/stats")
-	statsGroup.Use(middlewares.RolesAllowedMiddleware(app.AuthService, "admin", "referee", "stats"))
+	statsGroup.Use(middlewares.RolesAllowedMiddleware(app.AuthService, "app_admin"))
 	{
 		statsGroup.POST("/players", app.Handlers.StatsHandler.UpsertPlayerStat)
 	}

@@ -71,8 +71,9 @@ func (s *PlayService) DeriveMatchStats(ctx context.Context, matchID string) ([]d
 			yards = *p.Yards
 		}
 
-		// Central: a flag pull credits the defender (or rusher) on non-sack, non-TD, non-turnover tackles.
-		// DefenderID is prioritized over RusherID for downfield tackles on completions/runs.
+		// ── Central defensive credits (any play type) ──
+		// Flag pull (tackle) — credited on any play where the carrier was
+		// stopped (i.e. not a sack / TD / turnover / incompletion / safety).
 		if pt != "SACK" && (res == "FG" || (res != "TD" && res != "INT" && res != "INC" && res != "SAF" && (p.DefenderID != nil || p.RusherID != nil))) {
 			if d := get(p.DefenderID); d != nil {
 				d.FlagPulls++
@@ -80,11 +81,16 @@ func (s *PlayService) DeriveMatchStats(ctx context.Context, matchID string) ([]d
 				r.FlagPulls++
 			}
 		}
+		// Safety: the defender/blitzer gets the Safety; the offensive player
+		// tackled in the end zone is charged with a Safety Conceded.
 		if res == "SAF" {
 			if r := get(p.RusherID); r != nil {
 				r.Safety++
 			} else if d := get(p.DefenderID); d != nil {
 				d.Safety++
+			}
+			if qb := get(p.OffQBID); qb != nil {
+				qb.SafetyConceded++
 			}
 		}
 
@@ -94,6 +100,12 @@ func (s *PlayService) DeriveMatchStats(ctx context.Context, matchID string) ([]d
 			target := get(p.TargetID)
 			def := get(p.DefenderID)
 			rush := get(p.RusherID)
+
+			// A receiver logged on an intended pass earns a Target (unless thrown away or uncatchable).
+			if target != nil && !p.Uncatchable && pt != "TA" {
+				target.Targets++
+			}
+
 			switch pt {
 			case "SACK":
 				// Sack yardage is conventionally excluded from passing yards
@@ -111,13 +123,20 @@ func (s *PlayService) DeriveMatchStats(ctx context.Context, matchID string) ([]d
 					qb.PassingAttempts++
 					qb.InterceptionsThrown++
 				}
-				if def != nil {
-					def.Interceptions++
+				// The interceptor may be recorded as the coverage defender
+				// (downfield pick) or the rusher (picked at the line).
+				interceptor := def
+				if interceptor == nil {
+					interceptor = rush
+				}
+				if interceptor != nil {
+					interceptor.Interceptions++
 					if p.ReturnedForTD {
-						def.DefensiveTDs++
+						interceptor.DefensiveTDs++
 					}
 				}
 			case "TDP":
+				// A touchdown pass is a completed pass AND a touchdown — book both.
 				if qb != nil {
 					qb.PassingAttempts++
 					qb.CompletedPasses++
@@ -130,21 +149,32 @@ func (s *PlayService) DeriveMatchStats(ctx context.Context, matchID string) ([]d
 					target.ReceivingYards += yards
 				}
 			case "TA":
+				// Thrown away is an incompletion, charged to the QB.
 				if qb != nil {
 					qb.PassingAttempts++
+					qb.IncompletePasses++
+					qb.ThrownAwayPasses++
 				}
 			default: // CP, SCR, HM, INC
 				if qb != nil {
 					qb.PassingAttempts++
 				}
 				if res == "INC" || pt == "INC" {
+					// Every incompletion counts toward Incomplete Passes; the
+					// sub-type (drop / uncatchable / batted) adds detail on top.
+					if qb != nil {
+						qb.IncompletePasses++
+					}
 					if p.Dropped && target != nil {
 						target.Drops++
 					}
-					// Only credit a Pass Deflection when the admin explicitly
-					// marked the pass as batted down — naming a defender alone
-					// no longer implies it (they may have just been in coverage).
+					if p.Uncatchable && qb != nil {
+						qb.UncatchablePasses++
+					}
 					if p.BattedDown {
+						if qb != nil {
+							qb.BattedDownPasses++
+						}
 						if rush != nil {
 							rush.PassDeflections++
 						} else if def != nil {
@@ -152,6 +182,7 @@ func (s *PlayService) DeriveMatchStats(ctx context.Context, matchID string) ([]d
 						}
 					}
 				} else {
+					// Completed pass.
 					if qb != nil {
 						qb.CompletedPasses++
 						qb.PassingYards += yards
@@ -174,21 +205,36 @@ func (s *PlayService) DeriveMatchStats(ctx context.Context, matchID string) ([]d
 			}
 
 		case pt == "XP-P":
-			if res == "XP" {
-				if t := get(p.TargetID); t != nil {
+			// Extra point by pass: QB attempts; on success the receiver scores.
+			if qb := get(p.OffQBID); qb != nil {
+				qb.XPAttempts++
+				if res == "XP" {
+					qb.XPGood++
+				} else if res == "XPF" {
+					qb.XPFail++
+				}
+			}
+			if t := get(p.TargetID); t != nil {
+				t.Targets++
+				if res == "XP" {
 					t.ExtraPointsTDs++
 				}
-				if p.ReturnedForTD {
-					if d := get(p.DefenderID); d != nil {
-						d.DefensiveXPTDs++
-					}
+			}
+			if p.ReturnedForTD {
+				if d := get(p.DefenderID); d != nil {
+					d.DefensiveXPTDs++
 				}
 			}
 
 		case pt == "PAT-R":
-			if res == "XP" {
-				if c := get(p.OffQBID); c != nil {
+			// Extra point by run: the carrier attempts and, on success, scores.
+			if c := get(p.OffQBID); c != nil {
+				c.XPAttempts++
+				if res == "XP" {
+					c.XPGood++
 					c.ExtraPointsTDs++
+				} else if res == "XPF" {
+					c.XPFail++
 				}
 			}
 		}
@@ -257,12 +303,114 @@ func (s *PlayService) CommitDerivedStats(ctx context.Context, matchID string) (i
 			QBSacks:             d.QBSacks,
 			DefSacks:            d.DefSacks,
 			DefensiveXPTDs:      d.DefensiveXPTDs,
+			IncompletePasses:    d.IncompletePasses,
+			UncatchablePasses:   d.UncatchablePasses,
+			ThrownAwayPasses:    d.ThrownAwayPasses,
+			BattedDownPasses:    d.BattedDownPasses,
+			Targets:             d.Targets,
+			XPAttempts:          d.XPAttempts,
+			XPGood:              d.XPGood,
+			XPFail:              d.XPFail,
+			SafetyConceded:      d.SafetyConceded,
 		}
 		if err := s.statsRepo.UpsertPlayerStat(ctx, stat); err != nil {
 			return 0, fmt.Errorf("failed to write stats for %s: %w", d.PlayerName, err)
 		}
 	}
+
+	// Also write the team-only stats (punts / first downs / turnovers / etc.).
+	teamStats, err := s.DeriveTeamMatchStats(ctx, matchID)
+	if err != nil {
+		return len(derived), err
+	}
+	for i := range teamStats {
+		if err := s.statsRepo.UpsertTeamMatchStat(ctx, &teamStats[i]); err != nil {
+			return len(derived), fmt.Errorf("failed to write team stats: %w", err)
+		}
+	}
+
 	return len(derived), nil
+}
+
+// DeriveTeamMatchStats computes the team-only stats (punts / first downs /
+// turnovers / penalties / total plays) for a match from the play log.
+func (s *PlayService) DeriveTeamMatchStats(ctx context.Context, matchID string) ([]domain.TeamMatchStat, error) {
+	detail, err := s.matchRepo.GetMatchDetail(ctx, matchID)
+	if err != nil {
+		return nil, err
+	}
+	plays, err := s.repo.ListByMatch(ctx, matchID)
+	if err != nil {
+		return nil, err
+	}
+
+	acc := map[string]*domain.TeamMatchStat{}
+	get := func(teamID string) *domain.TeamMatchStat {
+		if teamID == "" {
+			return nil
+		}
+		if t, ok := acc[teamID]; ok {
+			return t
+		}
+		t := &domain.TeamMatchStat{
+			TeamID: teamID, MatchID: matchID,
+			CompetitionID: detail.Match.CompetitionID, MatchDate: detail.Match.Date,
+		}
+		acc[teamID] = t
+		return t
+	}
+
+	for _, p := range plays {
+		pt := strDerefTrim(p.PlayType)
+		res := strDerefTrim(p.Result)
+		off := ""
+		if p.OffenseTeamID != nil {
+			off = *p.OffenseTeamID
+		}
+
+		if passingPlayTypes[pt] || rushingPlayTypes[pt] {
+			if t := get(off); t != nil {
+				t.TotalPlays++
+			}
+		}
+		if res == "1D" || res == "1DG" {
+			if t := get(off); t != nil {
+				t.FirstDowns++
+			}
+		}
+		if res == "INT" || res == "TO" {
+			if t := get(off); t != nil {
+				t.Turnovers++
+			}
+		}
+		if pt == "PUNT" {
+			if t := get(off); t != nil {
+				t.Punts++
+			}
+		}
+		if pen := strDerefTrim(p.Penalty); pen != "" {
+			penTeam := ""
+			if p.PenaltyTeamID != nil {
+				penTeam = *p.PenaltyTeamID
+			}
+			if t := get(penTeam); t != nil {
+				t.Penalties++
+				if p.PenaltyYards != nil {
+					t.PenaltyYards += *p.PenaltyYards
+				}
+			}
+		}
+	}
+
+	// Ensure both teams get a row (zeroed) so committing overwrites stale values.
+	get(detail.Match.HomeTeamID)
+	get(detail.Match.AwayTeamID)
+
+	out := make([]domain.TeamMatchStat, 0, len(acc))
+	for _, t := range acc {
+		out = append(out, *t)
+	}
+	return out, nil
 }
 
 func buildStatLookup(detail *domain.MatchDetail) statLookup {

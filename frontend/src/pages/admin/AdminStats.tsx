@@ -14,6 +14,7 @@ import {
 import { Loader } from '../../components/ui/Loader';
 import { LightboxImage } from '../../components/ui';
 import { DataTable, type Column } from '../../components/ui/DataTable';
+import { useAuth } from '../../contexts/AuthContext';
 
 const STAT_FIELDS = [
     { key: 'passing_attempts', label: 'Pass Attempts' },
@@ -45,6 +46,10 @@ const emptyForm: FormState = STAT_FIELDS.reduce((acc, field) => {
 }, {} as FormState);
 
 export const AdminStats = () => {
+    const { user } = useAuth();
+    // Manual stat editing is reserved for App Admins — everyone else sees the
+    // numbers read-only. (Play-by-play remains the primary way stats are set.)
+    const isAppAdmin = user?.role === 'app_admin';
     const [selectedComp, setSelectedComp] = useState<string>('');
     const [selectedMatch, setSelectedMatch] = useState<string>('');
     const [selectedTeamId, setSelectedTeamId] = useState<string>('');
@@ -112,6 +117,10 @@ export const AdminStats = () => {
     const [loadingExisting, setLoadingExisting] = useState(false);
 
     const openStatsModal = async (p: TeamSheetPlayer) => {
+        if (!isAppAdmin) {
+            toast.error('Only App Admins can edit stats manually');
+            return;
+        }
         if (!selectedComp || !selectedMatch) {
             toast.error('Please select a Competition and Match first');
             return;
@@ -200,10 +209,11 @@ export const AdminStats = () => {
             cell: (p) => (
                 <button
                     onClick={() => openStatsModal(p)}
-                    disabled={isCompleted}
+                    disabled={isCompleted || !isAppAdmin}
+                    title={!isAppAdmin ? 'Only App Admins can edit stats manually' : undefined}
                     className="px-3 py-1.5 bg-sffl-navy text-white font-bold text-xs rounded-lg shadow-sm hover:shadow-md hover:bg-sffl-navy-light transition-all duration-300 hover:scale-[1.02] active:scale-95 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    {isCompleted ? 'Locked' : 'Edit Stats'}
+                    {isCompleted ? 'Locked' : !isAppAdmin ? 'App Admin only' : 'Edit Stats'}
                 </button>
             )
         },

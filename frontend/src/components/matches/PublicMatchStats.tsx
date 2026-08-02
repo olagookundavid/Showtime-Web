@@ -60,24 +60,54 @@ export const PublicMatchStats = ({ matchId }: { matchId: string }) => {
                     qb_sacks: 0,
                     def_sacks: 0,
                     defensive_xp_tds: 0,
+                    incomplete_passes: 0,
+                    uncatchable_passes: 0,
+                    thrown_away_passes: 0,
+                    batted_down_passes: 0,
+                    targets: 0,
+                    passing_yards: 0,
+                    rushing_yards: 0,
+                    receiving_yards: 0,
+                    xp_attempts: 0,
+                    xp_good: 0,
+                    xp_fail: 0,
+                    safety_conceded: 0,
+                    punts: 0,
+                    first_downs: 0,
+                    turnovers: 0,
+                    penalties: 0,
+                    penalty_yards: 0,
+                    total_plays: 0,
                 };
             }
             const t = map[p.team_id];
             t.passing_attempts += p.passing_attempts || 0;
             t.rushing_attempts += p.rushing_attempts || 0;
             t.completed_passes += p.completed_passes || 0;
+            t.incomplete_passes += p.incomplete_passes || 0;
+            t.uncatchable_passes += p.uncatchable_passes || 0;
+            t.thrown_away_passes += p.thrown_away_passes || 0;
+            t.batted_down_passes += p.batted_down_passes || 0;
+            t.targets += p.targets || 0;
+            t.passing_yards += p.passing_yards || 0;
+            t.rushing_yards += p.rushing_yards || 0;
+            t.receiving_yards += p.receiving_yards || 0;
             t.passing_tds += p.passing_tds || 0;
             t.rushing_tds += p.rushing_tds || 0;
             t.interceptions_thrown += p.interceptions_thrown || 0;
             t.receptions += p.receptions || 0;
             t.receiving_tds += p.receiving_tds || 0;
             t.extra_points_tds += p.extra_points_tds || 0;
+            t.xp_attempts += p.xp_attempts || 0;
+            t.xp_good += p.xp_good || 0;
+            t.xp_fail += p.xp_fail || 0;
             t.drops += p.drops || 0;
             t.flag_pulls += p.flag_pulls || 0;
             t.pass_deflections += p.pass_deflections || 0;
             t.interceptions += p.interceptions || 0;
             t.defensive_tds += p.defensive_tds || 0;
             t.safety += p.safety || 0;
+            t.safety_conceded += p.safety_conceded || 0;
             t.qb_sacks += p.qb_sacks || 0;
             t.def_sacks += p.def_sacks || 0;
             t.defensive_xp_tds += p.defensive_xp_tds || 0;
