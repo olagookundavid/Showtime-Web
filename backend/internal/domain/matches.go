@@ -59,10 +59,10 @@ type Match struct {
 
 	// Bracket fields (knockout competitions only). The winner of this match
 	// is written into FeedsMatchID's home/away slot when it finishes.
-	Round        string  `json:"round,omitempty"`
-	BracketPos   *int    `json:"bracket_pos,omitempty"`
-	FeedsMatchID *string `json:"feeds_match_id,omitempty"`
-	FeedsSlot    string  `json:"feeds_slot,omitempty"` // HOME | AWAY
+	Round            string  `json:"round,omitempty"`
+	BracketPos       *int    `json:"bracket_pos,omitempty"`
+	FeedsMatchID     *string `json:"feeds_match_id,omitempty"`
+	FeedsSlot        string  `json:"feeds_slot,omitempty"` // HOME | AWAY
 	SecondLegMatchID *string `json:"second_leg_match_id,omitempty"`
 
 	// Relations (Joined fields)
@@ -106,6 +106,11 @@ type TeamSheetPlayer struct {
 	JerseyNumber int    `json:"jersey_number" db:"jersey_number"`
 	Position     string `json:"position" db:"position"`
 	Image        string `json:"image" db:"image"`
+	// Rating is this player's per-match rating (Receiver/Defender/Rusher only).
+	// nil when the position isn't rateable (QB or undetermined "-") or the player
+	// has no qualifying activity (UNRATED); the client renders those cases itself.
+	Rating       *float64 `json:"rating,omitempty"`
+	RatingStatus string   `json:"rating_status,omitempty"`
 }
 
 type MatchTeamSheet struct {
@@ -114,6 +119,6 @@ type MatchTeamSheet struct {
 }
 
 type MatchDetail struct {
-	Match     Match         `json:"match"`
+	Match     Match          `json:"match"`
 	TeamSheet MatchTeamSheet `json:"team_sheet"`
 }

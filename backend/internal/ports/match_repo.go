@@ -660,10 +660,21 @@ func (r *PostgresMatchRepository) GetTeamSheet(ctx context.Context, matchID stri
 		return nil, err
 	}
 
+	// LEFT JOIN this match's stat line for each rostered player so we can compute
+	// their per-match rating. A player who didn't record stats has no ps row —
+	// the COALESCEd zeros make the rating engine return UNRATED, which the caller
+	// renders as the base rating.
 	query := `
-		SELECT mts.team_id, p.id, p.name, p.jersey_number, p.position, p.image
+		SELECT mts.team_id, p.id, p.name, p.jersey_number, p.position, p.image,
+			COALESCE(ps.receptions, 0), COALESCE(ps.receiving_tds, 0),
+			COALESCE(ps.extra_points_tds, 0), COALESCE(ps.drops, 0),
+			COALESCE(ps.flag_pulls, 0), COALESCE(ps.pass_deflections, 0),
+			COALESCE(ps.interceptions, 0), COALESCE(ps.defensive_tds, 0),
+			COALESCE(ps.safety, 0), COALESCE(ps.defensive_xp_tds, 0),
+			COALESCE(ps.def_sacks, 0)
 		FROM match_team_sheets mts
 		JOIN players p ON mts.player_id = p.id
+		LEFT JOIN player_stats ps ON ps.player_id = p.id AND ps.match_id = mts.match_id
 		WHERE mts.match_id = $1
 		ORDER BY p.jersey_number ASC
 	`
@@ -683,11 +694,25 @@ func (r *PostgresMatchRepository) GetTeamSheet(ctx context.Context, matchID stri
 		var p domain.TeamSheetPlayer
 		// image might be null
 		var img *string
-		if err := rows.Scan(&teamID, &p.PlayerID, &p.Name, &p.JerseyNumber, &p.Position, &img); err != nil {
+		var line domain.RatingStatLine
+		if err := rows.Scan(&teamID, &p.PlayerID, &p.Name, &p.JerseyNumber, &p.Position, &img,
+			&line.Receptions, &line.ReceivingTDs, &line.ExtraPointTDs, &line.Drops,
+			&line.FlagPulls, &line.PassDeflections, &line.Interceptions, &line.DefensiveTDs,
+			&line.Safeties, &line.DefensiveXPTDs, &line.DefensiveSacks); err != nil {
 			return nil, err
 		}
 		if img != nil {
 			p.Image = *img
+		}
+		// Attach the per-match rating for rateable positions with real activity.
+		// QB / "-" positions return nil; UNRATED (no qualifying activity) stays
+		// nil too — the client shows a dash or the base rating respectively.
+		if res := domain.RateByPosition(p.Position, line); res != nil {
+			p.RatingStatus = res.Status
+			if res.Status != domain.RatingStatusUnrated {
+				rating := res.FinalRating
+				p.Rating = &rating
+			}
 		}
 		switch teamID {
 		case homeTeamID:

@@ -150,6 +150,29 @@ export const getNewsById = async (id: string) => {
     return response.data;
 };
 
+// ─── RELIVE / YouTube Playlist ────────────────────────────────────────────────
+export interface ReliveVideo {
+    id: string;
+    video_id: string;
+    title: string;
+    thumbnail: string;
+    max_thumbnail: string;
+    published_at: string;
+    link: string;
+}
+
+export interface RelivePlaylist {
+    title: string;
+    playlist_id: string;
+    videos: ReliveVideo[];
+}
+
+export const getRelivePlaylist = async (playlistId?: string): Promise<RelivePlaylist> => {
+    const url = playlistId ? `/relive?playlist_id=${encodeURIComponent(playlistId)}` : '/relive';
+    const response = await api.get<{ data: RelivePlaylist }>(url);
+    return response.data.data;
+};
+
 // ─── Gallery ──────────────────────────────────────────────────────────────────
 export interface Gallery {
     id: string;
@@ -417,6 +440,10 @@ export interface TeamSheetPlayer {
     jersey_number: number;
     position: string;
     image: string;
+    // Per-match rating (Receiver/Defender/Rusher only). Null/absent for QB and
+    // undetermined "-" positions, and for rateable players with no activity.
+    rating?: number | null;
+    rating_status?: string;
 }
 
 export interface MatchTeamSheet {

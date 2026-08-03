@@ -1,4 +1,5 @@
 import { MainHeroCarousel } from '../components/MainHeroCarousel';
+import { ReliveCarousel } from '../components/ReliveCarousel';
 import { HeroCarousel } from '../components/HeroCarousel';
 // Temporarily disabled on the homepage — re-enable to show the Team of the
 // Season banner + MVPs (admin content still lives at /admin/season).
@@ -32,6 +33,11 @@ export const LandingPage = () => {
             {/* Hero Carousel Section */}
             <section className="px-1">
                 <MainHeroCarousel />
+            </section>
+
+            {/* RELIVE - YouTube Playlist Video Carousel */}
+            <section className="px-1">
+                <ReliveCarousel />
             </section>
 
             {/* Team of the Season + MVPs — temporarily commented out. Re-enable

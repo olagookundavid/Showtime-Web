@@ -1,11 +1,24 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
-import { getMatchDetail } from '../../services/api';
+import { getMatchDetail, type TeamSheetPlayer } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { LightboxImage } from '../../components/ui';
 import { PlayByPlayTimeline } from '../../components/matches/PlayByPlayTimeline';
 import { PublicMatchStats } from '../../components/matches/PublicMatchStats';
+
+// Right-side value on the Player Rating tab. QB and undetermined "-" positions
+// have no rating formula yet (dash); a rateable player with no rating didn't
+// play / had no qualifying activity, shown as the base 5.0.
+function ratingLabel(p: TeamSheetPlayer): string {
+    if (p.position === 'QB' || p.position === '-') return '-';
+    return p.rating != null ? p.rating.toFixed(1) : '5.0';
+}
+
+// Jersey number shown next to the position. 0 means no number assigned → dash.
+function jerseyLabel(n: number): string {
+    return n === 0 ? '–' : `#${n}`;
+}
 
 function formatTime(raw: string | null | undefined): string {
     if (!raw) return '--:--';
@@ -333,9 +346,9 @@ export const MatchDetail = () => {
                                                         )}
                                                         <div className="flex-1 min-w-0">
                                                             <div className="font-bold text-sm text-gray-900 dark:text-gray-100 group-hover:text-sffl-red transition-colors truncate">{player.name}</div>
-                                                            <div className="text-xs text-gray-400 font-semibold">{player.position}</div>
+                                                            <div className="text-xs text-gray-400 font-semibold">{jerseyLabel(player.jersey_number)} · {player.position}</div>
                                                         </div>
-                                                        <span className="text-sm font-black text-gray-300 dark:text-gray-600 flex-shrink-0">#{player.jersey_number}</span>
+                                                        <span className="text-sm font-black text-sffl-navy dark:text-gray-200 flex-shrink-0 tabular-nums">{ratingLabel(player)}</span>
                                                     </Link>
                                                 ))}
                                             </div>
@@ -384,9 +397,9 @@ export const MatchDetail = () => {
                                                         )}
                                                         <div className="flex-1 min-w-0">
                                                             <div className="font-bold text-sm text-gray-900 dark:text-gray-100 group-hover:text-sffl-red transition-colors truncate">{player.name}</div>
-                                                            <div className="text-xs text-gray-400 font-semibold">{player.position}</div>
+                                                            <div className="text-xs text-gray-400 font-semibold">{jerseyLabel(player.jersey_number)} · {player.position}</div>
                                                         </div>
-                                                        <span className="text-sm font-black text-gray-300 dark:text-gray-600 flex-shrink-0">#{player.jersey_number}</span>
+                                                        <span className="text-sm font-black text-sffl-navy dark:text-gray-200 flex-shrink-0 tabular-nums">{ratingLabel(player)}</span>
                                                     </Link>
                                                 ))}
                                             </div>

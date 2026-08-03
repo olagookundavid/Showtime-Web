@@ -73,6 +73,7 @@ func Routes(app *api.Application) *gin.Engine {
 	SetupUploadRoutes(v1_api, app)
 	SetupTOTWRoutes(v1_api, app)
 	SetupStoreRoutes(v1_api, app)
+	SetupReliveRoutes(v1_api, app)
 	return r
 }
 
@@ -370,6 +371,13 @@ func SetupHeroSlideRoutes(r *gin.RouterGroup, app *api.Application) {
 	{
 		// Public: only active slides for the homepage carousel.
 		heroSlideRoutes.GET("", app.Handlers.HeroSlideHandler.ListPublic)
+	}
+}
+
+func SetupReliveRoutes(r *gin.RouterGroup, app *api.Application) {
+	reliveRoutes := r.Group("/relive")
+	{
+		reliveRoutes.GET("", app.Handlers.ReliveHandler.GetRelivePlaylist)
 	}
 }
 
