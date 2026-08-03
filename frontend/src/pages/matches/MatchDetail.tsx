@@ -45,7 +45,7 @@ function sortByRating(players: TeamSheetPlayer[], mode: RatingSort): TeamSheetPl
 }
 
 const RATING_SORT_LABEL: Record<RatingSort, string> = {
-    default: '↕ Sort by rating',
+    default: '↕ By number',
     high: '▼ Highest rated',
     low: '▲ Lowest rated',
 };
@@ -328,8 +328,8 @@ export const MatchDetail = () => {
                             <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-700/50 flex items-center justify-between gap-3">
                                 <h3 className="text-xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">Player Rating</h3>
                                 {hasTeamSheet && (
-                                    <div className="flex items-center gap-3 flex-shrink-0">
-                                        <span className="hidden sm:inline text-xs text-gray-400 font-semibold">{homeSheet.length + awaySheet.length} players</span>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                        <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Sort</span>
                                         <button
                                             type="button"
                                             onClick={cycleRatingSort}
@@ -360,8 +360,8 @@ export const MatchDetail = () => {
                                                     />
                                                 </div>
                                             )}
-                                            <h4 className="font-black text-base text-sffl-navy dark:text-white truncate">{homeTeam?.name}</h4>
-                                            <span className="ml-auto text-xs bg-sffl-navy/10 dark:bg-white/10 text-sffl-navy dark:text-gray-300 font-bold px-2.5 py-1 rounded-full flex-shrink-0">
+                                            <h4 className="font-black text-base text-sffl-navy dark:text-white truncate min-w-0">{homeTeam?.name}</h4>
+                                            <span className="text-xs bg-sffl-navy/10 dark:bg-white/10 text-sffl-navy dark:text-gray-300 font-bold px-2 py-0.5 rounded-full flex-shrink-0">
                                                 {homeSheet.length}
                                             </span>
                                         </div>
@@ -411,8 +411,8 @@ export const MatchDetail = () => {
                                                     />
                                                 </div>
                                             )}
-                                            <h4 className="font-black text-base text-sffl-navy dark:text-white truncate">{awayTeam?.name}</h4>
-                                            <span className="ml-auto text-xs bg-sffl-navy/10 dark:bg-white/10 text-sffl-navy dark:text-gray-300 font-bold px-2.5 py-1 rounded-full flex-shrink-0">
+                                            <h4 className="font-black text-base text-sffl-navy dark:text-white truncate min-w-0">{awayTeam?.name}</h4>
+                                            <span className="text-xs bg-sffl-navy/10 dark:bg-white/10 text-sffl-navy dark:text-gray-300 font-bold px-2 py-0.5 rounded-full flex-shrink-0">
                                                 {awaySheet.length}
                                             </span>
                                         </div>
