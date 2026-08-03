@@ -20,6 +20,36 @@ function jerseyLabel(n: number): string {
     return n === 0 ? '–' : `#${n}`;
 }
 
+type RatingSort = 'default' | 'high' | 'low';
+
+// Numeric value used to sort a player by rating, mirroring what ratingLabel
+// shows: QB / "-" have no number (sink to the bottom); a rateable player with no
+// rating sorts as the base 5.0.
+function ratingSortValue(p: TeamSheetPlayer): number | null {
+    if (p.position === 'QB' || p.position === '-') return null;
+    return p.rating ?? 5.0;
+}
+
+// Returns a rating-sorted copy of the roster. 'default' keeps the incoming order
+// (by jersey number). Non-rateable players always fall to the bottom.
+function sortByRating(players: TeamSheetPlayer[], mode: RatingSort): TeamSheetPlayer[] {
+    if (mode === 'default') return players;
+    return [...players].sort((a, b) => {
+        const av = ratingSortValue(a);
+        const bv = ratingSortValue(b);
+        if (av === null && bv === null) return 0;
+        if (av === null) return 1;
+        if (bv === null) return -1;
+        return mode === 'high' ? bv - av : av - bv;
+    });
+}
+
+const RATING_SORT_LABEL: Record<RatingSort, string> = {
+    default: '↕ Sort by rating',
+    high: '▼ Highest rated',
+    low: '▲ Lowest rated',
+};
+
 function formatTime(raw: string | null | undefined): string {
     if (!raw) return '--:--';
     if (raw.startsWith('0001')) return '--:--';
@@ -58,6 +88,8 @@ export const MatchDetail = () => {
     });
 
     const [activeTab, setActiveTab] = useState<'rating' | 'plays' | 'stats'>('rating');
+    const [ratingSort, setRatingSort] = useState<RatingSort>('default');
+    const cycleRatingSort = () => setRatingSort(s => (s === 'default' ? 'high' : s === 'high' ? 'low' : 'default'));
 
     if (isLoading) return <Loader />;
 
@@ -91,6 +123,8 @@ export const MatchDetail = () => {
     const homeSheet = team_sheet?.home_team ?? [];
     const awaySheet = team_sheet?.away_team ?? [];
     const hasTeamSheet = homeSheet.length > 0 || awaySheet.length > 0;
+    const homeSheetSorted = sortByRating(homeSheet, ratingSort);
+    const awaySheetSorted = sortByRating(awaySheet, ratingSort);
 
     const isBye = match.competition?.format === 'KNOCKOUT' &&
         ((match.home_team?.id && !match.away_team?.id && match.status === 'FINISHED') ||
@@ -291,10 +325,19 @@ export const MatchDetail = () => {
                     {/* Tab 1: Player Rating (Roster) */}
                     {activeTab === 'rating' && (
                         <div className="bg-white dark:bg-gray-800/80 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/50 overflow-hidden">
-                            <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-700/50 flex items-center justify-between">
+                            <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-700/50 flex items-center justify-between gap-3">
                                 <h3 className="text-xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">Player Rating</h3>
                                 {hasTeamSheet && (
-                                    <span className="text-xs text-gray-400 font-semibold">{homeSheet.length + awaySheet.length} players listed</span>
+                                    <div className="flex items-center gap-3 flex-shrink-0">
+                                        <span className="hidden sm:inline text-xs text-gray-400 font-semibold">{homeSheet.length + awaySheet.length} players</span>
+                                        <button
+                                            type="button"
+                                            onClick={cycleRatingSort}
+                                            className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-600 text-sffl-navy dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors tabular-nums"
+                                        >
+                                            {RATING_SORT_LABEL[ratingSort]}
+                                        </button>
+                                    </div>
                                 )}
                             </div>
 
@@ -326,7 +369,7 @@ export const MatchDetail = () => {
                                             <p className="text-gray-400 dark:text-gray-600 italic text-sm text-center py-4">No roster data</p>
                                         ) : (
                                             <div className="space-y-1">
-                                                {homeSheet.map(player => (
+                                                {homeSheetSorted.map(player => (
                                                     <Link
                                                         key={player.player_id}
                                                         to={`/players/${player.player_id}?match=${match.id}&comp=${match.competition?.id}&date=${match.date?.split('T')[0]}`}
@@ -377,7 +420,7 @@ export const MatchDetail = () => {
                                             <p className="text-gray-400 dark:text-gray-600 italic text-sm text-center py-4">No roster data</p>
                                         ) : (
                                             <div className="space-y-1">
-                                                {awaySheet.map(player => (
+                                                {awaySheetSorted.map(player => (
                                                     <Link
                                                         key={player.player_id}
                                                         to={`/players/${player.player_id}?match=${match.id}&comp=${match.competition?.id}&date=${match.date?.split('T')[0]}`}
