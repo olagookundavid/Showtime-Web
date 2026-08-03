@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -9,6 +10,10 @@ import (
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/ports"
 )
+
+// ErrPBPLocked is returned when a play-log mutation is attempted on a match
+// whose play-by-play is locked. Handlers map it to HTTP 423 (Locked).
+var ErrPBPLocked = errors.New("play-by-play is locked for this match — ask an admin to unlock it before editing plays")
 
 type IPlayService interface {
 	ListByMatch(ctx context.Context, matchID string) ([]*domain.GamePlay, error)
@@ -27,6 +32,9 @@ type IPlayService interface {
 	UpsertRules(ctx context.Context, competitionID string, req dto.GameRulesRequest) (domain.GameRules, error)
 	RecomputeScore(ctx context.Context, matchID string) (home, away int, err error)
 	CommitScore(ctx context.Context, matchID string) (home, away int, err error)
+
+	// Per-match play-by-play lock (audited via the global middleware).
+	SetPBPLock(ctx context.Context, matchID string, locked bool) error
 }
 
 type PlayService struct {
@@ -43,7 +51,27 @@ func (s *PlayService) ListByMatch(ctx context.Context, matchID string) ([]*domai
 	return s.repo.ListByMatch(ctx, matchID)
 }
 
+// ensureUnlocked blocks play-log mutations while the match is locked.
+func (s *PlayService) ensureUnlocked(ctx context.Context, matchID string) error {
+	m, err := s.matchRepo.GetMatchByID(ctx, matchID)
+	if err != nil {
+		return err
+	}
+	if m.PBPLocked {
+		return ErrPBPLocked
+	}
+	return nil
+}
+
+// SetPBPLock locks or unlocks play-by-play editing for a single match.
+func (s *PlayService) SetPBPLock(ctx context.Context, matchID string, locked bool) error {
+	return s.matchRepo.SetMatchPBPLock(ctx, matchID, locked)
+}
+
 func (s *PlayService) CreatePlay(ctx context.Context, matchID string, req dto.PlayRequest) (*domain.GamePlay, error) {
+	if err := s.ensureUnlocked(ctx, matchID); err != nil {
+		return nil, err
+	}
 	if err := validateCodes(req); err != nil {
 		return nil, err
 	}
@@ -72,6 +100,9 @@ func (s *PlayService) CreatePlay(ctx context.Context, matchID string, req dto.Pl
 }
 
 func (s *PlayService) UpdatePlay(ctx context.Context, matchID, playID string, req dto.PlayRequest) (*domain.GamePlay, error) {
+	if err := s.ensureUnlocked(ctx, matchID); err != nil {
+		return nil, err
+	}
 	if err := validateCodes(req); err != nil {
 		return nil, err
 	}
@@ -101,6 +132,9 @@ func (s *PlayService) UpdatePlay(ctx context.Context, matchID, playID string, re
 }
 
 func (s *PlayService) DeletePlay(ctx context.Context, matchID, playID string) error {
+	if err := s.ensureUnlocked(ctx, matchID); err != nil {
+		return err
+	}
 	if err := s.repo.Delete(ctx, playID); err != nil {
 		return err
 	}

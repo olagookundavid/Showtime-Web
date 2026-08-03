@@ -48,14 +48,18 @@ const STAT_COLS = [
     { key: 'defensive_xp_tds', top: 'Def XP', bottom: 'TDs', title: 'Defensive Extra-Point TDs (interception returned on an extra point)', bg: 'bg-red-50/30 dark:bg-red-900/10' },
     { key: 'safety', top: '', bottom: 'Safety', title: 'Safeties', bg: 'bg-red-50/30 dark:bg-red-900/10' },
     { key: 'safety_conceded', top: 'Safety', bottom: 'Conc', title: 'Safeties Conceded (QB)', bg: 'bg-red-50/30 dark:bg-red-900/10' },
-    // Team-only stats — shown only in the team view.
-    { key: 'total_plays', top: 'Team', bottom: 'Plays', title: 'Total Plays (from scrimmage)', bg: 'bg-gray-50/40 dark:bg-gray-800/40', teamOnly: true },
-    { key: 'first_downs', top: 'Team', bottom: '1st Dn', title: 'First Downs', bg: 'bg-gray-50/40 dark:bg-gray-800/40', teamOnly: true },
-    { key: 'turnovers', top: 'Team', bottom: 'TO', title: 'Turnovers', bg: 'bg-gray-50/40 dark:bg-gray-800/40', teamOnly: true },
-    { key: 'punts', top: 'Team', bottom: 'Punts', title: 'Punts', bg: 'bg-gray-50/40 dark:bg-gray-800/40', teamOnly: true },
-    { key: 'penalties', top: 'Team', bottom: 'Pen', title: 'Penalties', bg: 'bg-gray-50/40 dark:bg-gray-800/40', teamOnly: true },
-    { key: 'penalty_yards', top: 'Pen', bottom: 'YDS', title: 'Penalty Yards', bg: 'bg-gray-50/40 dark:bg-gray-800/40', teamOnly: true },
+    // Team-only stats — shown only in the team view, tinted amber and set off
+    // with a divider so they read as a distinct block after the player totals.
+    { key: 'total_plays', top: 'Team', bottom: 'Plays', title: 'Total Plays (from scrimmage)', bg: 'bg-amber-50 dark:bg-amber-900/20', teamOnly: true, divider: true },
+    { key: 'first_downs', top: 'Team', bottom: '1st Dn', title: 'First Downs', bg: 'bg-amber-50 dark:bg-amber-900/20', teamOnly: true },
+    { key: 'turnovers', top: 'Team', bottom: 'TO', title: 'Turnovers', bg: 'bg-amber-50 dark:bg-amber-900/20', teamOnly: true },
+    { key: 'punts', top: 'Team', bottom: 'Punts', title: 'Punts', bg: 'bg-amber-50 dark:bg-amber-900/20', teamOnly: true },
+    { key: 'penalties', top: 'Team', bottom: 'Pen', title: 'Penalties', bg: 'bg-amber-50 dark:bg-amber-900/20', teamOnly: true },
+    { key: 'penalty_yards', top: 'Pen', bottom: 'YDS', title: 'Penalty Yards', bg: 'bg-amber-50 dark:bg-amber-900/20', teamOnly: true },
 ];
+
+// A thicker left border marks the boundary where team-only stats begin.
+const dividerClass = (col: { divider?: boolean }) => (col.divider ? 'border-l-2 border-l-amber-400 dark:border-l-amber-600' : '');
 
 // Sticky-column styling. Each sticky `<th>` / `<td>` needs an opaque background
 // so the horizontally-scrolling stat cells don't bleed through underneath.
@@ -100,7 +104,7 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                     return (
                         <th
                             key={col.key}
-                            className={`p-0 sticky top-0 z-20 ${isLast ? '' : 'border-r border-gray-100 dark:border-gray-700'} ${STICKY_HEAD_BG} ${isActive ? 'border-b-2 border-b-sffl-red' : ''}`}
+                            className={`p-0 sticky top-0 z-20 ${isLast ? '' : 'border-r border-gray-100 dark:border-gray-700'} ${dividerClass(col)} ${STICKY_HEAD_BG} ${isActive ? 'border-b-2 border-b-sffl-red' : ''}`}
                         >
                             <button
                                 type="button"
@@ -220,7 +224,7 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                                     return (
                                         <td
                                             key={col.key}
-                                            className={`px-1 py-4 ${isLast ? '' : 'border-r border-gray-50 dark:border-gray-800'} font-medium text-gray-700 dark:text-gray-200 ${col.bg || ''}`}
+                                            className={`px-1 py-4 ${isLast ? '' : 'border-r border-gray-50 dark:border-gray-800'} ${dividerClass(col)} font-medium text-gray-700 dark:text-gray-200 ${col.bg || ''}`}
                                         >
                                             {value}
                                         </td>

@@ -14,6 +14,7 @@ import {
     upsertGameRules,
     recomputeScore,
     commitScore,
+    setPBPLock,
     type Match,
     type TeamSheetPlayer,
     type GamePlay,
@@ -322,7 +323,11 @@ const chip = (selected: boolean) =>
 
 export const AdminPlayByPlay = () => {
     const queryClient = useQueryClient();
+    const { user } = useAuth();
+    // Only admins may unlock/lock a match; referees/stats can log plays once open.
+    const canToggleLock = user?.role === 'admin' || user?.role === 'app_admin';
     const [matchId, setMatchId] = useState('');
+    const [lockBusy, setLockBusy] = useState(false);
     const [ctx, setCtx] = useState<Ctx>({
         quarter: 1, driveNo: 1, offense: '', down: '1', toGo: '10', ballOn: '', clock: '', homeScore: '0', awayScore: '0',
     });
@@ -340,6 +345,22 @@ export const AdminPlayByPlay = () => {
         (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
     const match = matches.find(m => m.id === matchId);
+    // Play-by-play is locked per match by default; treat unknown as locked.
+    const locked = !!matchId && match?.pbp_locked !== false;
+
+    const toggleLock = async () => {
+        if (!matchId || lockBusy) return;
+        setLockBusy(true);
+        try {
+            const nowLocked = await setPBPLock(matchId, !locked);
+            toast.success(nowLocked ? 'Play-by-play locked for this match' : 'Play-by-play unlocked — you can edit plays');
+            await queryClient.invalidateQueries({ queryKey: ['pbpMatches'] });
+        } catch (e: any) {
+            toast.error(e?.response?.data?.error || 'Failed to change the lock');
+        } finally {
+            setLockBusy(false);
+        }
+    };
 
     const { data: teamSheet } = useQuery({
         queryKey: ['pbpTeamSheet', matchId],
@@ -479,7 +500,6 @@ export const AdminPlayByPlay = () => {
                         }
                     } else if (w.passOutcome === 'incomplete') {
                         base.play_type = 'INC';
-                        base.result = 'INC';
                         base.target_id = w.targetId || undefined;
 
                         if (w.incompleteOption === 'dropped') {
@@ -490,6 +510,12 @@ export const AdminPlayByPlay = () => {
                         } else if (w.incompleteOption === 'uncatchable') {
                             base.uncatchable = true;
                         }
+
+                        // The incompletion still ends a down: either the offence
+                        // keeps the ball (next down) or gives it up (turnover on
+                        // downs). The stat booking is identical either way.
+                        if (!w.passFinalOutcome) return { payload: null, error: 'Select Play Outcome (Next Down or Turnover on downs).' };
+                        base.result = w.passFinalOutcome === 'TO' ? 'TO' : 'INC';
                     } else if (w.passOutcome === 'int') {
                         base.play_type = 'INT';
                         base.result = 'INT';
@@ -498,7 +524,8 @@ export const AdminPlayByPlay = () => {
                         if (w.passFinalOutcome === 'pick6') base.returned_for_td = true;
                     } else if (w.passOutcome === 'ta') {
                         base.play_type = 'TA';
-                        base.result = 'INC';
+                        if (!w.passFinalOutcome) return { payload: null, error: 'Select Play Outcome (Next Down or Turnover on downs).' };
+                        base.result = w.passFinalOutcome === 'TO' ? 'TO' : 'INC';
                     }
                 }
                 break;
@@ -602,6 +629,10 @@ export const AdminPlayByPlay = () => {
     };
 
     const handleSave = async () => {
+        if (locked) {
+            toast.error('Play-by-play is locked. Ask an admin to unlock this match first.');
+            return;
+        }
         const { payload, error } = buildPayload();
         if (error || !payload) {
             toast.error(error || 'Incomplete play');
@@ -628,6 +659,10 @@ export const AdminPlayByPlay = () => {
     };
 
     const handleDelete = async (playId: string) => {
+        if (locked) {
+            toast.error('Play-by-play is locked. Ask an admin to unlock this match first.');
+            return;
+        }
         if (!window.confirm('Delete this play?')) return;
         try {
             await deletePlay(matchId, playId);
@@ -682,6 +717,7 @@ export const AdminPlayByPlay = () => {
             } else if (pt === 'TA') {
                 nw.rushOutcome = 'no_sack';
                 nw.passOutcome = 'ta';
+                nw.passFinalOutcome = res === 'TO' ? 'TO' : 'next_down';
             } else {
                 nw.rushOutcome = 'no_sack';
                 if (pt === 'INC') {
@@ -689,6 +725,7 @@ export const AdminPlayByPlay = () => {
                     if (p.dropped) nw.incompleteOption = 'dropped';
                     else if (p.batted_down) nw.incompleteOption = 'batted_down';
                     else if (p.uncatchable) nw.incompleteOption = 'uncatchable';
+                    nw.passFinalOutcome = res === 'TO' ? 'TO' : 'next_down';
                 } else {
                     nw.passOutcome = 'complete';
                     nw.passDefenderAction = res === 'OB' ? 'OB' : 'FG';
@@ -773,6 +810,34 @@ export const AdminPlayByPlay = () => {
                 </select>
             </div>
 
+            {matchId && (
+                <div className={`rounded-xl border p-4 flex items-center justify-between gap-4 ${locked
+                    ? 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700'
+                    : 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700'}`}>
+                    <div className="text-sm">
+                        <div className={`font-black ${locked ? 'text-red-700 dark:text-red-300' : 'text-green-700 dark:text-green-300'}`}>
+                            {locked ? '🔒 Play-by-play is LOCKED' : '🔓 Play-by-play is UNLOCKED'}
+                        </div>
+                        <div className="text-gray-600 dark:text-gray-400">
+                            {locked
+                                ? 'Adding, editing and deleting plays is disabled until an admin unlocks this match.'
+                                : 'Plays can be added, edited and deleted. Lock the match again when you\'re done.'}
+                        </div>
+                    </div>
+                    {canToggleLock ? (
+                        <button
+                            onClick={toggleLock}
+                            disabled={lockBusy}
+                            className={`shrink-0 px-4 py-2 rounded-lg font-bold text-white disabled:opacity-50 ${locked ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
+                        >
+                            {lockBusy ? '…' : (locked ? 'Unlock' : 'Lock')}
+                        </button>
+                    ) : (
+                        <span className="shrink-0 text-xs font-semibold text-gray-500 dark:text-gray-400">Admin only</span>
+                    )}
+                </div>
+            )}
+
             {matchId && !hasRosters && (
                 <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl p-4 text-sm text-amber-800 dark:text-amber-200">
                     <b>Set the team sheets first.</b> Both teams need their rosters saved on this match before you can log plays. Do that on the <b>Matches</b> screen (Team Sheets), then come back.
@@ -835,7 +900,7 @@ export const AdminPlayByPlay = () => {
                             <div className="flex flex-wrap gap-2">
                                 <button
                                     type="button"
-                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'pass', rushOutcome: 'no_sack', passOutcome: 'incomplete', incompleteOption: 'uncatchable' })}
+                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'pass', rushOutcome: 'no_sack', passOutcome: 'incomplete', incompleteOption: 'uncatchable', passFinalOutcome: 'next_down' })}
                                     className="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md text-xs font-bold text-gray-700 dark:text-gray-200 transition-colors"
                                 >
                                     🏈 Incomplete Pass
@@ -981,6 +1046,14 @@ export const AdminPlayByPlay = () => {
                                                 {w.incompleteOption === 'batted_down' && (
                                                     <PlayerField label={`Coverage Defender (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.defenderId} onChange={v => setField('defenderId', v)} roster={defenseRoster} />
                                                 )}
+                                                <div>
+                                                    <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Play Outcome</div>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {([['next_down', 'Next Down'], ['TO', 'Turnover on downs']] as [PassFinalOutcome, string][]).map(([fo, label]) => (
+                                                            <button key={fo} className={chip(w.passFinalOutcome === fo)} onClick={() => setField('passFinalOutcome', fo)}>{label}</button>
+                                                        ))}
+                                                    </div>
+                                                </div>
                                             </div>
                                         )}
 
@@ -1000,7 +1073,17 @@ export const AdminPlayByPlay = () => {
                                         )}
 
                                         {w.passOutcome === 'ta' && (
-                                            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">Pass thrown away to stop the clock or avoid loss — recorded as an incomplete pass (TA).</p>
+                                            <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+                                                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Pass thrown away to stop the clock or avoid loss — recorded as an incomplete pass (TA).</p>
+                                                <div>
+                                                    <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Play Outcome</div>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {([['next_down', 'Next Down'], ['TO', 'Turnover on downs']] as [PassFinalOutcome, string][]).map(([fo, label]) => (
+                                                            <button key={fo} className={chip(w.passFinalOutcome === fo)} onClick={() => setField('passFinalOutcome', fo)}>{label}</button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         )}
                                     </>
                                 )}
@@ -1198,8 +1281,8 @@ export const AdminPlayByPlay = () => {
                         <div className="space-y-3">
                             <input value={w.notes} onChange={e => setField('notes', e.target.value)} placeholder="Notes (optional)" className="w-full border rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
                             <div className="flex gap-2">
-                                <button onClick={handleSave} disabled={saving} className="px-6 py-2.5 bg-sffl-red text-white font-bold rounded-lg disabled:opacity-50">
-                                    {saving ? 'Saving…' : w.editingId ? 'Update play' : 'Add play'}
+                                <button onClick={handleSave} disabled={saving || locked} title={locked ? 'Unlock this match to edit plays' : undefined} className="px-6 py-2.5 bg-sffl-red text-white font-bold rounded-lg disabled:opacity-50">
+                                    {saving ? 'Saving…' : locked ? '🔒 Locked' : w.editingId ? 'Update play' : 'Add play'}
                                 </button>
                                 <button onClick={resetWizard} className="px-4 py-2.5 border rounded-lg font-bold text-gray-600 dark:text-gray-300 dark:border-gray-600">
                                     {w.editingId ? 'Cancel edit' : 'Clear'}

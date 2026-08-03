@@ -62,7 +62,7 @@ func Routes(app *api.Application) *gin.Engine {
 	SetupAdminRoutes(v1_api, app)
 	SetupTeamHeadRoutes(v1_api, app)
 	SetupNewsRoutes(v1_api, app)
-	SetupGalleryRoutes(v1_api, app)
+	// SetupGalleryRoutes(v1_api, app) // Disabled gallery
 	SetupHeroSlideRoutes(v1_api, app)
 	SetupSeasonRoutes(v1_api, app)
 	SetupMatchRoutes(v1_api, app)
@@ -139,6 +139,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		newsGroup.DELETE("/:id", app.Handlers.NewsHandler.DeleteNews)
 	}
 
+	/*
 	galleryGroup := adminRoutes.Group("/gallery")
 	galleryGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
 	{
@@ -146,6 +147,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		galleryGroup.PUT("/:id", app.Handlers.GalleryHandler.UpdateGallery)
 		galleryGroup.DELETE("/:id", app.Handlers.GalleryHandler.DeleteGallery)
 	}
+	*/
 
 	// Hero slides — open to admin and above. Only the Administrator (gift-ticket)
 	// section is reserved for app_admin; everything else an admin can manage.
@@ -218,6 +220,10 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		matchesGroup.POST("/:id/plays", app.Handlers.PlayHandler.CreatePlay)
 		matchesGroup.PUT("/:id/plays/:playId", app.Handlers.PlayHandler.UpdatePlay)
 		matchesGroup.DELETE("/:id/plays/:playId", app.Handlers.PlayHandler.DeletePlay)
+		// Play-by-play is locked per match by default; only an admin (not
+		// referee/stats, who merely log plays) can unlock it. Audited globally.
+		matchesGroup.POST("/:id/pbp-lock", middlewares.AdminOnlyMiddleware(app.AuthService), app.Handlers.PlayHandler.LockPBP)
+		matchesGroup.POST("/:id/pbp-unlock", middlewares.AdminOnlyMiddleware(app.AuthService), app.Handlers.PlayHandler.UnlockPBP)
 		// Step 2: derive box-score stats from the play log + commit them (app_admin only).
 		matchesGroup.GET("/:id/stats-compare", app.Handlers.PlayHandler.CompareStats)
 		matchesGroup.POST("/:id/stats-commit", middlewares.RolesAllowedMiddleware(app.AuthService, "app_admin"), app.Handlers.PlayHandler.CommitStats)
@@ -350,11 +356,13 @@ func SetupNewsRoutes(r *gin.RouterGroup, app *api.Application) {
 }
 
 func SetupGalleryRoutes(r *gin.RouterGroup, app *api.Application) {
+	/*
 	galleryRoutes := r.Group("/gallery")
 	{
 		galleryRoutes.GET("", app.Handlers.GalleryHandler.GetGallery)
 		galleryRoutes.GET("/:id", app.Handlers.GalleryHandler.GetGalleryByID)
 	}
+	*/
 }
 
 func SetupHeroSlideRoutes(r *gin.RouterGroup, app *api.Application) {

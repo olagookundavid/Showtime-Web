@@ -74,7 +74,9 @@ func (s *PlayService) DeriveMatchStats(ctx context.Context, matchID string) ([]d
 		// ── Central defensive credits (any play type) ──
 		// Flag pull (tackle) — credited on any play where the carrier was
 		// stopped (i.e. not a sack / TD / turnover / incompletion / safety).
-		if pt != "SACK" && (res == "FG" || (res != "TD" && res != "INT" && res != "INC" && res != "SAF" && (p.DefenderID != nil || p.RusherID != nil))) {
+		// Incompletions (INC) and throw-aways (TA) never involve a tackle even
+		// when they end a series on downs (res == "TO"), so exclude them here.
+		if pt != "SACK" && pt != "INC" && pt != "TA" && (res == "FG" || (res != "TD" && res != "INT" && res != "INC" && res != "SAF" && (p.DefenderID != nil || p.RusherID != nil))) {
 			if d := get(p.DefenderID); d != nil {
 				d.FlagPulls++
 			} else if r := get(p.RusherID); r != nil {

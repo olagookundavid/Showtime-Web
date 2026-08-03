@@ -10,7 +10,6 @@ import {
     InformationCircleIcon,
     ShoppingBagIcon,
     NewspaperIcon,
-    PhotoIcon,
     QuestionMarkCircleIcon,
     ChevronRightIcon,
     ChevronLeftIcon,
@@ -142,10 +141,6 @@ export const Layout = () => {
                                 <Link to="/store" onClick={() => setIsMoreMenuOpen(false)} className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl active:scale-95 transition-all">
                                     <ShoppingBagIcon className="w-5 h-5 text-sffl-red" />
                                     <span className="font-black text-xs text-gray-900 dark:text-white uppercase tracking-tight">Store</span>
-                                </Link>
-                                <Link to="/gallery" onClick={() => setIsMoreMenuOpen(false)} className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl active:scale-95 transition-all">
-                                    <PhotoIcon className="w-5 h-5 text-sffl-red" />
-                                    <span className="font-black text-xs text-gray-900 dark:text-white uppercase tracking-tight">Gallery</span>
                                 </Link>
                                 <button
                                     onClick={() => setActiveSubMenu('about')}

@@ -35,7 +35,7 @@ import { MatchDetail } from './pages/matches/MatchDetail';
 import { StandingsPage } from './pages/matches/StandingsPage';
 import { StatsPage } from './pages/stats/StatsPage';
 import { NewsDetail } from './pages/news/NewsDetail';
-import { GalleryPage } from './pages/gallery/GalleryPage';
+// import { GalleryPage } from './pages/gallery/GalleryPage';
 import { TicketsPage } from './pages/tickets/TicketsPage';
 import { TicketConfirmation } from './pages/tickets/TicketConfirmation';
 import { ReferralGeneratorPage } from './pages/tickets/ReferralGeneratorPage';
@@ -54,7 +54,7 @@ const Dashboard = lazy(() => import('./pages/admin/Dashboard').then(m => ({ defa
 const AdminMatches = lazy(() => import('./pages/admin/AdminMatches').then(m => ({ default: m.AdminMatches })));
 const AdminPlayByPlay = lazy(() => import('./pages/admin/AdminPlayByPlay').then(m => ({ default: m.AdminPlayByPlay })));
 const AdminNews = lazy(() => import('./pages/admin/AdminNews').then(m => ({ default: m.AdminNews })));
-const AdminGallery = lazy(() => import('./pages/admin/AdminGallery').then(m => ({ default: m.AdminGallery })));
+// const AdminGallery = lazy(() => import('./pages/admin/AdminGallery').then(m => ({ default: m.AdminGallery })));
 const AdminHeroSlides = lazy(() => import('./pages/admin/AdminHeroSlides').then(m => ({ default: m.AdminHeroSlides })));
 const AdminSeason = lazy(() => import('./pages/admin/AdminSeason').then(m => ({ default: m.AdminSeason })));
 const AdminPlayers = lazy(() => import('./pages/admin/AdminPlayers').then(m => ({ default: m.AdminPlayers })));
@@ -122,7 +122,7 @@ function App() {
               {/* <Route path="/team-of-the-week" element={<TOTWPage />} /> */}
               <Route path="/news" element={<NewsList />} />
               <Route path="/news/:slug" element={<NewsDetail />} />
-              <Route path="/gallery" element={<GalleryPage />} />
+              {/* <Route path="/gallery" element={<GalleryPage />} /> */}
               <Route path="/tickets" element={<TicketsPage />} />
               <Route path="/tickets/confirm" element={<TicketConfirmation />} />
               <Route path="/tickets/referrals" element={<ReferralGeneratorPage />} />
@@ -170,7 +170,7 @@ function App() {
               <Route path="matches" element={<AdminMatches />} />
               <Route path="play-by-play" element={<AdminPlayByPlay />} />
               <Route path="news" element={<AdminNews />} />
-              <Route path="gallery" element={<AdminGallery />} />
+              {/* <Route path="gallery" element={<AdminGallery />} /> */}
               <Route path="hero-slides" element={<AdminHeroSlides />} />
               <Route path="season" element={<AdminSeason />} />
               <Route path="players" element={<AdminPlayers />} />

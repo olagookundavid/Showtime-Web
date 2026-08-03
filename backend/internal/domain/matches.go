@@ -53,6 +53,7 @@ type Match struct {
 	AwayScore     *int        `json:"away_score"`
 	HighlightsURL *string     `json:"highlights_url"`
 	TicketURL     *string     `json:"ticket_url"`
+	PBPLocked     bool        `json:"pbp_locked"` // play-by-play editing locked until an admin unlocks
 	CreatedAt     time.Time   `json:"created_at"`
 	UpdatedAt     time.Time   `json:"updated_at"`
 

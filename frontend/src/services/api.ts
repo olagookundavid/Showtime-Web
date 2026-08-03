@@ -408,6 +408,7 @@ export interface Match {
     feeds_match_id?: string;
     feeds_slot?: 'HOME' | 'AWAY';
     second_leg_match_id?: string | null;
+    pbp_locked?: boolean;
 }
 
 export interface TeamSheetPlayer {
@@ -1868,6 +1869,14 @@ export const updatePlay = async (matchId: string, playId: string, payload: PlayP
 export const deletePlay = async (matchId: string, playId: string) => {
     const res = await api.delete(`/admin/matches/${matchId}/plays/${playId}`);
     return res.data;
+};
+
+// Per-match play-by-play lock (admin only; each toggle is captured in the audit log).
+export const setPBPLock = async (matchId: string, locked: boolean): Promise<boolean> => {
+    const res = await api.post<{ data: { pbp_locked: boolean } }>(
+        `/admin/matches/${matchId}/${locked ? 'pbp-lock' : 'pbp-unlock'}`,
+    );
+    return res.data.data.pbp_locked;
 };
 
 // Step 2 — stats derived from the play log vs the currently-stored manual stats.

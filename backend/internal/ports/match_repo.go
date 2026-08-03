@@ -34,6 +34,7 @@ type MatchRepository interface {
 	UpdateMatch(ctx context.Context, match *domain.Match) error
 	DeleteMatch(ctx context.Context, id string) error
 	SetMatchSlot(ctx context.Context, matchID, slot string, teamID *string) error
+	SetMatchPBPLock(ctx context.Context, matchID string, locked bool) error
 	CountMatchesByCompetition(ctx context.Context, competitionID string) (int64, error)
 	DeleteMatchesByCompetition(ctx context.Context, competitionID string) error
 
@@ -266,7 +267,7 @@ func (r *PostgresMatchRepository) GetMatches(ctx context.Context, competitionID 
 	query := `
 		SELECT
 			m.id, m.competition_id, COALESCE(m.home_team_id::text, ''), COALESCE(m.away_team_id::text, ''), m.date, m.time, m.venue, m.status, m.home_score, m.away_score, m.highlights_url, m.ticket_url, m.created_at, m.updated_at,
-			COALESCE(m.round, ''), m.bracket_pos, m.feeds_match_id::text, COALESCE(m.feeds_slot, ''), m.second_leg_match_id::text,
+			COALESCE(m.round, ''), m.bracket_pos, m.feeds_match_id::text, COALESCE(m.feeds_slot, ''), m.second_leg_match_id::text, m.pbp_locked,
 			c.id, c.name, c.logo, COALESCE(c.format, 'LEAGUE'),
 			COALESCE(ht.id::text, ''), COALESCE(ht.name, ''), COALESCE(ht.short_name, ''), COALESCE(ht.logo, ''),
 			COALESCE(at.id::text, ''), COALESCE(at.name, ''), COALESCE(at.short_name, ''), COALESCE(at.logo, '')
@@ -335,7 +336,7 @@ func (r *PostgresMatchRepository) GetMatches(ctx context.Context, competitionID 
 		var startTime time.Time
 		err := rows.Scan(
 			&m.ID, &m.CompetitionID, &m.HomeTeamID, &m.AwayTeamID, &m.Date, &startTime, &m.Venue, &m.Status, &m.HomeScore, &m.AwayScore, &m.HighlightsURL, &m.TicketURL, &m.CreatedAt, &m.UpdatedAt,
-			&m.Round, &m.BracketPos, &m.FeedsMatchID, &m.FeedsSlot, &m.SecondLegMatchID,
+			&m.Round, &m.BracketPos, &m.FeedsMatchID, &m.FeedsSlot, &m.SecondLegMatchID, &m.PBPLocked,
 			&m.Competition.ID, &m.Competition.Name, &m.Competition.Logo, &m.Competition.Format,
 			&m.HomeTeam.ID, &m.HomeTeam.Name, &m.HomeTeam.ShortName, &m.HomeTeam.Logo,
 			&m.AwayTeam.ID, &m.AwayTeam.Name, &m.AwayTeam.ShortName, &m.AwayTeam.Logo,
@@ -354,7 +355,8 @@ func (r *PostgresMatchRepository) GetMatchByID(ctx context.Context, id string) (
 		SELECT id, competition_id, status,
 		       COALESCE(home_team_id::text, ''), COALESCE(away_team_id::text, ''),
 		       home_score, away_score,
-		       COALESCE(round, ''), bracket_pos, feeds_match_id::text, COALESCE(feeds_slot, ''), second_leg_match_id::text
+		       COALESCE(round, ''), bracket_pos, feeds_match_id::text, COALESCE(feeds_slot, ''), second_leg_match_id::text,
+		       pbp_locked
 		FROM matches WHERE id = $1
 	`
 	var m domain.Match
@@ -363,6 +365,7 @@ func (r *PostgresMatchRepository) GetMatchByID(ctx context.Context, id string) (
 		&m.HomeTeamID, &m.AwayTeamID,
 		&m.HomeScore, &m.AwayScore,
 		&m.Round, &m.BracketPos, &m.FeedsMatchID, &m.FeedsSlot, &m.SecondLegMatchID,
+		&m.PBPLocked,
 	)
 	if err != nil {
 		return nil, err
@@ -407,6 +410,11 @@ func (r *PostgresMatchRepository) SetMatchSlot(ctx context.Context, matchID, slo
 	}
 	query := fmt.Sprintf(`UPDATE matches SET %s = $1, updated_at = NOW() WHERE id = $2`, col)
 	_, err := r.db.Exec(ctx, query, teamID, matchID)
+	return err
+}
+
+func (r *PostgresMatchRepository) SetMatchPBPLock(ctx context.Context, matchID string, locked bool) error {
+	_, err := r.db.Exec(ctx, `UPDATE matches SET pbp_locked = $1, updated_at = NOW() WHERE id = $2`, locked, matchID)
 	return err
 }
 
@@ -703,7 +711,7 @@ func (r *PostgresMatchRepository) GetMatchDetail(ctx context.Context, matchID st
 	query := `
 		SELECT
 			m.id, m.competition_id, COALESCE(m.home_team_id::text, ''), COALESCE(m.away_team_id::text, ''), m.date, m.time, m.venue, m.status, m.home_score, m.away_score, m.highlights_url, m.ticket_url, m.created_at, m.updated_at,
-			COALESCE(m.round, ''), m.bracket_pos, m.feeds_match_id::text, COALESCE(m.feeds_slot, ''),
+			COALESCE(m.round, ''), m.bracket_pos, m.feeds_match_id::text, COALESCE(m.feeds_slot, ''), m.pbp_locked,
 			c.id, c.name, c.logo, COALESCE(c.format, 'LEAGUE'),
 			COALESCE(ht.id::text, ''), COALESCE(ht.name, ''), COALESCE(ht.short_name, ''), COALESCE(ht.logo, ''),
 			COALESCE(at.id::text, ''), COALESCE(at.name, ''), COALESCE(at.short_name, ''), COALESCE(at.logo, '')
@@ -721,7 +729,7 @@ func (r *PostgresMatchRepository) GetMatchDetail(ctx context.Context, matchID st
 
 	err := r.db.QueryRow(ctx, query, matchID).Scan(
 		&m.ID, &m.CompetitionID, &m.HomeTeamID, &m.AwayTeamID, &m.Date, &startTime, &m.Venue, &m.Status, &m.HomeScore, &m.AwayScore, &m.HighlightsURL, &m.TicketURL, &m.CreatedAt, &m.UpdatedAt,
-		&m.Round, &m.BracketPos, &m.FeedsMatchID, &m.FeedsSlot,
+		&m.Round, &m.BracketPos, &m.FeedsMatchID, &m.FeedsSlot, &m.PBPLocked,
 		&m.Competition.ID, &m.Competition.Name, &m.Competition.Logo, &m.Competition.Format,
 		&m.HomeTeam.ID, &m.HomeTeam.Name, &m.HomeTeam.ShortName, &m.HomeTeam.Logo,
 		&m.AwayTeam.ID, &m.AwayTeam.Name, &m.AwayTeam.ShortName, &m.AwayTeam.Logo,

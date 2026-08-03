@@ -71,7 +71,7 @@ export const AdminLayout = () => {
         { name: 'Referrals', path: '/admin/referrals', icon: TicketIcon },
         { name: 'Event Days', path: '/admin/event-days', icon: CalendarIcon },
         { name: 'News', path: '/admin/news', icon: NewspaperIcon },
-        { name: 'Gallery', path: '/admin/gallery', icon: PhotoIcon },
+        // { name: 'Gallery', path: '/admin/gallery', icon: PhotoIcon },
         { name: 'Hero Slides', path: '/admin/hero-slides', icon: PhotoIcon },
         { name: 'Users', path: '/admin/users', icon: UsersIcon },
         { name: 'Inventory', path: '/admin/inventory', icon: BuildingStorefrontIcon },

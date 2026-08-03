@@ -120,6 +120,7 @@ export const Dashboard = () => {
                         </div>
                     </Link>
 
+                    {/*
                     <Link
                         to="/admin/gallery"
                         className="flex items-center gap-3 p-4 min-h-[44px] border-2 border-gray-100 dark:border-gray-700 rounded-lg hover:border-purple-500 dark:hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
@@ -130,6 +131,7 @@ export const Dashboard = () => {
                             <div className="text-xs text-gray-500 dark:text-gray-400">Add to gallery</div>
                         </div>
                     </Link>
+                    */}
 
                     <Link
                         to="/admin/inventory"

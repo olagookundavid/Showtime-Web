@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"errors"
 	"io"
 	"net/http"
 
@@ -9,6 +10,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+// playMutationStatus maps a play-log mutation error to its HTTP status: a
+// locked match is 423 (Locked), everything else stays a 400.
+func playMutationStatus(err error) int {
+	if errors.Is(err, services.ErrPBPLocked) {
+		return http.StatusLocked
+	}
+	return http.StatusBadRequest
+}
 
 type IPlayHandler interface {
 	ListPlays(c *gin.Context)
@@ -23,6 +33,8 @@ type IPlayHandler interface {
 	UpsertRules(c *gin.Context)
 	RecomputeScore(c *gin.Context)
 	CommitScore(c *gin.Context)
+	LockPBP(c *gin.Context)
+	UnlockPBP(c *gin.Context)
 }
 
 type PlayHandler struct {
@@ -61,7 +73,7 @@ func (h *PlayHandler) CreatePlay(c *gin.Context) {
 	}
 	play, err := h.service.CreatePlay(c.Request.Context(), matchID, req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(playMutationStatus(err), gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"data": play})
@@ -81,7 +93,7 @@ func (h *PlayHandler) UpdatePlay(c *gin.Context) {
 	}
 	play, err := h.service.UpdatePlay(c.Request.Context(), matchID, playID, req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(playMutationStatus(err), gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": play})
@@ -95,10 +107,32 @@ func (h *PlayHandler) DeletePlay(c *gin.Context) {
 		return
 	}
 	if err := h.service.DeletePlay(c.Request.Context(), matchID, playID); err != nil {
+		if errors.Is(err, services.ErrPBPLocked) {
+			c.JSON(http.StatusLocked, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete play"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Play deleted"})
+}
+
+// LockPBP / UnlockPBP toggle the per-match play-by-play editing lock. The
+// global audit middleware records who flipped it, when, and from where.
+func (h *PlayHandler) LockPBP(c *gin.Context)   { h.setPBPLock(c, true) }
+func (h *PlayHandler) UnlockPBP(c *gin.Context) { h.setPBPLock(c, false) }
+
+func (h *PlayHandler) setPBPLock(c *gin.Context, locked bool) {
+	matchID := c.Param("id")
+	if matchID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Match ID is required"})
+		return
+	}
+	if err := h.service.SetPBPLock(c.Request.Context(), matchID, locked); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update play-by-play lock"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"pbp_locked": locked}})
 }
 
 // CompareStats returns stats derived from the play log alongside the currently
