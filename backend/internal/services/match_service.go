@@ -277,6 +277,7 @@ func (s *MatchService) GetMatches(ctx context.Context, competitionID string, sta
 			FeedsMatchID:  m.FeedsMatchID,
 			FeedsSlot:     m.FeedsSlot,
 			SecondLegMatchID: m.SecondLegMatchID,
+			PBPLocked:     m.PBPLocked,
 		})
 	}
 

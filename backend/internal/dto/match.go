@@ -97,6 +97,7 @@ type MatchResponse struct {
 	FeedsMatchID  *string              `json:"feeds_match_id,omitempty"`
 	FeedsSlot     string               `json:"feeds_slot,omitempty"`
 	SecondLegMatchID *string              `json:"second_leg_match_id,omitempty"`
+	PBPLocked     bool                 `json:"pbp_locked"`
 }
 
 // --- Brackets ---
