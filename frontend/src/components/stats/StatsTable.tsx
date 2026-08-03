@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import type { PlayerStat, TeamStat } from '../../services/api';
 import { Link } from 'react-router-dom';
 import { LightboxImage, Spinner } from '../ui';
@@ -68,16 +68,31 @@ const STICKY_BODY_BG = 'bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:gr
 
 export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], teamStats = [], sortBy = '', onSortChange, isLoading = false }) => {
     const isPlayer = type === 'players';
-    const data = isPlayer ? playerStats : teamStats;
+    const rawData = isPlayer ? playerStats : teamStats;
+
+    const [localSortBy, setLocalSortBy] = useState<string>('');
+    const activeSortBy = sortBy || localSortBy;
 
     const visibleStatCols = STAT_COLS.filter(c => isPlayer ? !(c as { teamOnly?: boolean }).teamOnly : !c.playerOnly);
 
-    // Clicking a stat header ranks league-wide leaders first (server-side
-    // sort, so it spans every page); clicking it again returns to A→Z.
+    // Clicking a stat header ranks leaders first (server-side if callback provided,
+    // otherwise client-side sort); clicking it again returns to default order.
     const handleHeaderClick = (key: string) => {
-        if (!onSortChange) return;
-        onSortChange(sortBy === key ? '' : key);
+        const nextSort = activeSortBy === key ? '' : key;
+        if (onSortChange) {
+            onSortChange(nextSort);
+        }
+        setLocalSortBy(nextSort);
     };
+
+    const sortedData = useMemo(() => {
+        if (!activeSortBy) return rawData;
+        return [...rawData].sort((a: any, b: any) => {
+            const valA = Number(a[activeSortBy] ?? 0);
+            const valB = Number(b[activeSortBy] ?? 0);
+            return valB - valA;
+        });
+    }, [rawData, activeSortBy]);
 
     const colgroupEl = (
         <colgroup>
@@ -99,7 +114,7 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                     <th className={`sticky top-0 z-20 ${STICKY_HEAD_BG} px-2 py-4 md:px-4 text-left whitespace-nowrap uppercase border-r border-gray-100 dark:border-gray-700`}>Team</th>
                 )}
                 {visibleStatCols.map((col, i) => {
-                    const isActive = sortBy === col.key;
+                    const isActive = activeSortBy === col.key;
                     const isLast = i === visibleStatCols.length - 1;
                     return (
                         <th
@@ -134,7 +149,7 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
         );
     }
 
-    if (data.length === 0) {
+    if (rawData.length === 0) {
         return <div className="text-center p-8 text-gray-500 dark:text-gray-400">No stats available for the selected filters.</div>;
     }
 
@@ -152,7 +167,7 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                     {colgroupEl}
                     {theadEl}
                     <tbody>
-                    {data.map((row: any, index: number) => {
+                    {sortedData.map((row: any, index: number) => {
                         return (
                             <tr
                                 key={isPlayer ? row.player_id : row.team_id}

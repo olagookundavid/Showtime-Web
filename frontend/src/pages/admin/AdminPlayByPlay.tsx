@@ -24,6 +24,7 @@ import {
 } from '../../services/api';
 import { StatsTable } from '../../components/stats/StatsTable';
 import { useAuth } from '../../contexts/AuthContext';
+import { getPlayStatAccruals } from '../../utils/statAccrualDeriver';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1303,13 +1304,13 @@ export const AdminPlayByPlay = () => {
                             <p className="text-sm text-gray-500">No plays yet — log the first one above.</p>
                         ) : (
                             <div className="space-y-1.5">
-                                {plays.map(p => <PlayRow key={p.id} play={p} onEdit={() => startEdit(p)} onDelete={() => handleDelete(p.id)} />)}
+                                {plays.map(p => <PlayRow key={p.id} play={p} onEdit={() => startEdit(p)} onDelete={() => handleDelete(p.id)} homeTeamName={match?.home_team?.short_name || match?.home_team?.name} awayTeamName={match?.away_team?.short_name || match?.away_team?.name} />)}
                             </div>
                         )}
                     </div>
 
-                    {/* Step 2 — derived-vs-manual stats compare */}
-                    <StatsCompare matchId={matchId} />
+                    {/* Step 2 — derived-vs-manual stats compare & Full Stat Audit Log */}
+                    <StatsCompare matchId={matchId} match={match} plays={plays} />
                 </>
             )}
         </div>
@@ -1318,7 +1319,20 @@ export const AdminPlayByPlay = () => {
 
 // ─── Read-only summary row for a logged play ──────────────────────────────────
 
-const PlayRow = ({ play, onEdit, onDelete }: { play: GamePlay; onEdit: () => void; onDelete: () => void }) => {
+const PlayRow = ({
+    play,
+    onEdit,
+    onDelete,
+    homeTeamName,
+    awayTeamName,
+}: {
+    play: GamePlay;
+    onEdit: () => void;
+    onDelete: () => void;
+    homeTeamName?: string;
+    awayTeamName?: string;
+}) => {
+    const [showAudit, setShowAudit] = useState(false);
     const who = (p?: { name: string; jersey_number: number }) => p ? (p.jersey_number ? `#${p.jersey_number} ${p.name}` : p.name) : '';
     const bits: string[] = [];
     if (play.off_qb) bits.push(who(play.off_qb));
@@ -1329,21 +1343,68 @@ const PlayRow = ({ play, onEdit, onDelete }: { play: GamePlay; onEdit: () => voi
     if (play.defender) bits.push(`(def ${who(play.defender)})`);
     if (play.penalty) bits.push(`⚑ ${play.penalty}${play.penalty_player ? ' ' + who(play.penalty_player) : ''}`);
 
+    const accruals = getPlayStatAccruals(play, homeTeamName, awayTeamName);
+
     return (
-        <div className="flex items-center justify-between gap-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2">
-            <div className="flex items-center gap-3 min-w-0">
-                <span className="text-[11px] font-black text-gray-400 w-8 shrink-0">#{play.seq}</span>
-                <span className="text-[11px] font-bold text-sffl-navy dark:text-gray-300 shrink-0">Q{play.quarter}{play.down ? ` · ${play.down}&${play.to_go ?? ''}` : ''}</span>
-                <span className="text-xs font-mono font-bold bg-sffl-navy/10 dark:bg-white/10 rounded px-1.5 py-0.5 shrink-0">{play.play_type || play.result || '—'}</span>
-                <span className="text-sm text-gray-700 dark:text-gray-200 truncate">{bits.join(' ')} {play.result && play.play_type ? <span className="text-gray-400">· {play.result}</span> : null}</span>
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden transition-all">
+            <div className="flex items-center justify-between gap-3 px-3 py-2">
+                <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-[11px] font-black text-gray-400 w-8 shrink-0">#{play.seq}</span>
+                    <span className="text-[11px] font-bold text-sffl-navy dark:text-gray-300 shrink-0">Q{play.quarter}{play.down ? ` · ${play.down}&${play.to_go ?? ''}` : ''}</span>
+                    <span className="text-xs font-mono font-bold bg-sffl-navy/10 dark:bg-white/10 rounded px-1.5 py-0.5 shrink-0">{play.play_type || play.result || '—'}</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-200 truncate">{bits.join(' ')} {play.result && play.play_type ? <span className="text-gray-400">· {play.result}</span> : null}</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                    {(play.home_score_after != null && play.away_score_after != null) && (
+                        <span className="text-xs font-black text-sffl-navy dark:text-gray-300">{play.home_score_after}-{play.away_score_after}</span>
+                    )}
+                    <button
+                        onClick={() => setShowAudit(s => !s)}
+                        className={`text-xs font-bold px-2 py-0.5 rounded transition-colors ${showAudit ? 'bg-amber-500 text-white shadow-xs' : 'text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30'}`}
+                        title="Audit exact stat accruals credited for this play"
+                    >
+                        🔍 Audit ({accruals.length})
+                    </button>
+                    <button onClick={onEdit} className="text-xs font-bold text-blue-600 hover:underline">Edit</button>
+                    <button onClick={onDelete} className="text-xs font-bold text-red-600 hover:underline">Delete</button>
+                </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-                {(play.home_score_after != null && play.away_score_after != null) && (
-                    <span className="text-xs font-black text-sffl-navy dark:text-gray-300">{play.home_score_after}-{play.away_score_after}</span>
-                )}
-                <button onClick={onEdit} className="text-xs font-bold text-blue-600 hover:underline">Edit</button>
-                <button onClick={onDelete} className="text-xs font-bold text-red-600 hover:underline">Delete</button>
-            </div>
+
+            {showAudit && (
+                <div className="px-4 py-3 bg-slate-50 dark:bg-slate-900/80 border-t border-gray-200 dark:border-gray-700/80 space-y-2">
+                    <div className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">⚡ Exact Stat Accruals Booked on Play #{play.seq}</div>
+                    {accruals.length === 0 ? (
+                        <p className="text-xs text-gray-500 italic">No individual player or team stats accrued for this play event.</p>
+                    ) : (
+                        <div className="flex flex-wrap gap-2">
+                            {accruals.map((a, idx) => (
+                                <span
+                                    key={idx}
+                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border shadow-2xs ${
+                                        a.color === 'emerald'
+                                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                                            : a.color === 'blue'
+                                                ? 'bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800'
+                                                : a.color === 'amber'
+                                                    ? 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+                                                    : a.color === 'rose'
+                                                        ? 'bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
+                                                        : a.color === 'purple'
+                                                            ? 'bg-purple-50 text-purple-800 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800'
+                                                            : a.color === 'indigo'
+                                                                ? 'bg-indigo-50 text-indigo-800 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800'
+                                                                : 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700'
+                                    }`}
+                                >
+                                    <span className="font-extrabold">{a.entityName}:</span>
+                                    <span>{a.statKey}</span>
+                                    <span className="font-black underline">{a.value}</span>
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 };
@@ -1547,13 +1608,17 @@ const ScoreTools = ({ matchId, competitionId, match, plays = [] }: ScoreToolsPro
 // in the exact StatsTable layout so it mirrors a real match's stats. Temporary
 // tooling for iterating — compare by eye against the public /stats page, then
 // Commit to write these onto the main stats table. Remove once finalised.
-const StatsCompare = ({ matchId }: { matchId: string }) => {
+const StatsCompare = ({ matchId, match, plays = [] }: { matchId: string; match?: Match; plays?: GamePlay[] }) => {
     const { user } = useAuth();
     const isAppAdmin = user?.role === 'app_admin';
     const [open, setOpen] = useState(false);
     const [committing, setCommitting] = useState(false);
-    const [activeTab, setActiveTab] = useState<'players' | 'teams'>('players');
+    const [activeTab, setActiveTab] = useState<'players' | 'teams' | 'audit'>('players');
     const [selectedTeamId, setSelectedTeamId] = useState<string>('all');
+    const [sortBy, setSortBy] = useState<string>('');
+
+    const homeTeamName = match?.home_team?.short_name || match?.home_team?.name || 'Home';
+    const awayTeamName = match?.away_team?.short_name || match?.away_team?.name || 'Away';
 
     const { data, isFetching } = useQuery({
         queryKey: ['pbpCompare', matchId],
@@ -1619,8 +1684,6 @@ const StatsCompare = ({ matchId }: { matchId: string }) => {
                     xp_good: 0,
                     xp_fail: 0,
                     safety_conceded: 0,
-                    // Team-only stats aren't derived from player lines; the real
-                    // values come from the backend team stats after commit.
                     punts: 0,
                     first_downs: 0,
                     turnovers: 0,
@@ -1692,9 +1755,9 @@ const StatsCompare = ({ matchId }: { matchId: string }) => {
             <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div>
                     <h2 className="text-lg font-black text-sffl-navy dark:text-white">
-                        Play-by-Play Stats <span className="text-[10px] font-black uppercase tracking-wider text-amber-500 align-middle">preview · not saved</span>
+                        Play-by-Play Stats <span className="text-[10px] font-black uppercase tracking-wider text-amber-500 align-middle">preview &amp; audit</span>
                     </h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Box score computed live from the plays above, shown exactly as the real stats table looks. Open the public <b>Stats</b> page to compare.</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Preview player/team box scores or inspect the complete line-by-line stat accrual log for every play in this match.</p>
                 </div>
                 <button onClick={() => setOpen(o => !o)} className="px-4 py-2 border rounded-lg font-bold text-sm text-sffl-navy dark:text-gray-200 dark:border-gray-600">
                     {open ? 'Hide' : 'Show stats'}
@@ -1705,14 +1768,14 @@ const StatsCompare = ({ matchId }: { matchId: string }) => {
                 <div className="mt-4 space-y-4">
                     {isFetching ? (
                         <p className="text-sm text-gray-500">Computing…</p>
-                    ) : derived.length === 0 ? (
+                    ) : derived.length === 0 && plays.length === 0 ? (
                         <p className="text-sm text-gray-500">No player stats derived yet — log some plays with players first.</p>
                     ) : (
                         <>
                             {/* Tabs & Team Filter Bar */}
                             <div className="flex items-center justify-between gap-3 flex-wrap bg-gray-50 dark:bg-gray-800/60 p-2.5 rounded-xl border border-gray-200 dark:border-gray-700">
-                                {/* Player vs Team Tabs */}
-                                <div className="flex gap-2">
+                                {/* Player vs Team vs Audit Tabs */}
+                                <div className="flex gap-2 flex-wrap">
                                     <button
                                         type="button"
                                         onClick={() => setActiveTab('players')}
@@ -1727,52 +1790,184 @@ const StatsCompare = ({ matchId }: { matchId: string }) => {
                                     >
                                         🛡️ Team Stats ({derivedTeamStats.length})
                                     </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTab('audit')}
+                                        className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-colors ${activeTab === 'audit' ? 'bg-amber-500 text-white shadow-sm' : 'bg-white dark:bg-gray-700 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30'}`}
+                                    >
+                                        🔍 Full Stat Audit Log ({plays.length})
+                                    </button>
                                 </div>
 
-                                {/* Team Filter Pills (Player Stats view only) */}
-                                {activeTab === 'players' && teamsList.length > 0 && (
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                        <span className="text-[11px] font-bold text-gray-400 mr-1">Filter Team:</span>
-                                        <button
-                                            type="button"
-                                            onClick={() => setSelectedTeamId('all')}
-                                            className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${selectedTeamId === 'all' ? 'bg-sffl-red text-white' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100'}`}
-                                        >
-                                            All Teams
-                                        </button>
-                                        {teamsList.map(t => (
-                                            <button
-                                                key={t.id}
-                                                type="button"
-                                                onClick={() => setSelectedTeamId(t.id)}
-                                                className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${selectedTeamId === t.id ? 'bg-sffl-red text-white' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100'}`}
+                                <div className="flex items-center gap-3 flex-wrap">
+                                    {/* Order By Dropdown */}
+                                    {activeTab !== 'audit' && (
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-[11px] font-bold text-gray-400">Order By:</span>
+                                            <select
+                                                value={sortBy}
+                                                onChange={(e) => setSortBy(e.target.value)}
+                                                className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-2.5 py-1 text-xs font-bold border border-gray-200 dark:border-gray-600 cursor-pointer"
                                             >
-                                                {t.shortName}
+                                                <option value="">Default (A → Z)</option>
+                                                <option value="passing_yards">Pass Yards (YDS)</option>
+                                                <option value="passing_tds">Pass Touchdowns (TDs)</option>
+                                                <option value="completed_passes">Completions (COMP)</option>
+                                                <option value="rushing_yards">Rush Yards (YDS)</option>
+                                                <option value="rushing_tds">Rush Touchdowns (TDs)</option>
+                                                <option value="receiving_yards">Receiving Yards (YDS)</option>
+                                                <option value="receiving_tds">Receiving Touchdowns (TDs)</option>
+                                                <option value="receptions">Receptions (Rec)</option>
+                                                <option value="targets">Targets (Tgt)</option>
+                                                <option value="flag_pulls">Flag Pulls (Tackles)</option>
+                                                <option value="interceptions">Interceptions (Def)</option>
+                                                <option value="pass_deflections">Pass Deflections</option>
+                                                <option value="qb_sacks">Sacks Taken (QB)</option>
+                                                <option value="def_sacks">Defensive Sacks</option>
+                                            </select>
+                                        </div>
+                                    )}
+
+                                    {/* Team Filter Pills (Player Stats view only) */}
+                                    {activeTab === 'players' && teamsList.length > 0 && (
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                            <span className="text-[11px] font-bold text-gray-400 mr-1">Filter Team:</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setSelectedTeamId('all')}
+                                                className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${selectedTeamId === 'all' ? 'bg-sffl-red text-white' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100'}`}
+                                            >
+                                                All Teams
                                             </button>
-                                        ))}
-                                    </div>
-                                )}
+                                            {teamsList.map(t => (
+                                                <button
+                                                    key={t.id}
+                                                    type="button"
+                                                    onClick={() => setSelectedTeamId(t.id)}
+                                                    className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${selectedTeamId === t.id ? 'bg-sffl-red text-white' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100'}`}
+                                                >
+                                                    {t.shortName}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
-                            {/* Render Stats Table */}
+                            {/* Render Active View */}
                             {activeTab === 'players' ? (
-                                <StatsTable type="players" playerStats={filteredPlayerStats} />
+                                <StatsTable type="players" playerStats={filteredPlayerStats} sortBy={sortBy} onSortChange={setSortBy} />
+                            ) : activeTab === 'teams' ? (
+                                <StatsTable type="teams" teamStats={derivedTeamStats} sortBy={sortBy} onSortChange={setSortBy} />
                             ) : (
-                                <StatsTable type="teams" teamStats={derivedTeamStats} />
+                                <FullStatAuditLog plays={plays} homeTeamName={homeTeamName} awayTeamName={awayTeamName} />
                             )}
 
-                            <button
-                                onClick={commit}
-                                disabled={!isAppAdmin || committing}
-                                title={!isAppAdmin ? 'Commit restricted to App Admin' : 'Write stats to main table'}
-                                className="mt-4 px-6 py-2.5 bg-sffl-navy text-white font-bold rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                            >
-                                {committing ? 'Committing…' : 'Commit to main stats table →'}
-                            </button>
+                            {activeTab !== 'audit' && (
+                                <button
+                                    onClick={commit}
+                                    disabled={!isAppAdmin || committing}
+                                    title={!isAppAdmin ? 'Commit restricted to App Admin' : 'Write stats to main table'}
+                                    className="mt-4 px-6 py-2.5 bg-sffl-navy text-white font-bold rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    {committing ? 'Committing…' : 'Commit to main stats table →'}
+                                </button>
+                            )}
                         </>
                     )}
                 </div>
             )}
+        </div>
+    );
+};
+
+const FullStatAuditLog = ({ plays, homeTeamName, awayTeamName }: { plays: GamePlay[]; homeTeamName?: string; awayTeamName?: string }) => {
+    const [quarterFilter, setQuarterFilter] = useState<number | 'all'>('all');
+    const [searchQuery, setSearchQuery] = useState('');
+
+    const filteredPlays = useMemo(() => {
+        return plays.filter(p => {
+            if (quarterFilter !== 'all' && p.quarter !== quarterFilter) return false;
+            if (!searchQuery.trim()) return true;
+            const q = searchQuery.toLowerCase();
+            const accruals = getPlayStatAccruals(p, homeTeamName, awayTeamName);
+            const playText = `${p.play_type} ${p.result} ${p.off_qb?.name || ''} ${p.target?.name || ''} ${p.defender?.name || ''} ${p.rusher?.name || ''}`.toLowerCase();
+            const accrualText = accruals.map(a => `${a.entityName} ${a.statKey}`).join(' ').toLowerCase();
+            return playText.includes(q) || accrualText.includes(q);
+        });
+    }, [plays, quarterFilter, searchQuery, homeTeamName, awayTeamName]);
+
+    return (
+        <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between gap-3 flex-wrap bg-gray-50 dark:bg-gray-800/60 p-3 rounded-xl border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold text-gray-500">Filter Quarter:</span>
+                    <button onClick={() => setQuarterFilter('all')} className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${quarterFilter === 'all' ? 'bg-sffl-navy text-white' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200'}`}>All</button>
+                    {[1, 2, 3, 4].map(q => (
+                        <button key={q} onClick={() => setQuarterFilter(q)} className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${quarterFilter === q ? 'bg-sffl-navy text-white' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200'}`}>Q{q}</button>
+                    ))}
+                </div>
+                <input
+                    type="text"
+                    placeholder="Search player, stat, or play type…"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-xs font-semibold dark:bg-gray-700 dark:text-white w-64"
+                />
+            </div>
+
+            <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
+                {filteredPlays.length === 0 ? (
+                    <p className="text-sm text-gray-500 py-6 text-center">No plays logged yet or matching the current filters.</p>
+                ) : (
+                    filteredPlays.map(p => {
+                        const accruals = getPlayStatAccruals(p, homeTeamName, awayTeamName);
+                        return (
+                            <div key={p.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 space-y-2 shadow-2xs">
+                                <div className="flex items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-700/80 pb-2 flex-wrap">
+                                    <div className="flex items-center gap-2 text-xs">
+                                        <span className="font-black text-gray-400">Play #{p.seq}</span>
+                                        <span className="font-bold text-sffl-navy dark:text-gray-200">Q{p.quarter}{p.down ? ` · ${p.down}&${p.to_go ?? ''}` : ''}</span>
+                                        <span className="font-mono font-black px-2 py-0.5 rounded bg-sffl-navy/10 dark:bg-white/10 text-sffl-navy dark:text-white">{p.play_type || p.result}</span>
+                                        {p.result && <span className="font-bold text-gray-500">[{p.result}]</span>}
+                                    </div>
+                                    <span className="text-xs font-black text-sffl-navy dark:text-gray-300">Score: {p.home_score_after ?? 0}–{p.away_score_after ?? 0}</span>
+                                </div>
+                                <div className="flex flex-wrap gap-2 pt-1">
+                                    {accruals.length === 0 ? (
+                                        <span className="text-xs text-gray-400 italic">No player/team stats accrued.</span>
+                                    ) : (
+                                        accruals.map((a, idx) => (
+                                            <span
+                                                key={idx}
+                                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border shadow-2xs ${
+                                                    a.color === 'emerald'
+                                                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                                                        : a.color === 'blue'
+                                                            ? 'bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800'
+                                                            : a.color === 'amber'
+                                                                ? 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+                                                                : a.color === 'rose'
+                                                                    ? 'bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
+                                                                    : a.color === 'purple'
+                                                                        ? 'bg-purple-50 text-purple-800 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800'
+                                                                        : a.color === 'indigo'
+                                                                            ? 'bg-indigo-50 text-indigo-800 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800'
+                                                                            : 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700'
+                                                }`}
+                                            >
+                                                <span className="font-extrabold">{a.entityName}:</span>
+                                                <span>{a.statKey}</span>
+                                                <span className="font-black underline">{a.value}</span>
+                                            </span>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })
+                )}
+            </div>
         </div>
     );
 };

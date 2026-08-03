@@ -7,6 +7,7 @@ import { Spinner } from '../ui';
 export const PublicMatchStats = ({ matchId }: { matchId: string }) => {
     const [activeTab, setActiveTab] = useState<'players' | 'teams'>('players');
     const [selectedTeamId, setSelectedTeamId] = useState<string>('all');
+    const [sortBy, setSortBy] = useState<string>('');
 
     const { data, isLoading, isError } = useQuery({
         queryKey: ['publicMatchStatsCompare', matchId],
@@ -139,7 +140,7 @@ export const PublicMatchStats = ({ matchId }: { matchId: string }) => {
 
     return (
         <div className="space-y-4">
-            {/* Controls Bar: Sub-tabs (Player vs Team) + Team Filter Pills */}
+            {/* Controls Bar: Sub-tabs (Player vs Team) + Order By + Team Filter Pills */}
             <div className="flex items-center justify-between gap-3 flex-wrap bg-white dark:bg-gray-800 p-3 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
                 {/* Player vs Team Sub-tabs */}
                 <div className="flex gap-2">
@@ -159,36 +160,64 @@ export const PublicMatchStats = ({ matchId }: { matchId: string }) => {
                     </button>
                 </div>
 
-                {/* Team Filter Pills (Player Stats view only) */}
-                {activeTab === 'players' && teamsList.length > 0 && (
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[11px] font-bold text-gray-400 mr-1">Filter Team:</span>
-                        <button
-                            type="button"
-                            onClick={() => setSelectedTeamId('all')}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${selectedTeamId === 'all' ? 'bg-sffl-red text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200'}`}
+                <div className="flex items-center gap-3 flex-wrap">
+                    {/* Order By Dropdown */}
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] font-bold text-gray-400">Order By:</span>
+                        <select
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value)}
+                            className="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-2.5 py-1.5 text-xs font-bold border border-gray-200 dark:border-gray-600 cursor-pointer"
                         >
-                            All Teams
-                        </button>
-                        {teamsList.map(t => (
-                            <button
-                                key={t.id}
-                                type="button"
-                                onClick={() => setSelectedTeamId(t.id)}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${selectedTeamId === t.id ? 'bg-sffl-red text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200'}`}
-                            >
-                                {t.shortName}
-                            </button>
-                        ))}
+                            <option value="">Default (A → Z)</option>
+                            <option value="passing_yards">Pass Yards (YDS)</option>
+                            <option value="passing_tds">Pass Touchdowns (TDs)</option>
+                            <option value="completed_passes">Completions (COMP)</option>
+                            <option value="rushing_yards">Rush Yards (YDS)</option>
+                            <option value="rushing_tds">Rush Touchdowns (TDs)</option>
+                            <option value="receiving_yards">Receiving Yards (YDS)</option>
+                            <option value="receiving_tds">Receiving Touchdowns (TDs)</option>
+                            <option value="receptions">Receptions (Rec)</option>
+                            <option value="targets">Targets (Tgt)</option>
+                            <option value="flag_pulls">Flag Pulls (Tackles)</option>
+                            <option value="interceptions">Interceptions (Def)</option>
+                            <option value="pass_deflections">Pass Deflections</option>
+                            <option value="qb_sacks">Sacks Taken (QB)</option>
+                            <option value="def_sacks">Defensive Sacks</option>
+                        </select>
                     </div>
-                )}
+
+                    {/* Team Filter Pills (Player Stats view only) */}
+                    {activeTab === 'players' && teamsList.length > 0 && (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[11px] font-bold text-gray-400 mr-1">Filter Team:</span>
+                            <button
+                                type="button"
+                                onClick={() => setSelectedTeamId('all')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${selectedTeamId === 'all' ? 'bg-sffl-red text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200'}`}
+                            >
+                                All Teams
+                            </button>
+                            {teamsList.map(t => (
+                                <button
+                                    key={t.id}
+                                    type="button"
+                                    onClick={() => setSelectedTeamId(t.id)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${selectedTeamId === t.id ? 'bg-sffl-red text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200'}`}
+                                >
+                                    {t.shortName}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Render Stats Table */}
             {activeTab === 'players' ? (
-                <StatsTable type="players" playerStats={filteredPlayerStats} />
+                <StatsTable type="players" playerStats={filteredPlayerStats} sortBy={sortBy} onSortChange={setSortBy} />
             ) : (
-                <StatsTable type="teams" teamStats={derivedTeamStats} />
+                <StatsTable type="teams" teamStats={derivedTeamStats} sortBy={sortBy} onSortChange={setSortBy} />
             )}
         </div>
     );
