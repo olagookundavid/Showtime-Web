@@ -186,3 +186,21 @@ func TestCalculateRusherRating(t *testing.T) {
 		})
 	}
 }
+
+func TestCalculateQuarterbackRating(t *testing.T) {
+	// Sample from spec §13:
+	// passing_attempts: 4, completed_passes: 3, passing_tds: 2, xp_attempts: 1, extra_point_tds: 1,
+	// rushing_attempts: 1, rushing_tds: 0, interceptions_thrown: 0, turnovers: 0, punts: 1, qb_sacks: 1, drives: 3
+	// Expected: status OFFICIAL, final_rating 6.2
+	in := QuarterbackRatingInput{
+		PassingAttempts: 4, CompletedPasses: 3, PassingTDs: 2, XPAttempts: 1, ExtraPointTDs: 1,
+		RushingAttempts: 1, RushingTDs: 0, InterceptionsThrown: 0, Turnovers: 0, Punts: 1, QBSacks: 1, Drives: 3,
+	}
+	res := CalculateQuarterbackRating(in)
+	if res.Status != RatingStatusOfficial {
+		t.Errorf("status = %q, want %q", res.Status, RatingStatusOfficial)
+	}
+	if res.FinalRating != 6.2 {
+		t.Errorf("final_rating = %v, want 6.2", res.FinalRating)
+	}
+}

@@ -23,7 +23,7 @@ const emptyForm: FormData = {
     bio: '', image: '', email: ''
 };
 
-const POSITIONS = ['QB', 'RB', 'WR', 'TE', 'OL', 'DL', 'LB', 'CB', 'S', 'K', 'P'];
+const POSITIONS = ['Defender', 'Receiver', '-', 'QB', 'Rusher'];
 
 export const AdminPlayers = () => {
     const queryClient = useQueryClient();

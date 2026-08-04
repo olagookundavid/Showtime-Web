@@ -671,7 +671,11 @@ func (r *PostgresMatchRepository) GetTeamSheet(ctx context.Context, matchID stri
 			COALESCE(ps.flag_pulls, 0), COALESCE(ps.pass_deflections, 0),
 			COALESCE(ps.interceptions, 0), COALESCE(ps.defensive_tds, 0),
 			COALESCE(ps.safety, 0), COALESCE(ps.defensive_xp_tds, 0),
-			COALESCE(ps.def_sacks, 0)
+			COALESCE(ps.def_sacks, 0), COALESCE(ps.passing_attempts, 0),
+			COALESCE(ps.completed_passes, 0), COALESCE(ps.passing_tds, 0),
+			COALESCE(ps.interceptions_thrown, 0), COALESCE(ps.rushing_attempts, 0),
+			COALESCE(ps.rushing_tds, 0), COALESCE(ps.qb_sacks, 0),
+			COALESCE(ps.xp_attempts, 0)
 		FROM match_team_sheets mts
 		JOIN players p ON mts.player_id = p.id
 		LEFT JOIN player_stats ps ON ps.player_id = p.id AND ps.match_id = mts.match_id
@@ -698,7 +702,10 @@ func (r *PostgresMatchRepository) GetTeamSheet(ctx context.Context, matchID stri
 		if err := rows.Scan(&teamID, &p.PlayerID, &p.Name, &p.JerseyNumber, &p.Position, &img,
 			&line.Receptions, &line.ReceivingTDs, &line.ExtraPointTDs, &line.Drops,
 			&line.FlagPulls, &line.PassDeflections, &line.Interceptions, &line.DefensiveTDs,
-			&line.Safeties, &line.DefensiveXPTDs, &line.DefensiveSacks); err != nil {
+			&line.Safeties, &line.DefensiveXPTDs, &line.DefensiveSacks,
+			&line.PassingAttempts, &line.CompletedPasses, &line.PassingTDs,
+			&line.InterceptionsThrown, &line.RushingAttempts, &line.RushingTDs,
+			&line.QBSacks, &line.XPAttempts); err != nil {
 			return nil, err
 		}
 		if img != nil {

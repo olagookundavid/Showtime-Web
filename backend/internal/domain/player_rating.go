@@ -29,9 +29,10 @@ const (
 // Formula version tags, stored alongside each rating so historical results stay
 // reproducible if the weights are later refined.
 const (
-	ReceiverFormulaVersion = "RECEIVER_RATING_V1.0"
-	DefenderFormulaVersion = "DEFENDER_RATING_V1.0"
-	RusherFormulaVersion   = "RUSHER_RATING_V1.0"
+	ReceiverFormulaVersion    = "RECEIVER_RATING_V1.0"
+	DefenderFormulaVersion    = "DEFENDER_RATING_V1.0"
+	RusherFormulaVersion      = "RUSHER_RATING_V1.0"
+	QuarterbackFormulaVersion = "QB_RATING_V1.1"
 )
 
 // Baseline every player starts from, and the display bounds.
@@ -87,30 +88,49 @@ func finalise(raw, reliability float64) float64 {
 
 // ─── Position dispatch ───────────────────────────────────────────────────────
 
-// RatingStatLine is the union of stat fields the three implemented ratings read,
+// RatingStatLine is the union of stat fields the four implemented ratings read,
 // so a caller can hand over one struct and let RateByPosition pick the formula.
 type RatingStatLine struct {
-	Receptions      int
-	ReceivingTDs    int
-	ExtraPointTDs   int
-	Drops           int
-	FlagPulls       int
-	PassDeflections int
-	Interceptions   int
-	DefensiveTDs    int
-	Safeties        int
-	DefensiveXPTDs  int
-	DefensiveSacks  int
+	Receptions          int
+	ReceivingTDs        int
+	ExtraPointTDs       int
+	Drops               int
+	FlagPulls           int
+	PassDeflections     int
+	Interceptions       int
+	DefensiveTDs        int
+	Safeties            int
+	DefensiveXPTDs      int
+	DefensiveSacks      int
+	PassingAttempts     int
+	CompletedPasses     int
+	PassingTDs          int
+	InterceptionsThrown int
+	RushingAttempts     int
+	RushingTDs          int
+	QBSacks             int
+	XPAttempts          int
+	Drives              int
+	Turnovers           int
+	Punts               int
 }
 
 // RateByPosition computes a rating for a stat line using the formula for the
 // player's rating category (the value stored in players.position after the
 // backfill: "Receiver" / "Defender" / "Rusher" / "QB" / "-"). It returns nil
-// for positions with no implemented formula (QB — deferred — and undetermined
-// "-"), so callers can render those distinctly from a genuine UNRATED result.
+// for positions with no implemented formula ("-"), so callers can render those distinctly from a genuine UNRATED result.
 func RateByPosition(position string, s RatingStatLine) *RatingResult {
 	var res RatingResult
 	switch position {
+	case "QB":
+		res = CalculateQuarterbackRating(QuarterbackRatingInput{
+			PassingAttempts: s.PassingAttempts, CompletedPasses: s.CompletedPasses,
+			PassingTDs: s.PassingTDs, InterceptionsThrown: s.InterceptionsThrown,
+			RushingAttempts: s.RushingAttempts, RushingTDs: s.RushingTDs,
+			QBSacks: s.QBSacks, XPAttempts: s.XPAttempts,
+			ExtraPointTDs: s.ExtraPointTDs, Drives: s.Drives,
+			Turnovers: s.Turnovers, Punts: s.Punts,
+		})
 	case "Receiver":
 		res = CalculateReceiverRating(ReceiverRatingInput{
 			Receptions: s.Receptions, ReceivingTDs: s.ReceivingTDs,
@@ -352,6 +372,107 @@ func CalculateRusherRating(in RusherRatingInput) RatingResult {
 		"defensive_tds":    defensiveTD,
 		"defensive_xp_tds": defensiveXP,
 		"flag_pulls":       flagPull,
+	}
+	res.RawRating = raw
+	res.ReliabilityFactor = reliability
+	res.FinalRating = finalise(raw, reliability)
+	return res
+}
+
+// ─── Quarterback (QB_RATING_V1.1) ──────────────────────────────────────────
+
+// QuarterbackRatingInput is the stat line a quarterback rating is computed from.
+type QuarterbackRatingInput struct {
+	PassingAttempts     int
+	CompletedPasses     int
+	PassingTDs          int
+	InterceptionsThrown int
+	RushingAttempts     int
+	RushingTDs          int
+	QBSacks             int
+	XPAttempts          int
+	ExtraPointTDs       int
+	Drives              int
+	Turnovers           int
+	Punts               int
+}
+
+// CalculateQuarterbackRating implements QB_RATING_V1.1.
+func CalculateQuarterbackRating(in QuarterbackRatingInput) RatingResult {
+	res := RatingResult{
+		FormulaVersion: QuarterbackFormulaVersion,
+		Components:     map[string]float64{},
+	}
+
+	if in.PassingAttempts == 0 {
+		res.Status = RatingStatusUnrated
+		return res
+	}
+
+	if in.PassingAttempts >= 3 && in.Drives >= 2 {
+		res.Status = RatingStatusOfficial
+	} else {
+		res.Status = RatingStatusProvisional
+	}
+
+	var passingTdComp float64
+	if in.Drives > 0 {
+		passingTdComp = 1.50 * ((float64(in.PassingTDs) / float64(in.Drives)) - 0.25)
+	}
+
+	var completionComp float64
+	if in.PassingAttempts > 0 {
+		completionComp = 3.00 * ((float64(in.CompletedPasses) / float64(in.PassingAttempts)) - 0.55)
+	}
+
+	var scoringDriveComp float64
+	if in.Drives > 0 {
+		scoringDriveComp = 2.00 * (((float64(in.PassingTDs + in.RushingTDs)) / float64(in.Drives)) - 0.30)
+	}
+
+	var extraPointComp float64
+	if in.XPAttempts > 0 {
+		extraPointComp = 1.00 * ((float64(in.ExtraPointTDs) / float64(in.XPAttempts)) - 0.50)
+	}
+
+	var rushingComp float64
+	if in.RushingAttempts > 0 {
+		rushingComp = 0.50 * ((float64(in.RushingTDs) / float64(in.RushingAttempts)) - 0.10)
+	}
+
+	var interceptionComp float64
+	if in.PassingAttempts > 0 {
+		interceptionComp = 4.00 * (float64(in.InterceptionsThrown) / float64(in.PassingAttempts))
+	}
+
+	var turnoverComp float64
+	if in.Drives > 0 {
+		turnoverComp = 1.50 * (float64(in.Turnovers) / float64(in.Drives))
+	}
+
+	var puntComp float64
+	if in.Drives > 0 {
+		puntComp = 0.75 * (float64(in.Punts) / float64(in.Drives))
+	}
+
+	var qbSackComp float64
+	if in.Drives > 0 {
+		qbSackComp = 1.25 * (float64(in.QBSacks) / float64(in.Drives))
+	}
+
+	raw := ratingBaseline + passingTdComp + completionComp + scoringDriveComp + extraPointComp + rushingComp - interceptionComp - turnoverComp - puntComp - qbSackComp
+	reliability := math.Min(1.0, float64(in.PassingAttempts)/6.0)
+
+	res.Components = map[string]float64{
+		"passing_td":    passingTdComp,
+		"completion":    completionComp,
+		"scoring_drive": scoringDriveComp,
+		"extra_point":   extraPointComp,
+		"rushing":       rushingComp,
+		"interception":  -interceptionComp,
+		"turnover":      -turnoverComp,
+		"punt":          -puntComp,
+		"qb_sack":       -qbSackComp,
 	}
 	res.RawRating = raw
 	res.ReliabilityFactor = reliability

@@ -19,7 +19,7 @@ interface QuickAddForm {
     jersey_number: string;
 }
 
-const POSITIONS = ['QB', 'WR', 'RB', 'C', 'LB', 'CB', 'S', 'DE', 'K', 'Flex'];
+const POSITIONS = ['Defender', 'Receiver', '-', 'QB', 'Rusher'];
 
 const emptyQuickAdd: QuickAddForm = { name: '', position: '', jersey_number: '' };
 
