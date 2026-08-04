@@ -1556,7 +1556,7 @@ const PlayRow = ({
                         🔍 Audit ({accruals.length})
                     </button>
                     <button onClick={onInsertAfter} title="Insert a missed play right after this one" className="text-xs font-bold text-green-600 hover:underline">Insert after</button>
-                    <button onClick={onRederive} title="Recompute down/distance/possession for every play after this one" className="text-xs font-bold text-purple-600 hover:underline">Re-derive ↓</button>
+                    {/* <button onClick={onRederive} title="Recompute down/distance/possession for every play after this one" className="text-xs font-bold text-purple-600 hover:underline">Re-derive ↓</button> */}
                     <button onClick={onEdit} className="text-xs font-bold text-blue-600 hover:underline">Edit</button>
                     <button onClick={onDelete} className="text-xs font-bold text-red-600 hover:underline">Delete</button>
                 </div>

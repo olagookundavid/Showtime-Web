@@ -11,7 +11,7 @@ import { PublicMatchStats } from '../../components/matches/PublicMatchStats';
 // have no rating formula yet (dash); a rateable player with no rating didn't
 // play / had no qualifying activity, shown as the base 5.0.
 function ratingLabel(p: TeamSheetPlayer): string {
-    if (p.position === 'QB' || p.position === '-') return '-';
+    if (p.position === '-') return '-';
     return p.rating != null ? p.rating.toFixed(1) : '5.0';
 }
 
@@ -23,10 +23,10 @@ function jerseyLabel(n: number): string {
 type RatingSort = 'default' | 'high' | 'low';
 
 // Numeric value used to sort a player by rating, mirroring what ratingLabel
-// shows: QB / "-" have no number (sink to the bottom); a rateable player with no
+// shows: "-" has no number (sinks to the bottom); a rateable player with no
 // rating sorts as the base 5.0.
 function ratingSortValue(p: TeamSheetPlayer): number | null {
-    if (p.position === 'QB' || p.position === '-') return null;
+    if (p.position === '-') return null;
     return p.rating ?? 5.0;
 }
 
