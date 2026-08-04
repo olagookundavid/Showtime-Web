@@ -16,7 +16,7 @@ const who = (p?: { name: string; jersey_number: number }) =>
 export const getPlayStatAccruals = (
     p: GamePlay,
     homeTeamName: string = 'Home Team',
-    awayTeamName: string = 'Away Team'
+    _awayTeamName: string = 'Away Team'
 ): StatAccrual[] => {
     const accruals: StatAccrual[] = [];
     const pt = p.play_type || '';
