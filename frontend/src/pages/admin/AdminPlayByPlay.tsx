@@ -1510,7 +1510,7 @@ const PlayRow = ({
     onEdit,
     onDelete,
     onInsertAfter,
-    onRederive,
+    onRederive: _onRederive,
     homeTeamName,
     awayTeamName,
 }: {
@@ -1518,7 +1518,7 @@ const PlayRow = ({
     onEdit: () => void;
     onDelete: () => void;
     onInsertAfter: () => void;
-    onRederive: () => void;
+    onRederive?: () => void;
     homeTeamName?: string;
     awayTeamName?: string;
 }) => {
