@@ -75,7 +75,7 @@ var (
 	ResultCodes = map[string]bool{
 		"1D": true, "1DG": true, "TD": true, "XP": true, "XPF": true,
 		"TO": true, "INT": true, "OB": true, "FG": true, "DB": true,
-		"IH": true, "EH": true, "EG": true,
+		"IH": true, "EH": true, "EG": true, "OMW": true,
 		"INC": true, "SAF": true,
 	}
 	PenaltyCodes = map[string]bool{
