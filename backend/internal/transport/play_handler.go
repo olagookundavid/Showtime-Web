@@ -35,6 +35,7 @@ type IPlayHandler interface {
 	CommitScore(c *gin.Context)
 	LockPBP(c *gin.Context)
 	UnlockPBP(c *gin.Context)
+	ReDeriveSituations(c *gin.Context)
 }
 
 type PlayHandler struct {
@@ -133,6 +134,26 @@ func (h *PlayHandler) setPBPLock(c *gin.Context, locked bool) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"pbp_locked": locked}})
+}
+
+// ReDeriveSituations applies a batch of recomputed down/distance/possession
+// snapshots to plays after a mid-sequence insert, then refreshes the score.
+func (h *PlayHandler) ReDeriveSituations(c *gin.Context) {
+	matchID := c.Param("id")
+	if matchID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Match ID is required"})
+		return
+	}
+	var req dto.ReDeriveSituationsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.service.ReDeriveSituations(c.Request.Context(), matchID, req.Plays); err != nil {
+		c.JSON(playMutationStatus(err), gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Situations re-derived", "count": len(req.Plays)})
 }
 
 // CompareStats returns stats derived from the play log alongside the currently

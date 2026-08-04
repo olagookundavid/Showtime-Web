@@ -1898,6 +1898,22 @@ export const deletePlay = async (matchId: string, playId: string) => {
     return res.data;
 };
 
+// Re-derive the down/distance/possession/drive of plays after a mid-sequence
+// insert. The client computes the new snapshots (same logic as live entry) and
+// sends them; the server applies them and recomputes the score.
+export interface SituationUpdate {
+    id: string;
+    drive_no: number;
+    down: number | null;
+    to_go: number | null;
+    offense_team_id?: string;
+}
+
+export const rederiveSituations = async (matchId: string, plays: SituationUpdate[]) => {
+    const res = await api.post(`/admin/matches/${matchId}/plays/rederive-situations`, { plays });
+    return res.data;
+};
+
 // Per-match play-by-play lock (admin only; each toggle is captured in the audit log).
 export const setPBPLock = async (matchId: string, locked: boolean): Promise<boolean> => {
     const res = await api.post<{ data: { pbp_locked: boolean } }>(

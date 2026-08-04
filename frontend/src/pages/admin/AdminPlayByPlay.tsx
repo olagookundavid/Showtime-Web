@@ -15,6 +15,8 @@ import {
     recomputeScore,
     commitScore,
     setPBPLock,
+    rederiveSituations,
+    type SituationUpdate,
     type Match,
     type TeamSheetPlayer,
     type GamePlay,
@@ -103,6 +105,10 @@ interface Wizard {
     penaltyYards: string;
 
     editingId: string | null;
+    // When set, the new play is inserted at this seq (shifting later plays down)
+    // instead of appended to the end — used to slot in a missed play mid-game.
+    insertSeq?: number;
+    insertAfterLabel?: string;
 }
 
 const emptyWizard: Wizard = {
@@ -221,6 +227,43 @@ const PlayerField = ({ label, value, onChange, roster }: PlayerFieldProps) => {
 // ─── Game Situation Auto-Advancer ─────────────────────────────────────────────
 
 const flipSide = (side: Side): Side => side === 'home' ? 'away' : side === 'away' ? 'home' : '';
+
+const sideOfTeam = (teamId: string | undefined, homeId?: string, awayId?: string): Side =>
+    teamId && teamId === homeId ? 'home' : teamId && teamId === awayId ? 'away' : '';
+
+// A play's stored pre-play snapshot expressed as a situation Ctx.
+const playToCtx = (p: GamePlay, homeId?: string, awayId?: string): Ctx => ({
+    quarter: p.quarter ?? 1,
+    driveNo: p.drive_no ?? 1,
+    offense: sideOfTeam(p.offense_team_id, homeId, awayId),
+    down: p.down != null ? String(p.down) : '1',
+    toGo: p.to_go != null ? String(p.to_go) : '10',
+    ballOn: p.ball_on ?? '',
+    clock: p.clock ?? '',
+    homeScore: p.home_score_after != null ? String(p.home_score_after) : '0',
+    awayScore: p.away_score_after != null ? String(p.away_score_after) : '0',
+});
+
+// Just the fields calculateNextSituation reads, from a stored play.
+const playToAdvancePayload = (p: GamePlay): PlayPayload => ({
+    yards: p.yards ?? undefined,
+    result: p.result ?? undefined,
+    returned_for_td: p.returned_for_td,
+    play_type: p.play_type ?? undefined,
+});
+
+// A proposed situation change for one play, for the re-derive preview.
+interface RederiveChange {
+    play: GamePlay;
+    oldCtx: Ctx;
+    newCtx: Ctx;
+}
+
+// toGo can be 'Goal' (first-and-goal) which has no integer value → null.
+const toGoToInt = (toGo: string): number | null => {
+    const n = parseInt(toGo, 10);
+    return isNaN(n) ? null : n;
+};
 
 const calculateNextSituation = (currentCtx: Ctx, payload: PlayPayload, downsPerSeries: number): Ctx => {
     const nextCtx = { ...currentCtx };
@@ -439,6 +482,8 @@ export const AdminPlayByPlay = () => {
             home_score_after: toIntOrNull(ctx.homeScore),
             away_score_after: toIntOrNull(ctx.awayScore),
             notes: w.notes || undefined,
+            // Mid-sequence insert: place at this seq (backend shifts later plays down).
+            ...(w.insertSeq != null && !w.editingId ? { seq: w.insertSeq } : {}),
         };
 
         switch (w.kind) {
@@ -644,6 +689,11 @@ export const AdminPlayByPlay = () => {
             if (w.editingId) {
                 await updatePlay(matchId, w.editingId, payload);
                 toast.success('Play updated');
+            } else if (w.insertSeq != null) {
+                await createPlay(matchId, payload);
+                toast.success('Play inserted');
+                // Don't auto-advance the situation on an insert — the context bar
+                // reflects the insertion point, not the (unchanged) end of the log.
             } else {
                 await createPlay(matchId, payload);
                 toast.success('Play added');
@@ -671,6 +721,94 @@ export const AdminPlayByPlay = () => {
             await syncScoreAndStats();
         } catch {
             toast.error('Failed to delete play');
+        }
+    };
+
+    // Begin inserting a missed play immediately AFTER play `p`. The new play takes
+    // p.seq + 1 and the backend shifts everything after it down, so it lands in the
+    // right spot instead of at the end. The situation bar is seeded from `p` as an
+    // editable starting point.
+    const startInsertAfter = (p: GamePlay) => {
+        if (locked) {
+            toast.error('Play-by-play is locked. Ask an admin to unlock this match first.');
+            return;
+        }
+        const offense: Side = p.offense_team_id === match?.home_team?.id ? 'home'
+            : p.offense_team_id === match?.away_team?.id ? 'away' : '';
+        setCtx(c => ({
+            ...c,
+            quarter: p.quarter ?? c.quarter,
+            driveNo: p.drive_no ?? c.driveNo,
+            offense,
+            down: p.down != null ? String(p.down) : c.down,
+            toGo: p.to_go != null ? String(p.to_go) : c.toGo,
+            ballOn: p.ball_on ?? '',
+            clock: p.clock ?? '',
+            homeScore: p.home_score_after != null ? String(p.home_score_after) : c.homeScore,
+            awayScore: p.away_score_after != null ? String(p.away_score_after) : c.awayScore,
+        }));
+        setW({ ...emptyWizard, insertSeq: (p.seq ?? 0) + 1, insertAfterLabel: `#${p.seq}` });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    // "Re-derive from here": treat `anchor`'s snapshot as trusted and recompute the
+    // down/distance/possession/drive of every following play with the same
+    // auto-advancer used during live entry. Builds a preview; nothing is written
+    // until the admin confirms. Quarter, ball-on and clock are left untouched.
+    const [rederive, setRederive] = useState<{ anchor: GamePlay; changes: RederiveChange[] } | null>(null);
+    const [rederiveBusy, setRederiveBusy] = useState(false);
+
+    const startRederive = (anchor: GamePlay) => {
+        if (locked) {
+            toast.error('Play-by-play is locked. Ask an admin to unlock this match first.');
+            return;
+        }
+        const homeId = match?.home_team?.id;
+        const awayId = match?.away_team?.id;
+        const ordered = [...plays].sort((a, b) => a.seq - b.seq);
+        const idx = ordered.findIndex(p => p.id === anchor.id);
+        if (idx === -1) return;
+        let prevCtx = playToCtx(anchor, homeId, awayId);
+        let prevPlay = anchor;
+        const changes: RederiveChange[] = [];
+        for (let i = idx + 1; i < ordered.length; i++) {
+            const cur = ordered[i];
+            const newCtx = calculateNextSituation(prevCtx, playToAdvancePayload(prevPlay), downsPerSeries);
+            const oldCtx = playToCtx(cur, homeId, awayId);
+            if (oldCtx.down !== newCtx.down || oldCtx.toGo !== newCtx.toGo || oldCtx.offense !== newCtx.offense || oldCtx.driveNo !== newCtx.driveNo) {
+                changes.push({ play: cur, oldCtx, newCtx });
+            }
+            prevCtx = newCtx;
+            prevPlay = cur;
+        }
+        if (changes.length === 0) {
+            toast.success('Situations already consistent from here — nothing to change.');
+            return;
+        }
+        setRederive({ anchor, changes });
+    };
+
+    const confirmRederive = async () => {
+        if (!rederive) return;
+        const homeId = match?.home_team?.id;
+        const awayId = match?.away_team?.id;
+        setRederiveBusy(true);
+        try {
+            const updates: SituationUpdate[] = rederive.changes.map(ch => ({
+                id: ch.play.id,
+                drive_no: ch.newCtx.driveNo,
+                down: toGoToInt(ch.newCtx.down),
+                to_go: toGoToInt(ch.newCtx.toGo),
+                offense_team_id: ch.newCtx.offense === 'home' ? homeId : ch.newCtx.offense === 'away' ? awayId : undefined,
+            }));
+            await rederiveSituations(matchId, updates);
+            toast.success(`Re-derived ${updates.length} play${updates.length === 1 ? '' : 's'}`);
+            setRederive(null);
+            await syncScoreAndStats();
+        } catch (e: any) {
+            toast.error(e?.response?.data?.error || 'Failed to re-derive situations');
+        } finally {
+            setRederiveBusy(false);
         }
     };
 
@@ -849,7 +987,7 @@ export const AdminPlayByPlay = () => {
                 <>
                     {/* Context bar */}
                     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-                        <div className="text-xs font-black uppercase tracking-wider text-sffl-navy dark:text-gray-200 mb-3">Game situation {w.editingId && <span className="text-amber-500">· editing play</span>}</div>
+                        <div className="text-xs font-black uppercase tracking-wider text-sffl-navy dark:text-gray-200 mb-3">Game situation {w.editingId && <span className="text-amber-500">· editing play</span>}{w.insertSeq != null && <span className="text-green-600">· inserting a missed play after {w.insertAfterLabel} (Clear to cancel)</span>}</div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-sm">
                             <label className="flex flex-col gap-1">
                                 <span className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Qtr</span>
@@ -1304,7 +1442,7 @@ export const AdminPlayByPlay = () => {
                             <p className="text-sm text-gray-500">No plays yet — log the first one above.</p>
                         ) : (
                             <div className="space-y-1.5">
-                                {plays.map(p => <PlayRow key={p.id} play={p} onEdit={() => startEdit(p)} onDelete={() => handleDelete(p.id)} homeTeamName={match?.home_team?.short_name || match?.home_team?.name} awayTeamName={match?.away_team?.short_name || match?.away_team?.name} />)}
+                                {plays.map(p => <PlayRow key={p.id} play={p} onEdit={() => startEdit(p)} onDelete={() => handleDelete(p.id)} onInsertAfter={() => startInsertAfter(p)} onRederive={() => startRederive(p)} homeTeamName={match?.home_team?.short_name || match?.home_team?.name} awayTeamName={match?.away_team?.short_name || match?.away_team?.name} />)}
                             </div>
                         )}
                     </div>
@@ -1312,6 +1450,54 @@ export const AdminPlayByPlay = () => {
                     {/* Step 2 — derived-vs-manual stats compare & Full Stat Audit Log */}
                     <StatsCompare matchId={matchId} match={match} plays={plays} />
                 </>
+            )}
+
+            {/* Re-derive situations — preview & confirm */}
+            {rederive && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => !rederiveBusy && setRederive(null)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                            <div className="text-lg font-black text-sffl-navy dark:text-white">Re-derive situations after #{rederive.anchor.seq}</div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                Recomputes <b>down, distance, possession and drive</b> for the {rederive.changes.length} play{rederive.changes.length === 1 ? '' : 's'} below, using #{rederive.anchor.seq}'s situation as the starting point. Quarter, ball spot and clock are left as entered. Review before applying — this overwrites those fields, including any manual corrections.
+                            </p>
+                        </div>
+                        <div className="overflow-auto p-4">
+                            <table className="w-full text-xs">
+                                <thead className="text-gray-400 uppercase text-[10px] border-b border-gray-200 dark:border-gray-700">
+                                    <tr>
+                                        <th className="text-left py-1.5">Play</th>
+                                        <th className="text-left py-1.5">Down &amp; Dist</th>
+                                        <th className="text-left py-1.5">Possession</th>
+                                        <th className="text-left py-1.5">Drive</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {rederive.changes.map(ch => {
+                                        const sideLabel = (s: Side) => s === 'home' ? (match?.home_team?.short_name || 'Home') : s === 'away' ? (match?.away_team?.short_name || 'Away') : '—';
+                                        const arrow = (a: string, b: string) => a === b
+                                            ? <span className="text-gray-500">{a}</span>
+                                            : <span><span className="text-gray-400 line-through">{a}</span> <span className="text-purple-600 dark:text-purple-400 font-bold">→ {b}</span></span>;
+                                        return (
+                                            <tr key={ch.play.id} className="border-b border-gray-100 dark:border-gray-700/50">
+                                                <td className="py-1.5 font-bold text-gray-700 dark:text-gray-200">#{ch.play.seq} <span className="text-gray-400 font-mono">{ch.play.play_type || ch.play.result || '—'}</span></td>
+                                                <td className="py-1.5">{arrow(`${ch.oldCtx.down}&${ch.oldCtx.toGo}`, `${ch.newCtx.down}&${ch.newCtx.toGo}`)}</td>
+                                                <td className="py-1.5">{arrow(sideLabel(ch.oldCtx.offense), sideLabel(ch.newCtx.offense))}</td>
+                                                <td className="py-1.5">{arrow(String(ch.oldCtx.driveNo), String(ch.newCtx.driveNo))}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
+                            <button onClick={() => setRederive(null)} disabled={rederiveBusy} className="px-4 py-2 border rounded-lg font-bold text-gray-600 dark:text-gray-300 dark:border-gray-600 disabled:opacity-50">Cancel</button>
+                            <button onClick={confirmRederive} disabled={rederiveBusy} className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg disabled:opacity-50">
+                                {rederiveBusy ? 'Applying…' : `Apply ${rederive.changes.length} change${rederive.changes.length === 1 ? '' : 's'}`}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );
@@ -1323,12 +1509,16 @@ const PlayRow = ({
     play,
     onEdit,
     onDelete,
+    onInsertAfter,
+    onRederive,
     homeTeamName,
     awayTeamName,
 }: {
     play: GamePlay;
     onEdit: () => void;
     onDelete: () => void;
+    onInsertAfter: () => void;
+    onRederive: () => void;
     homeTeamName?: string;
     awayTeamName?: string;
 }) => {
@@ -1365,6 +1555,8 @@ const PlayRow = ({
                     >
                         🔍 Audit ({accruals.length})
                     </button>
+                    <button onClick={onInsertAfter} title="Insert a missed play right after this one" className="text-xs font-bold text-green-600 hover:underline">Insert after</button>
+                    <button onClick={onRederive} title="Recompute down/distance/possession for every play after this one" className="text-xs font-bold text-purple-600 hover:underline">Re-derive ↓</button>
                     <button onClick={onEdit} className="text-xs font-bold text-blue-600 hover:underline">Edit</button>
                     <button onClick={onDelete} className="text-xs font-bold text-red-600 hover:underline">Delete</button>
                 </div>

@@ -221,6 +221,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		matchesGroup.POST("/:id/plays", app.Handlers.PlayHandler.CreatePlay)
 		matchesGroup.PUT("/:id/plays/:playId", app.Handlers.PlayHandler.UpdatePlay)
 		matchesGroup.DELETE("/:id/plays/:playId", app.Handlers.PlayHandler.DeletePlay)
+		matchesGroup.POST("/:id/plays/rederive-situations", app.Handlers.PlayHandler.ReDeriveSituations)
 		// Play-by-play is locked per match by default; only an admin (not
 		// referee/stats, who merely log plays) can unlock it. Audited globally.
 		matchesGroup.POST("/:id/pbp-lock", middlewares.AdminOnlyMiddleware(app.AuthService), app.Handlers.PlayHandler.LockPBP)

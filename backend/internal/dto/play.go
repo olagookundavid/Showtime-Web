@@ -40,6 +40,23 @@ type PlayRequest struct {
 	Seq *int `json:"seq"`
 }
 
+// SituationUpdate rewrites just the derived pre-play situation of one play —
+// used by "re-derive from here" after a mid-sequence insert. Only down/distance,
+// possession and drive shift when a play is inserted; quarter, ball-on, clock and
+// scores are left as entered (scores are recomputed separately).
+type SituationUpdate struct {
+	ID            string  `json:"id" binding:"required"`
+	DriveNo       int     `json:"drive_no"`
+	Down          *int    `json:"down"`
+	ToGo          *int    `json:"to_go"`
+	OffenseTeamID *string `json:"offense_team_id"`
+}
+
+// ReDeriveSituationsRequest is the batch of situation rewrites to apply.
+type ReDeriveSituationsRequest struct {
+	Plays []SituationUpdate `json:"plays" binding:"required"`
+}
+
 // GameRulesRequest updates the per-competition scoring/format rules (Step 3).
 type GameRulesRequest struct {
 	TDPoints         int    `json:"td_points"`

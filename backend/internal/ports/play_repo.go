@@ -18,6 +18,12 @@ type PlayRepository interface {
 	ListByMatch(ctx context.Context, matchID string) ([]*domain.GamePlay, error)
 	MaxSeq(ctx context.Context, matchID string) (int, error)
 	GetSeq(ctx context.Context, id string) (int, error)
+	// ShiftSeqsForInsert bumps seq by 1 for every play at/after atSeq, opening a
+	// gap so a new play can be inserted mid-sequence rather than only appended.
+	ShiftSeqsForInsert(ctx context.Context, matchID string, atSeq int) error
+	// UpdatePlaySituation rewrites only the derived situation fields (down/distance,
+	// possession, drive) of a single play — the "re-derive from here" helper.
+	UpdatePlaySituation(ctx context.Context, id string, driveNo int, down, toGo *int, offenseTeamID *string) error
 	UpdateScore(ctx context.Context, id string, home, away int) error
 
 	// Step 3 — rules config
@@ -113,6 +119,30 @@ func (r *PlayPGRepository) MaxSeq(ctx context.Context, matchID string) (int, err
 		return 0, fmt.Errorf("failed to get max seq: %w", err)
 	}
 	return maxSeq, nil
+}
+
+func (r *PlayPGRepository) ShiftSeqsForInsert(ctx context.Context, matchID string, atSeq int) error {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	_, err := r.db.Exec(ctx, `UPDATE game_plays SET seq = seq + 1 WHERE match_id = $1 AND seq >= $2`, matchID, atSeq)
+	if err != nil {
+		return fmt.Errorf("failed to shift seqs for insert: %w", err)
+	}
+	return nil
+}
+
+func (r *PlayPGRepository) UpdatePlaySituation(ctx context.Context, id string, driveNo int, down, toGo *int, offenseTeamID *string) error {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	_, err := r.db.Exec(ctx,
+		`UPDATE game_plays SET drive_no = $2, down = $3, to_go = $4, offense_team_id = $5, updated_at = NOW() WHERE id = $1`,
+		id, driveNo, down, toGo, offenseTeamID)
+	if err != nil {
+		return fmt.Errorf("failed to update play situation: %w", err)
+	}
+	return nil
 }
 
 func (r *PlayPGRepository) UpdateScore(ctx context.Context, id string, home, away int) error {

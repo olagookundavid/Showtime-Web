@@ -35,6 +35,10 @@ type IPlayService interface {
 
 	// Per-match play-by-play lock (audited via the global middleware).
 	SetPBPLock(ctx context.Context, matchID string, locked bool) error
+
+	// ReDeriveSituations rewrites the down/distance/possession/drive of a set of
+	// plays (used after a mid-sequence insert), then recomputes the score.
+	ReDeriveSituations(ctx context.Context, matchID string, updates []dto.SituationUpdate) error
 }
 
 type PlayService struct {
@@ -68,6 +72,24 @@ func (s *PlayService) SetPBPLock(ctx context.Context, matchID string, locked boo
 	return s.matchRepo.SetMatchPBPLock(ctx, matchID, locked)
 }
 
+// ReDeriveSituations applies the client-computed situation snapshots to a batch
+// of plays (after a mid-sequence insert shifts everything downstream), then
+// recomputes the running score since the down feeds gender-based scoring.
+func (s *PlayService) ReDeriveSituations(ctx context.Context, matchID string, updates []dto.SituationUpdate) error {
+	if err := s.ensureUnlocked(ctx, matchID); err != nil {
+		return err
+	}
+	for _, u := range updates {
+		if err := s.repo.UpdatePlaySituation(ctx, u.ID, u.DriveNo, u.Down, u.ToGo, u.OffenseTeamID); err != nil {
+			return err
+		}
+	}
+	if _, _, err := s.RecomputeScore(ctx, matchID); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *PlayService) CreatePlay(ctx context.Context, matchID string, req dto.PlayRequest) (*domain.GamePlay, error) {
 	if err := s.ensureUnlocked(ctx, matchID); err != nil {
 		return nil, err
@@ -78,8 +100,13 @@ func (s *PlayService) CreatePlay(ctx context.Context, matchID string, req dto.Pl
 
 	p := requestToPlay(matchID, req)
 
-	// Order: use the explicit seq if given, otherwise append after the last play.
+	// Order: an explicit seq means "insert here" — open a gap by bumping every
+	// play at/after that position up by one, so a missed play can be slotted into
+	// the middle instead of only appended. No seq = append after the last play.
 	if req.Seq != nil {
+		if err := s.repo.ShiftSeqsForInsert(ctx, matchID, *req.Seq); err != nil {
+			return nil, err
+		}
 		p.Seq = *req.Seq
 	} else {
 		maxSeq, err := s.repo.MaxSeq(ctx, matchID)
