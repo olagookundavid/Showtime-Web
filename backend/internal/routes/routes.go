@@ -253,6 +253,11 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	statsGroup.Use(middlewares.RolesAllowedMiddleware(app.AuthService, "app_admin"))
 	{
 		statsGroup.POST("/players", app.Handlers.StatsHandler.UpsertPlayerStat)
+		// Bulk re-derive of stats for every match that has a play log — the way a
+		// derivation change (new stat columns, corrected rule) lands everywhere at
+		// once. Stats only; never touches scores or standings. Supports
+		// ?dry_run=true and ?competition_id=.
+		statsGroup.POST("/recompute-all", app.Handlers.PlayHandler.RecomputeAllStats)
 	}
 
 	eventDaysGroup := adminRoutes.Group("/event-days")

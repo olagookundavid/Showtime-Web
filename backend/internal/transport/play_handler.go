@@ -36,6 +36,7 @@ type IPlayHandler interface {
 	LockPBP(c *gin.Context)
 	UnlockPBP(c *gin.Context)
 	ReDeriveSituations(c *gin.Context)
+	RecomputeAllStats(c *gin.Context)
 }
 
 type PlayHandler struct {
@@ -154,6 +155,21 @@ func (h *PlayHandler) ReDeriveSituations(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Situations re-derived", "count": len(req.Plays)})
+}
+
+// RecomputeAllStats re-derives stats for every match that has a play log, so a
+// derivation change lands everywhere at once. `?competition_id=` scopes it to one
+// competition; `?dry_run=true` reports what would change without writing.
+func (h *PlayHandler) RecomputeAllStats(c *gin.Context) {
+	competitionID := c.Query("competition_id")
+	dryRun := c.Query("dry_run") == "true"
+
+	res, err := h.service.RecomputeAllStats(c.Request.Context(), competitionID, dryRun)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": res})
 }
 
 // CompareStats returns stats derived from the play log alongside the currently

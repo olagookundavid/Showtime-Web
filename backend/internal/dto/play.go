@@ -57,6 +57,26 @@ type ReDeriveSituationsRequest struct {
 	Plays []SituationUpdate `json:"plays" binding:"required"`
 }
 
+// BulkRecomputeMatch is one match's outcome in a bulk stats recompute.
+type BulkRecomputeMatch struct {
+	MatchID string `json:"match_id"`
+	Label   string `json:"label"`
+	Date    string `json:"date"`
+	Plays   int    `json:"plays"`
+	Players int    `json:"players"`
+	Error   string `json:"error,omitempty"`
+}
+
+// BulkRecomputeResult summarises a bulk stats recompute (or a dry run of one).
+type BulkRecomputeResult struct {
+	DryRun         bool                 `json:"dry_run"`
+	MatchesFound   int                  `json:"matches_found"`
+	MatchesUpdated int                  `json:"matches_updated"`
+	PlayersUpdated int                  `json:"players_updated"`
+	Failed         int                  `json:"failed"`
+	Matches        []BulkRecomputeMatch `json:"matches"`
+}
+
 // GameRulesRequest updates the per-competition scoring/format rules (Step 3).
 type GameRulesRequest struct {
 	TDPoints         int    `json:"td_points"`

@@ -57,6 +57,15 @@ type GamePlay struct {
 	PenaltyPlayer *Player `json:"penalty_player,omitempty"`
 }
 
+// MatchPlayCount identifies a match that has a play log, with enough label to
+// show the admin what a bulk stats recompute is about to touch.
+type MatchPlayCount struct {
+	MatchID string `json:"match_id"`
+	Label   string `json:"label"`
+	Date    string `json:"date"`
+	Plays   int    `json:"plays"`
+}
+
 // Official code sets from the stat sheet. Kept here (not the DB) so the play
 // service can validate incoming codes without a rules migration. FG = Flag Pull
 // (not field goal); KO = Throw-Off.

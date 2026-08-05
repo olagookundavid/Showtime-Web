@@ -24,6 +24,11 @@ type PlayRepository interface {
 	// UpdatePlaySituation rewrites only the derived situation fields (down/distance,
 	// possession, drive) of a single play — the "re-derive from here" helper.
 	UpdatePlaySituation(ctx context.Context, id string, driveNo int, down, toGo *int, offenseTeamID *string) error
+	// ListMatchesWithPlays returns every match that has at least one logged play,
+	// newest first, optionally scoped to a competition. Matches with NO play log
+	// are deliberately excluded — their stats came from elsewhere (e.g. the
+	// historical Excel import) and deriving over them would be destructive.
+	ListMatchesWithPlays(ctx context.Context, competitionID string) ([]domain.MatchPlayCount, error)
 	UpdateScore(ctx context.Context, id string, home, away int) error
 
 	// Step 3 — rules config
@@ -143,6 +148,46 @@ func (r *PlayPGRepository) UpdatePlaySituation(ctx context.Context, id string, d
 		return fmt.Errorf("failed to update play situation: %w", err)
 	}
 	return nil
+}
+
+func (r *PlayPGRepository) ListMatchesWithPlays(ctx context.Context, competitionID string) ([]domain.MatchPlayCount, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	// The JOIN onto game_plays is what scopes this to matches that actually have
+	// a log — matches whose stats came from the historical import have no plays
+	// and must never be derived over.
+	query := `
+		SELECT gp.match_id::text, COUNT(*) AS plays,
+		       COALESCE(NULLIF(ht.short_name, ''), ht.name, 'TBD') || ' vs ' || COALESCE(NULLIF(at.short_name, ''), at.name, 'TBD') AS label,
+		       TO_CHAR(m.date, 'YYYY-MM-DD') AS match_date
+		FROM game_plays gp
+		JOIN matches m ON m.id = gp.match_id
+		LEFT JOIN teams ht ON m.home_team_id = ht.id
+		LEFT JOIN teams at ON m.away_team_id = at.id`
+	args := []any{}
+	if competitionID != "" {
+		query += ` WHERE m.competition_id = $1`
+		args = append(args, competitionID)
+	}
+	query += ` GROUP BY gp.match_id, ht.short_name, ht.name, at.short_name, at.name, m.date
+		ORDER BY m.date DESC`
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list matches with plays: %w", err)
+	}
+	defer rows.Close()
+
+	out := []domain.MatchPlayCount{}
+	for rows.Next() {
+		var m domain.MatchPlayCount
+		if err := rows.Scan(&m.MatchID, &m.Plays, &m.Label, &m.Date); err != nil {
+			return nil, err
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
 }
 
 func (r *PlayPGRepository) UpdateScore(ctx context.Context, id string, home, away int) error {

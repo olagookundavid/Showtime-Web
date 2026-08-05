@@ -663,7 +663,9 @@ func (r *PostgresMatchRepository) GetTeamSheet(ctx context.Context, matchID stri
 	// LEFT JOIN this match's stat line for each rostered player so we can compute
 	// their per-match rating. A player who didn't record stats has no ps row —
 	// the COALESCEd zeros make the rating engine return UNRATED, which the caller
-	// renders as the base rating.
+	// renders as the base rating. The QB rating's drive/turnover/punt inputs all
+	// come from player_stats (per player), not team_match_stats — a backup QB must
+	// not be credited with the starter's whole-game totals.
 	query := `
 		SELECT mts.team_id, p.id, p.name, p.jersey_number, p.position, p.image,
 			COALESCE(ps.receptions, 0), COALESCE(ps.receiving_tds, 0),
@@ -672,15 +674,14 @@ func (r *PostgresMatchRepository) GetTeamSheet(ctx context.Context, matchID stri
 			COALESCE(ps.interceptions, 0), COALESCE(ps.defensive_tds, 0),
 			COALESCE(ps.safety, 0), COALESCE(ps.defensive_xp_tds, 0),
 			COALESCE(ps.def_sacks, 0), COALESCE(ps.passing_attempts, 0),
-			COALESCE(ps.completed_passes, 0), COALESCE(ps.passing_tds, 0),
+			COALESCE(ps.completed_passes, 0), COALESCE(ps.passing_yards, 0), COALESCE(ps.passing_tds, 0),
 			COALESCE(ps.interceptions_thrown, 0), COALESCE(ps.rushing_attempts, 0),
-			COALESCE(ps.rushing_tds, 0), COALESCE(ps.qb_sacks, 0),
-			COALESCE(ps.xp_attempts, 0),
-			COALESCE(tms.drives, 0), COALESCE(tms.turnovers, 0), COALESCE(tms.punts, 0)
+			COALESCE(ps.rushing_yards, 0), COALESCE(ps.rushing_tds, 0), COALESCE(ps.qb_sacks, 0),
+			COALESCE(ps.xp_attempts, 0), COALESCE(ps.qb_drives, 0),
+			COALESCE(ps.qb_turnovers, 0), COALESCE(ps.qb_punts, 0)
 		FROM match_team_sheets mts
 		JOIN players p ON mts.player_id = p.id
 		LEFT JOIN player_stats ps ON ps.player_id = p.id AND ps.match_id = mts.match_id
-		LEFT JOIN team_match_stats tms ON tms.team_id = mts.team_id AND tms.match_id = mts.match_id
 		WHERE mts.match_id = $1
 		ORDER BY p.jersey_number ASC
 	`
@@ -705,18 +706,20 @@ func (r *PostgresMatchRepository) GetTeamSheet(ctx context.Context, matchID stri
 			&line.Receptions, &line.ReceivingTDs, &line.ExtraPointTDs, &line.Drops,
 			&line.FlagPulls, &line.PassDeflections, &line.Interceptions, &line.DefensiveTDs,
 			&line.Safeties, &line.DefensiveXPTDs, &line.DefensiveSacks,
-			&line.PassingAttempts, &line.CompletedPasses, &line.PassingTDs,
-			&line.InterceptionsThrown, &line.RushingAttempts, &line.RushingTDs,
-			&line.QBSacks, &line.XPAttempts,
-			&line.Drives, &line.Turnovers, &line.Punts); err != nil {
+			&line.PassingAttempts, &line.CompletedPasses, &line.PassingYards, &line.PassingTDs,
+			&line.InterceptionsThrown, &line.RushingAttempts,
+			&line.RushingYards, &line.RushingTDs,
+			&line.QBSacks, &line.XPAttempts, &line.Drives,
+			&line.Turnovers, &line.Punts); err != nil {
 			return nil, err
 		}
 		if img != nil {
 			p.Image = *img
 		}
 		// Attach the per-match rating for rateable positions with real activity.
-		// QB / "-" positions return nil; UNRATED (no qualifying activity) stays
-		// nil too — the client shows a dash or the base rating respectively.
+		// "-" positions return nil (no implemented formula); UNRATED (no
+		// qualifying activity) stays nil too — the client shows a dash or the
+		// base rating respectively.
 		if res := domain.RateByPosition(p.Position, line); res != nil {
 			p.RatingStatus = res.Status
 			if res.Status != domain.RatingStatusUnrated {

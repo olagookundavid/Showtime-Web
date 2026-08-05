@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"showtime-backend/internal/domain"
 )
@@ -63,12 +64,64 @@ func (s *PlayService) DeriveMatchStats(ctx context.Context, matchID string) ([]d
 		return st
 	}
 
+	// ── Per-QB rating inputs (internal — not box-score columns) ──
+	// The QB rating normalizes several components per drive, so drives, turnovers
+	// and punts have to be attributed to the QB who actually led them. Crediting
+	// every QB with the team's whole-match totals skews both lines the moment a
+	// team plays two QBs. A punt is a special-teams play carrying no off_qb_id of
+	// its own, so it's charged to whoever led that drive — resolved by this
+	// pre-pass, which also makes the attribution independent of play order.
+	driveKey := func(teamID string, driveNo int) string { return teamID + "|" + strconv.Itoa(driveNo) }
+	driveQB := map[string]string{}
+	for _, p := range plays {
+		if p.OffQBID == nil || *p.OffQBID == "" || p.OffenseTeamID == nil || p.DriveNo <= 0 {
+			continue
+		}
+		if k := driveKey(*p.OffenseTeamID, p.DriveNo); driveQB[k] == "" {
+			driveQB[k] = *p.OffQBID
+		}
+	}
+
+	seenQBDrives := map[string]map[int]bool{}
+
 	for _, p := range plays {
 		pt := strDerefTrim(p.PlayType)
 		res := strDerefTrim(p.Result)
 		yards := 0
 		if p.Yards != nil {
 			yards = *p.Yards
+		}
+		off := ""
+		if p.OffenseTeamID != nil {
+			off = *p.OffenseTeamID
+		}
+
+		// Distinct drives this player led.
+		if p.OffQBID != nil && *p.OffQBID != "" && p.DriveNo > 0 {
+			if seenQBDrives[*p.OffQBID] == nil {
+				seenQBDrives[*p.OffQBID] = map[int]bool{}
+			}
+			if !seenQBDrives[*p.OffQBID][p.DriveNo] {
+				seenQBDrives[*p.OffQBID][p.DriveNo] = true
+				if qb := get(p.OffQBID); qb != nil {
+					qb.QBDrives++
+				}
+			}
+		}
+		// Turnovers (interception thrown / turnover on downs) — the play itself
+		// names the QB, so charge him directly.
+		if res == "INT" || res == "TO" {
+			if qb := get(p.OffQBID); qb != nil {
+				qb.QBTurnovers++
+			}
+		}
+		// Punts — charged to the QB whose drive ended in the punt.
+		if pt == "PUNT" && off != "" && p.DriveNo > 0 {
+			if id := driveQB[driveKey(off, p.DriveNo)]; id != "" {
+				if qb := get(&id); qb != nil {
+					qb.QBPunts++
+				}
+			}
 		}
 
 		// ── Central defensive credits (any play type) ──
@@ -274,6 +327,22 @@ func (s *PlayService) CommitDerivedStats(ctx context.Context, matchID string) (i
 	if err != nil {
 		return 0, err
 	}
+
+	// The play log is the sole source of truth for this match's stats from the
+	// moment it has any plays — not an overlay on top of whatever was there
+	// before (hand-entered numbers, an Excel import, an older/thinner log). A
+	// player who isn't named in any current play must not keep showing a stale
+	// line, so anyone not in this derivation gets deleted, not just anyone in it
+	// upserted. Collected before the upsert loop so a mid-commit failure can't
+	// delete stats for a player that then never gets rewritten.
+	keepPlayerIDs := make([]string, 0, len(derived))
+	for _, d := range derived {
+		keepPlayerIDs = append(keepPlayerIDs, d.PlayerID)
+	}
+	if err := s.statsRepo.DeleteOrphanedPlayerStats(ctx, matchID, keepPlayerIDs); err != nil {
+		return 0, fmt.Errorf("failed to clear stale player stats: %w", err)
+	}
+
 	for _, d := range derived {
 		if d.TeamID == "" {
 			return 0, fmt.Errorf("player %s has no team on the match sheet — fix the team sheet before committing", d.PlayerName)
@@ -314,16 +383,29 @@ func (s *PlayService) CommitDerivedStats(ctx context.Context, matchID string) (i
 			XPGood:              d.XPGood,
 			XPFail:              d.XPFail,
 			SafetyConceded:      d.SafetyConceded,
+			QBDrives:            d.QBDrives,
+			QBTurnovers:         d.QBTurnovers,
+			QBPunts:             d.QBPunts,
 		}
 		if err := s.statsRepo.UpsertPlayerStat(ctx, stat); err != nil {
 			return 0, fmt.Errorf("failed to write stats for %s: %w", d.PlayerName, err)
 		}
 	}
 
-	// Also write the team-only stats (punts / first downs / turnovers / etc.).
+	// Also write the team-only stats (punts / first downs / turnovers / etc.),
+	// same "sole source of truth" treatment: a team not appearing in this
+	// derivation (e.g. a bye leg, or the log only covers one side so far)
+	// shouldn't keep a stale team-stat row either.
 	teamStats, err := s.DeriveTeamMatchStats(ctx, matchID)
 	if err != nil {
 		return len(derived), err
+	}
+	keepTeamIDs := make([]string, 0, len(teamStats))
+	for _, t := range teamStats {
+		keepTeamIDs = append(keepTeamIDs, t.TeamID)
+	}
+	if err := s.statsRepo.DeleteOrphanedTeamMatchStats(ctx, matchID, keepTeamIDs); err != nil {
+		return len(derived), fmt.Errorf("failed to clear stale team stats: %w", err)
 	}
 	for i := range teamStats {
 		if err := s.statsRepo.UpsertTeamMatchStat(ctx, &teamStats[i]); err != nil {

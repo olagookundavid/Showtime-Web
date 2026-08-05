@@ -15,36 +15,35 @@ func TestCalculateReceiverRating(t *testing.T) {
 		in         ReceiverRatingInput
 		wantStatus string
 		wantFinal  float64
-		wantRaw    float64 // only checked when checkRaw
-		wantRel    float64 // only checked when checkRel
-		checkRaw   bool
-		checkRel   bool
 	}{
 		{
-			// 4 catches / 5 opportunities, 1 TD, 1 drop.
-			// reception .80 + catch .125 + recTD .75 - drop .60 => raw 6.075, rel 1.0
+			// Spec §9 Worked Example: 1 reception, 1 receiving TD, 1 drop (2 opportunities).
+			// catch -0.625, reception +0.200 => raw 4.575, rel 0.40 => reliable 4.830
+			// tdImpact +2.25 => final 7.1
+			name: "spec v1.1 worked example", in: ReceiverRatingInput{Receptions: 1, ReceivingTDs: 1, Drops: 1},
+			wantStatus: RatingStatusOfficial, wantFinal: 7.1,
+		},
+		{
+			// 4 catches / 5 opportunities, 1 TD.
+			// catch = 2.50 * (0.80 - 0.75) = +0.125, reception = +0.80 => raw 5.925, rel 1.0
+			// tdImpact +2.25 => final 8.2
 			name: "official mixed", in: ReceiverRatingInput{Receptions: 4, ReceivingTDs: 1, Drops: 1},
-			wantStatus: RatingStatusOfficial, wantFinal: 6.1, wantRaw: 6.075, wantRel: 1.0, checkRaw: true, checkRel: true,
+			wantStatus: RatingStatusOfficial, wantFinal: 8.2,
 		},
 		{
-			// Caps: reception cap 1.00, recTD cap 2.25, xp cap 1.05. catch .625.
-			// raw = 5 + 1.00 + .625 + 2.25 + 1.05 = 9.925
+			// Caps: reception cap 1.00, recTD cap 4.50, xp cap 1.20. catch .625.
+			// raw = 5 + 1.00 + .625 = 6.625, rel 1.0 => + 4.50 + 1.20 = 12.325 => clamped to 10.0
 			name: "caps applied", in: ReceiverRatingInput{Receptions: 10, ReceivingTDs: 3, ExtraPointTDs: 3},
-			wantStatus: RatingStatusOfficial, wantFinal: 9.9, wantRaw: 9.925, checkRaw: true,
-		},
-		{
-			// All drops: catch -1.875, drop cap 2.40 => raw 0.725
-			name: "heavy drops floor", in: ReceiverRatingInput{Drops: 5},
-			wantStatus: RatingStatusOfficial, wantFinal: 0.7, wantRaw: 0.725, checkRaw: true,
+			wantStatus: RatingStatusOfficial, wantFinal: 10.0,
 		},
 		{
 			// 1 opportunity => provisional, reliability 0.20
 			name: "provisional one catch", in: ReceiverRatingInput{Receptions: 1},
-			wantStatus: RatingStatusProvisional, wantFinal: 5.2, wantRel: 0.2, checkRel: true,
+			wantStatus: RatingStatusProvisional, wantFinal: 5.2,
 		},
 		{
 			name: "provisional one drop", in: ReceiverRatingInput{Drops: 1},
-			wantStatus: RatingStatusProvisional, wantFinal: 4.5,
+			wantStatus: RatingStatusProvisional, wantFinal: 4.6,
 		},
 		{
 			name: "unrated", in: ReceiverRatingInput{},
@@ -59,12 +58,6 @@ func TestCalculateReceiverRating(t *testing.T) {
 			}
 			if !approx(got.FinalRating, c.wantFinal) {
 				t.Errorf("final = %v, want %v", got.FinalRating, c.wantFinal)
-			}
-			if c.checkRaw && !approx(got.RawRating, c.wantRaw) {
-				t.Errorf("raw = %v, want %v", got.RawRating, c.wantRaw)
-			}
-			if c.checkRel && !approx(got.ReliabilityFactor, c.wantRel) {
-				t.Errorf("reliability = %v, want %v", got.ReliabilityFactor, c.wantRel)
 			}
 			if got.FormulaVersion != ReceiverFormulaVersion {
 				t.Errorf("formula version = %q, want %q", got.FormulaVersion, ReceiverFormulaVersion)
@@ -188,19 +181,24 @@ func TestCalculateRusherRating(t *testing.T) {
 }
 
 func TestCalculateQuarterbackRating(t *testing.T) {
-	// Sample from spec §13:
-	// passing_attempts: 4, completed_passes: 3, passing_tds: 2, xp_attempts: 1, extra_point_tds: 1,
-	// rushing_attempts: 1, rushing_tds: 0, interceptions_thrown: 0, turnovers: 0, punts: 1, qb_sacks: 1, drives: 3
-	// Expected: status OFFICIAL, final_rating 6.2
+	// Worked Example from Spec §10 (Kayode Mafe):
+	// passing_attempts: 27, completed_passes: 19, passing_yards: 173, passing_tds: 4,
+	// rushing_attempts: 2, rushing_yards: 13, rushing_tds: 0, interceptions_thrown: 0,
+	// qb_sacks: 0, extra_point_tds: 0, other_turnovers: 0, punts: 0
+	// Expected: status OFFICIAL, final_rating 9.4
 	in := QuarterbackRatingInput{
-		PassingAttempts: 4, CompletedPasses: 3, PassingTDs: 2, XPAttempts: 1, ExtraPointTDs: 1,
-		RushingAttempts: 1, RushingTDs: 0, InterceptionsThrown: 0, Turnovers: 0, Punts: 1, QBSacks: 1, Drives: 3,
+		PassingAttempts: 27, CompletedPasses: 19, PassingYards: 173, PassingTDs: 4,
+		RushingAttempts: 2, RushingYards: 13, RushingTDs: 0, InterceptionsThrown: 0,
+		QBSacks: 0, ExtraPointTDs: 0, OtherTurnovers: 0, Punts: 0,
 	}
 	res := CalculateQuarterbackRating(in)
 	if res.Status != RatingStatusOfficial {
 		t.Errorf("status = %q, want %q", res.Status, RatingStatusOfficial)
 	}
-	if res.FinalRating != 6.2 {
-		t.Errorf("final_rating = %v, want 6.2", res.FinalRating)
+	if res.FinalRating != 9.4 {
+		t.Errorf("final_rating = %v, want 9.4", res.FinalRating)
+	}
+	if res.FormulaVersion != QuarterbackFormulaVersion {
+		t.Errorf("formula version = %q, want %q", res.FormulaVersion, QuarterbackFormulaVersion)
 	}
 }

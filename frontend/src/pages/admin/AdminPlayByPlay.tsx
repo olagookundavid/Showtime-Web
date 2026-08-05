@@ -9,7 +9,6 @@ import {
     updatePlay,
     deletePlay,
     getStatsCompare,
-    commitDerivedStats,
     getGameRules,
     upsertGameRules,
     recomputeScore,
@@ -658,20 +657,18 @@ export const AdminPlayByPlay = () => {
         return { payload: base };
     };
 
-    // After any change to the play log, the score and the derived stats are both
-    // stale until something recomputes/refetches them. Rather than making the
-    // admin do that by hand after every single play, we do it here automatically:
-    // recompute walks the whole log and is safe to call repeatedly (it always
-    // rebuilds from scratch). The standalone "Recompute score" button still
-    // exists for cases this doesn't cover, e.g. after changing the point values.
+    // The backend rebuilds the score AND writes the player/team stats on every
+    // play mutation now (PlayService.syncDerived) — stats are live, there's no
+    // commit step — so there's nothing to trigger from here, only stale views to
+    // refetch. Team sheets are included because player ratings are computed from
+    // the stats that just changed. The standalone "Recompute score" button still
+    // exists for what a play mutation doesn't cover, e.g. editing point values.
     const syncScoreAndStats = async () => {
-        try {
-            await recomputeScore(matchId);
-        } catch {
-            toast.error('Saved, but the score could not be recomputed automatically — use "Recompute score" below.');
-        }
         await queryClient.invalidateQueries({ queryKey: ['pbpPlays', matchId] });
         queryClient.invalidateQueries({ queryKey: ['pbpCompare', matchId] });
+        queryClient.invalidateQueries({ queryKey: ['pbpTeamSheet', matchId] });
+        queryClient.invalidateQueries({ queryKey: ['adminMatchDetail', matchId] });
+        queryClient.invalidateQueries({ queryKey: ['publicMatchStatsCompare', matchId] });
     };
 
     const handleSave = async () => {
@@ -1796,15 +1793,12 @@ const ScoreTools = ({ matchId, competitionId, match, plays = [] }: ScoreToolsPro
     );
 };
 
-// Admin-only, per-match stats table sourced purely from the play log, rendered
-// in the exact StatsTable layout so it mirrors a real match's stats. Temporary
-// tooling for iterating — compare by eye against the public /stats page, then
-// Commit to write these onto the main stats table. Remove once finalised.
+// Admin-only, per-match view of the stats this match's play log produces,
+// rendered in the exact StatsTable layout so it mirrors the public stats page.
+// These are the live committed numbers (stats write on every play now), plus the
+// per-play stat-accrual audit log for checking how each number was arrived at.
 const StatsCompare = ({ matchId, match, plays = [] }: { matchId: string; match?: Match; plays?: GamePlay[] }) => {
-    const { user } = useAuth();
-    const isAppAdmin = user?.role === 'app_admin';
     const [open, setOpen] = useState(false);
-    const [committing, setCommitting] = useState(false);
     const [activeTab, setActiveTab] = useState<'players' | 'teams' | 'audit'>('players');
     const [selectedTeamId, setSelectedTeamId] = useState<string>('all');
     const [sortBy, setSortBy] = useState<string>('');
@@ -1926,31 +1920,14 @@ const StatsCompare = ({ matchId, match, plays = [] }: { matchId: string; match?:
         return derived.filter(p => p.team_id === selectedTeamId);
     }, [derived, selectedTeamId]);
 
-    const commit = async () => {
-        if (!isAppAdmin) {
-            toast.error('Only App Admin can commit stats to the main stats table');
-            return;
-        }
-        if (!window.confirm('Write these play-by-play stats onto the main stats table? This overwrites the saved stats for this match.')) return;
-        setCommitting(true);
-        try {
-            const res = await commitDerivedStats(matchId);
-            toast.success(`Committed stats for ${res.players} player(s)`);
-        } catch (e: any) {
-            toast.error(e?.response?.data?.error || 'Failed to commit stats');
-        } finally {
-            setCommitting(false);
-        }
-    };
-
     return (
         <div className="border-t border-gray-200 dark:border-gray-700 pt-5">
             <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div>
                     <h2 className="text-lg font-black text-sffl-navy dark:text-white">
-                        Play-by-Play Stats <span className="text-[10px] font-black uppercase tracking-wider text-amber-500 align-middle">preview &amp; audit</span>
+                        Play-by-Play Stats <span className="text-[10px] font-black uppercase tracking-wider text-green-600 align-middle">live</span>
                     </h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Preview player/team box scores or inspect the complete line-by-line stat accrual log for every play in this match.</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">The player/team box scores this match's plays produce — written live as you log. Or inspect the complete line-by-line stat accrual log for every play.</p>
                 </div>
                 <button onClick={() => setOpen(o => !o)} className="px-4 py-2 border rounded-lg font-bold text-sm text-sffl-navy dark:text-gray-200 dark:border-gray-600">
                     {open ? 'Hide' : 'Show stats'}
@@ -2057,14 +2034,9 @@ const StatsCompare = ({ matchId, match, plays = [] }: { matchId: string; match?:
                             )}
 
                             {activeTab !== 'audit' && (
-                                <button
-                                    onClick={commit}
-                                    disabled={!isAppAdmin || committing}
-                                    title={!isAppAdmin ? 'Commit restricted to App Admin' : 'Write stats to main table'}
-                                    className="mt-4 px-6 py-2.5 bg-sffl-navy text-white font-bold rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                                >
-                                    {committing ? 'Committing…' : 'Commit to main stats table →'}
-                                </button>
+                                <p className="mt-4 text-xs font-semibold text-green-700 dark:text-green-400">
+                                    ✓ These are the live stats. Every play you log writes straight to the main stats table — no commit step.
+                                </p>
                             )}
                         </>
                     )}

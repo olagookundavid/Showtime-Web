@@ -29,7 +29,7 @@ const (
 // Formula version tags, stored alongside each rating so historical results stay
 // reproducible if the weights are later refined.
 const (
-	ReceiverFormulaVersion    = "RECEIVER_RATING_V1.0"
+	ReceiverFormulaVersion    = "RECEIVER_RATING_V1.1"
 	DefenderFormulaVersion    = "DEFENDER_RATING_V1.0"
 	RusherFormulaVersion      = "RUSHER_RATING_V1.0"
 	QuarterbackFormulaVersion = "QB_RATING_V1.1"
@@ -104,9 +104,11 @@ type RatingStatLine struct {
 	DefensiveSacks      int
 	PassingAttempts     int
 	CompletedPasses     int
+	PassingYards        int
 	PassingTDs          int
 	InterceptionsThrown int
 	RushingAttempts     int
+	RushingYards        int
 	RushingTDs          int
 	QBSacks             int
 	XPAttempts          int
@@ -123,13 +125,23 @@ func RateByPosition(position string, s RatingStatLine) *RatingResult {
 	var res RatingResult
 	switch position {
 	case "QB":
+		otherTurnovers := s.Turnovers - s.InterceptionsThrown
+		if otherTurnovers < 0 {
+			otherTurnovers = 0
+		}
 		res = CalculateQuarterbackRating(QuarterbackRatingInput{
-			PassingAttempts: s.PassingAttempts, CompletedPasses: s.CompletedPasses,
-			PassingTDs: s.PassingTDs, InterceptionsThrown: s.InterceptionsThrown,
-			RushingAttempts: s.RushingAttempts, RushingTDs: s.RushingTDs,
-			QBSacks: s.QBSacks, XPAttempts: s.XPAttempts,
-			ExtraPointTDs: s.ExtraPointTDs, Drives: s.Drives,
-			Turnovers: s.Turnovers, Punts: s.Punts,
+			PassingAttempts:     s.PassingAttempts,
+			CompletedPasses:     s.CompletedPasses,
+			PassingYards:        s.PassingYards,
+			PassingTDs:          s.PassingTDs,
+			InterceptionsThrown: s.InterceptionsThrown,
+			QBSacks:             s.QBSacks,
+			RushingAttempts:     s.RushingAttempts,
+			RushingYards:        s.RushingYards,
+			RushingTDs:          s.RushingTDs,
+			ExtraPointTDs:       s.ExtraPointTDs,
+			OtherTurnovers:      otherTurnovers,
+			Punts:               s.Punts,
 		})
 	case "Receiver":
 		res = CalculateReceiverRating(ReceiverRatingInput{
@@ -155,7 +167,7 @@ func RateByPosition(position string, s RatingStatLine) *RatingResult {
 	return &res
 }
 
-// ─── Receiver (RECEIVER_RATING_V1.0) ─────────────────────────────────────────
+// ─── Receiver (RECEIVER_RATING_V1.1) ─────────────────────────────────────────
 
 // ReceiverRatingInput is the stat line a receiver rating is computed from.
 type ReceiverRatingInput struct {
@@ -165,23 +177,20 @@ type ReceiverRatingInput struct {
 	Drops         int
 }
 
-// Receiver formula weights / benchmarks (spec §6). Tunable knobs; kept as
-// constants for v1 (admin-configurable is a later enhancement).
+// Receiver formula weights / benchmarks (RECEIVER_RATING_V1.1).
 const (
 	recReceptionPerUnit = 0.20
 	recReceptionCap     = 1.00
 	recCatchWeight      = 2.50
-	recCatchBenchmark   = 0.75 // neutral catch rate
-	recTDPerUnit        = 0.75
-	recTDCap            = 2.25
-	recXPPerUnit        = 0.35
-	recXPCap            = 1.05
-	recDropPerUnit      = 0.60
-	recDropCap          = 2.40
+	recCatchBenchmark   = 0.75 // neutral catch rate (75%)
+	recTDPerUnit        = 2.25
+	recTDCap            = 4.50
+	recXPPerUnit        = 0.60
+	recXPCap            = 1.20
 	recFullReliability  = 5.0 // receiving opportunities for full reliability
 )
 
-// CalculateReceiverRating implements RECEIVER_RATING_V1.0.
+// CalculateReceiverRating implements RECEIVER_RATING_V1.1.
 func CalculateReceiverRating(in ReceiverRatingInput) RatingResult {
 	opportunities := in.Receptions + in.Drops
 
@@ -201,25 +210,30 @@ func CalculateReceiverRating(in ReceiverRatingInput) RatingResult {
 		res.Status = RatingStatusOfficial
 	}
 
+	var catch float64
+	if opportunities > 0 {
+		catch = recCatchWeight * ((float64(in.Receptions) / float64(opportunities)) - recCatchBenchmark)
+	}
 	reception := capped(recReceptionPerUnit, in.Receptions, recReceptionCap)
-	catch := recCatchWeight * ((float64(in.Receptions) / float64(opportunities)) - recCatchBenchmark)
-	receivingTD := capped(recTDPerUnit, in.ReceivingTDs, recTDCap)
-	xp := capped(recXPPerUnit, in.ExtraPointTDs, recXPCap)
-	dropPenalty := capped(recDropPerUnit, in.Drops, recDropCap)
 
-	raw := ratingBaseline + reception + catch + receivingTD + xp - dropPenalty
+	raw := ratingBaseline + catch + reception
 	reliability := math.Min(1.0, float64(opportunities)/recFullReliability)
+	reliablePerf := ratingBaseline + (raw-ratingBaseline)*reliability
+
+	tdImpact := capped(recTDPerUnit, in.ReceivingTDs, recTDCap)
+	xpImpact := capped(recXPPerUnit, in.ExtraPointTDs, recXPCap)
+
+	final := round1(clampRating(reliablePerf + tdImpact + xpImpact))
 
 	res.Components = map[string]float64{
-		"reception":    reception,
 		"catch":        catch,
-		"receiving_td": receivingTD,
-		"extra_point":  xp,
-		"drop":         -dropPenalty,
+		"reception":    reception,
+		"receiving_td": tdImpact,
+		"extra_point":  xpImpact,
 	}
 	res.RawRating = raw
 	res.ReliabilityFactor = reliability
-	res.FinalRating = finalise(raw, reliability)
+	res.FinalRating = final
 	return res
 }
 
@@ -385,15 +399,15 @@ func CalculateRusherRating(in RusherRatingInput) RatingResult {
 type QuarterbackRatingInput struct {
 	PassingAttempts     int
 	CompletedPasses     int
+	PassingYards        int
 	PassingTDs          int
 	InterceptionsThrown int
-	RushingAttempts     int
-	RushingTDs          int
 	QBSacks             int
-	XPAttempts          int
+	RushingAttempts     int
+	RushingYards        int
+	RushingTDs          int
 	ExtraPointTDs       int
-	Drives              int
-	Turnovers           int
+	OtherTurnovers      int
 	Punts               int
 }
 
@@ -409,78 +423,51 @@ func CalculateQuarterbackRating(in QuarterbackRatingInput) RatingResult {
 		return res
 	}
 
-	drives := in.Drives
-	if drives <= 0 && in.PassingAttempts > 0 {
-		drives = int(math.Max(1.0, math.Ceil(float64(in.PassingAttempts)/4.0)))
-	}
-
-	if in.PassingAttempts >= 3 && drives >= 2 {
+	if in.PassingAttempts >= 3 {
 		res.Status = RatingStatusOfficial
-	} else {
+	} else if in.PassingAttempts >= 1 {
 		res.Status = RatingStatusProvisional
 	}
 
-	var passingTdComp float64
-	if drives > 0 {
-		passingTdComp = 1.50 * ((float64(in.PassingTDs) / float64(drives)) - 0.25)
-	}
+	// 1. Completion Component: 3.00 * ((completed_passes / passing_attempts) - 0.55)
+	completionComp := 3.00 * ((float64(in.CompletedPasses) / float64(in.PassingAttempts)) - 0.55)
 
-	var completionComp float64
-	if in.PassingAttempts > 0 {
-		completionComp = 3.00 * ((float64(in.CompletedPasses) / float64(in.PassingAttempts)) - 0.55)
-	}
+	// 2. Yards Per Attempt Component: ypa = passing_yards / passing_attempts, capped between -1.20 and +1.50
+	ypa := float64(in.PassingYards) / float64(in.PassingAttempts)
+	yardsComp := math.Max(-1.20, math.Min(1.50, 0.40*(ypa-5.50)))
 
-	var scoringDriveComp float64
-	if drives > 0 {
-		scoringDriveComp = 2.00 * (((float64(in.PassingTDs + in.RushingTDs)) / float64(drives)) - 0.30)
-	}
-
-	var extraPointComp float64
-	if in.XPAttempts > 0 {
-		extraPointComp = 1.00 * ((float64(in.ExtraPointTDs) / float64(in.XPAttempts)) - 0.50)
-	}
-
-	var rushingComp float64
-	if in.RushingAttempts > 0 {
-		rushingComp = 0.50 * ((float64(in.RushingTDs) / float64(in.RushingAttempts)) - 0.10)
-	}
-
-	var interceptionComp float64
-	if in.PassingAttempts > 0 {
-		interceptionComp = 4.00 * (float64(in.InterceptionsThrown) / float64(in.PassingAttempts))
-	}
-
-	var turnoverComp float64
-	if drives > 0 {
-		turnoverComp = 1.50 * (float64(in.Turnovers) / float64(drives))
-	}
-
-	var puntComp float64
-	if drives > 0 {
-		puntComp = 0.75 * (float64(in.Punts) / float64(drives))
-	}
-
-	var qbSackComp float64
-	if drives > 0 {
-		qbSackComp = 1.25 * (float64(in.QBSacks) / float64(drives))
-	}
-
-	raw := ratingBaseline + passingTdComp + completionComp + scoringDriveComp + extraPointComp + rushingComp - interceptionComp - turnoverComp - puntComp - qbSackComp
+	// 3. Raw Performance Rating & Reliability Adjustment
+	rawPerf := ratingBaseline + completionComp + yardsComp
 	reliability := math.Min(1.0, float64(in.PassingAttempts)/6.0)
+	reliablePerf := ratingBaseline + (rawPerf-ratingBaseline)*reliability
+
+	// 4. Confirmed Game-Impact Components (Applied AFTER Reliability)
+	passingTdImpact := capped(0.90, in.PassingTDs, 3.60)
+	rushingTdImpact := capped(1.25, in.RushingTDs, 2.50)
+	xpTdImpact := capped(0.40, in.ExtraPointTDs, 1.20)
+	positiveImpact := passingTdImpact + rushingTdImpact + xpTdImpact
+
+	interceptionPenalty := 1.50 * float64(in.InterceptionsThrown)
+	otherTurnoverPenalty := 1.00 * float64(in.OtherTurnovers)
+	qbSackPenalty := 0.35 * float64(in.QBSacks)
+	puntPenalty := 0.25 * float64(in.Punts)
+	negativeImpact := interceptionPenalty + otherTurnoverPenalty + qbSackPenalty + puntPenalty
+
+	final := round1(clampRating(reliablePerf + positiveImpact - negativeImpact))
 
 	res.Components = map[string]float64{
-		"passing_td":    passingTdComp,
-		"completion":    completionComp,
-		"scoring_drive": scoringDriveComp,
-		"extra_point":   extraPointComp,
-		"rushing":       rushingComp,
-		"interception":  -interceptionComp,
-		"turnover":      -turnoverComp,
-		"punt":          -puntComp,
-		"qb_sack":       -qbSackComp,
+		"completion":     completionComp,
+		"yards":          yardsComp,
+		"passing_td":     passingTdImpact,
+		"rushing_td":     rushingTdImpact,
+		"extra_point_td": xpTdImpact,
+		"interception":   -interceptionPenalty,
+		"other_turnover": -otherTurnoverPenalty,
+		"qb_sack":        -qbSackPenalty,
+		"punt":           -puntPenalty,
 	}
-	res.RawRating = raw
+	res.RawRating = rawPerf
 	res.ReliabilityFactor = reliability
-	res.FinalRating = finalise(raw, reliability)
+	res.FinalRating = final
 	return res
 }

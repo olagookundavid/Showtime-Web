@@ -1915,6 +1915,36 @@ export const rederiveSituations = async (matchId: string, plays: SituationUpdate
     return res.data;
 };
 
+// Bulk re-derive of stats for every match that HAS a play log. Matches without
+// one (e.g. the historical Excel imports) are excluded server-side, and scores /
+// standings are never touched — stats only. App Admin only.
+export interface BulkRecomputeMatch {
+    match_id: string;
+    label: string;
+    date: string;
+    plays: number;
+    players: number;
+    error?: string;
+}
+
+export interface BulkRecomputeResult {
+    dry_run: boolean;
+    matches_found: number;
+    matches_updated: number;
+    players_updated: number;
+    failed: number;
+    matches: BulkRecomputeMatch[];
+}
+
+export const recomputeAllStats = async (opts: { competitionId?: string; dryRun?: boolean } = {}): Promise<BulkRecomputeResult> => {
+    const params = new URLSearchParams();
+    if (opts.competitionId) params.set('competition_id', opts.competitionId);
+    if (opts.dryRun) params.set('dry_run', 'true');
+    const qs = params.toString();
+    const res = await api.post<{ data: BulkRecomputeResult }>(`/admin/stats/recompute-all${qs ? `?${qs}` : ''}`);
+    return res.data.data;
+};
+
 // Per-match play-by-play lock (admin only; each toggle is captured in the audit log).
 export const setPBPLock = async (matchId: string, locked: boolean): Promise<boolean> => {
     const res = await api.post<{ data: { pbp_locked: boolean } }>(

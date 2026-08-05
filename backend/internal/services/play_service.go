@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 
 	"showtime-backend/internal/domain"
@@ -39,6 +40,9 @@ type IPlayService interface {
 	// ReDeriveSituations rewrites the down/distance/possession/drive of a set of
 	// plays (used after a mid-sequence insert), then recomputes the score.
 	ReDeriveSituations(ctx context.Context, matchID string, updates []dto.SituationUpdate) error
+
+	// RecomputeAllStats re-derives stats for every match that has a play log.
+	RecomputeAllStats(ctx context.Context, competitionID string, dryRun bool) (dto.BulkRecomputeResult, error)
 }
 
 type PlayService struct {
@@ -72,6 +76,28 @@ func (s *PlayService) SetPBPLock(ctx context.Context, matchID string, locked boo
 	return s.matchRepo.SetMatchPBPLock(ctx, matchID, locked)
 }
 
+// syncDerived brings everything that hangs off the play log back in step after a
+// mutation: the running score, then the player/team stats. Stats are live now —
+// there is no manual "commit stats" step — so this runs on every play
+// create/update/delete/reorder.
+//
+// Both passes are full rebuilds from the entire log rather than incremental
+// updates, which is exactly what keeps repeated calls idempotent: they overwrite
+// the match's rows instead of accumulating onto them, so running this after every
+// single play can never double-count.
+//
+// Failures are logged, not returned. The play itself is already written and the
+// play log is the source of truth — a stats hiccup must never reject the write
+// and leave the admin thinking the play didn't save.
+func (s *PlayService) syncDerived(ctx context.Context, matchID string) {
+	if _, _, err := s.RecomputeScore(ctx, matchID); err != nil {
+		log.Printf("[ERROR] play sync: recompute score for match %s: %v", matchID, err)
+	}
+	if _, err := s.CommitDerivedStats(ctx, matchID); err != nil {
+		log.Printf("[ERROR] play sync: commit derived stats for match %s: %v", matchID, err)
+	}
+}
+
 // ReDeriveSituations applies the client-computed situation snapshots to a batch
 // of plays (after a mid-sequence insert shifts everything downstream), then
 // recomputes the running score since the down feeds gender-based scoring.
@@ -84,10 +110,68 @@ func (s *PlayService) ReDeriveSituations(ctx context.Context, matchID string, up
 			return err
 		}
 	}
-	if _, _, err := s.RecomputeScore(ctx, matchID); err != nil {
-		return err
-	}
+	// Down feeds gender-based scoring and drive numbers feed the per-QB rating
+	// inputs, so both the score and the stats need rebuilding after a re-derive.
+	s.syncDerived(ctx, matchID)
 	return nil
+}
+
+// RecomputeAllStats re-derives and rewrites player + team stats for every match
+// that has a play log, so a derivation change (new stat columns, a corrected
+// rule) takes effect everywhere at once instead of only on matches someone
+// happens to edit afterwards.
+//
+// Two deliberate safety properties:
+//
+//  1. Only matches that HAVE plays are touched. Matches whose stats came from
+//     the historical Excel import have no play log, so deriving over them would
+//     zero real data — they are excluded at the query, not merely skipped here.
+//  2. Stats only — this never recomputes scores or standings. A historical
+//     match's official result may have been set independently of its log, and
+//     silently rewriting published results/standings is not something a stats
+//     refresh should ever do.
+//
+// dryRun reports exactly what would be touched (including each match's play
+// count, so a suspiciously thin log is visible) without writing anything.
+func (s *PlayService) RecomputeAllStats(ctx context.Context, competitionID string, dryRun bool) (dto.BulkRecomputeResult, error) {
+	matches, err := s.repo.ListMatchesWithPlays(ctx, competitionID)
+	if err != nil {
+		return dto.BulkRecomputeResult{}, err
+	}
+
+	res := dto.BulkRecomputeResult{
+		DryRun:       dryRun,
+		MatchesFound: len(matches),
+		Matches:      make([]dto.BulkRecomputeMatch, 0, len(matches)),
+	}
+
+	for _, m := range matches {
+		row := dto.BulkRecomputeMatch{
+			MatchID: m.MatchID,
+			Label:   m.Label,
+			Date:    m.Date,
+			Plays:   m.Plays,
+		}
+		if dryRun {
+			res.Matches = append(res.Matches, row)
+			continue
+		}
+		// One bad match must not abort the run — record it and keep going, so a
+		// single broken team sheet can't block every other match from updating.
+		players, err := s.CommitDerivedStats(ctx, m.MatchID)
+		if err != nil {
+			row.Error = err.Error()
+			res.Failed++
+			log.Printf("[ERROR] bulk stats recompute: match %s (%s): %v", m.MatchID, m.Label, err)
+		} else {
+			row.Players = players
+			res.MatchesUpdated++
+			res.PlayersUpdated += players
+		}
+		res.Matches = append(res.Matches, row)
+	}
+
+	return res, nil
 }
 
 func (s *PlayService) CreatePlay(ctx context.Context, matchID string, req dto.PlayRequest) (*domain.GamePlay, error) {
@@ -119,6 +203,8 @@ func (s *PlayService) CreatePlay(ctx context.Context, matchID string, req dto.Pl
 	if err := s.repo.Create(ctx, p); err != nil {
 		return nil, err
 	}
+	// Sync before reloading so the returned play carries its fresh score snapshot.
+	s.syncDerived(ctx, matchID)
 	res, err := s.reload(ctx, matchID, p.ID)
 	if err == nil && res != nil {
 		GlobalSSEBroker.Broadcast(matchID, "play_added", res)
@@ -151,6 +237,7 @@ func (s *PlayService) UpdatePlay(ctx context.Context, matchID, playID string, re
 	if err := s.repo.Update(ctx, p); err != nil {
 		return nil, err
 	}
+	s.syncDerived(ctx, matchID)
 	res, err := s.reload(ctx, matchID, p.ID)
 	if err == nil && res != nil {
 		GlobalSSEBroker.Broadcast(matchID, "play_updated", res)
@@ -165,6 +252,7 @@ func (s *PlayService) DeletePlay(ctx context.Context, matchID, playID string) er
 	if err := s.repo.Delete(ctx, playID); err != nil {
 		return err
 	}
+	s.syncDerived(ctx, matchID)
 	GlobalSSEBroker.Broadcast(matchID, "play_deleted", map[string]string{"id": playID})
 	return nil
 }

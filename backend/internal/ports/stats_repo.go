@@ -12,6 +12,14 @@ import (
 type StatsRepository interface {
 	UpsertPlayerStat(ctx context.Context, stat *domain.PlayerStat) error
 	UpsertTeamMatchStat(ctx context.Context, stat *domain.TeamMatchStat) error
+	// DeleteOrphanedPlayerStats removes player_stats rows for a match that belong
+	// to a player NOT in keepPlayerIDs. Used when committing derived stats, so a
+	// player who had an old hand-entered line but hasn't appeared in any logged
+	// play yet doesn't keep showing that stale number — the play log becomes the
+	// sole source for the match, not an overlay on top of whatever was there.
+	DeleteOrphanedPlayerStats(ctx context.Context, matchID string, keepPlayerIDs []string) error
+	// DeleteOrphanedTeamMatchStats is the same idea for team_match_stats.
+	DeleteOrphanedTeamMatchStats(ctx context.Context, matchID string, keepTeamIDs []string) error
 	GetPlayerStats(ctx context.Context, filter domain.StatsFilter) ([]domain.AggregatedPlayerStat, int, error)
 	GetTeamStats(ctx context.Context, filter domain.StatsFilter) ([]domain.AggregatedTeamStat, int, error)
 	GetStatDates(ctx context.Context, competitionID string) ([]string, error)
@@ -123,14 +131,16 @@ func (r *PostgresStatsRepository) UpsertPlayerStat(ctx context.Context, stat *do
 			flag_pulls, pass_deflections, interceptions,
 			defensive_tds, safety, qb_sacks, def_sacks, defensive_xp_tds,
 			incomplete_passes, uncatchable_passes, thrown_away_passes,
-			batted_down_passes, targets, xp_attempts, xp_good, xp_fail, safety_conceded
+			batted_down_passes, targets, xp_attempts, xp_good, xp_fail, safety_conceded,
+			qb_drives, qb_turnovers, qb_punts
 		) VALUES (
 			$1, NULLIF($2, '')::uuid, NULLIF($3, '')::uuid, $4, $5,
 			$6, $7, $8, $9, $10,
 			$11, $12, $13, $14, $15,
 			$16, $17, $18, $19, $20,
 			$21, $22, $23, $24, $25, $26,
-			$27, $28, $29, $30, $31, $32, $33, $34, $35
+			$27, $28, $29, $30, $31, $32, $33, $34, $35,
+			$36, $37, $38
 		)
 		ON CONFLICT (player_id, match_id) DO UPDATE SET
 			match_id = COALESCE(EXCLUDED.match_id, player_stats.match_id),
@@ -164,6 +174,9 @@ func (r *PostgresStatsRepository) UpsertPlayerStat(ctx context.Context, stat *do
 			xp_good = EXCLUDED.xp_good,
 			xp_fail = EXCLUDED.xp_fail,
 			safety_conceded = EXCLUDED.safety_conceded,
+			qb_drives = EXCLUDED.qb_drives,
+			qb_turnovers = EXCLUDED.qb_turnovers,
+			qb_punts = EXCLUDED.qb_punts,
 			updated_at = NOW()
 	`
 
@@ -178,6 +191,28 @@ func (r *PostgresStatsRepository) UpsertPlayerStat(ctx context.Context, stat *do
 		stat.DefensiveXPTDs,
 		stat.IncompletePasses, stat.UncatchablePasses, stat.ThrownAwayPasses,
 		stat.BattedDownPasses, stat.Targets, stat.XPAttempts, stat.XPGood, stat.XPFail, stat.SafetyConceded,
+		stat.QBDrives, stat.QBTurnovers, stat.QBPunts,
+	)
+	return err
+}
+
+func (r *PostgresStatsRepository) DeleteOrphanedPlayerStats(ctx context.Context, matchID string, keepPlayerIDs []string) error {
+	// pgx sends a Go []string as text[] by default; player_id is uuid, so the
+	// explicit ::uuid[] cast is required or Postgres rejects the comparison
+	// ("operator does not exist: uuid = text"). An empty slice still works:
+	// ANY('{}') matches nothing, so every row for the match is deleted — correct,
+	// since no plays naming anyone means no player should have a stat line.
+	_, err := r.db.Exec(ctx,
+		`DELETE FROM player_stats WHERE match_id = $1 AND NOT (player_id = ANY($2::uuid[]))`,
+		matchID, keepPlayerIDs,
+	)
+	return err
+}
+
+func (r *PostgresStatsRepository) DeleteOrphanedTeamMatchStats(ctx context.Context, matchID string, keepTeamIDs []string) error {
+	_, err := r.db.Exec(ctx,
+		`DELETE FROM team_match_stats WHERE match_id = $1 AND NOT (team_id = ANY($2::uuid[]))`,
+		matchID, keepTeamIDs,
 	)
 	return err
 }

@@ -39,6 +39,9 @@ type PlayerStat struct {
 	QBSacks             int       `json:"qb_sacks"`
 	DefSacks            int       `json:"def_sacks"`
 	DefensiveXPTDs      int       `json:"defensive_xp_tds"`
+	QBDrives            int       `json:"qb_drives"`
+	QBTurnovers         int       `json:"qb_turnovers"`
+	QBPunts             int       `json:"qb_punts"`
 	CreatedAt           time.Time `json:"created_at"`
 	UpdatedAt           time.Time `json:"updated_at"`
 }
@@ -84,6 +87,17 @@ type AggregatedPlayerStat struct {
 	QBSacks             int    `json:"qb_sacks"`
 	DefSacks            int    `json:"def_sacks"`
 	DefensiveXPTDs      int    `json:"defensive_xp_tds"`
+	// Internal rating inputs — per player, NOT shown as box-score columns in the
+	// UI. They exist so the QB rating's per-drive components (TD rate, turnover
+	// rate, sack rate) are normalized by what *this* QB actually did, rather than
+	// by the team's whole-match totals: otherwise a backup who plays one drive is
+	// credited with the starter's entire game.
+	//   QBDrives    — distinct drives this player led (was the passer/carrier on)
+	//   QBTurnovers — interceptions thrown + turnovers on downs on his drives
+	//   QBPunts     — punts that ended one of his drives
+	QBDrives    int `json:"qb_drives"`
+	QBTurnovers int `json:"qb_turnovers"`
+	QBPunts     int `json:"qb_punts"`
 }
 
 type AggregatedTeamStat struct {

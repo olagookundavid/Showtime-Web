@@ -7,9 +7,11 @@ import {
     getAdminTeamSheet,
     upsertPlayerStat,
     getPlayerStatById,
+    recomputeAllStats,
     type Competition,
     type Match,
-    type TeamSheetPlayer
+    type TeamSheetPlayer,
+    type BulkRecomputeResult
 } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { LightboxImage } from '../../components/ui';
@@ -353,6 +355,95 @@ export const AdminStats = () => {
                                 ) : 'Update Stats'}
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {isAppAdmin && <RecomputeAllStatsPanel competitionId={selectedComp} competitionName={comps.find(c => c.id === selectedComp)?.name} />}
+        </div>
+    );
+};
+
+// Maintenance tool: re-derive stats for every match that has a play log, so a
+// change to the derivation (new stat columns, a corrected rule) takes effect
+// everywhere at once instead of only on matches someone happens to edit.
+// Always dry-run first — the preview shows each match's play count, which is how
+// you spot a match with a thin/partial log that would lose data if derived over.
+const RecomputeAllStatsPanel = ({ competitionId, competitionName }: { competitionId?: string; competitionName?: string }) => {
+    const [scopeAll, setScopeAll] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const [preview, setPreview] = useState<BulkRecomputeResult | null>(null);
+
+    const scopeLabel = scopeAll ? 'ALL competitions' : (competitionName || 'the selected competition');
+    const scopedId = scopeAll ? undefined : competitionId;
+
+    const run = async (dryRun: boolean) => {
+        if (!dryRun) {
+            const n = preview?.matches_found ?? 0;
+            if (!window.confirm(`Rewrite stats for ${n} match${n === 1 ? '' : 'es'} in ${scopeLabel}?\n\nMatches with no play log are untouched. Scores and standings are NOT changed.`)) return;
+        }
+        setBusy(true);
+        try {
+            const res = await recomputeAllStats({ competitionId: scopedId, dryRun });
+            setPreview(res);
+            if (dryRun) {
+                toast.success(`${res.matches_found} match(es) would be recomputed`);
+            } else {
+                toast.success(`Recomputed ${res.matches_updated} match(es), ${res.players_updated} player line(s)`);
+                if (res.failed > 0) toast.error(`${res.failed} match(es) failed — see the list below`);
+            }
+        } catch (e: any) {
+            toast.error(e?.response?.data?.error || 'Recompute failed');
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-3">
+            <div>
+                <h2 className="text-lg font-black text-sffl-navy dark:text-white">Recompute stats from play logs</h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Rebuilds player &amp; team stats from the play-by-play log for every match that has one. Use after a derivation change so every match updates at once.
+                    Matches with <b>no play log are never touched</b>, and <b>scores/standings are not changed</b>.
+                </p>
+            </div>
+
+            <label className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300">
+                <input type="checkbox" checked={scopeAll} onChange={e => { setScopeAll(e.target.checked); setPreview(null); }} />
+                Every competition (otherwise just {competitionName || 'the selected competition'})
+            </label>
+
+            <div className="flex gap-2 flex-wrap">
+                <button onClick={() => run(true)} disabled={busy} className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-sm text-sffl-navy dark:text-gray-200 disabled:opacity-50">
+                    {busy ? 'Working…' : '1. Preview (dry run)'}
+                </button>
+                <button onClick={() => run(false)} disabled={busy || !preview} title={!preview ? 'Run the preview first' : undefined} className="px-4 py-2 bg-sffl-navy text-white rounded-lg font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed">
+                    {busy ? 'Working…' : '2. Recompute for real'}
+                </button>
+            </div>
+
+            {preview && (
+                <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                    <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900/40 text-xs font-bold text-gray-600 dark:text-gray-300">
+                        {preview.dry_run ? 'Would recompute' : 'Recomputed'} {preview.matches_found} match(es)
+                        {!preview.dry_run && ` · ${preview.players_updated} player line(s)`}
+                        {preview.failed > 0 && ` · ${preview.failed} failed`}
+                    </div>
+                    <div className="max-h-64 overflow-auto divide-y divide-gray-100 dark:divide-gray-700/60">
+                        {preview.matches.map(m => (
+                            <div key={m.match_id} className="px-3 py-1.5 text-xs flex items-center justify-between gap-3">
+                                <span className="font-semibold text-gray-700 dark:text-gray-200 truncate">{m.label} <span className="text-gray-400">· {m.date}</span></span>
+                                <span className="shrink-0 flex items-center gap-2">
+                                    <span className={m.plays < 5 ? 'text-amber-600 font-bold' : 'text-gray-500'} title={m.plays < 5 ? 'Very few plays — check this log is complete before recomputing' : undefined}>
+                                        {m.plays} play{m.plays === 1 ? '' : 's'}{m.plays < 5 ? ' ⚠' : ''}
+                                    </span>
+                                    {m.error
+                                        ? <span className="text-red-600 font-bold" title={m.error}>failed</span>
+                                        : !preview.dry_run && <span className="text-green-600 font-bold">{m.players} players</span>}
+                                </span>
+                            </div>
+                        ))}
                     </div>
                 </div>
             )}
