@@ -1179,6 +1179,7 @@ export interface TeamStat {
     penalties: number;
     penalty_yards: number;
     total_plays: number;
+    drives: number;
 }
 
 export interface UpsertPlayerStatPayload {

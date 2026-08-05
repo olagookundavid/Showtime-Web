@@ -362,6 +362,8 @@ func (s *PlayService) DeriveTeamMatchStats(ctx context.Context, matchID string) 
 		return t
 	}
 
+	seenDrives := map[string]map[int]bool{}
+
 	for _, p := range plays {
 		pt := strDerefTrim(p.PlayType)
 		res := strDerefTrim(p.Result)
@@ -370,12 +372,25 @@ func (s *PlayService) DeriveTeamMatchStats(ctx context.Context, matchID string) 
 			off = *p.OffenseTeamID
 		}
 
+		if off != "" && p.DriveNo > 0 {
+			if seenDrives[off] == nil {
+				seenDrives[off] = map[int]bool{}
+			}
+			if !seenDrives[off][p.DriveNo] {
+				seenDrives[off][p.DriveNo] = true
+				if t := get(off); t != nil {
+					t.Drives++
+				}
+			}
+		}
+
 		if passingPlayTypes[pt] || rushingPlayTypes[pt] {
 			if t := get(off); t != nil {
 				t.TotalPlays++
 			}
 		}
-		if res == "1D" || res == "1DG" {
+		isFirstDown := res == "1D" || res == "1DG" || (p.ToGo != nil && p.Yards != nil && *p.ToGo > 0 && *p.Yards >= *p.ToGo && res != "XP" && res != "XPF")
+		if isFirstDown {
 			if t := get(off); t != nil {
 				t.FirstDowns++
 			}

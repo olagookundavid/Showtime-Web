@@ -1882,6 +1882,7 @@ const StatsCompare = ({ matchId, match, plays = [] }: { matchId: string; match?:
                     penalties: 0,
                     penalty_yards: 0,
                     total_plays: 0,
+                    drives: 0,
                 };
             }
             const t = map[p.team_id];

@@ -675,10 +675,12 @@ func (r *PostgresMatchRepository) GetTeamSheet(ctx context.Context, matchID stri
 			COALESCE(ps.completed_passes, 0), COALESCE(ps.passing_tds, 0),
 			COALESCE(ps.interceptions_thrown, 0), COALESCE(ps.rushing_attempts, 0),
 			COALESCE(ps.rushing_tds, 0), COALESCE(ps.qb_sacks, 0),
-			COALESCE(ps.xp_attempts, 0)
+			COALESCE(ps.xp_attempts, 0),
+			COALESCE(tms.drives, 0), COALESCE(tms.turnovers, 0), COALESCE(tms.punts, 0)
 		FROM match_team_sheets mts
 		JOIN players p ON mts.player_id = p.id
 		LEFT JOIN player_stats ps ON ps.player_id = p.id AND ps.match_id = mts.match_id
+		LEFT JOIN team_match_stats tms ON tms.team_id = mts.team_id AND tms.match_id = mts.match_id
 		WHERE mts.match_id = $1
 		ORDER BY p.jersey_number ASC
 	`
@@ -705,7 +707,8 @@ func (r *PostgresMatchRepository) GetTeamSheet(ctx context.Context, matchID stri
 			&line.Safeties, &line.DefensiveXPTDs, &line.DefensiveSacks,
 			&line.PassingAttempts, &line.CompletedPasses, &line.PassingTDs,
 			&line.InterceptionsThrown, &line.RushingAttempts, &line.RushingTDs,
-			&line.QBSacks, &line.XPAttempts); err != nil {
+			&line.QBSacks, &line.XPAttempts,
+			&line.Drives, &line.Turnovers, &line.Punts); err != nil {
 			return nil, err
 		}
 		if img != nil {

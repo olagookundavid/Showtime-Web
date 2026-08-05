@@ -128,6 +128,7 @@ type AggregatedTeamStat struct {
 	Penalties    int `json:"penalties"`
 	PenaltyYards int `json:"penalty_yards"`
 	TotalPlays   int `json:"total_plays"`
+	Drives       int `json:"drives"`
 }
 
 // TeamMatchStat is the team-only stat line for one team in one match.
@@ -142,6 +143,7 @@ type TeamMatchStat struct {
 	Penalties     int
 	PenaltyYards  int
 	TotalPlays    int
+	Drives        int
 }
 
 type StatsFilter struct {

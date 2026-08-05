@@ -51,6 +51,7 @@ const STAT_COLS = [
     // Team-only stats — shown only in the team view, tinted amber and set off
     // with a divider so they read as a distinct block after the player totals.
     { key: 'total_plays', top: 'Team', bottom: 'Plays', title: 'Total Plays (from scrimmage)', bg: 'bg-amber-50 dark:bg-amber-900/20', teamOnly: true, divider: true },
+    { key: 'drives', top: 'Team', bottom: 'Drives', title: 'Offensive Drives', bg: 'bg-amber-50 dark:bg-amber-900/20', teamOnly: true },
     { key: 'first_downs', top: 'Team', bottom: '1st Dn', title: 'First Downs', bg: 'bg-amber-50 dark:bg-amber-900/20', teamOnly: true },
     { key: 'turnovers', top: 'Team', bottom: 'TO', title: 'Turnovers', bg: 'bg-amber-50 dark:bg-amber-900/20', teamOnly: true },
     { key: 'punts', top: 'Team', bottom: 'Punts', title: 'Punts', bg: 'bg-amber-50 dark:bg-amber-900/20', teamOnly: true },

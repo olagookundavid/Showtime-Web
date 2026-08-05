@@ -409,15 +409,20 @@ func CalculateQuarterbackRating(in QuarterbackRatingInput) RatingResult {
 		return res
 	}
 
-	if in.PassingAttempts >= 3 && in.Drives >= 2 {
+	drives := in.Drives
+	if drives <= 0 && in.PassingAttempts > 0 {
+		drives = int(math.Max(1.0, math.Ceil(float64(in.PassingAttempts)/4.0)))
+	}
+
+	if in.PassingAttempts >= 3 && drives >= 2 {
 		res.Status = RatingStatusOfficial
 	} else {
 		res.Status = RatingStatusProvisional
 	}
 
 	var passingTdComp float64
-	if in.Drives > 0 {
-		passingTdComp = 1.50 * ((float64(in.PassingTDs) / float64(in.Drives)) - 0.25)
+	if drives > 0 {
+		passingTdComp = 1.50 * ((float64(in.PassingTDs) / float64(drives)) - 0.25)
 	}
 
 	var completionComp float64
@@ -426,8 +431,8 @@ func CalculateQuarterbackRating(in QuarterbackRatingInput) RatingResult {
 	}
 
 	var scoringDriveComp float64
-	if in.Drives > 0 {
-		scoringDriveComp = 2.00 * (((float64(in.PassingTDs + in.RushingTDs)) / float64(in.Drives)) - 0.30)
+	if drives > 0 {
+		scoringDriveComp = 2.00 * (((float64(in.PassingTDs + in.RushingTDs)) / float64(drives)) - 0.30)
 	}
 
 	var extraPointComp float64
@@ -446,18 +451,18 @@ func CalculateQuarterbackRating(in QuarterbackRatingInput) RatingResult {
 	}
 
 	var turnoverComp float64
-	if in.Drives > 0 {
-		turnoverComp = 1.50 * (float64(in.Turnovers) / float64(in.Drives))
+	if drives > 0 {
+		turnoverComp = 1.50 * (float64(in.Turnovers) / float64(drives))
 	}
 
 	var puntComp float64
-	if in.Drives > 0 {
-		puntComp = 0.75 * (float64(in.Punts) / float64(in.Drives))
+	if drives > 0 {
+		puntComp = 0.75 * (float64(in.Punts) / float64(drives))
 	}
 
 	var qbSackComp float64
-	if in.Drives > 0 {
-		qbSackComp = 1.25 * (float64(in.QBSacks) / float64(in.Drives))
+	if drives > 0 {
+		qbSackComp = 1.25 * (float64(in.QBSacks) / float64(drives))
 	}
 
 	raw := ratingBaseline + passingTdComp + completionComp + scoringDriveComp + extraPointComp + rushingComp - interceptionComp - turnoverComp - puntComp - qbSackComp

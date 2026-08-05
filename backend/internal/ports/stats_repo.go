@@ -21,8 +21,8 @@ func (r *PostgresStatsRepository) UpsertTeamMatchStat(ctx context.Context, s *do
 	query := `
 		INSERT INTO team_match_stats (
 			team_id, match_id, competition_id, match_date,
-			punts, first_downs, turnovers, penalties, penalty_yards, total_plays
-		) VALUES ($1, NULLIF($2,'')::uuid, NULLIF($3,'')::uuid, $4, $5, $6, $7, $8, $9, $10)
+			punts, first_downs, turnovers, penalties, penalty_yards, total_plays, drives
+		) VALUES ($1, NULLIF($2,'')::uuid, NULLIF($3,'')::uuid, $4, $5, $6, $7, $8, $9, $10, $11)
 		ON CONFLICT (team_id, match_id) DO UPDATE SET
 			competition_id = EXCLUDED.competition_id,
 			match_date = EXCLUDED.match_date,
@@ -32,10 +32,11 @@ func (r *PostgresStatsRepository) UpsertTeamMatchStat(ctx context.Context, s *do
 			penalties = EXCLUDED.penalties,
 			penalty_yards = EXCLUDED.penalty_yards,
 			total_plays = EXCLUDED.total_plays,
+			drives = EXCLUDED.drives,
 			updated_at = NOW()`
 	_, err := r.db.Exec(ctx, query,
 		s.TeamID, s.MatchID, s.CompetitionID, s.MatchDate,
-		s.Punts, s.FirstDowns, s.Turnovers, s.Penalties, s.PenaltyYards, s.TotalPlays)
+		s.Punts, s.FirstDowns, s.Turnovers, s.Penalties, s.PenaltyYards, s.TotalPlays, s.Drives)
 	return err
 }
 
@@ -49,14 +50,15 @@ func buildTeamOnlyWhereClause(filter domain.StatsFilter) (string, []interface{})
 		conditions = append(conditions, fmt.Sprintf("tms.competition_id = $%d", argCount))
 		args = append(args, filter.CompetitionID)
 		argCount++
-		if filter.EventDay != nil {
-			conditions = append(conditions, fmt.Sprintf("tms.match_date = $%d", argCount))
-			args = append(args, filter.EventDay)
-			argCount++
-		}
-	} else if filter.MatchID != "" {
+	}
+	if filter.MatchID != "" {
 		conditions = append(conditions, fmt.Sprintf("tms.match_id = $%d", argCount))
 		args = append(args, filter.MatchID)
+		argCount++
+	}
+	if filter.EventDay != nil {
+		conditions = append(conditions, fmt.Sprintf("tms.match_date = $%d", argCount))
+		args = append(args, *filter.EventDay)
 		argCount++
 	}
 	where := ""
@@ -64,6 +66,42 @@ func buildTeamOnlyWhereClause(filter domain.StatsFilter) (string, []interface{})
 		where = "WHERE " + strings.Join(conditions, " AND ")
 	}
 	return where, args
+}
+
+// Merge in the team-only stats (punts / first downs / turnovers / penalties /
+// penalty yards / total plays / drives) from team_match_stats, keyed by team.
+func mergeTeamMatchStats(r *PostgresStatsRepository, ctx context.Context, stats []domain.AggregatedTeamStat, filter domain.StatsFilter) {
+	if len(stats) == 0 {
+		return
+	}
+	tmsWhere, tmsArgs := buildTeamOnlyWhereClause(filter)
+	tmsQuery := fmt.Sprintf(`
+		SELECT tms.team_id,
+			COALESCE(SUM(tms.punts), 0), COALESCE(SUM(tms.first_downs), 0),
+			COALESCE(SUM(tms.turnovers), 0), COALESCE(SUM(tms.penalties), 0),
+			COALESCE(SUM(tms.penalty_yards), 0), COALESCE(SUM(tms.total_plays), 0),
+			COALESCE(SUM(tms.drives), 0)
+		FROM team_match_stats tms
+		%s
+		GROUP BY tms.team_id`, tmsWhere)
+	if trows, terr := r.db.Query(ctx, tmsQuery, tmsArgs...); terr == nil {
+		teamOnly := map[string][7]int{}
+		for trows.Next() {
+			var id string
+			var v [7]int
+			if err := trows.Scan(&id, &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6]); err == nil {
+				teamOnly[id] = v
+			}
+		}
+		trows.Close()
+		for i := range stats {
+			if v, ok := teamOnly[stats[i].TeamID]; ok {
+				stats[i].Punts, stats[i].FirstDowns, stats[i].Turnovers = v[0], v[1], v[2]
+				stats[i].Penalties, stats[i].PenaltyYards, stats[i].TotalPlays = v[3], v[4], v[5]
+				stats[i].Drives = v[6]
+			}
+		}
+	}
 }
 
 type PostgresStatsRepository struct {
@@ -443,36 +481,7 @@ func (r *PostgresStatsRepository) GetTeamStats(ctx context.Context, filter domai
 		stats = append(stats, s)
 	}
 
-	// Merge in the team-only stats (punts / first downs / turnovers / penalties /
-	// penalty yards / total plays) from team_match_stats, keyed by team.
-	if len(stats) > 0 {
-		tmsWhere, tmsArgs := buildTeamOnlyWhereClause(filter)
-		tmsQuery := fmt.Sprintf(`
-			SELECT tms.team_id,
-				COALESCE(SUM(tms.punts), 0), COALESCE(SUM(tms.first_downs), 0),
-				COALESCE(SUM(tms.turnovers), 0), COALESCE(SUM(tms.penalties), 0),
-				COALESCE(SUM(tms.penalty_yards), 0), COALESCE(SUM(tms.total_plays), 0)
-			FROM team_match_stats tms
-			%s
-			GROUP BY tms.team_id`, tmsWhere)
-		if trows, terr := r.db.Query(ctx, tmsQuery, tmsArgs...); terr == nil {
-			teamOnly := map[string][6]int{}
-			for trows.Next() {
-				var id string
-				var v [6]int
-				if err := trows.Scan(&id, &v[0], &v[1], &v[2], &v[3], &v[4], &v[5]); err == nil {
-					teamOnly[id] = v
-				}
-			}
-			trows.Close()
-			for i := range stats {
-				if v, ok := teamOnly[stats[i].TeamID]; ok {
-					stats[i].Punts, stats[i].FirstDowns, stats[i].Turnovers = v[0], v[1], v[2]
-					stats[i].Penalties, stats[i].PenaltyYards, stats[i].TotalPlays = v[3], v[4], v[5]
-				}
-			}
-		}
-	}
+	mergeTeamMatchStats(r, ctx, stats, filter)
 
 	return stats, total, nil
 }
