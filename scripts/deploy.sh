@@ -70,6 +70,25 @@ fi
 
 echo "[deploy] backend is healthy ✅"
 
+# Docker's metadata-action stamps every image built by CI with OCI labels —
+# the exact git commit and build time — so the success email can say WHAT
+# shipped, not just THAT something shipped.
+COMMIT_SHA="$(docker inspect -f '{{index .Config.Labels "org.opencontainers.image.revision"}}' showtime-backend 2>/dev/null)"
+BUILD_TIME="$(docker inspect -f '{{index .Config.Labels "org.opencontainers.image.created"}}' showtime-backend 2>/dev/null)"
+[ -z "$COMMIT_SHA" ] && COMMIT_SHA="unknown"
+[ -z "$BUILD_TIME" ] && BUILD_TIME="unknown"
+
+if [ "$COMMIT_SHA" != "unknown" ]; then
+  COMMIT_LINE="Commit: ${COMMIT_SHA:0:7} (https://github.com/olagookundavid/Showtime-Web/commit/${COMMIT_SHA})"
+else
+  COMMIT_LINE="Commit: unknown (image has no revision label — was it built outside the normal CI pipeline?)"
+fi
+
+"$HOME/scripts/alert.sh" "[Showtime] Deploy succeeded on $(hostname)" \
+  "Backend deployed and healthy at $(date -Is).
+${COMMIT_LINE}
+Image built: ${BUILD_TIME}"
+
 echo "[deploy] pruning old images..."
 docker image prune -f
 
