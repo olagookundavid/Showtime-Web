@@ -626,9 +626,9 @@ export const AdminStore = () => {
 
             {/* Unified Product Editor (create + edit) */}
             {editor && (
-                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-3xl w-full p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
-                        <div className="flex justify-between items-center pb-4 border-b border-gray-100 dark:border-gray-700 mb-4">
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6" onClick={handleCloseEditor}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-3xl w-full shadow-2xl max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
                             <div>
                                 <h2 className="text-xl font-black dark:text-white">
                                     {editor.kind === 'edit' ? 'Edit Product' : 'Create Product'}
@@ -637,10 +637,11 @@ export const AdminStore = () => {
                                     <p className="text-[11px] text-gray-500 mt-0.5">{editor.product.name}</p>
                                 )}
                             </div>
-                            <button onClick={handleCloseEditor} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-xl">✕</button>
+                            <button onClick={handleCloseEditor} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-xl p-1">✕</button>
                         </div>
 
-                        <form onSubmit={handleSaveEditor} className="space-y-6">
+                        <form onSubmit={handleSaveEditor} className="flex flex-col flex-1 overflow-hidden">
+                            <div className="p-4 sm:p-6 space-y-6 overflow-y-auto flex-1">
                             {/* ── Product details ─────────────────────────────── */}
                             <section className="space-y-4">
                                 <h3 className="text-[10px] uppercase font-black tracking-widest text-sffl-red">Product Details</h3>
@@ -956,19 +957,21 @@ export const AdminStore = () => {
                                 </div>
                             )}
 
-                            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700 sticky bottom-0 bg-white dark:bg-gray-800 -mx-6 px-6 pb-2">
+                            </div>
+
+                            <div className="flex justify-end gap-3 p-4 border-t border-gray-100 dark:border-gray-700 flex-shrink-0 bg-gray-50/50 dark:bg-gray-800">
                                 <button
                                     type="button"
                                     onClick={handleCloseEditor}
                                     disabled={isSavingEditor}
-                                    className="px-5 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50"
+                                    className="px-5 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 min-h-[44px]"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={isSavingEditor}
-                                    className="px-6 py-2.5 bg-sffl-red hover:bg-red-700 text-white rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50"
+                                    className="px-6 py-2.5 bg-sffl-red hover:bg-red-700 text-white rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 min-h-[44px]"
                                 >
                                     {isSavingEditor
                                         ? 'Saving…'

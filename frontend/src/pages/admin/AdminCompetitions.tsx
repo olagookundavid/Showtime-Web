@@ -261,14 +261,15 @@ const AdminCompetitions = () => {
 
             {/* Create/Edit Modal */}
             {showModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md">
-                        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                            <h2 className="text-2xl font-black text-sffl-navy dark:text-white">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-6" onClick={() => setShowModal(false)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex items-center justify-between">
+                            <h2 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white">
                                 {editing ? 'Edit Competition' : 'New Competition'}
                             </h2>
+                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-xl font-bold p-1">✕</button>
                         </div>
-                        <div className="p-6 space-y-4">
+                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Name *</label>
                                 <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
@@ -354,7 +355,7 @@ const AdminCompetitions = () => {
                                 </div>
                             )}
                         </div>
-                        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
+                        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-end gap-2">
                             <button onClick={() => setShowModal(false)} className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">Cancel</button>
                             <button onClick={handleSave} disabled={saving || !form.name.trim()} className="px-4 py-2 min-h-[44px] bg-sffl-red text-white font-bold text-sm rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50">
                                 {saving ? 'Saving...' : editing ? 'Update' : 'Create'}

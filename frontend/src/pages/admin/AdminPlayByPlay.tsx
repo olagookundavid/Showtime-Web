@@ -1479,15 +1479,18 @@ export const AdminPlayByPlay = () => {
 
             {/* Re-derive situations — preview & confirm */}
             {rederive && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => !rederiveBusy && setRederive(null)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
-                        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                            <div className="text-lg font-black text-sffl-navy dark:text-white">Re-derive situations after #{rederive.anchor.seq}</div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                Recomputes <b>down, distance, possession and drive</b> for the {rederive.changes.length} play{rederive.changes.length === 1 ? '' : 's'} below, using #{rederive.anchor.seq}'s situation as the starting point. Quarter, ball spot and clock are left as entered. Review before applying — this overwrites those fields, including any manual corrections.
-                            </p>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-6" onClick={() => !rederiveBusy && setRederive(null)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex items-start justify-between gap-4">
+                            <div>
+                                <div className="text-lg font-black text-sffl-navy dark:text-white">Re-derive situations after #{rederive.anchor.seq}</div>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    Recomputes <b>down, distance, possession and drive</b> for the {rederive.changes.length} play{rederive.changes.length === 1 ? '' : 's'} below, using #{rederive.anchor.seq}'s situation as the starting point. Quarter, ball spot and clock are left as entered. Review before applying — this overwrites those fields, including any manual corrections.
+                                </p>
+                            </div>
+                            <button onClick={() => !rederiveBusy && setRederive(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-xl font-bold p-1">✕</button>
                         </div>
-                        <div className="overflow-auto p-4">
+                        <div className="overflow-y-auto p-4 sm:p-6 flex-1">
                             <table className="w-full text-xs">
                                 <thead className="text-gray-400 uppercase text-[10px] border-b border-gray-200 dark:border-gray-700">
                                     <tr>
@@ -1515,9 +1518,9 @@ export const AdminPlayByPlay = () => {
                                 </tbody>
                             </table>
                         </div>
-                        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
-                            <button onClick={() => setRederive(null)} disabled={rederiveBusy} className="px-4 py-2 border rounded-lg font-bold text-gray-600 dark:text-gray-300 dark:border-gray-600 disabled:opacity-50">Cancel</button>
-                            <button onClick={confirmRederive} disabled={rederiveBusy} className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg disabled:opacity-50">
+                        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-end gap-2">
+                            <button onClick={() => setRederive(null)} disabled={rederiveBusy} className="px-4 py-2 border rounded-lg font-bold text-gray-600 dark:text-gray-300 dark:border-gray-600 disabled:opacity-50 min-h-[44px]">Cancel</button>
+                            <button onClick={confirmRederive} disabled={rederiveBusy} className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg disabled:opacity-50 min-h-[44px]">
                                 {rederiveBusy ? 'Applying…' : `Apply ${rederive.changes.length} change${rederive.changes.length === 1 ? '' : 's'}`}
                             </button>
                         </div>

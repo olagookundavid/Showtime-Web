@@ -172,13 +172,16 @@ const AdminUsers = () => {
 
             {/* Edit User Modal */}
             {editingUser && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md">
-                        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                            <h2 className="text-2xl font-black text-sffl-navy dark:text-white">Edit User</h2>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{editingUser.email}</p>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-6" onClick={() => setEditingUser(null)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex items-center justify-between">
+                            <div>
+                                <h2 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white">Edit User</h2>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{editingUser.email}</p>
+                            </div>
+                            <button onClick={() => setEditingUser(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-xl font-bold p-1">✕</button>
                         </div>
-                        <div className="p-6 space-y-4">
+                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Full Name *</label>
                                 <input
@@ -200,7 +203,7 @@ const AdminUsers = () => {
                                 />
                             </div>
                         </div>
-                        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
+                        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-end gap-2">
                             <button
                                 onClick={() => setEditingUser(null)}
                                 className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 dark:text-gray-300"

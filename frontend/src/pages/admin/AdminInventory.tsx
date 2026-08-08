@@ -579,9 +579,9 @@ export const AdminInventory = () => {
 
             {/* Add/Edit Product Modal */}
             {(isAdding || isEditing) && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full overflow-hidden border border-gray-150 dark:border-gray-700">
-                        <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 border-b dark:border-gray-700 flex justify-between items-center">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-sm" onClick={handleCloseForm}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                        <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 border-b dark:border-gray-700 flex-shrink-0 flex justify-between items-center">
                             <h2 className="text-lg font-bold text-gray-900 dark:text-white">
                                 {isEditing ? 'Edit Physical Product' : 'Add Physical Product'}
                             </h2>
@@ -590,89 +590,91 @@ export const AdminInventory = () => {
                             </button>
                         </div>
 
-                        <form onSubmit={handleSaveProduct} className="p-6 space-y-4">
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Product Name</label>
-                                <input
-                                    required
-                                    type="text"
-                                    placeholder="Official Match Ball, Training Bibs..."
-                                    value={formData.name}
-                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white"
-                                />
-                            </div>
-
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Description</label>
-                                <textarea
-                                    value={formData.description}
-                                    onChange={e => setFormData({ ...formData, description: e.target.value })}
-                                    rows={2}
-                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white resize-none"
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-3">
+                        <form onSubmit={handleSaveProduct} className="flex flex-col flex-1 overflow-hidden">
+                            <div className="p-6 space-y-4 overflow-y-auto flex-1">
                                 <div className="space-y-1">
-                                    <label className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Price (₦)</label>
+                                    <label className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Product Name</label>
                                     <input
                                         required
-                                        type="number"
-                                        min="0"
-                                        value={formData.price}
-                                        onChange={e => setFormData({ ...formData, price: Number(e.target.value) })}
+                                        type="text"
+                                        placeholder="Official Match Ball, Training Bibs..."
+                                        value={formData.name}
+                                        onChange={e => setFormData({ ...formData, name: e.target.value })}
                                         className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white"
                                     />
                                 </div>
+
                                 <div className="space-y-1">
-                                    <label className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Quantity</label>
-                                    <input
-                                        required
-                                        type="number"
-                                        min="0"
-                                        value={formData.quantity}
-                                        onChange={e => setFormData({ ...formData, quantity: Number(e.target.value) })}
-                                        className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white"
+                                    <label className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Description</label>
+                                    <textarea
+                                        value={formData.description}
+                                        onChange={e => setFormData({ ...formData, description: e.target.value })}
+                                        rows={2}
+                                        className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white resize-none"
                                     />
                                 </div>
-                                <div className="space-y-1">
-                                    <label className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Threshold</label>
+
+                                <div className="grid grid-cols-3 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Price (₦)</label>
+                                        <input
+                                            required
+                                            type="number"
+                                            min="0"
+                                            value={formData.price}
+                                            onChange={e => setFormData({ ...formData, price: Number(e.target.value) })}
+                                            className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Quantity</label>
+                                        <input
+                                            required
+                                            type="number"
+                                            min="0"
+                                            value={formData.quantity}
+                                            onChange={e => setFormData({ ...formData, quantity: Number(e.target.value) })}
+                                            className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Threshold</label>
+                                        <input
+                                            required
+                                            type="number"
+                                            min="0"
+                                            value={formData.threshold}
+                                            onChange={e => setFormData({ ...formData, threshold: Number(e.target.value) })}
+                                            className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 pt-2">
                                     <input
-                                        required
-                                        type="number"
-                                        min="0"
-                                        value={formData.threshold}
-                                        onChange={e => setFormData({ ...formData, threshold: Number(e.target.value) })}
-                                        className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white"
+                                        type="checkbox"
+                                        id="is_active"
+                                        checked={formData.is_active}
+                                        onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
+                                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                                     />
+                                    <label htmlFor="is_active" className="text-sm font-medium text-gray-900 dark:text-gray-300 select-none cursor-pointer">
+                                        Active Stock Item
+                                    </label>
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-2 pt-2">
-                                <input
-                                    type="checkbox"
-                                    id="is_active"
-                                    checked={formData.is_active}
-                                    onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
-                                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                />
-                                <label htmlFor="is_active" className="text-sm font-medium text-gray-900 dark:text-gray-300 select-none cursor-pointer">
-                                    Active Stock Item
-                                </label>
-                            </div>
-
-                            <div className="flex gap-3 pt-6 border-t dark:border-gray-700">
+                            <div className="p-4 border-t dark:border-gray-700 flex-shrink-0 flex gap-3 bg-gray-50/50 dark:bg-gray-800">
                                 <button
                                     type="button"
                                     onClick={handleCloseForm}
-                                    className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded-lg font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                    className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded-lg font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors min-h-[44px]"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
-                                    className="flex-1 px-4 py-2 bg-sffl-navy text-white rounded-lg font-bold hover:bg-blue-900 transition-colors shadow-sm"
+                                    className="flex-1 px-4 py-2 bg-sffl-navy text-white rounded-lg font-bold hover:bg-blue-900 transition-colors shadow-sm min-h-[44px]"
                                 >
                                     {isEditing ? 'Save Changes' : 'Create Product'}
                                 </button>

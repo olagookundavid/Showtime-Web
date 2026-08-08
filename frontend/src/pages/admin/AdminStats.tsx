@@ -307,21 +307,21 @@ export const AdminStats = () => {
 
             {/* Stats Entry Modal */}
             {showModal && activePlayer && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-                        <div className="sticky top-0 bg-white dark:bg-gray-800 p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center z-10">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-6" onClick={() => setShowModal(false)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-between items-center">
                             <div>
-                                <h2 className="text-2xl font-black text-sffl-navy dark:text-white">Record Stats</h2>
+                                <h2 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white">Record Stats</h2>
                                 <p className="text-gray-500 text-sm mt-1">
                                     <span className="font-bold text-sffl-red">{activePlayer.name}</span> • {activeMatch?.date.split('T')[0]}
                                 </p>
                             </div>
-                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1">
                                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
 
-                        <div className="p-6 relative">
+                        <div className="p-4 sm:p-6 relative overflow-y-auto flex-1">
                             {loadingExisting && (
                                 <div className="absolute inset-0 bg-white/50 dark:bg-gray-800/50 backdrop-blur-[1px] flex items-center justify-center z-20">
                                     <Loader />
@@ -347,7 +347,7 @@ export const AdminStats = () => {
                             </div>
                         </div>
 
-                        <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-800/90 backdrop-blur-md p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3 rounded-b-2xl z-10">
+                        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-end gap-3 bg-gray-50 dark:bg-gray-800/90 rounded-b-2xl">
                             <button onClick={() => setShowModal(false)} className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all min-h-[44px]">Cancel</button>
                             <button onClick={handleSave} disabled={saving} className="px-8 py-2 bg-sffl-navy hover:bg-sffl-navy-light text-white font-black uppercase tracking-wider text-sm rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 min-h-[44px] disabled:opacity-50 flex items-center gap-2">
                                 {saving ? (

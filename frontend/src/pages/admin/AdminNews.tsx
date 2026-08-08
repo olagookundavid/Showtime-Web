@@ -236,10 +236,13 @@ export const AdminNews = () => {
             )}
 
             {showModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                        <div className="p-6 border-b border-gray-200 dark:border-gray-700"><h2 className="text-2xl font-black text-sffl-navy dark:text-white">{editingId ? 'Edit Article' : 'New Article'}</h2></div>
-                        <div className="p-6 space-y-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-6" onClick={() => setShowModal(false)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex items-center justify-between">
+                            <h2 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white">{editingId ? 'Edit Article' : 'New Article'}</h2>
+                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-xl font-bold p-1">✕</button>
+                        </div>
+                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
                             <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Title *</label><input type="text" value={form.title} onChange={e => set('title', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="Article title" /></div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div><label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Author</label><input type="text" value={form.author} onChange={e => set('author', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-[44px]" placeholder="Author name" /></div>
@@ -309,7 +312,7 @@ export const AdminNews = () => {
                             </div>
 
                         </div>
-                        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
+                        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-end gap-2">
                             <button onClick={() => setShowModal(false)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 min-h-[44px]">Cancel</button>
                             <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-sffl-red text-white font-bold text-sm rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 min-h-[44px] disabled:opacity-50">{saving ? 'Saving...' : editingId ? 'Update' : 'Publish'}</button>
                         </div>
@@ -318,8 +321,8 @@ export const AdminNews = () => {
             )}
 
             {deleteConfirm && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-2xl max-w-sm w-full">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setDeleteConfirm(null)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl max-w-sm w-full border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <h3 className="text-lg font-bold text-sffl-navy dark:text-white mb-2">Delete Article?</h3>
                         <p className="text-gray-600 dark:text-gray-400 mb-6">This action cannot be undone.</p>
                         <div className="flex justify-end gap-2">

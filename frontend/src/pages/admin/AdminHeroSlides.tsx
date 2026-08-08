@@ -262,18 +262,21 @@ export const AdminHeroSlides = () => {
 
             {/* Add / Edit modal */}
             {showModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                            <h2 className="text-2xl font-black text-sffl-navy dark:text-white">
-                                {editingId ? 'Edit Carousel Slide' : 'Add Carousel Slide'}
-                            </h2>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                Recommended: <strong>2:1 aspect ratio</strong> — ideally 1920×960 or 2000×1000.
-                                Clicking the slide opens the article below.
-                            </p>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-6" onClick={() => setShowModal(false)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex items-start justify-between">
+                            <div>
+                                <h2 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white">
+                                    {editingId ? 'Edit Carousel Slide' : 'Add Carousel Slide'}
+                                </h2>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                    Recommended: <strong>2:1 aspect ratio</strong> — ideally 1920×960 or 2000×1000.
+                                    Clicking the slide opens the article below.
+                                </p>
+                            </div>
+                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-xl font-bold p-1">✕</button>
                         </div>
-                        <div className="p-6 space-y-4">
+                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
                             <ImageUploadField
                                 label="Desktop Image"
                                 value={form.imageUrl}
@@ -379,7 +382,7 @@ export const AdminHeroSlides = () => {
                                 </div>
                             )}
                         </div>
-                        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
+                        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-end gap-2">
                             <button
                                 onClick={() => setShowModal(false)}
                                 className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
@@ -400,8 +403,8 @@ export const AdminHeroSlides = () => {
 
             {/* Delete confirm */}
             {deleteConfirm && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-2xl max-w-sm w-full">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setDeleteConfirm(null)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl max-w-sm w-full border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <h3 className="text-lg font-bold text-sffl-navy dark:text-white mb-2">Delete this slide?</h3>
                         <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">
                             Removes it from the homepage and deletes its linked article — this can't be undone.

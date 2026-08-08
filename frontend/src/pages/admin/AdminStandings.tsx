@@ -154,10 +154,10 @@ export const AdminStandings = () => {
 
 
             {deleteConfirm && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-2xl max-w-sm w-full">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setDeleteConfirm(null)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl max-w-sm w-full border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <h3 className="text-lg font-bold text-sffl-navy dark:text-white mb-2">Delete Standing?</h3>
-                        <p className="text-gray-600 dark:text-gray-400 mb-6">This action cannot be undone.</p>
+                        <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm">This action cannot be undone.</p>
                         <div className="flex justify-end gap-3">
                             <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">Cancel</button>
                             <button onClick={() => handleDelete(deleteConfirm)} className="px-4 py-2 min-h-[44px] bg-red-600 text-white font-bold text-sm rounded-lg hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">Delete</button>

@@ -183,7 +183,7 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col">
 
                 {/* Header */}
-                <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-start">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-between items-start">
                     <div>
                         <h2 className="text-2xl font-black text-sffl-navy dark:text-white">Team Sheet</h2>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -196,7 +196,7 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
                 </div>
 
                 {/* Tabs */}
-                <div className="flex border-b border-gray-200 dark:border-gray-700">
+                <div className="flex border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
                     {(['home', 'away'] as const).map(tab => (
                         <button
                             key={tab}
@@ -370,7 +370,7 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
                 </div>
 
                 {/* Footer */}
-                <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl">
+                <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl">
                     <div className="text-xs text-gray-500 dark:text-gray-400 font-semibold space-y-0.5">
                         <div>🏠 Home: {selectedHomePlayers.length} player{selectedHomePlayers.length !== 1 ? 's' : ''}</div>
                         <div>✈️ Away: {selectedAwayPlayers.length} player{selectedAwayPlayers.length !== 1 ? 's' : ''}</div>
@@ -390,8 +390,8 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
 
             {/* ── Off-Roster Confirmation Modal ── */}
             {pendingPlayer && (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 w-full max-w-sm">
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4" onClick={() => setPendingPlayer(null)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <h3 className="text-lg font-black text-sffl-navy dark:text-white mb-2">Add Off-Roster Player?</h3>
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
                             <strong className="text-gray-900 dark:text-white">{pendingPlayer.name}</strong> is currently rostered on{' '}
