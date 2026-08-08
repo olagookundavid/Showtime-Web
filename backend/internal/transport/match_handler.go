@@ -626,6 +626,7 @@ func (h *MatchHandler) CreateCompetition(c *gin.Context) {
 		Format:               format,
 		PlayoffCompetitionID: req.PlayoffCompetitionID,
 		TieBreakerRule:       tieBreakerRule,
+		TeamIDs:              req.TeamIDs,
 	}
 
 	if err := h.service.CreateCompetition(c.Request.Context(), comp); err != nil {
@@ -674,6 +675,7 @@ func (h *MatchHandler) UpdateCompetition(c *gin.Context) {
 		Format:               format,
 		PlayoffCompetitionID: req.PlayoffCompetitionID,
 		TieBreakerRule:       tieBreakerRule,
+		TeamIDs:              req.TeamIDs,
 	}
 
 	if err := h.service.UpdateCompetition(c.Request.Context(), comp); err != nil {

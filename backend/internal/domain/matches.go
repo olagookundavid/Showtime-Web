@@ -24,6 +24,7 @@ type Competition struct {
 	Format               string    `json:"format"` // LEAGUE | KNOCKOUT
 	PlayoffCompetitionID *string   `json:"playoff_competition_id,omitempty"`
 	TieBreakerRule       string    `json:"tie_breaker_rule"`
+	TeamIDs              []string  `json:"team_ids,omitempty"`
 	CreatedAt            time.Time `json:"created_at"`
 	UpdatedAt            time.Time `json:"updated_at"`
 }

@@ -131,8 +131,27 @@ func (r *PostgresMatchRepository) CreateCompetition(ctx context.Context, comp *d
 	if comp.TieBreakerRule == "" {
 		comp.TieBreakerRule = domain.TieBreakerRulePCT_PD_PF_PA_NAME
 	}
+
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
 	query := `INSERT INTO competitions (name, logo, status, format, playoff_competition_id, tie_breaker_rule) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, created_at, updated_at`
-	return r.db.QueryRow(ctx, query, comp.Name, comp.Logo, comp.Status, comp.Format, playoffID, comp.TieBreakerRule).Scan(&comp.ID, &comp.CreatedAt, &comp.UpdatedAt)
+	if err := tx.QueryRow(ctx, query, comp.Name, comp.Logo, comp.Status, comp.Format, playoffID, comp.TieBreakerRule).Scan(&comp.ID, &comp.CreatedAt, &comp.UpdatedAt); err != nil {
+		return err
+	}
+
+	for _, teamID := range comp.TeamIDs {
+		if teamID != "" {
+			if _, err := tx.Exec(ctx, `INSERT INTO competition_teams (competition_id, team_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, comp.ID, teamID); err != nil {
+				return err
+			}
+		}
+	}
+
+	return tx.Commit(ctx)
 }
 
 func (r *PostgresMatchRepository) UpdateCompetition(ctx context.Context, comp *domain.Competition) error {
@@ -143,9 +162,32 @@ func (r *PostgresMatchRepository) UpdateCompetition(ctx context.Context, comp *d
 	if comp.TieBreakerRule == "" {
 		comp.TieBreakerRule = domain.TieBreakerRulePCT_PD_PF_PA_NAME
 	}
+
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
 	query := `UPDATE competitions SET name=$1, logo=$2, status=$3, format=$4, playoff_competition_id=$5, tie_breaker_rule=$6, updated_at=NOW() WHERE id=$7`
-	_, err := r.db.Exec(ctx, query, comp.Name, comp.Logo, comp.Status, comp.Format, playoffID, comp.TieBreakerRule, comp.ID)
-	return err
+	if _, err := tx.Exec(ctx, query, comp.Name, comp.Logo, comp.Status, comp.Format, playoffID, comp.TieBreakerRule, comp.ID); err != nil {
+		return err
+	}
+
+	if comp.TeamIDs != nil {
+		if _, err := tx.Exec(ctx, `DELETE FROM competition_teams WHERE competition_id = $1`, comp.ID); err != nil {
+			return err
+		}
+		for _, teamID := range comp.TeamIDs {
+			if teamID != "" {
+				if _, err := tx.Exec(ctx, `INSERT INTO competition_teams (competition_id, team_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, comp.ID, teamID); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return tx.Commit(ctx)
 }
 
 func (r *PostgresMatchRepository) DeleteCompetition(ctx context.Context, id string) error {

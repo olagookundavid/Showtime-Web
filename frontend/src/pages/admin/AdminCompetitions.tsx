@@ -2,7 +2,16 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader } from '../../components/ui/Loader';
-import { getAdminCompetitions, createCompetition, updateCompetition, deleteCompetition, getCompetitions } from '../../services/api';
+import {
+    getAdminCompetitions,
+    createCompetition,
+    updateCompetition,
+    deleteCompetition,
+    getCompetitions,
+    getTeams,
+    getTeamsByCompetition,
+    type Team,
+} from '../../services/api';
 import { ImageUploadField, LightboxImage } from '../../components/ui';
 
 
@@ -14,6 +23,7 @@ interface Competition {
     format?: string;
     playoff_competition_id?: string | null;
     tie_breaker_rule?: string;
+    team_ids?: string[];
 }
 
 const AdminCompetitions = () => {
@@ -40,8 +50,25 @@ const AdminCompetitions = () => {
     // Modal
     const [showModal, setShowModal] = useState(false);
     const [editing, setEditing] = useState<Competition | null>(null);
-    const [form, setForm] = useState({ name: '', logo: '', status: 'active', format: 'LEAGUE', playoff_competition_id: '', tie_breaker_rule: 'PCT_PD_PF_PA_NAME' });
+    const [form, setForm] = useState<{
+        name: string;
+        logo: string;
+        status: string;
+        format: string;
+        playoff_competition_id: string;
+        tie_breaker_rule: string;
+        team_ids: string[];
+    }>({
+        name: '',
+        logo: '',
+        status: 'active',
+        format: 'LEAGUE',
+        playoff_competition_id: '',
+        tie_breaker_rule: 'PCT_PD_PF_PA_NAME',
+        team_ids: [],
+    });
     const [saving, setSaving] = useState(false);
+    const [teamFilter, setTeamFilter] = useState('');
 
     const { data: allCompsData } = useQuery({
         queryKey: ['allCompetitionsLinkable'],
@@ -49,18 +76,61 @@ const AdminCompetitions = () => {
     });
     const knockoutComps = (allCompsData?.data || []).filter(c => c.format === 'KNOCKOUT');
 
+    const { data: allTeamsData } = useQuery({
+        queryKey: ['adminTeamsAll'],
+        queryFn: () => getTeams(1, 100),
+    });
+    const allTeams: Team[] = Array.isArray(allTeamsData?.data)
+        ? allTeamsData.data
+        : Array.isArray(allTeamsData)
+            ? allTeamsData
+            : [];
 
+    const filteredTeams = allTeams.filter(t =>
+        t.name.toLowerCase().includes(teamFilter.toLowerCase()) ||
+        t.short_name.toLowerCase().includes(teamFilter.toLowerCase())
+    );
 
     const openCreate = () => {
         setEditing(null);
-        setForm({ name: '', logo: '', status: 'active', format: 'LEAGUE', playoff_competition_id: '', tie_breaker_rule: 'PCT_PD_PF_PA_NAME' });
+        setTeamFilter('');
+        setForm({
+            name: '',
+            logo: '',
+            status: 'active',
+            format: 'LEAGUE',
+            playoff_competition_id: '',
+            tie_breaker_rule: 'PCT_PD_PF_PA_NAME',
+            team_ids: [],
+        });
         setShowModal(true);
     };
 
-    const openEdit = (c: Competition) => {
+    const openEdit = async (c: Competition) => {
         setEditing(c);
-        setForm({ name: c.name, logo: c.logo, status: c.status || 'active', format: c.format || 'LEAGUE', playoff_competition_id: c.playoff_competition_id || '', tie_breaker_rule: c.tie_breaker_rule || 'PCT_PD_PF_PA_NAME' });
+        setTeamFilter('');
+        setForm({
+            name: c.name,
+            logo: c.logo,
+            status: c.status || 'active',
+            format: c.format || 'LEAGUE',
+            playoff_competition_id: c.playoff_competition_id || '',
+            tie_breaker_rule: c.tie_breaker_rule || 'PCT_PD_PF_PA_NAME',
+            team_ids: [],
+        });
         setShowModal(true);
+
+        try {
+            const teamsRes = await getTeamsByCompetition(c.id);
+            const teamsList: Team[] = Array.isArray(teamsRes?.data)
+                ? teamsRes.data
+                : Array.isArray(teamsRes)
+                    ? teamsRes
+                    : [];
+            setForm(f => ({ ...f, team_ids: teamsList.map(t => t.id) }));
+        } catch (err) {
+            console.error('Failed to load enrolled teams for competition', err);
+        }
     };
 
     const handleSave = async () => {
@@ -73,15 +143,15 @@ const AdminCompetitions = () => {
             if (editing) {
                 await updateCompetition(editing.id, payload);
                 queryClient.invalidateQueries({ queryKey: ['adminCompetitionsData'] });
+                queryClient.invalidateQueries({ queryKey: ['competitionTeams'] });
+                queryClient.invalidateQueries({ queryKey: ['publicCompetitions'] });
                 setShowModal(false);
             } else {
-                const res = await createCompetition(payload);
+                await createCompetition(payload);
                 queryClient.invalidateQueries({ queryKey: ['adminCompetitionsData'] });
+                queryClient.invalidateQueries({ queryKey: ['competitionTeams'] });
+                queryClient.invalidateQueries({ queryKey: ['publicCompetitions'] });
                 setShowModal(false);
-                const newId = res?.data?.id;
-                if (newId) {
-                    navigate(`/admin/competitions/${newId}/teams`);
-                }
             }
         } catch (err: any) {
             alert(err.response?.data?.message || err.response?.data?.error || 'Failed to save competition.');
@@ -262,7 +332,7 @@ const AdminCompetitions = () => {
             {/* Create/Edit Modal */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-6" onClick={() => setShowModal(false)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex items-center justify-between">
                             <h2 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white">
                                 {editing ? 'Edit Competition' : 'New Competition'}
@@ -324,7 +394,6 @@ const AdminCompetitions = () => {
                                             Determines how teams are ranked and broken when tied on points/percentage in standings.
                                         </p>
                                     </div>
-
                                     <div>
                                         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Playoff Stage</label>
                                         <select value={form.playoff_competition_id} onChange={e => setForm(f => ({ ...f, playoff_competition_id: e.target.value }))}
@@ -343,14 +412,89 @@ const AdminCompetitions = () => {
                                 </>
                             )}
 
+                            {/* ── Enrolled Teams Multi-Select Section ── */}
+                            <div className="pt-2 border-t border-gray-200 dark:border-gray-700 space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                        Enrolled Teams <span className="text-xs text-sffl-red font-semibold">({form.team_ids.length} selected)</span>
+                                    </label>
+                                    <div className="flex items-center gap-2 text-xs">
+                                        <button
+                                            type="button"
+                                            onClick={() => setForm(f => ({ ...f, team_ids: allTeams.map(t => t.id) }))}
+                                            className="font-bold text-sffl-red hover:underline"
+                                        >
+                                            Select All
+                                        </button>
+                                        <span className="text-gray-300 dark:text-gray-600">|</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setForm(f => ({ ...f, team_ids: [] }))}
+                                            className="font-bold text-gray-500 hover:underline dark:text-gray-400"
+                                        >
+                                            Clear All
+                                        </button>
+                                    </div>
+                                </div>
+                                <input
+                                    type="text"
+                                    placeholder="Search teams by name..."
+                                    value={teamFilter}
+                                    onChange={e => setTeamFilter(e.target.value)}
+                                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-xs bg-white dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-sffl-red"
+                                />
+                                <div className="max-h-48 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg p-2 divide-y divide-gray-100 dark:divide-gray-700/50 space-y-1 bg-gray-50/50 dark:bg-gray-900/30">
+                                    {filteredTeams.length === 0 ? (
+                                        <p className="text-xs text-gray-400 italic p-2 text-center">No teams match your search.</p>
+                                    ) : (
+                                        filteredTeams.map(team => {
+                                            const isSelected = form.team_ids.includes(team.id);
+                                            return (
+                                                <label
+                                                    key={team.id}
+                                                    className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-red-50/80 dark:bg-red-950/20' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                                                >
+                                                    <div className="flex items-center gap-2.5">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isSelected}
+                                                            onChange={e => {
+                                                                const checked = e.target.checked;
+                                                                setForm(f => ({
+                                                                    ...f,
+                                                                    team_ids: checked
+                                                                        ? [...f.team_ids, team.id]
+                                                                        : f.team_ids.filter(id => id !== team.id)
+                                                                }));
+                                                            }}
+                                                            className="w-4 h-4 text-sffl-red rounded border-gray-300 focus:ring-sffl-red"
+                                                        />
+                                                        {team.logo ? (
+                                                            <img src={team.logo} alt="" className="w-6 h-6 object-contain" />
+                                                        ) : (
+                                                            <div className="w-6 h-6 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-[10px] font-bold text-gray-500">
+                                                                {team.short_name?.slice(0, 2)}
+                                                            </div>
+                                                        )}
+                                                        <span className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                                                            {team.name} <span className="text-gray-400 font-normal">({team.short_name})</span>
+                                                        </span>
+                                                    </div>
+                                                </label>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
+
                             {editing && (
-                                <div className="pt-3 border-t border-gray-100 dark:border-gray-700">
+                                <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
                                     <Link
                                         to={`/admin/competitions/${editing.id}/teams`}
                                         onClick={() => setShowModal(false)}
                                         className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-bold text-xs rounded-lg border border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/50 transition-all min-h-[44px]"
                                     >
-                                        ⚽ Manage Enrolled Teams for this Competition →
+                                        ⚽ Manage Enrolled Teams Standalone Page →
                                     </Link>
                                 </div>
                             )}

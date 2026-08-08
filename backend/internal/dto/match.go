@@ -2,31 +2,34 @@ package dto
 
 // --- Competitions ---
 type CreateCompetitionRequest struct {
-	Name                 string  `json:"name" binding:"required"`
-	Logo                 string  `json:"logo"`
-	Status               string  `json:"status"` // e.g. active, inactive, archived
-	Format               string  `json:"format"` // LEAGUE | KNOCKOUT
-	PlayoffCompetitionID *string `json:"playoff_competition_id"`
-	TieBreakerRule       string  `json:"tie_breaker_rule"`
+	Name                 string   `json:"name" binding:"required"`
+	Logo                 string   `json:"logo"`
+	Status               string   `json:"status"` // e.g. active, inactive, archived
+	Format               string   `json:"format"` // LEAGUE | KNOCKOUT
+	PlayoffCompetitionID *string  `json:"playoff_competition_id"`
+	TieBreakerRule       string   `json:"tie_breaker_rule"`
+	TeamIDs              []string `json:"team_ids"`
 }
 
 type UpdateCompetitionRequest struct {
-	Name                 *string `json:"name"`
-	Logo                 *string `json:"logo"`
-	Status               *string `json:"status"`
-	Format               *string `json:"format"`
-	PlayoffCompetitionID *string `json:"playoff_competition_id"`
-	TieBreakerRule       *string `json:"tie_breaker_rule"`
+	Name                 *string  `json:"name"`
+	Logo                 *string  `json:"logo"`
+	Status               *string  `json:"status"`
+	Format               *string  `json:"format"`
+	PlayoffCompetitionID *string  `json:"playoff_competition_id"`
+	TieBreakerRule       *string  `json:"tie_breaker_rule"`
+	TeamIDs              []string `json:"team_ids"`
 }
 
 type CompetitionResponse struct {
-	ID                   string  `json:"id"`
-	Name                 string  `json:"name"`
-	Logo                 string  `json:"logo"`
-	Status               string  `json:"status"`
-	Format               string  `json:"format"`
-	PlayoffCompetitionID *string `json:"playoff_competition_id"`
-	TieBreakerRule       string  `json:"tie_breaker_rule"`
+	ID                   string   `json:"id"`
+	Name                 string   `json:"name"`
+	Logo                 string   `json:"logo"`
+	Status               string   `json:"status"`
+	Format               string   `json:"format"`
+	PlayoffCompetitionID *string  `json:"playoff_competition_id"`
+	TieBreakerRule       string   `json:"tie_breaker_rule"`
+	TeamIDs              []string `json:"team_ids,omitempty"`
 }
 
 // --- Teams ---
