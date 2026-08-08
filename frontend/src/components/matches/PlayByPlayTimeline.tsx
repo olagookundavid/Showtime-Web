@@ -48,7 +48,12 @@ function describe(p: GamePlay): string {
 
 const formatDown = (p: GamePlay): string => {
     if (!p.down) return '';
-    return `Down: ${p.down}`;
+    const ordinals: Record<number, string> = { 1: '1st', 2: '2nd', 3: '3rd', 4: '4th' };
+    const dStr = ordinals[p.down] || `${p.down}th`;
+    if (p.to_go == null || p.to_go === 0) {
+        return `${dStr} & Goal`;
+    }
+    return `${dStr} & ${p.to_go}`;
 };
 
 export const PlayByPlayTimeline = ({ matchId, isLive, showEmpty = false }: { matchId: string; isLive: boolean; showEmpty?: boolean }) => {

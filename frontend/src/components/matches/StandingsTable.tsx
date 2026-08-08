@@ -100,6 +100,16 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCom
 
     return (
         <>
+            <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400 mb-2 px-1 font-semibold">
+                <div className="flex items-center gap-1.5">
+                    <div className="w-1 h-3.5 bg-green-500 rounded-full" />
+                    <span>Wildcard spot</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <img src="/images/branding/showtime-bowl-trophy.png" alt="Trophy" className="w-4 h-4 object-contain" />
+                    <span>Champion</span>
+                </div>
+            </div>
             <div className="overflow-hidden rounded-lg md:rounded-xl shadow-lg bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700">
                 <div className="px-3 py-2.5 md:px-6 md:py-4 bg-sffl-navy text-white font-bold text-sm md:text-lg flex items-center justify-between">
                     <span>Team Standings</span>
@@ -111,35 +121,34 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCom
                     <tbody>
                         {standings.map((standing, index) => {
                             const isGold = isCompleted && index === 0;
-                            const isSilver = isCompleted && index === 1;
                             const isHighlighted = !!highlightTeamId && standing.team?.id === highlightTeamId;
-                            // Sticky cells need OPAQUE backgrounds matching their row, since the
-                            // scrolling stat cells slide underneath them. The base row keeps the
-                            // semi-transparent tint; the sticky cells use solid equivalents.
-                            const stickyBg = isHighlighted
+                            const isWildcard = index >= 1 && index < 7;
+                            const stickyBg = isGold
+                                ? 'bg-amber-100/90 dark:bg-amber-950/90 group-hover:bg-amber-200/90 dark:group-hover:bg-amber-900/90'
+                                : isHighlighted
                                 ? 'bg-sffl-red/15 dark:bg-sffl-red/30 group-hover:bg-sffl-red/25 dark:group-hover:bg-sffl-red/40'
-                                : isGold
-                                    ? 'bg-amber-50 dark:bg-amber-950 group-hover:bg-amber-100 dark:group-hover:bg-amber-900'
-                                    : isSilver
-                                        ? 'bg-slate-50 dark:bg-slate-900 group-hover:bg-slate-100 dark:group-hover:bg-slate-800'
-                                        : 'bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-800';
+                                : 'bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-800';
+                            const stickyZ = isGold ? 'z-30' : 'z-10';
 
                             return (
                                 <tr
                                     key={standing.id}
                                     data-team-id={standing.team?.id}
                                     className={`
-                                        group border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors
-                                        ${isHighlighted ? 'bg-sffl-red/10 hover:bg-sffl-red/20 dark:bg-sffl-red/20 dark:hover:bg-sffl-red/30 border-l-4 border-l-sffl-red ring-2 ring-sffl-red/40 ring-inset' :
-                                          isGold ? 'bg-amber-500/10 hover:bg-amber-500/20 dark:bg-amber-500/5 dark:hover:bg-amber-500/10 border-l-4 border-l-amber-500' :
-                                          isSilver ? 'bg-slate-300/20 hover:bg-slate-300/30 dark:bg-slate-300/10 dark:hover:bg-slate-300/20 border-l-4 border-l-slate-400' :
-                                          index < 4 ? 'border-l-4 border-l-green-500' : ''}
+                                        group border-b border-gray-100 dark:border-gray-700 transition-all duration-300
+                                        ${isGold
+                                            ? 'bg-gradient-to-r from-amber-300/40 via-yellow-400/50 to-amber-300/40 dark:from-amber-600/40 dark:via-yellow-500/50 dark:to-amber-600/40 border-l-4 border-l-amber-500 shadow-[0_0_18px_rgba(245,158,11,0.45)] ring-2 ring-yellow-400/50 font-bold text-amber-950 dark:text-amber-100 relative z-30'
+                                            : isHighlighted
+                                            ? 'bg-sffl-red/10 hover:bg-sffl-red/20 dark:bg-sffl-red/20 dark:hover:bg-sffl-red/30 border-l-4 border-l-sffl-red ring-2 ring-sffl-red/40 ring-inset'
+                                            : isWildcard
+                                            ? 'border-l-4 border-l-green-500 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                            : 'hover:bg-gray-50 dark:hover:bg-gray-800'}
                                     `}
                                 >
-                                    <td className={`sticky left-0 z-10 ${stickyBg} px-2.5 py-3 md:px-4 md:py-4 text-center font-bold text-gray-600 dark:text-gray-300 w-10 md:w-14`}>
+                                    <td className={`sticky left-0 ${stickyZ} ${stickyBg} px-2.5 py-3 md:px-4 md:py-4 text-center font-bold text-gray-600 dark:text-gray-300 w-10 md:w-14`}>
                                         {standing.position}
                                     </td>
-                                    <td className={`sticky left-10 md:left-14 z-10 ${stickyBg} px-2.5 py-3 md:px-4 md:py-4 font-semibold text-sffl-navy dark:text-white whitespace-nowrap text-left w-[130px] md:w-[200px] border-r border-gray-100 dark:border-gray-800`}>
+                                    <td className={`sticky left-10 md:left-14 ${stickyZ} ${stickyBg} px-2.5 py-3 md:px-4 md:py-4 font-semibold text-sffl-navy dark:text-white whitespace-nowrap text-left w-[130px] md:w-[200px] border-r border-gray-100 dark:border-gray-800`}>
                                         <div className="flex items-center space-x-1 md:space-x-3">
                                             <LightboxImage
                                                 src={standing.team?.logo || '/images/default_football.png'}
@@ -149,17 +158,15 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCom
                                             {standing.team?.id ? (
                                                 <Link
                                                     to={`/teams/${standing.team.id}`}
-                                                    className="truncate max-w-[60px] md:max-w-none flex items-center gap-1 uppercase hover:text-sffl-red transition-colors"
+                                                    className="flex items-center gap-1 uppercase hover:text-sffl-red transition-colors min-w-0 relative z-30"
                                                 >
-                                                    {standing.team?.short_name || standing.team?.name || 'Unknown'}
-                                                    {isGold && <span title="Champion">👑</span>}
-                                                    {isSilver && <span title="Runner Up">🥈</span>}
+                                                    <span className="truncate max-w-[60px] md:max-w-none">{standing.team?.short_name || standing.team?.name || 'Unknown'}</span>
+                                                    {isGold && <img src="/images/branding/showtime-bowl-trophy.png" alt="Champion Trophy" className="w-6 h-6 md:w-8 md:h-8 object-contain inline-block ml-1 animate-bounce drop-shadow-xl relative z-40 flex-shrink-0" title="Champion" />}
                                                 </Link>
                                             ) : (
-                                                <span className="truncate max-w-[60px] md:max-w-none flex items-center gap-1 uppercase">
-                                                    {standing.team?.short_name || standing.team?.name || 'Unknown'}
-                                                    {isGold && <span title="Champion">👑</span>}
-                                                    {isSilver && <span title="Runner Up">🥈</span>}
+                                                <span className="flex items-center gap-1 uppercase min-w-0 relative z-30">
+                                                    <span className="truncate max-w-[60px] md:max-w-none">{standing.team?.short_name || standing.team?.name || 'Unknown'}</span>
+                                                    {isGold && <img src="/images/branding/showtime-bowl-trophy.png" alt="Champion Trophy" className="w-6 h-6 md:w-8 md:h-8 object-contain inline-block ml-1 animate-bounce drop-shadow-xl relative z-40 flex-shrink-0" title="Champion" />}
                                                 </span>
                                             )}
                                         </div>

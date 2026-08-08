@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { DataTable, type Column } from '../../components/ui/DataTable';
 import { ImageUploadField, LightboxImage } from '../../components/ui';
 import {
-    getPlayers, getTeams, createPlayer, updatePlayer, deletePlayer,
+    getPlayers, getTeams, createPlayer, updatePlayer, deletePlayer, assignRandomJerseyNumbers,
     type Player, type Team, type CreatePlayerPayload,
 } from '../../services/api';
 
@@ -75,11 +75,29 @@ export const AdminPlayers = () => {
     };
 
     const handleSave = async () => {
+        if (!form.name.trim()) {
+            toast.error('Player name is required');
+            return;
+        }
+        if (!form.jersey_number || form.jersey_number.trim() === '') {
+            toast.error('Jersey number is required');
+            return;
+        }
+        const jerseyNum = parseInt(form.jersey_number, 10);
+        if (isNaN(jerseyNum) || jerseyNum < 1 || jerseyNum > 99) {
+            toast.error('Please enter a valid jersey number (1 to 99)');
+            return;
+        }
+        if (!form.team_id) {
+            toast.error('Team selection is required');
+            return;
+        }
+
         setSaving(true);
         try {
             const payload: CreatePlayerPayload = {
-                name: form.name,
-                jersey_number: parseInt(form.jersey_number) || 0,
+                name: form.name.trim(),
+                jersey_number: jerseyNum,
                 position: form.position,
                 team_id: form.team_id,
                 bio: form.bio,
@@ -98,8 +116,9 @@ export const AdminPlayers = () => {
         } catch (err: any) {
             console.error(err);
             toast.error(err.response?.data?.message || err.response?.data?.error || 'Failed to save player');
+        } finally {
+            setSaving(false);
         }
-        setSaving(false);
     };
 
     const handleDelete = async (id: string) => {
@@ -115,6 +134,21 @@ export const AdminPlayers = () => {
     };
 
     const set = (field: keyof FormData, value: string) => setForm(p => ({ ...p, [field]: value }));
+
+    const [assigningNumbers, setAssigningNumbers] = useState(false);
+
+    const handleAssignRandomNumbers = async () => {
+        setAssigningNumbers(true);
+        try {
+            const res = await assignRandomJerseyNumbers(filterTeam || undefined);
+            toast.success(res.assigned_count > 0 ? `Assigned numbers to ${res.assigned_count} players` : 'All players already have jersey numbers');
+            queryClient.invalidateQueries({ queryKey: ['adminPlayers'] });
+        } catch (err: any) {
+            console.error(err);
+            toast.error(err.response?.data?.error || 'Failed to assign jersey numbers');
+        }
+        setAssigningNumbers(false);
+    };
 
     const columns: Column<Player>[] = [
         { header: '#', accessor: 'jersey_number', sortable: true, className: "px-4 py-3 font-bold text-sm dark:text-gray-300 w-16" },
@@ -163,7 +197,7 @@ export const AdminPlayers = () => {
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <h1 className="text-3xl font-black text-sffl-navy dark:text-white">Player Management</h1>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                     <select
                         value={filterTeam}
                         onChange={e => handleFilterChange(e.target.value)}
@@ -172,6 +206,14 @@ export const AdminPlayers = () => {
                         <option value="" className="truncate">All Teams</option>
                         {teams.map(t => <option key={t.id} value={t.id} className="truncate">{t.name}</option>)}
                     </select>
+                    <button
+                        onClick={handleAssignRandomNumbers}
+                        disabled={assigningNumbers}
+                        className="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-indigo-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 min-h-[44px] whitespace-nowrap disabled:opacity-50"
+                        title="Generate unique random jersey numbers (1-99) for unassigned players"
+                    >
+                        {assigningNumbers ? 'Assigning…' : '🎲 Assign Random #s'}
+                    </button>
                     <button onClick={openCreate} className="px-4 py-2 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 min-h-[44px] whitespace-nowrap">+ Add Player</button>
                 </div>
             </div>
@@ -209,8 +251,8 @@ export const AdminPlayers = () => {
                                     <input type="text" value={form.name} onChange={e => set('name', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="Player name" />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Jersey Number</label>
-                                    <input type="number" value={form.jersey_number} onChange={e => set('jersey_number', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" min="0" max="99" />
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Jersey Number *</label>
+                                    <input type="number" value={form.jersey_number} onChange={e => set('jersey_number', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" min="1" max="99" placeholder="e.g. 10" required />
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

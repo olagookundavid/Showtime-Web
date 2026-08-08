@@ -6,6 +6,7 @@ import (
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/services"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -16,6 +17,7 @@ type IPlayerHandler interface {
 	CreatePlayer(c *gin.Context)
 	UpdatePlayer(c *gin.Context)
 	DeletePlayer(c *gin.Context)
+	AssignRandomJerseyNumbers(c *gin.Context)
 }
 
 type PlayerHandler struct {
@@ -140,6 +142,10 @@ func (h *PlayerHandler) CreatePlayer(c *gin.Context) {
 	}
 
 	if err := h.service.CreatePlayer(c.Request.Context(), player); err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -186,6 +192,10 @@ func (h *PlayerHandler) UpdatePlayer(c *gin.Context) {
 	}
 
 	if err := h.service.UpdatePlayer(c.Request.Context(), player); err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -209,4 +219,18 @@ func (h *PlayerHandler) DeletePlayer(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Player deleted"})
+}
+
+func (h *PlayerHandler) AssignRandomJerseyNumbers(c *gin.Context) {
+	teamID := c.Query("team_id")
+	if scopedTeam, ok := scopedTeamID(c); ok {
+		teamID = scopedTeam
+	}
+
+	count, err := h.service.AssignRandomJerseyNumbers(c.Request.Context(), teamID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Random jersey numbers assigned", "assigned_count": count})
 }

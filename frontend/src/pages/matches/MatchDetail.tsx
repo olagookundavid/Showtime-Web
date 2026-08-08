@@ -66,6 +66,120 @@ function formatDate(raw: string | null | undefined): string {
     } catch { return raw.split('T')[0]; }
 }
 
+function TeamSheetRosterList({
+    sheet,
+    matchId,
+    competitionId,
+    matchDate,
+    ratingSort,
+}: {
+    sheet: TeamSheetPlayer[];
+    matchId: string;
+    competitionId?: string;
+    matchDate?: string;
+    ratingSort: RatingSort;
+}) {
+    if (sheet.length === 0) {
+        return <p className="text-gray-400 dark:text-gray-600 italic text-sm text-center py-4">No roster data</p>;
+    }
+
+    // Find highest rating for star icon (must be > 5.0)
+    let maxRating = 5.0;
+    sheet.forEach(p => {
+        if (p.position !== '-' && p.rating != null && p.rating > maxRating) {
+            maxRating = p.rating;
+        }
+    });
+
+    // Group players:
+    // 1. Rated above or below 5.0 (p.position !== '-' && p.rating != null && p.rating !== 5.0)
+    // 2. Baseline 5.0 (p.position !== '-' && (p.rating == null || p.rating === 5.0))
+    // 3. Non-rateable (p.position === '-')
+    const ratedPlayers = sheet.filter(p => p.position !== '-' && p.rating != null && p.rating !== 5.0);
+    const baselinePlayers = sheet.filter(p => p.position !== '-' && (p.rating == null || p.rating === 5.0));
+    const nonRateablePlayers = sheet.filter(p => p.position === '-');
+
+    const sortedRated = sortByRating(ratedPlayers, ratingSort);
+    const sortedBaseline = sortByRating(baselinePlayers, ratingSort);
+
+    const renderPlayerRow = (player: TeamSheetPlayer, isGreyedOut = false) => {
+        const isHighest = player.position !== '-' && player.rating != null && player.rating === maxRating && maxRating > 5.0;
+        return (
+            <Link
+                key={player.player_id}
+                to={`/players/${player.player_id}?match=${matchId}&comp=${competitionId}&date=${matchDate?.split('T')[0]}`}
+                className={`flex items-center gap-3 p-2.5 rounded-xl transition-colors group ${
+                    isGreyedOut
+                        ? 'opacity-60 hover:opacity-100 hover:bg-gray-50 dark:hover:bg-gray-700/40'
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-700/40'
+                }`}
+            >
+                {player.image ? (
+                    <LightboxImage 
+                        src={player.image} 
+                        alt={player.name} 
+                        thumbnailClassName="w-10 h-10 rounded-full flex-shrink-0 group-hover:scale-105 transition-transform shadow-sm" 
+                        imgClassName="w-full h-full object-cover"
+                    />
+                ) : (
+                    <div className="w-10 h-10 rounded-full bg-sffl-navy/10 dark:bg-white/10 flex items-center justify-center text-xs font-black text-sffl-navy dark:text-gray-400 flex-shrink-0">
+                        #{player.jersey_number}
+                    </div>
+                )}
+                <div className="flex-1 min-w-0">
+                    <div className={`font-bold text-sm truncate group-hover:text-sffl-red transition-colors ${isGreyedOut ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'}`}>
+                        {player.name}
+                    </div>
+                    <div className="text-xs text-gray-400 font-semibold">{jerseyLabel(player.jersey_number)} · {player.position}</div>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {isHighest && <span className="text-amber-500 text-sm" title="Highest Rated Player">⭐</span>}
+                    <span className={`text-sm font-black tabular-nums ${isGreyedOut ? 'text-gray-400 dark:text-gray-500' : 'text-sffl-navy dark:text-gray-200'}`}>
+                        {ratingLabel(player)}
+                    </span>
+                </div>
+            </Link>
+        );
+    };
+
+    return (
+        <div className="space-y-1">
+            {/* Above and Below 5.0 players */}
+            {sortedRated.map(p => renderPlayerRow(p, false))}
+
+            {/* Divider line & caveat for 5.0 baseline players — only shown when
+                there are rated players above to separate them from the baseline */}
+            {ratedPlayers.length > 0 && (baselinePlayers.length > 0 || nonRateablePlayers.length > 0) && (
+                <div className="py-2.5">
+                    <div className="relative flex items-center justify-center">
+                        <div className="border-t border-gray-200 dark:border-gray-700 w-full" />
+                        <span className="bg-white dark:bg-gray-800 px-3 text-[10px] uppercase font-bold text-gray-400 dark:text-gray-500 tracking-wider whitespace-nowrap">
+                            5.0 Rating · Might not have played in the game
+                        </span>
+                        <div className="border-t border-gray-200 dark:border-gray-700 w-full" />
+                    </div>
+                </div>
+            )}
+
+            {/* When ALL players are at baseline (no one has a distinct rating yet),
+                still show the caveat as a standalone note */}
+            {ratedPlayers.length === 0 && (baselinePlayers.length > 0 || nonRateablePlayers.length > 0) && (
+                <div className="pt-1 pb-2.5">
+                    <span className="block text-center text-[10px] uppercase font-bold text-gray-400 dark:text-gray-500 tracking-wider">
+                        5.0 Rating · Might not have played in the game
+                    </span>
+                </div>
+            )}
+
+            {/* Baseline 5.0 players (greyed out) */}
+            {sortedBaseline.map(p => renderPlayerRow(p, true))}
+
+            {/* Non-rateable players */}
+            {nonRateablePlayers.map(p => renderPlayerRow(p, true))}
+        </div>
+    );
+}
+
 export const MatchDetail = () => {
     const { id } = useParams<{ id: string }>();
     const [searchParams] = useSearchParams();
@@ -123,8 +237,6 @@ export const MatchDetail = () => {
     const homeSheet = team_sheet?.home_team ?? [];
     const awaySheet = team_sheet?.away_team ?? [];
     const hasTeamSheet = homeSheet.length > 0 || awaySheet.length > 0;
-    const homeSheetSorted = sortByRating(homeSheet, ratingSort);
-    const awaySheetSorted = sortByRating(awaySheet, ratingSort);
 
     const isBye = match.competition?.format === 'KNOCKOUT' &&
         ((match.home_team?.id && !match.away_team?.id && match.status === 'FINISHED') ||
@@ -155,8 +267,11 @@ export const MatchDetail = () => {
                         <span className={`inline-block px-4 py-1.5 rounded-full text-xs font-black tracking-widest ${statusInfo.cls} text-white mb-3`}>
                             {statusInfo.label}
                         </span>
-                        <p className="text-gray-300 text-sm font-semibold">
-                            {match.competition?.name} {!isBye && ` • ${formatDate(match.date)}`}
+                        <p className="text-gray-300 text-sm font-semibold flex items-center justify-center gap-2">
+                            {match.competition?.logo && (
+                                <img src={match.competition.logo} alt={match.competition.name} className="w-5 h-5 object-contain" />
+                            )}
+                            <span>{match.competition?.name}</span> {!isBye && ` • ${formatDate(match.date)}`}
                         </p>
                         {match.venue && !isBye && (
                             <p className="text-gray-500 text-xs mt-1">📍 {match.venue}</p>
@@ -365,37 +480,13 @@ export const MatchDetail = () => {
                                                 {homeSheet.length}
                                             </span>
                                         </div>
-                                        {homeSheet.length === 0 ? (
-                                            <p className="text-gray-400 dark:text-gray-600 italic text-sm text-center py-4">No roster data</p>
-                                        ) : (
-                                            <div className="space-y-1">
-                                                {homeSheetSorted.map(player => (
-                                                    <Link
-                                                        key={player.player_id}
-                                                        to={`/players/${player.player_id}?match=${match.id}&comp=${match.competition?.id}&date=${match.date?.split('T')[0]}`}
-                                                        className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors group"
-                                                    >
-                                                        {player.image ? (
-                                                            <LightboxImage 
-                                                                src={player.image} 
-                                                                alt={player.name} 
-                                                                thumbnailClassName="w-10 h-10 rounded-full flex-shrink-0 group-hover:scale-105 transition-transform shadow-sm" 
-                                                                imgClassName="w-full h-full object-cover"
-                                                            />
-                                                        ) : (
-                                                            <div className="w-10 h-10 rounded-full bg-sffl-navy/10 dark:bg-white/10 flex items-center justify-center text-xs font-black text-sffl-navy dark:text-gray-400 flex-shrink-0">
-                                                                #{player.jersey_number}
-                                                            </div>
-                                                        )}
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="font-bold text-sm text-gray-900 dark:text-gray-100 group-hover:text-sffl-red transition-colors truncate">{player.name}</div>
-                                                            <div className="text-xs text-gray-400 font-semibold">{jerseyLabel(player.jersey_number)} · {player.position}</div>
-                                                        </div>
-                                                        <span className="text-sm font-black text-sffl-navy dark:text-gray-200 flex-shrink-0 tabular-nums">{ratingLabel(player)}</span>
-                                                    </Link>
-                                                ))}
-                                            </div>
-                                        )}
+                                        <TeamSheetRosterList 
+                                            sheet={homeSheet} 
+                                            matchId={match.id} 
+                                            competitionId={match.competition?.id} 
+                                            matchDate={match.date} 
+                                            ratingSort={ratingSort} 
+                                        />
                                     </div>
 
                                     {/* Away Sheet */}
@@ -416,37 +507,13 @@ export const MatchDetail = () => {
                                                 {awaySheet.length}
                                             </span>
                                         </div>
-                                        {awaySheet.length === 0 ? (
-                                            <p className="text-gray-400 dark:text-gray-600 italic text-sm text-center py-4">No roster data</p>
-                                        ) : (
-                                            <div className="space-y-1">
-                                                {awaySheetSorted.map(player => (
-                                                    <Link
-                                                        key={player.player_id}
-                                                        to={`/players/${player.player_id}?match=${match.id}&comp=${match.competition?.id}&date=${match.date?.split('T')[0]}`}
-                                                        className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors group"
-                                                    >
-                                                        {player.image ? (
-                                                            <LightboxImage 
-                                                                src={player.image} 
-                                                                alt={player.name} 
-                                                                thumbnailClassName="w-10 h-10 rounded-full flex-shrink-0 group-hover:scale-105 transition-transform shadow-sm" 
-                                                                imgClassName="w-full h-full object-cover"
-                                                            />
-                                                        ) : (
-                                                            <div className="w-10 h-10 rounded-full bg-sffl-navy/10 dark:bg-white/10 flex items-center justify-center text-xs font-black text-sffl-navy dark:text-gray-400 flex-shrink-0">
-                                                                #{player.jersey_number}
-                                                            </div>
-                                                        )}
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="font-bold text-sm text-gray-900 dark:text-gray-100 group-hover:text-sffl-red transition-colors truncate">{player.name}</div>
-                                                            <div className="text-xs text-gray-400 font-semibold">{jerseyLabel(player.jersey_number)} · {player.position}</div>
-                                                        </div>
-                                                        <span className="text-sm font-black text-sffl-navy dark:text-gray-200 flex-shrink-0 tabular-nums">{ratingLabel(player)}</span>
-                                                    </Link>
-                                                ))}
-                                            </div>
-                                        )}
+                                        <TeamSheetRosterList 
+                                            sheet={awaySheet} 
+                                            matchId={match.id} 
+                                            competitionId={match.competition?.id} 
+                                            matchDate={match.date} 
+                                            ratingSort={ratingSort} 
+                                        />
                                     </div>
                                 </div>
                             )}

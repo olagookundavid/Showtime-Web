@@ -7,6 +7,7 @@ type CreateCompetitionRequest struct {
 	Status               string  `json:"status"` // e.g. active, inactive, archived
 	Format               string  `json:"format"` // LEAGUE | KNOCKOUT
 	PlayoffCompetitionID *string `json:"playoff_competition_id"`
+	TieBreakerRule       string  `json:"tie_breaker_rule"`
 }
 
 type UpdateCompetitionRequest struct {
@@ -15,6 +16,7 @@ type UpdateCompetitionRequest struct {
 	Status               *string `json:"status"`
 	Format               *string `json:"format"`
 	PlayoffCompetitionID *string `json:"playoff_competition_id"`
+	TieBreakerRule       *string `json:"tie_breaker_rule"`
 }
 
 type CompetitionResponse struct {
@@ -24,6 +26,7 @@ type CompetitionResponse struct {
 	Status               string  `json:"status"`
 	Format               string  `json:"format"`
 	PlayoffCompetitionID *string `json:"playoff_competition_id"`
+	TieBreakerRule       string  `json:"tie_breaker_rule"`
 }
 
 // --- Teams ---

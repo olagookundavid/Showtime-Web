@@ -24,6 +24,8 @@ type IMatchHandler interface {
 	GetTeams(c *gin.Context)
 	GetAllTeams(c *gin.Context)
 	GetTeamsByCompetition(c *gin.Context)
+	AddTeamToCompetition(c *gin.Context)
+	RemoveTeamFromCompetition(c *gin.Context)
 	CreateTeam(c *gin.Context)
 	UpdateTeam(c *gin.Context)
 	DeleteTeam(c *gin.Context)
@@ -447,7 +449,10 @@ func stringPtr(s string) *string {
 // @Success      200 {array} dto.TeamResponse
 // @Router       /api/v1/admin/teams/by-competition [get]
 func (h *MatchHandler) GetTeamsByCompetition(c *gin.Context) {
-	competitionID := c.Query("competition_id")
+	competitionID := c.Param("id")
+	if competitionID == "" {
+		competitionID = c.Query("competition_id")
+	}
 	if competitionID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "competition_id is required"})
 		return
@@ -459,6 +464,47 @@ func (h *MatchHandler) GetTeamsByCompetition(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": teams})
+}
+
+type AddTeamToCompetitionRequest struct {
+	TeamID string `json:"team_id" binding:"required"`
+}
+
+func (h *MatchHandler) AddTeamToCompetition(c *gin.Context) {
+	competitionID := c.Param("id")
+	if competitionID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "competition id is required"})
+		return
+	}
+
+	var req AddTeamToCompetitionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.AddTeamToCompetition(c.Request.Context(), competitionID, req.TeamID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Team added to competition successfully"})
+}
+
+func (h *MatchHandler) RemoveTeamFromCompetition(c *gin.Context) {
+	competitionID := c.Param("id")
+	teamID := c.Param("teamId")
+	if competitionID == "" || teamID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "competition_id and team_id are required"})
+		return
+	}
+
+	if err := h.service.RemoveTeamFromCompetition(c.Request.Context(), competitionID, teamID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Team removed from competition successfully"})
 }
 
 // CreateTeam godoc
@@ -565,12 +611,18 @@ func (h *MatchHandler) CreateCompetition(c *gin.Context) {
 		return
 	}
 
+	tieBreakerRule := req.TieBreakerRule
+	if tieBreakerRule != domain.TieBreakerRulePCT_PD_PF_PA_NAME && tieBreakerRule != domain.TieBreakerRuleH2H_PCT_PD_PF_PA_NAME {
+		tieBreakerRule = domain.TieBreakerRulePCT_PD_PF_PA_NAME
+	}
+
 	comp := &domain.Competition{
 		Name:                 req.Name,
 		Logo:                 req.Logo,
 		Status:               status,
 		Format:               format,
 		PlayoffCompetitionID: req.PlayoffCompetitionID,
+		TieBreakerRule:       tieBreakerRule,
 	}
 
 	if err := h.service.CreateCompetition(c.Request.Context(), comp); err != nil {
@@ -606,6 +658,11 @@ func (h *MatchHandler) UpdateCompetition(c *gin.Context) {
 		return
 	}
 
+	tieBreakerRule := req.TieBreakerRule
+	if tieBreakerRule != domain.TieBreakerRulePCT_PD_PF_PA_NAME && tieBreakerRule != domain.TieBreakerRuleH2H_PCT_PD_PF_PA_NAME {
+		tieBreakerRule = domain.TieBreakerRulePCT_PD_PF_PA_NAME
+	}
+
 	comp := &domain.Competition{
 		ID:                   id,
 		Name:                 req.Name,
@@ -613,6 +670,7 @@ func (h *MatchHandler) UpdateCompetition(c *gin.Context) {
 		Status:               req.Status,
 		Format:               format,
 		PlayoffCompetitionID: req.PlayoffCompetitionID,
+		TieBreakerRule:       tieBreakerRule,
 	}
 
 	if err := h.service.UpdateCompetition(c.Request.Context(), comp); err != nil {

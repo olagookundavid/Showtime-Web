@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader } from '../../components/ui/Loader';
 import { getAdminCompetitions, createCompetition, updateCompetition, deleteCompetition, getCompetitions } from '../../services/api';
@@ -12,9 +13,11 @@ interface Competition {
     status?: string;
     format?: string;
     playoff_competition_id?: string | null;
+    tie_breaker_rule?: string;
 }
 
 const AdminCompetitions = () => {
+    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');
@@ -37,7 +40,7 @@ const AdminCompetitions = () => {
     // Modal
     const [showModal, setShowModal] = useState(false);
     const [editing, setEditing] = useState<Competition | null>(null);
-    const [form, setForm] = useState({ name: '', logo: '', status: 'active', format: 'LEAGUE', playoff_competition_id: '' });
+    const [form, setForm] = useState({ name: '', logo: '', status: 'active', format: 'LEAGUE', playoff_competition_id: '', tie_breaker_rule: 'PCT_PD_PF_PA_NAME' });
     const [saving, setSaving] = useState(false);
 
     const { data: allCompsData } = useQuery({
@@ -50,13 +53,13 @@ const AdminCompetitions = () => {
 
     const openCreate = () => {
         setEditing(null);
-        setForm({ name: '', logo: '', status: 'active', format: 'LEAGUE', playoff_competition_id: '' });
+        setForm({ name: '', logo: '', status: 'active', format: 'LEAGUE', playoff_competition_id: '', tie_breaker_rule: 'PCT_PD_PF_PA_NAME' });
         setShowModal(true);
     };
 
     const openEdit = (c: Competition) => {
         setEditing(c);
-        setForm({ name: c.name, logo: c.logo, status: c.status || 'active', format: c.format || 'LEAGUE', playoff_competition_id: c.playoff_competition_id || '' });
+        setForm({ name: c.name, logo: c.logo, status: c.status || 'active', format: c.format || 'LEAGUE', playoff_competition_id: c.playoff_competition_id || '', tie_breaker_rule: c.tie_breaker_rule || 'PCT_PD_PF_PA_NAME' });
         setShowModal(true);
     };
 
@@ -69,11 +72,17 @@ const AdminCompetitions = () => {
             };
             if (editing) {
                 await updateCompetition(editing.id, payload);
+                queryClient.invalidateQueries({ queryKey: ['adminCompetitionsData'] });
+                setShowModal(false);
             } else {
-                await createCompetition(payload);
+                const res = await createCompetition(payload);
+                queryClient.invalidateQueries({ queryKey: ['adminCompetitionsData'] });
+                setShowModal(false);
+                const newId = res?.data?.id;
+                if (newId) {
+                    navigate(`/admin/competitions/${newId}/teams`);
+                }
             }
-            queryClient.invalidateQueries({ queryKey: ['adminCompetitionsData'] });
-            setShowModal(false);
         } catch (err: any) {
             alert(err.response?.data?.message || err.response?.data?.error || 'Failed to save competition.');
         } finally {
@@ -212,6 +221,10 @@ const AdminCompetitions = () => {
                                     </div>
                                 )}
                                 <div className="flex gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
+                                    <Link to={`/admin/competitions/${comp.id}/teams`}
+                                        className="flex-1 text-center text-xs font-bold bg-green-50 text-green-700 hover:text-green-900 dark:bg-green-900/30 dark:text-green-400 py-2 min-h-[44px] rounded-lg shadow-sm hover:shadow-md hover:bg-green-100 dark:hover:bg-green-900/50 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center">
+                                        Teams
+                                    </Link>
                                     <button onClick={() => openEdit(comp)}
                                         className="flex-1 text-xs font-bold bg-blue-50 text-blue-600 hover:text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 py-2 min-h-[44px] rounded-lg shadow-sm hover:shadow-md hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all duration-300 hover:scale-[1.02] active:scale-95">
                                         Edit
@@ -295,20 +308,49 @@ const AdminCompetitions = () => {
                             </div>
 
                             {form.format === 'LEAGUE' && (
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Playoff Stage</label>
-                                    <select value={form.playoff_competition_id} onChange={e => setForm(f => ({ ...f, playoff_competition_id: e.target.value }))}
-                                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red">
-                                        <option value="">-- No Playoff Stage --</option>
-                                        {knockoutComps.map(kc => (
-                                            <option key={kc.id} value={kc.id}>
-                                                {kc.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-                                        Link a knockout stage (playoffs/bowl) to this regular season competition.
-                                    </p>
+                                <>
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Standings Tie-Breaker Rule *</label>
+                                        <select
+                                            value={form.tie_breaker_rule}
+                                            onChange={e => setForm(f => ({ ...f, tie_breaker_rule: e.target.value }))}
+                                            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red text-xs sm:text-sm font-medium"
+                                        >
+                                            <option value="PCT_PD_PF_PA_NAME">Rule 1: Win % → Point Diff → Points For → Points Against → Name (A-Z)</option>
+                                            <option value="H2H_PCT_PD_PF_PA_NAME">Rule 2: Head-to-Head → Win % → Point Diff → Points For → Points Against → Name (A-Z)</option>
+                                        </select>
+                                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                                            Determines how teams are ranked and broken when tied on points/percentage in standings.
+                                        </p>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Playoff Stage</label>
+                                        <select value={form.playoff_competition_id} onChange={e => setForm(f => ({ ...f, playoff_competition_id: e.target.value }))}
+                                            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red text-xs sm:text-sm">
+                                            <option value="">-- No Playoff Stage --</option>
+                                            {knockoutComps.map(kc => (
+                                                <option key={kc.id} value={kc.id}>
+                                                    {kc.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                                            Link a knockout stage (playoffs/bowl) to this regular season competition.
+                                        </p>
+                                    </div>
+                                </>
+                            )}
+
+                            {editing && (
+                                <div className="pt-3 border-t border-gray-100 dark:border-gray-700">
+                                    <Link
+                                        to={`/admin/competitions/${editing.id}/teams`}
+                                        onClick={() => setShowModal(false)}
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-bold text-xs rounded-lg border border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/50 transition-all min-h-[44px]"
+                                    >
+                                        ⚽ Manage Enrolled Teams for this Competition →
+                                    </Link>
                                 </div>
                             )}
                         </div>

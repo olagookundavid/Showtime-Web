@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"showtime-backend/internal/domain"
+	"sort"
 	"strconv"
 	"time"
 
@@ -26,6 +27,9 @@ type MatchRepository interface {
 	UpdateTeam(ctx context.Context, team *domain.Team) error
 	DeleteTeam(ctx context.Context, id string) error
 	GetTeamsByCompetition(ctx context.Context, competitionID string) ([]domain.Team, error)
+	AddTeamToCompetition(ctx context.Context, competitionID, teamID string) error
+	RemoveTeamFromCompetition(ctx context.Context, competitionID, teamID string) error
+	CanRemoveTeamFromCompetition(ctx context.Context, competitionID, teamID string) (bool, string, error)
 
 	// Matches
 	GetMatches(ctx context.Context, competitionID string, status string, page, limit int, search string, date ...string) ([]domain.Match, int64, error)
@@ -88,7 +92,7 @@ func (r *PostgresMatchRepository) GetCompetitions(ctx context.Context, page, lim
 		return nil, 0, err
 	}
 
-	query := `SELECT id, name, logo, status, format, playoff_competition_id, created_at, updated_at ` + baseQuery +
+	query := `SELECT id, name, logo, status, format, playoff_competition_id, COALESCE(tie_breaker_rule, 'PCT_PD_PF_PA_NAME'), created_at, updated_at ` + baseQuery +
 		` ORDER BY created_at DESC LIMIT $` + strconv.Itoa(argCount) + ` OFFSET $` + strconv.Itoa(argCount+1)
 	args = append(args, limit, offset)
 
@@ -101,7 +105,7 @@ func (r *PostgresMatchRepository) GetCompetitions(ctx context.Context, page, lim
 	var competitions []domain.Competition
 	for rows.Next() {
 		var c domain.Competition
-		if err := rows.Scan(&c.ID, &c.Name, &c.Logo, &c.Status, &c.Format, &c.PlayoffCompetitionID, &c.CreatedAt, &c.UpdatedAt); err != nil {
+		if err := rows.Scan(&c.ID, &c.Name, &c.Logo, &c.Status, &c.Format, &c.PlayoffCompetitionID, &c.TieBreakerRule, &c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, 0, err
 		}
 		competitions = append(competitions, c)
@@ -110,9 +114,9 @@ func (r *PostgresMatchRepository) GetCompetitions(ctx context.Context, page, lim
 }
 
 func (r *PostgresMatchRepository) GetCompetitionByID(ctx context.Context, id string) (*domain.Competition, error) {
-	query := `SELECT id, name, logo, status, format, playoff_competition_id, created_at, updated_at FROM competitions WHERE id = $1`
+	query := `SELECT id, name, logo, status, format, playoff_competition_id, COALESCE(tie_breaker_rule, 'PCT_PD_PF_PA_NAME'), created_at, updated_at FROM competitions WHERE id = $1`
 	var c domain.Competition
-	err := r.db.QueryRow(ctx, query, id).Scan(&c.ID, &c.Name, &c.Logo, &c.Status, &c.Format, &c.PlayoffCompetitionID, &c.CreatedAt, &c.UpdatedAt)
+	err := r.db.QueryRow(ctx, query, id).Scan(&c.ID, &c.Name, &c.Logo, &c.Status, &c.Format, &c.PlayoffCompetitionID, &c.TieBreakerRule, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -124,8 +128,11 @@ func (r *PostgresMatchRepository) CreateCompetition(ctx context.Context, comp *d
 	if comp.PlayoffCompetitionID != nil && *comp.PlayoffCompetitionID != "" {
 		playoffID = comp.PlayoffCompetitionID
 	}
-	query := `INSERT INTO competitions (name, logo, status, format, playoff_competition_id) VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at, updated_at`
-	return r.db.QueryRow(ctx, query, comp.Name, comp.Logo, comp.Status, comp.Format, playoffID).Scan(&comp.ID, &comp.CreatedAt, &comp.UpdatedAt)
+	if comp.TieBreakerRule == "" {
+		comp.TieBreakerRule = domain.TieBreakerRulePCT_PD_PF_PA_NAME
+	}
+	query := `INSERT INTO competitions (name, logo, status, format, playoff_competition_id, tie_breaker_rule) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, created_at, updated_at`
+	return r.db.QueryRow(ctx, query, comp.Name, comp.Logo, comp.Status, comp.Format, playoffID, comp.TieBreakerRule).Scan(&comp.ID, &comp.CreatedAt, &comp.UpdatedAt)
 }
 
 func (r *PostgresMatchRepository) UpdateCompetition(ctx context.Context, comp *domain.Competition) error {
@@ -133,8 +140,11 @@ func (r *PostgresMatchRepository) UpdateCompetition(ctx context.Context, comp *d
 	if comp.PlayoffCompetitionID != nil && *comp.PlayoffCompetitionID != "" {
 		playoffID = comp.PlayoffCompetitionID
 	}
-	query := `UPDATE competitions SET name=$1, logo=$2, status=$3, format=$4, playoff_competition_id=$5, updated_at=NOW() WHERE id=$6`
-	_, err := r.db.Exec(ctx, query, comp.Name, comp.Logo, comp.Status, comp.Format, playoffID, comp.ID)
+	if comp.TieBreakerRule == "" {
+		comp.TieBreakerRule = domain.TieBreakerRulePCT_PD_PF_PA_NAME
+	}
+	query := `UPDATE competitions SET name=$1, logo=$2, status=$3, format=$4, playoff_competition_id=$5, tie_breaker_rule=$6, updated_at=NOW() WHERE id=$7`
+	_, err := r.db.Exec(ctx, query, comp.Name, comp.Logo, comp.Status, comp.Format, playoffID, comp.TieBreakerRule, comp.ID)
 	return err
 }
 
@@ -237,8 +247,8 @@ func (r *PostgresMatchRepository) DeleteTeam(ctx context.Context, id string) err
 func (r *PostgresMatchRepository) GetTeamsByCompetition(ctx context.Context, competitionID string) ([]domain.Team, error) {
 	query := `SELECT DISTINCT t.id, t.name, t.short_name, t.logo, t.created_at, t.updated_at
 		FROM teams t
-		INNER JOIN standings s ON s.team_id = t.id
-		WHERE s.competition_id = $1
+		INNER JOIN competition_teams ct ON ct.team_id = t.id
+		WHERE ct.competition_id = $1
 		ORDER BY t.name ASC`
 	rows, err := r.db.Query(ctx, query, competitionID)
 	if err != nil {
@@ -255,6 +265,47 @@ func (r *PostgresMatchRepository) GetTeamsByCompetition(ctx context.Context, com
 		teams = append(teams, t)
 	}
 	return teams, nil
+}
+
+func (r *PostgresMatchRepository) AddTeamToCompetition(ctx context.Context, competitionID, teamID string) error {
+	query := `INSERT INTO competition_teams (competition_id, team_id) VALUES ($1, $2) ON CONFLICT (competition_id, team_id) DO NOTHING`
+	_, err := r.db.Exec(ctx, query, competitionID, teamID)
+	return err
+}
+
+func (r *PostgresMatchRepository) RemoveTeamFromCompetition(ctx context.Context, competitionID, teamID string) error {
+	canRemove, reason, err := r.CanRemoveTeamFromCompetition(ctx, competitionID, teamID)
+	if err != nil {
+		return err
+	}
+	if !canRemove {
+		return fmt.Errorf("%s", reason)
+	}
+	query := `DELETE FROM competition_teams WHERE competition_id = $1 AND team_id = $2`
+	_, err = r.db.Exec(ctx, query, competitionID, teamID)
+	return err
+}
+
+func (r *PostgresMatchRepository) CanRemoveTeamFromCompetition(ctx context.Context, competitionID, teamID string) (bool, string, error) {
+	var matchCount int
+	err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM matches WHERE competition_id = $1 AND (home_team_id = $2 OR away_team_id = $2)`, competitionID, teamID).Scan(&matchCount)
+	if err != nil {
+		return false, "", err
+	}
+	if matchCount > 0 {
+		return false, "Team has matches in this competition and cannot be removed.", nil
+	}
+
+	var standingCount int
+	err = r.db.QueryRow(ctx, `SELECT COUNT(*) FROM standings WHERE competition_id = $1 AND team_id = $2`, competitionID, teamID).Scan(&standingCount)
+	if err != nil {
+		return false, "", err
+	}
+	if standingCount > 0 {
+		return false, "Team has standings entries in this competition and cannot be removed.", nil
+	}
+
+	return true, "", nil
 }
 
 // --- Matches ---
@@ -437,16 +488,20 @@ func (r *PostgresMatchRepository) DeleteMatchesByCompetition(ctx context.Context
 
 // --- Standings ---
 func (r *PostgresMatchRepository) GetStandings(ctx context.Context, competitionID string) ([]domain.Standing, error) {
+	var tieBreakerRule string
+	_ = r.db.QueryRow(ctx, `SELECT COALESCE(tie_breaker_rule, 'PCT_PD_PF_PA_NAME') FROM competitions WHERE id = $1`, competitionID).Scan(&tieBreakerRule)
+	if tieBreakerRule == "" {
+		tieBreakerRule = domain.TieBreakerRulePCT_PD_PF_PA_NAME
+	}
+
 	query := `
         SELECT 
-            s.id, s.competition_id, s.team_id, 
-            ROW_NUMBER() OVER (ORDER BY s.pct DESC, s.goals_for DESC, s.goal_difference DESC, t.name ASC) as position, 
+            s.id, s.competition_id, s.team_id, 0 as position, 
             s.played, s.won, s.drawn, s.lost, s.goals_for, s.goals_against, s.goal_difference, s.pct, s.l5,
             t.id, t.name, t.short_name, t.logo
         FROM standings s
         JOIN teams t ON s.team_id = t.id
         WHERE s.competition_id = $1
-        ORDER BY position ASC
     `
 	rows, err := r.db.Query(ctx, query, competitionID)
 	if err != nil {
@@ -467,6 +522,89 @@ func (r *PostgresMatchRepository) GetStandings(ctx context.Context, competitionI
 		}
 		standings = append(standings, s)
 	}
+
+	if len(standings) == 0 {
+		return standings, nil
+	}
+
+	if tieBreakerRule == domain.TieBreakerRuleH2H_PCT_PD_PF_PA_NAME {
+		// Rule 2: Head-to-Head -> Win % -> Point Diff -> Points For -> Points Against -> Name
+		h2hPoints := make(map[string]map[string]int)
+		mRows, err := r.db.Query(ctx, `
+			SELECT home_team_id, away_team_id, home_score, away_score 
+			FROM matches 
+			WHERE competition_id = $1 AND status = 'FINISHED' AND home_score IS NOT NULL AND away_score IS NOT NULL
+		`, competitionID)
+		if err == nil {
+			defer mRows.Close()
+			for mRows.Next() {
+				var hID, aID string
+				var hScore, aScore int
+				if err := mRows.Scan(&hID, &aID, &hScore, &aScore); err == nil {
+					if h2hPoints[hID] == nil {
+						h2hPoints[hID] = make(map[string]int)
+					}
+					if h2hPoints[aID] == nil {
+						h2hPoints[aID] = make(map[string]int)
+					}
+					if hScore > aScore {
+						h2hPoints[hID][aID] += 3
+					} else if aScore > hScore {
+						h2hPoints[aID][hID] += 3
+					} else {
+						h2hPoints[hID][aID] += 1
+						h2hPoints[aID][hID] += 1
+					}
+				}
+			}
+		}
+
+		sort.SliceStable(standings, func(i, j int) bool {
+			a, b := standings[i], standings[j]
+			if a.PCT == b.PCT {
+				ptsA := h2hPoints[a.TeamID][b.TeamID]
+				ptsB := h2hPoints[b.TeamID][a.TeamID]
+				if ptsA != ptsB {
+					return ptsA > ptsB
+				}
+			} else {
+				return a.PCT > b.PCT
+			}
+			if a.GoalDiff != b.GoalDiff {
+				return a.GoalDiff > b.GoalDiff
+			}
+			if a.GoalsFor != b.GoalsFor {
+				return a.GoalsFor > b.GoalsFor
+			}
+			if a.GoalsAgainst != b.GoalsAgainst {
+				return a.GoalsAgainst < b.GoalsAgainst
+			}
+			return a.Team.Name < b.Team.Name
+		})
+	} else {
+		// Rule 1 (Default): Win % -> Point Diff -> Points For -> Points Against -> Name
+		sort.SliceStable(standings, func(i, j int) bool {
+			a, b := standings[i], standings[j]
+			if a.PCT != b.PCT {
+				return a.PCT > b.PCT
+			}
+			if a.GoalDiff != b.GoalDiff {
+				return a.GoalDiff > b.GoalDiff
+			}
+			if a.GoalsFor != b.GoalsFor {
+				return a.GoalsFor > b.GoalsFor
+			}
+			if a.GoalsAgainst != b.GoalsAgainst {
+				return a.GoalsAgainst < b.GoalsAgainst
+			}
+			return a.Team.Name < b.Team.Name
+		})
+	}
+
+	for i := range standings {
+		standings[i].Position = i + 1
+	}
+
 	return standings, nil
 }
 

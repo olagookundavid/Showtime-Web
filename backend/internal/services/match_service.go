@@ -18,6 +18,8 @@ type IMatchService interface {
 	GetTeams(ctx context.Context, page, limit int, search string) (dto.PaginatedResult[dto.TeamResponse], error)
 	GetAllTeams(ctx context.Context) ([]dto.TeamResponse, error)
 	GetTeamsByCompetition(ctx context.Context, competitionID string) ([]dto.TeamResponse, error)
+	AddTeamToCompetition(ctx context.Context, competitionID, teamID string) error
+	RemoveTeamFromCompetition(ctx context.Context, competitionID, teamID string) error
 	GetMatches(ctx context.Context, competitionID string, status string, page, limit int, search string) (dto.PaginatedResult[dto.MatchResponse], error)
 	GetStandings(ctx context.Context, competitionID string) ([]dto.StandingResponse, error)
 	CreateMatch(ctx context.Context, match *domain.Match) error
@@ -164,6 +166,7 @@ func (s *MatchService) GetCompetitions(ctx context.Context, page, limit int, sea
 			Status:               c.Status,
 			Format:               c.Format,
 			PlayoffCompetitionID: c.PlayoffCompetitionID,
+			TieBreakerRule:       c.TieBreakerRule,
 		})
 	}
 
@@ -716,6 +719,14 @@ func (s *MatchService) GetTeamsByCompetition(ctx context.Context, competitionID 
 		})
 	}
 	return res, nil
+}
+
+func (s *MatchService) AddTeamToCompetition(ctx context.Context, competitionID, teamID string) error {
+	return s.repo.AddTeamToCompetition(ctx, competitionID, teamID)
+}
+
+func (s *MatchService) RemoveTeamFromCompetition(ctx context.Context, competitionID, teamID string) error {
+	return s.repo.RemoveTeamFromCompetition(ctx, competitionID, teamID)
 }
 
 func (s *MatchService) CreateTeam(ctx context.Context, team *domain.Team) error {

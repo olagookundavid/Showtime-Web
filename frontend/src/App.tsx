@@ -65,6 +65,7 @@ const AdminEventDays = lazy(() => import('./pages/admin/AdminEventDays').then(m 
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
 const AdminTeams = lazy(() => import('./pages/admin/AdminTeams'));
 const AdminCompetitions = lazy(() => import('./pages/admin/AdminCompetitions'));
+const AdminCompetitionTeams = lazy(() => import('./pages/admin/AdminCompetitionTeams').then(m => ({ default: m.AdminCompetitionTeams })));
 const AdminAnalytics = lazy(() => import('./pages/admin/AdminAnalytics').then(m => ({ default: m.AdminAnalytics })));
 const AdminInventory = lazy(() => import('./pages/admin/AdminInventory').then(m => ({ default: m.AdminInventory })));
 const AdminStore = lazy(() => import('./pages/admin/AdminStore').then(m => ({ default: m.AdminStore })));
@@ -184,6 +185,7 @@ function App() {
               <Route path="users" element={<AdminUsers />} />
               <Route path="teams" element={<AdminTeams />} />
               <Route path="competitions" element={<AdminCompetitions />} />
+              <Route path="competitions/:id/teams" element={<AdminCompetitionTeams />} />
               <Route path="inventory" element={<AdminInventory />} />
               <Route path="store" element={<AdminStore />} />
               <Route path="store/orders/:id" element={<AdminOrderDetail />} />

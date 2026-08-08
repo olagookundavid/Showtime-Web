@@ -266,8 +266,9 @@ const toGoToInt = (toGo: string): number | null => {
 
 const calculateNextSituation = (currentCtx: Ctx, payload: PlayPayload, downsPerSeries: number): Ctx => {
     const nextCtx = { ...currentCtx };
-    const curDown = parseInt(currentCtx.down, 10) || 1;
+    const curDown = parseInt(currentCtx.down.replace(/[^0-9]/g, ''), 10) || 1;
     const curToGo = parseInt(currentCtx.toGo, 10) || 10;
+    const isGoalSeries = currentCtx.down.includes('&G') || currentCtx.toGo.toLowerCase() === 'goal';
     const yards = payload.yards ?? 0;
     const res = payload.result || '';
     const isTD = res === 'TD' || payload.returned_for_td;
@@ -326,8 +327,13 @@ const calculateNextSituation = (currentCtx: Ctx, payload: PlayPayload, downsPerS
     }
 
     if (isFirstDown) {
-        nextCtx.down = '1';
-        nextCtx.toGo = res === '1DG' ? 'Goal' : '10';
+        if (res === '1DG') {
+            nextCtx.down = '1&G';
+            nextCtx.toGo = 'Goal';
+        } else {
+            nextCtx.down = '1';
+            nextCtx.toGo = '10';
+        }
         advanceBallOn();
         return nextCtx;
     }
@@ -343,8 +349,9 @@ const calculateNextSituation = (currentCtx: Ctx, payload: PlayPayload, downsPerS
         return nextCtx;
     }
 
-    nextCtx.down = String(curDown + 1);
-    nextCtx.toGo = String(Math.max(1, curToGo - yards));
+    const nextNum = curDown + 1;
+    nextCtx.down = isGoalSeries ? `${nextNum}&G` : String(nextNum);
+    nextCtx.toGo = isGoalSeries ? 'Goal' : String(Math.max(1, curToGo - yards));
     advanceBallOn();
     return nextCtx;
 };
@@ -1004,7 +1011,28 @@ export const AdminPlayByPlay = () => {
                             </label>
                             <label className="flex flex-col gap-1">
                                 <span className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Down</span>
-                                <input type="number" value={ctx.down} onChange={e => setCtx({ ...ctx, down: e.target.value })} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 font-bold text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                                <select
+                                    value={ctx.down}
+                                    onChange={e => {
+                                        const val = e.target.value;
+                                        if (val.includes('&G')) {
+                                            setCtx({ ...ctx, down: val, toGo: 'Goal' });
+                                        } else {
+                                            const wasGoal = ctx.down.includes('&G') || ctx.toGo === 'Goal';
+                                            setCtx({ ...ctx, down: val, toGo: wasGoal ? '10' : ctx.toGo });
+                                        }
+                                    }}
+                                    className="w-full border border-gray-300 rounded-lg px-2 py-1.5 font-bold text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                >
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="1&G">1&G</option>
+                                    <option value="2&G">2&G</option>
+                                    <option value="3&G">3&G</option>
+                                    <option value="4&G">4&G</option>
+                                </select>
                             </label>
                             <label className="flex flex-col gap-1">
                                 <span className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">To go</span>

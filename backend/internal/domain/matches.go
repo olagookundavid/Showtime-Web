@@ -11,6 +11,11 @@ const (
 	CompetitionFormatKnockout CompetitionFormat = "KNOCKOUT"
 )
 
+const (
+	TieBreakerRulePCT_PD_PF_PA_NAME = "PCT_PD_PF_PA_NAME"     // Rule 1: Win % -> Point Diff -> Points For -> Points Against -> Name
+	TieBreakerRuleH2H_PCT_PD_PF_PA_NAME = "H2H_PCT_PD_PF_PA_NAME" // Rule 2: Head-to-Head -> Win % -> Point Diff -> Points For -> Points Against -> Name
+)
+
 type Competition struct {
 	ID                   string    `json:"id"`
 	Name                 string    `json:"name"`
@@ -18,6 +23,7 @@ type Competition struct {
 	Status               string    `json:"status"`
 	Format               string    `json:"format"` // LEAGUE | KNOCKOUT
 	PlayoffCompetitionID *string   `json:"playoff_competition_id,omitempty"`
+	TieBreakerRule       string    `json:"tie_breaker_rule"`
 	CreatedAt            time.Time `json:"created_at"`
 	UpdatedAt            time.Time `json:"updated_at"`
 }
@@ -29,6 +35,14 @@ type Team struct {
 	Logo      string    `json:"logo"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type CompetitionTeam struct {
+	ID            string    `json:"id"`
+	CompetitionID string    `json:"competition_id"`
+	TeamID        string    `json:"team_id"`
+	CreatedAt     time.Time `json:"created_at"`
+	Team          *Team     `json:"team,omitempty"`
 }
 
 type MatchStatus string

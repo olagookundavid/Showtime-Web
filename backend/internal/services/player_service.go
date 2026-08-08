@@ -15,6 +15,7 @@ type IPlayerService interface {
 	CreatePlayer(ctx context.Context, player *domain.Player) error
 	UpdatePlayer(ctx context.Context, player *domain.Player) error
 	DeletePlayer(ctx context.Context, id string) error
+	AssignRandomJerseyNumbers(ctx context.Context, teamID string) (int, error)
 }
 
 type PlayerService struct {
@@ -138,5 +139,9 @@ func (s *PlayerService) DeletePlayer(ctx context.Context, id string) error {
 		}
 	}
 	return s.repo.DeletePlayer(ctx, id)
+}
+
+func (s *PlayerService) AssignRandomJerseyNumbers(ctx context.Context, teamID string) (int, error) {
+	return s.repo.AssignRandomJerseyNumbers(ctx, teamID)
 }
 

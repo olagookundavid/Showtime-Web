@@ -6,7 +6,6 @@ import {
     XMarkIcon,
     ChartBarIcon,
     ShieldCheckIcon,
-    TrophyIcon,
     UserGroupIcon,
     PhotoIcon,
     UsersIcon,
@@ -14,7 +13,8 @@ import {
     TicketIcon,
     NewspaperIcon,
     BuildingStorefrontIcon,
-    GiftIcon
+    GiftIcon,
+    StarIcon
 } from '@heroicons/react/24/outline';
 
 export const AdminLayout = () => {
@@ -61,12 +61,12 @@ export const AdminLayout = () => {
         { name: 'Matches', path: '/admin/matches', icon: CalendarIcon },
         { name: 'Play by Play', path: '/admin/play-by-play', icon: CalendarIcon },
         { name: 'Teams', path: '/admin/teams', icon: ShieldCheckIcon },
-        { name: 'Competitions', path: '/admin/competitions', icon: TrophyIcon },
+        { name: 'Competitions', path: '/admin/competitions', icon: ShieldCheckIcon },
         { name: 'Players', path: '/admin/players', icon: UserGroupIcon },
         { name: 'Stats', path: '/admin/stats', icon: ChartBarIcon },
         // { name: 'Team of the Week', path: '/admin/totw', icon: TrophyIcon }, // disabled — see App.tsx
-        { name: 'Team of the Season', path: '/admin/season', icon: TrophyIcon },
-        { name: 'Standings', path: '/admin/standings', icon: TrophyIcon },
+        { name: 'Team of the Season', path: '/admin/season', icon: StarIcon },
+        { name: 'Standings', path: '/admin/standings', icon: ChartBarIcon },
         { name: 'Tickets', path: '/admin/tickets', icon: TicketIcon },
         { name: 'Referrals', path: '/admin/referrals', icon: TicketIcon },
         { name: 'Event Days', path: '/admin/event-days', icon: CalendarIcon },

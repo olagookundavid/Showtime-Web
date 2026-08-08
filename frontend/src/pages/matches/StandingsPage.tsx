@@ -185,8 +185,12 @@ export const StandingsPage = () => {
             {/* Standings Table with Compact Legend */}
             {!isKnockout && !dataLoading && standings.length > 0 ? (
                 <div className="space-y-3 md:space-y-6">
-                    <div className="flex items-center gap-2">
-                        <span className="text-base md:text-2xl">🏆</span>
+                    <div className="flex items-center gap-2.5">
+                        {selectedCompetition?.logo ? (
+                            <img src={selectedCompetition.logo} alt={selectedCompetition.name} className="w-6 h-6 md:w-8 md:h-8 object-contain" />
+                        ) : (
+                            <span className="text-base md:text-2xl">🏆</span>
+                        )}
                         <h2 className="text-sm md:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">
                             {selectedCompetition?.name || 'League'}
                             {selectedCompetition?.status && !['active', 'completed'].includes(selectedCompetition.status) && (

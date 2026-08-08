@@ -2,9 +2,12 @@ package ports
 
 import (
 	"context"
-	"showtime-backend/internal/domain"
-
+	"fmt"
+	"math/rand"
 	"strconv"
+	"time"
+
+	"showtime-backend/internal/domain"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -15,6 +18,7 @@ type PlayerRepository interface {
 	CreatePlayer(ctx context.Context, player *domain.Player) error
 	UpdatePlayer(ctx context.Context, player *domain.Player) error
 	DeletePlayer(ctx context.Context, id string) error
+	AssignRandomJerseyNumbers(ctx context.Context, teamID string) (int, error)
 }
 
 type PostgresPlayerRepository struct {
@@ -120,6 +124,14 @@ func (r *PostgresPlayerRepository) GetPlayerByID(ctx context.Context, id string)
 }
 
 func (r *PostgresPlayerRepository) CreatePlayer(ctx context.Context, player *domain.Player) error {
+	if player.JerseyNumber > 0 {
+		var existingCount int
+		err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM players WHERE COALESCE(team_id::text, '') = $1 AND jersey_number = $2`, player.TeamID, player.JerseyNumber).Scan(&existingCount)
+		if err == nil && existingCount > 0 {
+			return fmt.Errorf("jersey number %d already exists for this team", player.JerseyNumber)
+		}
+	}
+
 	query := `
 		INSERT INTO players (name, jersey_number, position, team_id, bio, image, email)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -131,6 +143,14 @@ func (r *PostgresPlayerRepository) CreatePlayer(ctx context.Context, player *dom
 }
 
 func (r *PostgresPlayerRepository) UpdatePlayer(ctx context.Context, player *domain.Player) error {
+	if player.JerseyNumber > 0 {
+		var existingCount int
+		err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM players WHERE COALESCE(team_id::text, '') = $1 AND jersey_number = $2 AND id != $3`, player.TeamID, player.JerseyNumber, player.ID).Scan(&existingCount)
+		if err == nil && existingCount > 0 {
+			return fmt.Errorf("jersey number %d already exists for this team", player.JerseyNumber)
+		}
+	}
+
 	query := `
 		UPDATE players SET
 			name=$1, jersey_number=$2, position=$3, team_id=$4, bio=$5, image=$6, email=$7,
@@ -148,4 +168,81 @@ func (r *PostgresPlayerRepository) DeletePlayer(ctx context.Context, id string) 
 	query := `DELETE FROM players WHERE id = $1`
 	_, err := r.db.Exec(ctx, query, id)
 	return err
+}
+
+func (r *PostgresPlayerRepository) AssignRandomJerseyNumbers(ctx context.Context, teamID string) (int, error) {
+	var teamIDs []string
+	if teamID != "" {
+		teamIDs = []string{teamID}
+	} else {
+		rows, err := r.db.Query(ctx, `SELECT DISTINCT team_id FROM players WHERE team_id IS NOT NULL AND COALESCE(jersey_number, 0) = 0`)
+		if err != nil {
+			return 0, err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var tid string
+			if err := rows.Scan(&tid); err == nil {
+				teamIDs = append(teamIDs, tid)
+			}
+		}
+		if err := rows.Err(); err != nil {
+			return 0, err
+		}
+	}
+
+	totalAssigned := 0
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	for _, tid := range teamIDs {
+		rows, err := r.db.Query(ctx, `SELECT jersey_number FROM players WHERE team_id = $1 AND COALESCE(jersey_number, 0) > 0`, tid)
+		if err != nil {
+			continue
+		}
+		used := make(map[int]bool)
+		for rows.Next() {
+			var num int
+			if err := rows.Scan(&num); err == nil {
+				used[num] = true
+			}
+		}
+		rows.Close()
+
+		pRows, err := r.db.Query(ctx, `SELECT id FROM players WHERE team_id = $1 AND COALESCE(jersey_number, 0) = 0 ORDER BY name ASC`, tid)
+		if err != nil {
+			continue
+		}
+		var unassignedIDs []string
+		for pRows.Next() {
+			var pid string
+			if err := pRows.Scan(&pid); err == nil {
+				unassignedIDs = append(unassignedIDs, pid)
+			}
+		}
+		pRows.Close()
+
+		var pool []int
+		for n := 1; n <= 99; n++ {
+			if !used[n] {
+				pool = append(pool, n)
+			}
+		}
+
+		rng.Shuffle(len(pool), func(i, j int) {
+			pool[i], pool[j] = pool[j], pool[i]
+		})
+
+		for i, pid := range unassignedIDs {
+			if i >= len(pool) {
+				break
+			}
+			assignedNum := pool[i]
+			_, err := r.db.Exec(ctx, `UPDATE players SET jersey_number = $1, updated_at = NOW() WHERE id = $2`, assignedNum, pid)
+			if err == nil {
+				totalAssigned++
+			}
+		}
+	}
+
+	return totalAssigned, nil
 }

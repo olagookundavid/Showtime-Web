@@ -119,6 +119,9 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		compGroup.POST("", app.Handlers.MatchHandler.CreateCompetition)
 		compGroup.PUT("/:id", app.Handlers.MatchHandler.UpdateCompetition)
 		compGroup.DELETE("/:id", app.Handlers.MatchHandler.DeleteCompetition)
+		compGroup.GET("/:id/teams", app.Handlers.MatchHandler.GetTeamsByCompetition)
+		compGroup.POST("/:id/teams", app.Handlers.MatchHandler.AddTeamToCompetition)
+		compGroup.DELETE("/:id/teams/:teamId", app.Handlers.MatchHandler.RemoveTeamFromCompetition)
 		compGroup.POST("/:id/bracket", app.Handlers.MatchHandler.GenerateBracket)
 		compGroup.DELETE("/:id/bracket", app.Handlers.MatchHandler.ResetBracket)
 		// Step 3: per-competition play-by-play scoring rules.
@@ -245,6 +248,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		playersGroup.POST("", app.Handlers.PlayerHandler.CreatePlayer)
 		playersGroup.PUT("/:id", app.Handlers.PlayerHandler.UpdatePlayer)
 		playersGroup.DELETE("/:id", app.Handlers.PlayerHandler.DeletePlayer)
+		playersGroup.POST("/assign-jersey-numbers", app.Handlers.PlayerHandler.AssignRandomJerseyNumbers)
 	}
 
 	// Manual stat editing is reserved for App Admins (play-by-play is the primary
@@ -319,6 +323,7 @@ func SetupTeamHeadRoutes(r *gin.RouterGroup, app *api.Application) {
 	thRoutes.POST("/players", app.Handlers.PlayerHandler.CreatePlayer)
 	thRoutes.PUT("/players/:id", app.Handlers.PlayerHandler.UpdatePlayer)
 	thRoutes.DELETE("/players/:id", app.Handlers.PlayerHandler.DeletePlayer)
+	thRoutes.POST("/players/assign-jersey-numbers", app.Handlers.PlayerHandler.AssignRandomJerseyNumbers)
 
 	// Allocations
 	thRoutes.GET("/allocations", app.Handlers.TeamTicketAllocationHandler.GetTeamAllocations)
