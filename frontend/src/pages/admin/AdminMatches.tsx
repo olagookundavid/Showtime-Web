@@ -126,7 +126,11 @@ export const AdminMatches = () => {
         queryFn: () => getTeamsByCompetition(form.competition_id),
         enabled: !!form.competition_id,
     });
-    const compScopedTeams: Team[] = compScopedTeamsData?.data || compScopedTeamsData || [];
+    const compScopedTeams: Team[] = Array.isArray(compScopedTeamsData?.data)
+        ? compScopedTeamsData.data
+        : Array.isArray(compScopedTeamsData)
+            ? compScopedTeamsData
+            : [];
     const activeTeamsForForm = form.competition_id && compScopedTeams.length > 0 ? compScopedTeams : teams;
     const selectableTeams = (_current: string): Team[] => activeTeamsForForm;
 

@@ -950,7 +950,10 @@ export const getAdminTeams = async (params?: { page?: number; limit?: number; se
 
 export const getTeamsByCompetition = async (competitionId: string) => {
     const response = await api.get('/admin/teams/by-competition', { params: { competition_id: competitionId } });
-    return response.data;
+    if (response.data && response.data.data !== undefined) {
+        return { data: Array.isArray(response.data.data) ? response.data.data : [] };
+    }
+    return { data: Array.isArray(response.data) ? response.data : [] };
 };
 
 export const addTeamToCompetition = async (competitionId: string, teamId: string) => {

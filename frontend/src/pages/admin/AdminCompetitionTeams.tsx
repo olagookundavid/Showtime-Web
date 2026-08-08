@@ -26,7 +26,7 @@ export const AdminCompetitionTeams = () => {
         queryKey: ['publicCompetitionsList'],
         queryFn: () => getCompetitions(1, 100),
     });
-    const competition = (competitionsData?.data || []).find(c => c.id === id);
+    const competition = (Array.isArray(competitionsData?.data) ? competitionsData.data : []).find(c => c.id === id);
 
     // Fetch enrolled teams
     const { data: compTeamsData, isLoading: loadingCompTeams } = useQuery({
@@ -34,14 +34,22 @@ export const AdminCompetitionTeams = () => {
         queryFn: () => getTeamsByCompetition(id!),
         enabled: !!id,
     });
-    const enrolledTeams: Team[] = compTeamsData?.data || compTeamsData || [];
+    const enrolledTeams: Team[] = Array.isArray(compTeamsData?.data)
+        ? compTeamsData.data
+        : Array.isArray(compTeamsData)
+            ? compTeamsData
+            : [];
 
     // Fetch all teams
     const { data: allTeamsData, isLoading: loadingAllTeams } = useQuery({
         queryKey: ['adminTeamsAll'],
         queryFn: () => getTeams(1, 100),
     });
-    const allTeams: Team[] = allTeamsData?.data || [];
+    const allTeams: Team[] = Array.isArray(allTeamsData?.data)
+        ? allTeamsData.data
+        : Array.isArray(allTeamsData)
+            ? allTeamsData
+            : [];
 
     const enrolledIds = new Set(enrolledTeams.map(t => t.id));
     const availableTeams = allTeams.filter(t => !enrolledIds.has(t.id));

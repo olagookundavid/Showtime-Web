@@ -463,6 +463,9 @@ func (h *MatchHandler) GetTeamsByCompetition(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	if teams == nil {
+		teams = []dto.TeamResponse{}
+	}
 	c.JSON(http.StatusOK, gin.H{"data": teams})
 }
 
