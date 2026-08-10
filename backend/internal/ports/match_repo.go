@@ -149,7 +149,7 @@ func (r *PostgresMatchRepository) CreateCompetition(ctx context.Context, comp *d
 				return err
 			}
 			if comp.Format == "LEAGUE" || comp.Format == "" {
-				if _, err := tx.Exec(ctx, `INSERT INTO standings (competition_id, team_id, position, played, won, drawn, lost, goals_for, goals_against, goal_difference, pct, l5, updated_at) VALUES ($1, $2, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', NOW()) ON CONFLICT (competition_id, team_id) DO NOTHING`, comp.ID, teamID); err != nil {
+				if _, err := tx.Exec(ctx, `INSERT INTO standings (competition_id, team_id, position, played, won, drawn, lost, goals_for, goals_against, pct, l5, updated_at) VALUES ($1, $2, 0, 0, 0, 0, 0, 0, 0, 0, '', NOW()) ON CONFLICT (competition_id, team_id) DO NOTHING`, comp.ID, teamID); err != nil {
 					return err
 				}
 			}
@@ -189,7 +189,7 @@ func (r *PostgresMatchRepository) UpdateCompetition(ctx context.Context, comp *d
 					return err
 				}
 				if comp.Format == "LEAGUE" || comp.Format == "" {
-					if _, err := tx.Exec(ctx, `INSERT INTO standings (competition_id, team_id, position, played, won, drawn, lost, goals_for, goals_against, goal_difference, pct, l5, updated_at) VALUES ($1, $2, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', NOW()) ON CONFLICT (competition_id, team_id) DO NOTHING`, comp.ID, teamID); err != nil {
+					if _, err := tx.Exec(ctx, `INSERT INTO standings (competition_id, team_id, position, played, won, drawn, lost, goals_for, goals_against, pct, l5, updated_at) VALUES ($1, $2, 0, 0, 0, 0, 0, 0, 0, 0, '', NOW()) ON CONFLICT (competition_id, team_id) DO NOTHING`, comp.ID, teamID); err != nil {
 						return err
 					}
 				}
@@ -355,7 +355,7 @@ func (r *PostgresMatchRepository) AddTeamToCompetition(ctx context.Context, comp
 	var format string
 	_ = r.db.QueryRow(ctx, `SELECT COALESCE(format, 'LEAGUE') FROM competitions WHERE id = $1`, competitionID).Scan(&format)
 	if format == "LEAGUE" || format == "" {
-		_, _ = r.db.Exec(ctx, `INSERT INTO standings (competition_id, team_id, position, played, won, drawn, lost, goals_for, goals_against, goal_difference, pct, l5, updated_at) VALUES ($1, $2, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', NOW()) ON CONFLICT (competition_id, team_id) DO NOTHING`, competitionID, teamID)
+		_, _ = r.db.Exec(ctx, `INSERT INTO standings (competition_id, team_id, position, played, won, drawn, lost, goals_for, goals_against, pct, l5, updated_at) VALUES ($1, $2, 0, 0, 0, 0, 0, 0, 0, 0, '', NOW()) ON CONFLICT (competition_id, team_id) DO NOTHING`, competitionID, teamID)
 	}
 	return nil
 }
@@ -765,9 +765,9 @@ func (r *PostgresMatchRepository) RecalculateStandings(ctx context.Context, comp
 	seedQuery := `
 		INSERT INTO standings (
 			competition_id, team_id, position, played, won, drawn, lost,
-			goals_for, goals_against, goal_difference, pct, l5, updated_at
+			goals_for, goals_against, pct, l5, updated_at
 		)
-		SELECT $1, t.team_id, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', NOW()
+		SELECT $1, t.team_id, 0, 0, 0, 0, 0, 0, 0, 0, '', NOW()
 		FROM (
 			SELECT team_id FROM competition_teams WHERE competition_id = $1
 			UNION
