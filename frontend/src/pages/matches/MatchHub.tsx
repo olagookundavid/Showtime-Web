@@ -390,6 +390,7 @@ export const MatchHub = () => {
                             <MatchStandingsTable 
                                 standings={standings} 
                                 isCompleted={isCompleted} 
+                                isPlayoffs={selectedComp?.format === 'KNOCKOUT'}
                                 viewAllLink={`/standings?comp=${selectedCompetitionId}`}
                             />
 

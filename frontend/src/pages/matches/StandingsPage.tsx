@@ -241,6 +241,7 @@ export const StandingsPage = () => {
                         standings={standings}
                         isCompleted={selectedCompetition?.status === 'completed'}
                         highlightTeamId={teamParam || undefined}
+                        isPlayoffs={isKnockout}
                     />
                 </div>
             ) : !isKnockout && !dataLoading ? (

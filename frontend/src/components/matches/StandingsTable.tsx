@@ -7,6 +7,7 @@ interface StandingsTableProps {
     standings: Standing[];
     isCompleted?: boolean;
     highlightTeamId?: string;
+    isPlayoffs?: boolean;
 }
 
 const L5Badge: React.FC<{ result: string }> = ({ result }) => {
@@ -22,7 +23,8 @@ const L5Badge: React.FC<{ result: string }> = ({ result }) => {
     );
 };
 
-export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCompleted, highlightTeamId }) => {
+export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCompleted, highlightTeamId, isPlayoffs }) => {
+    const championIcon = isPlayoffs ? '/images/branding/showtime-bowl-trophy.png' : '/images/branding/showtime-community-cup-shield.png';
     // See StatsTable for the rationale behind this floating-clone pattern:
     // the table needs overflow-x-auto for narrow screens, which captures any
     // pure-CSS `sticky top-0`. The JS clone gives us a viewport-pinned thead
@@ -106,7 +108,7 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCom
                     <span>Wildcard spot</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                    <img src="/images/branding/showtime-bowl-trophy.png" alt="Trophy" className="w-4 h-4 object-contain" />
+                    <img src={championIcon} alt="Champion" className="w-4 h-4 object-contain" />
                     <span>Champion</span>
                 </div>
             </div>
@@ -161,12 +163,12 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCom
                                                     className="flex items-center gap-1 uppercase hover:text-sffl-red transition-colors relative z-30"
                                                 >
                                                     <span>{standing.team?.name || standing.team?.short_name || 'Unknown'}</span>
-                                                    {isGold && <img src="/images/branding/showtime-bowl-trophy.png" alt="Champion Trophy" className="w-6 h-6 md:w-8 md:h-8 object-contain inline-block ml-1 animate-bounce drop-shadow-xl relative z-40 flex-shrink-0" title="Champion" />}
+                                                    {isGold && <img src={championIcon} alt="Champion Trophy" className="w-6 h-6 md:w-8 md:h-8 object-contain inline-block ml-1 animate-bounce drop-shadow-xl relative z-40 flex-shrink-0" title="Champion" />}
                                                 </Link>
                                             ) : (
                                                 <span className="flex items-center gap-1 uppercase relative z-30">
                                                     <span>{standing.team?.name || standing.team?.short_name || 'Unknown'}</span>
-                                                    {isGold && <img src="/images/branding/showtime-bowl-trophy.png" alt="Champion Trophy" className="w-6 h-6 md:w-8 md:h-8 object-contain inline-block ml-1 animate-bounce drop-shadow-xl relative z-40 flex-shrink-0" title="Champion" />}
+                                                    {isGold && <img src={championIcon} alt="Champion Trophy" className="w-6 h-6 md:w-8 md:h-8 object-contain inline-block ml-1 animate-bounce drop-shadow-xl relative z-40 flex-shrink-0" title="Champion" />}
                                                 </span>
                                             )}
                                         </div>

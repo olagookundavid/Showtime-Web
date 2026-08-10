@@ -6,9 +6,11 @@ interface MatchStandingsTableProps {
     standings: Standing[];
     isCompleted?: boolean;
     viewAllLink?: string;
+    isPlayoffs?: boolean;
 }
 
-export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({ standings, isCompleted, viewAllLink }) => {
+export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({ standings, isCompleted, viewAllLink, isPlayoffs }) => {
+    const championIcon = isPlayoffs ? '/images/branding/showtime-bowl-trophy.png' : '/images/branding/showtime-community-cup-shield.png';
     if (standings.length === 0) {
         return <div className="text-center p-8 text-gray-500 dark:text-gray-400">No standings available yet.</div>;
     }
@@ -84,12 +86,12 @@ export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({ standi
                                                 className="inline-flex items-center gap-1 uppercase hover:text-sffl-red transition-colors relative z-30"
                                             >
                                                 <span>{nameText}</span>
-                                                {isGold && <img src="/images/branding/showtime-bowl-trophy.png" alt="Champion Trophy" className="w-5 h-5 md:w-7 md:h-7 object-contain inline-block ml-1 animate-bounce drop-shadow-xl relative z-40 flex-shrink-0" title="Champion" />}
+                                                {isGold && <img src={championIcon} alt="Champion Trophy" className="w-5 h-5 md:w-7 md:h-7 object-contain inline-block ml-1 animate-bounce drop-shadow-xl relative z-40 flex-shrink-0" title="Champion" />}
                                             </Link>
                                         ) : (
                                             <span className="inline-flex items-center gap-1 uppercase relative z-30">
                                                 <span>{nameText}</span>
-                                                {isGold && <img src="/images/branding/showtime-bowl-trophy.png" alt="Champion Trophy" className="w-5 h-5 md:w-7 md:h-7 object-contain inline-block ml-1 animate-bounce drop-shadow-xl relative z-40 flex-shrink-0" title="Champion" />}
+                                                {isGold && <img src={championIcon} alt="Champion Trophy" className="w-5 h-5 md:w-7 md:h-7 object-contain inline-block ml-1 animate-bounce drop-shadow-xl relative z-40 flex-shrink-0" title="Champion" />}
                                             </span>
                                         )}
                                     </td>
