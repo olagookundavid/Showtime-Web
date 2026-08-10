@@ -3,6 +3,7 @@ package transport
 import (
 	"math"
 	"net/http"
+	"pkg-common/helpers"
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/services"
@@ -68,7 +69,7 @@ func (h *MatchHandler) GetCompetitions(c *gin.Context) {
 
 	result, err := h.service.GetCompetitions(c.Request.Context(), page, limit, search, status)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, result)
@@ -92,7 +93,7 @@ func (h *MatchHandler) GetMatches(c *gin.Context) {
 
 	matches, err := h.service.GetMatches(c.Request.Context(), competitionID, status, page, limit, search)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, matches)
@@ -115,7 +116,7 @@ func (h *MatchHandler) GetTeams(c *gin.Context) {
 
 	result, err := h.service.GetTeams(c.Request.Context(), page, limit, search, status)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, result)
@@ -134,7 +135,7 @@ func (h *MatchHandler) GetAllTeams(c *gin.Context) {
 	}
 	teams, err := h.service.GetAllTeams(c.Request.Context(), status)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": teams})
@@ -149,20 +150,20 @@ func (h *MatchHandler) GetAllTeams(c *gin.Context) {
 func (h *MatchHandler) CreateMatch(c *gin.Context) {
 	var req dto.CreateMatchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		helpers.BadResponse(c, err.Error())
 		return
 	}
 
 	// Validation: Team cannot play itself (empty IDs are TBD bracket slots)
 	if req.HomeTeamID != "" && req.HomeTeamID == req.AwayTeamID {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Home team and away team cannot be the same"})
+		helpers.BadResponse(c, "Home team and away team cannot be the same")
 		return
 	}
 
 	// Parse Date
 	date, err := time.Parse("2006-01-02", req.Date)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date format. Use YYYY-MM-DD"})
+		helpers.BadResponse(c, "Invalid date format. Use YYYY-MM-DD")
 		return
 	}
 
@@ -183,7 +184,7 @@ func (h *MatchHandler) CreateMatch(c *gin.Context) {
 	}
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid start_time format. Use HH:MM or RFC3339"})
+		helpers.BadResponse(c, "Invalid start_time format. Use HH:MM or RFC3339")
 		return
 	}
 
@@ -214,13 +215,13 @@ func (h *MatchHandler) CreateMatch(c *gin.Context) {
 	if match.Status == domain.MatchStatusFinished {
 		isBye := (match.HomeTeamID != "" && match.AwayTeamID == "") || (match.HomeTeamID == "" && match.AwayTeamID != "")
 		if !isBye && (match.HomeScore == nil || match.AwayScore == nil) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Home and Away scores must be provided for finished matches"})
+			helpers.BadResponse(c, "Home and Away scores must be provided for finished matches")
 			return
 		}
 	}
 
 	if err := h.service.CreateMatch(c.Request.Context(), match); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"message": "Match created", "id": match.ID})
@@ -238,13 +239,13 @@ func (h *MatchHandler) UpdateMatch(c *gin.Context) {
 	id := c.Param("id")
 	var req dto.UpdateMatchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		helpers.BadResponse(c, err.Error())
 		return
 	}
 
 	// Validation: Team cannot play itself
 	if req.HomeTeamID != "" && req.AwayTeamID != "" && req.HomeTeamID == req.AwayTeamID {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Home team and away team cannot be the same"})
+		helpers.BadResponse(c, "Home team and away team cannot be the same")
 		return
 	}
 
@@ -287,13 +288,13 @@ func (h *MatchHandler) UpdateMatch(c *gin.Context) {
 	if match.Status == domain.MatchStatusFinished {
 		isBye := (match.HomeTeamID != "" && match.AwayTeamID == "") || (match.HomeTeamID == "" && match.AwayTeamID != "")
 		if !isBye && (match.HomeScore == nil || match.AwayScore == nil) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Home and Away scores must be provided when finishing a match"})
+			helpers.BadResponse(c, "Home and Away scores must be provided when finishing a match")
 			return
 		}
 	}
 
 	if err := h.service.UpdateMatch(c.Request.Context(), match); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Match updated"})
@@ -309,7 +310,7 @@ func (h *MatchHandler) UpdateMatch(c *gin.Context) {
 func (h *MatchHandler) DeleteMatch(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.service.DeleteMatch(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Match deleted"})
@@ -325,13 +326,13 @@ func (h *MatchHandler) DeleteMatch(c *gin.Context) {
 func (h *MatchHandler) GetStandings(c *gin.Context) {
 	competitionID := c.Query("competition_id")
 	if competitionID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "competition_id is required"})
+		helpers.BadResponse(c, "competition_id is required")
 		return
 	}
 
 	standings, err := h.service.GetStandings(c.Request.Context(), competitionID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": standings})
@@ -346,7 +347,7 @@ func (h *MatchHandler) GetStandings(c *gin.Context) {
 func (h *MatchHandler) CreateStanding(c *gin.Context) {
 	var req dto.CreateStandingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		helpers.BadResponse(c, err.Error())
 		return
 	}
 
@@ -372,7 +373,7 @@ func (h *MatchHandler) CreateStanding(c *gin.Context) {
 	}
 
 	if err := h.service.CreateStanding(c.Request.Context(), standing); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"message": "Standing created", "id": standing.ID})
@@ -390,7 +391,7 @@ func (h *MatchHandler) UpdateStanding(c *gin.Context) {
 	id := c.Param("id")
 	var req dto.UpdateStandingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		helpers.BadResponse(c, err.Error())
 		return
 	}
 
@@ -417,7 +418,7 @@ func (h *MatchHandler) UpdateStanding(c *gin.Context) {
 	}
 
 	if err := h.service.UpdateStanding(c.Request.Context(), standing); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Standing updated"})
@@ -433,7 +434,7 @@ func (h *MatchHandler) UpdateStanding(c *gin.Context) {
 func (h *MatchHandler) DeleteStanding(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.service.DeleteStanding(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Standing deleted"})
@@ -459,14 +460,14 @@ func (h *MatchHandler) GetTeamsByCompetition(c *gin.Context) {
 		competitionID = c.Query("competition_id")
 	}
 	if competitionID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "competition_id is required"})
+		helpers.BadResponse(c, "competition_id is required")
 		return
 	}
 	status := c.Query("status")
 
 	teams, err := h.service.GetTeamsByCompetition(c.Request.Context(), competitionID, status)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	if teams == nil {
@@ -482,18 +483,18 @@ type AddTeamToCompetitionRequest struct {
 func (h *MatchHandler) AddTeamToCompetition(c *gin.Context) {
 	competitionID := c.Param("id")
 	if competitionID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "competition id is required"})
+		helpers.BadResponse(c, "competition id is required")
 		return
 	}
 
 	var req AddTeamToCompetitionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		helpers.BadResponse(c, err.Error())
 		return
 	}
 
 	if err := h.service.AddTeamToCompetition(c.Request.Context(), competitionID, req.TeamID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 
@@ -504,12 +505,12 @@ func (h *MatchHandler) RemoveTeamFromCompetition(c *gin.Context) {
 	competitionID := c.Param("id")
 	teamID := c.Param("teamId")
 	if competitionID == "" || teamID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "competition_id and team_id are required"})
+		helpers.BadResponse(c, "competition_id and team_id are required")
 		return
 	}
 
 	if err := h.service.RemoveTeamFromCompetition(c.Request.Context(), competitionID, teamID); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 
@@ -527,7 +528,7 @@ func (h *MatchHandler) RemoveTeamFromCompetition(c *gin.Context) {
 func (h *MatchHandler) CreateTeam(c *gin.Context) {
 	var req dto.CreateTeamRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		helpers.BadResponse(c, err.Error())
 		return
 	}
 
@@ -536,7 +537,7 @@ func (h *MatchHandler) CreateTeam(c *gin.Context) {
 		status = "active"
 	}
 	if status != "active" && status != "inactive" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "status must be 'active' or 'inactive'"})
+		helpers.BadResponse(c, "status must be 'active' or 'inactive'")
 		return
 	}
 
@@ -548,7 +549,7 @@ func (h *MatchHandler) CreateTeam(c *gin.Context) {
 	}
 
 	if err := h.service.CreateTeam(c.Request.Context(), team); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"message": "Team created", "data": gin.H{"id": team.ID, "name": team.Name}})
@@ -567,7 +568,7 @@ func (h *MatchHandler) UpdateTeam(c *gin.Context) {
 	id := c.Param("id")
 	var req dto.CreateTeamRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		helpers.BadResponse(c, err.Error())
 		return
 	}
 
@@ -576,7 +577,7 @@ func (h *MatchHandler) UpdateTeam(c *gin.Context) {
 		status = "active"
 	}
 	if status != "active" && status != "inactive" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "status must be 'active' or 'inactive'"})
+		helpers.BadResponse(c, "status must be 'active' or 'inactive'")
 		return
 	}
 
@@ -589,7 +590,7 @@ func (h *MatchHandler) UpdateTeam(c *gin.Context) {
 	}
 
 	if err := h.service.UpdateTeam(c.Request.Context(), team); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Team updated"})
@@ -605,7 +606,7 @@ func (h *MatchHandler) UpdateTeam(c *gin.Context) {
 func (h *MatchHandler) DeleteTeam(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.service.DeleteTeam(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Team deleted"})
@@ -622,7 +623,7 @@ func (h *MatchHandler) DeleteTeam(c *gin.Context) {
 func (h *MatchHandler) CreateCompetition(c *gin.Context) {
 	var req dto.CreateCompetitionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		helpers.BadResponse(c, err.Error())
 		return
 	}
 
@@ -636,7 +637,7 @@ func (h *MatchHandler) CreateCompetition(c *gin.Context) {
 		format = string(domain.CompetitionFormatLeague)
 	}
 	if format != string(domain.CompetitionFormatLeague) && format != string(domain.CompetitionFormatKnockout) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "format must be LEAGUE or KNOCKOUT"})
+		helpers.BadResponse(c, "format must be LEAGUE or KNOCKOUT")
 		return
 	}
 
@@ -656,7 +657,7 @@ func (h *MatchHandler) CreateCompetition(c *gin.Context) {
 	}
 
 	if err := h.service.CreateCompetition(c.Request.Context(), comp); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"message": "Competition created", "data": gin.H{"id": comp.ID, "name": comp.Name}})
@@ -675,7 +676,7 @@ func (h *MatchHandler) UpdateCompetition(c *gin.Context) {
 	id := c.Param("id")
 	var req dto.CreateCompetitionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		helpers.BadResponse(c, err.Error())
 		return
 	}
 
@@ -684,7 +685,7 @@ func (h *MatchHandler) UpdateCompetition(c *gin.Context) {
 		format = string(domain.CompetitionFormatLeague)
 	}
 	if format != string(domain.CompetitionFormatLeague) && format != string(domain.CompetitionFormatKnockout) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "format must be LEAGUE or KNOCKOUT"})
+		helpers.BadResponse(c, "format must be LEAGUE or KNOCKOUT")
 		return
 	}
 
@@ -705,7 +706,7 @@ func (h *MatchHandler) UpdateCompetition(c *gin.Context) {
 	}
 
 	if err := h.service.UpdateCompetition(c.Request.Context(), comp); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Competition updated"})
@@ -724,12 +725,12 @@ func (h *MatchHandler) GenerateBracket(c *gin.Context) {
 	id := c.Param("id")
 	var req dto.GenerateBracketRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		helpers.BadResponse(c, err.Error())
 		return
 	}
 
 	if err := h.service.GenerateBracket(c.Request.Context(), id, req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		helpers.BadResponse(c, err.Error())
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"message": "Bracket generated"})
@@ -745,7 +746,7 @@ func (h *MatchHandler) GenerateBracket(c *gin.Context) {
 func (h *MatchHandler) ResetBracket(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.service.ResetBracket(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		helpers.BadResponse(c, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Bracket reset"})
@@ -761,7 +762,7 @@ func (h *MatchHandler) ResetBracket(c *gin.Context) {
 func (h *MatchHandler) DeleteCompetition(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.service.DeleteCompetition(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Competition deleted"})
@@ -778,7 +779,7 @@ func (h *MatchHandler) GetMatchDetail(c *gin.Context) {
 	id := c.Param("id")
 	detail, err := h.service.GetMatchDetail(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": detail})
@@ -787,13 +788,13 @@ func (h *MatchHandler) GetMatchDetail(c *gin.Context) {
 func (h *MatchHandler) GetMatchDays(c *gin.Context) {
 	competitionID := c.Query("competition_id")
 	if competitionID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "competition_id is required"})
+		helpers.BadResponse(c, "competition_id is required")
 		return
 	}
 
 	days, err := h.service.GetMatchDaysByCompetition(c.Request.Context(), competitionID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 
@@ -805,13 +806,13 @@ func (h *MatchHandler) GetEligiblePlayersForMatchDay(c *gin.Context) {
 	date := c.Query("date")
 
 	if competitionID == "" || date == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "competition_id and date are required"})
+		helpers.BadResponse(c, "competition_id and date are required")
 		return
 	}
 
 	players, err := h.service.GetEligiblePlayersForMatchDay(c.Request.Context(), competitionID, date)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 
@@ -830,12 +831,12 @@ func (h *MatchHandler) SaveTeamSheet(c *gin.Context) {
 	matchID := c.Param("id")
 	var req dto.SaveTeamSheetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		helpers.BadResponse(c, err.Error())
 		return
 	}
 
 	if err := h.service.SaveTeamSheet(c.Request.Context(), matchID, req.TeamID, req.PlayerIDs); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Team sheet saved successfully"})
@@ -852,7 +853,7 @@ func (h *MatchHandler) GetAdminTeamSheet(c *gin.Context) {
 	matchID := c.Param("id")
 	sheet, err := h.service.GetTeamSheet(c.Request.Context(), matchID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": sheet})

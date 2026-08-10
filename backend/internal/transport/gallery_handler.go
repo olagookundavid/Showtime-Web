@@ -2,6 +2,7 @@ package transport
 
 import (
 	"net/http"
+	"pkg-common/helpers"
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/services"
 
@@ -36,12 +37,12 @@ func NewGalleryHandler(service services.IGalleryService) IGalleryHandler {
 func (h *GalleryHandler) CreateGallery(c *gin.Context) {
 	var req dto.CreateGalleryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		helpers.BadResponse(c, err.Error())
 		return
 	}
 
 	if err := h.service.CreateGallery(c.Request.Context(), req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create gallery item"})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 
@@ -62,7 +63,7 @@ func (h *GalleryHandler) CreateGallery(c *gin.Context) {
 func (h *GalleryHandler) GetGallery(c *gin.Context) {
 	var query dto.PaginationQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		helpers.BadResponse(c, err.Error())
 		return
 	}
 
@@ -80,7 +81,7 @@ func (h *GalleryHandler) GetGallery(c *gin.Context) {
 
 	response, err := h.service.GetGallery(c.Request.Context(), competitionID, query)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch gallery items"})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 
@@ -99,17 +100,17 @@ func (h *GalleryHandler) GetGallery(c *gin.Context) {
 func (h *GalleryHandler) GetGalleryByID(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID is required"})
+		helpers.BadResponse(c, "ID is required")
 		return
 	}
 
 	gallery, err := h.service.GetGalleryByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch gallery item"})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	if gallery == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Gallery item not found"})
+		helpers.NotFoundResponse(c)
 		return
 	}
 
@@ -129,18 +130,18 @@ func (h *GalleryHandler) GetGalleryByID(c *gin.Context) {
 func (h *GalleryHandler) UpdateGallery(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID is required"})
+		helpers.BadResponse(c, "ID is required")
 		return
 	}
 
 	var req dto.CreateGalleryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		helpers.BadResponse(c, err.Error())
 		return
 	}
 
 	if err := h.service.UpdateGallery(c.Request.Context(), id, req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update gallery item"})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 
@@ -159,13 +160,13 @@ func (h *GalleryHandler) UpdateGallery(c *gin.Context) {
 func (h *GalleryHandler) DeleteGallery(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID is required"})
+		helpers.BadResponse(c, "ID is required")
 		return
 	}
 
 	err := h.service.DeleteGallery(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete gallery item"})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 

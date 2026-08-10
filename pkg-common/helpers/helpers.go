@@ -110,11 +110,12 @@ func RegisterErrorWithStatusResponse(c *gin.Context, err error, status bool) {
 
 func ServerErrorResponse(c *gin.Context, err error) {
 	message := "Internal server error"
-	logError(err.Error(), nil)
+	logError(fmt.Sprintf("Internal Server Error (500): %v", err), nil)
 
 	responseBody := Response{
 		Status:   false,
 		Message:  message,
+		Error:    err.Error(),
 		DevError: err.Error(),
 	}
 	c.JSON(http.StatusInternalServerError, responseBody)
@@ -129,6 +130,7 @@ type Response struct {
 	Status   bool   `json:"status"`
 	Message  string `json:"message,omitempty"`
 	Data     any    `json:"data,omitempty"`
+	Error    string `json:"error,omitempty"`
 	DevError string `json:"dev_error,omitempty"`
 }
 

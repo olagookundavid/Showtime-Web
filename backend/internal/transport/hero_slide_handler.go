@@ -2,6 +2,7 @@ package transport
 
 import (
 	"net/http"
+	"pkg-common/helpers"
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/services"
 
@@ -33,7 +34,7 @@ func NewHeroSlideHandler(service services.IHeroSlideService) IHeroSlideHandler {
 func (h *HeroSlideHandler) ListPublic(c *gin.Context) {
 	slides, err := h.service.List(c.Request.Context(), true)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch hero slides"})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": slides})
@@ -48,7 +49,7 @@ func (h *HeroSlideHandler) ListPublic(c *gin.Context) {
 func (h *HeroSlideHandler) List(c *gin.Context) {
 	slides, err := h.service.List(c.Request.Context(), false)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch hero slides"})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": slides})
@@ -65,13 +66,13 @@ func (h *HeroSlideHandler) List(c *gin.Context) {
 func (h *HeroSlideHandler) Create(c *gin.Context) {
 	var req dto.CreateHeroSlideRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		helpers.BadResponse(c, err.Error())
 		return
 	}
 
 	slide, err := h.service.Create(c.Request.Context(), req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		helpers.BadResponse(c, err.Error())
 		return
 	}
 	c.JSON(http.StatusCreated, slide)
@@ -89,18 +90,18 @@ func (h *HeroSlideHandler) Create(c *gin.Context) {
 func (h *HeroSlideHandler) Update(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID is required"})
+		helpers.BadResponse(c, "ID is required")
 		return
 	}
 
 	var req dto.UpdateHeroSlideRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		helpers.BadResponse(c, err.Error())
 		return
 	}
 
 	if err := h.service.Update(c.Request.Context(), id, req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Hero slide updated"})
@@ -116,11 +117,11 @@ func (h *HeroSlideHandler) Update(c *gin.Context) {
 func (h *HeroSlideHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID is required"})
+		helpers.BadResponse(c, "ID is required")
 		return
 	}
 	if err := h.service.Delete(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete hero slide"})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Hero slide deleted"})

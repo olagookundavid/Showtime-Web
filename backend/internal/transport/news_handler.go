@@ -2,6 +2,7 @@ package transport
 
 import (
 	"net/http"
+	"pkg-common/helpers"
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/services"
 
@@ -37,12 +38,12 @@ func NewNewsHandler(service services.INewsService) INewsHandler {
 func (h *NewsHandler) CreateNews(c *gin.Context) {
 	var req dto.CreateNewsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		helpers.BadResponse(c, err.Error())
 		return
 	}
 
 	if err := h.service.CreateNews(c.Request.Context(), req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create news"})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 
@@ -62,7 +63,7 @@ func (h *NewsHandler) CreateNews(c *gin.Context) {
 func (h *NewsHandler) GetNews(c *gin.Context) {
 	var query dto.PaginationQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		helpers.BadResponse(c, err.Error())
 		return
 	}
 
@@ -75,7 +76,7 @@ func (h *NewsHandler) GetNews(c *gin.Context) {
 
 	response, err := h.service.GetNews(c.Request.Context(), query)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch news"})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 
@@ -94,17 +95,17 @@ func (h *NewsHandler) GetNews(c *gin.Context) {
 func (h *NewsHandler) GetNewsByID(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID is required"})
+		helpers.BadResponse(c, "ID is required")
 		return
 	}
 
 	news, err := h.service.GetNewsByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch news"})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	if news == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "News not found"})
+		helpers.NotFoundResponse(c)
 		return
 	}
 
@@ -123,17 +124,17 @@ func (h *NewsHandler) GetNewsByID(c *gin.Context) {
 func (h *NewsHandler) GetNewsBySlug(c *gin.Context) {
 	slug := c.Param("slug")
 	if slug == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "slug is required"})
+		helpers.BadResponse(c, "slug is required")
 		return
 	}
 
 	news, err := h.service.GetNewsBySlug(c.Request.Context(), slug)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch news"})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 	if news == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "News not found"})
+		helpers.NotFoundResponse(c)
 		return
 	}
 
@@ -153,18 +154,18 @@ func (h *NewsHandler) GetNewsBySlug(c *gin.Context) {
 func (h *NewsHandler) UpdateNews(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID is required"})
+		helpers.BadResponse(c, "ID is required")
 		return
 	}
 
 	var req dto.CreateNewsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		helpers.BadResponse(c, err.Error())
 		return
 	}
 
 	if err := h.service.UpdateNews(c.Request.Context(), id, req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update news"})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 
@@ -183,13 +184,13 @@ func (h *NewsHandler) UpdateNews(c *gin.Context) {
 func (h *NewsHandler) DeleteNews(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID is required"})
+		helpers.BadResponse(c, "ID is required")
 		return
 	}
 
 	err := h.service.DeleteNews(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete news"})
+		helpers.ServerErrorResponse(c, err)
 		return
 	}
 

@@ -580,16 +580,16 @@ func (r *PostgresMatchRepository) DeleteMatchesByCompetition(ctx context.Context
 // --- Standings ---
 func (r *PostgresMatchRepository) GetStandings(ctx context.Context, competitionID string) ([]domain.Standing, error) {
 	var tieBreakerRule string
-	_ = r.db.QueryRow(ctx, `SELECT COALESCE(tie_breaker_rule, 'PCT_PD_PF_PA_NAME') FROM competitions WHERE id = $1`, competitionID).Scan(&tieBreakerRule)
+	_ = r.db.QueryRow(ctx, `SELECT COALESCE(tie_breaker_rule, 'PCT_PD_PF_PA_NAME') FROM competitions WHERE id::text = $1`, competitionID).Scan(&tieBreakerRule)
 	if tieBreakerRule == "" {
 		tieBreakerRule = domain.TieBreakerRulePCT_PD_PF_PA_NAME
 	}
 
 	query := `
         SELECT 
-            COALESCE(s.id, md5(t.id || $1)) as id,
+            COALESCE(s.id::text, md5(t.id::text || $1)::text) as id,
             $1 as competition_id,
-            t.id as team_id,
+            t.id::text as team_id,
             0 as position, 
             COALESCE(s.played, 0) as played,
             COALESCE(s.won, 0) as won,
@@ -600,18 +600,18 @@ func (r *PostgresMatchRepository) GetStandings(ctx context.Context, competitionI
             COALESCE(s.goal_difference, 0) as goal_difference,
             COALESCE(s.pct, 0) as pct,
             COALESCE(s.l5, '') as l5,
-            t.id, t.name, t.short_name, t.logo
+            t.id::text, t.name, t.short_name, t.logo
         FROM (
-            SELECT team_id FROM competition_teams WHERE competition_id = $1
+            SELECT team_id FROM competition_teams WHERE competition_id::text = $1
             UNION
-            SELECT home_team_id AS team_id FROM matches WHERE competition_id = $1 AND home_team_id IS NOT NULL AND home_team_id != ''
+            SELECT home_team_id AS team_id FROM matches WHERE competition_id::text = $1 AND home_team_id IS NOT NULL
             UNION
-            SELECT away_team_id AS team_id FROM matches WHERE competition_id = $1 AND away_team_id IS NOT NULL AND away_team_id != ''
+            SELECT away_team_id AS team_id FROM matches WHERE competition_id::text = $1 AND away_team_id IS NOT NULL
             UNION
-            SELECT team_id FROM standings WHERE competition_id = $1
+            SELECT team_id FROM standings WHERE competition_id::text = $1
         ) comp_t
         JOIN teams t ON comp_t.team_id = t.id
-        LEFT JOIN standings s ON s.competition_id = $1 AND s.team_id = t.id
+        LEFT JOIN standings s ON s.competition_id::text = $1 AND s.team_id = t.id
     `
 	rows, err := r.db.Query(ctx, query, competitionID)
 	if err != nil {
@@ -643,7 +643,7 @@ func (r *PostgresMatchRepository) GetStandings(ctx context.Context, competitionI
 		mRows, err := r.db.Query(ctx, `
 			SELECT home_team_id, away_team_id, home_score, away_score 
 			FROM matches 
-			WHERE competition_id = $1 AND status = 'FINISHED' AND home_score IS NOT NULL AND away_score IS NOT NULL
+			WHERE competition_id::text = $1 AND status = 'FINISHED' AND home_score IS NOT NULL AND away_score IS NOT NULL
 		`, competitionID)
 		if err == nil {
 			defer mRows.Close()
@@ -767,13 +767,13 @@ func (r *PostgresMatchRepository) RecalculateStandings(ctx context.Context, comp
 			competition_id, team_id, position, played, won, drawn, lost,
 			goals_for, goals_against, pct, l5, updated_at
 		)
-		SELECT $1, t.team_id, 0, 0, 0, 0, 0, 0, 0, 0, '', NOW()
+		SELECT NULLIF($1, '')::uuid, t.team_id, 0, 0, 0, 0, 0, 0, 0, 0, '', NOW()
 		FROM (
-			SELECT team_id FROM competition_teams WHERE competition_id = $1
+			SELECT team_id FROM competition_teams WHERE competition_id::text = $1
 			UNION
-			SELECT home_team_id AS team_id FROM matches WHERE competition_id = $1 AND home_team_id IS NOT NULL AND home_team_id != ''
+			SELECT home_team_id AS team_id FROM matches WHERE competition_id::text = $1 AND home_team_id IS NOT NULL
 			UNION
-			SELECT away_team_id AS team_id FROM matches WHERE competition_id = $1 AND away_team_id IS NOT NULL AND away_team_id != ''
+			SELECT away_team_id AS team_id FROM matches WHERE competition_id::text = $1 AND away_team_id IS NOT NULL
 		) t
 		ON CONFLICT (competition_id, team_id) DO NOTHING
 	`
