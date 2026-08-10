@@ -6,6 +6,7 @@ import (
 	"showtime-backend/internal/domain"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -637,9 +638,16 @@ func (r *PostgresMatchRepository) GetStandings(ctx context.Context, competitionI
 		return standings, nil
 	}
 
-	if tieBreakerRule == domain.TieBreakerRuleH2H_PCT_PD_PF_PA_NAME {
-		// Rule 2: Head-to-Head -> Win % -> Point Diff -> Points For -> Points Against -> Name
-		h2hPoints := make(map[string]map[string]int)
+	ruleUpper := strings.ToUpper(strings.TrimSpace(tieBreakerRule))
+	isH2H := ruleUpper == domain.TieBreakerRuleH2H_PCT_PD_PF_PA_NAME ||
+		ruleUpper == "RULE_2" ||
+		ruleUpper == "RULE 2" ||
+		strings.Contains(ruleUpper, "H2H") ||
+		strings.Contains(ruleUpper, "RULE_2") ||
+		strings.Contains(ruleUpper, "RULE 2")
+
+	h2hPoints := make(map[string]map[string]int)
+	if isH2H {
 		mRows, err := r.db.Query(ctx, `
 			SELECT home_team_id, away_team_id, home_score, away_score 
 			FROM matches 
@@ -668,47 +676,47 @@ func (r *PostgresMatchRepository) GetStandings(ctx context.Context, competitionI
 				}
 			}
 		}
+	}
 
-		sort.SliceStable(standings, func(i, j int) bool {
-			a, b := standings[i], standings[j]
+	getTeamSortKey := func(t *domain.Team) string {
+		if t == nil {
+			return ""
+		}
+		name := strings.TrimSpace(t.Name)
+		if name == "" {
+			name = strings.TrimSpace(t.ShortName)
+		}
+		return strings.ToLower(name)
+	}
+
+	sort.SliceStable(standings, func(i, j int) bool {
+		a, b := standings[i], standings[j]
+		if isH2H {
 			ptsA := h2hPoints[a.TeamID][b.TeamID]
 			ptsB := h2hPoints[b.TeamID][a.TeamID]
 			if ptsA != ptsB {
 				return ptsA > ptsB
 			}
-			if a.PCT != b.PCT {
-				return a.PCT > b.PCT
-			}
-			if a.GoalDiff != b.GoalDiff {
-				return a.GoalDiff > b.GoalDiff
-			}
-			if a.GoalsFor != b.GoalsFor {
-				return a.GoalsFor > b.GoalsFor
-			}
-			if a.GoalsAgainst != b.GoalsAgainst {
-				return a.GoalsAgainst < b.GoalsAgainst
-			}
-			return a.Team.Name < b.Team.Name
-		})
-	} else {
-		// Rule 1 (Default): Win % -> Point Diff -> Points For -> Points Against -> Name
-		sort.SliceStable(standings, func(i, j int) bool {
-			a, b := standings[i], standings[j]
-			if a.PCT != b.PCT {
-				return a.PCT > b.PCT
-			}
-			if a.GoalDiff != b.GoalDiff {
-				return a.GoalDiff > b.GoalDiff
-			}
-			if a.GoalsFor != b.GoalsFor {
-				return a.GoalsFor > b.GoalsFor
-			}
-			if a.GoalsAgainst != b.GoalsAgainst {
-				return a.GoalsAgainst < b.GoalsAgainst
-			}
-			return a.Team.Name < b.Team.Name
-		})
-	}
+		}
+		if a.PCT != b.PCT {
+			return a.PCT > b.PCT
+		}
+		if a.GoalDiff != b.GoalDiff {
+			return a.GoalDiff > b.GoalDiff
+		}
+		if a.GoalsFor != b.GoalsFor {
+			return a.GoalsFor > b.GoalsFor
+		}
+		if a.GoalsAgainst != b.GoalsAgainst {
+			return a.GoalsAgainst < b.GoalsAgainst
+		}
+		keyA := getTeamSortKey(a.Team)
+		keyB := getTeamSortKey(b.Team)
+		if keyA != keyB {
+			return keyA < keyB
+		}
+		return a.TeamID < b.TeamID
+	})
 
 	for i := range standings {
 		standings[i].Position = i + 1
