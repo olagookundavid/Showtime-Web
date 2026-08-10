@@ -80,7 +80,7 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCom
         <thead className="text-[10px] md:text-xs uppercase bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
             <tr>
                 <th className="sticky left-0 z-20 bg-gray-50 dark:bg-gray-800 px-2.5 py-3 md:px-4 md:py-3 text-center w-10 md:w-14">Pos</th>
-                <th className="sticky left-10 md:left-14 z-20 bg-gray-50 dark:bg-gray-800 px-2.5 py-3 md:px-4 md:py-3 whitespace-nowrap w-[130px] md:w-[200px] border-r border-gray-100 dark:border-gray-700">Team</th>
+                <th className="sticky left-10 md:left-14 z-20 bg-gray-50 dark:bg-gray-800 px-2.5 py-3 md:px-4 md:py-3 whitespace-nowrap min-w-[170px] md:min-w-[220px] border-r border-gray-100 dark:border-gray-700">Team</th>
                 <th className="bg-gray-50 dark:bg-gray-800 px-2.5 py-3 md:px-4 md:py-3 text-center whitespace-nowrap">P</th>
                 <th className="bg-gray-50 dark:bg-gray-800 px-2.5 py-3 md:px-4 md:py-3 text-center whitespace-nowrap">W</th>
                 <th className="bg-gray-50 dark:bg-gray-800 px-2.5 py-3 md:px-4 md:py-3 text-center whitespace-nowrap">D</th>
@@ -116,7 +116,7 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCom
                     {isCompleted && <span className="text-xs bg-amber-500 text-sffl-navy px-2 py-0.5 rounded-full font-black uppercase tracking-wider">Season Completed</span>}
                 </div>
                 <div ref={containerRef} className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full text-xs md:text-sm text-left">
+                    <table className="w-full text-xs md:text-sm text-left min-w-[700px] md:min-w-[850px]">
                         {theadEl}
                     <tbody>
                         {standings.map((standing, index) => {
@@ -148,8 +148,8 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCom
                                     <td className={`sticky left-0 ${stickyZ} ${stickyBg} px-2.5 py-3 md:px-4 md:py-4 text-center font-bold text-gray-600 dark:text-gray-300 w-10 md:w-14`}>
                                         {standing.position}
                                     </td>
-                                    <td className={`sticky left-10 md:left-14 ${stickyZ} ${stickyBg} px-2.5 py-3 md:px-4 md:py-4 font-semibold text-sffl-navy dark:text-white whitespace-nowrap text-left w-[130px] md:w-[200px] border-r border-gray-100 dark:border-gray-800`}>
-                                        <div className="flex items-center space-x-1 md:space-x-3">
+                                    <td className={`sticky left-10 md:left-14 ${stickyZ} ${stickyBg} px-2.5 py-3 md:px-4 md:py-4 font-semibold text-sffl-navy dark:text-white whitespace-nowrap text-left min-w-[170px] md:min-w-[220px] border-r border-gray-100 dark:border-gray-800`}>
+                                        <div className="flex items-center space-x-1.5 md:space-x-3">
                                             <LightboxImage
                                                 src={standing.team?.logo || '/images/default_football.png'}
                                                 alt={standing.team?.name || 'Team'}
@@ -158,14 +158,14 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCom
                                             {standing.team?.id ? (
                                                 <Link
                                                     to={`/teams/${standing.team.id}`}
-                                                    className="flex items-center gap-1 uppercase hover:text-sffl-red transition-colors min-w-0 relative z-30"
+                                                    className="flex items-center gap-1 uppercase hover:text-sffl-red transition-colors relative z-30"
                                                 >
-                                                    <span className="truncate max-w-[60px] md:max-w-none">{standing.team?.short_name || standing.team?.name || 'Unknown'}</span>
+                                                    <span>{standing.team?.name || standing.team?.short_name || 'Unknown'}</span>
                                                     {isGold && <img src="/images/branding/showtime-bowl-trophy.png" alt="Champion Trophy" className="w-6 h-6 md:w-8 md:h-8 object-contain inline-block ml-1 animate-bounce drop-shadow-xl relative z-40 flex-shrink-0" title="Champion" />}
                                                 </Link>
                                             ) : (
-                                                <span className="flex items-center gap-1 uppercase min-w-0 relative z-30">
-                                                    <span className="truncate max-w-[60px] md:max-w-none">{standing.team?.short_name || standing.team?.name || 'Unknown'}</span>
+                                                <span className="flex items-center gap-1 uppercase relative z-30">
+                                                    <span>{standing.team?.name || standing.team?.short_name || 'Unknown'}</span>
                                                     {isGold && <img src="/images/branding/showtime-bowl-trophy.png" alt="Champion Trophy" className="w-6 h-6 md:w-8 md:h-8 object-contain inline-block ml-1 animate-bounce drop-shadow-xl relative z-40 flex-shrink-0" title="Champion" />}
                                                 </span>
                                             )}

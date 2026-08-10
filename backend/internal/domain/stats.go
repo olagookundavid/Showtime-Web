@@ -174,6 +174,7 @@ type StatsFilter struct {
 	MatchID       string
 	EventDay      *time.Time
 	PlayerID      string
+	TeamID        string
 	SearchQuery   string
 	SortBy        string // stat column key; empty = alphabetical by name
 	Page          int

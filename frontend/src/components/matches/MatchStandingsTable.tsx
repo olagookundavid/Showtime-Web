@@ -29,11 +29,11 @@ export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({ standi
                 </div>
             </div>
             <div className="overflow-x-auto custom-scrollbar">
-                <table className="w-full text-xs md:text-sm text-left">
+                <table className="w-full text-xs md:text-sm text-left min-w-[340px] sm:min-w-[420px]">
                     <thead className="text-[10px] md:text-xs uppercase bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
                         <tr>
                             <th className="sticky left-0 z-20 bg-gray-50 dark:bg-gray-800 px-1 py-2 md:px-4 md:py-3 text-center w-10 md:w-14"></th>
-                            <th className="sticky left-10 md:left-14 z-20 bg-gray-50 dark:bg-gray-800 px-1 py-2 md:px-4 md:py-3 whitespace-nowrap w-[100px] md:w-[140px] border-r border-gray-100 dark:border-gray-700">Team</th>
+                            <th className="sticky left-10 md:left-14 z-20 bg-gray-50 dark:bg-gray-800 px-1 py-2 md:px-4 md:py-3 whitespace-nowrap min-w-[150px] md:min-w-[200px] border-r border-gray-100 dark:border-gray-700">Team</th>
                             <th className="px-1 py-2 md:px-4 md:py-3 text-center whitespace-nowrap">P</th>
                             <th className="px-1 py-2 md:px-4 md:py-3 text-center whitespace-nowrap">PD</th>
                             <th className="px-1 py-2 md:px-4 md:py-3 text-center whitespace-nowrap">PCT</th>
@@ -51,7 +51,7 @@ export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({ standi
                                     title={standing.team?.name || 'Team'}
                                 />
                             );
-                            const nameText = standing.team?.short_name || standing.team?.name || 'Unknown';
+                            const nameText = standing.team?.name || standing.team?.short_name || 'Unknown';
 
                             const stickyBg = isGold
                                 ? 'bg-amber-100/90 dark:bg-amber-950/90 group-hover:bg-amber-200/90 dark:group-hover:bg-amber-900/90'
@@ -77,18 +77,18 @@ export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({ standi
                                             </Link>
                                         ) : logoImg}
                                     </td>
-                                    <td className={`sticky left-10 md:left-14 ${stickyZ} ${stickyBg} px-1 py-2 md:px-4 md:py-4 font-semibold text-sffl-navy dark:text-white whitespace-nowrap w-[100px] md:w-[140px] border-r border-gray-100 dark:border-gray-800`}>
+                                    <td className={`sticky left-10 md:left-14 ${stickyZ} ${stickyBg} px-1 py-2 md:px-4 md:py-4 font-semibold text-sffl-navy dark:text-white whitespace-nowrap min-w-[150px] md:min-w-[200px] border-r border-gray-100 dark:border-gray-800`}>
                                         {standing.team?.id ? (
                                             <Link
                                                 to={`/teams/${standing.team.id}`}
-                                                className="inline-flex items-center gap-1 uppercase hover:text-sffl-red transition-colors min-w-0 relative z-30"
+                                                className="inline-flex items-center gap-1 uppercase hover:text-sffl-red transition-colors relative z-30"
                                             >
-                                                <span className="truncate max-w-[60px] md:max-w-none">{nameText}</span>
+                                                <span>{nameText}</span>
                                                 {isGold && <img src="/images/branding/showtime-bowl-trophy.png" alt="Champion Trophy" className="w-5 h-5 md:w-7 md:h-7 object-contain inline-block ml-1 animate-bounce drop-shadow-xl relative z-40 flex-shrink-0" title="Champion" />}
                                             </Link>
                                         ) : (
-                                            <span className="inline-flex items-center gap-1 uppercase min-w-0 relative z-30">
-                                                <span className="truncate max-w-[60px] md:max-w-none">{nameText}</span>
+                                            <span className="inline-flex items-center gap-1 uppercase relative z-30">
+                                                <span>{nameText}</span>
                                                 {isGold && <img src="/images/branding/showtime-bowl-trophy.png" alt="Champion Trophy" className="w-5 h-5 md:w-7 md:h-7 object-contain inline-block ml-1 animate-bounce drop-shadow-xl relative z-40 flex-shrink-0" title="Champion" />}
                                             </span>
                                         )}

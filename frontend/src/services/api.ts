@@ -1230,12 +1230,13 @@ export interface UpsertPlayerStatPayload {
     defensive_xp_tds: number;
 }
 
-export const getPlayerStats = async (compId?: string, eventDay?: string, page = 1, limit = 20, playerId?: string, search?: string, sort?: string): Promise<PaginatedResponse<PlayerStat>> => {
+export const getPlayerStats = async (compId?: string, eventDay?: string, page = 1, limit = 20, playerId?: string, search?: string, sort?: string, teamId?: string): Promise<PaginatedResponse<PlayerStat>> => {
     let url = '/stats/players';
     const params = new URLSearchParams();
     if (compId) params.append('competition_id', compId);
     if (eventDay) params.append('event_day', eventDay);
     if (playerId) params.append('player_id', playerId);
+    if (teamId) params.append('team_id', teamId);
     if (search) params.append('search', search);
     if (sort) params.append('sort', sort);
     params.append('page', page.toString());
@@ -1257,11 +1258,12 @@ export const getPlayerStatById = async (id: string, compId?: string, matchDate?:
     return response.data.data;
 };
 
-export const getTeamStats = async (compId?: string, eventDay?: string, page = 1, limit = 20, sort?: string): Promise<PaginatedResponse<TeamStat>> => {
+export const getTeamStats = async (compId?: string, eventDay?: string, page = 1, limit = 20, sort?: string, teamId?: string): Promise<PaginatedResponse<TeamStat>> => {
     let url = '/stats/teams';
     const params = new URLSearchParams();
     if (compId) params.append('competition_id', compId);
     if (eventDay) params.append('event_day', eventDay);
+    if (teamId) params.append('team_id', teamId);
     if (sort) params.append('sort', sort);
     params.append('page', page.toString());
     params.append('limit', limit.toString());

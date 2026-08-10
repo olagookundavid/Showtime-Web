@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getCompetitions, getPlayerStats, getTeamStats, getStatDates, getTeams, sortCompetitionsBySeason, type Competition } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
@@ -145,51 +145,48 @@ export const StatsPage = () => {
     }, [urlDate, selectedDate]);
 
     const { data: playerStatsPagination, isLoading: loadingPlayers } = useQuery({
-        queryKey: ['playerStatsFiltered', selectedCompetitionId, selectedDate, page, urlPlayerId, searchQuery, sortBy],
-        queryFn: () => getPlayerStats(selectedCompetitionId, selectedDate, page, limit, urlPlayerId || undefined, searchQuery || undefined, sortBy || undefined),
+        queryKey: ['playerStatsFiltered', selectedCompetitionId, selectedDate, page, urlPlayerId, searchQuery, sortBy, urlTeam],
+        queryFn: () => getPlayerStats(selectedCompetitionId, selectedDate, page, limit, urlPlayerId || undefined, searchQuery || undefined, sortBy || undefined, urlTeam || undefined),
         enabled: activeTab === 'players',
     });
 
     const { data: teamStatsPagination, isLoading: loadingTeams } = useQuery({
-        queryKey: ['teamStatsFiltered', selectedCompetitionId, selectedDate, page, sortBy],
-        queryFn: () => getTeamStats(selectedCompetitionId, selectedDate, page, limit, sortBy || undefined),
+        queryKey: ['teamStatsFiltered', selectedCompetitionId, selectedDate, page, sortBy, urlTeam],
+        queryFn: () => getTeamStats(selectedCompetitionId, selectedDate, page, limit, sortBy || undefined, urlTeam || undefined),
         enabled: activeTab === 'teams',
     });
 
     const loading = compLoading || datesLoading || (activeTab === 'players' ? loadingPlayers : loadingTeams);
 
     const pagination = activeTab === 'players' ? playerStatsPagination : teamStatsPagination;
-    // Both PlayerStat and TeamStat carry team_id, so a ?team=X URL filter can
-    // be applied client-side without a new backend endpoint. We do the filter
-    // after the API returns its page; pagination counts reflect the unfiltered
-    // page (acceptable since a team's slice fits well within a single page).
-    const rawPlayerStats = playerStatsPagination?.data || [];
-    const rawTeamStats = teamStatsPagination?.data || [];
-    const playerStats = useMemo(
-        () => (urlTeam ? rawPlayerStats.filter(s => s.team_id === urlTeam) : rawPlayerStats),
-        [rawPlayerStats, urlTeam]
-    );
-    const teamStats = useMemo(
-        () => (urlTeam ? rawTeamStats.filter(s => s.team_id === urlTeam) : rawTeamStats),
-        [rawTeamStats, urlTeam]
-    );
+    const playerStats = playerStatsPagination?.data || [];
+    const teamStats = teamStatsPagination?.data || [];
     const totalPages = pagination?.total_pages || 0;
     const totalItems = pagination?.total || 0;
 
-    // Look up the filter team's name for the banner. Skipped when no ?team=.
+    // Look up all teams for the dropdown selector
     const { data: teamsLookupData } = useQuery({
         queryKey: ['publicTeamsLookup'],
         queryFn: () => getTeams(1, 100),
-        enabled: !!urlTeam,
     });
+    const teamsList = teamsLookupData?.data || [];
     const filterTeam = urlTeam
-        ? teamsLookupData?.data?.find(t => t.id === urlTeam)
+        ? teamsList.find(t => t.id === urlTeam)
         : undefined;
 
-    const clearTeamFilter = () => {
+    const handleTeamChange = (teamId: string) => {
+        setPage(1);
         const params = new URLSearchParams(searchParams);
-        params.delete('team');
+        if (teamId) {
+            params.set('team', teamId);
+        } else {
+            params.delete('team');
+        }
         setSearchParams(params, { replace: true });
+    };
+
+    const clearTeamFilter = () => {
+        handleTeamChange('');
     };
 
     return (
@@ -244,8 +241,8 @@ export const StatsPage = () => {
                         </div>
                     </div>
 
-                    <div className="w-full sm:w-auto flex flex-col gap-2 sm:w-[220px]">
-                        <div className="min-w-[200px]">
+                    <div className="w-full sm:w-auto flex flex-col gap-2 sm:w-[200px]">
+                        <div className="min-w-[180px]">
                             <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">Competition</label>
                             <div className="relative">
                                 <select
@@ -281,7 +278,7 @@ export const StatsPage = () => {
                                     setSearchParams(params, { replace: true });
                                 }}
                                 disabled={!selectedCompetitionId}
-                                className="w-full appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm min-w-full sm:min-w-[160px] cursor-pointer hover:bg-white/20 transition-colors disabled:cursor-not-allowed"
+                                className="w-full appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm min-w-full sm:min-w-[150px] cursor-pointer hover:bg-white/20 transition-colors disabled:cursor-not-allowed"
                             >
                                  <option value="" className="text-black bg-white">All Event Days</option>
                                 {statDates.map((date: string) => (

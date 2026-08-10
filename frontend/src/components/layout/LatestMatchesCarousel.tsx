@@ -28,10 +28,17 @@ const soonestFirst = (matches: Match[]) =>
         return aTime - bTime;
     });
 
+const latestFirst = (matches: Match[]) =>
+    [...matches].sort((a, b) => {
+        const aTime = new Date(`${a.date?.split('T')[0]}T${(a.start_time || '00:00:00').split('T').pop()}`).getTime();
+        const bTime = new Date(`${b.date?.split('T')[0]}T${(b.start_time || '00:00:00').split('T').pop()}`).getTime();
+        return bTime - aTime;
+    });
+
 /**
  * Builds the header match strip's content: when there are upcoming matches,
- * show the 5 latest results + the next 5 upcoming (soonest first); when there are none,
- * fall back to the last 10 results so the strip still has something worth scrolling.
+ * show the next 5 upcoming matches (soonest first) + the 5 latest results (DESC: most recent first to ones played before);
+ * when there are no upcoming matches, fall back to the last 10 finished results.
  */
 const useHeaderMatches = () => {
     const { data: finishedMatchesData, isLoading: loadingFinished } = useLatestFinishedMatches();
@@ -40,11 +47,11 @@ const useHeaderMatches = () => {
     const finished = finishedMatchesData?.data || [];
     const upcoming = soonestFirst(upcomingMatchesData?.data || []).slice(0, 5);
 
-    const recentFinished = soonestFirst(finished.slice(0, 5));
+    const recentFinished = latestFirst(finished.slice(0, 5));
 
     const matches = upcoming.length > 0
-        ? [...recentFinished, ...upcoming]
-        : finished.slice(0, 10);
+        ? [...upcoming, ...recentFinished]
+        : latestFirst(finished.slice(0, 10));
 
     const nextMatchId = upcoming.length > 0 ? upcoming[0].id : null;
 

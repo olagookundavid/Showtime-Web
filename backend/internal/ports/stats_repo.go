@@ -250,6 +250,12 @@ func buildStatsWhereClause(filter domain.StatsFilter) (string, []interface{}) {
 		argCount++
 	}
 
+	if filter.TeamID != "" {
+		conditions = append(conditions, fmt.Sprintf("ps.team_id::text = $%d", argCount))
+		args = append(args, filter.TeamID)
+		argCount++
+	}
+
 	if filter.SearchQuery != "" {
 		conditions = append(conditions, fmt.Sprintf("p.name ILIKE $%d", argCount))
 		args = append(args, "%"+filter.SearchQuery+"%")
