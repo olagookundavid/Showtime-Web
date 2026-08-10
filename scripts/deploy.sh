@@ -12,8 +12,11 @@
 #
 # Safety model: a new image is only kept if it actually becomes healthy
 # (Docker's own HEALTHCHECK, defined in the Dockerfile). If it doesn't, this
-# script rolls back to the image that was running before this deploy started,
-# alerts, and exits non-zero (so the CI "deploy" job shows red).
+# script captures the failing container's own logs (before it's replaced),
+# rolls back to the image that was running before this deploy started, emails
+# an alert with those logs attached, and exits non-zero (so the CI "deploy"
+# job shows red). A successful deploy also emails, with the exact commit and
+# build time that shipped (read from OCI labels CI stamps on every image).
 set -uo pipefail
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
@@ -30,8 +33,22 @@ PREVIOUS_IMAGE_ID="$(docker compose images -q backend 2>/dev/null || true)"
 echo "[deploy] pulling latest image..."
 if ! docker compose pull; then
   echo "[deploy] FAILED — could not pull new image. Nothing changed."
-  "$HOME/scripts/alert.sh" "[Showtime] DEPLOY FAILED on $(hostname)" \
-    "docker compose pull failed at $(date -Is). No container was touched."
+  NOW_HUMAN="$(date '+%Y-%m-%d %H:%M:%S %Z')"
+  BODY="$(cat <<EOF
+Showtime Backend — Deployment Failed
+
+App:         showtime-backend
+Server:      $(hostname)
+Failed At:   ${NOW_HUMAN}
+Stage:       Image pull
+Reason:      docker compose pull failed. No container was touched — current deployment is unaffected.
+EOF
+)"
+  if "$HOME/scripts/alert.sh" "[Showtime] DEPLOY FAILED on $(hostname)" "$BODY"; then
+    echo "[deploy] failure alert sent."
+  else
+    echo "[deploy] WARNING: failure alert email FAILED TO SEND."
+  fi
   exit 1
 fi
 
@@ -56,8 +73,33 @@ done
 
 if [ "$STATUS" != "healthy" ]; then
   echo "[deploy] FAILED — new backend never became healthy (status: $STATUS)"
-  "$HOME/scripts/alert.sh" "[Showtime] DEPLOY FAILED on $(hostname)" \
-    "New backend image failed its healthcheck (status: $STATUS) at $(date -Is). $( [ -n "$PREVIOUS_IMAGE_ID" ] && echo "Rolling back to the previous image." || echo "No previous image ID captured — manual rollback needed." ) Check: docker compose -f ~/apps/showtime/docker-compose.yml logs backend"
+
+  # Capture the failing container's own logs BEFORE it gets replaced during
+  # rollback below — this is the only chance to see why it crashed.
+  CRASH_LOGS="$(docker logs --tail 50 showtime-backend 2>&1)"
+  NOW_HUMAN="$(date '+%Y-%m-%d %H:%M:%S %Z')"
+
+  ROLLBACK_LINE="No previous image captured — manual rollback required"
+  [ -n "$PREVIOUS_IMAGE_ID" ] && ROLLBACK_LINE="Rolling back to previous image (${PREVIOUS_IMAGE_ID:0:12})"
+
+  BODY="$(cat <<EOF
+Showtime Backend — Deployment Failed
+
+App:         showtime-backend
+Server:      $(hostname)
+Failed At:   ${NOW_HUMAN}
+Status:      ${STATUS}
+Action:      ${ROLLBACK_LINE}
+
+--- Container Logs (last 50 lines) ---
+${CRASH_LOGS}
+EOF
+)"
+  if "$HOME/scripts/alert.sh" "[Showtime] DEPLOY FAILED on $(hostname)" "$BODY"; then
+    echo "[deploy] failure alert (with crash logs) sent."
+  else
+    echo "[deploy] WARNING: failure alert email FAILED TO SEND — check Resend/RESEND_API_KEY manually."
+  fi
 
   if [ -n "$PREVIOUS_IMAGE_ID" ]; then
     echo "[deploy] rolling back to previous image ($PREVIOUS_IMAGE_ID)..."
@@ -78,16 +120,37 @@ BUILD_TIME="$(docker inspect -f '{{index .Config.Labels "org.opencontainers.imag
 [ -z "$COMMIT_SHA" ] && COMMIT_SHA="unknown"
 [ -z "$BUILD_TIME" ] && BUILD_TIME="unknown"
 
+BUILD_TIME_HUMAN="$(date -d "$BUILD_TIME" '+%Y-%m-%d %H:%M:%S %Z' 2>/dev/null)"
+[ -z "$BUILD_TIME_HUMAN" ] && BUILD_TIME_HUMAN="$BUILD_TIME"
+
 if [ "$COMMIT_SHA" != "unknown" ]; then
-  COMMIT_LINE="Commit: ${COMMIT_SHA:0:7} (https://github.com/olagookundavid/Showtime-Web/commit/${COMMIT_SHA})"
+  COMMIT_LINE="${COMMIT_SHA:0:7}"
+  COMMIT_URL_LINE="https://github.com/olagookundavid/Showtime-Web/commit/${COMMIT_SHA}"
 else
-  COMMIT_LINE="Commit: unknown (image has no revision label — was it built outside the normal CI pipeline?)"
+  COMMIT_LINE="unknown"
+  COMMIT_URL_LINE="n/a (image built outside the standard CI pipeline?)"
 fi
 
-"$HOME/scripts/alert.sh" "[Showtime] Deploy succeeded on $(hostname)" \
-  "Backend deployed and healthy at $(date -Is).
-${COMMIT_LINE}
-Image built: ${BUILD_TIME}"
+NOW_HUMAN="$(date '+%Y-%m-%d %H:%M:%S %Z')"
+
+BODY="$(cat <<EOF
+Showtime Backend — Deployment Successful
+
+App:         showtime-backend
+Server:      $(hostname)
+Deployed At: ${NOW_HUMAN}
+
+Commit:      ${COMMIT_LINE}
+Commit URL:  ${COMMIT_URL_LINE}
+Image Built: ${BUILD_TIME_HUMAN}
+EOF
+)"
+
+if "$HOME/scripts/alert.sh" "[Showtime] Deploy succeeded on $(hostname)" "$BODY"; then
+  echo "[deploy] success alert sent."
+else
+  echo "[deploy] WARNING: success alert email FAILED TO SEND."
+fi
 
 echo "[deploy] pruning old images..."
 docker image prune -f
