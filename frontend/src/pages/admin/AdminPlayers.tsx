@@ -45,7 +45,7 @@ export const AdminPlayers = () => {
 
     const allPlayers: Player[] = allPlayersData?.data || [];
     const totalPages = allPlayersData?.total_pages || 1;
-    const teams: Team[] = teamsData?.data || [];
+    const teams: Team[] = (teamsData?.data || []).filter((t: Team) => t.status !== 'inactive');
     const loading = loadingPlayers || loadingTeams;
     const [showModal, setShowModal] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);

@@ -109,10 +109,11 @@ func (h *MatchHandler) GetMatches(c *gin.Context) {
 // @Router       /api/v1/admin/teams [get]
 func (h *MatchHandler) GetTeams(c *gin.Context) {
 	search := c.Query("search")
+	status := c.Query("status")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "12"))
 
-	result, err := h.service.GetTeams(c.Request.Context(), page, limit, search)
+	result, err := h.service.GetTeams(c.Request.Context(), page, limit, search, status)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -127,7 +128,11 @@ func (h *MatchHandler) GetTeams(c *gin.Context) {
 // @Success      200  {object}  []dto.TeamResponse
 // @Router       /api/v1/matches/teams [get]
 func (h *MatchHandler) GetAllTeams(c *gin.Context) {
-	teams, err := h.service.GetAllTeams(c.Request.Context())
+	status := c.Query("status")
+	if status == "" {
+		status = "active"
+	}
+	teams, err := h.service.GetAllTeams(c.Request.Context(), status)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -457,8 +462,9 @@ func (h *MatchHandler) GetTeamsByCompetition(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "competition_id is required"})
 		return
 	}
+	status := c.Query("status")
 
-	teams, err := h.service.GetTeamsByCompetition(c.Request.Context(), competitionID)
+	teams, err := h.service.GetTeamsByCompetition(c.Request.Context(), competitionID, status)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -525,10 +531,20 @@ func (h *MatchHandler) CreateTeam(c *gin.Context) {
 		return
 	}
 
+	status := strings.ToLower(strings.TrimSpace(req.Status))
+	if status == "" {
+		status = "active"
+	}
+	if status != "active" && status != "inactive" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "status must be 'active' or 'inactive'"})
+		return
+	}
+
 	team := &domain.Team{
 		Name:      strings.ToUpper(strings.TrimSpace(req.Name)),
 		ShortName: strings.ToUpper(strings.TrimSpace(req.ShortName)),
 		Logo:      req.Logo,
+		Status:    status,
 	}
 
 	if err := h.service.CreateTeam(c.Request.Context(), team); err != nil {
@@ -555,11 +571,21 @@ func (h *MatchHandler) UpdateTeam(c *gin.Context) {
 		return
 	}
 
+	status := strings.ToLower(strings.TrimSpace(req.Status))
+	if status == "" {
+		status = "active"
+	}
+	if status != "active" && status != "inactive" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "status must be 'active' or 'inactive'"})
+		return
+	}
+
 	team := &domain.Team{
 		ID:        id,
 		Name:      strings.ToUpper(strings.TrimSpace(req.Name)),
 		ShortName: strings.ToUpper(strings.TrimSpace(req.ShortName)),
 		Logo:      req.Logo,
+		Status:    status,
 	}
 
 	if err := h.service.UpdateTeam(c.Request.Context(), team); err != nil {

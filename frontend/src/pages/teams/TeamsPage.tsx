@@ -23,10 +23,12 @@ export const TeamsPage = () => {
         },
     });
 
-    const teams: Team[] = infiniteTeamsData?.pages?.reduce(
-        (acc: Team[], p: PaginatedResponse<Team>) => acc.concat(p?.data || []),
-        [],
-    ) || [];
+    const teams: Team[] = (
+        infiniteTeamsData?.pages?.reduce(
+            (acc: Team[], p: PaginatedResponse<Team>) => acc.concat(p?.data || []),
+            [],
+        ) || []
+    ).filter((t: Team) => t.status !== 'inactive');
     const hasMore = hasNextPage;
 
     const observer = useRef<IntersectionObserver | null>(null);

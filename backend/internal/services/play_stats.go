@@ -149,6 +149,23 @@ func (s *PlayService) DeriveMatchStats(ctx context.Context, matchID string) ([]d
 			}
 		}
 
+		// ── Center: snap / bad snap (any pass-flow play) ──
+		// A snap happens before every pass-flow play. BADSNAP is a dedicated
+		// play_type (the play never reaches a rush/pass outcome), checked
+		// separately here rather than inside the passingPlayTypes switch below —
+		// it's deliberately not a member of that map. Internal tracking only.
+		if p.CenterID != nil && *p.CenterID != "" {
+			if pt == "BADSNAP" {
+				if c := get(p.CenterID); c != nil {
+					c.BadSnaps++
+				}
+			} else if passingPlayTypes[pt] {
+				if c := get(p.CenterID); c != nil {
+					c.Snaps++
+				}
+			}
+		}
+
 		switch {
 		case passingPlayTypes[pt]:
 			qb := get(p.OffQBID)
@@ -386,6 +403,8 @@ func (s *PlayService) CommitDerivedStats(ctx context.Context, matchID string) (i
 			QBDrives:            d.QBDrives,
 			QBTurnovers:         d.QBTurnovers,
 			QBPunts:             d.QBPunts,
+			Snaps:               d.Snaps,
+			BadSnaps:            d.BadSnaps,
 		}
 		if err := s.statsRepo.UpsertPlayerStat(ctx, stat); err != nil {
 			return 0, fmt.Errorf("failed to write stats for %s: %w", d.PlayerName, err)

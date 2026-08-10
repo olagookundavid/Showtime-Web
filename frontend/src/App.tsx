@@ -56,7 +56,6 @@ const AdminPlayByPlay = lazy(() => import('./pages/admin/AdminPlayByPlay').then(
 const AdminNews = lazy(() => import('./pages/admin/AdminNews').then(m => ({ default: m.AdminNews })));
 // const AdminGallery = lazy(() => import('./pages/admin/AdminGallery').then(m => ({ default: m.AdminGallery })));
 const AdminHeroSlides = lazy(() => import('./pages/admin/AdminHeroSlides').then(m => ({ default: m.AdminHeroSlides })));
-const AdminSeason = lazy(() => import('./pages/admin/AdminSeason').then(m => ({ default: m.AdminSeason })));
 const AdminPlayers = lazy(() => import('./pages/admin/AdminPlayers').then(m => ({ default: m.AdminPlayers })));
 const AdminStats = lazy(() => import('./pages/admin/AdminStats').then(m => ({ default: m.AdminStats })));
 const AdminStandings = lazy(() => import('./pages/admin/AdminStandings').then(m => ({ default: m.AdminStandings })));
@@ -173,7 +172,6 @@ function App() {
               <Route path="news" element={<AdminNews />} />
               {/* <Route path="gallery" element={<AdminGallery />} /> */}
               <Route path="hero-slides" element={<AdminHeroSlides />} />
-              <Route path="season" element={<AdminSeason />} />
               <Route path="players" element={<AdminPlayers />} />
               <Route path="stats" element={<AdminStats />} />
               {/* <Route path="totw" element={<AdminTOTW />} /> */}

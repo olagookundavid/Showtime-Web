@@ -29,6 +29,7 @@ type GamePlay struct {
 	Result        *string `json:"result,omitempty"`
 	DefenderID    *string `json:"defender_id,omitempty"`
 	RusherID      *string `json:"rusher_id,omitempty"`
+	CenterID      *string `json:"center_id,omitempty"`
 	Dropped       bool    `json:"dropped"`
 	BattedDown    bool    `json:"batted_down"`
 	Uncatchable   bool    `json:"uncatchable"`
@@ -54,6 +55,7 @@ type GamePlay struct {
 	Target        *Player `json:"target,omitempty"`
 	Defender      *Player `json:"defender,omitempty"`
 	Rusher        *Player `json:"rusher,omitempty"`
+	Center        *Player `json:"center,omitempty"`
 	PenaltyPlayer *Player `json:"penalty_player,omitempty"`
 }
 
@@ -75,6 +77,12 @@ var (
 		"SCR": true, "HM": true, "TA": true, "XP-P": true, "RUN": true,
 		"QBR": true, "SWP": true, "REV": true, "PAT-R": true, "PUNT": true,
 		"KO": true, "SAF": true,
+		// BADSNAP is a pragmatic extension (not on the official sheet): the
+		// center's snap to the QB never arrives cleanly, so the play ends right
+		// there — no rush/pass outcome ever happens. Paired with result "DB"
+		// (Dead Ball), which already means "play ended at the spot, no score,
+		// no turnover" for other play types.
+		"BADSNAP": true,
 	}
 	// The official sheet's Result Codes list (13 codes) has no dedicated code
 	// for "incomplete" or "safety" as an outcome, so play entry and the

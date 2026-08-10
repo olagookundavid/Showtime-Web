@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getMatches, type Match } from '../../services/api';
 import { Loader } from '../ui/Loader';
@@ -30,21 +30,25 @@ const soonestFirst = (matches: Match[]) =>
 
 /**
  * Builds the header match strip's content: when there are upcoming matches,
- * show the next 5 upcoming + the 5 latest results; when there are none, fall
- * back to the last 10 results so the strip still has something worth scrolling.
+ * show the 5 latest results + the next 5 upcoming (soonest first); when there are none,
+ * fall back to the last 10 results so the strip still has something worth scrolling.
  */
 const useHeaderMatches = () => {
     const { data: finishedMatchesData, isLoading: loadingFinished } = useLatestFinishedMatches();
     const { data: upcomingMatchesData, isLoading: loadingUpcoming } = useUpcomingMatches();
 
-    const finished = finishedMatchesData?.data || []; // already newest-first
+    const finished = finishedMatchesData?.data || [];
     const upcoming = soonestFirst(upcomingMatchesData?.data || []).slice(0, 5);
 
+    const recentFinished = soonestFirst(finished.slice(0, 5));
+
     const matches = upcoming.length > 0
-        ? [...upcoming, ...finished.slice(0, 5)]
+        ? [...recentFinished, ...upcoming]
         : finished.slice(0, 10);
 
-    return { matches, isLoading: loadingFinished || loadingUpcoming };
+    const nextMatchId = upcoming.length > 0 ? upcoming[0].id : null;
+
+    return { matches, nextMatchId, isLoading: loadingFinished || loadingUpcoming };
 };
 
 /**
@@ -53,8 +57,15 @@ const useHeaderMatches = () => {
  * info strip — see LatestMatchesInfoStrip.
  */
 export const LatestMatchesCarousel = () => {
-    const { matches, isLoading } = useHeaderMatches();
+    const { matches, nextMatchId, isLoading } = useHeaderMatches();
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const nextMatchRef = useRef<HTMLAnchorElement>(null);
+
+    useEffect(() => {
+        if (nextMatchRef.current && scrollContainerRef.current) {
+            nextMatchRef.current.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }
+    }, [nextMatchId]);
 
     const scrollLeft = () => {
         scrollContainerRef.current?.scrollBy({ left: -240, behavior: 'smooth' });
@@ -101,6 +112,7 @@ export const LatestMatchesCarousel = () => {
                     >
                         {matches.map(match => {
                             const isLive = match.status === 'LIVE';
+                            const isNextMatch = match.id === nextMatchId;
                             // A knockout match with exactly one team is a bye — show "BYE"
                             // on the empty side instead of the raw T1/T2 placeholder.
                             const isBye = match.competition?.format === 'KNOCKOUT' &&
@@ -109,8 +121,13 @@ export const LatestMatchesCarousel = () => {
                             return (
                                 <Link
                                     key={match.id}
+                                    ref={isNextMatch ? nextMatchRef : null}
                                     to={`/matches/${match.id}`}
-                                    className="flex-none w-[220px] md:w-[240px] bg-white/5 dark:bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg p-2 flex items-center justify-between gap-3 transition-all duration-300 snap-center cursor-pointer group h-[60px]"
+                                    className={`flex-none w-[220px] md:w-[240px] rounded-lg p-2 flex items-center justify-between gap-3 transition-all duration-300 snap-center cursor-pointer group h-[60px] ${
+                                        isNextMatch
+                                            ? 'bg-sffl-red/20 hover:bg-sffl-red/30 border border-sffl-red/60 hover:border-sffl-red shadow-md ring-1 ring-sffl-red/30'
+                                            : 'bg-white/5 dark:bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20'
+                                    }`}
                                 >
                                     <div className="flex flex-col justify-center gap-1.5 flex-1 min-w-0">
                                         {/* Home Team */}
@@ -162,10 +179,7 @@ export const LatestMatchesCarousel = () => {
                                             )}
                                         </div>
                                     </div>
-                                    {/* Action Column — LIVE badge for live matches; the score
-                                        itself already tells you a finished match is done. A
-                                        SCHEDULED match has no score yet, so show its date/time
-                                        here instead so it doesn't read as a blank tile. */}
+                                    {/* Action Column — LIVE badge for live matches; score for finished; date/time for scheduled */}
                                     {isLive ? (
                                         <div className="flex flex-col items-end justify-center min-w-[50px] pl-2 border-l border-white/10">
                                             <span className="bg-sffl-red text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded animate-pulse">LIVE</span>
@@ -175,7 +189,9 @@ export const LatestMatchesCarousel = () => {
                                             <span className="text-[9px] font-bold text-gray-300 whitespace-nowrap">
                                                 {match.date ? new Date(match.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}
                                             </span>
-                                            <span className="text-[8px] font-bold text-gray-500 uppercase tracking-wider">Upcoming</span>
+                                            <span className={`text-[8px] font-extrabold uppercase tracking-wider ${isNextMatch ? 'text-sffl-red' : 'text-gray-500'}`}>
+                                                {isNextMatch ? 'NEXT MATCH' : 'Upcoming'}
+                                            </span>
                                         </div>
                                     )}
                                 </Link>

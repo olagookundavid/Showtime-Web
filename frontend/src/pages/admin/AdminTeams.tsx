@@ -15,6 +15,7 @@ interface Team {
     name: string;
     short_name: string;
     logo: string;
+    status?: string;
 }
 
 interface Manager {
@@ -28,6 +29,7 @@ const AdminTeams = () => {
     const queryClient = useQueryClient();
     const [search, setSearch] = useState('');
     const [searchInput, setSearchInput] = useState('');
+    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
     const [page, setPage] = useState(1);
     const limit = 12;
 
@@ -36,8 +38,13 @@ const AdminTeams = () => {
         isLoading: loading,
         error: queryError,
     } = useQuery({
-        queryKey: ['adminTeams', { page, limit, search }],
-        queryFn: () => getAdminTeams({ page, limit, search }),
+        queryKey: ['adminTeams', { page, limit, search, statusFilter }],
+        queryFn: () => getAdminTeams({
+            page,
+            limit,
+            search,
+            status: statusFilter === 'all' ? undefined : statusFilter
+        }),
     });
 
     const teams: Team[] = data?.data || [];
@@ -47,7 +54,7 @@ const AdminTeams = () => {
     // Create/Edit modal
     const [showModal, setShowModal] = useState(false);
     const [editingTeam, setEditingTeam] = useState<Team | null>(null);
-    const [form, setForm] = useState({ name: '', short_name: '', logo: '' });
+    const [form, setForm] = useState({ name: '', short_name: '', logo: '', status: 'active' });
     const [saving, setSaving] = useState(false);
 
     // Manager modal
@@ -60,23 +67,36 @@ const AdminTeams = () => {
     // Debounced search reset page
     useEffect(() => {
         setPage(1);
-    }, [search]);
-
-    // Debounced search
-    useEffect(() => {
-        setPage(1);
-    }, [search]);
+    }, [search, statusFilter]);
 
     const openCreate = () => {
         setEditingTeam(null);
-        setForm({ name: '', short_name: '', logo: '' });
+        setForm({ name: '', short_name: '', logo: '', status: 'active' });
         setShowModal(true);
     };
 
     const openEdit = (team: Team) => {
         setEditingTeam(team);
-        setForm({ name: team.name, short_name: team.short_name, logo: team.logo });
+        setForm({ name: team.name, short_name: team.short_name, logo: team.logo, status: team.status || 'active' });
         setShowModal(true);
+    };
+
+    const handleToggleStatus = async (team: Team) => {
+        const nextStatus = team.status === 'inactive' ? 'active' : 'inactive';
+        try {
+            await updateTeam(team.id, {
+                name: team.name,
+                short_name: team.short_name,
+                logo: team.logo,
+                status: nextStatus
+            });
+            toast.success(`Team marked as ${nextStatus}`);
+            queryClient.invalidateQueries({ queryKey: ['adminTeams'] });
+            queryClient.invalidateQueries({ queryKey: ['publicTeams'] });
+            queryClient.invalidateQueries({ queryKey: ['adminTeamsAll'] });
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Failed to update team status');
+        }
     };
 
     const handleSave = async () => {
@@ -91,6 +111,8 @@ const AdminTeams = () => {
             }
             setShowModal(false);
             queryClient.invalidateQueries({ queryKey: ['adminTeams'] });
+            queryClient.invalidateQueries({ queryKey: ['publicTeams'] });
+            queryClient.invalidateQueries({ queryKey: ['adminTeamsAll'] });
         } catch (err: any) {
             console.error(err);
             toast.error(err.response?.data?.message || err.response?.data?.error || 'Failed to save team.');
@@ -104,6 +126,8 @@ const AdminTeams = () => {
         try {
             await deleteTeam(id);
             queryClient.invalidateQueries({ queryKey: ['adminTeams'] });
+            queryClient.invalidateQueries({ queryKey: ['publicTeams'] });
+            queryClient.invalidateQueries({ queryKey: ['adminTeamsAll'] });
             toast.success('Team deleted successfully');
         } catch (err: any) {
             console.error(err);
@@ -163,62 +187,74 @@ const AdminTeams = () => {
                 <button onClick={openCreate} className="px-4 py-2 bg-sffl-red text-white text-sm font-bold min-h-[44px] rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">+ Add Team</button>
             </div>
 
-            {/* Search bar */}
-            <div className="flex gap-2 w-full md:w-auto mb-2">
-                <div className="relative w-full md:w-96">
-                    <input
-                        type="text"
-                        value={searchInput}
-                        onChange={e => setSearchInput(e.target.value)}
-                        onKeyDown={e => {
-                            if (e.key === 'Enter') {
-                                setSearch(searchInput);
-                                setPage(1);
-                            }
-                        }}
-                        placeholder="Search teams by name or short name..."
-                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg pl-8 pr-8 py-1.5 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red transition-all"
-                    />
-                    <svg className="absolute left-2 top-2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    {searchInput && (
-                        <button
-                            onClick={() => {
-                                setSearchInput('');
-                                setSearch('');
-                                setPage(1);
+            {/* Filter Bar & Status Tabs */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div className="flex gap-2 w-full sm:w-auto">
+                    <div className="relative w-full sm:w-80">
+                        <input
+                            type="text"
+                            value={searchInput}
+                            onChange={e => setSearchInput(e.target.value)}
+                            onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                    setSearch(searchInput);
+                                    setPage(1);
+                                }
                             }}
-                            className="absolute right-2 top-2 text-gray-400 hover:text-gray-600 transition"
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    )}
-                </div>
-                <button
-                    onClick={() => {
-                        setSearch(searchInput);
-                        setPage(1);
-                    }}
-                    className="px-4 py-2 min-h-[44px] bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
-                >
-                    Search
-                </button>
-                {search && (
+                            placeholder="Search teams by name or short name..."
+                            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg pl-8 pr-8 py-2 text-sm bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red transition-all"
+                        />
+                        <svg className="absolute left-2.5 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        {searchInput && (
+                            <button
+                                onClick={() => {
+                                    setSearchInput('');
+                                    setSearch('');
+                                    setPage(1);
+                                }}
+                                className="absolute right-2 top-2.5 text-gray-400 hover:text-gray-600 transition"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        )}
+                    </div>
                     <button
                         onClick={() => {
-                            setSearch('');
-                            setSearchInput('');
+                            setSearch(searchInput);
                             setPage(1);
                         }}
-                        title="Clear Filters"
-                        className="p-2 min-h-[44px] min-w-[44px] bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 rounded-lg transition-colors border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-center transition-all duration-300 hover:scale-[1.02] active:scale-95"
+                        className="px-4 py-2 min-h-[42px] bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300"
                     >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h16v2H4V4zm2 4h12v12H6V8z" /></svg>
+                        Search
                     </button>
-                )}
+                </div>
+
+                {/* Status Filter Tabs */}
+                <div className="inline-flex p-1 bg-gray-100 dark:bg-gray-700/60 rounded-xl border border-gray-200 dark:border-gray-700 self-start sm:self-auto">
+                    {(['all', 'active', 'inactive'] as const).map((s) => {
+                        const active = statusFilter === s;
+                        return (
+                            <button
+                                key={s}
+                                onClick={() => {
+                                    setStatusFilter(s);
+                                    setPage(1);
+                                }}
+                                className={`px-3 py-1.5 text-xs font-extrabold rounded-lg capitalize transition-all ${
+                                    active
+                                        ? 'bg-white dark:bg-gray-800 text-sffl-navy dark:text-white shadow-sm border border-gray-200 dark:border-gray-600'
+                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                                }`}
+                            >
+                                {s}
+                            </button>
+                        );
+                    })}
+                </div>
             </div>
 
             {error && (
@@ -236,43 +272,59 @@ const AdminTeams = () => {
                         {search ? `No teams matching "${search}".` : 'No teams found.'}
                     </div>
                 ) : (
-                    teams.map(team => (
-                        <div key={team.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-all hover:shadow-lg">
-                            <div className="p-6">
-                                <div className="flex items-center gap-4 mb-4">
-                                    {team.logo ? (
-                                        <LightboxImage 
-                                            src={team.logo} 
-                                            alt={team.name} 
-                                            thumbnailClassName="w-14 h-14 rounded-lg object-contain bg-gray-50 p-1" 
-                                        />
-                                    ) : (
-                                        <div className="w-14 h-14 rounded-lg bg-sffl-navy/10 flex items-center justify-center text-2xl font-black text-sffl-navy dark:text-white">
-                                            {team.short_name?.slice(0, 2) || team.name.slice(0, 2)}
+                    teams.map(team => {
+                        const isInactive = team.status === 'inactive';
+                        return (
+                            <div key={team.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-all hover:shadow-lg flex flex-col justify-between">
+                                <div className="p-6">
+                                    <div className="flex items-start justify-between gap-3 mb-4">
+                                        <div className="flex items-center gap-3">
+                                            {team.logo ? (
+                                                <LightboxImage 
+                                                    src={team.logo} 
+                                                    alt={team.name} 
+                                                    thumbnailClassName="w-14 h-14 rounded-lg object-contain bg-gray-50 p-1" 
+                                                />
+                                            ) : (
+                                                <div className="w-14 h-14 rounded-lg bg-sffl-navy/10 flex items-center justify-center text-2xl font-black text-sffl-navy dark:text-white">
+                                                    {team.short_name?.slice(0, 2) || team.name.slice(0, 2)}
+                                                </div>
+                                            )}
+                                            <div>
+                                                <h3 className="text-lg font-bold text-gray-900 dark:text-white uppercase">{team.name}</h3>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400 uppercase">{team.short_name}</p>
+                                            </div>
                                         </div>
-                                    )}
-                                    <div>
-                                        <h3 className="text-lg font-bold text-gray-900 dark:text-white uppercase">{team.name}</h3>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400 uppercase">{team.short_name}</p>
+                                        <button
+                                            onClick={() => handleToggleStatus(team)}
+                                            title="Click to toggle Active / Inactive"
+                                            className={`px-2.5 py-1 text-[10px] font-black tracking-wider uppercase rounded-full border transition-all ${
+                                                isInactive
+                                                    ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border-amber-300 dark:border-amber-800 hover:bg-amber-100'
+                                                    : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-100'
+                                            }`}
+                                        >
+                                            {isInactive ? '● Inactive' : '● Active'}
+                                        </button>
+                                    </div>
+                                    <div className="flex gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
+                                        <button onClick={() => openEdit(team)}
+                                            className="flex-1 text-xs font-bold bg-blue-50 text-blue-600 hover:text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 py-1.5 rounded-md shadow-sm hover:shadow-md hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all">
+                                            Edit
+                                        </button>
+                                        <button onClick={() => openManagers(team.id, team.name)}
+                                            className="flex-1 text-xs font-bold bg-green-50 text-green-600 hover:text-green-800 dark:bg-green-900/30 dark:text-green-400 py-1.5 rounded-md shadow-sm hover:shadow-md hover:bg-green-100 dark:hover:bg-green-900/50 transition-all">
+                                            Managers
+                                        </button>
+                                        <button onClick={() => handleDelete(team.id)}
+                                            className="flex-1 text-xs font-bold bg-red-50 text-red-600 hover:text-red-800 dark:bg-red-900/30 dark:text-red-400 py-1.5 rounded-md shadow-sm hover:shadow-md hover:bg-red-100 dark:hover:bg-red-900/50 transition-all">
+                                            Delete
+                                        </button>
                                     </div>
                                 </div>
-                                <div className="flex gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
-                                    <button onClick={() => openEdit(team)}
-                                        className="flex-1 text-xs font-bold bg-blue-50 text-blue-600 hover:text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 py-1.5 rounded-md shadow-sm hover:shadow-md hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all">
-                                        Edit
-                                    </button>
-                                    <button onClick={() => openManagers(team.id, team.name)}
-                                        className="flex-1 text-xs font-bold bg-green-50 text-green-600 hover:text-green-800 dark:bg-green-900/30 dark:text-green-400 py-1.5 rounded-md shadow-sm hover:shadow-md hover:bg-green-100 dark:hover:bg-green-900/50 transition-all">
-                                        Managers
-                                    </button>
-                                    <button onClick={() => handleDelete(team.id)}
-                                        className="flex-1 text-xs font-bold bg-red-50 text-red-600 hover:text-red-800 dark:bg-red-900/30 dark:text-red-400 py-1.5 rounded-md shadow-sm hover:shadow-md hover:bg-red-100 dark:hover:bg-red-900/50 transition-all">
-                                        Delete
-                                    </button>
-                                </div>
                             </div>
-                        </div>
-                    ))
+                        );
+                    })
                 )}
             </div>
 
@@ -313,16 +365,29 @@ const AdminTeams = () => {
                                     className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red uppercase" placeholder="e.g. LGD" />
                             </div>
                             <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Status *</label>
+                                <select
+                                    value={form.status}
+                                    onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
+                                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red font-medium text-sm"
+                                >
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                                    Inactive teams are hidden from public client team pages and selection dropdowns.
+                                </p>
+                            </div>
+                            <div>
                                 <ImageUploadField
                                     label="Team Logo"
                                     value={form.logo}
                                     onChange={(url) => setForm(f => ({ ...f, logo: url }))}
                                     folder="teams"
-                                    helperText="Upload a logo.  "
+                                    helperText="Upload a logo."
                                     isCommitted={saving}
                                 />
                             </div>
-
                         </div>
                         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-end gap-2">
                             <button onClick={() => setShowModal(false)} className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300 transition-all duration-300 hover:scale-[1.02] active:scale-95">Cancel</button>

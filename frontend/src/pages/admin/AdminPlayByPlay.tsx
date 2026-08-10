@@ -37,6 +37,7 @@ type SackResult = 'next_down' | 'safety';
 type PassDefenderAction = 'FG' | 'OB';
 type PassFinalOutcome = 'TD' | 'next_down' | 'INT' | 'TO' | 'pick6' | 'SAF';
 type IncompleteOption = 'dropped' | 'batted_down' | 'uncatchable';
+type SnapOutcome = 'snap' | 'bad_snap';
 
 type RunStyle = 'RUN' | 'QBR';
 type RunDefenderAction = 'FG' | 'OB';
@@ -62,6 +63,7 @@ interface Ctx {
 interface Wizard {
     kind: Kind;
     // Pass flow
+    snapOutcome?: SnapOutcome;
     rushOutcome?: RushOutcome;
     sackResult?: SackResult;
     passOutcome?: PassOutcome;
@@ -93,6 +95,7 @@ interface Wizard {
     carrierId: string;
     defenderId: string;
     rusherId: string;
+    centerId: string;
     yards: string;
     notes: string;
 
@@ -117,6 +120,7 @@ const emptyWizard: Wizard = {
     carrierId: '',
     defenderId: '',
     rusherId: '',
+    centerId: '',
     yards: '',
     penaltyOn: false,
     penaltyCode: '',
@@ -497,6 +501,20 @@ export const AdminPlayByPlay = () => {
                 if (ctx.offense === '') return { payload: null, error: 'Pick which team has the ball first.' };
                 base.off_qb_id = w.qbId || undefined;
                 if (!base.off_qb_id) return { payload: null, error: 'Select the QB.' };
+
+                if (!w.snapOutcome) return { payload: null, error: 'Select Snap outcome (Snap or Bad Snap).' };
+                if (!w.centerId) return { payload: null, error: 'Select the Center.' };
+                base.center_id = w.centerId;
+
+                if (w.snapOutcome === 'bad_snap') {
+                    base.play_type = 'BADSNAP';
+                    base.result = 'DB';
+                    break; // Ends the play immediately. NOT `return` — falling out of
+                    // the switch via `break` lets the shared "optional penalty
+                    // attached to a play above" block below still run, same as
+                    // every other pass sub-outcome.
+                }
+
                 if (!w.rushOutcome) return { payload: null, error: 'Select what happened on the Rush.' };
 
                 if (w.rushOutcome === 'sack') {
@@ -843,6 +861,8 @@ export const AdminPlayByPlay = () => {
             nw.targetId = p.target?.id || '';
             nw.defenderId = p.defender?.id || '';
             nw.rusherId = p.rusher?.id || '';
+            nw.centerId = p.center?.id || '';
+            nw.snapOutcome = 'snap';
             nw.yards = p.yards != null ? String(p.yards) : '';
 
             if (pt === 'SACK') {
@@ -878,6 +898,11 @@ export const AdminPlayByPlay = () => {
                     else nw.passFinalOutcome = 'next_down';
                 }
             }
+        } else if (pt === 'BADSNAP') {
+            nw.kind = 'pass';
+            nw.qbId = p.off_qb?.id || '';
+            nw.snapOutcome = 'bad_snap';
+            nw.centerId = p.center?.id || '';
         } else if (['RUN', 'QBR'].includes(pt)) {
             nw.kind = 'run';
             nw.runStyle = (pt === 'QBR' ? 'QBR' : 'RUN');
@@ -1114,6 +1139,27 @@ export const AdminPlayByPlay = () => {
                             <div className="space-y-4">
                                 <PlayerField label={`QB (${teamName(ctx.offense)})`} value={w.qbId} onChange={v => setField('qbId', v)} roster={offenseRoster} />
 
+                                {/* Section: Snap — happens before every pass-flow play. A bad snap ends
+                                    the play right here; the Rush/Pass-Outcome sections below only appear
+                                    once a good snap is chosen. */}
+                                <div className="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-xl border border-gray-200 dark:border-gray-600 space-y-3">
+                                    <div className="text-xs font-bold text-sffl-navy dark:text-gray-200 uppercase tracking-wider">Snap</div>
+                                    <PlayerField label={`Center (${teamName(ctx.offense)})`} value={w.centerId} onChange={v => setField('centerId', v)} roster={offenseRoster} />
+                                    <div>
+                                        <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Snap Outcome</div>
+                                        <div className="flex gap-2">
+                                            {([['snap', 'Snap'], ['bad_snap', 'Bad Snap']] as [SnapOutcome, string][]).map(([so, label]) => (
+                                                <button key={so} className={chip(w.snapOutcome === so)} onClick={() => setField('snapOutcome', so)}>{label}</button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    {w.snapOutcome === 'bad_snap' && (
+                                        <p className="text-xs font-semibold text-red-600 dark:text-red-400">Play ends immediately — the center is charged a Bad Snap and the down advances.</p>
+                                    )}
+                                </div>
+
+                                {w.snapOutcome === 'snap' && (
+                                <>
                                 {/* Section: Rush */}
                                 <div className="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-xl border border-gray-200 dark:border-gray-600 space-y-3">
                                     <div className="text-xs font-bold text-sffl-navy dark:text-gray-200 uppercase tracking-wider">Rush</div>
@@ -1250,6 +1296,8 @@ export const AdminPlayByPlay = () => {
                                             </div>
                                         )}
                                     </>
+                                )}
+                                </>
                                 )}
                             </div>
                         </Section>
@@ -1559,6 +1607,8 @@ const PlayRow = ({
     if (play.batted_down) bits.push('batted down');
     if (play.rusher) bits.push(`(rush ${who(play.rusher)})`);
     if (play.defender) bits.push(`(def ${who(play.defender)})`);
+    if (play.play_type === 'BADSNAP') bits.push('BAD SNAP');
+    else if (play.center) bits.push(`(snap ${who(play.center)})`);
     if (play.penalty) bits.push(`⚑ ${play.penalty}${play.penalty_player ? ' ' + who(play.penalty_player) : ''}`);
 
     const accruals = getPlayStatAccruals(play, homeTeamName, awayTeamName);

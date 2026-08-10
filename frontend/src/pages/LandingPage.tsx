@@ -1,9 +1,6 @@
 import { MainHeroCarousel } from '../components/MainHeroCarousel';
 import { ReliveCarousel } from '../components/ReliveCarousel';
 import { HeroCarousel } from '../components/HeroCarousel';
-// Temporarily disabled on the homepage — re-enable to show the Team of the
-// Season banner + MVPs (admin content still lives at /admin/season).
-// import { SeasonShowcase } from '../components/widgets/SeasonShowcase';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getNews } from '../services/api';
@@ -39,10 +36,6 @@ export const LandingPage = () => {
             <section className="px-1">
                 <ReliveCarousel />
             </section>
-
-            {/* Team of the Season + MVPs — temporarily commented out. Re-enable
-                the import above and this line to show it again. */}
-            {/* <SeasonShowcase /> */}
 
             {/* Team News — moved immediately after the hero so news is the
                 first thing visitors see below the carousel. */}

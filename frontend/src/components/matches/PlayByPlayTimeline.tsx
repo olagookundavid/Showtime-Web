@@ -11,7 +11,7 @@ const PLAY_LABEL: Record<string, string> = {
     CP: 'Complete pass', INC: 'Incomplete', TDP: 'TD pass',
     TA: 'Thrown away', RUN: 'Run', QBR: 'QB run',
     SACK: 'Sack', INT: 'Interception', PUNT: 'Punt', KO: 'Throw-off',
-    'XP-P': '2-pt pass', 'PAT-R': 'Extra point', SAF: 'Safety',
+    'XP-P': '2-pt pass', 'PAT-R': 'Extra point', SAF: 'Safety', BADSNAP: 'Bad Snap',
 };
 const RESULT_LABEL: Record<string, string> = {
     '1D': 'First down', '1DG': 'First & goal', TD: 'TOUCHDOWN', XP: 'Extra point good',
@@ -21,7 +21,14 @@ const RESULT_LABEL: Record<string, string> = {
 };
 
 const isScore = (p: GamePlay) => p.result === 'TD' || p.result === 'XP' || p.result === 'SAF';
-const isInterception = (p: GamePlay) => p.result === 'INT' || p.play_type === 'INT';
+// An interception returned for a TD is a defensive score — green, not red.
+const isPickSix = (p: GamePlay) => (p.result === 'INT' || p.play_type === 'INT') && p.returned_for_td === true;
+// Red "possession changed the hard way": turnover on downs, a non-returned
+// interception, or a bad snap (play dies on the spot, center charged).
+const isTurnover = (p: GamePlay) =>
+    p.result === 'TO' ||
+    ((p.result === 'INT' || p.play_type === 'INT') && !p.returned_for_td) ||
+    p.play_type === 'BADSNAP';
 const isOneMinWarning = (p: GamePlay) => p.result === 'OMW' || p.result === '1MW';
 const isInjury = (p: GamePlay) => p.result === 'IH';
 
@@ -123,8 +130,8 @@ export const PlayByPlayTimeline = ({ matchId, isLive, showEmpty = false }: { mat
                         </div>
                         <ol className="space-y-1.5">
                             {drive.plays.map(p => {
-                                const scored = isScore(p);
-                                const intercepted = isInterception(p);
+                                const scored = isScore(p) || isPickSix(p);
+                                const turnover = isTurnover(p);
                                 const warning = isOneMinWarning(p);
                                 const injury = isInjury(p);
                                 const endPeriod = p.result === 'EH' || p.result === 'EG';
@@ -149,7 +156,7 @@ export const PlayByPlayTimeline = ({ matchId, isLive, showEmpty = false }: { mat
                                     <li key={p.id} className={`flex items-start gap-2.5 sm:gap-3 rounded-xl p-2.5 transition-colors ${
                                         scored
                                             ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/40'
-                                            : intercepted
+                                            : turnover
                                                 ? 'bg-red-50/90 dark:bg-red-950/30 border border-red-200/60 dark:border-red-800/40'
                                                 : warning
                                                     ? 'bg-rose-500/15 dark:bg-rose-950/40 border-2 border-rose-500/80 dark:border-rose-700 animate-pulse'
@@ -176,7 +183,7 @@ export const PlayByPlayTimeline = ({ matchId, isLive, showEmpty = false }: { mat
                                                 <span className={`ml-1.5 text-xs font-bold ${
                                                     scored
                                                         ? 'text-emerald-600 dark:text-emerald-400'
-                                                        : intercepted
+                                                        : turnover
                                                             ? 'text-red-600 dark:text-red-400'
                                                             : warning
                                                                 ? 'text-rose-600 dark:text-rose-400 font-black'
@@ -184,7 +191,11 @@ export const PlayByPlayTimeline = ({ matchId, isLive, showEmpty = false }: { mat
                                                                     ? 'text-amber-700 dark:text-amber-300 font-extrabold'
                                                                     : 'text-gray-400'
                                                 }`}>
-                                                    · [{RESULT_LABEL[p.result] || p.result}]
+                                                    · [{
+                                                        p.play_type === 'BADSNAP' ? `Bad Snap${p.center ? ` - ${who(p.center)}` : ''}`
+                                                            : isPickSix(p) ? 'Defensive Touchdown'
+                                                            : RESULT_LABEL[p.result] || p.result
+                                                    }]
                                                 </span>
                                             )}
                                             {p.penalty && p.play_type && (

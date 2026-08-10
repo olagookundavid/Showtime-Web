@@ -15,9 +15,9 @@ type IMatchService interface {
 	CreateCompetition(ctx context.Context, comp *domain.Competition) error
 	UpdateCompetition(ctx context.Context, comp *domain.Competition) error
 	DeleteCompetition(ctx context.Context, id string) error
-	GetTeams(ctx context.Context, page, limit int, search string) (dto.PaginatedResult[dto.TeamResponse], error)
-	GetAllTeams(ctx context.Context) ([]dto.TeamResponse, error)
-	GetTeamsByCompetition(ctx context.Context, competitionID string) ([]dto.TeamResponse, error)
+	GetTeams(ctx context.Context, page, limit int, search string, status string) (dto.PaginatedResult[dto.TeamResponse], error)
+	GetAllTeams(ctx context.Context, status string) ([]dto.TeamResponse, error)
+	GetTeamsByCompetition(ctx context.Context, competitionID string, status string) ([]dto.TeamResponse, error)
 	AddTeamToCompetition(ctx context.Context, competitionID, teamID string) error
 	RemoveTeamFromCompetition(ctx context.Context, competitionID, teamID string) error
 	GetMatches(ctx context.Context, competitionID string, status string, page, limit int, search string) (dto.PaginatedResult[dto.MatchResponse], error)
@@ -184,19 +184,24 @@ func (s *MatchService) GetCompetitions(ctx context.Context, page, limit int, sea
 	}, nil
 }
 
-func (s *MatchService) GetTeams(ctx context.Context, page, limit int, search string) (dto.PaginatedResult[dto.TeamResponse], error) {
-	teams, total, err := s.repo.GetTeams(ctx, page, limit, search)
+func (s *MatchService) GetTeams(ctx context.Context, page, limit int, search string, status string) (dto.PaginatedResult[dto.TeamResponse], error) {
+	teams, total, err := s.repo.GetTeams(ctx, page, limit, search, status)
 	if err != nil {
 		return dto.PaginatedResult[dto.TeamResponse]{}, err
 	}
 
 	var res []dto.TeamResponse
 	for _, t := range teams {
+		statusVal := t.Status
+		if statusVal == "" {
+			statusVal = "active"
+		}
 		res = append(res, dto.TeamResponse{
 			ID:        t.ID,
 			Name:      t.Name,
 			ShortName: t.ShortName,
 			Logo:      t.Logo,
+			Status:    statusVal,
 		})
 	}
 
@@ -214,19 +219,24 @@ func (s *MatchService) GetTeams(ctx context.Context, page, limit int, search str
 	}, nil
 }
 
-func (s *MatchService) GetAllTeams(ctx context.Context) ([]dto.TeamResponse, error) {
-	teams, err := s.repo.GetAllTeams(ctx)
+func (s *MatchService) GetAllTeams(ctx context.Context, status string) ([]dto.TeamResponse, error) {
+	teams, err := s.repo.GetAllTeams(ctx, status)
 	if err != nil {
 		return nil, err
 	}
 
 	var res []dto.TeamResponse
 	for _, t := range teams {
+		statusVal := t.Status
+		if statusVal == "" {
+			statusVal = "active"
+		}
 		res = append(res, dto.TeamResponse{
 			ID:        t.ID,
 			Name:      t.Name,
 			ShortName: t.ShortName,
 			Logo:      t.Logo,
+			Status:    statusVal,
 		})
 	}
 	return res, nil
@@ -703,19 +713,24 @@ func (s *MatchService) DeleteStanding(ctx context.Context, id string) error {
 	return s.repo.DeleteStanding(ctx, id)
 }
 
-func (s *MatchService) GetTeamsByCompetition(ctx context.Context, competitionID string) ([]dto.TeamResponse, error) {
-	teams, err := s.repo.GetTeamsByCompetition(ctx, competitionID)
+func (s *MatchService) GetTeamsByCompetition(ctx context.Context, competitionID string, status string) ([]dto.TeamResponse, error) {
+	teams, err := s.repo.GetTeamsByCompetition(ctx, competitionID, status)
 	if err != nil {
 		return nil, err
 	}
 
 	var res []dto.TeamResponse
 	for _, t := range teams {
+		statusVal := t.Status
+		if statusVal == "" {
+			statusVal = "active"
+		}
 		res = append(res, dto.TeamResponse{
 			ID:        t.ID,
 			Name:      t.Name,
 			ShortName: t.ShortName,
 			Logo:      t.Logo,
+			Status:    statusVal,
 		})
 	}
 	return res, nil

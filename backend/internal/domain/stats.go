@@ -42,6 +42,8 @@ type PlayerStat struct {
 	QBDrives            int       `json:"qb_drives"`
 	QBTurnovers         int       `json:"qb_turnovers"`
 	QBPunts             int       `json:"qb_punts"`
+	Snaps               int       `json:"snaps"`
+	BadSnaps            int       `json:"bad_snaps"`
 	CreatedAt           time.Time `json:"created_at"`
 	UpdatedAt           time.Time `json:"updated_at"`
 }
@@ -98,6 +100,13 @@ type AggregatedPlayerStat struct {
 	QBDrives    int `json:"qb_drives"`
 	QBTurnovers int `json:"qb_turnovers"`
 	QBPunts     int `json:"qb_punts"`
+	// Snaps / BadSnaps — same internal-only treatment: a snap happens before
+	// every pass-flow play, and tracking who snapped it (and whether it was
+	// clean) is a new tracking input, not a box-score column. Not read back by
+	// GetPlayerStats and not in statsSortColumns, so it never surfaces on the
+	// public/admin stats tables.
+	Snaps    int `json:"snaps"`
+	BadSnaps int `json:"bad_snaps"`
 }
 
 type AggregatedTeamStat struct {

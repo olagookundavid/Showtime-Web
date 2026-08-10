@@ -114,7 +114,7 @@ export const AdminMatches = () => {
     const bracketTargets: Match[] = (bracketMatchesData?.data || []).filter(m => m.id !== editingId);
 
     // teams must be declared FIRST — compScopedTeams and activeTeamsForForm depend on it.
-    const teams: Team[] = teamsData?.data || [];
+    const teams: Team[] = (teamsData?.data || []).filter((t: Team) => t.status !== 'inactive');
     const matches: Match[] = matchesData?.data || [];
     const totalPages = matchesData?.total_pages || 1;
     const loading = loadingComps || loadingTeams || loadingMatches;
@@ -126,11 +126,13 @@ export const AdminMatches = () => {
         queryFn: () => getTeamsByCompetition(form.competition_id),
         enabled: !!form.competition_id,
     });
-    const compScopedTeams: Team[] = Array.isArray(compScopedTeamsData?.data)
-        ? compScopedTeamsData.data
-        : Array.isArray(compScopedTeamsData)
-            ? compScopedTeamsData
-            : [];
+    const compScopedTeams: Team[] = (
+        Array.isArray(compScopedTeamsData?.data)
+            ? compScopedTeamsData.data
+            : Array.isArray(compScopedTeamsData)
+                ? compScopedTeamsData
+                : []
+    ).filter((t: Team) => t.status !== 'inactive');
     const activeTeamsForForm = form.competition_id && compScopedTeams.length > 0 ? compScopedTeams : teams;
     const selectableTeams = (_current: string): Team[] => activeTeamsForForm;
 

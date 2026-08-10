@@ -412,6 +412,7 @@ export interface Team {
     name: string;
     short_name: string;
     logo: string;
+    status?: string;
 }
 
 export interface Match {
@@ -943,13 +944,13 @@ export const updateUserInfo = async (userId: string, payload: { fullname: string
 };
 
 // -------- ADMIN TEAM MANAGEMENT API -------- //
-export const getAdminTeams = async (params?: { page?: number; limit?: number; search?: string }) => {
+export const getAdminTeams = async (params?: { page?: number; limit?: number; search?: string; status?: string }) => {
     const response = await api.get('/admin/teams', { params });
     return response.data;
 };
 
-export const getTeamsByCompetition = async (competitionId: string) => {
-    const response = await api.get('/admin/teams/by-competition', { params: { competition_id: competitionId } });
+export const getTeamsByCompetition = async (competitionId: string, status?: string) => {
+    const response = await api.get('/admin/teams/by-competition', { params: { competition_id: competitionId, status } });
     if (response.data && response.data.data !== undefined) {
         return { data: Array.isArray(response.data.data) ? response.data.data : [] };
     }
@@ -973,12 +974,12 @@ export const assignRandomJerseyNumbers = async (teamId?: string) => {
     return response.data as { message: string; assigned_count: number };
 };
 
-export const createTeam = async (payload: { name: string; short_name: string; logo: string }) => {
+export const createTeam = async (payload: { name: string; short_name: string; logo: string; status?: string }) => {
     const response = await api.post('/admin/teams', payload);
     return response.data;
 };
 
-export const updateTeam = async (id: string, payload: { name: string; short_name: string; logo: string }) => {
+export const updateTeam = async (id: string, payload: { name: string; short_name: string; logo: string; status?: string }) => {
     const response = await api.put(`/admin/teams/${id}`, payload);
     return response.data;
 };
@@ -1843,6 +1844,7 @@ export interface GamePlay {
     result?: string;
     defender_id?: string;
     rusher_id?: string;
+    center_id?: string;
     dropped: boolean;
     batted_down: boolean;
     uncatchable: boolean;
@@ -1860,6 +1862,7 @@ export interface GamePlay {
     target?: PlayPlayer;
     defender?: PlayPlayer;
     rusher?: PlayPlayer;
+    center?: PlayPlayer;
     penalty_player?: PlayPlayer;
 }
 
@@ -1879,6 +1882,7 @@ export interface PlayPayload {
     result?: string;
     defender_id?: string;
     rusher_id?: string;
+    center_id?: string;
     dropped?: boolean;
     batted_down?: boolean;
     uncatchable?: boolean;

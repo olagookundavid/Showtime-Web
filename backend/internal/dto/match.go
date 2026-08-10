@@ -37,6 +37,14 @@ type CreateTeamRequest struct {
 	Name      string `json:"name" binding:"required"`
 	ShortName string `json:"short_name"`
 	Logo      string `json:"logo"`
+	Status    string `json:"status"` // active | inactive
+}
+
+type UpdateTeamRequest struct {
+	Name      *string `json:"name"`
+	ShortName *string `json:"short_name"`
+	Logo      *string `json:"logo"`
+	Status    *string `json:"status"`
 }
 
 type TeamResponse struct {
@@ -44,6 +52,7 @@ type TeamResponse struct {
 	Name      string `json:"name"`
 	ShortName string `json:"short_name"`
 	Logo      string `json:"logo"`
+	Status    string `json:"status"`
 }
 
 // --- Matches ---

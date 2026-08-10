@@ -114,7 +114,7 @@ func (h *TeamManagerHandler) GetMyTeam(c *gin.Context) {
 		teamID = tm.TeamID
 	}
 
-	teams, err := h.matchService.GetAllTeams(c.Request.Context())
+	teams, err := h.matchService.GetAllTeams(c.Request.Context(), "")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

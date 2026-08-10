@@ -79,11 +79,13 @@ const AdminCompetitions = () => {
         queryKey: ['adminTeamsAll'],
         queryFn: () => getTeams(1, 100),
     });
-    const allTeams: Team[] = Array.isArray(allTeamsData?.data)
-        ? allTeamsData.data
-        : Array.isArray(allTeamsData)
-            ? allTeamsData
-            : [];
+    const allTeams: Team[] = (
+        Array.isArray(allTeamsData?.data)
+            ? allTeamsData.data
+            : Array.isArray(allTeamsData)
+                ? allTeamsData
+                : []
+    ).filter(t => t.status !== 'inactive');
 
     const filteredTeams = allTeams.filter(t =>
         t.name.toLowerCase().includes(teamFilter.toLowerCase()) ||

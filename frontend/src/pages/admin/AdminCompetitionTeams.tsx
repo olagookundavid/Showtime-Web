@@ -45,11 +45,13 @@ export const AdminCompetitionTeams = () => {
         queryKey: ['adminTeamsAll'],
         queryFn: () => getTeams(1, 100),
     });
-    const allTeams: Team[] = Array.isArray(allTeamsData?.data)
-        ? allTeamsData.data
-        : Array.isArray(allTeamsData)
-            ? allTeamsData
-            : [];
+    const allTeams: Team[] = (
+        Array.isArray(allTeamsData?.data)
+            ? allTeamsData.data
+            : Array.isArray(allTeamsData)
+                ? allTeamsData
+                : []
+    ).filter(t => t.status !== 'inactive');
 
     const enrolledIds = new Set(enrolledTeams.map(t => t.id));
     const availableTeams = allTeams.filter(t => !enrolledIds.has(t.id));

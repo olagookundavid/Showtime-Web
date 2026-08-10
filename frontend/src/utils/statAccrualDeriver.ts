@@ -68,6 +68,13 @@ export const getPlayStatAccruals = (
         });
     };
 
+    // ── 0. Snap / Bad Snap (internal tracking, any pass-flow play) ─────────
+    if (pt === 'BADSNAP') {
+        if (p.center) addPlayer(p.center, 'Bad Snap', '+1', 'passing', 'rose');
+    } else if (passingPlayTypes.includes(pt) && p.center) {
+        addPlayer(p.center, 'Snap', '+1', 'passing', 'gray');
+    }
+
     // ── 1. Defensive Flag Pulls (Tackles) ──────────────────────────────────
     if (pt !== 'SACK' && (res === 'FG' || (res !== 'TD' && res !== 'INT' && res !== 'INC' && res !== 'SAF' && (p.defender || p.rusher)))) {
         if (p.defender) {

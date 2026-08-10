@@ -34,6 +34,7 @@ type Team struct {
 	Name      string    `json:"name"`
 	ShortName string    `json:"short_name"`
 	Logo      string    `json:"logo"`
+	Status    string    `json:"status"` // active | inactive
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

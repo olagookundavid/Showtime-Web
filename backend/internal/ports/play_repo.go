@@ -48,12 +48,12 @@ const playColumns = `
 	seq, drive_no, quarter, clock, offense_team_id, down, to_go, ball_on,
 	play_type, off_qb_id, target_id, yards, result, defender_id, rusher_id, dropped, batted_down, returned_for_td,
 	penalty, penalty_team_id, penalty_player_id, penalty_yards,
-	home_score_after, away_score_after, notes, uncatchable`
+	home_score_after, away_score_after, notes, uncatchable, center_id`
 
 func (r *PlayPGRepository) Create(ctx context.Context, p *domain.GamePlay) error {
 	query := `
 		INSERT INTO game_plays (match_id, ` + playColumns + `)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
 		RETURNING id, created_at, updated_at`
 
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
@@ -63,7 +63,7 @@ func (r *PlayPGRepository) Create(ctx context.Context, p *domain.GamePlay) error
 		p.MatchID, p.Seq, p.DriveNo, p.Quarter, p.Clock, p.OffenseTeamID, p.Down, p.ToGo, p.BallOn,
 		p.PlayType, p.OffQBID, p.TargetID, p.Yards, p.Result, p.DefenderID, p.RusherID, p.Dropped, p.BattedDown, p.ReturnedForTD,
 		p.Penalty, p.PenaltyTeamID, p.PenaltyPlayerID, p.PenaltyYards,
-		p.HomeScoreAfter, p.AwayScoreAfter, p.Notes, p.Uncatchable,
+		p.HomeScoreAfter, p.AwayScoreAfter, p.Notes, p.Uncatchable, p.CenterID,
 	).Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("failed to create play: %w", err)
@@ -79,7 +79,7 @@ func (r *PlayPGRepository) Update(ctx context.Context, p *domain.GamePlay) error
 			target_id = $12, yards = $13, result = $14, defender_id = $15, rusher_id = $16, dropped = $17,
 			batted_down = $18, returned_for_td = $19, penalty = $20, penalty_team_id = $21, penalty_player_id = $22,
 			penalty_yards = $23, home_score_after = $24, away_score_after = $25, notes = $26,
-			uncatchable = $27,
+			uncatchable = $27, center_id = $28,
 			updated_at = NOW()
 		WHERE id = $1
 		RETURNING updated_at`
@@ -92,7 +92,7 @@ func (r *PlayPGRepository) Update(ctx context.Context, p *domain.GamePlay) error
 		p.Down, p.ToGo, p.BallOn, p.PlayType, p.OffQBID,
 		p.TargetID, p.Yards, p.Result, p.DefenderID, p.RusherID, p.Dropped, p.BattedDown,
 		p.ReturnedForTD, p.Penalty, p.PenaltyTeamID, p.PenaltyPlayerID,
-		p.PenaltyYards, p.HomeScoreAfter, p.AwayScoreAfter, p.Notes, p.Uncatchable,
+		p.PenaltyYards, p.HomeScoreAfter, p.AwayScoreAfter, p.Notes, p.Uncatchable, p.CenterID,
 	).Scan(&p.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("failed to update play: %w", err)
@@ -272,13 +272,14 @@ func (r *PlayPGRepository) ListByMatch(ctx context.Context, matchID string) ([]*
 			gp.down, gp.to_go, gp.ball_on, gp.play_type, gp.off_qb_id, gp.target_id, gp.yards,
 			gp.result, gp.defender_id, gp.rusher_id, gp.dropped, gp.batted_down, gp.uncatchable, gp.returned_for_td, gp.penalty, gp.penalty_team_id,
 			gp.penalty_player_id, gp.penalty_yards, gp.home_score_after, gp.away_score_after, gp.notes,
-			gp.created_at, gp.updated_at,
+			gp.created_at, gp.updated_at, gp.center_id,
 			ot.name, ot.short_name, ot.logo,
 			po.name, po.jersey_number, po.position, po.gender,
 			pt.name, pt.jersey_number, pt.position, pt.gender,
 			pd.name, pd.jersey_number, pd.position, pd.gender,
 			pr.name, pr.jersey_number, pr.position, pr.gender,
-			pp.name, pp.jersey_number, pp.position, pp.gender
+			pp.name, pp.jersey_number, pp.position, pp.gender,
+			pc.name, pc.jersey_number, pc.position, pc.gender
 		FROM game_plays gp
 		LEFT JOIN teams   ot ON gp.offense_team_id  = ot.id
 		LEFT JOIN players po ON gp.off_qb_id        = po.id
@@ -286,6 +287,7 @@ func (r *PlayPGRepository) ListByMatch(ctx context.Context, matchID string) ([]*
 		LEFT JOIN players pd ON gp.defender_id      = pd.id
 		LEFT JOIN players pr ON gp.rusher_id        = pr.id
 		LEFT JOIN players pp ON gp.penalty_player_id = pp.id
+		LEFT JOIN players pc ON gp.center_id        = pc.id
 		WHERE gp.match_id = $1
 		ORDER BY gp.seq ASC`
 
@@ -302,21 +304,22 @@ func (r *PlayPGRepository) ListByMatch(ctx context.Context, matchID string) ([]*
 	for rows.Next() {
 		var p domain.GamePlay
 		var otName, otShort, otLogo *string
-		var poName, poPos, poGen, ptName, ptPos, ptGen, pdName, pdPos, pdGen, prName, prPos, prGen, ppName, ppPos, ppGen *string
-		var poNum, ptNum, pdNum, prNum, ppNum *int
+		var poName, poPos, poGen, ptName, ptPos, ptGen, pdName, pdPos, pdGen, prName, prPos, prGen, ppName, ppPos, ppGen, pcName, pcPos, pcGen *string
+		var poNum, ptNum, pdNum, prNum, ppNum, pcNum *int
 
 		if err := rows.Scan(
 			&p.ID, &p.MatchID, &p.Seq, &p.DriveNo, &p.Quarter, &p.Clock, &p.OffenseTeamID,
 			&p.Down, &p.ToGo, &p.BallOn, &p.PlayType, &p.OffQBID, &p.TargetID, &p.Yards,
 			&p.Result, &p.DefenderID, &p.RusherID, &p.Dropped, &p.BattedDown, &p.Uncatchable, &p.ReturnedForTD, &p.Penalty, &p.PenaltyTeamID,
 			&p.PenaltyPlayerID, &p.PenaltyYards, &p.HomeScoreAfter, &p.AwayScoreAfter, &p.Notes,
-			&p.CreatedAt, &p.UpdatedAt,
+			&p.CreatedAt, &p.UpdatedAt, &p.CenterID,
 			&otName, &otShort, &otLogo,
 			&poName, &poNum, &poPos, &poGen,
 			&ptName, &ptNum, &ptPos, &ptGen,
 			&pdName, &pdNum, &pdPos, &pdGen,
 			&prName, &prNum, &prPos, &prGen,
 			&ppName, &ppNum, &ppPos, &ppGen,
+			&pcName, &pcNum, &pcPos, &pcGen,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan play: %w", err)
 		}
@@ -329,6 +332,7 @@ func (r *PlayPGRepository) ListByMatch(ctx context.Context, matchID string) ([]*
 		p.Defender = hydratePlayer(p.DefenderID, pdName, pdNum, pdPos, pdGen)
 		p.Rusher = hydratePlayer(p.RusherID, prName, prNum, prPos, prGen)
 		p.PenaltyPlayer = hydratePlayer(p.PenaltyPlayerID, ppName, ppNum, ppPos, ppGen)
+		p.Center = hydratePlayer(p.CenterID, pcName, pcNum, pcPos, pcGen)
 
 		out = append(out, &p)
 	}

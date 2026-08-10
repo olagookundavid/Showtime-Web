@@ -132,7 +132,7 @@ func (r *PostgresStatsRepository) UpsertPlayerStat(ctx context.Context, stat *do
 			defensive_tds, safety, qb_sacks, def_sacks, defensive_xp_tds,
 			incomplete_passes, uncatchable_passes, thrown_away_passes,
 			batted_down_passes, targets, xp_attempts, xp_good, xp_fail, safety_conceded,
-			qb_drives, qb_turnovers, qb_punts
+			qb_drives, qb_turnovers, qb_punts, snaps, bad_snaps
 		) VALUES (
 			$1, NULLIF($2, '')::uuid, NULLIF($3, '')::uuid, $4, $5,
 			$6, $7, $8, $9, $10,
@@ -140,7 +140,7 @@ func (r *PostgresStatsRepository) UpsertPlayerStat(ctx context.Context, stat *do
 			$16, $17, $18, $19, $20,
 			$21, $22, $23, $24, $25, $26,
 			$27, $28, $29, $30, $31, $32, $33, $34, $35,
-			$36, $37, $38
+			$36, $37, $38, $39, $40
 		)
 		ON CONFLICT (player_id, match_id) DO UPDATE SET
 			match_id = COALESCE(EXCLUDED.match_id, player_stats.match_id),
@@ -177,6 +177,8 @@ func (r *PostgresStatsRepository) UpsertPlayerStat(ctx context.Context, stat *do
 			qb_drives = EXCLUDED.qb_drives,
 			qb_turnovers = EXCLUDED.qb_turnovers,
 			qb_punts = EXCLUDED.qb_punts,
+			snaps = EXCLUDED.snaps,
+			bad_snaps = EXCLUDED.bad_snaps,
 			updated_at = NOW()
 	`
 
@@ -191,7 +193,7 @@ func (r *PostgresStatsRepository) UpsertPlayerStat(ctx context.Context, stat *do
 		stat.DefensiveXPTDs,
 		stat.IncompletePasses, stat.UncatchablePasses, stat.ThrownAwayPasses,
 		stat.BattedDownPasses, stat.Targets, stat.XPAttempts, stat.XPGood, stat.XPFail, stat.SafetyConceded,
-		stat.QBDrives, stat.QBTurnovers, stat.QBPunts,
+		stat.QBDrives, stat.QBTurnovers, stat.QBPunts, stat.Snaps, stat.BadSnaps,
 	)
 	return err
 }

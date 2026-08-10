@@ -303,6 +303,7 @@ func requestToPlay(matchID string, req dto.PlayRequest) *domain.GamePlay {
 		Result:          blankToNil(req.Result),
 		DefenderID:      blankToNil(req.DefenderID),
 		RusherID:        blankToNil(req.RusherID),
+		CenterID:        blankToNil(req.CenterID),
 		Dropped:         req.Dropped != nil && *req.Dropped,
 		BattedDown:      req.BattedDown != nil && *req.BattedDown,
 		Uncatchable:     req.Uncatchable != nil && *req.Uncatchable,
