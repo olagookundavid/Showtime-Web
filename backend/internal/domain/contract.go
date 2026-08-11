@@ -17,6 +17,7 @@ type Contract struct {
 	TerminatedAt      *time.Time `json:"terminated_at,omitempty"`
 	TerminationReason string     `json:"termination_reason,omitempty"`
 	Notes             string     `json:"notes,omitempty"`
+	LastNotifiedRemaining int    `json:"last_notified_remaining"`
 	CreatedAt         time.Time  `json:"created_at"`
 	UpdatedAt         time.Time  `json:"updated_at"`
 

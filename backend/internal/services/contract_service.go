@@ -340,31 +340,71 @@ func (s *ContractService) CheckAndExpireContracts(ctx context.Context) (int, err
 		}
 
 		matchesPlayed := currentMatches - c.MatchesAtStart
-		if matchesPlayed >= c.ContractLength {
-			// Contract has reached/exceeded length -> Expire it
+		remainingMatches := c.ContractLength - matchesPlayed
+		if remainingMatches < 0 {
+			remainingMatches = 0
+		}
+
+		player, pErr := s.playerRepo.GetPlayerByID(ctx, c.PlayerID)
+
+		// 1. Contract reached/exceeded length -> Expire it
+		if remainingMatches <= 0 {
 			if err := s.repo.UpdateContractStatus(ctx, c.ID, "EXPIRED", "EXPIRED", nil, &now, nil); err == nil {
 				expiredCount++
 
 				// Clear player team_id
-				player, pErr := s.playerRepo.GetPlayerByID(ctx, c.PlayerID)
 				if pErr == nil && player != nil {
+					teamName := ""
+					if player.Team != nil {
+						teamName = player.Team.Name
+					}
 					player.TeamID = ""
 					_ = s.playerRepo.UpdatePlayer(ctx, player)
 
 					if player.UserID != nil && *player.UserID != "" {
 						msg := "Your contract has expired. You are now a free agent."
+						if teamName != "" {
+							msg = fmt.Sprintf("Your contract with %s has expired. You are now a free agent.", teamName)
+						}
 						refID := c.ID
 						_ = s.notifService.Send(ctx, *player.UserID, "CONTRACT_EXPIRED", "Contract Expired", msg, "contract", &refID)
 					}
+
+					// Notify manager
+					if c.OfferedBy != "" {
+						msg := fmt.Sprintf("Player %s's contract has expired. They are now a free agent.", player.Name)
+						refID := c.ID
+						_ = s.notifService.Send(ctx, c.OfferedBy, "CONTRACT_EXPIRED", "Player Contract Expired", msg, "contract", &refID)
+					}
 				}
 
-				// Notify manager
-				if c.OfferedBy != "" {
-					msg := fmt.Sprintf("Player %s's contract has expired.", player.Name)
-					refID := c.ID
-					_ = s.notifService.Send(ctx, c.OfferedBy, "CONTRACT_EXPIRED", "Player Contract Expired", msg, "contract", &refID)
-				}
+				_ = s.repo.UpdateLastNotifiedRemaining(ctx, c.ID, 0)
 			}
+			continue
+		}
+
+		// 2. Send 3-matches, 2-matches, 1-match remaining notifications (only once per threshold)
+		if remainingMatches <= 3 && c.LastNotifiedRemaining != remainingMatches {
+			matchText := "matches"
+			if remainingMatches == 1 {
+				matchText = "match"
+			}
+
+			// Notify Player
+			if pErr == nil && player != nil && player.UserID != nil && *player.UserID != "" {
+				msg := fmt.Sprintf("Your contract has %d %s remaining.", remainingMatches, matchText)
+				refID := c.ID
+				_ = s.notifService.Send(ctx, *player.UserID, "CONTRACT_WARNING", "Contract Expiring Soon", msg, "contract", &refID)
+			}
+
+			// Notify Manager
+			if c.OfferedBy != "" && player != nil {
+				msg := fmt.Sprintf("Player %s's contract has %d %s remaining.", player.Name, remainingMatches, matchText)
+				refID := c.ID
+				_ = s.notifService.Send(ctx, c.OfferedBy, "CONTRACT_WARNING", "Player Contract Expiring Soon", msg, "contract", &refID)
+			}
+
+			_ = s.repo.UpdateLastNotifiedRemaining(ctx, c.ID, remainingMatches)
 		}
 	}
 

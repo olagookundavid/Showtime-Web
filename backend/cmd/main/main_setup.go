@@ -331,7 +331,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 
 	newsService := services.NewNewsService(newsRepo, storageService)
 	galleryService := services.NewGalleryService(galleryRepo)
-	matchService := services.NewMatchService(matchRepo, storageService)
+	matchService := services.NewMatchService(matchRepo, storageService, contractService)
 	playerService := services.NewPlayerService(playerRepo, storageService)
 	ticketService := services.NewTicketService(eventDayRepo, tierRepo, ticketRepo, matchRepo, paystackClient, emailService)
 	tmService := services.NewTeamManagerService(tmRepo, authRepo)

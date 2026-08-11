@@ -42,12 +42,21 @@ type IMatchService interface {
 }
 
 type MatchService struct {
-	repo    ports.MatchRepository
-	storage ports.StorageService
+	repo            ports.MatchRepository
+	storage         ports.StorageService
+	contractService IContractService
 }
 
-func NewMatchService(repo ports.MatchRepository, storage ports.StorageService) IMatchService {
-	return &MatchService{repo: repo, storage: storage}
+func NewMatchService(repo ports.MatchRepository, storage ports.StorageService, contractService IContractService) IMatchService {
+	return &MatchService{repo: repo, storage: storage, contractService: contractService}
+}
+
+func (s *MatchService) triggerContractCheck() {
+	if s.contractService != nil {
+		_ = SubmitJob(func() {
+			_, _ = s.contractService.CheckAndExpireContracts(context.Background())
+		})
+	}
 }
 
 
@@ -517,6 +526,7 @@ func (s *MatchService) CreateMatch(ctx context.Context, match *domain.Match) err
 		return s.advanceWinner(ctx, match.ID)
 	}
 	if match.Status == domain.MatchStatusFinished {
+		s.triggerContractCheck()
 		return s.repo.RecalculateStandings(ctx, match.CompetitionID)
 	}
 	return nil
@@ -598,6 +608,9 @@ func (s *MatchService) UpdateMatch(ctx context.Context, match *domain.Match) err
 
 	if err := s.repo.UpdateMatch(ctx, match); err != nil {
 		return err
+	}
+	if match.Status == domain.MatchStatusFinished {
+		s.triggerContractCheck()
 	}
 	if knockout {
 		return s.advanceWinner(ctx, match.ID)

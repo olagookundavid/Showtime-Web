@@ -21,6 +21,7 @@ type IContractRepository interface {
 	GetFreeAgents(ctx context.Context, search string, page, limit int) ([]domain.Player, int64, error)
 	GetTeamFinishedMatchCount(ctx context.Context, teamID string) (int, error)
 	GetExpiringContracts(ctx context.Context) ([]domain.Contract, error)
+	UpdateLastNotifiedRemaining(ctx context.Context, id string, remaining int) error
 }
 
 type PostgresContractRepository struct {
@@ -340,7 +341,7 @@ func (r *PostgresContractRepository) GetExpiringContracts(ctx context.Context) (
 			c.id, c.player_id, c.team_id, c.status, c.contract_length, c.matches_at_start,
 			c.player_value, COALESCE(c.offered_by::text, ''), c.offered_at,
 			c.accepted_at, c.expired_at, c.terminated_at, COALESCE(c.termination_reason, ''),
-			COALESCE(c.notes, ''), c.created_at, c.updated_at
+			COALESCE(c.notes, ''), COALESCE(c.last_notified_remaining, -1), c.created_at, c.updated_at
 		FROM contracts c
 		WHERE c.status = 'ACTIVE'
 	`
@@ -357,7 +358,7 @@ func (r *PostgresContractRepository) GetExpiringContracts(ctx context.Context) (
 			&c.ID, &c.PlayerID, &c.TeamID, &c.Status, &c.ContractLength, &c.MatchesAtStart,
 			&c.PlayerValue, &c.OfferedBy, &c.OfferedAt,
 			&c.AcceptedAt, &c.ExpiredAt, &c.TerminatedAt, &c.TerminationReason,
-			&c.Notes, &c.CreatedAt, &c.UpdatedAt,
+			&c.Notes, &c.LastNotifiedRemaining, &c.CreatedAt, &c.UpdatedAt,
 		)
 		if err != nil {
 			return nil, err
@@ -365,4 +366,10 @@ func (r *PostgresContractRepository) GetExpiringContracts(ctx context.Context) (
 		contracts = append(contracts, c)
 	}
 	return contracts, nil
+}
+
+func (r *PostgresContractRepository) UpdateLastNotifiedRemaining(ctx context.Context, id string, remaining int) error {
+	query := `UPDATE contracts SET last_notified_remaining = $1, updated_at = NOW() WHERE id = $2`
+	_, err := r.db.Exec(ctx, query, remaining, id)
+	return err
 }
