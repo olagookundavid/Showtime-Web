@@ -366,7 +366,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	seasonHandler := transport.NewSeasonHandler(seasonService)
 	playHandler := transport.NewPlayHandler(playService)
 	contractHandler := transport.NewContractHandler(contractService)
-	transferHandler := transport.NewTransferHandler(transferService, windowService)
+	transferHandler := transport.NewTransferHandler(transferService, windowService, playerRepo)
 	notifHandler := transport.NewNotificationHandler(notifService)
 
 	reliveService := services.NewReliveService()

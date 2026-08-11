@@ -2237,6 +2237,10 @@ export const transfersApi = {
         const res = await api.get<{ data: TransferWindowData | null; is_open: boolean }>('/transfers/window');
         return res.data;
     },
+    getPlayerTransfers: async (playerID: string, params?: { page?: number; limit?: number }): Promise<PaginatedResponse<TransferData>> => {
+        const res = await api.get<PaginatedResponse<TransferData>>(`/transfers/player/${playerID}`, { params });
+        return res.data;
+    },
 };
 
 // Player Portal API
@@ -2251,6 +2255,10 @@ export const playerPortalApi = {
     },
     respondToContract: async (id: string, action: 'accept' | 'reject', notes?: string): Promise<void> => {
         await api.put(`/player-portal/contracts/${id}/respond`, { action, notes });
+    },
+    getMyTransfers: async (params?: { page?: number; limit?: number }): Promise<PaginatedResponse<TransferData>> => {
+        const res = await api.get<PaginatedResponse<TransferData>>('/player-portal/transfers', { params });
+        return res.data;
     },
 };
 

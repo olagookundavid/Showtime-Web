@@ -35,6 +35,16 @@ export const PlayerPortalLayout: React.FC = () => {
                             >
                                 My Contracts
                             </NavLink>
+                            <NavLink
+                                to="/player-portal/transfers"
+                                className={({ isActive }) =>
+                                    `px-3 py-2 rounded-lg text-sm font-bold transition-colors ${
+                                        isActive ? 'bg-sffl-navy/10 text-sffl-navy dark:bg-white/10 dark:text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                    }`
+                                }
+                            >
+                                Transfer History
+                            </NavLink>
                         </nav>
                     </div>
 

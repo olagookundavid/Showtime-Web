@@ -15,6 +15,7 @@ type ITransferRepository interface {
 	CreateTransfer(ctx context.Context, t *domain.Transfer) error
 	GetTransferByID(ctx context.Context, id string) (*domain.Transfer, error)
 	GetTransfersByTeamID(ctx context.Context, teamID string, transferType string, status string, page, limit int) ([]domain.Transfer, int64, error)
+	GetTransfersByPlayerID(ctx context.Context, playerID string, page, limit int) ([]domain.Transfer, int64, error)
 	UpdateTransferStatus(ctx context.Context, id string, status string, notes string, reviewNotes string, completedAt *time.Time) error
 	SetTeamApproval(ctx context.Context, id string, fromApproved, toApproved bool) error
 	GetActiveListings(ctx context.Context, search string, page, limit int) ([]domain.Transfer, int64, error)
@@ -435,4 +436,77 @@ func (r *PostgresTransferRepository) GetAllTeamBudgets(ctx context.Context) ([]d
 		budgets = append(budgets, b)
 	}
 	return budgets, nil
+}
+
+func (r *PostgresTransferRepository) GetTransfersByPlayerID(ctx context.Context, playerID string, page, limit int) ([]domain.Transfer, int64, error) {
+	whereClause := ` WHERE tr.player_id = $1`
+	args := []any{playerID}
+	argCount := 2
+
+	var total int64
+	if err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM transfers tr`+whereClause, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	query := `
+		SELECT
+			tr.id, tr.type, tr.status, tr.player_id, tr.from_team_id,
+			COALESCE(tr.to_team_id::text, ''), COALESCE(tr.initiated_by::text, ''),
+			tr.asking_price, COALESCE(tr.notes, ''), COALESCE(tr.review_notes, ''),
+			tr.completed_at, tr.from_team_approved, tr.to_team_approved,
+			tr.created_at, tr.updated_at,
+			p.name, COALESCE(p.position, ''), COALESCE(p.jersey_number, 0), COALESCE(p.image, ''),
+			ft.name, COALESCE(ft.short_name, ''), COALESCE(ft.logo, ''),
+			COALESCE(tt.name, ''), COALESCE(tt.short_name, ''), COALESCE(tt.logo, '')
+		FROM transfers tr
+		JOIN players p ON tr.player_id = p.id
+		JOIN teams ft ON tr.from_team_id = ft.id
+		LEFT JOIN teams tt ON tr.to_team_id = tt.id` + whereClause +
+		` ORDER BY tr.created_at DESC`
+
+	if limit > 0 {
+		offset := (page - 1) * limit
+		if offset < 0 {
+			offset = 0
+		}
+		query += ` LIMIT $` + strconv.Itoa(argCount) + ` OFFSET $` + strconv.Itoa(argCount+1)
+		args = append(args, limit, offset)
+	}
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var transfers []domain.Transfer
+	for rows.Next() {
+		var t domain.Transfer
+		t.Player = &domain.Player{}
+		t.FromTeam = &domain.Team{}
+		t.ToTeam = &domain.Team{}
+		var toTeamID string
+		err := rows.Scan(
+			&t.ID, &t.Type, &t.Status, &t.PlayerID, &t.FromTeamID,
+			&toTeamID, &t.InitiatedBy, &t.AskingPrice, &t.Notes, &t.ReviewNotes,
+			&t.CompletedAt, &t.FromTeamApproved, &t.ToTeamApproved,
+			&t.CreatedAt, &t.UpdatedAt,
+			&t.Player.Name, &t.Player.Position, &t.Player.JerseyNumber, &t.Player.Image,
+			&t.FromTeam.Name, &t.FromTeam.ShortName, &t.FromTeam.Logo,
+			&t.ToTeam.Name, &t.ToTeam.ShortName, &t.ToTeam.Logo,
+		)
+		if err != nil {
+			return nil, 0, err
+		}
+		t.Player.ID = t.PlayerID
+		t.FromTeam.ID = t.FromTeamID
+		if toTeamID != "" {
+			t.ToTeamID = &toTeamID
+			t.ToTeam.ID = toTeamID
+		} else {
+			t.ToTeam = nil
+		}
+		transfers = append(transfers, t)
+	}
+	return transfers, total, nil
 }

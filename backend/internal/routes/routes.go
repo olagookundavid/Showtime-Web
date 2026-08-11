@@ -577,8 +577,9 @@ func SetupContractRoutes(r *gin.RouterGroup, app *api.Application) {
 func SetupTransferRoutes(r *gin.RouterGroup, app *api.Application) {
 	transferGroup := r.Group("/transfers")
 
-	// Public window check endpoint
+	// Public window check & player transfer history endpoints
 	transferGroup.GET("/window", app.Handlers.TransferHandler.GetActiveWindow)
+	transferGroup.GET("/player/:player_id", commonAuth.TokenMiddleware(app.TokenMaker), app.Handlers.TransferHandler.GetPlayerTransfers)
 
 	// Protected transfer operations
 	protectedTransfers := transferGroup.Group("")
@@ -604,6 +605,7 @@ func SetupPlayerPortalRoutes(r *gin.RouterGroup, app *api.Application) {
 		ppGroup.GET("/contracts", app.Handlers.ContractHandler.GetMyContracts)
 		ppGroup.GET("/contracts/:id", app.Handlers.ContractHandler.GetContractByID)
 		ppGroup.PUT("/contracts/:id/respond", app.Handlers.ContractHandler.RespondToContract)
+		ppGroup.GET("/transfers", app.Handlers.TransferHandler.GetMyTransfers)
 	}
 }
 

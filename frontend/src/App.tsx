@@ -93,6 +93,7 @@ const TeamTickets = lazy(() => import('./pages/team-head/TeamTickets'));
 const PlayerPortalLayout = lazy(() => import('./pages/player-portal/PlayerPortalLayout'));
 const PlayerPortalOverview = lazy(() => import('./pages/player-portal/PlayerPortalOverview'));
 const PlayerPortalContracts = lazy(() => import('./pages/player-portal/PlayerPortalContracts'));
+const PlayerPortalTransfers = lazy(() => import('./pages/player-portal/PlayerPortalTransfers').then(m => ({ default: m.PlayerPortalTransfers })));
 
 // Lazy load Seller Pages
 const SellerLayout = lazy(() => import('./pages/seller/SellerLayout').then(m => ({ default: m.SellerLayout })));
@@ -226,6 +227,7 @@ function App() {
             }>
               <Route index element={<PlayerPortalOverview />} />
               <Route path="contracts" element={<PlayerPortalContracts />} />
+              <Route path="transfers" element={<PlayerPortalTransfers />} />
             </Route>
 
             {/* Seller Portal Routes */}

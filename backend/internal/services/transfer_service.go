@@ -19,6 +19,7 @@ type ITransferService interface {
 	RespondToBid(ctx context.Context, transferID string, bidID string, managerUserID string, sellerTeamID string, action string) error
 	GetMarketListings(ctx context.Context, search string, page, limit int) (dto.PaginatedResult[dto.TransferResponse], error)
 	GetTeamTransfers(ctx context.Context, teamID string, transferType string, status string, page, limit int) (dto.PaginatedResult[dto.TransferResponse], error)
+	GetPlayerTransfers(ctx context.Context, playerID string, page, limit int) (dto.PaginatedResult[dto.TransferResponse], error)
 	GetTransferByID(ctx context.Context, id string) (*dto.TransferResponse, error)
 	GetTeamBudget(ctx context.Context, teamID string) (*dto.TeamBudgetResponse, error)
 	GetAllTeamBudgets(ctx context.Context) ([]dto.TeamBudgetResponse, error)
@@ -526,6 +527,34 @@ func (s *TransferService) GetMarketListings(ctx context.Context, search string, 
 
 func (s *TransferService) GetTeamTransfers(ctx context.Context, teamID string, transferType string, status string, page, limit int) (dto.PaginatedResult[dto.TransferResponse], error) {
 	transfers, total, err := s.repo.GetTransfersByTeamID(ctx, teamID, transferType, status, page, limit)
+	if err != nil {
+		return dto.PaginatedResult[dto.TransferResponse]{}, err
+	}
+
+	res := make([]dto.TransferResponse, 0, len(transfers))
+	for _, t := range transfers {
+		trResp := s.mapTransferToResponse(&t)
+		bids, _ := s.repo.GetBidsByTransferID(ctx, t.ID)
+		trResp.Bids = s.mapBidsToResponse(bids)
+		res = append(res, trResp)
+	}
+
+	totalPages := 0
+	if limit > 0 {
+		totalPages = int((total + int64(limit) - 1) / int64(limit))
+	}
+
+	return dto.PaginatedResult[dto.TransferResponse]{
+		Data:       res,
+		Total:      int(total),
+		Page:       page,
+		Limit:      limit,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func (s *TransferService) GetPlayerTransfers(ctx context.Context, playerID string, page, limit int) (dto.PaginatedResult[dto.TransferResponse], error) {
+	transfers, total, err := s.repo.GetTransfersByPlayerID(ctx, playerID, page, limit)
 	if err != nil {
 		return dto.PaginatedResult[dto.TransferResponse]{}, err
 	}

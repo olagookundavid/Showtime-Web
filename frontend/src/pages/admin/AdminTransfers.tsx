@@ -56,6 +56,20 @@ export const AdminTransfers: React.FC = () => {
         }
     };
 
+    const [searchQuery, setSearchQuery] = useState<string>('');
+
+    const filteredTransfers = transfers.filter(t => {
+        if (!searchQuery) return true;
+        const q = searchQuery.toLowerCase();
+        return (
+            t.player?.name?.toLowerCase().includes(q) ||
+            t.from_team?.name?.toLowerCase().includes(q) ||
+            t.to_team?.name?.toLowerCase().includes(q) ||
+            t.type?.toLowerCase().includes(q) ||
+            t.status?.toLowerCase().includes(q)
+        );
+    });
+
     return (
         <div className="space-y-8">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -110,7 +124,16 @@ export const AdminTransfers: React.FC = () => {
 
             {/* Transfers Table */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden space-y-4 p-6">
-                <h2 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-wider">All Transfer Activity</h2>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <h2 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-wider">All Transfer Activity</h2>
+                    <input
+                        type="text"
+                        placeholder="Filter by player or team name..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="px-4 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-sffl-red w-full sm:w-72"
+                    />
+                </div>
                 {loading ? (
                     <div className="p-8 text-center text-gray-400">Loading transfers...</div>
                 ) : (
@@ -127,7 +150,7 @@ export const AdminTransfers: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700 text-sm">
-                                {transfers.map(t => (
+                                {filteredTransfers.map(t => (
                                     <tr key={t.id}>
                                         <td className="p-3">
                                             <span className="px-2 py-0.5 bg-sffl-navy/10 text-sffl-navy text-xs font-bold rounded">

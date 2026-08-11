@@ -7,6 +7,7 @@ import (
 	"pkg-common/helpers"
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/middlewares"
+	"showtime-backend/internal/ports"
 	"showtime-backend/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -21,6 +22,8 @@ type ITransferHandler interface {
 	RespondToBid(c *gin.Context)
 	GetMarketListings(c *gin.Context)
 	GetTeamTransfers(c *gin.Context)
+	GetPlayerTransfers(c *gin.Context)
+	GetMyTransfers(c *gin.Context)
 	GetTransferByID(c *gin.Context)
 	GetTeamBudget(c *gin.Context)
 	GetAllTeamBudgets(c *gin.Context)
@@ -39,10 +42,11 @@ type ITransferHandler interface {
 type TransferHandler struct {
 	service       services.ITransferService
 	windowService services.ITransferWindowService
+	playerRepo    ports.PlayerRepository
 }
 
-func NewTransferHandler(service services.ITransferService, windowService services.ITransferWindowService) ITransferHandler {
-	return &TransferHandler{service: service, windowService: windowService}
+func NewTransferHandler(service services.ITransferService, windowService services.ITransferWindowService, playerRepo ports.PlayerRepository) ITransferHandler {
+	return &TransferHandler{service: service, windowService: windowService, playerRepo: playerRepo}
 }
 
 func (h *TransferHandler) CreateTransferRequest(c *gin.Context) {
@@ -247,6 +251,54 @@ func (h *TransferHandler) GetTeamTransfers(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 
 	res, err := h.service.GetTeamTransfers(c.Request.Context(), teamIDStr, tType, status, page, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, res)
+}
+
+func (h *TransferHandler) GetPlayerTransfers(c *gin.Context) {
+	playerID := c.Param("player_id")
+	if playerID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "player_id required"})
+		return
+	}
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+
+	res, err := h.service.GetPlayerTransfers(c.Request.Context(), playerID, page, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, res)
+}
+
+func (h *TransferHandler) GetMyTransfers(c *gin.Context) {
+	payload, err := helpers.GetTokenPayloadFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	if h.playerRepo == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "player repository not configured"})
+		return
+	}
+
+	player, err := h.playerRepo.GetPlayerByUserID(c.Request.Context(), payload.UserId)
+	if err != nil || player == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "player profile not found"})
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+
+	res, err := h.service.GetPlayerTransfers(c.Request.Context(), player.ID, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
