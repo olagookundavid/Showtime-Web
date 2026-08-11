@@ -234,13 +234,11 @@ func (h *TransferHandler) GetMarketListings(c *gin.Context) {
 }
 
 func (h *TransferHandler) GetTeamTransfers(c *gin.Context) {
-	teamID, exists := c.Get(middlewares.TeamIDContextKey)
-	if !exists {
-		teamID = c.Query("team_id")
-		if teamID == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "team_id required"})
-			return
-		}
+	teamIDStr := ""
+	if teamID, exists := c.Get(middlewares.TeamIDContextKey); exists {
+		teamIDStr = teamID.(string)
+	} else {
+		teamIDStr = c.Query("team_id")
 	}
 
 	tType := c.Query("type")
@@ -248,7 +246,7 @@ func (h *TransferHandler) GetTeamTransfers(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 
-	res, err := h.service.GetTeamTransfers(c.Request.Context(), teamID.(string), tType, status, page, limit)
+	res, err := h.service.GetTeamTransfers(c.Request.Context(), teamIDStr, tType, status, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

@@ -103,9 +103,15 @@ func (r *PostgresContractRepository) GetActiveContractByPlayerID(ctx context.Con
 }
 
 func (r *PostgresContractRepository) GetContractsByTeamID(ctx context.Context, teamID string, status string, page, limit int) ([]domain.Contract, int64, error) {
-	whereClause := ` WHERE c.team_id = $1`
-	args := []any{teamID}
-	argCount := 2
+	whereClause := ` WHERE 1=1`
+	args := []any{}
+	argCount := 1
+
+	if teamID != "" {
+		whereClause += ` AND c.team_id = $` + strconv.Itoa(argCount)
+		args = append(args, teamID)
+		argCount++
+	}
 
 	if status != "" {
 		whereClause += ` AND c.status = $` + strconv.Itoa(argCount)

@@ -122,21 +122,18 @@ func (h *ContractHandler) ReleasePlayer(c *gin.Context) {
 }
 
 func (h *ContractHandler) GetTeamContracts(c *gin.Context) {
-	teamID, exists := c.Get(middlewares.TeamIDContextKey)
-	if !exists {
-		// Try query param for admin
-		teamID = c.Query("team_id")
-		if teamID == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "team_id required"})
-			return
-		}
+	teamIDStr := ""
+	if teamID, exists := c.Get(middlewares.TeamIDContextKey); exists {
+		teamIDStr = teamID.(string)
+	} else {
+		teamIDStr = c.Query("team_id")
 	}
 
 	status := c.Query("status")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 
-	res, err := h.service.GetTeamContracts(c.Request.Context(), teamID.(string), status, page, limit)
+	res, err := h.service.GetTeamContracts(c.Request.Context(), teamIDStr, status, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

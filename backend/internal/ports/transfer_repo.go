@@ -96,9 +96,15 @@ func (r *PostgresTransferRepository) GetTransferByID(ctx context.Context, id str
 }
 
 func (r *PostgresTransferRepository) GetTransfersByTeamID(ctx context.Context, teamID string, transferType string, status string, page, limit int) ([]domain.Transfer, int64, error) {
-	whereClause := ` WHERE (tr.from_team_id = $1 OR tr.to_team_id = $1)`
-	args := []any{teamID}
-	argCount := 2
+	whereClause := ` WHERE 1=1`
+	args := []any{}
+	argCount := 1
+
+	if teamID != "" {
+		whereClause += ` AND (tr.from_team_id = $` + strconv.Itoa(argCount) + ` OR tr.to_team_id = $` + strconv.Itoa(argCount) + `)`
+		args = append(args, teamID)
+		argCount++
+	}
 
 	if transferType != "" {
 		whereClause += ` AND tr.type = $` + strconv.Itoa(argCount)
