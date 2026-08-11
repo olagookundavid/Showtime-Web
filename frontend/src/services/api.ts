@@ -2171,7 +2171,7 @@ export const contractsApi = {
         const res = await api.post<{ data: ContractData }>('/contracts', data);
         return res.data.data;
     },
-    getTeamContracts: async (params?: { status?: string; page?: number; limit?: number }): Promise<PaginatedResponse<ContractData>> => {
+    getTeamContracts: async (params?: { team_id?: string; status?: string; page?: number; limit?: number }): Promise<PaginatedResponse<ContractData>> => {
         const res = await api.get<PaginatedResponse<ContractData>>('/contracts/team', { params });
         return res.data;
     },

@@ -90,13 +90,18 @@ func (h *ContractHandler) RenewContract(c *gin.Context) {
 		return
 	}
 
+	teamIDStr := ""
+	if teamID, exists := c.Get(middlewares.TeamIDContextKey); exists {
+		teamIDStr = teamID.(string)
+	}
+
 	var req dto.RenewContractRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	res, err := h.service.RenewContract(c.Request.Context(), contractID, payload.UserId, req)
+	res, err := h.service.RenewContract(c.Request.Context(), contractID, payload.UserId, teamIDStr, req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -113,7 +118,12 @@ func (h *ContractHandler) ReleasePlayer(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.ReleasePlayer(c.Request.Context(), contractID, payload.UserId); err != nil {
+	teamIDStr := ""
+	if teamID, exists := c.Get(middlewares.TeamIDContextKey); exists {
+		teamIDStr = teamID.(string)
+	}
+
+	if err := h.service.ReleasePlayer(c.Request.Context(), contractID, payload.UserId, teamIDStr); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

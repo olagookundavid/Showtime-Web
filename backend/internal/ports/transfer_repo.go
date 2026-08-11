@@ -2,6 +2,7 @@ package ports
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -25,6 +26,7 @@ type ITransferRepository interface {
 	UpdateBidStatus(ctx context.Context, bidID string, status string) error
 	GetTeamBudget(ctx context.Context, teamID string) (*domain.TeamBudget, error)
 	UpdateTeamBudget(ctx context.Context, teamID string, newSpent int64) error
+	UpdateTeamBudgetDelta(ctx context.Context, teamID string, deltaSpent int64) error
 	InitTeamBudget(ctx context.Context, teamID string, totalBudget int64) error
 	GetAllTeamBudgets(ctx context.Context) ([]domain.TeamBudget, error)
 }
@@ -391,6 +393,32 @@ func (r *PostgresTransferRepository) UpdateTeamBudget(ctx context.Context, teamI
 	`
 	_, err := r.db.Exec(ctx, query, newSpent, teamID)
 	return err
+}
+
+func (r *PostgresTransferRepository) UpdateTeamBudgetDelta(ctx context.Context, teamID string, deltaSpent int64) error {
+	if deltaSpent > 0 {
+		query := `
+			UPDATE team_budgets
+			SET spent = spent + $1, updated_at = NOW()
+			WHERE team_id = $2 AND (total_budget - spent) >= $1
+		`
+		tag, err := r.db.Exec(ctx, query, deltaSpent, teamID)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return fmt.Errorf("insufficient remaining team budget for this transaction")
+		}
+		return nil
+	} else {
+		query := `
+			UPDATE team_budgets
+			SET spent = GREATEST(0, spent + $1), updated_at = NOW()
+			WHERE team_id = $2
+		`
+		_, err := r.db.Exec(ctx, query, deltaSpent, teamID)
+		return err
+	}
 }
 
 func (r *PostgresTransferRepository) InitTeamBudget(ctx context.Context, teamID string, totalBudget int64) error {

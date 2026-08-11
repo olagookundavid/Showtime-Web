@@ -13,8 +13,8 @@ import (
 type IContractService interface {
 	IssueContract(ctx context.Context, managerUserID string, teamID string, req dto.IssueContractRequest) (*dto.ContractResponse, error)
 	RespondToContract(ctx context.Context, contractID string, userID string, action string, notes string) error
-	RenewContract(ctx context.Context, contractID string, managerUserID string, req dto.RenewContractRequest) (*dto.ContractResponse, error)
-	ReleasePlayer(ctx context.Context, contractID string, managerUserID string) error
+	RenewContract(ctx context.Context, contractID string, managerUserID string, managerTeamID string, req dto.RenewContractRequest) (*dto.ContractResponse, error)
+	ReleasePlayer(ctx context.Context, contractID string, managerUserID string, managerTeamID string) error
 	GetTeamContracts(ctx context.Context, teamID string, status string, page, limit int) (dto.PaginatedResult[dto.ContractResponse], error)
 	GetMyContracts(ctx context.Context, userID string) ([]dto.ContractResponse, error)
 	GetFreeAgents(ctx context.Context, search string, page, limit int) (dto.PaginatedResult[dto.PlayerResponse], error)
@@ -29,11 +29,7 @@ type ContractService struct {
 	notifService INotificationService
 }
 
-func NewContractService(
-	repo ports.IContractRepository,
-	playerRepo ports.PlayerRepository,
-	notifService INotificationService,
-) IContractService {
+func NewContractService(repo ports.IContractRepository, playerRepo ports.PlayerRepository, notifService INotificationService) IContractService {
 	return &ContractService{
 		repo:         repo,
 		playerRepo:   playerRepo,
@@ -42,16 +38,16 @@ func NewContractService(
 }
 
 func (s *ContractService) IssueContract(ctx context.Context, managerUserID string, teamID string, req dto.IssueContractRequest) (*dto.ContractResponse, error) {
-	// 1. Verify player exists
+	// Verify player exists
 	player, err := s.playerRepo.GetPlayerByID(ctx, req.PlayerID)
-	if err != nil {
+	if err != nil || player == nil {
 		return nil, fmt.Errorf("player not found")
 	}
 
-	// 2. Verify player has no ACTIVE contract
-	activeContract, err := s.repo.GetActiveContractByPlayerID(ctx, req.PlayerID)
-	if err == nil && activeContract != nil {
-		return nil, fmt.Errorf("player already has an active contract with a team")
+	// Verify no active contract exists for player
+	active, _ := s.repo.GetActiveContractByPlayerID(ctx, req.PlayerID)
+	if active != nil {
+		return nil, fmt.Errorf("player already has an active contract with team %s", active.TeamID)
 	}
 
 	contractLength := 13
@@ -64,10 +60,9 @@ func (s *ContractService) IssueContract(ctx context.Context, managerUserID strin
 		playerValue = *req.PlayerValue
 	}
 
-	// 3. Get current team match count
 	matchesAtStart, _ := s.repo.GetTeamFinishedMatchCount(ctx, teamID)
 
-	contract := &domain.Contract{
+	c := &domain.Contract{
 		PlayerID:       req.PlayerID,
 		TeamID:         teamID,
 		Status:         "PENDING",
@@ -78,18 +73,18 @@ func (s *ContractService) IssueContract(ctx context.Context, managerUserID strin
 		Notes:          req.Notes,
 	}
 
-	if err := s.repo.CreateContract(ctx, contract); err != nil {
-		return nil, fmt.Errorf("failed to create contract: %w", err)
+	if err := s.repo.CreateContract(ctx, c); err != nil {
+		return nil, fmt.Errorf("failed to issue contract: %w", err)
 	}
 
-	// 4. Send notification to linked player user (if linked)
+	// Send notification if player has user_id
 	if player.UserID != nil && *player.UserID != "" {
-		msg := fmt.Sprintf("You have received a contract offer of %d games at value %d.", contractLength, playerValue)
-		refID := contract.ID
+		msg := fmt.Sprintf("You have received a new contract offer of %d games.", contractLength)
+		refID := c.ID
 		_ = s.notifService.Send(ctx, *player.UserID, "CONTRACT_OFFER", "New Contract Offer", msg, "contract", &refID)
 	}
 
-	return s.GetContractByID(ctx, contract.ID)
+	return s.GetContractByID(ctx, c.ID)
 }
 
 func (s *ContractService) RespondToContract(ctx context.Context, contractID string, userID string, action string, notes string) error {
@@ -99,7 +94,7 @@ func (s *ContractService) RespondToContract(ctx context.Context, contractID stri
 	}
 
 	if contract.Status != "PENDING" {
-		return fmt.Errorf("contract is not in PENDING status")
+		return fmt.Errorf("contract is no longer pending (current status: %s)", contract.Status)
 	}
 
 	// Verify user is linked to the player
@@ -114,10 +109,14 @@ func (s *ContractService) RespondToContract(ctx context.Context, contractID stri
 
 	now := time.Now()
 	if action == "accept" {
-		// Verify no other active contract
+		// Check for existing active contract
 		active, _ := s.repo.GetActiveContractByPlayerID(ctx, contract.PlayerID)
 		if active != nil {
-			return fmt.Errorf("you already have an active contract")
+			if active.TeamID != contract.TeamID {
+				return fmt.Errorf("you already have an active contract with another team")
+			}
+			// Same-team renewal/extension: terminate previous active contract
+			_ = s.repo.UpdateContractStatus(ctx, active.ID, "TERMINATED", "RENEWED", nil, nil, &now)
 		}
 
 		// Snapshot team match count at activation time
@@ -154,10 +153,14 @@ func (s *ContractService) RespondToContract(ctx context.Context, contractID stri
 	return fmt.Errorf("invalid action: must be accept or reject")
 }
 
-func (s *ContractService) RenewContract(ctx context.Context, contractID string, managerUserID string, req dto.RenewContractRequest) (*dto.ContractResponse, error) {
+func (s *ContractService) RenewContract(ctx context.Context, contractID string, managerUserID string, managerTeamID string, req dto.RenewContractRequest) (*dto.ContractResponse, error) {
 	current, err := s.repo.GetContractByID(ctx, contractID)
 	if err != nil || current == nil {
 		return nil, fmt.Errorf("contract not found")
+	}
+
+	if managerTeamID != "" && current.TeamID != managerTeamID {
+		return nil, fmt.Errorf("forbidden: contract does not belong to your team")
 	}
 
 	if current.Status != "ACTIVE" {
@@ -202,10 +205,14 @@ func (s *ContractService) RenewContract(ctx context.Context, contractID string, 
 	return s.GetContractByID(ctx, newContract.ID)
 }
 
-func (s *ContractService) ReleasePlayer(ctx context.Context, contractID string, managerUserID string) error {
+func (s *ContractService) ReleasePlayer(ctx context.Context, contractID string, managerUserID string, managerTeamID string) error {
 	c, err := s.repo.GetContractByID(ctx, contractID)
 	if err != nil || c == nil {
 		return fmt.Errorf("contract not found")
+	}
+
+	if managerTeamID != "" && c.TeamID != managerTeamID {
+		return fmt.Errorf("forbidden: contract does not belong to your team")
 	}
 
 	if c.Status != "ACTIVE" {

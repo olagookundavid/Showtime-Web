@@ -224,8 +224,16 @@ func (s *TransferService) RespondToTransfer(ctx context.Context, transferID stri
 		return nil, fmt.Errorf("transfer not found")
 	}
 
+	if t.Status != "PENDING" && t.Status != "REVIEW" {
+		return nil, fmt.Errorf("transfer is no longer pending or open for review")
+	}
+
 	if t.Type == "REQUEST" {
-		// Response by the team owning the player (t.ToTeamID) or requester (t.FromTeamID)
+		// Response must be by the team owning the player being requested (t.ToTeamID)
+		if teamID == "" || t.ToTeamID == nil || *t.ToTeamID != teamID {
+			return nil, fmt.Errorf("forbidden: transfer request is not addressed to your team")
+		}
+
 		if req.Action == "accept" {
 			if err := s.ensureWindowOpen(ctx); err != nil {
 				return nil, err
@@ -270,6 +278,11 @@ func (s *TransferService) RespondToTransfer(ctx context.Context, transferID stri
 			_ = s.notifService.Send(ctx, t.InitiatedBy, "TRANSFER_REJECTED", "Transfer Rejected", msg, "transfer", &refID)
 		}
 	} else if t.Type == "DIRECT_SALE" {
+		// Response must be by the target buyer team (t.ToTeamID)
+		if teamID == "" || t.ToTeamID == nil || *t.ToTeamID != teamID {
+			return nil, fmt.Errorf("forbidden: direct sale proposal is not addressed to your team")
+		}
+
 		if req.Action == "accept" {
 			if err := s.ensureWindowOpen(ctx); err != nil {
 				return nil, err
@@ -383,6 +396,10 @@ func (s *TransferService) RespondToBid(ctx context.Context, transferID string, b
 		return fmt.Errorf("transfer listing not found")
 	}
 
+	if t.Status != "PENDING" && t.Status != "REVIEW" {
+		return fmt.Errorf("transfer listing is no longer active")
+	}
+
 	if t.FromTeamID != sellerTeamID {
 		return fmt.Errorf("forbidden: only seller team manager can respond to bids")
 	}
@@ -390,6 +407,10 @@ func (s *TransferService) RespondToBid(ctx context.Context, transferID string, b
 	bid, err := s.repo.GetBidByID(ctx, bidID)
 	if err != nil || bid == nil {
 		return fmt.Errorf("bid not found")
+	}
+
+	if bid.Status != "PENDING" {
+		return fmt.Errorf("bid is no longer pending")
 	}
 
 	if action == "accept" {
@@ -435,28 +456,18 @@ func (s *TransferService) RespondToBid(ctx context.Context, transferID string, b
 }
 
 func (s *TransferService) executeTransferCompletion(ctx context.Context, t *domain.Transfer, buyerTeamID string, sellerTeamID string, price int64) error {
-	// Budget check & update
-	if buyerTeamID != "" {
-		buyerBudget, err := s.repo.GetTeamBudget(ctx, buyerTeamID)
-		if err != nil {
-			return fmt.Errorf("failed to get buyer budget: %w", err)
-		}
-		if price > buyerBudget.Remaining {
-			return fmt.Errorf("buyer team has insufficient remaining budget (%d remaining, %d needed)", buyerBudget.Remaining, price)
-		}
-		if err := s.repo.UpdateTeamBudget(ctx, buyerTeamID, buyerBudget.Spent+price); err != nil {
-			return fmt.Errorf("failed to update buyer budget: %w", err)
+	// Atomic buyer budget check & debit
+	if buyerTeamID != "" && price > 0 {
+		if err := s.repo.UpdateTeamBudgetDelta(ctx, buyerTeamID, price); err != nil {
+			return fmt.Errorf("failed to process buyer budget deduction: %w", err)
 		}
 	}
 
-	if sellerTeamID != "" {
-		sellerBudget, err := s.repo.GetTeamBudget(ctx, sellerTeamID)
-		if err == nil && sellerBudget != nil {
-			newSpent := sellerBudget.Spent - price
-			if newSpent < 0 {
-				newSpent = 0
-			}
-			_ = s.repo.UpdateTeamBudget(ctx, sellerTeamID, newSpent)
+	// Atomic seller budget credit
+	if sellerTeamID != "" && price > 0 {
+		if err := s.repo.UpdateTeamBudgetDelta(ctx, sellerTeamID, -price); err != nil {
+			// Non-fatal if seller budget record is missing, but log error if any
+			_ = err
 		}
 	}
 
@@ -464,34 +475,41 @@ func (s *TransferService) executeTransferCompletion(ctx context.Context, t *doma
 	activeContract, err := s.contractRepo.GetActiveContractByPlayerID(ctx, t.PlayerID)
 	now := time.Now()
 	if err == nil && activeContract != nil {
-		_ = s.contractRepo.UpdateContractStatus(ctx, activeContract.ID, "TERMINATED", "TRANSFERRED", nil, nil, &now)
+		if err := s.contractRepo.UpdateContractStatus(ctx, activeContract.ID, "TERMINATED", "TRANSFERRED", nil, nil, &now); err != nil {
+			return fmt.Errorf("failed to terminate previous contract: %w", err)
+		}
 	}
 
 	// Update player's team_id to buyerTeamID
 	player, pErr := s.playerRepo.GetPlayerByID(ctx, t.PlayerID)
-	if pErr == nil && player != nil {
-		player.TeamID = buyerTeamID
-		_ = s.playerRepo.UpdatePlayer(ctx, player)
+	if pErr != nil || player == nil {
+		return fmt.Errorf("failed to fetch player for transfer: %w", pErr)
+	}
+	player.TeamID = buyerTeamID
+	if err := s.playerRepo.UpdatePlayer(ctx, player); err != nil {
+		return fmt.Errorf("failed to update player team assignment: %w", err)
+	}
 
-		// Create a new PENDING contract for buyer team (13 games, player value = price)
-		matchesAtStart, _ := s.contractRepo.GetTeamFinishedMatchCount(ctx, buyerTeamID)
-		newContract := &domain.Contract{
-			PlayerID:       t.PlayerID,
-			TeamID:         buyerTeamID,
-			Status:         "PENDING",
-			ContractLength: 13,
-			MatchesAtStart: matchesAtStart,
-			PlayerValue:    price,
-			OfferedBy:      t.InitiatedBy,
-			Notes:          "Transfer Contract Offer",
-		}
-		_ = s.contractRepo.CreateContract(ctx, newContract)
+	// Create a new PENDING contract for buyer team (13 games, player value = price)
+	matchesAtStart, _ := s.contractRepo.GetTeamFinishedMatchCount(ctx, buyerTeamID)
+	newContract := &domain.Contract{
+		PlayerID:       t.PlayerID,
+		TeamID:         buyerTeamID,
+		Status:         "PENDING",
+		ContractLength: 13,
+		MatchesAtStart: matchesAtStart,
+		PlayerValue:    price,
+		OfferedBy:      t.InitiatedBy,
+		Notes:          "Transfer Contract Offer",
+	}
+	if err := s.contractRepo.CreateContract(ctx, newContract); err != nil {
+		return fmt.Errorf("failed to create contract for transferred player: %w", err)
+	}
 
-		if player.UserID != nil && *player.UserID != "" {
-			msg := fmt.Sprintf("Your transfer to a new team is complete! Please review and accept your new contract.")
-			refID := newContract.ID
-			_ = s.notifService.Send(ctx, *player.UserID, "CONTRACT_OFFER", "New Team Contract", msg, "contract", &refID)
-		}
+	if player.UserID != nil && *player.UserID != "" {
+		msg := fmt.Sprintf("Your transfer to a new team is complete! Please review and accept your new contract.")
+		refID := newContract.ID
+		_ = s.notifService.Send(ctx, *player.UserID, "CONTRACT_OFFER", "New Team Contract", msg, "contract", &refID)
 	}
 
 	return nil
