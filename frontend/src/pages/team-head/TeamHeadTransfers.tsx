@@ -234,7 +234,7 @@ export const TeamHeadTransfers: React.FC = () => {
         (t.status === 'PENDING' || t.status === 'REVIEW') && t.to_team?.id === currentTeamId
     );
     const outgoingTransfers = teamTransfers.filter(t => 
-        (t.status === 'PENDING' || t.status === 'REVIEW') && t.from_team?.id === currentTeamId
+        (t.status === 'PENDING' || t.status === 'REVIEW') && t.from_team?.id === currentTeamId && t.type !== 'LISTING'
     );
     const myListings = teamTransfers.filter(t => 
         t.type === 'LISTING' && t.from_team?.id === currentTeamId
@@ -562,7 +562,7 @@ export const TeamHeadTransfers: React.FC = () => {
                                             <h3 className="font-bold text-gray-900 dark:text-white">{t.player?.name}</h3>
                                         </div>
                                         <p className="text-xs text-gray-500 mt-1">
-                                            Target Club: <span className="font-bold text-gray-700 dark:text-gray-300">{t.to_team?.name || 'Free Agent'}</span> • Offered Value: <span className="font-bold">{t.asking_price ? `${t.asking_price.toLocaleString()} pts` : 'N/A'}</span>
+                                            Target Club: <span className="font-bold text-gray-700 dark:text-gray-300">{t.to_team?.name || 'Open Market'}</span> • Offered Value: <span className="font-bold">{t.asking_price ? `${t.asking_price.toLocaleString()} pts` : 'N/A'}</span>
                                         </p>
                                         {t.status === 'REVIEW' && t.review_notes && (
                                             <p className="text-xs mt-2 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-700 dark:text-amber-400">
