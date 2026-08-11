@@ -323,7 +323,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	// Services
 	auditService := services.NewAuditService(auditRepo, authRepo)
 	emailService := email.NewResendService() // Move this up
-	authService := services.NewAuthService(authRepo, tokenMaker, emailService)
+	authService := services.NewAuthService(authRepo, playerRepo, tokenMaker, emailService)
 	notifService := services.NewNotificationService(notifRepo)
 	contractService := services.NewContractService(contractRepo, playerRepo, notifService)
 	windowService := services.NewTransferWindowService(windowRepo)
@@ -351,7 +351,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	newsHandler := transport.NewNewsHandler(newsService)
 	galleryHandler := transport.NewGalleryHandler(galleryService)
 	matchHandler := transport.NewMatchHandler(matchService)
-	playerHandler := transport.NewPlayerHandler(playerService, contractService)
+	playerHandler := transport.NewPlayerHandler(playerService, contractService, authRepo)
 	ticketHandler := transport.NewTicketHandler(ticketService, paystackClient)
 	tmHandler := transport.NewTeamManagerHandler(tmService, matchService)
 	analyticsHandler := transport.NewAnalyticsHandler(analyticsService)

@@ -5,6 +5,7 @@ import (
 	"pkg-common/helpers"
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
+	"showtime-backend/internal/ports"
 	"showtime-backend/internal/services"
 	"strconv"
 	"strings"
@@ -24,10 +25,11 @@ type IPlayerHandler interface {
 type PlayerHandler struct {
 	service         services.IPlayerService
 	contractService services.IContractService
+	authRepo        ports.IAuthRepository
 }
 
-func NewPlayerHandler(service services.IPlayerService, contractService services.IContractService) IPlayerHandler {
-	return &PlayerHandler{service: service, contractService: contractService}
+func NewPlayerHandler(service services.IPlayerService, contractService services.IContractService, authRepo ports.IAuthRepository) IPlayerHandler {
+	return &PlayerHandler{service: service, contractService: contractService, authRepo: authRepo}
 }
 
 // GetPlayers godoc
@@ -141,6 +143,30 @@ func (h *PlayerHandler) CreatePlayer(c *gin.Context) {
 	// from the scoped context so they can't seed players onto another team.
 	if scopedTeam, ok := scopedTeamID(c); ok {
 		player.TeamID = scopedTeam
+	}
+
+	// Auto-provision user account if email provided and user doesn't exist
+	if player.Email != "" && h.authRepo != nil {
+		cleanEmail := strings.ToLower(strings.TrimSpace(player.Email))
+		user, _ := h.authRepo.GetUserByEmail(c.Request.Context(), cleanEmail)
+		if user != nil {
+			if user.Role == "user" {
+				_ = h.authRepo.UpdateUserRole(c.Request.Context(), user.ID, "player")
+			}
+			player.UserID = &user.ID
+		} else {
+			defaultPass := "NoPassword@123"
+			newUser := domain.User{
+				FullName: player.Name,
+				Email:    cleanEmail,
+				Role:     "player",
+			}
+			_ = newUser.Password.Set(&defaultPass)
+			newID, err := h.authRepo.Register(c.Request.Context(), newUser)
+			if err == nil && newID != nil {
+				player.UserID = newID
+			}
+		}
 	}
 
 	if err := h.service.CreatePlayer(c.Request.Context(), player); err != nil {

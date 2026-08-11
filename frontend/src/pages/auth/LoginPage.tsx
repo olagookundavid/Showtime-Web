@@ -26,6 +26,9 @@ export const LoginPage = () => {
         if (result.success) {
             toast.success('Welcome back!');
             navigate('/');
+        } else if (result.mustReset) {
+            toast.error(result.error || 'Please reset your default temporary password.');
+            navigate('/forgot-password', { state: { email } });
         } else {
             toast.error(result.error || 'Invalid credentials');
         }

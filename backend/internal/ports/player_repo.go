@@ -21,6 +21,7 @@ type PlayerRepository interface {
 	AssignRandomJerseyNumbers(ctx context.Context, teamID string) (int, error)
 	GetPlayerByUserID(ctx context.Context, userID string) (*domain.Player, error)
 	UpdatePlayerUserID(ctx context.Context, playerID string, userID *string) error
+	HasPlayerWithEmail(ctx context.Context, email string) (bool, error)
 }
 
 type PostgresPlayerRepository struct {
@@ -311,5 +312,12 @@ func (r *PostgresPlayerRepository) UpdatePlayerUserID(ctx context.Context, playe
 	query := `UPDATE players SET user_id = $1, updated_at = NOW() WHERE id = $2`
 	_, err := r.db.Exec(ctx, query, userID, playerID)
 	return err
+}
+
+func (r *PostgresPlayerRepository) HasPlayerWithEmail(ctx context.Context, email string) (bool, error) {
+	query := `SELECT EXISTS (SELECT 1 FROM players WHERE LOWER(email) = LOWER($1))`
+	var exists bool
+	err := r.db.QueryRow(ctx, query, email).Scan(&exists)
+	return exists, err
 }
 

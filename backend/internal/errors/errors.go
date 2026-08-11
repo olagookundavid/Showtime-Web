@@ -10,6 +10,7 @@ var ErrNoUserRecordExist = fmt.Errorf("incorrect email or password") // General 
 var ErrAccountNotFound = fmt.Errorf("account not found")
 var ErrIncorrectPassword = fmt.Errorf("incorrect password")
 var ErrNoAuthHeader = fmt.Errorf("authorization header is not provided")
+var ErrMustResetPassword = errors.New("MUST_RESET_PASSWORD")
 
 var ErrWrongAuthFormat = fmt.Errorf("authorization header format is wrong")
 var ErrPasswordDontMatch = fmt.Errorf("confirm password and new password don't match")
