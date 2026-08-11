@@ -270,10 +270,39 @@ func (r *PostgresPlayerRepository) GetPlayerByUserID(ctx context.Context, userID
 		&uid, &p.CreatedAt, &p.UpdatedAt,
 		&p.Team.Name, &p.Team.ShortName, &p.Team.Logo,
 	)
+	if err == nil {
+		p.UserID = uid
+		p.Team.ID = p.TeamID
+		return &p, nil
+	}
+
+	// Fallback: If not found by user_id, check if user's email matches a player's email
+	fallbackQuery := `
+		SELECT
+			p.id, p.name,
+			COALESCE(p.jersey_number, 0), COALESCE(p.position, ''),
+			COALESCE(p.team_id::text, ''),
+			COALESCE(p.bio, ''), COALESCE(p.image, ''), p.email,
+			p.user_id, p.created_at, p.updated_at,
+			COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, '')
+		FROM players p
+		JOIN users u ON LOWER(p.email) = LOWER(u.email)
+		LEFT JOIN teams t ON p.team_id = t.id
+		WHERE u.id = $1
+		ORDER BY p.created_at DESC LIMIT 1
+	`
+	err = r.db.QueryRow(ctx, fallbackQuery, userID).Scan(
+		&p.ID, &p.Name, &p.JerseyNumber, &p.Position, &p.TeamID, &p.Bio, &p.Image, &p.Email,
+		&uid, &p.CreatedAt, &p.UpdatedAt,
+		&p.Team.Name, &p.Team.ShortName, &p.Team.Logo,
+	)
 	if err != nil {
 		return nil, err
 	}
-	p.UserID = uid
+
+	// Auto-link user_id to player record
+	_ = r.UpdatePlayerUserID(ctx, p.ID, &userID)
+	p.UserID = &userID
 	p.Team.ID = p.TeamID
 	return &p, nil
 }

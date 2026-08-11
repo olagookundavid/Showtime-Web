@@ -2,6 +2,7 @@ package transport
 
 import (
 	"net/http"
+	"pkg-common/helpers"
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/services"
@@ -21,11 +22,12 @@ type IPlayerHandler interface {
 }
 
 type PlayerHandler struct {
-	service services.IPlayerService
+	service         services.IPlayerService
+	contractService services.IContractService
 }
 
-func NewPlayerHandler(service services.IPlayerService) IPlayerHandler {
-	return &PlayerHandler{service: service}
+func NewPlayerHandler(service services.IPlayerService, contractService services.IContractService) IPlayerHandler {
+	return &PlayerHandler{service: service, contractService: contractService}
 }
 
 // GetPlayers godoc
@@ -149,7 +151,27 @@ func (h *PlayerHandler) CreatePlayer(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"message": "Player created", "id": player.ID})
+
+	// Auto-issue a PENDING contract for the created player if assigned to a team
+	if player.TeamID != "" && h.contractService != nil {
+		managerUserID := ""
+		payload, err := helpers.GetTokenPayloadFromContext(c)
+		if err == nil && payload != nil {
+			managerUserID = payload.UserId
+		}
+
+		contractLen := 13
+		if req.ContractLength != nil && *req.ContractLength > 0 {
+			contractLen = *req.ContractLength
+		}
+
+		_, _ = h.contractService.IssueContract(c.Request.Context(), managerUserID, player.TeamID, dto.IssueContractRequest{
+			PlayerID:       player.ID,
+			ContractLength: &contractLen,
+		})
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Player created with pending contract offer", "id": player.ID})
 }
 
 // UpdatePlayer godoc
