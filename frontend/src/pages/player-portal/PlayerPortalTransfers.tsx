@@ -74,7 +74,7 @@ export const PlayerPortalTransfers: React.FC = () => {
                                             {t.from_team?.name || 'Free Agent'}
                                         </td>
                                         <td className="p-4 font-semibold text-sffl-red">
-                                            {t.to_team?.name || 'Free Agent'}
+                                            {t.to_team?.name || (t.type === 'LISTING' ? 'Open Market' : 'Free Agent')}
                                         </td>
                                         <td className="p-4 font-semibold text-gray-700 dark:text-gray-300">
                                             {t.asking_price ? `₦${t.asking_price.toLocaleString()}` : 'N/A'}

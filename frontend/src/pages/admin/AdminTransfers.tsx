@@ -159,7 +159,7 @@ export const AdminTransfers: React.FC = () => {
                                         </td>
                                         <td className="p-3 font-bold text-gray-900 dark:text-white">{t.player?.name}</td>
                                         <td className="p-3 text-gray-600 dark:text-gray-300">{t.from_team?.name}</td>
-                                        <td className="p-3 text-gray-600 dark:text-gray-300">{t.to_team?.name || '-'}</td>
+                                        <td className="p-3 text-gray-600 dark:text-gray-300">{t.to_team?.name || (t.type === 'LISTING' ? 'Open Market' : '-')}</td>
                                         <td className="p-3 font-mono font-bold">{t.asking_price?.toLocaleString() || '-'} pts</td>
                                         <td className="p-3 font-bold text-xs">{t.status}</td>
                                     </tr>
