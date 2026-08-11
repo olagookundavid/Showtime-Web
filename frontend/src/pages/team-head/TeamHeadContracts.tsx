@@ -12,7 +12,6 @@ export const TeamHeadContracts: React.FC = () => {
     // Modal state
     const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
     const [contractLength, setContractLength] = useState<number>(13);
-    const [playerValue, setPlayerValue] = useState<number>(1000000);
     const [issuing, setIssuing] = useState<boolean>(false);
 
     const fetchContracts = async () => {
@@ -53,7 +52,7 @@ export const TeamHeadContracts: React.FC = () => {
             await contractsApi.issue({
                 player_id: selectedPlayer.id,
                 contract_length: Number(contractLength),
-                player_value: Number(playerValue),
+                player_value: 0,
             });
             toast.success(`Contract offer sent to ${selectedPlayer.name}`);
             setSelectedPlayer(null);
@@ -326,21 +325,6 @@ export const TeamHeadContracts: React.FC = () => {
                                     className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-semibold"
                                 />
                                 <span className="text-xs text-gray-400 mt-1 block">Default is 13 matches (August standard).</span>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                                    Player Point Value
-                                </label>
-                                <input
-                                    type="number"
-                                    step="100000"
-                                    min="100000"
-                                    value={playerValue}
-                                    onChange={e => setPlayerValue(parseInt(e.target.value, 10))}
-                                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-semibold"
-                                />
-                                <span className="text-xs text-gray-400 mt-1 block">Default is 1,000,000 points.</span>
                             </div>
                         </div>
 

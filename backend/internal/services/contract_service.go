@@ -167,24 +167,31 @@ func (s *ContractService) RenewContract(ctx context.Context, contractID string, 
 		return nil, fmt.Errorf("can only extend or renew an ACTIVE contract")
 	}
 
-	contractLength := current.ContractLength
-	if req.ContractLength != nil && *req.ContractLength > 0 {
-		contractLength = *req.ContractLength
+	currentTeamFinishedMatches, _ := s.repo.GetTeamFinishedMatchCount(ctx, current.TeamID)
+	currentMatchesPlayed := currentTeamFinishedMatches - current.MatchesAtStart
+	currentRemaining := current.ContractLength - currentMatchesPlayed
+	if currentRemaining < 0 {
+		currentRemaining = 0
 	}
+
+	extension := 13
+	if req.ContractLength != nil && *req.ContractLength > 0 {
+		extension = *req.ContractLength
+	}
+
+	contractLength := currentRemaining + extension
 
 	playerValue := current.PlayerValue
 	if req.PlayerValue != nil && *req.PlayerValue > 0 {
 		playerValue = *req.PlayerValue
 	}
 
-	matchesAtStart, _ := s.repo.GetTeamFinishedMatchCount(ctx, current.TeamID)
-
 	newContract := &domain.Contract{
 		PlayerID:       current.PlayerID,
 		TeamID:         current.TeamID,
 		Status:         "PENDING",
 		ContractLength: contractLength,
-		MatchesAtStart: matchesAtStart,
+		MatchesAtStart: currentTeamFinishedMatches,
 		PlayerValue:    playerValue,
 		OfferedBy:      managerUserID,
 		Notes:          "Contract Renewal/Extension",
@@ -197,7 +204,7 @@ func (s *ContractService) RenewContract(ctx context.Context, contractID string, 
 	// Notify player
 	player, _ := s.playerRepo.GetPlayerByID(ctx, current.PlayerID)
 	if player != nil && player.UserID != nil && *player.UserID != "" {
-		msg := fmt.Sprintf("Your team offered a contract extension of %d games at value %d.", contractLength, playerValue)
+		msg := fmt.Sprintf("Your team offered a contract extension of %d games (new total remaining: %d games).", extension, contractLength)
 		refID := newContract.ID
 		_ = s.notifService.Send(ctx, *player.UserID, "CONTRACT_OFFER", "Contract Extension Offered", msg, "contract", &refID)
 	}
