@@ -220,7 +220,7 @@ function App() {
 
             {/* Player Portal Routes */}
             <Route path="/player-portal" element={
-              <ProtectedRoute requireRole={['player', 'user', 'admin']}>
+              <ProtectedRoute requireRole={['player', 'admin']}>
                 <PlayerPortalLayout />
               </ProtectedRoute>
             }>

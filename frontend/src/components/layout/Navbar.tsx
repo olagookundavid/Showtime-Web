@@ -233,6 +233,14 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                                             My Team
                                         </Link>
                                     )}
+                                    {user?.role === 'player' && (
+                                        <Link
+                                            to="/player-portal"
+                                            className="bg-sffl-red hover:bg-sffl-red/90 text-white font-bold px-3 py-1.5 rounded transition text-xs"
+                                        >
+                                            Player Portal
+                                        </Link>
+                                    )}
                                     {user?.role === 'ticketer' && (
                                         <Link
                                             to="/admin/tickets"
@@ -373,6 +381,11 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                                     {user?.role === 'team_head' && (
                                         <Link to="/team-head" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
                                             My Team Panel
+                                        </Link>
+                                    )}
+                                    {user?.role === 'player' && (
+                                        <Link to="/player-portal" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-sffl-red hover:bg-sffl-red/90 text-white font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
+                                            Player Portal
                                         </Link>
                                     )}
                                     {user?.role === 'ticketer' && (
