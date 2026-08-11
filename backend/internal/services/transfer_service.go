@@ -239,6 +239,11 @@ func (s *TransferService) RespondToTransfer(ctx context.Context, transferID stri
 				return nil, err
 			}
 
+			now := time.Now()
+			if err := s.repo.UpdateTransferStatus(ctx, transferID, "COMPLETED", req.Notes, "", &now); err != nil {
+				return nil, fmt.Errorf("transfer status update failed: %w", err)
+			}
+
 			// Complete the transfer: buyer is FromTeamID, seller is ToTeamID
 			buyerTeamID := t.FromTeamID
 			sellerTeamID := ""
@@ -255,27 +260,30 @@ func (s *TransferService) RespondToTransfer(ctx context.Context, transferID stri
 				return nil, err
 			}
 
-			now := time.Now()
-			_ = s.repo.UpdateTransferStatus(ctx, transferID, "COMPLETED", req.Notes, "", &now)
-
 			// Notify requester manager
 			msg := fmt.Sprintf("Transfer request for player %s was accepted!", t.Player.Name)
 			refID := transferID
 			_ = s.notifService.Send(ctx, t.InitiatedBy, "TRANSFER_ACCEPTED", "Transfer Approved", msg, "transfer", &refID)
 
 		} else if req.Action == "review" {
-			_ = s.repo.UpdateTransferStatus(ctx, transferID, "REVIEW", "", req.Notes, nil)
+			if err := s.repo.UpdateTransferStatus(ctx, transferID, "REVIEW", "", req.Notes, nil); err != nil {
+				return nil, err
+			}
 
 			msg := fmt.Sprintf("Transfer request for player %s requires review: %s", t.Player.Name, req.Notes)
 			refID := transferID
 			_ = s.notifService.Send(ctx, t.InitiatedBy, "TRANSFER_REVIEW", "Transfer Under Review", msg, "transfer", &refID)
 
 		} else if req.Action == "reject" {
-			_ = s.repo.UpdateTransferStatus(ctx, transferID, "REJECTED", req.Notes, "", nil)
+			if err := s.repo.UpdateTransferStatus(ctx, transferID, "REJECTED", req.Notes, "", nil); err != nil {
+				return nil, err
+			}
 
 			msg := fmt.Sprintf("Transfer request for player %s was rejected.", t.Player.Name)
 			refID := transferID
 			_ = s.notifService.Send(ctx, t.InitiatedBy, "TRANSFER_REJECTED", "Transfer Rejected", msg, "transfer", &refID)
+		} else {
+			return nil, fmt.Errorf("invalid action for transfer request: %s", req.Action)
 		}
 	} else if t.Type == "DIRECT_SALE" {
 		// Response must be by the target buyer team (t.ToTeamID)
@@ -286,6 +294,11 @@ func (s *TransferService) RespondToTransfer(ctx context.Context, transferID stri
 		if req.Action == "accept" {
 			if err := s.ensureWindowOpen(ctx); err != nil {
 				return nil, err
+			}
+
+			now := time.Now()
+			if err := s.repo.UpdateTransferStatus(ctx, transferID, "COMPLETED", req.Notes, "", &now); err != nil {
+				return nil, fmt.Errorf("transfer status update failed: %w", err)
 			}
 
 			// Mark buyer approved
@@ -306,19 +319,20 @@ func (s *TransferService) RespondToTransfer(ctx context.Context, transferID stri
 				return nil, err
 			}
 
-			now := time.Now()
-			_ = s.repo.UpdateTransferStatus(ctx, transferID, "COMPLETED", req.Notes, "", &now)
-
 			msg := fmt.Sprintf("Direct sale of player %s completed successfully.", t.Player.Name)
 			refID := transferID
 			_ = s.notifService.Send(ctx, t.InitiatedBy, "TRANSFER_COMPLETED", "Direct Sale Completed", msg, "transfer", &refID)
 
 		} else if req.Action == "reject" {
-			_ = s.repo.UpdateTransferStatus(ctx, transferID, "REJECTED", req.Notes, "", nil)
+			if err := s.repo.UpdateTransferStatus(ctx, transferID, "REJECTED", req.Notes, "", nil); err != nil {
+				return nil, err
+			}
 
 			msg := fmt.Sprintf("Direct sale proposal for player %s was rejected.", t.Player.Name)
 			refID := transferID
 			_ = s.notifService.Send(ctx, t.InitiatedBy, "TRANSFER_REJECTED", "Direct Sale Rejected", msg, "transfer", &refID)
+		} else {
+			return nil, fmt.Errorf("invalid action for direct sale: '%s' is not supported (only accept or reject are allowed)", req.Action)
 		}
 	}
 
@@ -418,8 +432,15 @@ func (s *TransferService) RespondToBid(ctx context.Context, transferID string, b
 			return err
 		}
 
-		// Accept this bid
-		_ = s.repo.UpdateBidStatus(ctx, bidID, "ACCEPTED")
+		// Accept this bid atomically
+		if err := s.repo.UpdateBidStatus(ctx, bidID, "ACCEPTED"); err != nil {
+			return fmt.Errorf("failed to accept bid: %w", err)
+		}
+
+		now := time.Now()
+		if err := s.repo.UpdateTransferStatus(ctx, transferID, "COMPLETED", "", "", &now); err != nil {
+			return fmt.Errorf("failed to complete transfer listing: %w", err)
+		}
 
 		// Reject all other bids for this listing
 		bids, _ := s.repo.GetBidsByTransferID(ctx, transferID)
@@ -438,16 +459,15 @@ func (s *TransferService) RespondToBid(ctx context.Context, transferID string, b
 			return err
 		}
 
-		now := time.Now()
-		_ = s.repo.UpdateTransferStatus(ctx, transferID, "COMPLETED", "", "", &now)
-
 		// Notify winning bidder
 		msg := fmt.Sprintf("Your bid of %d for player %s was accepted! Transfer complete.", bid.BidValue, t.Player.Name)
 		_ = s.notifService.Send(ctx, bid.BidderID, "BID_ACCEPTED", "Bid Accepted", msg, "transfer", &transferID)
 
 		return nil
 	} else if action == "reject" {
-		_ = s.repo.UpdateBidStatus(ctx, bidID, "REJECTED")
+		if err := s.repo.UpdateBidStatus(ctx, bidID, "REJECTED"); err != nil {
+			return err
+		}
 		_ = s.notifService.Send(ctx, bid.BidderID, "BID_REJECTED", "Bid Rejected", fmt.Sprintf("Your bid for %s was rejected.", t.Player.Name), "transfer", &transferID)
 		return nil
 	}
@@ -640,7 +660,7 @@ func (s *TransferService) AdminOverrideTransfer(ctx context.Context, id string, 
 		completedAt = &now
 	}
 
-	return s.repo.UpdateTransferStatus(ctx, id, status, notes, "", completedAt)
+	return s.repo.AdminUpdateTransferStatus(ctx, id, status, notes, "", completedAt)
 }
 
 func (s *TransferService) AdminAdjustBudget(ctx context.Context, teamID string, totalBudget int64) error {

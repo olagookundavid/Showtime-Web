@@ -515,12 +515,14 @@ export const TeamHeadTransfers: React.FC = () => {
                                         >
                                             Accept
                                         </button>
-                                        <button
-                                            onClick={() => handleRespondToTransfer(t.id, 'review')}
-                                            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl transition-colors"
-                                        >
-                                            Request Review
-                                        </button>
+                                        {t.type === 'REQUEST' && (
+                                            <button
+                                                onClick={() => handleRespondToTransfer(t.id, 'review')}
+                                                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl transition-colors"
+                                            >
+                                                Request Review
+                                            </button>
+                                        )}
                                         <button
                                             onClick={() => handleRespondToTransfer(t.id, 'reject')}
                                             className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-600 font-bold text-xs rounded-xl transition-colors"

@@ -18,6 +18,7 @@ type ITransferRepository interface {
 	GetTransfersByTeamID(ctx context.Context, teamID string, transferType string, status string, page, limit int) ([]domain.Transfer, int64, error)
 	GetTransfersByPlayerID(ctx context.Context, playerID string, page, limit int) ([]domain.Transfer, int64, error)
 	UpdateTransferStatus(ctx context.Context, id string, status string, notes string, reviewNotes string, completedAt *time.Time) error
+	AdminUpdateTransferStatus(ctx context.Context, id string, status string, notes string, reviewNotes string, completedAt *time.Time) error
 	SetTeamApproval(ctx context.Context, id string, fromApproved, toApproved bool) error
 	GetActiveListings(ctx context.Context, search string, page, limit int) ([]domain.Transfer, int64, error)
 	CreateBid(ctx context.Context, b *domain.TransferBid) error
@@ -197,6 +198,26 @@ func (r *PostgresTransferRepository) UpdateTransferStatus(ctx context.Context, i
 			review_notes = CASE WHEN $3 <> '' THEN $3 ELSE review_notes END,
 			completed_at = COALESCE($4, completed_at),
 			updated_at = NOW()
+		WHERE id = $5 AND status IN ('PENDING', 'REVIEW')
+	`
+	tag, err := r.db.Exec(ctx, query, status, notes, reviewNotes, completedAt, id)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("transfer is no longer pending or under review")
+	}
+	return nil
+}
+
+func (r *PostgresTransferRepository) AdminUpdateTransferStatus(ctx context.Context, id string, status string, notes string, reviewNotes string, completedAt *time.Time) error {
+	query := `
+		UPDATE transfers SET
+			status = $1,
+			notes = CASE WHEN $2 <> '' THEN $2 ELSE notes END,
+			review_notes = CASE WHEN $3 <> '' THEN $3 ELSE review_notes END,
+			completed_at = COALESCE($4, completed_at),
+			updated_at = NOW()
 		WHERE id = $5
 	`
 	_, err := r.db.Exec(ctx, query, status, notes, reviewNotes, completedAt, id)
@@ -350,9 +371,15 @@ func (r *PostgresTransferRepository) GetBidByID(ctx context.Context, bidID strin
 }
 
 func (r *PostgresTransferRepository) UpdateBidStatus(ctx context.Context, bidID string, status string) error {
-	query := `UPDATE transfer_bids SET status = $1 WHERE id = $2`
-	_, err := r.db.Exec(ctx, query, status, bidID)
-	return err
+	query := `UPDATE transfer_bids SET status = $1 WHERE id = $2 AND status = 'PENDING'`
+	tag, err := r.db.Exec(ctx, query, status, bidID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("bid is no longer pending")
+	}
+	return nil
 }
 
 func (r *PostgresTransferRepository) GetTeamBudget(ctx context.Context, teamID string) (*domain.TeamBudget, error) {
