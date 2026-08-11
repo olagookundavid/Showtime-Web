@@ -51,10 +51,10 @@ func NewMatchService(repo ports.MatchRepository, storage ports.StorageService, c
 	return &MatchService{repo: repo, storage: storage, contractService: contractService}
 }
 
-func (s *MatchService) triggerContractCheck() {
+func (s *MatchService) triggerContractCheck(teamIDs ...string) {
 	if s.contractService != nil {
 		_ = SubmitJob(func() {
-			_, _ = s.contractService.CheckAndExpireContracts(context.Background())
+			_, _ = s.contractService.CheckAndExpireContracts(context.Background(), teamIDs...)
 		})
 	}
 }
@@ -526,7 +526,7 @@ func (s *MatchService) CreateMatch(ctx context.Context, match *domain.Match) err
 		return s.advanceWinner(ctx, match.ID)
 	}
 	if match.Status == domain.MatchStatusFinished {
-		s.triggerContractCheck()
+		s.triggerContractCheck(match.HomeTeamID, match.AwayTeamID)
 		return s.repo.RecalculateStandings(ctx, match.CompetitionID)
 	}
 	return nil
@@ -610,7 +610,7 @@ func (s *MatchService) UpdateMatch(ctx context.Context, match *domain.Match) err
 		return err
 	}
 	if match.Status == domain.MatchStatusFinished {
-		s.triggerContractCheck()
+		s.triggerContractCheck(match.HomeTeamID, match.AwayTeamID)
 	}
 	if knockout {
 		return s.advanceWinner(ctx, match.ID)

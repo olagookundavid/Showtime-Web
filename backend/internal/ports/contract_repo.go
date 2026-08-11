@@ -20,7 +20,7 @@ type IContractRepository interface {
 	UpdateContractStatus(ctx context.Context, id string, status string, terminationReason string, acceptedAt, expiredAt, terminatedAt *time.Time) error
 	GetFreeAgents(ctx context.Context, search string, page, limit int) ([]domain.Player, int64, error)
 	GetTeamFinishedMatchCount(ctx context.Context, teamID string) (int, error)
-	GetExpiringContracts(ctx context.Context) ([]domain.Contract, error)
+	GetExpiringContracts(ctx context.Context, teamIDs ...string) ([]domain.Contract, error)
 	UpdateLastNotifiedRemaining(ctx context.Context, id string, remaining int) error
 }
 
@@ -335,7 +335,7 @@ func (r *PostgresContractRepository) GetTeamFinishedMatchCount(ctx context.Conte
 	return count, err
 }
 
-func (r *PostgresContractRepository) GetExpiringContracts(ctx context.Context) ([]domain.Contract, error) {
+func (r *PostgresContractRepository) GetExpiringContracts(ctx context.Context, teamIDs ...string) ([]domain.Contract, error) {
 	query := `
 		SELECT
 			c.id, c.player_id, c.team_id, c.status, c.contract_length, c.matches_at_start,
@@ -345,7 +345,13 @@ func (r *PostgresContractRepository) GetExpiringContracts(ctx context.Context) (
 		FROM contracts c
 		WHERE c.status = 'ACTIVE'
 	`
-	rows, err := r.db.Query(ctx, query)
+	args := []any{}
+	if len(teamIDs) > 0 {
+		query += ` AND c.team_id = ANY($1)`
+		args = append(args, teamIDs)
+	}
+
+	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

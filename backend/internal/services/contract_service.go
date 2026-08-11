@@ -19,7 +19,7 @@ type IContractService interface {
 	GetMyContracts(ctx context.Context, userID string) ([]dto.ContractResponse, error)
 	GetFreeAgents(ctx context.Context, search string, page, limit int) (dto.PaginatedResult[dto.PlayerResponse], error)
 	GetContractByID(ctx context.Context, id string) (*dto.ContractResponse, error)
-	CheckAndExpireContracts(ctx context.Context) (int, error)
+	CheckAndExpireContracts(ctx context.Context, teamIDs ...string) (int, error)
 	AdminOverrideContract(ctx context.Context, id string, status string, reason string) error
 }
 
@@ -324,8 +324,8 @@ func (s *ContractService) GetContractByID(ctx context.Context, id string) (*dto.
 	return &res, nil
 }
 
-func (s *ContractService) CheckAndExpireContracts(ctx context.Context) (int, error) {
-	contracts, err := s.repo.GetExpiringContracts(ctx)
+func (s *ContractService) CheckAndExpireContracts(ctx context.Context, teamIDs ...string) (int, error) {
+	contracts, err := s.repo.GetExpiringContracts(ctx, teamIDs...)
 	if err != nil {
 		return 0, err
 	}
