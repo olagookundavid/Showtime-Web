@@ -27,17 +27,28 @@ type ContractService struct {
 	repo         ports.IContractRepository
 	playerRepo   ports.PlayerRepository
 	notifService INotificationService
+	windowRepo   ports.ITransferWindowRepository
 }
 
-func NewContractService(repo ports.IContractRepository, playerRepo ports.PlayerRepository, notifService INotificationService) IContractService {
+func NewContractService(repo ports.IContractRepository, playerRepo ports.PlayerRepository, notifService INotificationService, windowRepo ports.ITransferWindowRepository) IContractService {
 	return &ContractService{
 		repo:         repo,
 		playerRepo:   playerRepo,
 		notifService: notifService,
+		windowRepo:   windowRepo,
 	}
 }
 
 func (s *ContractService) IssueContract(ctx context.Context, managerUserID string, teamID string, req dto.IssueContractRequest) (*dto.ContractResponse, error) {
+	// Verify transfer window is open for signing free agents
+	open, err := s.windowRepo.IsWindowOpen(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check transfer window: %w", err)
+	}
+	if !open {
+		return nil, fmt.Errorf("transfer window is currently closed: free agents can only be signed during an open transfer window")
+	}
+
 	// Verify player exists
 	player, err := s.playerRepo.GetPlayerByID(ctx, req.PlayerID)
 	if err != nil || player == nil {
