@@ -1229,24 +1229,140 @@ Worked examples for the most likely tuning changes:
 4. Confirm ongoing behavior: nothing further needed; the cron job picks up
    the new value on its next run.
 
-**Example: adding a second application to this server.**
-1. DNS: create an `A`/`AAAA` record for the new subdomain, pointed at the
-   server, proxied (orange) to match the existing setup.
-2. Give the app its own `~/apps/<name>/` directory and Compose file, joining
-   the `web` network (for Caddy) and, if it needs one, the `database`
-   network.
-3. Create a dedicated database and least-privilege user for it inside the
-   existing shared Postgres instance (never reuse the `showtime` user):
-   ```sql
-   CREATE USER <app> WITH PASSWORD '...';
-   CREATE DATABASE <app> OWNER <app>;
-   \c <app>
-   REVOKE ALL ON SCHEMA public FROM PUBLIC;
-   GRANT ALL ON SCHEMA public TO <app>;
+**Example: adding a new container/app to this server and exposing it publicly.**
+This is the full, exhaustive, self-serve procedure — follow it top to bottom
+for any new app; no other reference should be needed.
+
+*The port question, answered up front because it shapes the whole model:*
+**Every app container can use the same internal port (e.g. 8080) as every
+other app, with zero conflict.** Each container has its own private IP on
+the Docker network — "port 8080 in container A" and "port 8080 in container
+B" are different sockets on different IPs, and only collide if you try to
+**publish** the same port to the *host*. In this setup, **only Caddy ever
+publishes host ports** (80/443); every app container just listens
+internally, and Caddy reaches each one by container *name* via Docker's
+built-in DNS, never by host port. The one rule that must never be broken:
+**never add a `ports:` line to an app's compose file** — that's the only
+thing that would cause a real conflict, and it's also how something would
+end up exposed to the internet without Caddy/Cloudflare/the firewall in
+front of it.
+
+Fill in three values once, then run each step's block:
+```bash
+APP_NAME="newapp"                              # short name, used everywhere below
+SUBDOMAIN="newapp.showtimeflag.football"        # must be a DIRECT subdomain — the wildcard cert covers one level only
+NEEDS_DB="yes"                                  # "yes" or "no"
+```
+
+1. **DNS (manual, Cloudflare dashboard — no API token configured for this,
+   so it's a UI step).** Cloudflare → zone → DNS → Add record: type `A`,
+   name = the subdomain part only, value = server IP, **Proxied (orange
+   cloud)**. Repeat as `AAAA` for IPv6 if desired.
+   **No firewall changes needed** — the `DOCKER-USER` rules restrict
+   80/443 to Cloudflare's ranges *generally*, not per-hostname, so this is
+   automatically covered by the same rules protecting the API.
+
+2. **Confirm the existing wildcard cert covers the new subdomain:**
+   ```bash
+   openssl x509 -in ~/infra/caddy/certs/origin-cert.pem -noout -text | grep -A2 "Subject Alternative Name"
    ```
-4. Add a new site block to `~/infra/caddy/Caddyfile` and reload Caddy.
-5. No firewall changes needed — the `DOCKER-USER` Cloudflare allow-list
-   already covers any container Caddy fronts.
+   If `*.showtimeflag.football` appears, reuse the existing cert — no new
+   one needed. (A completely different domain, not a subdomain of this one,
+   is the one case that needs a fresh Origin Certificate.)
+
+3. **Create the app's directory and compose file:**
+   ```bash
+   mkdir -p ~/apps/${APP_NAME} && cd ~/apps/${APP_NAME}
+
+   cat > docker-compose.yml <<COMPOSE
+   services:
+     ${APP_NAME}-backend:
+       image: ghcr.io/olagookundavid/${APP_NAME}:latest
+       container_name: ${APP_NAME}-backend
+       restart: unless-stopped
+       env_file:
+         - .env
+       networks:
+         - web
+   $( [ "$NEEDS_DB" = "yes" ] && echo "      - database" )
+       # No "ports:" section — Caddy is the only thing that talks to the internet.
+
+   networks:
+     web:
+       external: true
+   $( [ "$NEEDS_DB" = "yes" ] && echo "  database:
+       external: true" )
+   COMPOSE
+
+   docker compose config >/dev/null && echo "YAML valid ✅"
+   ```
+
+4. **Database, only if `NEEDS_DB=yes`** — same shared Postgres instance,
+   least-privilege pattern, never the superuser:
+   ```bash
+   APP_DB_PW="$(openssl rand -hex 24)"   # hex, not base64 — avoids the URL-unsafe-password trap (see Troubleshooting)
+   printf '%s DB password:\n%s\n' "$APP_NAME" "$APP_DB_PW" > ~/infra/postgres/${APP_NAME}-db-password.txt
+   chmod 600 ~/infra/postgres/${APP_NAME}-db-password.txt
+
+   docker exec -i postgres psql -U postgres <<SQL
+   CREATE USER ${APP_NAME} WITH PASSWORD '${APP_DB_PW}';
+   CREATE DATABASE ${APP_NAME} OWNER ${APP_NAME};
+   \c ${APP_NAME}
+   REVOKE ALL ON SCHEMA public FROM PUBLIC;
+   GRANT ALL ON SCHEMA public TO ${APP_NAME};
+   SQL
+   ```
+   ⚠️ **Real gap, not automatically covered:** `~/scripts/pg-backup.sh`
+   currently only backs up the `showtime` database by name — it will
+   **not** automatically back up a new app's database. Extend it (loop
+   over a list of database names, or switch to `pg_dumpall`) when you
+   actually add a DB-backed app; don't assume it's covered.
+
+5. **Write the app's secrets and start it:**
+   ```bash
+   nano ~/apps/${APP_NAME}/.env      # include DB_URL from step 4 if relevant
+   chmod 600 ~/apps/${APP_NAME}/.env
+
+   cd ~/apps/${APP_NAME}
+   docker compose pull
+   docker compose up -d
+   docker compose ps
+   ```
+
+6. **Add the Caddy route and reload (no downtime for existing apps):**
+   ```bash
+   cat >> ~/infra/caddy/Caddyfile <<CADDY
+
+   ${SUBDOMAIN} {
+   	tls /etc/caddy/certs/origin-cert.pem /etc/caddy/certs/origin-key.pem
+   	reverse_proxy ${APP_NAME}-backend:8080
+   }
+   CADDY
+
+   docker compose -f ~/infra/caddy/docker-compose.yml exec caddy \
+     caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+   docker compose -f ~/infra/caddy/docker-compose.yml exec caddy \
+     caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+   ```
+   `reload` (not `restart`) applies the new config without dropping
+   existing connections to the API or any other app.
+
+7. **Verify:** `curl -s https://${SUBDOMAIN}/` and a browser check for a
+   clean padlock.
+
+**What's covered for free, no extra work:** Dozzle already shows the new
+container's logs (it reads the whole Docker socket); the origin firewall
+lock already protects the new subdomain.
+
+**What's a separate decision each time, not required just to get it
+running:**
+- *CI/CD for the new app* — the current SSH deploy key is forced-command-
+  locked to run only `~/scripts/deploy.sh` for the Showtime backend. A new
+  app wanting the same push-to-deploy automation needs its **own**
+  dedicated restricted key and its own deploy script — keeps the
+  least-privilege model intact (one key, one job), same pattern as today.
+- *Uptime monitoring* — add a new UptimeRobot monitor pointed at the new
+  app's health endpoint if it's important enough to page on.
 
 **Example: tuning Postgres memory if RAM pressure changes.**
 1. Where it lives: the `command:` block in
