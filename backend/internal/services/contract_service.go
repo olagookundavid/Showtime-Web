@@ -217,11 +217,16 @@ func (s *ContractService) ReleasePlayer(ctx context.Context, contractID string, 
 		return err
 	}
 
-	// Clear player team_id
+	// Clear player team_id and remove from scheduled match team sheets
 	player, err := s.playerRepo.GetPlayerByID(ctx, c.PlayerID)
 	if err == nil && player != nil {
+		oldTeamID := player.TeamID
 		player.TeamID = ""
 		_ = s.playerRepo.UpdatePlayer(ctx, player)
+
+		if oldTeamID != "" {
+			_ = s.repo.RemovePlayerFromScheduledTeamSheets(ctx, player.ID, oldTeamID)
+		}
 
 		if player.UserID != nil && *player.UserID != "" {
 			msg := "You have been released from your contract and are now a free agent."
@@ -352,14 +357,19 @@ func (s *ContractService) CheckAndExpireContracts(ctx context.Context, teamIDs .
 			if err := s.repo.UpdateContractStatus(ctx, c.ID, "EXPIRED", "EXPIRED", nil, &now, nil); err == nil {
 				expiredCount++
 
-				// Clear player team_id
+				// Clear player team_id and remove from scheduled match team sheets
 				if pErr == nil && player != nil {
 					teamName := ""
 					if player.Team != nil {
 						teamName = player.Team.Name
 					}
+					oldTeamID := player.TeamID
 					player.TeamID = ""
 					_ = s.playerRepo.UpdatePlayer(ctx, player)
+
+					if oldTeamID != "" {
+						_ = s.repo.RemovePlayerFromScheduledTeamSheets(ctx, player.ID, oldTeamID)
+					}
 
 					if player.UserID != nil && *player.UserID != "" {
 						msg := "Your contract has expired. You are now a free agent."
@@ -432,8 +442,12 @@ func (s *ContractService) AdminOverrideContract(ctx context.Context, id string, 
 		if err == nil && c != nil {
 			player, pErr := s.playerRepo.GetPlayerByID(ctx, c.PlayerID)
 			if pErr == nil && player != nil {
+				oldTeamID := player.TeamID
 				player.TeamID = ""
 				_ = s.playerRepo.UpdatePlayer(ctx, player)
+				if oldTeamID != "" {
+					_ = s.repo.RemovePlayerFromScheduledTeamSheets(ctx, player.ID, oldTeamID)
+				}
 			}
 		}
 	}

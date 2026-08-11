@@ -22,6 +22,7 @@ type IContractRepository interface {
 	GetTeamFinishedMatchCount(ctx context.Context, teamID string) (int, error)
 	GetExpiringContracts(ctx context.Context, teamIDs ...string) ([]domain.Contract, error)
 	UpdateLastNotifiedRemaining(ctx context.Context, id string, remaining int) error
+	RemovePlayerFromScheduledTeamSheets(ctx context.Context, playerID, teamID string) error
 }
 
 type PostgresContractRepository struct {
@@ -377,5 +378,18 @@ func (r *PostgresContractRepository) GetExpiringContracts(ctx context.Context, t
 func (r *PostgresContractRepository) UpdateLastNotifiedRemaining(ctx context.Context, id string, remaining int) error {
 	query := `UPDATE contracts SET last_notified_remaining = $1, updated_at = NOW() WHERE id = $2`
 	_, err := r.db.Exec(ctx, query, remaining, id)
+	return err
+}
+
+func (r *PostgresContractRepository) RemovePlayerFromScheduledTeamSheets(ctx context.Context, playerID, teamID string) error {
+	query := `
+		DELETE FROM match_team_sheets mts
+		USING matches m
+		WHERE mts.match_id = m.id
+		  AND mts.player_id = $1
+		  AND mts.team_id = $2
+		  AND m.status = 'SCHEDULED'
+	`
+	_, err := r.db.Exec(ctx, query, playerID, teamID)
 	return err
 }
