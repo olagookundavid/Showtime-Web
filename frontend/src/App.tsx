@@ -76,11 +76,23 @@ const AdminOrderDetail = lazy(() => import('./pages/admin/AdminOrderDetail').the
 // const AdminTOTW = lazy(() => import('./pages/admin/AdminTOTW').then(m => ({ default: m.AdminTOTW })));
 // const TOTWPage = lazy(() => import('./pages/stats/TOTWPage').then(m => ({ default: m.TOTWPage })));
 
+const AdminContracts = lazy(() => import('./pages/admin/AdminContracts'));
+const AdminTransfers = lazy(() => import('./pages/admin/AdminTransfers'));
+const AdminTransferWindows = lazy(() => import('./pages/admin/AdminTransferWindows'));
+
 // Lazy load Team Head Pages
 const TeamHeadLayout = lazy(() => import('./pages/team-head/TeamHeadLayout'));
 const TeamHeadOverview = lazy(() => import('./pages/team-head/TeamHeadOverview'));
 const TeamHeadPlayers = lazy(() => import('./pages/team-head/TeamHeadPlayers'));
+const TeamHeadContracts = lazy(() => import('./pages/team-head/TeamHeadContracts').then(m => ({ default: m.TeamHeadContracts })));
+const TeamHeadTransfers = lazy(() => import('./pages/team-head/TeamHeadTransfers').then(m => ({ default: m.TeamHeadTransfers })));
+const TeamHeadBudget = lazy(() => import('./pages/team-head/TeamHeadBudget').then(m => ({ default: m.TeamHeadBudget })));
 const TeamTickets = lazy(() => import('./pages/team-head/TeamTickets'));
+
+// Lazy load Player Portal Pages
+const PlayerPortalLayout = lazy(() => import('./pages/player-portal/PlayerPortalLayout'));
+const PlayerPortalOverview = lazy(() => import('./pages/player-portal/PlayerPortalOverview'));
+const PlayerPortalContracts = lazy(() => import('./pages/player-portal/PlayerPortalContracts'));
 
 // Lazy load Seller Pages
 const SellerLayout = lazy(() => import('./pages/seller/SellerLayout').then(m => ({ default: m.SellerLayout })));
@@ -187,6 +199,9 @@ function App() {
               <Route path="inventory" element={<AdminInventory />} />
               <Route path="store" element={<AdminStore />} />
               <Route path="store/orders/:id" element={<AdminOrderDetail />} />
+              <Route path="contracts" element={<AdminContracts />} />
+              <Route path="transfers" element={<AdminTransfers />} />
+              <Route path="transfer-windows" element={<AdminTransferWindows />} />
             </Route>
 
             {/* Team Head Routes */}
@@ -197,7 +212,20 @@ function App() {
             }>
               <Route index element={<TeamHeadOverview />} />
               <Route path="players" element={<TeamHeadPlayers />} />
+              <Route path="contracts" element={<TeamHeadContracts />} />
+              <Route path="transfers" element={<TeamHeadTransfers />} />
+              <Route path="budget" element={<TeamHeadBudget />} />
               <Route path="tickets" element={<TeamTickets />} />
+            </Route>
+
+            {/* Player Portal Routes */}
+            <Route path="/player-portal" element={
+              <ProtectedRoute requireRole={['player', 'user', 'admin']}>
+                <PlayerPortalLayout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<PlayerPortalOverview />} />
+              <Route path="contracts" element={<PlayerPortalContracts />} />
             </Route>
 
             {/* Seller Portal Routes */}

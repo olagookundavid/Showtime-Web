@@ -74,6 +74,10 @@ func Routes(app *api.Application) *gin.Engine {
 	SetupTOTWRoutes(v1_api, app)
 	SetupStoreRoutes(v1_api, app)
 	SetupReliveRoutes(v1_api, app)
+	SetupContractRoutes(v1_api, app)
+	SetupTransferRoutes(v1_api, app)
+	SetupPlayerPortalRoutes(v1_api, app)
+	SetupNotificationRoutes(v1_api, app)
 	return r
 }
 
@@ -308,6 +312,38 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		totwGroup.DELETE("/:id", app.Handlers.TOTWHandler.Delete)
 	}
 
+	adminContracts := adminRoutes.Group("/contracts")
+	adminContracts.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
+	{
+		adminContracts.GET("", app.Handlers.ContractHandler.GetTeamContracts)
+		adminContracts.GET("/:id", app.Handlers.ContractHandler.GetContractByID)
+		adminContracts.PUT("/:id/override", app.Handlers.ContractHandler.AdminOverrideContract)
+	}
+
+	adminTransfers := adminRoutes.Group("/transfers")
+	adminTransfers.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
+	{
+		adminTransfers.GET("", app.Handlers.TransferHandler.GetTeamTransfers)
+		adminTransfers.GET("/:id", app.Handlers.TransferHandler.GetTransferByID)
+		adminTransfers.PUT("/:id/override", app.Handlers.TransferHandler.AdminOverrideTransfer)
+	}
+
+	adminWindows := adminRoutes.Group("/transfer-windows")
+	adminWindows.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
+	{
+		adminWindows.GET("", app.Handlers.TransferHandler.GetAllWindows)
+		adminWindows.POST("", app.Handlers.TransferHandler.CreateWindow)
+		adminWindows.PUT("/:id", app.Handlers.TransferHandler.UpdateWindow)
+		adminWindows.DELETE("/:id", app.Handlers.TransferHandler.DeleteWindow)
+	}
+
+	adminBudgets := adminRoutes.Group("/team-budgets")
+	adminBudgets.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
+	{
+		adminBudgets.GET("", app.Handlers.TransferHandler.GetAllTeamBudgets)
+		adminBudgets.PUT("/:teamId", app.Handlers.TransferHandler.AdminAdjustBudget)
+		adminBudgets.POST("/seed", app.Handlers.TransferHandler.AdminSeedBudgets)
+	}
 }
 
 func SetupTeamHeadRoutes(r *gin.RouterGroup, app *api.Application) {
@@ -524,3 +560,61 @@ func SetupStoreRoutes(r *gin.RouterGroup, app *api.Application) {
 		}
 	}
 }
+
+func SetupContractRoutes(r *gin.RouterGroup, app *api.Application) {
+	contractGroup := r.Group("/contracts")
+	contractGroup.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.TeamHeadOrAdminMiddleware(app.AuthService, app.TeamManagerService))
+	{
+		contractGroup.POST("", app.Handlers.ContractHandler.IssueContract)
+		contractGroup.GET("/team", app.Handlers.ContractHandler.GetTeamContracts)
+		contractGroup.GET("/free-agents", app.Handlers.ContractHandler.GetFreeAgents)
+		contractGroup.GET("/:id", app.Handlers.ContractHandler.GetContractByID)
+		contractGroup.POST("/:id/renew", app.Handlers.ContractHandler.RenewContract)
+		contractGroup.DELETE("/:id/release", app.Handlers.ContractHandler.ReleasePlayer)
+	}
+}
+
+func SetupTransferRoutes(r *gin.RouterGroup, app *api.Application) {
+	transferGroup := r.Group("/transfers")
+
+	// Public window check endpoint
+	transferGroup.GET("/window", app.Handlers.TransferHandler.GetActiveWindow)
+
+	// Protected transfer operations
+	protectedTransfers := transferGroup.Group("")
+	protectedTransfers.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.TeamHeadOrAdminMiddleware(app.AuthService, app.TeamManagerService))
+	{
+		protectedTransfers.POST("/request", app.Handlers.TransferHandler.CreateTransferRequest)
+		protectedTransfers.POST("/listing", app.Handlers.TransferHandler.CreatePlayerListing)
+		protectedTransfers.POST("/direct-sale", app.Handlers.TransferHandler.CreateDirectSale)
+		protectedTransfers.GET("/market", app.Handlers.TransferHandler.GetMarketListings)
+		protectedTransfers.GET("/team", app.Handlers.TransferHandler.GetTeamTransfers)
+		protectedTransfers.GET("/budget", app.Handlers.TransferHandler.GetTeamBudget)
+		protectedTransfers.GET("/:id", app.Handlers.TransferHandler.GetTransferByID)
+		protectedTransfers.PUT("/:id/respond", app.Handlers.TransferHandler.RespondToTransfer)
+		protectedTransfers.POST("/:id/bid", app.Handlers.TransferHandler.PlaceBid)
+		protectedTransfers.PUT("/:id/bids/:bidId/respond", app.Handlers.TransferHandler.RespondToBid)
+	}
+}
+
+func SetupPlayerPortalRoutes(r *gin.RouterGroup, app *api.Application) {
+	ppGroup := r.Group("/player-portal")
+	ppGroup.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.RolesAllowedMiddleware(app.AuthService, "player"))
+	{
+		ppGroup.GET("/contracts", app.Handlers.ContractHandler.GetMyContracts)
+		ppGroup.GET("/contracts/:id", app.Handlers.ContractHandler.GetContractByID)
+		ppGroup.PUT("/contracts/:id/respond", app.Handlers.ContractHandler.RespondToContract)
+	}
+}
+
+func SetupNotificationRoutes(r *gin.RouterGroup, app *api.Application) {
+	notifGroup := r.Group("/notifications")
+	notifGroup.Use(commonAuth.TokenMiddleware(app.TokenMaker))
+	{
+		notifGroup.GET("", app.Handlers.NotificationHandler.GetUserNotifications)
+		notifGroup.GET("/unread-count", app.Handlers.NotificationHandler.GetUnreadCount)
+		notifGroup.PUT("/:id/read", app.Handlers.NotificationHandler.MarkAsRead)
+		notifGroup.PUT("/read-all", app.Handlers.NotificationHandler.MarkAllAsRead)
+	}
+}
+

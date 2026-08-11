@@ -19,6 +19,8 @@ type PlayerRepository interface {
 	UpdatePlayer(ctx context.Context, player *domain.Player) error
 	DeletePlayer(ctx context.Context, id string) error
 	AssignRandomJerseyNumbers(ctx context.Context, teamID string) (int, error)
+	GetPlayerByUserID(ctx context.Context, userID string) (*domain.Player, error)
+	UpdatePlayerUserID(ctx context.Context, playerID string, userID *string) error
 }
 
 type PostgresPlayerRepository struct {
@@ -246,3 +248,39 @@ func (r *PostgresPlayerRepository) AssignRandomJerseyNumbers(ctx context.Context
 
 	return totalAssigned, nil
 }
+
+func (r *PostgresPlayerRepository) GetPlayerByUserID(ctx context.Context, userID string) (*domain.Player, error) {
+	query := `
+		SELECT
+			p.id, p.name,
+			COALESCE(p.jersey_number, 0), COALESCE(p.position, ''),
+			COALESCE(p.team_id::text, ''),
+			COALESCE(p.bio, ''), COALESCE(p.image, ''), p.email,
+			p.user_id, p.created_at, p.updated_at,
+			COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, '')
+		FROM players p
+		LEFT JOIN teams t ON p.team_id = t.id
+		WHERE p.user_id = $1
+	`
+	var p domain.Player
+	p.Team = &domain.Team{}
+	var uid *string
+	err := r.db.QueryRow(ctx, query, userID).Scan(
+		&p.ID, &p.Name, &p.JerseyNumber, &p.Position, &p.TeamID, &p.Bio, &p.Image, &p.Email,
+		&uid, &p.CreatedAt, &p.UpdatedAt,
+		&p.Team.Name, &p.Team.ShortName, &p.Team.Logo,
+	)
+	if err != nil {
+		return nil, err
+	}
+	p.UserID = uid
+	p.Team.ID = p.TeamID
+	return &p, nil
+}
+
+func (r *PostgresPlayerRepository) UpdatePlayerUserID(ctx context.Context, playerID string, userID *string) error {
+	query := `UPDATE players SET user_id = $1, updated_at = NOW() WHERE id = $2`
+	_, err := r.db.Exec(ctx, query, userID, playerID)
+	return err
+}
+

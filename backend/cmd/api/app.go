@@ -24,9 +24,13 @@ type Application struct {
 	AuditService       services.IAuditService
 	AuthService        services.IAuthService
 	TeamManagerService services.ITeamManagerService
-	TicketService      *services.TicketService
-	StorageService     ports.StorageService
-	ImageGCService     *services.ImageGCService
+	TicketService         *services.TicketService
+	StorageService        ports.StorageService
+	ImageGCService        *services.ImageGCService
+	ContractService       services.IContractService
+	TransferService       services.ITransferService
+	NotificationService   services.INotificationService
+	TransferWindowService services.ITransferWindowService
 
 	// Cron is the background scheduler. CronCancel cancels the context shared by
 	// all scheduled jobs. Both are stopped during shutdown, before the DB pool is

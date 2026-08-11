@@ -136,7 +136,7 @@ func main() {
 	// examplePub := ExampleQueueProducer(log)
 	// defer examplePub.Close()
 
-	appHandlers, auditService, authService, tmService, ticketService, storageService := wireDependencies(pool, tokenMaker, log)
+	appHandlers, auditService, authService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService := wireDependencies(pool, tokenMaker, log)
 
 	// Orphaned-image GC. Off + dry-run by default so it can't delete in-use
 	// images before its candidate logs have been reviewed (see image_gc_service).
@@ -148,17 +148,21 @@ func main() {
 	)
 
 	app := &api.Application{
-		Wg:                 sync.WaitGroup{},
-		Config:             *cfg,
-		Logger:             log,
-		TokenMaker:         tokenMaker,
-		Handlers:           appHandlers,
-		AuditService:       auditService,
-		AuthService:        authService,
-		TeamManagerService: tmService,
-		TicketService:      ticketService,
-		StorageService:     storageService,
-		ImageGCService:     imageGC,
+		Wg:                    sync.WaitGroup{},
+		Config:                *cfg,
+		Logger:                log,
+		TokenMaker:            tokenMaker,
+		Handlers:              appHandlers,
+		AuditService:          auditService,
+		AuthService:           authService,
+		TeamManagerService:    tmService,
+		TicketService:         ticketService,
+		StorageService:        storageService,
+		ImageGCService:        imageGC,
+		ContractService:       contractService,
+		TransferService:       transferService,
+		NotificationService:   notifService,
+		TransferWindowService: windowService,
 	}
 	// Scheduled jobs share a cancellable context so shutdown can abort any
 	// in-flight job before the DB pool is closed (see server.shutdown).
