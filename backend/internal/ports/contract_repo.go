@@ -18,6 +18,7 @@ type IContractRepository interface {
 	GetPendingContractsByPlayerID(ctx context.Context, playerID string) ([]domain.Contract, error)
 	GetContractsByPlayerID(ctx context.Context, playerID string) ([]domain.Contract, error)
 	UpdateContractStatus(ctx context.Context, id string, status string, terminationReason string, acceptedAt, expiredAt, terminatedAt *time.Time) error
+	ReactivateContract(ctx context.Context, id string) error
 	GetFreeAgents(ctx context.Context, search string, page, limit int) ([]domain.Player, int64, error)
 	GetTeamFinishedMatchCount(ctx context.Context, teamID string) (int, error)
 	GetExpiringContracts(ctx context.Context, teamIDs ...string) ([]domain.Contract, error)
@@ -267,6 +268,23 @@ func (r *PostgresContractRepository) UpdateContractStatus(ctx context.Context, i
 		WHERE id = $6
 	`
 	_, err := r.db.Exec(ctx, query, status, terminationReason, acceptedAt, expiredAt, terminatedAt, id)
+	return err
+}
+
+// ReactivateContract undoes a termination that was applied as part of a
+// transfer which then failed. UpdateContractStatus COALESCEs terminated_at, so
+// it cannot clear the timestamp — this explicitly nulls both it and the
+// termination reason to leave the contract exactly as it was before.
+func (r *PostgresContractRepository) ReactivateContract(ctx context.Context, id string) error {
+	query := `
+		UPDATE contracts SET
+			status = 'ACTIVE',
+			termination_reason = NULL,
+			terminated_at = NULL,
+			updated_at = NOW()
+		WHERE id = $1
+	`
+	_, err := r.db.Exec(ctx, query, id)
 	return err
 }
 

@@ -508,28 +508,36 @@ export const TeamHeadTransfers: React.FC = () => {
                                         </p>
                                     </div>
 
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={() => handleRespondToTransfer(t.id, 'accept')}
-                                            className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-bold text-xs rounded-xl transition-colors"
-                                        >
-                                            Accept
-                                        </button>
-                                        {t.type === 'REQUEST' && (
+                                    {/* Once we have sent a request back for review the ball is in
+                                        the requesting club's court, so we only watch from here. */}
+                                    {t.status === 'REVIEW' ? (
+                                        <span className="px-3 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-bold rounded-full self-start sm:self-center">
+                                            AWAITING {t.from_team?.name || 'REQUESTING CLUB'}
+                                        </span>
+                                    ) : (
+                                        <div className="flex gap-2">
                                             <button
-                                                onClick={() => handleRespondToTransfer(t.id, 'review')}
-                                                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl transition-colors"
+                                                onClick={() => handleRespondToTransfer(t.id, 'accept')}
+                                                className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-bold text-xs rounded-xl transition-colors"
                                             >
-                                                Request Review
+                                                Accept
                                             </button>
-                                        )}
-                                        <button
-                                            onClick={() => handleRespondToTransfer(t.id, 'reject')}
-                                            className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-600 font-bold text-xs rounded-xl transition-colors"
-                                        >
-                                            Reject
-                                        </button>
-                                    </div>
+                                            {t.type === 'REQUEST' && (
+                                                <button
+                                                    onClick={() => handleRespondToTransfer(t.id, 'review')}
+                                                    className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl transition-colors"
+                                                >
+                                                    Request Review
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={() => handleRespondToTransfer(t.id, 'reject')}
+                                                className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-600 font-bold text-xs rounded-xl transition-colors"
+                                            >
+                                                Reject
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -556,13 +564,37 @@ export const TeamHeadTransfers: React.FC = () => {
                                         <p className="text-xs text-gray-500 mt-1">
                                             Target Club: <span className="font-bold text-gray-700 dark:text-gray-300">{t.to_team?.name || 'Free Agent'}</span> • Offered Value: <span className="font-bold">{t.asking_price ? `${t.asking_price.toLocaleString()} pts` : 'N/A'}</span>
                                         </p>
+                                        {t.status === 'REVIEW' && t.review_notes && (
+                                            <p className="text-xs mt-2 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-700 dark:text-amber-400">
+                                                <span className="font-bold">Their review:</span> {t.review_notes}
+                                            </p>
+                                        )}
                                     </div>
 
-                                    <div className="flex items-center gap-3">
-                                        <span className="px-3 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-bold rounded-full">
-                                            {t.status}
-                                        </span>
-                                    </div>
+                                    {/* A request sent back for review is ours to settle: the rules
+                                        allow us to accept or reject the revised terms, nothing else. */}
+                                    {t.status === 'REVIEW' && t.type === 'REQUEST' ? (
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => handleRespondToTransfer(t.id, 'accept')}
+                                                className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-bold text-xs rounded-xl transition-colors"
+                                            >
+                                                Accept Terms
+                                            </button>
+                                            <button
+                                                onClick={() => handleRespondToTransfer(t.id, 'reject')}
+                                                className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-600 font-bold text-xs rounded-xl transition-colors"
+                                            >
+                                                Withdraw
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-3">
+                                            <span className="px-3 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-bold rounded-full">
+                                                {t.status}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>

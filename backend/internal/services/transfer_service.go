@@ -55,6 +55,16 @@ func NewTransferService(
 	}
 }
 
+// transferPlayerName is used in notification copy. The player relation is
+// populated by the repository joins but is still a pointer, so fall back to a
+// neutral noun rather than risking a nil dereference inside a message.
+func transferPlayerName(t *domain.Transfer) string {
+	if t.Player != nil && t.Player.Name != "" {
+		return t.Player.Name
+	}
+	return "the player"
+}
+
 func (s *TransferService) ensureWindowOpen(ctx context.Context) error {
 	open, err := s.windowRepo.IsWindowOpen(ctx)
 	if err != nil {
@@ -228,10 +238,41 @@ func (s *TransferService) RespondToTransfer(ctx context.Context, transferID stri
 		return nil, fmt.Errorf("transfer is no longer pending or open for review")
 	}
 
+	playerName := transferPlayerName(t)
+
 	if t.Type == "REQUEST" {
-		// Response must be by the team owning the player being requested (t.ToTeamID)
-		if teamID == "" || t.ToTeamID == nil || *t.ToTeamID != teamID {
+		// A request is negotiated in two stages. While it is PENDING the club
+		// holding the player answers, and may send it back for review. Once it
+		// is in REVIEW the requesting club answers the revised terms and, per
+		// the transfer rules, may only accept or reject — it cannot bounce the
+		// request back a second time.
+		reviewStage := t.Status == "REVIEW"
+
+		if reviewStage {
+			if teamID == "" || t.FromTeamID != teamID {
+				return nil, fmt.Errorf("forbidden: this request is awaiting a response from the requesting club")
+			}
+			if req.Action == "review" {
+				return nil, fmt.Errorf("a transfer request can only be sent back for review once")
+			}
+		} else if teamID == "" || t.ToTeamID == nil || *t.ToTeamID != teamID {
 			return nil, fmt.Errorf("forbidden: transfer request is not addressed to your team")
+		}
+
+		// Whichever club did not just act is the one that needs telling.
+		notifyCounterparty := func(notifType, title, msg string) {
+			refID := transferID
+			if !reviewStage {
+				_ = s.notifService.Send(ctx, t.InitiatedBy, notifType, title, msg, "transfer", &refID)
+				return
+			}
+			if t.ToTeamID == nil {
+				return
+			}
+			managers, _ := s.tmRepo.GetManagersByTeamID(ctx, *t.ToTeamID)
+			for _, m := range managers {
+				_ = s.notifService.Send(ctx, m.UserID, notifType, title, msg, "transfer", &refID)
+			}
 		}
 
 		if req.Action == "accept" {
@@ -239,12 +280,14 @@ func (s *TransferService) RespondToTransfer(ctx context.Context, transferID stri
 				return nil, err
 			}
 
+			// Claim the transfer first: the guarded update is what stops two
+			// managers completing the same request concurrently.
 			now := time.Now()
 			if err := s.repo.UpdateTransferStatus(ctx, transferID, "COMPLETED", req.Notes, "", &now); err != nil {
 				return nil, fmt.Errorf("transfer status update failed: %w", err)
 			}
 
-			// Complete the transfer: buyer is FromTeamID, seller is ToTeamID
+			// The requesting club buys; the club holding the player sells.
 			buyerTeamID := t.FromTeamID
 			sellerTeamID := ""
 			if t.ToTeamID != nil {
@@ -257,31 +300,28 @@ func (s *TransferService) RespondToTransfer(ctx context.Context, transferID stri
 			}
 
 			if err := s.executeTransferCompletion(ctx, t, buyerTeamID, sellerTeamID, price); err != nil {
+				// The claim was a lock, not a commitment. Hand the request back
+				// so it can be retried once the cause (usually an unaffordable
+				// fee) has been dealt with.
+				_ = s.repo.RestoreTransferStatus(ctx, transferID, t.Status)
 				return nil, err
 			}
 
-			// Notify requester manager
-			msg := fmt.Sprintf("Transfer request for player %s was accepted!", t.Player.Name)
-			refID := transferID
-			_ = s.notifService.Send(ctx, t.InitiatedBy, "TRANSFER_ACCEPTED", "Transfer Approved", msg, "transfer", &refID)
+			notifyCounterparty("TRANSFER_ACCEPTED", "Transfer Approved", fmt.Sprintf("Transfer request for player %s was accepted!", playerName))
 
 		} else if req.Action == "review" {
 			if err := s.repo.UpdateTransferStatus(ctx, transferID, "REVIEW", "", req.Notes, nil); err != nil {
 				return nil, err
 			}
 
-			msg := fmt.Sprintf("Transfer request for player %s requires review: %s", t.Player.Name, req.Notes)
-			refID := transferID
-			_ = s.notifService.Send(ctx, t.InitiatedBy, "TRANSFER_REVIEW", "Transfer Under Review", msg, "transfer", &refID)
+			notifyCounterparty("TRANSFER_REVIEW", "Transfer Under Review", fmt.Sprintf("Transfer request for player %s requires review: %s", playerName, req.Notes))
 
 		} else if req.Action == "reject" {
 			if err := s.repo.UpdateTransferStatus(ctx, transferID, "REJECTED", req.Notes, "", nil); err != nil {
 				return nil, err
 			}
 
-			msg := fmt.Sprintf("Transfer request for player %s was rejected.", t.Player.Name)
-			refID := transferID
-			_ = s.notifService.Send(ctx, t.InitiatedBy, "TRANSFER_REJECTED", "Transfer Rejected", msg, "transfer", &refID)
+			notifyCounterparty("TRANSFER_REJECTED", "Transfer Rejected", fmt.Sprintf("Transfer request for player %s was rejected.", playerName))
 		} else {
 			return nil, fmt.Errorf("invalid action for transfer request: %s", req.Action)
 		}
@@ -296,12 +336,15 @@ func (s *TransferService) RespondToTransfer(ctx context.Context, transferID stri
 				return nil, err
 			}
 
+			// Claim the transfer first so two managers cannot complete the same
+			// sale concurrently.
 			now := time.Now()
 			if err := s.repo.UpdateTransferStatus(ctx, transferID, "COMPLETED", req.Notes, "", &now); err != nil {
 				return nil, fmt.Errorf("transfer status update failed: %w", err)
 			}
 
-			// Mark buyer approved
+			// The sale is only struck once both clubs have approved; the seller
+			// approved on creation, this is the buyer signing off.
 			_ = s.repo.SetTeamApproval(ctx, transferID, t.FromTeamApproved, true)
 
 			buyerTeamID := ""
@@ -316,10 +359,14 @@ func (s *TransferService) RespondToTransfer(ctx context.Context, transferID stri
 			}
 
 			if err := s.executeTransferCompletion(ctx, t, buyerTeamID, sellerTeamID, price); err != nil {
+				// Undo the claim and the buyer's approval so the proposal can be
+				// answered again once the cause has been dealt with.
+				_ = s.repo.RestoreTransferStatus(ctx, transferID, t.Status)
+				_ = s.repo.SetTeamApproval(ctx, transferID, t.FromTeamApproved, false)
 				return nil, err
 			}
 
-			msg := fmt.Sprintf("Direct sale of player %s completed successfully.", t.Player.Name)
+			msg := fmt.Sprintf("Direct sale of player %s completed successfully.", playerName)
 			refID := transferID
 			_ = s.notifService.Send(ctx, t.InitiatedBy, "TRANSFER_COMPLETED", "Direct Sale Completed", msg, "transfer", &refID)
 
@@ -328,12 +375,16 @@ func (s *TransferService) RespondToTransfer(ctx context.Context, transferID stri
 				return nil, err
 			}
 
-			msg := fmt.Sprintf("Direct sale proposal for player %s was rejected.", t.Player.Name)
+			msg := fmt.Sprintf("Direct sale proposal for player %s was rejected.", playerName)
 			refID := transferID
 			_ = s.notifService.Send(ctx, t.InitiatedBy, "TRANSFER_REJECTED", "Direct Sale Rejected", msg, "transfer", &refID)
 		} else {
 			return nil, fmt.Errorf("invalid action for direct sale: '%s' is not supported (only accept or reject are allowed)", req.Action)
 		}
+	} else {
+		// LISTING is settled by accepting one of its bids, not through here.
+		// Falling through silently would report success for a no-op.
+		return nil, fmt.Errorf("a %s transfer cannot be answered here; respond to one of its bids instead", t.Type)
 	}
 
 	return s.GetTransferByID(ctx, transferID)
@@ -386,7 +437,7 @@ func (s *TransferService) PlaceBid(ctx context.Context, transferID string, manag
 	// Notify seller manager
 	managers, _ := s.tmRepo.GetManagersByTeamID(ctx, t.FromTeamID)
 	for _, m := range managers {
-		msg := fmt.Sprintf("New bid of %d placed for player %s.", req.BidValue, t.Player.Name)
+		msg := fmt.Sprintf("New bid of %d placed for player %s.", req.BidValue, transferPlayerName(t))
 		refID := transferID
 		_ = s.notifService.Send(ctx, m.UserID, "BID_RECEIVED", "New Bid Placed", msg, "transfer", &refID)
 	}
@@ -427,40 +478,49 @@ func (s *TransferService) RespondToBid(ctx context.Context, transferID string, b
 		return fmt.Errorf("bid is no longer pending")
 	}
 
+	playerName := transferPlayerName(t)
+
 	if action == "accept" {
 		if err := s.ensureWindowOpen(ctx); err != nil {
 			return err
 		}
 
-		// Accept this bid atomically
+		// Claim the winning bid and the listing before doing any work. Both
+		// updates are guarded, so two managers racing to accept — whether the
+		// same bid or competing bids on one listing — cannot both get through.
 		if err := s.repo.UpdateBidStatus(ctx, bidID, "ACCEPTED"); err != nil {
 			return fmt.Errorf("failed to accept bid: %w", err)
 		}
 
 		now := time.Now()
 		if err := s.repo.UpdateTransferStatus(ctx, transferID, "COMPLETED", "", "", &now); err != nil {
+			_ = s.repo.RestoreBidStatus(ctx, bidID, "PENDING")
 			return fmt.Errorf("failed to complete transfer listing: %w", err)
 		}
 
-		// Reject all other bids for this listing
-		bids, _ := s.repo.GetBidsByTransferID(ctx, transferID)
-		for _, b := range bids {
-			if b.ID != bidID {
-				_ = s.repo.UpdateBidStatus(ctx, b.ID, "REJECTED")
-				_ = s.notifService.Send(ctx, b.BidderID, "BID_REJECTED", "Bid Rejected", fmt.Sprintf("Your bid for %s was rejected.", t.Player.Name), "transfer", &transferID)
-			}
-		}
-
-		// Complete transfer
-		buyerTeamID := bid.BidderTeamID
-		sellerTeamID := t.FromTeamID
-
-		if err := s.executeTransferCompletion(ctx, t, buyerTeamID, sellerTeamID, bid.BidValue); err != nil {
+		if err := s.executeTransferCompletion(ctx, t, bid.BidderTeamID, t.FromTeamID, bid.BidValue); err != nil {
+			// The losing bidders have not been told anything yet, so the
+			// listing can simply go back on the market untouched.
+			_ = s.repo.RestoreTransferStatus(ctx, transferID, t.Status)
+			_ = s.repo.RestoreBidStatus(ctx, bidID, "PENDING")
 			return err
 		}
 
+		// Only now that the move has actually gone through, turn down the rest.
+		bids, _ := s.repo.GetBidsByTransferID(ctx, transferID)
+		for _, b := range bids {
+			if b.ID == bidID {
+				continue
+			}
+			if err := s.repo.UpdateBidStatus(ctx, b.ID, "REJECTED"); err != nil {
+				// Already resolved by an earlier pass — don't notify twice.
+				continue
+			}
+			_ = s.notifService.Send(ctx, b.BidderID, "BID_REJECTED", "Bid Rejected", fmt.Sprintf("Your bid for %s was rejected.", playerName), "transfer", &transferID)
+		}
+
 		// Notify winning bidder
-		msg := fmt.Sprintf("Your bid of %d for player %s was accepted! Transfer complete.", bid.BidValue, t.Player.Name)
+		msg := fmt.Sprintf("Your bid of %d for player %s was accepted! Transfer complete.", bid.BidValue, playerName)
 		_ = s.notifService.Send(ctx, bid.BidderID, "BID_ACCEPTED", "Bid Accepted", msg, "transfer", &transferID)
 
 		return nil
@@ -468,49 +528,88 @@ func (s *TransferService) RespondToBid(ctx context.Context, transferID string, b
 		if err := s.repo.UpdateBidStatus(ctx, bidID, "REJECTED"); err != nil {
 			return err
 		}
-		_ = s.notifService.Send(ctx, bid.BidderID, "BID_REJECTED", "Bid Rejected", fmt.Sprintf("Your bid for %s was rejected.", t.Player.Name), "transfer", &transferID)
+		_ = s.notifService.Send(ctx, bid.BidderID, "BID_REJECTED", "Bid Rejected", fmt.Sprintf("Your bid for %s was rejected.", playerName), "transfer", &transferID)
 		return nil
 	}
 
 	return fmt.Errorf("invalid action: accept or reject required")
 }
 
+// executeTransferCompletion moves the money, the contract and the squad
+// membership for a transfer whose status has already been claimed by the caller.
+//
+// The three repositories involved hold separate connections, so there is no
+// surrounding SQL transaction to lean on. Instead every mutation is recorded and
+// undone in reverse order if a later one fails, leaving the caller free to roll
+// the transfer status back. The buyer's debit runs first because insufficient
+// funds is the only failure expected during normal play, and failing there
+// leaves nothing to unwind.
 func (s *TransferService) executeTransferCompletion(ctx context.Context, t *domain.Transfer, buyerTeamID string, sellerTeamID string, price int64) error {
-	// Atomic buyer budget check & debit
-	if buyerTeamID != "" && price > 0 {
-		if err := s.repo.UpdateTeamBudgetDelta(ctx, buyerTeamID, price); err != nil {
-			return fmt.Errorf("failed to process buyer budget deduction: %w", err)
-		}
-	}
-
-	// Atomic seller budget credit
-	if sellerTeamID != "" && price > 0 {
-		if err := s.repo.UpdateTeamBudgetDelta(ctx, sellerTeamID, -price); err != nil {
-			// Non-fatal if seller budget record is missing, but log error if any
-			_ = err
-		}
-	}
-
-	// Terminate active contract with seller
-	activeContract, err := s.contractRepo.GetActiveContractByPlayerID(ctx, t.PlayerID)
-	now := time.Now()
-	if err == nil && activeContract != nil {
-		if err := s.contractRepo.UpdateContractStatus(ctx, activeContract.ID, "TERMINATED", "TRANSFERRED", nil, nil, &now); err != nil {
-			return fmt.Errorf("failed to terminate previous contract: %w", err)
-		}
-	}
-
-	// Update player's team_id to buyerTeamID
+	// Pre-flight read: resolve the player before mutating anything, so a missing
+	// player aborts before any money moves.
 	player, pErr := s.playerRepo.GetPlayerByID(ctx, t.PlayerID)
 	if pErr != nil || player == nil {
 		return fmt.Errorf("failed to fetch player for transfer: %w", pErr)
 	}
-	player.TeamID = buyerTeamID
-	if err := s.playerRepo.UpdatePlayer(ctx, player); err != nil {
-		return fmt.Errorf("failed to update player team assignment: %w", err)
+	previousTeamID := player.TeamID
+
+	// Atomic buyer budget check & debit — this doubles as the affordability gate.
+	buyerDebited := false
+	if buyerTeamID != "" && price > 0 {
+		if err := s.repo.UpdateTeamBudgetDelta(ctx, buyerTeamID, price); err != nil {
+			return fmt.Errorf("failed to process buyer budget deduction: %w", err)
+		}
+		buyerDebited = true
 	}
 
-	// Create a new PENDING contract for buyer team (13 games, player value = price)
+	// Atomic seller budget credit. A missing budget row is tolerated — the
+	// selling club may never have been seeded — and must not block the transfer.
+	sellerCredited := false
+	if sellerTeamID != "" && price > 0 {
+		if err := s.repo.UpdateTeamBudgetDelta(ctx, sellerTeamID, -price); err == nil {
+			sellerCredited = true
+		}
+	}
+
+	terminatedContractID := ""
+	playerMoved := false
+
+	unwind := func() {
+		if playerMoved {
+			player.TeamID = previousTeamID
+			_ = s.playerRepo.UpdatePlayer(ctx, player)
+		}
+		if terminatedContractID != "" {
+			_ = s.contractRepo.ReactivateContract(ctx, terminatedContractID)
+		}
+		if sellerCredited {
+			_ = s.repo.UpdateTeamBudgetDelta(ctx, sellerTeamID, price)
+		}
+		if buyerDebited {
+			_ = s.repo.UpdateTeamBudgetDelta(ctx, buyerTeamID, -price)
+		}
+	}
+
+	// Terminate the player's contract with the selling club.
+	activeContract, err := s.contractRepo.GetActiveContractByPlayerID(ctx, t.PlayerID)
+	now := time.Now()
+	if err == nil && activeContract != nil {
+		if err := s.contractRepo.UpdateContractStatus(ctx, activeContract.ID, "TERMINATED", "TRANSFERRED", nil, nil, &now); err != nil {
+			unwind()
+			return fmt.Errorf("failed to terminate previous contract: %w", err)
+		}
+		terminatedContractID = activeContract.ID
+	}
+
+	// Move the player to the buying club.
+	player.TeamID = buyerTeamID
+	if err := s.playerRepo.UpdatePlayer(ctx, player); err != nil {
+		unwind()
+		return fmt.Errorf("failed to update player team assignment: %w", err)
+	}
+	playerMoved = true
+
+	// Offer the player a fresh contract at the buying club (13 games, value = fee).
 	matchesAtStart, _ := s.contractRepo.GetTeamFinishedMatchCount(ctx, buyerTeamID)
 	newContract := &domain.Contract{
 		PlayerID:       t.PlayerID,
@@ -523,13 +622,13 @@ func (s *TransferService) executeTransferCompletion(ctx context.Context, t *doma
 		Notes:          "Transfer Contract Offer",
 	}
 	if err := s.contractRepo.CreateContract(ctx, newContract); err != nil {
+		unwind()
 		return fmt.Errorf("failed to create contract for transferred player: %w", err)
 	}
 
 	if player.UserID != nil && *player.UserID != "" {
-		msg := fmt.Sprintf("Your transfer to a new team is complete! Please review and accept your new contract.")
 		refID := newContract.ID
-		_ = s.notifService.Send(ctx, *player.UserID, "CONTRACT_OFFER", "New Team Contract", msg, "contract", &refID)
+		_ = s.notifService.Send(ctx, *player.UserID, "CONTRACT_OFFER", "New Team Contract", "Your transfer to a new team is complete! Please review and accept your new contract.", "contract", &refID)
 	}
 
 	return nil

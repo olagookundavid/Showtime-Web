@@ -19,12 +19,14 @@ type ITransferRepository interface {
 	GetTransfersByPlayerID(ctx context.Context, playerID string, page, limit int) ([]domain.Transfer, int64, error)
 	UpdateTransferStatus(ctx context.Context, id string, status string, notes string, reviewNotes string, completedAt *time.Time) error
 	AdminUpdateTransferStatus(ctx context.Context, id string, status string, notes string, reviewNotes string, completedAt *time.Time) error
+	RestoreTransferStatus(ctx context.Context, id string, status string) error
 	SetTeamApproval(ctx context.Context, id string, fromApproved, toApproved bool) error
 	GetActiveListings(ctx context.Context, search string, page, limit int) ([]domain.Transfer, int64, error)
 	CreateBid(ctx context.Context, b *domain.TransferBid) error
 	GetBidsByTransferID(ctx context.Context, transferID string) ([]domain.TransferBid, error)
 	GetBidByID(ctx context.Context, bidID string) (*domain.TransferBid, error)
 	UpdateBidStatus(ctx context.Context, bidID string, status string) error
+	RestoreBidStatus(ctx context.Context, bidID string, status string) error
 	GetTeamBudget(ctx context.Context, teamID string) (*domain.TeamBudget, error)
 	UpdateTeamBudget(ctx context.Context, teamID string, newSpent int64) error
 	UpdateTeamBudgetDelta(ctx context.Context, teamID string, deltaSpent int64) error
@@ -224,6 +226,23 @@ func (r *PostgresTransferRepository) AdminUpdateTransferStatus(ctx context.Conte
 	return err
 }
 
+// RestoreTransferStatus puts a transfer back to an earlier status after a
+// completion attempt failed part-way. It deliberately skips the PENDING/REVIEW
+// guard on UpdateTransferStatus — the row has already been claimed by this
+// caller — and clears completed_at so a rolled-back transfer never keeps the
+// timestamp stamped on it by the claim.
+func (r *PostgresTransferRepository) RestoreTransferStatus(ctx context.Context, id string, status string) error {
+	query := `
+		UPDATE transfers SET
+			status = $1,
+			completed_at = NULL,
+			updated_at = NOW()
+		WHERE id = $2
+	`
+	_, err := r.db.Exec(ctx, query, status, id)
+	return err
+}
+
 func (r *PostgresTransferRepository) SetTeamApproval(ctx context.Context, id string, fromApproved, toApproved bool) error {
 	query := `
 		UPDATE transfers SET
@@ -380,6 +399,15 @@ func (r *PostgresTransferRepository) UpdateBidStatus(ctx context.Context, bidID 
 		return fmt.Errorf("bid is no longer pending")
 	}
 	return nil
+}
+
+// RestoreBidStatus reverts a bid that was claimed by an accept/reject which
+// then failed. Unlike UpdateBidStatus it is not gated on the bid still being
+// PENDING, since the point is to undo a claim that already moved it off PENDING.
+func (r *PostgresTransferRepository) RestoreBidStatus(ctx context.Context, bidID string, status string) error {
+	query := `UPDATE transfer_bids SET status = $1 WHERE id = $2`
+	_, err := r.db.Exec(ctx, query, status, bidID)
+	return err
 }
 
 func (r *PostgresTransferRepository) GetTeamBudget(ctx context.Context, teamID string) (*domain.TeamBudget, error) {
