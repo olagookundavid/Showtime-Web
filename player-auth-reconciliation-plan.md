@@ -104,3 +104,11 @@ All requirements from the specification and architectural design have been fully
 - **Scheduled Team Sheet Clean-Up (`RemovePlayerFromScheduledTeamSheets`)**: When a contract expires or is terminated, the player is automatically purged from all upcoming `SCHEDULED` match team sheets.
 - **Dropdown Scoping**: All player selection dropdowns filter by `p.team_id = team_id`, ensuring free agents or players without active contracts never appear in match team sheet menus.
 
+#### 5. Code Audit Security & Reliability Fixes (Verified & Fixed)
+- **Cross-Team Authorization Enforced**: Added strict team ownership checks on `RespondToTransfer`, `RenewContract`, and `ReleasePlayer`, preventing unauthorized managers from acting on rival teams' assets.
+- **Atomic Budget Delta Calculations (`UpdateTeamBudgetDelta`)**: Replaced absolute overwrite queries with atomic SQL `spent = spent + $1` debits and `spent = GREATEST(0, spent - $1)` credits, preventing race conditions and double-spending.
+- **Contract Renewal Acceptance Fix**: Updated `RespondToContract` so accepting a same-team contract renewal automatically terminates the previous active contract (`status = 'TERMINATED'`, `reason = 'RENEWED'`), allowing extensions to complete seamlessly.
+- **Double-Completion & Status Guards**: Added status validation (`PENDING`/`REVIEW`) on transfer and bid responses to prevent duplicate executions.
+- **Complete Transfer UI Flow**: Implemented interactive modals for Direct Sales and Transfer Requests in `TeamHeadTransfers.tsx`, rendered the *Outgoing Proposals* tab, and fixed incoming/outgoing transfer direction filters.
+
+
