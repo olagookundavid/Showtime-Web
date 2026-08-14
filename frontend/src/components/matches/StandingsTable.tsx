@@ -102,12 +102,12 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCom
         <>
             <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400 mb-2 px-1 font-semibold">
                 <div className="flex items-center gap-1.5">
-                    <div className="w-1 h-3.5 bg-green-500 rounded-full" />
-                    <span>Wildcard spot</span>
+                    <div className="w-1.5 h-3.5 bg-emerald-500 dark:bg-emerald-400 rounded-full shadow-sm" />
+                    <span className="text-gray-700 dark:text-gray-300 font-bold">Wildcard spot</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                     <img src="/images/branding/showtime-bowl-trophy.png" alt="Trophy" className="w-4 h-4 object-contain" />
-                    <span>Champion</span>
+                    <span className="text-gray-700 dark:text-gray-300 font-bold">Champion</span>
                 </div>
             </div>
             <div className="overflow-hidden rounded-lg md:rounded-xl shadow-lg bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700">
@@ -123,6 +123,13 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCom
                             const isGold = isCompleted && index === 0;
                             const isHighlighted = !!highlightTeamId && standing.team?.id === highlightTeamId;
                             const isWildcard = index >= 1 && index < 7;
+                            const borderLeftClass = isGold
+                                ? 'border-l-4 border-l-amber-500'
+                                : isHighlighted
+                                ? 'border-l-4 border-l-sffl-red'
+                                : isWildcard
+                                ? 'border-l-4 border-l-emerald-500 dark:border-l-emerald-400'
+                                : 'border-l-4 border-l-transparent';
                             const stickyBg = isGold
                                 ? 'bg-amber-100/90 dark:bg-amber-950/90 group-hover:bg-amber-200/90 dark:group-hover:bg-amber-900/90'
                                 : isHighlighted
@@ -137,15 +144,13 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCom
                                     className={`
                                         group border-b border-gray-100 dark:border-gray-700 transition-all duration-300
                                         ${isGold
-                                            ? 'bg-gradient-to-r from-amber-300/40 via-yellow-400/50 to-amber-300/40 dark:from-amber-600/40 dark:via-yellow-500/50 dark:to-amber-600/40 border-l-4 border-l-amber-500 shadow-[0_0_18px_rgba(245,158,11,0.45)] ring-2 ring-yellow-400/50 font-bold text-amber-950 dark:text-amber-100 relative z-30'
+                                            ? 'bg-gradient-to-r from-amber-300/40 via-yellow-400/50 to-amber-300/40 dark:from-amber-600/40 dark:via-yellow-500/50 dark:to-amber-600/40 shadow-[0_0_18px_rgba(245,158,11,0.45)] ring-2 ring-yellow-400/50 font-bold text-amber-950 dark:text-amber-100 relative z-30'
                                             : isHighlighted
-                                            ? 'bg-sffl-red/10 hover:bg-sffl-red/20 dark:bg-sffl-red/20 dark:hover:bg-sffl-red/30 border-l-4 border-l-sffl-red ring-2 ring-sffl-red/40 ring-inset'
-                                            : isWildcard
-                                            ? 'border-l-4 border-l-green-500 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                            ? 'bg-sffl-red/10 hover:bg-sffl-red/20 dark:bg-sffl-red/20 dark:hover:bg-sffl-red/30 ring-2 ring-sffl-red/40 ring-inset'
                                             : 'hover:bg-gray-50 dark:hover:bg-gray-800'}
                                     `}
                                 >
-                                    <td className={`sticky left-0 ${stickyZ} ${stickyBg} px-2.5 py-3 md:px-4 md:py-4 text-center font-bold text-gray-600 dark:text-gray-300 w-10 md:w-14`}>
+                                    <td className={`sticky left-0 ${stickyZ} ${stickyBg} ${borderLeftClass} px-2.5 py-3 md:px-4 md:py-4 text-center font-bold text-gray-600 dark:text-gray-300 w-10 md:w-14`}>
                                         {standing.position}
                                     </td>
                                     <td className={`sticky left-10 md:left-14 ${stickyZ} ${stickyBg} px-2.5 py-3 md:px-4 md:py-4 font-semibold text-sffl-navy dark:text-white whitespace-nowrap text-left w-[130px] md:w-[200px] border-r border-gray-100 dark:border-gray-800`}>

@@ -21,6 +21,10 @@ export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({ standi
                     <span>Team Standings</span>
                 </div>
                 <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 text-xs text-white/90">
+                        <div className="w-1.5 h-3.5 bg-emerald-400 rounded-full shadow-sm" />
+                        <span className="text-[11px] font-bold">Wildcard spot</span>
+                    </div>
                     {viewAllLink && (
                         <Link to={viewAllLink} className="text-[10px] md:text-xs bg-white/10 hover:bg-white/20 text-white px-2 py-1 rounded transition-colors uppercase tracking-tight">
                             View All →
@@ -43,6 +47,11 @@ export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({ standi
                         {standings.map((standing, index) => {
                             const isGold = isCompleted && index === 0;
                             const isWildcard = index >= 1 && index < 7;
+                            const borderLeftClass = isGold
+                                ? 'border-l-4 border-l-amber-500'
+                                : isWildcard
+                                ? 'border-l-4 border-l-emerald-500 dark:border-l-emerald-400'
+                                : 'border-l-4 border-l-transparent';
                             const logoImg = (
                                 <img
                                     src={standing.team?.logo || '/images/default_football.png'}
@@ -64,13 +73,11 @@ export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({ standi
                                     className={`
                                         group border-b border-gray-100 dark:border-gray-700 transition-all duration-300
                                         ${isGold
-                                            ? 'bg-gradient-to-r from-amber-300/40 via-yellow-400/50 to-amber-300/40 dark:from-amber-600/40 dark:via-yellow-500/50 dark:to-amber-600/40 border-l-4 border-l-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.45)] ring-2 ring-yellow-400/50 font-bold text-amber-950 dark:text-amber-100 relative z-30'
-                                            : isWildcard
-                                            ? 'border-l-4 border-l-green-500 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                            ? 'bg-gradient-to-r from-amber-300/40 via-yellow-400/50 to-amber-300/40 dark:from-amber-600/40 dark:via-yellow-500/50 dark:to-amber-600/40 shadow-[0_0_15px_rgba(245,158,11,0.45)] ring-2 ring-yellow-400/50 font-bold text-amber-950 dark:text-amber-100 relative z-30'
                                             : 'hover:bg-gray-50 dark:hover:bg-gray-800'}
                                     `}
                                 >
-                                    <td className={`sticky left-0 ${stickyZ} ${stickyBg} px-1 py-2 md:px-4 md:py-4 text-center w-10 md:w-14`}>
+                                    <td className={`sticky left-0 ${stickyZ} ${stickyBg} ${borderLeftClass} px-1 py-2 md:px-4 md:py-4 text-center w-10 md:w-14`}>
                                         {standing.team?.id ? (
                                             <Link to={`/teams/${standing.team.id}`} className="block hover:opacity-80 transition-opacity">
                                                 {logoImg}
