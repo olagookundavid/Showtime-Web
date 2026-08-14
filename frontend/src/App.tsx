@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { FontProvider } from './contexts/FontContext';
 import { CartProvider } from './contexts/CartContext';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { Layout } from './components/layout/Layout';
@@ -79,6 +80,7 @@ const AdminOrderDetail = lazy(() => import('./pages/admin/AdminOrderDetail').the
 const AdminContracts = lazy(() => import('./pages/admin/AdminContracts'));
 const AdminTransfers = lazy(() => import('./pages/admin/AdminTransfers'));
 const AdminTransferWindows = lazy(() => import('./pages/admin/AdminTransferWindows'));
+const AdminSettings = lazy(() => import('./pages/admin/AdminSettings').then(m => ({ default: m.AdminSettings })));
 
 // Lazy load Team Head Pages
 const TeamHeadLayout = lazy(() => import('./pages/team-head/TeamHeadLayout'));
@@ -107,7 +109,8 @@ import './index.css';
 
 function App() {
   return (
-    <ThemeProvider>
+    <FontProvider>
+      <ThemeProvider>
       <FloatingThemeToggle />
       <AuthProvider>
         <CartProvider>
@@ -203,6 +206,7 @@ function App() {
               <Route path="contracts" element={<AdminContracts />} />
               <Route path="transfers" element={<AdminTransfers />} />
               <Route path="transfer-windows" element={<AdminTransferWindows />} />
+              <Route path="settings" element={<AdminSettings />} />
             </Route>
 
             {/* Team Head Routes */}
@@ -247,7 +251,8 @@ function App() {
         </BrowserRouter>
         </CartProvider>
       </AuthProvider>
-    </ThemeProvider>
+      </ThemeProvider>
+    </FontProvider>
   );
 }
 

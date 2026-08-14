@@ -306,6 +306,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	heroSlideRepo := ports.NewHeroSlideRepository(pool)
 	seasonRepo := ports.NewSeasonRepository(pool)
 	playRepo := ports.NewPlayRepository(pool)
+	appSettingRepo := ports.NewAppSettingRepository(pool)
 
 	// Transfer & Contract System Repositories
 	contractRepo := ports.NewContractRepository(pool)
@@ -345,6 +346,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	heroSlideService := services.NewHeroSlideService(heroSlideRepo, newsRepo)
 	seasonService := services.NewSeasonService(seasonRepo)
 	playService := services.NewPlayService(playRepo, matchRepo, statsRepo)
+	appSettingService := services.NewAppSettingService(appSettingRepo)
 
 	// Transport / Handlers
 	authHandler := transport.NewAuthHandler(authService)
@@ -368,6 +370,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	contractHandler := transport.NewContractHandler(contractService)
 	transferHandler := transport.NewTransferHandler(transferService, windowService, playerRepo)
 	notifHandler := transport.NewNotificationHandler(notifService)
+	appSettingHandler := transport.NewAppSettingHandler(appSettingService)
 
 	reliveService := services.NewReliveService()
 	reliveHandler := transport.NewReliveHandler(reliveService)
@@ -377,7 +380,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 		ticketHandler, tmHandler, analyticsHandler, tmAllocHandler, statsHandler,
 		inventoryHandler, uploadHandler, totwHandler, storeHandler, importHandler,
 		heroSlideHandler, seasonHandler, playHandler, reliveHandler,
-		contractHandler, transferHandler, notifHandler,
+		contractHandler, transferHandler, notifHandler, appSettingHandler,
 	)
 	return h, auditService, authService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService
 }

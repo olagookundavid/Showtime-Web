@@ -78,7 +78,15 @@ func Routes(app *api.Application) *gin.Engine {
 	SetupTransferRoutes(v1_api, app)
 	SetupPlayerPortalRoutes(v1_api, app)
 	SetupNotificationRoutes(v1_api, app)
+	SetupAppSettingRoutes(v1_api, app)
 	return r
+}
+
+// SetupAppSettingRoutes exposes the site-wide display settings. The read is
+// public — every visitor needs the app font before (and without) signing in.
+// Writes live under /admin.
+func SetupAppSettingRoutes(r *gin.RouterGroup, app *api.Application) {
+	r.GET("/app-settings", app.Handlers.AppSettingHandler.GetSettings)
 }
 
 func SetupUploadRoutes(r *gin.RouterGroup, app *api.Application) {
@@ -335,6 +343,12 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		adminWindows.POST("", app.Handlers.TransferHandler.CreateWindow)
 		adminWindows.PUT("/:id", app.Handlers.TransferHandler.UpdateWindow)
 		adminWindows.DELETE("/:id", app.Handlers.TransferHandler.DeleteWindow)
+	}
+
+	adminSettings := adminRoutes.Group("/app-settings")
+	adminSettings.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
+	{
+		adminSettings.PUT("/font", app.Handlers.AppSettingHandler.UpdateAppFont)
 	}
 
 	adminBudgets := adminRoutes.Group("/team-budgets")
