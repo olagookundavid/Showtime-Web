@@ -24,6 +24,10 @@ type Handlers struct {
 	SeasonHandler               transport.ISeasonHandler
 	PlayHandler                 transport.IPlayHandler
 	ReliveHandler               transport.IReliveHandler
+	ContractHandler             transport.IContractHandler
+	TransferHandler             transport.ITransferHandler
+	NotificationHandler         transport.INotificationHandler
+	AppSettingHandler           transport.IAppSettingHandler
 }
 
 func NewHandlers(
@@ -46,6 +50,10 @@ func NewHandlers(
 	seasonHandler transport.ISeasonHandler,
 	playHandler transport.IPlayHandler,
 	reliveHandler transport.IReliveHandler,
+	contractHandler transport.IContractHandler,
+	transferHandler transport.ITransferHandler,
+	notificationHandler transport.INotificationHandler,
+	appSettingHandler transport.IAppSettingHandler,
 ) Handlers {
 	return Handlers{
 		AuthHandler:                 authHandler,
@@ -67,6 +75,11 @@ func NewHandlers(
 		SeasonHandler:               seasonHandler,
 		PlayHandler:                 playHandler,
 		ReliveHandler:               reliveHandler,
+		ContractHandler:             contractHandler,
+		TransferHandler:             transferHandler,
+		NotificationHandler:         notificationHandler,
+		AppSettingHandler:           appSettingHandler,
 	}
 }
+
 

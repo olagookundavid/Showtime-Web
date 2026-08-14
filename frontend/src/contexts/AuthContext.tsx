@@ -6,14 +6,14 @@ interface User {
     name: string;
     email: string;
     phone?: string;
-    role: 'admin' | 'app_admin' | 'user' | 'team_head' | 'ticketer' | 'referee' | 'stats' | 'seller';
+    role: 'admin' | 'app_admin' | 'user' | 'player' | 'team_head' | 'ticketer' | 'referee' | 'stats' | 'seller';
 }
 
 interface AuthContextType {
     user: User | null;
     isAuthenticated: boolean;
     isLoading: boolean;
-    login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+    login: (email: string, password: string) => Promise<{ success: boolean; error?: string; code?: string; mustReset?: boolean }>;
     signup: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
     logout: () => Promise<void>;
     forgotPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
@@ -25,7 +25,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 function mapAuthUser(authUser: AuthUser): User {
     return {
         id: authUser.id,
-        name: authUser.full_name,
+        name: authUser.full_name || 'User',
         email: authUser.email,
         phone: authUser.phone,
         role: authUser.user_type as User['role'],
@@ -52,7 +52,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         checkSession();
     }, []);
 
-    const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; code?: string; mustReset?: boolean }> => {
         try {
             const authUser = await loginUser(email, password);
             if (authUser.access_token) {
@@ -61,8 +61,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setUser(mapAuthUser(authUser));
             return { success: true };
         } catch (err: any) {
+            const code = err.response?.data?.code;
             const message = err.response?.data?.message || err.response?.data?.error || 'Login failed';
-            return { success: false, error: message };
+            if (code === 'MUST_RESET_PASSWORD') {
+                return { success: false, error: message, code, mustReset: true };
+            }
+            return { success: false, error: message, code };
         }
     };
 

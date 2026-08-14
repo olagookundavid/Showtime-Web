@@ -1,0 +1,216 @@
+import React, { useState, useEffect } from 'react';
+import { adminTransfersApi, type TransferWindowData } from '../../services/api';
+import toast from 'react-hot-toast';
+
+export const AdminTransferWindows: React.FC = () => {
+    const [windows, setWindows] = useState<TransferWindowData[]>([]);
+    const [loading, setLoading] = useState<boolean>(true);
+    const [showModal, setShowModal] = useState<boolean>(false);
+
+    // Form state
+    const [name, setName] = useState<string>('');
+    const [opensAt, setOpensAt] = useState<string>('');
+    const [closesAt, setClosesAt] = useState<string>('');
+    const [submitting, setSubmitting] = useState<boolean>(false);
+
+    const fetchWindows = async () => {
+        setLoading(true);
+        try {
+            const res = await adminTransfersApi.getWindows();
+            setWindows(res || []);
+        } catch {
+            toast.error('Failed to load transfer windows');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchWindows();
+    }, []);
+
+    const handleCreateWindow = async () => {
+        if (!name || !opensAt || !closesAt) {
+            toast.error('Please fill in all fields');
+            return;
+        }
+
+        setSubmitting(true);
+        try {
+            await adminTransfersApi.createWindow({
+                name,
+                opens_at: new Date(opensAt).toISOString(),
+                closes_at: new Date(closesAt).toISOString(),
+                is_active: true,
+            });
+            toast.success('Transfer window created successfully');
+            setShowModal(false);
+            setName('');
+            setOpensAt('');
+            setClosesAt('');
+            fetchWindows();
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Failed to create transfer window');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleToggleActive = async (w: TransferWindowData) => {
+        try {
+            await adminTransfersApi.updateWindow(w.id, { is_active: !w.is_active });
+            toast.success(`Window ${!w.is_active ? 'activated' : 'deactivated'}`);
+            fetchWindows();
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Failed to update window');
+        }
+    };
+
+    const handleDelete = async (id: string) => {
+        if (!window.confirm('Delete this transfer window record?')) return;
+        try {
+            await adminTransfersApi.deleteWindow(id);
+            toast.success('Window deleted');
+            fetchWindows();
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Failed to delete window');
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">Transfer Window Schedules</h1>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Configure open/close date windows for league-wide buying and trading.</p>
+                </div>
+
+                <button
+                    onClick={() => setShowModal(true)}
+                    className="px-4 py-2.5 bg-sffl-red hover:bg-sffl-red/90 text-white font-bold text-sm rounded-xl shadow-md transition-colors"
+                >
+                    + Create Transfer Window
+                </button>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+                {loading ? (
+                    <div className="p-12 text-center text-gray-400">Loading windows...</div>
+                ) : windows.length === 0 ? (
+                    <div className="p-12 text-center text-gray-400">No transfer windows configured yet.</div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-gray-50 dark:bg-gray-700/50 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                    <th className="p-4">Window Name</th>
+                                    <th className="p-4">Opens At</th>
+                                    <th className="p-4">Closes At</th>
+                                    <th className="p-4">Status</th>
+                                    <th className="p-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 dark:divide-gray-700 text-sm">
+                                {windows.map(w => (
+                                    <tr key={w.id}>
+                                        <td className="p-4 font-bold text-gray-900 dark:text-white">{w.name}</td>
+                                        <td className="p-4 text-gray-600 dark:text-gray-300 font-mono text-xs">{new Date(w.opens_at).toLocaleString()}</td>
+                                        <td className="p-4 text-gray-600 dark:text-gray-300 font-mono text-xs">{new Date(w.closes_at).toLocaleString()}</td>
+                                        <td className="p-4">
+                                            <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${
+                                                w.is_open
+                                                    ? 'bg-green-100 text-green-700 animate-pulse'
+                                                    : w.is_active
+                                                    ? 'bg-blue-100 text-blue-700'
+                                                    : 'bg-gray-100 text-gray-500'
+                                            }`}>
+                                                {w.is_open ? 'OPEN NOW' : w.is_active ? 'ACTIVE SCHEDULE' : 'INACTIVE'}
+                                            </span>
+                                        </td>
+                                        <td className="p-4 text-right space-x-2">
+                                            <button
+                                                onClick={() => handleToggleActive(w)}
+                                                className="px-3 py-1 bg-sffl-navy/10 hover:bg-sffl-navy/20 text-sffl-navy dark:text-blue-400 font-bold text-xs rounded-lg transition-colors"
+                                            >
+                                                {w.is_active ? 'Deactivate' : 'Activate'}
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(w.id)}
+                                                className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 font-bold text-xs rounded-lg transition-colors"
+                                            >
+                                                Delete
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            {/* Modal for creating window */}
+            {showModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 space-y-6 shadow-2xl border border-gray-100 dark:border-gray-700">
+                        <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-4">
+                            <h3 className="text-xl font-black text-gray-900 dark:text-white">Create Transfer Window</h3>
+                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-lg">✕</button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Window Name</label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. Mid-Season Transfer Window"
+                                    value={name}
+                                    onChange={e => setName(e.target.value)}
+                                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-semibold"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Opens At</label>
+                                <input
+                                    type="datetime-local"
+                                    value={opensAt}
+                                    onChange={e => setOpensAt(e.target.value)}
+                                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-semibold"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Closes At</label>
+                                <input
+                                    type="datetime-local"
+                                    value={closesAt}
+                                    onChange={e => setClosesAt(e.target.value)}
+                                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-semibold"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+                            <button
+                                onClick={() => setShowModal(false)}
+                                className="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold text-sm rounded-xl hover:bg-gray-200 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleCreateWindow}
+                                disabled={submitting}
+                                className="flex-1 py-2.5 bg-sffl-red hover:bg-sffl-red/90 text-white font-bold text-sm rounded-xl transition-colors disabled:opacity-50"
+                            >
+                                {submitting ? 'Creating...' : 'Create Window'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default AdminTransferWindows;

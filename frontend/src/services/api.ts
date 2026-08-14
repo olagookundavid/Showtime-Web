@@ -2031,5 +2031,310 @@ export const commitScore = async (matchId: string): Promise<{ home_score: number
     return res.data;
 };
 
+// ─── Contracts, Transfers, Player Portal & Notifications ───────────────────────
+
+export interface ContractData {
+    id: string;
+    player_id: string;
+    team_id: string;
+    status: 'PENDING' | 'ACTIVE' | 'EXPIRED' | 'TERMINATED' | 'REJECTED';
+    contract_length: number;
+    matches_at_start: number;
+    matches_played: number;
+    matches_remaining: number;
+    player_value: number;
+    offered_by?: string;
+    offered_at: string;
+    accepted_at?: string;
+    expired_at?: string;
+    terminated_at?: string;
+    termination_reason?: string;
+    notes?: string;
+    created_at: string;
+    updated_at: string;
+    player?: {
+        id: string;
+        name: string;
+        jersey_number: number;
+        position: string;
+        image: string;
+    };
+    team?: {
+        id: string;
+        name: string;
+        short_name: string;
+        logo: string;
+    };
+}
+
+export interface IssueContractPayload {
+    player_id: string;
+    contract_length?: number;
+    player_value?: number;
+    notes?: string;
+}
+
+export interface TransferData {
+    id: string;
+    type: 'REQUEST' | 'LISTING' | 'DIRECT_SALE';
+    status: 'PENDING' | 'REVIEW' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED' | 'COMPLETED';
+    player_id: string;
+    from_team_id: string;
+    to_team_id?: string;
+    initiated_by?: string;
+    asking_price?: number;
+    notes?: string;
+    review_notes?: string;
+    completed_at?: string;
+    from_team_approved: boolean;
+    to_team_approved: boolean;
+    created_at: string;
+    updated_at: string;
+    player?: {
+        id: string;
+        name: string;
+        jersey_number: number;
+        position: string;
+        image: string;
+    };
+    from_team?: {
+        id: string;
+        name: string;
+        short_name: string;
+        logo: string;
+    };
+    to_team?: {
+        id: string;
+        name: string;
+        short_name: string;
+        logo: string;
+    };
+    bids?: TransferBidData[];
+}
+
+export interface TransferBidData {
+    id: string;
+    transfer_id: string;
+    bidder_team_id: string;
+    bid_value: number;
+    status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+    bidder_id?: string;
+    created_at: string;
+    bidder_team?: {
+        id: string;
+        name: string;
+        short_name: string;
+        logo: string;
+    };
+}
+
+export interface TeamBudgetData {
+    id: string;
+    team_id: string;
+    total_budget: number;
+    spent: number;
+    remaining: number;
+    created_at: string;
+    updated_at: string;
+    team?: {
+        id: string;
+        name: string;
+        short_name: string;
+        logo: string;
+    };
+}
+
+export interface TransferWindowData {
+    id: string;
+    name: string;
+    opens_at: string;
+    closes_at: string;
+    is_active: boolean;
+    is_open: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface NotificationData {
+    id: string;
+    user_id: string;
+    type: string;
+    title: string;
+    message: string;
+    reference_type?: string;
+    reference_id?: string;
+    is_read: boolean;
+    created_at: string;
+}
+
+// Contract API
+export const contractsApi = {
+    issue: async (data: IssueContractPayload): Promise<ContractData> => {
+        const res = await api.post<{ data: ContractData }>('/contracts', data);
+        return res.data.data;
+    },
+    getTeamContracts: async (params?: { team_id?: string; status?: string; page?: number; limit?: number }): Promise<PaginatedResponse<ContractData>> => {
+        const res = await api.get<PaginatedResponse<ContractData>>('/contracts/team', { params });
+        return res.data;
+    },
+    getFreeAgents: async (params?: { search?: string; page?: number; limit?: number }): Promise<PaginatedResponse<Player>> => {
+        const res = await api.get<PaginatedResponse<Player>>('/contracts/free-agents', { params });
+        return res.data;
+    },
+    getById: async (id: string): Promise<ContractData> => {
+        const res = await api.get<{ data: ContractData }>(`/contracts/${id}`);
+        return res.data.data;
+    },
+    renew: async (id: string, data: { contract_length?: number; player_value?: number }): Promise<ContractData> => {
+        const res = await api.post<{ data: ContractData }>(`/contracts/${id}/renew`, data);
+        return res.data.data;
+    },
+    release: async (id: string): Promise<void> => {
+        await api.delete(`/contracts/${id}/release`);
+    },
+};
+
+// Transfer API
+export const transfersApi = {
+    createRequest: async (data: { player_id: string; to_team_id: string; notes?: string }): Promise<TransferData> => {
+        const res = await api.post<{ data: TransferData }>('/transfers/request', data);
+        return res.data.data;
+    },
+    createListing: async (data: { player_id: string; asking_price: number }): Promise<TransferData> => {
+        const res = await api.post<{ data: TransferData }>('/transfers/listing', data);
+        return res.data.data;
+    },
+    createDirectSale: async (data: { player_id: string; to_team_id: string; price: number }): Promise<TransferData> => {
+        const res = await api.post<{ data: TransferData }>('/transfers/direct-sale', data);
+        return res.data.data;
+    },
+    getMarket: async (params?: { search?: string; page?: number; limit?: number }): Promise<PaginatedResponse<TransferData>> => {
+        const res = await api.get<PaginatedResponse<TransferData>>('/transfers/market', { params });
+        return res.data;
+    },
+    getTeamTransfers: async (params?: { type?: string; status?: string; page?: number; limit?: number }): Promise<PaginatedResponse<TransferData>> => {
+        const res = await api.get<PaginatedResponse<TransferData>>('/transfers/team', { params });
+        return res.data;
+    },
+    getById: async (id: string): Promise<TransferData> => {
+        const res = await api.get<{ data: TransferData }>(`/transfers/${id}`);
+        return res.data.data;
+    },
+    respond: async (id: string, data: { action: 'accept' | 'reject' | 'review'; notes?: string }): Promise<TransferData> => {
+        const res = await api.put<{ data: TransferData }>(`/transfers/${id}/respond`, data);
+        return res.data.data;
+    },
+    placeBid: async (id: string, data: { bid_value: number }): Promise<TransferBidData> => {
+        const res = await api.post<{ data: TransferBidData }>(`/transfers/${id}/bid`, data);
+        return res.data.data;
+    },
+    respondToBid: async (transferId: string, bidId: string, action: 'accept' | 'reject'): Promise<void> => {
+        await api.put(`/transfers/${transferId}/bids/${bidId}/respond`, { action });
+    },
+    getBudget: async (): Promise<TeamBudgetData> => {
+        const res = await api.get<{ data: TeamBudgetData }>('/transfers/budget');
+        return res.data.data;
+    },
+    getWindowStatus: async (): Promise<{ data: TransferWindowData | null; is_open: boolean }> => {
+        const res = await api.get<{ data: TransferWindowData | null; is_open: boolean }>('/transfers/window');
+        return res.data;
+    },
+    getPlayerTransfers: async (playerID: string, params?: { page?: number; limit?: number }): Promise<PaginatedResponse<TransferData>> => {
+        const res = await api.get<PaginatedResponse<TransferData>>(`/transfers/player/${playerID}`, { params });
+        return res.data;
+    },
+};
+
+// Player Portal API
+export const playerPortalApi = {
+    getContracts: async (): Promise<ContractData[]> => {
+        const res = await api.get<{ data: ContractData[] }>('/player-portal/contracts');
+        return res.data.data || [];
+    },
+    getContractById: async (id: string): Promise<ContractData> => {
+        const res = await api.get<{ data: ContractData }>(`/player-portal/contracts/${id}`);
+        return res.data.data;
+    },
+    respondToContract: async (id: string, action: 'accept' | 'reject', notes?: string): Promise<void> => {
+        await api.put(`/player-portal/contracts/${id}/respond`, { action, notes });
+    },
+    getMyTransfers: async (params?: { page?: number; limit?: number }): Promise<PaginatedResponse<TransferData>> => {
+        const res = await api.get<PaginatedResponse<TransferData>>('/player-portal/transfers', { params });
+        return res.data;
+    },
+};
+
+// Notifications API
+export const notificationsApi = {
+    getAll: async (params?: { unread_only?: boolean; page?: number; limit?: number }): Promise<PaginatedResponse<NotificationData>> => {
+        const res = await api.get<PaginatedResponse<NotificationData>>('/notifications', { params });
+        return res.data;
+    },
+    getUnreadCount: async (): Promise<number> => {
+        const res = await api.get<{ unread_count: number }>('/notifications/unread-count');
+        return res.data.unread_count || 0;
+    },
+    markAsRead: async (id: string): Promise<void> => {
+        await api.put(`/notifications/${id}/read`);
+    },
+    markAllAsRead: async (): Promise<void> => {
+        await api.put('/notifications/read-all');
+    },
+};
+
+// Admin Transfer/Contract API
+export const adminTransfersApi = {
+    overrideContract: async (id: string, status: string, reason?: string): Promise<void> => {
+        await api.put(`/admin/contracts/${id}/override`, { status, reason });
+    },
+    overrideTransfer: async (id: string, status: string, notes?: string): Promise<void> => {
+        await api.put(`/admin/transfers/${id}/override`, { status, notes });
+    },
+    getWindows: async (): Promise<TransferWindowData[]> => {
+        const res = await api.get<{ data: TransferWindowData[] }>('/admin/transfer-windows');
+        return res.data.data || [];
+    },
+    createWindow: async (data: { name: string; opens_at: string; closes_at: string; is_active?: boolean }): Promise<TransferWindowData> => {
+        const res = await api.post<{ data: TransferWindowData }>('/admin/transfer-windows', data);
+        return res.data.data;
+    },
+    updateWindow: async (id: string, data: { name?: string; opens_at?: string; closes_at?: string; is_active?: boolean }): Promise<TransferWindowData> => {
+        const res = await api.put<{ data: TransferWindowData }>(`/admin/transfer-windows/${id}`, data);
+        return res.data.data;
+    },
+    deleteWindow: async (id: string): Promise<void> => {
+        await api.delete(`/admin/transfer-windows/${id}`);
+    },
+    getAllBudgets: async (): Promise<TeamBudgetData[]> => {
+        const res = await api.get<{ data: TeamBudgetData[] }>('/admin/team-budgets');
+        return res.data.data || [];
+    },
+    adjustBudget: async (teamId: string, total_budget: number): Promise<void> => {
+        await api.put(`/admin/team-budgets/${teamId}`, { total_budget });
+    },
+    seedBudgets: async (): Promise<void> => {
+        await api.post('/admin/team-budgets/seed');
+    },
+};
+
+export interface AppSettingsData {
+    app_font_id: string;
+}
+
+// Site-wide display settings. The read is public (every visitor needs the app
+// font on boot); only an admin can write, which is what makes the choice apply
+// to everyone rather than just the browser that made it.
+export const appSettingsApi = {
+    get: async (): Promise<AppSettingsData> => {
+        const res = await api.get<AppSettingsData>('/app-settings');
+        return res.data;
+    },
+    setFont: async (app_font_id: string): Promise<AppSettingsData> => {
+        const res = await api.put<AppSettingsData>('/admin/app-settings/font', { app_font_id });
+        return res.data;
+    },
+};
+
 export default api;
+
 

@@ -25,7 +25,7 @@ interface Player {
 const POSITIONS = ['Defender', 'Receiver', '-', 'QB', 'Rusher'];
 
 const emptyForm = {
-    name: '', position: '', jersey_number: '', email: '', image: '', bio: '',
+    name: '', position: '', jersey_number: '', email: '', image: '', bio: '', contract_length: '13',
 };
 
 const TeamHeadPlayers = () => {
@@ -65,6 +65,7 @@ const TeamHeadPlayers = () => {
             email: p.email || '',
             image: p.image || '',
             bio: p.bio || '',
+            contract_length: '13',
         });
         setShowModal(true);
     };
@@ -80,7 +81,8 @@ const TeamHeadPlayers = () => {
                 email: form.email,
                 image: form.image,
                 bio: form.bio,
-                team_id: team.id
+                team_id: team.id,
+                contract_length: parseInt(form.contract_length) || 13,
             };
             if (editing) {
                 await api.put(`/team-head/players/${editing.id}`, payload);
@@ -213,6 +215,13 @@ const TeamHeadPlayers = () => {
                                     <input type="email" value={form.email} onChange={e => setField('email', e.target.value)}
                                         className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red" placeholder="player@team.com" />
                                 </div>
+                                {!editing && (
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Contract Length (Games/Weeks) *</label>
+                                        <input type="number" min="1" value={form.contract_length} onChange={e => setField('contract_length', e.target.value)}
+                                            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red" placeholder="Default 13" />
+                                    </div>
+                                )}
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>

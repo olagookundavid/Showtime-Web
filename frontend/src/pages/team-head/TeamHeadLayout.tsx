@@ -105,6 +105,24 @@ const TeamHeadLayout = () => {
                             <span>Players</span>
                         </div>
                     </Link>
+                    <Link to="/team-head/contracts" className={linkClass('/team-head/contracts')}>
+                        <div className="flex items-center gap-3 px-1">
+                            <span className="text-base">📝</span>
+                            <span>Contracts</span>
+                        </div>
+                    </Link>
+                    <Link to="/team-head/transfers" className={linkClass('/team-head/transfers')}>
+                        <div className="flex items-center gap-3 px-1">
+                            <span className="text-base">🔄</span>
+                            <span>Transfer Market</span>
+                        </div>
+                    </Link>
+                    <Link to="/team-head/budget" className={linkClass('/team-head/budget')}>
+                        <div className="flex items-center gap-3 px-1">
+                            <span className="text-base">💰</span>
+                            <span>Team Budget</span>
+                        </div>
+                    </Link>
                     <Link to="/team-head/tickets" className={linkClass('/team-head/tickets')}>
                         <div className="flex items-center gap-3 px-1">
                             <TicketIcon className="w-5 h-5 flex-shrink-0" />
@@ -112,8 +130,8 @@ const TeamHeadLayout = () => {
                         </div>
                     </Link>
                 </nav>
-                <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-                    <Link to="/" className="block text-center text-sm font-bold text-sffl-red hover:text-red-700 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                    <Link to="/" className="text-sm font-bold text-sffl-red hover:text-red-700 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
                         ← Back to Site
                     </Link>
                 </div>

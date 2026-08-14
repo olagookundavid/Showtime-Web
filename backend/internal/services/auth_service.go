@@ -30,13 +30,15 @@ type IAuthService interface {
 
 type AuthService struct {
 	AuthRepository ports.IAuthRepository
+	PlayerRepo     ports.PlayerRepository
 	TokenMaker     token.Maker
 	EmailService   ports.EmailService
 }
 
-func NewAuthService(repo ports.IAuthRepository, tokenMaker token.Maker, emailService ports.EmailService) *AuthService {
+func NewAuthService(repo ports.IAuthRepository, playerRepo ports.PlayerRepository, tokenMaker token.Maker, emailService ports.EmailService) *AuthService {
 	return &AuthService{
 		AuthRepository: repo,
+		PlayerRepo:     playerRepo,
 		TokenMaker:     tokenMaker,
 		EmailService:   emailService,
 	}
@@ -66,10 +68,17 @@ func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest) err
 
 	}
 
+	defaultRole := "user"
+	if s.PlayerRepo != nil {
+		if hasPlayer, _ := s.PlayerRepo.HasPlayerWithEmail(ctx, emailAddr); hasPlayer {
+			defaultRole = "player"
+		}
+	}
+
 	user := domain.User{
 		FullName: req.FullName,
 		Email:    emailAddr,
-		Role:     "user", // Default role
+		Role:     defaultRole,
 		Phone:    req.Phone,
 	}
 
@@ -78,9 +87,13 @@ func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest) err
 		return errors.New("invalid password")
 	}
 
-	_, err = s.AuthRepository.Register(ctx, user)
+	newID, err := s.AuthRepository.Register(ctx, user)
 	if err != nil {
 		return err
+	}
+
+	if newID != nil && s.PlayerRepo != nil {
+		_, _ = s.PlayerRepo.GetPlayerByUserID(ctx, *newID)
 	}
 
 	return nil
@@ -188,6 +201,11 @@ func (s *AuthService) Login(ctx context.Context, req dto.LoginRequest) (*dto.Log
 		return nil, appErrors.ErrNoUserRecordExist
 	}
 
+	// Check if user is using default temporary password "NoPassword@123"
+	if isDefault, _ := user.Password.Matches("NoPassword@123"); isDefault {
+		return nil, appErrors.ErrMustResetPassword
+	}
+
 	return loginUserWithTokens(s, user)
 }
 
@@ -282,7 +300,7 @@ func (s *AuthService) ListUsers(ctx context.Context, page, limit int, searchFilt
 
 func (s *AuthService) UpdateUserRole(ctx context.Context, userID, newRole string) error {
 	// Validate role
-	allowedRoles := []string{"admin", "app_admin", "user", "team_head", "ticketer", "referee", "stats", "seller"}
+	allowedRoles := []string{"admin", "app_admin", "user", "player", "team_head", "ticketer", "referee", "stats", "seller"}
 	isValid := false
 	for _, role := range allowedRoles {
 		if newRole == role {
@@ -292,7 +310,7 @@ func (s *AuthService) UpdateUserRole(ctx context.Context, userID, newRole string
 	}
 
 	if !isValid {
-		return fmt.Errorf("invalid role: %s. Allowed roles are admin, app_admin, user, team_head, ticketer, referee, stats, seller", newRole)
+		return fmt.Errorf("invalid role: %s. Allowed roles are admin, app_admin, user, player, team_head, ticketer, referee, stats, seller", newRole)
 	}
 
 	return s.AuthRepository.UpdateUserRole(ctx, userID, newRole)

@@ -111,6 +111,12 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	userRes, err := h.AuthService.Login(c, req)
 	if err != nil {
 		switch {
+		case errors.Is(err, appErrors.ErrMustResetPassword):
+			c.JSON(http.StatusForbidden, gin.H{
+				"error":   "MUST_RESET_PASSWORD",
+				"code":    "MUST_RESET_PASSWORD",
+				"message": "Default temporary password cannot be used to log in. Please reset your password to continue.",
+			})
 		case errors.Is(err, appErrors.ErrServerError):
 			helpers.ServerErrorResponse(c, err)
 		default:

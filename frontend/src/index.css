@@ -1,12 +1,16 @@
 @import "tailwindcss";
 
+:root {
+    --app-font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+}
+
 @theme {
     --color-sffl-red: #C62828;
     --color-sffl-navy: #001F3F;
     --color-sffl-white: #FFFFFF;
     --color-sffl-gray: #F5F5F5;
 
-    --font-sans: 'Inter', system-ui, sans-serif;
+    --font-sans: var(--app-font-family);
 
     /* Page CONTENT width — used by Layout's <main>. Every page inherits this
        via Layout, so new pages don't need their own max-width. */
@@ -24,14 +28,20 @@
 html {
     height: 100%;
     overscroll-behavior: none;
+    font-family: var(--app-font-family);
 }
 
 body {
-    @apply bg-transparent text-sffl-navy font-sans;
+    @apply bg-transparent text-sffl-navy;
+    font-family: var(--app-font-family);
     min-height: 100%;
     overflow-x: hidden;
     overscroll-behavior: none;
     -webkit-overflow-scrolling: touch; /* smooth iOS scroll */
+}
+
+button, input, select, textarea {
+    font-family: inherit;
 }
 
 /* Root container must also prevent overscroll on iOS */

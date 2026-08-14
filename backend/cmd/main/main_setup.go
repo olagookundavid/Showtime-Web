@@ -220,6 +220,17 @@ func cronjobs(app *api.Application, ctx context.Context, cancel context.CancelFu
 		}
 	})
 
+	// Run every 10 minutes to auto-expire contracts that reached match length
+	c.AddFunc("*/10 * * * *", func() {
+		if app.ContractService != nil {
+			if count, err := app.ContractService.CheckAndExpireContracts(ctx); err != nil {
+				app.Logger.Error(fmt.Sprintf("Contract expiration check failed: %v", err), nil)
+			} else if count > 0 {
+				app.Logger.Info(fmt.Sprintf("Auto-expired %d contracts", count), nil)
+			}
+		}
+	})
+
 	app.Logger.Info("Starting scheduler...", nil)
 	c.Start()
 
@@ -273,7 +284,7 @@ func ExampleQueueProducer(log *logger.Logger) queue.MessagePublisher {
 
 // wireDependencies initializes and injects all dependencies (Repository -> Service -> Handler)
 // returning the fully assembled Handlers struct, the AuditService, and the TicketService.
-func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Logger) (handlers.Handlers, services.IAuditService, services.IAuthService, services.ITeamManagerService, *services.TicketService, ports.StorageService) {
+func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Logger) (handlers.Handlers, services.IAuditService, services.IAuthService, services.ITeamManagerService, *services.TicketService, ports.StorageService, services.IContractService, services.ITransferService, services.INotificationService, services.ITransferWindowService) {
 	// Infrastructure
 	auditRepo := ports.NewAuditRepository(pool)
 	authRepo := ports.NewAuthRepository(pool)
@@ -295,6 +306,13 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	heroSlideRepo := ports.NewHeroSlideRepository(pool)
 	seasonRepo := ports.NewSeasonRepository(pool)
 	playRepo := ports.NewPlayRepository(pool)
+	appSettingRepo := ports.NewAppSettingRepository(pool)
+
+	// Transfer & Contract System Repositories
+	contractRepo := ports.NewContractRepository(pool)
+	transferRepo := ports.NewTransferRepository(pool)
+	windowRepo := ports.NewTransferWindowRepository(pool)
+	notifRepo := ports.NewNotificationRepository(pool)
 
 	// External Clients
 	paystackClient := services.NewPaystackClient()
@@ -306,10 +324,15 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	// Services
 	auditService := services.NewAuditService(auditRepo, authRepo)
 	emailService := email.NewResendService() // Move this up
-	authService := services.NewAuthService(authRepo, tokenMaker, emailService)
+	authService := services.NewAuthService(authRepo, playerRepo, tokenMaker, emailService)
+	notifService := services.NewNotificationService(notifRepo)
+	windowService := services.NewTransferWindowService(windowRepo)
+	contractService := services.NewContractService(contractRepo, playerRepo, notifService, windowRepo)
+	transferService := services.NewTransferService(transferRepo, contractRepo, playerRepo, windowRepo, notifService, tmRepo)
+
 	newsService := services.NewNewsService(newsRepo, storageService)
 	galleryService := services.NewGalleryService(galleryRepo)
-	matchService := services.NewMatchService(matchRepo, storageService)
+	matchService := services.NewMatchService(matchRepo, storageService, contractService)
 	playerService := services.NewPlayerService(playerRepo, storageService)
 	ticketService := services.NewTicketService(eventDayRepo, tierRepo, ticketRepo, matchRepo, paystackClient, emailService)
 	tmService := services.NewTeamManagerService(tmRepo, authRepo)
@@ -323,13 +346,14 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	heroSlideService := services.NewHeroSlideService(heroSlideRepo, newsRepo)
 	seasonService := services.NewSeasonService(seasonRepo)
 	playService := services.NewPlayService(playRepo, matchRepo, statsRepo)
+	appSettingService := services.NewAppSettingService(appSettingRepo)
 
 	// Transport / Handlers
 	authHandler := transport.NewAuthHandler(authService)
 	newsHandler := transport.NewNewsHandler(newsService)
 	galleryHandler := transport.NewGalleryHandler(galleryService)
 	matchHandler := transport.NewMatchHandler(matchService)
-	playerHandler := transport.NewPlayerHandler(playerService)
+	playerHandler := transport.NewPlayerHandler(playerService, contractService, authRepo)
 	ticketHandler := transport.NewTicketHandler(ticketService, paystackClient)
 	tmHandler := transport.NewTeamManagerHandler(tmService, matchService)
 	analyticsHandler := transport.NewAnalyticsHandler(analyticsService)
@@ -343,10 +367,20 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	heroSlideHandler := transport.NewHeroSlideHandler(heroSlideService)
 	seasonHandler := transport.NewSeasonHandler(seasonService)
 	playHandler := transport.NewPlayHandler(playService)
+	contractHandler := transport.NewContractHandler(contractService)
+	transferHandler := transport.NewTransferHandler(transferService, windowService, playerRepo)
+	notifHandler := transport.NewNotificationHandler(notifService)
+	appSettingHandler := transport.NewAppSettingHandler(appSettingService)
 
 	reliveService := services.NewReliveService()
 	reliveHandler := transport.NewReliveHandler(reliveService)
 
-	h := handlers.NewHandlers(authHandler, newsHandler, galleryHandler, matchHandler, playerHandler, ticketHandler, tmHandler, analyticsHandler, tmAllocHandler, statsHandler, inventoryHandler, uploadHandler, totwHandler, storeHandler, importHandler, heroSlideHandler, seasonHandler, playHandler, reliveHandler)
-	return h, auditService, authService, tmService, ticketService, storageService
+	h := handlers.NewHandlers(
+		authHandler, newsHandler, galleryHandler, matchHandler, playerHandler,
+		ticketHandler, tmHandler, analyticsHandler, tmAllocHandler, statsHandler,
+		inventoryHandler, uploadHandler, totwHandler, storeHandler, importHandler,
+		heroSlideHandler, seasonHandler, playHandler, reliveHandler,
+		contractHandler, transferHandler, notifHandler, appSettingHandler,
+	)
+	return h, auditService, authService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService
 }

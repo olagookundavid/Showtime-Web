@@ -14,6 +14,7 @@ import {
     NewspaperIcon,
     BuildingStorefrontIcon,
     GiftIcon,
+    Cog6ToothIcon,
 } from '@heroicons/react/24/outline';
 
 export const AdminLayout = () => {
@@ -62,6 +63,9 @@ export const AdminLayout = () => {
         { name: 'Teams', path: '/admin/teams', icon: ShieldCheckIcon },
         { name: 'Competitions', path: '/admin/competitions', icon: ShieldCheckIcon },
         { name: 'Players', path: '/admin/players', icon: UserGroupIcon },
+        { name: 'Contracts', path: '/admin/contracts', icon: UserGroupIcon },
+        { name: 'Transfers', path: '/admin/transfers', icon: UserGroupIcon },
+        { name: 'Transfer Windows', path: '/admin/transfer-windows', icon: CalendarIcon },
         { name: 'Stats', path: '/admin/stats', icon: ChartBarIcon },
         // { name: 'Team of the Week', path: '/admin/totw', icon: TrophyIcon }, // disabled — see App.tsx
         { name: 'Standings', path: '/admin/standings', icon: ChartBarIcon },
@@ -74,6 +78,7 @@ export const AdminLayout = () => {
         { name: 'Users', path: '/admin/users', icon: UsersIcon },
         { name: 'Inventory', path: '/admin/inventory', icon: BuildingStorefrontIcon },
         { name: 'Online Store', path: '/admin/store', icon: BuildingStorefrontIcon },
+        { name: 'App Settings', path: '/admin/settings', icon: Cog6ToothIcon },
         { name: 'Administrator', path: '/admin/administrator', icon: GiftIcon },
     ];
 

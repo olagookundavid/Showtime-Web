@@ -2,8 +2,10 @@ package transport
 
 import (
 	"net/http"
+	"pkg-common/helpers"
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
+	"showtime-backend/internal/ports"
 	"showtime-backend/internal/services"
 	"strconv"
 	"strings"
@@ -21,11 +23,13 @@ type IPlayerHandler interface {
 }
 
 type PlayerHandler struct {
-	service services.IPlayerService
+	service         services.IPlayerService
+	contractService services.IContractService
+	authRepo        ports.IAuthRepository
 }
 
-func NewPlayerHandler(service services.IPlayerService) IPlayerHandler {
-	return &PlayerHandler{service: service}
+func NewPlayerHandler(service services.IPlayerService, contractService services.IContractService, authRepo ports.IAuthRepository) IPlayerHandler {
+	return &PlayerHandler{service: service, contractService: contractService, authRepo: authRepo}
 }
 
 // GetPlayers godoc
@@ -141,6 +145,30 @@ func (h *PlayerHandler) CreatePlayer(c *gin.Context) {
 		player.TeamID = scopedTeam
 	}
 
+	// Auto-provision user account if email provided and user doesn't exist
+	if player.Email != "" && h.authRepo != nil {
+		cleanEmail := strings.ToLower(strings.TrimSpace(player.Email))
+		user, _ := h.authRepo.GetUserByEmail(c.Request.Context(), cleanEmail)
+		if user != nil {
+			if user.Role == "user" {
+				_ = h.authRepo.UpdateUserRole(c.Request.Context(), user.ID, "player")
+			}
+			player.UserID = &user.ID
+		} else {
+			defaultPass := "NoPassword@123"
+			newUser := domain.User{
+				FullName: player.Name,
+				Email:    cleanEmail,
+				Role:     "player",
+			}
+			_ = newUser.Password.Set(&defaultPass)
+			newID, err := h.authRepo.Register(c.Request.Context(), newUser)
+			if err == nil && newID != nil {
+				player.UserID = newID
+			}
+		}
+	}
+
 	if err := h.service.CreatePlayer(c.Request.Context(), player); err != nil {
 		if strings.Contains(err.Error(), "already exists") {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -149,7 +177,27 @@ func (h *PlayerHandler) CreatePlayer(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"message": "Player created", "id": player.ID})
+
+	// Auto-issue a PENDING contract for the created player if assigned to a team
+	if player.TeamID != "" && h.contractService != nil {
+		managerUserID := ""
+		payload, err := helpers.GetTokenPayloadFromContext(c)
+		if err == nil && payload != nil {
+			managerUserID = payload.UserId
+		}
+
+		contractLen := 13
+		if req.ContractLength != nil && *req.ContractLength > 0 {
+			contractLen = *req.ContractLength
+		}
+
+		_, _ = h.contractService.IssueContract(c.Request.Context(), managerUserID, player.TeamID, dto.IssueContractRequest{
+			PlayerID:       player.ID,
+			ContractLength: &contractLen,
+		})
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Player created with pending contract offer", "id": player.ID})
 }
 
 // UpdatePlayer godoc

@@ -113,8 +113,17 @@ interface Wizard {
     insertAfterLabel?: string;
 }
 
+// A snap precedes the scrimmage plays only. Throw-offs/punts, penalty-only rows
+// and game events (end of half, injury…) are never snapped, so the Snap step is
+// hidden for them and no center is booked on those rows.
+const SNAP_KINDS: Kind[] = ['pass', 'run', 'xp'];
+const isSnapKind = (k: Kind) => k === '' || SNAP_KINDS.includes(k);
+
 const emptyWizard: Wizard = {
     kind: '',
+    // 'snap' is the resting state so the highlighted chip always reflects real
+    // state — a bad snap is only ever an explicit choice.
+    snapOutcome: 'snap',
     qbId: '',
     targetId: '',
     carrierId: '',
@@ -479,6 +488,10 @@ export const AdminPlayByPlay = () => {
 
     const setField = <K extends keyof Wizard>(k: K, v: Wizard[K]) => setW(prev => ({ ...prev, [k]: v }));
 
+    // A bad snap is a complete play on its own — it needs no "what happened"
+    // kind, so everything downstream keys off this rather than `w.kind`.
+    const isBadSnap = w.snapOutcome === 'bad_snap' && isSnapKind(w.kind);
+
     // Build the API payload from the wizard + context.
     const buildPayload = (): { payload: PlayPayload | null; error?: string } => {
         const base: PlayPayload = {
@@ -496,179 +509,182 @@ export const AdminPlayByPlay = () => {
             ...(w.insertSeq != null && !w.editingId ? { seq: w.insertSeq } : {}),
         };
 
-        switch (w.kind) {
-            case 'pass': {
-                if (ctx.offense === '') return { payload: null, error: 'Pick which team has the ball first.' };
-                base.off_qb_id = w.qbId || undefined;
-                if (!base.off_qb_id) return { payload: null, error: 'Select the QB.' };
-
-                if (!w.snapOutcome) return { payload: null, error: 'Select Snap outcome (Snap or Bad Snap).' };
-                if (!w.centerId) return { payload: null, error: 'Select the Center.' };
+        if (isBadSnap) {
+            if (ctx.offense === '') return { payload: null, error: 'Pick which team has the ball first.' };
+            if (!w.centerId) return { payload: null, error: 'Select the Center.' };
+            base.center_id = w.centerId;
+            base.play_type = 'BADSNAP';
+            base.result = 'DB';
+            // Falls through to the shared penalty block below — a bad snap can
+            // still carry a flag, same as every other play.
+        } else {
+            // Only scrimmage plays are snapped; never book a center on a
+            // throw-off, punt, penalty-only row or game event.
+            if (w.centerId && isSnapKind(w.kind)) {
                 base.center_id = w.centerId;
+            }
+            switch (w.kind) {
+                case 'pass': {
+                    if (ctx.offense === '') return { payload: null, error: 'Pick which team has the ball first.' };
+                    base.off_qb_id = w.qbId || undefined;
+                    if (!base.off_qb_id) return { payload: null, error: 'Select the QB.' };
+                    if (!w.centerId) return { payload: null, error: 'Select the Center.' };
 
-                if (w.snapOutcome === 'bad_snap') {
-                    base.play_type = 'BADSNAP';
-                    base.result = 'DB';
-                    break; // Ends the play immediately. NOT `return` — falling out of
-                    // the switch via `break` lets the shared "optional penalty
-                    // attached to a play above" block below still run, same as
-                    // every other pass sub-outcome.
-                }
+                    if (!w.rushOutcome) return { payload: null, error: 'Select what happened on the Rush.' };
 
-                if (!w.rushOutcome) return { payload: null, error: 'Select what happened on the Rush.' };
-
-                if (w.rushOutcome === 'sack') {
-                    if (!w.sackResult) return { payload: null, error: 'Select Sack result (Next Down or Safety).' };
-                    base.play_type = 'SACK';
-                    base.rusher_id = w.rusherId || undefined;
-                    base.yards = toIntOrNull(w.yards);
-                    base.result = w.sackResult === 'safety' ? 'SAF' : 'FG';
-                } else if (w.rushOutcome === 'bat_down') {
-                    base.play_type = 'INC';
-                    base.result = 'INC';
-                    base.rusher_id = w.rusherId || undefined;
-                    base.batted_down = true;
-                } else if (w.rushOutcome === 'int') {
-                    base.play_type = 'INT';
-                    base.result = 'INT';
-                    base.rusher_id = w.rusherId || undefined;
-                    base.target_id = w.targetId || undefined;
-                } else if (w.rushOutcome === 'no_sack') {
-                    base.rusher_id = w.rusherId || undefined;
-                    if (!w.passOutcome) return { payload: null, error: 'Select Pass outcome (Complete or Incomplete).' };
-
-                    if (w.passOutcome === 'complete') {
-                        if (!w.targetId) return { payload: null, error: 'Select Target receiver.' };
-                        base.target_id = w.targetId;
+                    if (w.rushOutcome === 'sack') {
+                        if (!w.sackResult) return { payload: null, error: 'Select Sack result (Next Down or Safety).' };
+                        base.play_type = 'SACK';
+                        base.rusher_id = w.rusherId || undefined;
                         base.yards = toIntOrNull(w.yards);
-                        base.defender_id = w.defenderId || undefined;
-
-                        if (!w.passFinalOutcome) return { payload: null, error: 'Select Final Outcome.' };
-
-                        // A completed pass can only end as a catch that stands: a
-                        // touchdown, a tackle short of the sticks (next down / turnover
-                        // on downs), or a safety. Interceptions are NOT completions —
-                        // they're recorded via the "Intercepted" pass outcome instead,
-                        // so they credit the defence (and never a reception here).
-                        switch (w.passFinalOutcome) {
-                            case 'TD':
-                                base.play_type = 'TDP';
-                                base.result = 'TD';
-                                break;
-                            case 'next_down':
-                                base.play_type = 'CP';
-                                base.result = w.passDefenderAction === 'OB' ? 'OB' : 'FG';
-                                break;
-                            case 'TO':
-                                base.play_type = 'CP';
-                                base.result = 'TO';
-                                break;
-                            case 'SAF':
-                                base.play_type = 'CP';
-                                base.result = 'SAF';
-                                break;
-                        }
-                    } else if (w.passOutcome === 'incomplete') {
+                        base.result = w.sackResult === 'safety' ? 'SAF' : 'FG';
+                    } else if (w.rushOutcome === 'bat_down') {
                         base.play_type = 'INC';
-                        base.target_id = w.targetId || undefined;
-
-                        if (w.incompleteOption === 'dropped') {
-                            base.dropped = true;
-                        } else if (w.incompleteOption === 'batted_down') {
-                            base.batted_down = true;
-                            base.defender_id = w.defenderId || undefined;
-                        } else if (w.incompleteOption === 'uncatchable') {
-                            base.uncatchable = true;
-                        }
-
-                        // The incompletion still ends a down: either the offence
-                        // keeps the ball (next down) or gives it up (turnover on
-                        // downs). The stat booking is identical either way.
-                        if (!w.passFinalOutcome) return { payload: null, error: 'Select Play Outcome (Next Down or Turnover on downs).' };
-                        base.result = w.passFinalOutcome === 'TO' ? 'TO' : 'INC';
-                    } else if (w.passOutcome === 'int') {
+                        base.result = 'INC';
+                        base.rusher_id = w.rusherId || undefined;
+                        base.batted_down = true;
+                    } else if (w.rushOutcome === 'int') {
                         base.play_type = 'INT';
                         base.result = 'INT';
+                        base.rusher_id = w.rusherId || undefined;
+                        base.target_id = w.targetId || undefined;
+                    } else if (w.rushOutcome === 'no_sack') {
+                        base.rusher_id = w.rusherId || undefined;
+                        if (!w.passOutcome) return { payload: null, error: 'Select Pass outcome (Complete or Incomplete).' };
+
+                        if (w.passOutcome === 'complete') {
+                            if (!w.targetId) return { payload: null, error: 'Select Target receiver.' };
+                            base.target_id = w.targetId;
+                            base.yards = toIntOrNull(w.yards);
+                            base.defender_id = w.defenderId || undefined;
+
+                            if (!w.passFinalOutcome) return { payload: null, error: 'Select Final Outcome.' };
+
+                            // A completed pass can only end as a catch that stands: a
+                            // touchdown, a tackle short of the sticks (next down / turnover
+                            // on downs), or a safety. Interceptions are NOT completions —
+                            // they're recorded via the "Intercepted" pass outcome instead,
+                            // so they credit the defence (and never a reception here).
+                            switch (w.passFinalOutcome) {
+                                case 'TD':
+                                    base.play_type = 'TDP';
+                                    base.result = 'TD';
+                                    break;
+                                case 'next_down':
+                                    base.play_type = 'CP';
+                                    base.result = w.passDefenderAction === 'OB' ? 'OB' : 'FG';
+                                    break;
+                                case 'TO':
+                                    base.play_type = 'CP';
+                                    base.result = 'TO';
+                                    break;
+                                case 'SAF':
+                                    base.play_type = 'CP';
+                                    base.result = 'SAF';
+                                    break;
+                            }
+                        } else if (w.passOutcome === 'incomplete') {
+                            base.play_type = 'INC';
+                            base.target_id = w.targetId || undefined;
+
+                            if (w.incompleteOption === 'dropped') {
+                                base.dropped = true;
+                            } else if (w.incompleteOption === 'batted_down') {
+                                base.batted_down = true;
+                                base.defender_id = w.defenderId || undefined;
+                            } else if (w.incompleteOption === 'uncatchable') {
+                                base.uncatchable = true;
+                            }
+
+                            // The incompletion still ends a down: either the offence
+                            // keeps the ball (next down) or gives it up (turnover on
+                            // downs). The stat booking is identical either way.
+                            if (!w.passFinalOutcome) return { payload: null, error: 'Select Play Outcome (Next Down or Turnover on downs).' };
+                            base.result = w.passFinalOutcome === 'TO' ? 'TO' : 'INC';
+                        } else if (w.passOutcome === 'int') {
+                            base.play_type = 'INT';
+                            base.result = 'INT';
+                            base.target_id = w.targetId || undefined;
+                            base.defender_id = w.defenderId || undefined;
+                            if (w.passFinalOutcome === 'pick6') base.returned_for_td = true;
+                        } else if (w.passOutcome === 'ta') {
+                            base.play_type = 'TA';
+                            if (!w.passFinalOutcome) return { payload: null, error: 'Select Play Outcome (Next Down or Turnover on downs).' };
+                            base.result = w.passFinalOutcome === 'TO' ? 'TO' : 'INC';
+                        }
+                    }
+                    break;
+                }
+                case 'run': {
+                    if (ctx.offense === '') return { payload: null, error: 'Pick which team has the ball first.' };
+                    base.play_type = 'RUN';
+                    base.off_qb_id = w.carrierId || undefined;
+                    if (!base.off_qb_id) return { payload: null, error: 'Select the carrier.' };
+                    base.yards = toIntOrNull(w.yards);
+                    base.defender_id = w.defenderId || undefined;
+
+                    if (!w.runPlayOutcome) return { payload: null, error: 'Select Play Outcome.' };
+
+                    if (w.runPlayOutcome === 'TD') {
+                        base.result = 'TD';
+                    } else if (w.runPlayOutcome === 'turnover') {
+                        base.result = 'TO';
+                    } else if (w.runPlayOutcome === 'next_down') {
+                        base.result = w.runDefenderAction === 'OB' ? 'OB' : 'FG';
+                    }
+                    break;
+                }
+                case 'xp': {
+                    if (ctx.offense === '') return { payload: null, error: 'Pick which team is trying the extra point.' };
+                    if (!w.xpType) return { payload: null, error: 'Run or pass extra point?' };
+                    base.play_type = w.xpType;
+                    base.result = w.xpResult || 'XP';
+                    if (w.xpType === 'XP-P') {
+                        base.off_qb_id = w.qbId || undefined;
+                        base.target_id = w.targetId || undefined;
+                    } else {
+                        base.off_qb_id = w.carrierId || undefined;
+                    }
+                    break;
+                }
+                case 'special': {
+                    if (!w.specialType) return { payload: null, error: 'Throw-off or punt?' };
+                    base.play_type = w.specialType;
+                    if (w.receiverOutcome === 'no_catch') {
+                        base.result = 'DB';
+                    } else if (w.receiverOutcome === 'catch') {
                         base.target_id = w.targetId || undefined;
                         base.defender_id = w.defenderId || undefined;
-                        if (w.passFinalOutcome === 'pick6') base.returned_for_td = true;
-                    } else if (w.passOutcome === 'ta') {
-                        base.play_type = 'TA';
-                        if (!w.passFinalOutcome) return { payload: null, error: 'Select Play Outcome (Next Down or Turnover on downs).' };
-                        base.result = w.passFinalOutcome === 'TO' ? 'TO' : 'INC';
+                        base.result = w.specialPlayOutcome === 'TD' ? 'TD' : (w.specialDefenderAction === 'OB' ? 'OB' : 'FG');
+                    } else {
+                        base.result = 'DB';
                     }
+                    break;
                 }
-                break;
-            }
-            case 'run': {
-                if (ctx.offense === '') return { payload: null, error: 'Pick which team has the ball first.' };
-                base.play_type = 'RUN';
-                base.off_qb_id = w.carrierId || undefined;
-                if (!base.off_qb_id) return { payload: null, error: 'Select the carrier.' };
-                base.yards = toIntOrNull(w.yards);
-                base.defender_id = w.defenderId || undefined;
-
-                if (!w.runPlayOutcome) return { payload: null, error: 'Select Play Outcome.' };
-
-                if (w.runPlayOutcome === 'TD') {
-                    base.result = 'TD';
-                } else if (w.runPlayOutcome === 'turnover') {
-                    base.result = 'TO';
-                } else if (w.runPlayOutcome === 'next_down') {
-                    base.result = w.runDefenderAction === 'OB' ? 'OB' : 'FG';
-                }
-                break;
-            }
-            case 'xp': {
-                if (ctx.offense === '') return { payload: null, error: 'Pick which team is trying the extra point.' };
-                if (!w.xpType) return { payload: null, error: 'Run or pass extra point?' };
-                base.play_type = w.xpType;
-                base.result = w.xpResult || 'XP';
-                if (w.xpType === 'XP-P') {
-                    base.off_qb_id = w.qbId || undefined;
-                    base.target_id = w.targetId || undefined;
-                } else {
-                    base.off_qb_id = w.carrierId || undefined;
-                }
-                break;
-            }
-            case 'special': {
-                if (!w.specialType) return { payload: null, error: 'Throw-off or punt?' };
-                base.play_type = w.specialType;
-                if (w.receiverOutcome === 'no_catch') {
+                case 'penalty': {
+                    if (w.penaltyTeam === '') return { payload: null, error: 'Which team committed the penalty?' };
+                    if (!w.penaltyCode) return { payload: null, error: 'Pick the penalty.' };
                     base.result = 'DB';
-                } else if (w.receiverOutcome === 'catch') {
-                    base.target_id = w.targetId || undefined;
-                    base.defender_id = w.defenderId || undefined;
-                    base.result = w.specialPlayOutcome === 'TD' ? 'TD' : (w.specialDefenderAction === 'OB' ? 'OB' : 'FG');
-                } else {
-                    base.result = 'DB';
+                    base.penalty = w.penaltyCode;
+                    base.penalty_team_id = w.penaltyTeam === 'home' ? match?.home_team?.id : match?.away_team?.id;
+                    base.penalty_player_id = w.penaltyPlayerId || undefined;
+                    base.penalty_yards = toIntOrNull(w.penaltyYards);
+                    return { payload: base };
                 }
-                break;
-            }
-            case 'penalty': {
-                if (w.penaltyTeam === '') return { payload: null, error: 'Which team committed the penalty?' };
-                if (!w.penaltyCode) return { payload: null, error: 'Pick the penalty.' };
-                base.result = 'DB';
-                base.penalty = w.penaltyCode;
-                base.penalty_team_id = w.penaltyTeam === 'home' ? match?.home_team?.id : match?.away_team?.id;
-                base.penalty_player_id = w.penaltyPlayerId || undefined;
-                base.penalty_yards = toIntOrNull(w.penaltyYards);
-                return { payload: base };
-            }
-            case 'event': {
-                if (!w.eventKind) return { payload: null, error: 'Pick the game event.' };
-                base.result = w.eventKind;
-                // An injury names the affected player (stored in off_qb_id — an
-                // event row has no play_type, so no stat/score engine reads it).
-                if (w.eventKind === 'IH') {
-                    if (!w.qbId) return { payload: null, error: 'Select the injured player.' };
-                    base.off_qb_id = w.qbId;
+                case 'event': {
+                    if (!w.eventKind) return { payload: null, error: 'Pick the game event.' };
+                    base.result = w.eventKind;
+                    // An injury names the affected player (stored in off_qb_id — an
+                    // event row has no play_type, so no stat/score engine reads it).
+                    if (w.eventKind === 'IH') {
+                        if (!w.qbId) return { payload: null, error: 'Select the injured player.' };
+                        base.off_qb_id = w.qbId;
+                    }
+                    return { payload: base };
                 }
-                return { payload: base };
+                default:
+                    return { payload: null, error: 'Pick what happened.' };
             }
-            default:
-                return { payload: null, error: 'Pick what happened.' };
         }
 
         // Optional penalty attached to a play above.
@@ -1076,11 +1092,34 @@ export const AdminPlayByPlay = () => {
                         </div>
                     </div>
 
-                    {/* Step 1 — what happened */}
+                    {/* Step 1 — The Snap. Scrimmage plays only; throw-offs, punts,
+                        penalty-only rows and game events aren't snapped. */}
+                    {isSnapKind(w.kind) && (
+                    <Section active title="The Snap">
+                        <div className="space-y-3">
+                            <PlayerField label={`Center (${teamName(ctx.offense)})`} value={w.centerId} onChange={v => setField('centerId', v)} roster={offenseRoster} />
+                            <div>
+                                <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Snap Outcome</div>
+                                <div className="flex gap-2">
+                                    {([['snap', 'Snap'], ['bad_snap', 'Bad Snap']] as [SnapOutcome, string][]).map(([so, label]) => (
+                                        <button key={so} className={chip(w.snapOutcome === so)} onClick={() => setField('snapOutcome', so)}>{label}</button>
+                                    ))}
+                                </div>
+                            </div>
+                            {isBadSnap && (
+                                <p className="text-xs font-semibold text-red-600 dark:text-red-400">Play ends immediately — the center is charged a Bad Snap and the down advances.</p>
+                            )}
+                        </div>
+                    </Section>
+                    )}
+
+                    {/* Step 2 — What happened? A bad snap ends the play at the snap,
+                        so there is nothing further to describe. */}
+                    {!isBadSnap && (
                     <Section active title="What happened?">
                         <div className="flex flex-wrap gap-2">
                             {([['pass', 'Pass'], ['run', 'Run'], ['xp', 'Extra Point'], ['special', 'Special (KO/Punt)'], ['penalty', 'Penalty only'], ['event', 'Game event']] as [Kind, string][]).map(([k, label]) => (
-                                <button key={k} className={chip(w.kind === k)} onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: k })}>{label}</button>
+                                <button key={k} className={chip(w.kind === k)} onClick={() => setW({ ...emptyWizard, editingId: w.editingId, centerId: w.centerId, snapOutcome: w.snapOutcome, kind: k })}>{label}</button>
                             ))}
                         </div>
 
@@ -1089,42 +1128,42 @@ export const AdminPlayByPlay = () => {
                             <div className="flex flex-wrap gap-2">
                                 <button
                                     type="button"
-                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'pass', rushOutcome: 'no_sack', passOutcome: 'incomplete', incompleteOption: 'uncatchable', passFinalOutcome: 'next_down' })}
+                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, centerId: w.centerId, snapOutcome: w.snapOutcome, kind: 'pass', rushOutcome: 'no_sack', passOutcome: 'incomplete', incompleteOption: 'uncatchable', passFinalOutcome: 'next_down' })}
                                     className="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md text-xs font-bold text-gray-700 dark:text-gray-200 transition-colors"
                                 >
                                     🏈 Incomplete Pass
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'pass', rushOutcome: 'no_sack', passOutcome: 'complete', passDefenderAction: 'FG', passFinalOutcome: 'next_down' })}
+                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, centerId: w.centerId, snapOutcome: w.snapOutcome, kind: 'pass', rushOutcome: 'no_sack', passOutcome: 'complete', passDefenderAction: 'FG', passFinalOutcome: 'next_down' })}
                                     className="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md text-xs font-bold text-gray-700 dark:text-gray-200 transition-colors"
                                 >
                                     ✅ Complete Pass
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'run', runDefenderAction: 'FG', runPlayOutcome: 'next_down' })}
+                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, centerId: w.centerId, snapOutcome: w.snapOutcome, kind: 'run', runDefenderAction: 'FG', runPlayOutcome: 'next_down' })}
                                     className="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md text-xs font-bold text-gray-700 dark:text-gray-200 transition-colors"
                                 >
                                     🏃 Run
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'pass', rushOutcome: 'no_sack', passOutcome: 'complete', passFinalOutcome: 'TD' })}
+                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, centerId: w.centerId, snapOutcome: w.snapOutcome, kind: 'pass', rushOutcome: 'no_sack', passOutcome: 'complete', passFinalOutcome: 'TD' })}
                                     className="px-2.5 py-1 bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 rounded-md text-xs font-bold text-emerald-800 dark:text-emerald-200 transition-colors"
                                 >
                                     🏆 Touchdown Pass
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'event', eventKind: 'EH' })}
+                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, centerId: w.centerId, snapOutcome: w.snapOutcome, kind: 'event', eventKind: 'EH' })}
                                     className="px-2.5 py-1 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 rounded-md text-xs font-bold text-slate-800 dark:text-slate-200 transition-colors"
                                 >
                                     ⏱️ End of Half
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, kind: 'event', eventKind: 'OMW' })}
+                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, centerId: w.centerId, snapOutcome: w.snapOutcome, kind: 'event', eventKind: 'OMW' })}
                                     className="px-2.5 py-1 bg-rose-100 dark:bg-rose-900/40 hover:bg-rose-200 rounded-md text-xs font-bold text-rose-800 dark:text-rose-200 transition-colors"
                                 >
                                     ⚠️ 1-Minute Warning
@@ -1132,34 +1171,14 @@ export const AdminPlayByPlay = () => {
                             </div>
                         </div>
                     </Section>
+                    )}
 
                     {/* PASS flow */}
-                    {w.kind === 'pass' && (
+                    {w.kind === 'pass' && !isBadSnap && (
                         <Section active title="The pass">
                             <div className="space-y-4">
                                 <PlayerField label={`QB (${teamName(ctx.offense)})`} value={w.qbId} onChange={v => setField('qbId', v)} roster={offenseRoster} />
 
-                                {/* Section: Snap — happens before every pass-flow play. A bad snap ends
-                                    the play right here; the Rush/Pass-Outcome sections below only appear
-                                    once a good snap is chosen. */}
-                                <div className="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-xl border border-gray-200 dark:border-gray-600 space-y-3">
-                                    <div className="text-xs font-bold text-sffl-navy dark:text-gray-200 uppercase tracking-wider">Snap</div>
-                                    <PlayerField label={`Center (${teamName(ctx.offense)})`} value={w.centerId} onChange={v => setField('centerId', v)} roster={offenseRoster} />
-                                    <div>
-                                        <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Snap Outcome</div>
-                                        <div className="flex gap-2">
-                                            {([['snap', 'Snap'], ['bad_snap', 'Bad Snap']] as [SnapOutcome, string][]).map(([so, label]) => (
-                                                <button key={so} className={chip(w.snapOutcome === so)} onClick={() => setField('snapOutcome', so)}>{label}</button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    {w.snapOutcome === 'bad_snap' && (
-                                        <p className="text-xs font-semibold text-red-600 dark:text-red-400">Play ends immediately — the center is charged a Bad Snap and the down advances.</p>
-                                    )}
-                                </div>
-
-                                {w.snapOutcome === 'snap' && (
-                                <>
                                 {/* Section: Rush */}
                                 <div className="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-xl border border-gray-200 dark:border-gray-600 space-y-3">
                                     <div className="text-xs font-bold text-sffl-navy dark:text-gray-200 uppercase tracking-wider">Rush</div>
@@ -1296,8 +1315,6 @@ export const AdminPlayByPlay = () => {
                                             </div>
                                         )}
                                     </>
-                                )}
-                                </>
                                 )}
                             </div>
                         </Section>
@@ -1464,8 +1481,9 @@ export const AdminPlayByPlay = () => {
                         </Section>
                     )}
 
-                    {/* Always-visible Penalty box for Pass, Run, XP */}
-                    {w.kind && w.kind !== 'penalty' && w.kind !== 'event' && w.kind !== 'special' && (
+                    {/* Always-visible Penalty box for Pass, Run, XP — and for a bad
+                        snap, which can carry a flag like any other play. */}
+                    {(isBadSnap || (w.kind && w.kind !== 'penalty' && w.kind !== 'event' && w.kind !== 'special')) && (
                         <div className="rounded-xl border border-amber-200 dark:border-amber-700/60 bg-amber-50/50 dark:bg-amber-900/10 p-3 space-y-2">
                             <div className="text-xs font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">⚑ Penalty on this play (Optional)</div>
                             <div className="flex gap-2">
@@ -1488,8 +1506,9 @@ export const AdminPlayByPlay = () => {
                         </div>
                     )}
 
-                    {/* Notes + Save */}
-                    {w.kind && (
+                    {/* Notes + Save. A bad snap has no `kind` — it is submittable
+                        straight off the Snap step. */}
+                    {(w.kind || isBadSnap) && (
                         <div className="space-y-3">
                             <input value={w.notes} onChange={e => setField('notes', e.target.value)} placeholder="Notes (optional)" className="w-full border rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
                             <div className="flex gap-2">

@@ -19,6 +19,9 @@ type PlayerRepository interface {
 	UpdatePlayer(ctx context.Context, player *domain.Player) error
 	DeletePlayer(ctx context.Context, id string) error
 	AssignRandomJerseyNumbers(ctx context.Context, teamID string) (int, error)
+	GetPlayerByUserID(ctx context.Context, userID string) (*domain.Player, error)
+	UpdatePlayerUserID(ctx context.Context, playerID string, userID *string) error
+	HasPlayerWithEmail(ctx context.Context, email string) (bool, error)
 }
 
 type PostgresPlayerRepository struct {
@@ -103,7 +106,7 @@ func (r *PostgresPlayerRepository) GetPlayerByID(ctx context.Context, id string)
 			COALESCE(p.jersey_number, 0), COALESCE(p.position, ''),
 			COALESCE(p.team_id::text, ''),
 			COALESCE(p.bio, ''), COALESCE(p.image, ''), p.email,
-			p.created_at, p.updated_at,
+			p.user_id, p.created_at, p.updated_at,
 			COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, '')
 		FROM players p
 		LEFT JOIN teams t ON p.team_id = t.id
@@ -111,15 +114,28 @@ func (r *PostgresPlayerRepository) GetPlayerByID(ctx context.Context, id string)
 	`
 	var p domain.Player
 	p.Team = &domain.Team{}
+	var uid *string
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&p.ID, &p.Name, &p.JerseyNumber, &p.Position, &p.TeamID, &p.Bio, &p.Image, &p.Email,
-		&p.CreatedAt, &p.UpdatedAt,
+		&uid, &p.CreatedAt, &p.UpdatedAt,
 		&p.Team.Name, &p.Team.ShortName, &p.Team.Logo,
 	)
 	if err != nil {
 		return nil, err
 	}
+	p.UserID = uid
 	p.Team.ID = p.TeamID
+
+	// Fallback: If user_id is nil, try matching users table by email and auto-link
+	if p.UserID == nil && p.Email != "" {
+		var matchedUserID string
+		userQuery := `SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`
+		if err := r.db.QueryRow(ctx, userQuery, p.Email).Scan(&matchedUserID); err == nil {
+			_ = r.UpdatePlayerUserID(ctx, p.ID, &matchedUserID)
+			p.UserID = &matchedUserID
+		}
+	}
+
 	return &p, nil
 }
 
@@ -133,12 +149,12 @@ func (r *PostgresPlayerRepository) CreatePlayer(ctx context.Context, player *dom
 	}
 
 	query := `
-		INSERT INTO players (name, jersey_number, position, team_id, bio, image, email)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO players (name, jersey_number, position, team_id, bio, image, email, user_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id, created_at, updated_at
 	`
 	return r.db.QueryRow(ctx, query,
-		player.Name, player.JerseyNumber, player.Position, player.TeamID, player.Bio, player.Image, player.Email,
+		player.Name, player.JerseyNumber, player.Position, player.TeamID, player.Bio, player.Image, player.Email, player.UserID,
 	).Scan(&player.ID, &player.CreatedAt, &player.UpdatedAt)
 }
 
@@ -153,12 +169,12 @@ func (r *PostgresPlayerRepository) UpdatePlayer(ctx context.Context, player *dom
 
 	query := `
 		UPDATE players SET
-			name=$1, jersey_number=$2, position=$3, team_id=$4, bio=$5, image=$6, email=$7,
+			name=$1, jersey_number=$2, position=$3, team_id=$4, bio=$5, image=$6, email=$7, user_id=COALESCE($8, user_id),
 			updated_at=NOW()
-		WHERE id=$8
+		WHERE id=$9
 	`
 	_, err := r.db.Exec(ctx, query,
-		player.Name, player.JerseyNumber, player.Position, player.TeamID, player.Bio, player.Image, player.Email,
+		player.Name, player.JerseyNumber, player.Position, player.TeamID, player.Bio, player.Image, player.Email, player.UserID,
 		player.ID,
 	)
 	return err
@@ -246,3 +262,75 @@ func (r *PostgresPlayerRepository) AssignRandomJerseyNumbers(ctx context.Context
 
 	return totalAssigned, nil
 }
+
+func (r *PostgresPlayerRepository) GetPlayerByUserID(ctx context.Context, userID string) (*domain.Player, error) {
+	query := `
+		SELECT
+			p.id, p.name,
+			COALESCE(p.jersey_number, 0), COALESCE(p.position, ''),
+			COALESCE(p.team_id::text, ''),
+			COALESCE(p.bio, ''), COALESCE(p.image, ''), p.email,
+			p.user_id, p.created_at, p.updated_at,
+			COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, '')
+		FROM players p
+		LEFT JOIN teams t ON p.team_id = t.id
+		WHERE p.user_id = $1
+	`
+	var p domain.Player
+	p.Team = &domain.Team{}
+	var uid *string
+	err := r.db.QueryRow(ctx, query, userID).Scan(
+		&p.ID, &p.Name, &p.JerseyNumber, &p.Position, &p.TeamID, &p.Bio, &p.Image, &p.Email,
+		&uid, &p.CreatedAt, &p.UpdatedAt,
+		&p.Team.Name, &p.Team.ShortName, &p.Team.Logo,
+	)
+	if err == nil {
+		p.UserID = uid
+		p.Team.ID = p.TeamID
+		return &p, nil
+	}
+
+	// Fallback: If not found by user_id, check if user's email matches a player's email
+	fallbackQuery := `
+		SELECT
+			p.id, p.name,
+			COALESCE(p.jersey_number, 0), COALESCE(p.position, ''),
+			COALESCE(p.team_id::text, ''),
+			COALESCE(p.bio, ''), COALESCE(p.image, ''), p.email,
+			p.user_id, p.created_at, p.updated_at,
+			COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, '')
+		FROM players p
+		JOIN users u ON LOWER(p.email) = LOWER(u.email)
+		LEFT JOIN teams t ON p.team_id = t.id
+		WHERE u.id = $1
+		ORDER BY p.created_at DESC LIMIT 1
+	`
+	err = r.db.QueryRow(ctx, fallbackQuery, userID).Scan(
+		&p.ID, &p.Name, &p.JerseyNumber, &p.Position, &p.TeamID, &p.Bio, &p.Image, &p.Email,
+		&uid, &p.CreatedAt, &p.UpdatedAt,
+		&p.Team.Name, &p.Team.ShortName, &p.Team.Logo,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Auto-link user_id to player record
+	_ = r.UpdatePlayerUserID(ctx, p.ID, &userID)
+	p.UserID = &userID
+	p.Team.ID = p.TeamID
+	return &p, nil
+}
+
+func (r *PostgresPlayerRepository) UpdatePlayerUserID(ctx context.Context, playerID string, userID *string) error {
+	query := `UPDATE players SET user_id = $1, updated_at = NOW() WHERE id = $2`
+	_, err := r.db.Exec(ctx, query, userID, playerID)
+	return err
+}
+
+func (r *PostgresPlayerRepository) HasPlayerWithEmail(ctx context.Context, email string) (bool, error) {
+	query := `SELECT EXISTS (SELECT 1 FROM players WHERE LOWER(email) = LOWER($1))`
+	var exists bool
+	err := r.db.QueryRow(ctx, query, email).Scan(&exists)
+	return exists, err
+}
+

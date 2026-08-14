@@ -913,13 +913,15 @@ func (r *PostgresMatchRepository) SaveTeamSheet(ctx context.Context, matchID, te
 		return err
 	}
 
-	// Insert new
+	// Insert new (only for players currently belonging to teamID)
 	if len(playerIDs) > 0 {
-		insertQuery := `INSERT INTO match_team_sheets (match_id, team_id, player_id) VALUES ($1, $2, $3)`
-		for _, pid := range playerIDs {
-			if _, err := tx.Exec(ctx, insertQuery, matchID, teamID, pid); err != nil {
-				return err
-			}
+		insertQuery := `
+			INSERT INTO match_team_sheets (match_id, team_id, player_id)
+			SELECT $1, $2, p.id FROM players p
+			WHERE p.id = ANY($3) AND p.team_id = $2
+		`
+		if _, err := tx.Exec(ctx, insertQuery, matchID, teamID, playerIDs); err != nil {
+			return err
 		}
 	}
 

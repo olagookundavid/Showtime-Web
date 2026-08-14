@@ -12,6 +12,7 @@ type Player struct {
 	Image        string    `json:"image"`
 	Email        string    `json:"email"`
 	Gender       string    `json:"gender,omitempty"`
+	UserID       *string   `json:"user_id,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 

@@ -50,10 +50,22 @@ const TeamHeadOverview = () => {
 
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-6">
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Quick Actions</h3>
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <a href="/team-head/players" className="block bg-sffl-red/5 hover:bg-sffl-red/10 border border-sffl-red/20 rounded-lg p-3 transition-colors">
-                            <span className="font-bold text-sffl-red text-sm">🏃 Manage Players</span>
-                            <p className="text-xs text-gray-500 mt-0.5">Add, edit, and manage your team's roster.</p>
+                            <span className="font-bold text-sffl-red text-sm">🏃 Manage Roster</span>
+                            <p className="text-xs text-gray-500 mt-0.5">View and manage your team's players.</p>
+                        </a>
+                        <a href="/team-head/contracts" className="block bg-sffl-navy/5 hover:bg-sffl-navy/10 border border-sffl-navy/20 rounded-lg p-3 transition-colors">
+                            <span className="font-bold text-sffl-navy dark:text-blue-400 text-sm">📝 Manage Contracts</span>
+                            <p className="text-xs text-gray-500 mt-0.5">Issue, renew, and release contracts.</p>
+                        </a>
+                        <a href="/team-head/transfers" className="block bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 transition-colors">
+                            <span className="font-bold text-amber-600 dark:text-amber-400 text-sm">🔄 Transfer Market</span>
+                            <p className="text-xs text-gray-500 mt-0.5">Trade, list, and bid on players.</p>
+                        </a>
+                        <a href="/team-head/budget" className="block bg-green-500/5 hover:bg-green-500/10 border border-green-500/20 rounded-lg p-3 transition-colors">
+                            <span className="font-bold text-green-600 dark:text-green-400 text-sm">💰 Team Budget</span>
+                            <p className="text-xs text-gray-500 mt-0.5">Check remaining point allowances.</p>
                         </a>
                     </div>
                 </div>

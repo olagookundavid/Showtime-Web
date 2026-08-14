@@ -103,6 +103,7 @@ const AdminUsers = () => {
                     className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-sffl-red focus:border-sffl-red px-3 py-2 min-h-[44px] z-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors cursor-pointer min-w-[120px]"
                 >
                     <option value="user" className="truncate">User</option>
+                    <option value="player" className="truncate">Player</option>
                     <option value="team_head" className="truncate">Team Head</option>
                     <option value="ticketer" className="truncate">Ticketer</option>
                     <option value="referee" className="truncate">Referee</option>
