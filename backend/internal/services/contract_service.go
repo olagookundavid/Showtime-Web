@@ -15,6 +15,7 @@ type IContractService interface {
 	RespondToContract(ctx context.Context, contractID string, userID string, action string, notes string) error
 	RenewContract(ctx context.Context, contractID string, managerUserID string, managerTeamID string, req dto.RenewContractRequest) (*dto.ContractResponse, error)
 	ReleasePlayer(ctx context.Context, contractID string, managerUserID string, managerTeamID string) error
+	CancelContract(ctx context.Context, contractID string, managerUserID string, managerTeamID string) error
 	GetTeamContracts(ctx context.Context, teamID string, status string, page, limit int) (dto.PaginatedResult[dto.ContractResponse], error)
 	GetMyContracts(ctx context.Context, userID string) ([]dto.ContractResponse, error)
 	GetFreeAgents(ctx context.Context, search string, page, limit int) (dto.PaginatedResult[dto.PlayerResponse], error)
@@ -261,6 +262,23 @@ func (s *ContractService) ReleasePlayer(ctx context.Context, contractID string, 
 	}
 
 	return nil
+}
+
+func (s *ContractService) CancelContract(ctx context.Context, contractID string, managerUserID string, managerTeamID string) error {
+	c, err := s.repo.GetContractByID(ctx, contractID)
+	if err != nil || c == nil {
+		return fmt.Errorf("contract not found")
+	}
+
+	if managerTeamID != "" && c.TeamID != managerTeamID {
+		return fmt.Errorf("forbidden: contract does not belong to your team")
+	}
+
+	if c.Status != "PENDING" {
+		return fmt.Errorf("only PENDING contract offers can be cancelled or withdrawn")
+	}
+
+	return s.repo.CancelContract(ctx, contractID)
 }
 
 func (s *ContractService) GetTeamContracts(ctx context.Context, teamID string, status string, page, limit int) (dto.PaginatedResult[dto.ContractResponse], error) {

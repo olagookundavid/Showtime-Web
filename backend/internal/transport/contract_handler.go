@@ -17,6 +17,7 @@ type IContractHandler interface {
 	RespondToContract(c *gin.Context)
 	RenewContract(c *gin.Context)
 	ReleasePlayer(c *gin.Context)
+	CancelContract(c *gin.Context)
 	GetTeamContracts(c *gin.Context)
 	GetMyContracts(c *gin.Context)
 	GetFreeAgents(c *gin.Context)
@@ -129,6 +130,27 @@ func (h *ContractHandler) ReleasePlayer(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Player released successfully"})
+}
+
+func (h *ContractHandler) CancelContract(c *gin.Context) {
+	contractID := c.Param("id")
+	payload, err := helpers.GetTokenPayloadFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	teamIDStr := ""
+	if teamID, exists := c.Get(middlewares.TeamIDContextKey); exists {
+		teamIDStr = teamID.(string)
+	}
+
+	if err := h.service.CancelContract(c.Request.Context(), contractID, payload.UserId, teamIDStr); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Contract offer withdrawn successfully"})
 }
 
 func (h *ContractHandler) GetTeamContracts(c *gin.Context) {

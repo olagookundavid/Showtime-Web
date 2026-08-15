@@ -584,6 +584,8 @@ func SetupContractRoutes(r *gin.RouterGroup, app *api.Application) {
 		contractGroup.GET("/free-agents", app.Handlers.ContractHandler.GetFreeAgents)
 		contractGroup.GET("/:id", app.Handlers.ContractHandler.GetContractByID)
 		contractGroup.POST("/:id/renew", app.Handlers.ContractHandler.RenewContract)
+		contractGroup.POST("/:id/cancel", app.Handlers.ContractHandler.CancelContract)
+		contractGroup.DELETE("/:id/cancel", app.Handlers.ContractHandler.CancelContract)
 		contractGroup.DELETE("/:id/release", app.Handlers.ContractHandler.ReleasePlayer)
 	}
 }

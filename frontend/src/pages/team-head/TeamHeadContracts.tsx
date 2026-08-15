@@ -95,6 +95,17 @@ export const TeamHeadContracts: React.FC = () => {
         }
     };
 
+    const handleCancelOffer = async (contractId: string, playerName: string) => {
+        if (!window.confirm(`Are you sure you want to withdraw the pending contract offer for ${playerName}?`)) return;
+        try {
+            await contractsApi.cancelOffer(contractId);
+            toast.success(`Contract offer for ${playerName} withdrawn`);
+            fetchContracts();
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Failed to withdraw contract offer');
+        }
+    };
+
     const activeContracts = contracts.filter(c => c.status === 'ACTIVE');
     const pendingContracts = contracts.filter(c => c.status === 'PENDING');
 
@@ -234,6 +245,7 @@ export const TeamHeadContracts: React.FC = () => {
                                         <th className="p-4">Offered Value</th>
                                         <th className="p-4">Offered Date</th>
                                         <th className="p-4">Status</th>
+                                        <th className="p-4 text-right">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700 text-sm">
@@ -247,6 +259,14 @@ export const TeamHeadContracts: React.FC = () => {
                                                 <span className="px-2 py-1 bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 rounded-md text-xs font-bold">
                                                     Awaiting Player Acceptance
                                                 </span>
+                                            </td>
+                                            <td className="p-4 text-right">
+                                                <button
+                                                    onClick={() => handleCancelOffer(c.id, c.player?.name || 'Player')}
+                                                    className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 text-xs font-bold rounded-lg transition-colors"
+                                                >
+                                                    Withdraw Offer
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}

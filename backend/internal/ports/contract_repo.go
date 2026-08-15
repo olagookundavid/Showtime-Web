@@ -24,6 +24,8 @@ type IContractRepository interface {
 	GetExpiringContracts(ctx context.Context, teamIDs ...string) ([]domain.Contract, error)
 	UpdateLastNotifiedRemaining(ctx context.Context, id string, remaining int) error
 	RemovePlayerFromScheduledTeamSheets(ctx context.Context, playerID, teamID string) error
+	AutoProvisionActiveContracts(ctx context.Context, teamID string) error
+	CancelContract(ctx context.Context, id string) error
 }
 
 type PostgresContractRepository struct {
@@ -32,6 +34,35 @@ type PostgresContractRepository struct {
 
 func NewContractRepository(db *pgxpool.Pool) IContractRepository {
 	return &PostgresContractRepository{db: db}
+}
+
+func (r *PostgresContractRepository) AutoProvisionActiveContracts(ctx context.Context, teamID string) error {
+	query := `
+		INSERT INTO contracts (player_id, team_id, status, contract_length, matches_at_start, player_value, notes, created_at, updated_at)
+		SELECT p.id, p.team_id, 'ACTIVE', 13, 0, 1000000, 'Auto-provisioned Active Roster Contract', NOW(), NOW()
+		FROM players p
+		WHERE p.team_id IS NOT NULL AND TRIM(p.team_id) != ''
+	`
+	if teamID != "" {
+		query += ` AND p.team_id = $1`
+	}
+	query += `
+		  AND NOT EXISTS (
+		      SELECT 1 FROM contracts c WHERE c.player_id = p.id AND c.status = 'ACTIVE'
+		  )
+	`
+	var err error
+	if teamID != "" {
+		_, err = r.db.Exec(ctx, query, teamID)
+	} else {
+		_, err = r.db.Exec(ctx, query)
+	}
+	return err
+}
+
+func (r *PostgresContractRepository) CancelContract(ctx context.Context, id string) error {
+	_, err := r.db.Exec(ctx, `UPDATE contracts SET status = 'CANCELLED', updated_at = NOW() WHERE id = $1 AND status = 'PENDING'`, id)
+	return err
 }
 
 func (r *PostgresContractRepository) CreateContract(ctx context.Context, c *domain.Contract) error {
@@ -106,6 +137,8 @@ func (r *PostgresContractRepository) GetActiveContractByPlayerID(ctx context.Con
 }
 
 func (r *PostgresContractRepository) GetContractsByTeamID(ctx context.Context, teamID string, status string, page, limit int) ([]domain.Contract, int64, error) {
+	_ = r.AutoProvisionActiveContracts(ctx, teamID)
+
 	whereClause := ` WHERE 1=1`
 	args := []any{}
 	argCount := 1

@@ -2192,6 +2192,9 @@ export const contractsApi = {
     release: async (id: string): Promise<void> => {
         await api.delete(`/contracts/${id}/release`);
     },
+    cancelOffer: async (id: string): Promise<void> => {
+        await api.post(`/contracts/${id}/cancel`);
+    },
 };
 
 // Transfer API

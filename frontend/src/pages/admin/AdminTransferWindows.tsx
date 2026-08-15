@@ -13,6 +13,51 @@ export const AdminTransferWindows: React.FC = () => {
     const [closesAt, setClosesAt] = useState<string>('');
     const [submitting, setSubmitting] = useState<boolean>(false);
 
+    // Edit state
+    const [editingWindow, setEditingWindow] = useState<TransferWindowData | null>(null);
+    const [editName, setEditName] = useState<string>('');
+    const [editOpensAt, setEditOpensAt] = useState<string>('');
+    const [editClosesAt, setEditClosesAt] = useState<string>('');
+    const [editIsActive, setEditIsActive] = useState<boolean>(true);
+
+    const openEditModal = (w: TransferWindowData) => {
+        setEditingWindow(w);
+        setEditName(w.name);
+        const formatLocal = (iso: string) => {
+            const d = new Date(iso);
+            const pad = (n: number) => n.toString().padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        };
+        setEditOpensAt(formatLocal(w.opens_at));
+        setEditClosesAt(formatLocal(w.closes_at));
+        setEditIsActive(w.is_active);
+    };
+
+    const handleUpdateWindow = async () => {
+        if (!editingWindow) return;
+        if (!editName || !editOpensAt || !editClosesAt) {
+            toast.error('Please fill in all fields');
+            return;
+        }
+
+        setSubmitting(true);
+        try {
+            await adminTransfersApi.updateWindow(editingWindow.id, {
+                name: editName,
+                opens_at: new Date(editOpensAt).toISOString(),
+                closes_at: new Date(editClosesAt).toISOString(),
+                is_active: editIsActive,
+            });
+            toast.success('Transfer window updated successfully');
+            setEditingWindow(null);
+            fetchWindows();
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Failed to update transfer window');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     const fetchWindows = async () => {
         setLoading(true);
         try {
@@ -127,7 +172,13 @@ export const AdminTransferWindows: React.FC = () => {
                                                 {w.is_open ? 'OPEN NOW' : w.is_active ? 'ACTIVE SCHEDULE' : 'INACTIVE'}
                                             </span>
                                         </td>
-                                        <td className="p-4 text-right space-x-2">
+                                         <td className="p-4 text-right space-x-2">
+                                            <button
+                                                onClick={() => openEditModal(w)}
+                                                className="px-3 py-1 bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold text-xs rounded-lg transition-colors"
+                                            >
+                                                Edit
+                                            </button>
                                             <button
                                                 onClick={() => handleToggleActive(w)}
                                                 className="px-3 py-1 bg-sffl-navy/10 hover:bg-sffl-navy/20 text-sffl-navy dark:text-blue-400 font-bold text-xs rounded-lg transition-colors"
@@ -204,6 +255,79 @@ export const AdminTransferWindows: React.FC = () => {
                                 className="flex-1 py-2.5 bg-sffl-red hover:bg-sffl-red/90 text-white font-bold text-sm rounded-xl transition-colors disabled:opacity-50"
                             >
                                 {submitting ? 'Creating...' : 'Create Window'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal for editing window */}
+            {editingWindow && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 space-y-6 shadow-2xl border border-gray-100 dark:border-gray-700">
+                        <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-4">
+                            <h3 className="text-xl font-black text-gray-900 dark:text-white">Edit Transfer Window</h3>
+                            <button onClick={() => setEditingWindow(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-lg">✕</button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Window Name</label>
+                                <input
+                                    type="text"
+                                    value={editName}
+                                    onChange={e => setEditName(e.target.value)}
+                                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-semibold"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Opens At</label>
+                                <input
+                                    type="datetime-local"
+                                    value={editOpensAt}
+                                    onChange={e => setEditOpensAt(e.target.value)}
+                                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-semibold"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Closes At</label>
+                                <input
+                                    type="datetime-local"
+                                    value={editClosesAt}
+                                    onChange={e => setEditClosesAt(e.target.value)}
+                                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-semibold"
+                                />
+                            </div>
+
+                            <div className="flex items-center gap-2 pt-2">
+                                <input
+                                    type="checkbox"
+                                    id="editIsActiveCheckbox"
+                                    checked={editIsActive}
+                                    onChange={e => setEditIsActive(e.target.checked)}
+                                    className="w-4 h-4 text-sffl-red rounded border-gray-300 focus:ring-sffl-red"
+                                />
+                                <label htmlFor="editIsActiveCheckbox" className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                                    Window Active Schedule
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+                            <button
+                                onClick={() => setEditingWindow(null)}
+                                className="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold text-sm rounded-xl hover:bg-gray-200 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleUpdateWindow}
+                                disabled={submitting}
+                                className="flex-1 py-2.5 bg-sffl-red hover:bg-sffl-red/90 text-white font-bold text-sm rounded-xl transition-colors disabled:opacity-50"
+                            >
+                                {submitting ? 'Saving...' : 'Save Changes'}
                             </button>
                         </div>
                     </div>
