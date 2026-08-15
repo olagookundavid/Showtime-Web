@@ -41,7 +41,7 @@ func (r *PostgresContractRepository) AutoProvisionActiveContracts(ctx context.Co
 		INSERT INTO contracts (player_id, team_id, status, contract_length, matches_at_start, player_value, notes, created_at, updated_at)
 		SELECT p.id, p.team_id, 'ACTIVE', 10, 0, 1000000, 'Auto-provisioned Active Roster Contract', NOW(), NOW()
 		FROM players p
-		WHERE p.team_id IS NOT NULL AND TRIM(p.team_id) != ''
+		WHERE p.team_id IS NOT NULL
 	`
 	if teamID != "" {
 		query += ` AND p.team_id = $1`
