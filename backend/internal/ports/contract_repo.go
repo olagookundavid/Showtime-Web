@@ -39,7 +39,7 @@ func NewContractRepository(db *pgxpool.Pool) IContractRepository {
 func (r *PostgresContractRepository) AutoProvisionActiveContracts(ctx context.Context, teamID string) error {
 	query := `
 		INSERT INTO contracts (player_id, team_id, status, contract_length, matches_at_start, player_value, notes, created_at, updated_at)
-		SELECT p.id, p.team_id, 'ACTIVE', 13, 0, 1000000, 'Auto-provisioned Active Roster Contract', NOW(), NOW()
+		SELECT p.id, p.team_id, 'ACTIVE', 10, 0, 1000000, 'Auto-provisioned Active Roster Contract', NOW(), NOW()
 		FROM players p
 		WHERE p.team_id IS NOT NULL AND TRIM(p.team_id) != ''
 	`
@@ -57,6 +57,7 @@ func (r *PostgresContractRepository) AutoProvisionActiveContracts(ctx context.Co
 	} else {
 		_, err = r.db.Exec(ctx, query)
 	}
+	_, _ = r.db.Exec(ctx, `UPDATE contracts SET contract_length = 10 WHERE notes = 'Auto-provisioned Active Roster Contract' AND contract_length = 13`)
 	return err
 }
 
