@@ -14,7 +14,7 @@ type IContractRepository interface {
 	CreateContract(ctx context.Context, c *domain.Contract) error
 	GetContractByID(ctx context.Context, id string) (*domain.Contract, error)
 	GetActiveContractByPlayerID(ctx context.Context, playerID string) (*domain.Contract, error)
-	GetContractsByTeamID(ctx context.Context, teamID string, status string, page, limit int) ([]domain.Contract, int64, error)
+	GetContractsByTeamID(ctx context.Context, teamID string, status string, search string, page, limit int) ([]domain.Contract, int64, error)
 	GetPendingContractsByPlayerID(ctx context.Context, playerID string) ([]domain.Contract, error)
 	GetContractsByPlayerID(ctx context.Context, playerID string) ([]domain.Contract, error)
 	UpdateContractStatus(ctx context.Context, id string, status string, terminationReason string, acceptedAt, expiredAt, terminatedAt *time.Time) error
@@ -137,7 +137,7 @@ func (r *PostgresContractRepository) GetActiveContractByPlayerID(ctx context.Con
 	return &c, nil
 }
 
-func (r *PostgresContractRepository) GetContractsByTeamID(ctx context.Context, teamID string, status string, page, limit int) ([]domain.Contract, int64, error) {
+func (r *PostgresContractRepository) GetContractsByTeamID(ctx context.Context, teamID string, status string, search string, page, limit int) ([]domain.Contract, int64, error) {
 	_ = r.AutoProvisionActiveContracts(ctx, teamID)
 
 	whereClause := ` WHERE 1=1`
@@ -156,8 +156,20 @@ func (r *PostgresContractRepository) GetContractsByTeamID(ctx context.Context, t
 		argCount++
 	}
 
+	if search != "" {
+		whereClause += ` AND (p.name ILIKE $` + strconv.Itoa(argCount) + ` OR t.name ILIKE $` + strconv.Itoa(argCount) + `)`
+		args = append(args, "%"+search+"%")
+		argCount++
+	}
+
+	countQuery := `
+		SELECT COUNT(*)
+		FROM contracts c
+		JOIN players p ON c.player_id = p.id
+		JOIN teams t ON c.team_id = t.id` + whereClause
+
 	var total int64
-	if err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM contracts c`+whereClause, args...).Scan(&total); err != nil {
+	if err := r.db.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 

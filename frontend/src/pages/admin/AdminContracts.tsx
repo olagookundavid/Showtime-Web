@@ -17,6 +17,7 @@ export const AdminContracts: React.FC = () => {
         try {
             const res = await contractsApi.getTeamContracts({
                 status: statusFilter || undefined,
+                search: search || undefined,
                 page,
                 limit,
             });
@@ -32,7 +33,7 @@ export const AdminContracts: React.FC = () => {
 
     useEffect(() => {
         fetchContracts();
-    }, [page, limit, statusFilter]);
+    }, [page, limit, statusFilter, search]);
 
     const handleOverride = async (contractId: string, currentStatus: string) => {
         const newStatus = window.prompt(`Override contract status (ACTIVE, EXPIRED, TERMINATED, REJECTED, CANCELLED). Current: ${currentStatus}`, 'EXPIRED');
@@ -47,15 +48,6 @@ export const AdminContracts: React.FC = () => {
         }
     };
 
-    const filteredContracts = contracts.filter(c => {
-        if (!search) return true;
-        const q = search.toLowerCase();
-        return (
-            c.player?.name?.toLowerCase().includes(q) ||
-            c.team?.name?.toLowerCase().includes(q)
-        );
-    });
-
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -69,7 +61,10 @@ export const AdminContracts: React.FC = () => {
                         type="text"
                         placeholder="Search player or team..."
                         value={search}
-                        onChange={e => setSearch(e.target.value)}
+                        onChange={e => {
+                            setSearch(e.target.value);
+                            setPage(1);
+                        }}
                         className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-medium text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sffl-red"
                     />
 
@@ -108,7 +103,7 @@ export const AdminContracts: React.FC = () => {
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
                 {loading ? (
                     <div className="p-12 text-center text-gray-400">Loading contracts...</div>
-                ) : filteredContracts.length === 0 ? (
+                ) : contracts.length === 0 ? (
                     <div className="p-12 text-center text-gray-400">No contract records match your filter criteria.</div>
                 ) : (
                     <div>
@@ -126,7 +121,7 @@ export const AdminContracts: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700 text-sm">
-                                    {filteredContracts.map(c => (
+                                    {contracts.map(c => (
                                         <tr key={c.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30">
                                             <td className="p-4 font-bold text-gray-900 dark:text-white">{c.player?.name || 'Unknown Player'}</td>
                                             <td className="p-4 font-semibold text-gray-700 dark:text-gray-300">{c.team?.name || 'Unassigned'}</td>

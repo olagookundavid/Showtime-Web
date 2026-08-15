@@ -16,7 +16,7 @@ type IContractService interface {
 	RenewContract(ctx context.Context, contractID string, managerUserID string, managerTeamID string, req dto.RenewContractRequest) (*dto.ContractResponse, error)
 	ReleasePlayer(ctx context.Context, contractID string, managerUserID string, managerTeamID string) error
 	CancelContract(ctx context.Context, contractID string, managerUserID string, managerTeamID string) error
-	GetTeamContracts(ctx context.Context, teamID string, status string, page, limit int) (dto.PaginatedResult[dto.ContractResponse], error)
+	GetTeamContracts(ctx context.Context, teamID string, status string, search string, page, limit int) (dto.PaginatedResult[dto.ContractResponse], error)
 	GetMyContracts(ctx context.Context, userID string) ([]dto.ContractResponse, error)
 	GetFreeAgents(ctx context.Context, search string, page, limit int) (dto.PaginatedResult[dto.PlayerResponse], error)
 	GetContractByID(ctx context.Context, id string) (*dto.ContractResponse, error)
@@ -281,8 +281,8 @@ func (s *ContractService) CancelContract(ctx context.Context, contractID string,
 	return s.repo.CancelContract(ctx, contractID)
 }
 
-func (s *ContractService) GetTeamContracts(ctx context.Context, teamID string, status string, page, limit int) (dto.PaginatedResult[dto.ContractResponse], error) {
-	contracts, total, err := s.repo.GetContractsByTeamID(ctx, teamID, status, page, limit)
+func (s *ContractService) GetTeamContracts(ctx context.Context, teamID string, status string, search string, page, limit int) (dto.PaginatedResult[dto.ContractResponse], error) {
+	contracts, total, err := s.repo.GetContractsByTeamID(ctx, teamID, status, search, page, limit)
 	if err != nil {
 		return dto.PaginatedResult[dto.ContractResponse]{}, err
 	}

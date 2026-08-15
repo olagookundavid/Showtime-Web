@@ -162,10 +162,11 @@ func (h *ContractHandler) GetTeamContracts(c *gin.Context) {
 	}
 
 	status := c.Query("status")
+	search := c.Query("search")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 
-	res, err := h.service.GetTeamContracts(c.Request.Context(), teamIDStr, status, page, limit)
+	res, err := h.service.GetTeamContracts(c.Request.Context(), teamIDStr, status, search, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
