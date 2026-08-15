@@ -39,7 +39,16 @@ func NewContractRepository(db *pgxpool.Pool) IContractRepository {
 func (r *PostgresContractRepository) AutoProvisionActiveContracts(ctx context.Context, teamID string) error {
 	query := `
 		INSERT INTO contracts (player_id, team_id, status, contract_length, matches_at_start, player_value, notes, created_at, updated_at)
-		SELECT p.id, p.team_id, 'ACTIVE', 10, 0, 1000000, 'Auto-provisioned Active Roster Contract', NOW(), NOW()
+		SELECT 
+			p.id, 
+			p.team_id, 
+			'ACTIVE', 
+			10, 
+			(SELECT COUNT(*) FROM matches WHERE (home_team_id = p.team_id OR away_team_id = p.team_id) AND status = 'FINISHED'),
+			1000000, 
+			'Auto-provisioned Active Roster Contract', 
+			NOW(), 
+			NOW()
 		FROM players p
 		WHERE p.team_id IS NOT NULL
 	`
@@ -57,7 +66,17 @@ func (r *PostgresContractRepository) AutoProvisionActiveContracts(ctx context.Co
 	} else {
 		_, err = r.db.Exec(ctx, query)
 	}
-	_, _ = r.db.Exec(ctx, `UPDATE contracts SET contract_length = 10 WHERE notes = 'Auto-provisioned Active Roster Contract' AND contract_length = 13`)
+
+	// Update any auto-provisioned contracts that were created at matches_at_start = 0 or incorrectly expired
+	_, _ = r.db.Exec(ctx, `
+		UPDATE contracts c
+		SET matches_at_start = (SELECT COUNT(*) FROM matches WHERE (home_team_id = c.team_id OR away_team_id = c.team_id) AND status = 'FINISHED'),
+		    status = 'ACTIVE',
+		    contract_length = 10,
+		    updated_at = NOW()
+		WHERE c.notes = 'Auto-provisioned Active Roster Contract' AND (c.matches_at_start = 0 OR c.status = 'EXPIRED')
+	`)
+
 	return err
 }
 

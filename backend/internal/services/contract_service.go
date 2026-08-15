@@ -291,7 +291,11 @@ func (s *ContractService) GetTeamContracts(ctx context.Context, teamID string, s
 
 	res := make([]dto.ContractResponse, 0, len(contracts))
 	for _, c := range contracts {
-		res = append(res, s.mapContractToResponse(&c, currentMatches))
+		teamMatches := currentMatches
+		if teamMatches == 0 && c.TeamID != "" {
+			teamMatches, _ = s.repo.GetTeamFinishedMatchCount(ctx, c.TeamID)
+		}
+		res = append(res, s.mapContractToResponse(&c, teamMatches))
 	}
 
 	totalPages := 0
@@ -498,13 +502,20 @@ func (s *ContractService) AdminOverrideContract(ctx context.Context, id string, 
 }
 
 func (s *ContractService) mapContractToResponse(c *domain.Contract, currentTeamMatches int) dto.ContractResponse {
-	matchesPlayed := currentTeamMatches - c.MatchesAtStart
-	if matchesPlayed < 0 {
-		matchesPlayed = 0
+	matchesPlayedUnderContract := currentTeamMatches - c.MatchesAtStart
+	if matchesPlayedUnderContract < 0 {
+		matchesPlayedUnderContract = 0
 	}
-	matchesRemaining := c.ContractLength - matchesPlayed
+	matchesRemaining := c.ContractLength - matchesPlayedUnderContract
 	if matchesRemaining < 0 {
 		matchesRemaining = 0
+	}
+
+	// Model B Cumulative Tenure Display
+	totalHorizon := c.MatchesAtStart + c.ContractLength
+	cumulativePlayed := currentTeamMatches
+	if cumulativePlayed > totalHorizon {
+		cumulativePlayed = totalHorizon
 	}
 
 	resp := dto.ContractResponse{
@@ -512,9 +523,9 @@ func (s *ContractService) mapContractToResponse(c *domain.Contract, currentTeamM
 		PlayerID:          c.PlayerID,
 		TeamID:            c.TeamID,
 		Status:            c.Status,
-		ContractLength:    c.ContractLength,
+		ContractLength:    totalHorizon,
 		MatchesAtStart:    c.MatchesAtStart,
-		MatchesPlayed:     matchesPlayed,
+		MatchesPlayed:     cumulativePlayed,
 		MatchesRemaining:  matchesRemaining,
 		PlayerValue:       c.PlayerValue,
 		OfferedBy:         c.OfferedBy,
