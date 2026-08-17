@@ -167,9 +167,13 @@ func (r *PostgresPlayerRepository) UpdatePlayer(ctx context.Context, player *dom
 		}
 	}
 
+	// team_id is NULLIF'd because domain.Player.TeamID is a plain string: releasing a
+	// player is expressed as "", and passing that straight into a UUID column made
+	// Postgres reject the whole UPDATE ("invalid input syntax for type uuid"). Every
+	// contract expiry silently failed to release its player because of it.
 	query := `
 		UPDATE players SET
-			name=$1, jersey_number=$2, position=$3, team_id=$4, bio=$5, image=$6, email=$7, user_id=COALESCE($8, user_id),
+			name=$1, jersey_number=$2, position=$3, team_id=NULLIF($4::text, '')::uuid, bio=$5, image=$6, email=$7, user_id=COALESCE($8, user_id),
 			updated_at=NOW()
 		WHERE id=$9
 	`

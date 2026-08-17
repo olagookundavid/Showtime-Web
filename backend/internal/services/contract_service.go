@@ -10,8 +10,14 @@ import (
 	"showtime-backend/internal/ports"
 )
 
+// InitialContractMatches is the contract length every player is onboarded with. The
+// historical import gave all existing players 10 matches from the current season, and
+// newly created players get the same so the roster stays uniform.
+const InitialContractMatches = 10
+
 type IContractService interface {
 	IssueContract(ctx context.Context, managerUserID string, teamID string, req dto.IssueContractRequest) (*dto.ContractResponse, error)
+	ProvisionInitialContract(ctx context.Context, playerID, teamID, managerUserID string, contractLength *int) error
 	RespondToContract(ctx context.Context, contractID string, userID string, action string, notes string) error
 	RenewContract(ctx context.Context, contractID string, managerUserID string, managerTeamID string, req dto.RenewContractRequest) (*dto.ContractResponse, error)
 	ReleasePlayer(ctx context.Context, contractID string, managerUserID string, managerTeamID string) error
@@ -38,6 +44,53 @@ func NewContractService(repo ports.IContractRepository, playerRepo ports.PlayerR
 		notifService: notifService,
 		windowRepo:   windowRepo,
 	}
+}
+
+// ProvisionInitialContract gives a newly onboarded player their first contract:
+// InitialContractMatches matches, ACTIVE immediately, counting from the team's current
+// finished-match total so the Model B display reads "played / played + 10".
+//
+// Deliberately NOT gated on the transfer window. A window governs transfers and
+// free-agent signings; onboarding a player who has never existed on the platform is
+// neither. Extensions are likewise ungated — a team can extend any time the player
+// agrees.
+//
+// Issued ACTIVE rather than PENDING because a newly created player has no user account
+// yet to accept an offer with. A PENDING contract would leave them rostered with no
+// active contract, and the roster locks key off exactly that, so they would silently
+// vanish from team-sheet dropdowns. This replaces the AutoProvisionActiveContracts
+// backfill that used to paper over that gap on every contracts page load.
+//
+// Idempotent: a player who already holds an ACTIVE contract is left alone.
+func (s *ContractService) ProvisionInitialContract(ctx context.Context, playerID, teamID, managerUserID string, contractLength *int) error {
+	if playerID == "" || teamID == "" {
+		return fmt.Errorf("player and team are both required to provision a contract")
+	}
+
+	if active, _ := s.repo.GetActiveContractByPlayerID(ctx, playerID); active != nil {
+		return nil
+	}
+
+	length := InitialContractMatches
+	if contractLength != nil && *contractLength > 0 {
+		length = *contractLength
+	}
+
+	matchesAtStart, err := s.repo.GetTeamFinishedMatchCount(ctx, teamID)
+	if err != nil {
+		return fmt.Errorf("failed to read team finished match count: %w", err)
+	}
+
+	return s.repo.CreateContract(ctx, &domain.Contract{
+		PlayerID:       playerID,
+		TeamID:         teamID,
+		Status:         "ACTIVE",
+		ContractLength: length,
+		MatchesAtStart: matchesAtStart,
+		PlayerValue:    1000000,
+		OfferedBy:      managerUserID,
+		Notes:          "Initial onboarding contract",
+	})
 }
 
 func (s *ContractService) IssueContract(ctx context.Context, managerUserID string, teamID string, req dto.IssueContractRequest) (*dto.ContractResponse, error) {
@@ -400,43 +453,58 @@ func (s *ContractService) CheckAndExpireContracts(ctx context.Context, teamIDs .
 		player, pErr := s.playerRepo.GetPlayerByID(ctx, c.PlayerID)
 
 		// 1. Contract reached/exceeded length -> Expire it
+		//
+		// Release the player from the team BEFORE marking the contract expired, and
+		// abort the whole expiry if that release fails. An expired contract sitting on
+		// a still-rostered player is a divergence that reads as "this player needs a
+		// contract" to every other part of the system, which is precisely how the
+		// duplicate auto-provisioned contracts accumulated. Better to leave the
+		// contract ACTIVE and retry on the next finished match than to half-apply.
 		if remainingMatches <= 0 {
-			if err := s.repo.UpdateContractStatus(ctx, c.ID, "EXPIRED", "EXPIRED", nil, &now, nil); err == nil {
-				expiredCount++
-
-				// Clear player team_id and remove from scheduled match team sheets
-				if pErr == nil && player != nil {
-					teamName := ""
-					if player.Team != nil {
-						teamName = player.Team.Name
-					}
-					oldTeamID := player.TeamID
-					player.TeamID = ""
-					_ = s.playerRepo.UpdatePlayer(ctx, player)
-
-					if oldTeamID != "" {
-						_ = s.repo.RemovePlayerFromScheduledTeamSheets(ctx, player.ID, oldTeamID)
-					}
-
-					if player.UserID != nil && *player.UserID != "" {
-						msg := "Your contract has expired. You are now a free agent."
-						if teamName != "" {
-							msg = fmt.Sprintf("Your contract with %s has expired. You are now a free agent.", teamName)
-						}
-						refID := c.ID
-						_ = s.notifService.Send(ctx, *player.UserID, "CONTRACT_EXPIRED", "Contract Expired", msg, "contract", &refID)
-					}
-
-					// Notify manager
-					if c.OfferedBy != "" {
-						msg := fmt.Sprintf("Player %s's contract has expired. They are now a free agent.", player.Name)
-						refID := c.ID
-						_ = s.notifService.Send(ctx, c.OfferedBy, "CONTRACT_EXPIRED", "Player Contract Expired", msg, "contract", &refID)
-					}
-				}
-
-				_ = s.repo.UpdateLastNotifiedRemaining(ctx, c.ID, 0)
+			if pErr != nil || player == nil {
+				fmt.Printf("contract %s: cannot expire, player %s could not be loaded: %v\n", c.ID, c.PlayerID, pErr)
+				continue
 			}
+
+			teamName := ""
+			if player.Team != nil {
+				teamName = player.Team.Name
+			}
+			oldTeamID := player.TeamID
+
+			player.TeamID = ""
+			if err := s.playerRepo.UpdatePlayer(ctx, player); err != nil {
+				fmt.Printf("contract %s: failed to release player %s from team %s, leaving contract ACTIVE: %v\n", c.ID, player.ID, oldTeamID, err)
+				continue
+			}
+
+			if err := s.repo.UpdateContractStatus(ctx, c.ID, "EXPIRED", "EXPIRED", nil, &now, nil); err != nil {
+				fmt.Printf("contract %s: player %s was released but the contract could not be marked EXPIRED: %v\n", c.ID, player.ID, err)
+				continue
+			}
+			expiredCount++
+
+			if oldTeamID != "" {
+				_ = s.repo.RemovePlayerFromScheduledTeamSheets(ctx, player.ID, oldTeamID)
+			}
+
+			if player.UserID != nil && *player.UserID != "" {
+				msg := "Your contract has expired. You are now a free agent."
+				if teamName != "" {
+					msg = fmt.Sprintf("Your contract with %s has expired. You are now a free agent.", teamName)
+				}
+				refID := c.ID
+				_ = s.notifService.Send(ctx, *player.UserID, "CONTRACT_EXPIRED", "Contract Expired", msg, "contract", &refID)
+			}
+
+			// Notify manager
+			if c.OfferedBy != "" {
+				msg := fmt.Sprintf("Player %s's contract has expired. They are now a free agent.", player.Name)
+				refID := c.ID
+				_ = s.notifService.Send(ctx, c.OfferedBy, "CONTRACT_EXPIRED", "Player Contract Expired", msg, "contract", &refID)
+			}
+
+			_ = s.repo.UpdateLastNotifiedRemaining(ctx, c.ID, 0)
 			continue
 		}
 

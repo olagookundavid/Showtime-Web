@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"fmt"
 	"net/http"
 	"pkg-common/helpers"
 	"showtime-backend/internal/domain"
@@ -178,7 +179,12 @@ func (h *PlayerHandler) CreatePlayer(c *gin.Context) {
 		return
 	}
 
-	// Auto-issue a PENDING contract for the created player if assigned to a team
+	// Give the new player their initial ACTIVE contract. IssueContract is not used
+	// here: it is gated on an open transfer window and creates a PENDING offer, but
+	// onboarding is neither a transfer nor a free-agent signing, and a brand-new player
+	// has no account with which to accept an offer. Provisioning it ACTIVE is what
+	// keeps them visible to the roster locks and team-sheet dropdowns.
+	contractWarning := ""
 	if player.TeamID != "" && h.contractService != nil {
 		managerUserID := ""
 		payload, err := helpers.GetTokenPayloadFromContext(c)
@@ -186,18 +192,21 @@ func (h *PlayerHandler) CreatePlayer(c *gin.Context) {
 			managerUserID = payload.UserId
 		}
 
-		contractLen := 13
-		if req.ContractLength != nil && *req.ContractLength > 0 {
-			contractLen = *req.ContractLength
+		if err := h.contractService.ProvisionInitialContract(c.Request.Context(), player.ID, player.TeamID, managerUserID, req.ContractLength); err != nil {
+			// The player exists but is rostered without a contract — the exact
+			// divergence the old auto-provisioning backfill was hiding. Surface it
+			// rather than swallowing it.
+			contractWarning = fmt.Sprintf("player was created but their initial contract could not be issued: %v", err)
+			fmt.Printf("player %s: %s\n", player.ID, contractWarning)
 		}
-
-		_, _ = h.contractService.IssueContract(c.Request.Context(), managerUserID, player.TeamID, dto.IssueContractRequest{
-			PlayerID:       player.ID,
-			ContractLength: &contractLen,
-		})
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "Player created with pending contract offer", "id": player.ID})
+	res := gin.H{"message": "Player created with an active contract", "id": player.ID}
+	if contractWarning != "" {
+		res["message"] = "Player created"
+		res["warning"] = contractWarning
+	}
+	c.JSON(http.StatusCreated, res)
 }
 
 // UpdatePlayer godoc

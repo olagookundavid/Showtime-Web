@@ -24,7 +24,6 @@ type IContractRepository interface {
 	GetExpiringContracts(ctx context.Context, teamIDs ...string) ([]domain.Contract, error)
 	UpdateLastNotifiedRemaining(ctx context.Context, id string, remaining int) error
 	RemovePlayerFromScheduledTeamSheets(ctx context.Context, playerID, teamID string) error
-	AutoProvisionActiveContracts(ctx context.Context, teamID string) error
 	CancelContract(ctx context.Context, id string) error
 }
 
@@ -36,49 +35,13 @@ func NewContractRepository(db *pgxpool.Pool) IContractRepository {
 	return &PostgresContractRepository{db: db}
 }
 
-func (r *PostgresContractRepository) AutoProvisionActiveContracts(ctx context.Context, teamID string) error {
-	query := `
-		INSERT INTO contracts (player_id, team_id, status, contract_length, matches_at_start, player_value, notes, created_at, updated_at)
-		SELECT 
-			p.id, 
-			p.team_id, 
-			'ACTIVE', 
-			10, 
-			(SELECT COUNT(*) FROM matches WHERE (home_team_id = p.team_id OR away_team_id = p.team_id) AND status = 'FINISHED'),
-			1000000, 
-			'Auto-provisioned Active Roster Contract', 
-			NOW(), 
-			NOW()
-		FROM players p
-		WHERE p.team_id IS NOT NULL
-	`
-	if teamID != "" {
-		query += ` AND p.team_id = $1`
-	}
-	query += `
-		  AND NOT EXISTS (
-		      SELECT 1 FROM contracts c WHERE c.player_id = p.id AND c.status = 'ACTIVE'
-		  )
-	`
-	var err error
-	if teamID != "" {
-		_, err = r.db.Exec(ctx, query, teamID)
-	} else {
-		_, err = r.db.Exec(ctx, query)
-	}
-
-	// Update any auto-provisioned contracts that were created at matches_at_start = 0 or incorrectly expired
-	_, _ = r.db.Exec(ctx, `
-		UPDATE contracts c
-		SET matches_at_start = (SELECT COUNT(*) FROM matches WHERE (home_team_id = c.team_id OR away_team_id = c.team_id) AND status = 'FINISHED'),
-		    status = 'ACTIVE',
-		    contract_length = 10,
-		    updated_at = NOW()
-		WHERE c.notes = 'Auto-provisioned Active Roster Contract' AND (c.matches_at_start = 0 OR c.status = 'EXPIRED')
-	`)
-
-	return err
-}
+// AutoProvisionActiveContracts was removed in migration 067. It was a one-time
+// backfill for the historical player import, but it was wired into the read path of
+// GetContractsByTeamID, so it re-ran on every contracts page load. Its second
+// statement was not team-scoped and reset every auto-provisioned row from EXPIRED
+// back to ACTIVE, which both undid every contract expiry and inserted a fresh
+// duplicate each cycle — 9,045 ACTIVE contracts across 853 players. New players are
+// given their first 10-match contract explicitly at creation instead.
 
 func (r *PostgresContractRepository) CancelContract(ctx context.Context, id string) error {
 	_, err := r.db.Exec(ctx, `UPDATE contracts SET status = 'CANCELLED', updated_at = NOW() WHERE id = $1 AND status = 'PENDING'`, id)
@@ -86,11 +49,14 @@ func (r *PostgresContractRepository) CancelContract(ctx context.Context, id stri
 }
 
 func (r *PostgresContractRepository) CreateContract(ctx context.Context, c *domain.Contract) error {
+	// offered_by is NULLIF'd for the same reason as players.team_id: domain.Contract
+	// .OfferedBy is a plain string, and a system-issued contract has no offering
+	// manager, so "" would otherwise be cast into a UUID column and fail the insert.
 	query := `
 		INSERT INTO contracts (
 			player_id, team_id, status, contract_length, matches_at_start,
 			player_value, offered_by, offered_at, notes
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8)
+		) VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7::text, '')::uuid, NOW(), $8)
 		RETURNING id, offered_at, created_at, updated_at
 	`
 	return r.db.QueryRow(ctx, query,
@@ -157,8 +123,6 @@ func (r *PostgresContractRepository) GetActiveContractByPlayerID(ctx context.Con
 }
 
 func (r *PostgresContractRepository) GetContractsByTeamID(ctx context.Context, teamID string, status string, search string, page, limit int) ([]domain.Contract, int64, error) {
-	_ = r.AutoProvisionActiveContracts(ctx, teamID)
-
 	whereClause := ` WHERE 1=1`
 	args := []any{}
 	argCount := 1
