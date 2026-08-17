@@ -221,6 +221,21 @@ export const ClaimStatusPage: React.FC = () => {
                             </div>
                         )}
 
+                        {claim.status === 'APPROVED' && (
+                            <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                                {/* Full reload rather than a router navigation: this session was
+                                    issued while the account was still player_pending, so the
+                                    cached profile has to be re-fetched before the portal's role
+                                    guard will let them through. */}
+                                <button
+                                    onClick={() => window.location.assign('/player-portal')}
+                                    className="w-full py-3 bg-sffl-red hover:bg-red-700 text-white font-bold rounded-lg transition-colors"
+                                >
+                                    Go to my player portal
+                                </button>
+                            </div>
+                        )}
+
                         <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-700">
                             <button
                                 onClick={fetchStatus}
