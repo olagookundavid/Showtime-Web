@@ -68,17 +68,17 @@ func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest) err
 
 	}
 
-	defaultRole := "user"
-	if s.PlayerRepo != nil {
-		if hasPlayer, _ := s.PlayerRepo.HasPlayerWithEmail(ctx, emailAddr); hasPlayer {
-			defaultRole = "player"
-		}
-	}
-
+	// Self-registration always yields the default role, never 'player'.
+	//
+	// This used to grant role = 'player' when the registrant's email matched a row in
+	// players, which let anyone who knew (or controlled) an email a manager had typed
+	// into the roster register themselves straight into a player account, bypassing the
+	// team manager's approval. Player accounts are minted only by an approved claim —
+	// see ClaimService.ApproveClaim.
 	user := domain.User{
 		FullName: req.FullName,
 		Email:    emailAddr,
-		Role:     defaultRole,
+		Role:     "user",
 		Phone:    req.Phone,
 	}
 
@@ -87,13 +87,8 @@ func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest) err
 		return errors.New("invalid password")
 	}
 
-	newID, err := s.AuthRepository.Register(ctx, user)
-	if err != nil {
+	if _, err := s.AuthRepository.Register(ctx, user); err != nil {
 		return err
-	}
-
-	if newID != nil && s.PlayerRepo != nil {
-		_, _ = s.PlayerRepo.GetPlayerByUserID(ctx, *newID)
 	}
 
 	return nil

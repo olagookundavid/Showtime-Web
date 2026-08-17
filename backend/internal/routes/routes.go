@@ -79,7 +79,41 @@ func Routes(app *api.Application) *gin.Engine {
 	SetupPlayerPortalRoutes(v1_api, app)
 	SetupNotificationRoutes(v1_api, app)
 	SetupAppSettingRoutes(v1_api, app)
+	SetupClaimRoutes(v1_api, app)
 	return r
+}
+
+// SetupClaimRoutes carries the player account claim flow.
+//
+// The submit/verify endpoints are unauthenticated by necessity — the whole point is
+// that these players have no account yet — so they are rate-limited at the same tier as
+// /auth. They are not a security boundary: the team claim code is shared with a whole
+// squad and must be assumed public, and everything it exposes (player names, jersey
+// numbers, positions) is already on the public roster pages. The actual gate on getting
+// a player account is the team manager approving the claim, in SetupTeamHeadRoutes.
+func SetupClaimRoutes(r *gin.RouterGroup, app *api.Application) {
+	rls := commonAuth.RateLimitStruct{
+		LimiterEnabled: true,
+		Rps:            5,
+		Burst:          10,
+	}
+
+	claimRoutes := r.Group("/claim", commonAuth.RateLimit(rls))
+	{
+		claimRoutes.POST("/verify-code", app.Handlers.ClaimHandler.VerifyCode)
+		claimRoutes.POST("/submit", app.Handlers.ClaimHandler.SubmitClaim)
+		claimRoutes.POST("/verify-email", app.Handlers.ClaimHandler.VerifyClaimEmail)
+	}
+
+	// The claimant's own view of their pending claim. Any signed-in user may call these;
+	// they only ever resolve the claim belonging to the token's user.
+	claimProtected := r.Group("/claim")
+	claimProtected.Use(commonAuth.TokenMiddleware(app.TokenMaker))
+	{
+		claimProtected.GET("/my-status", app.Handlers.ClaimHandler.GetMyClaim)
+		claimProtected.PATCH("/my-photo", app.Handlers.ClaimHandler.UpdateMyClaimPhoto)
+		claimProtected.POST("/resend-verification", app.Handlers.ClaimHandler.ResendVerification)
+	}
 }
 
 // SetupAppSettingRoutes exposes the site-wide display settings. The read is
@@ -91,7 +125,10 @@ func SetupAppSettingRoutes(r *gin.RouterGroup, app *api.Application) {
 
 func SetupUploadRoutes(r *gin.RouterGroup, app *api.Application) {
 	uploadRoutes := r.Group("/upload")
-	uploadRoutes.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.RolesAllowedMiddleware(app.AuthService, "admin", "team_head"))
+	// player_pending is an unapproved account claimant. They need presign access to
+	// attach the photo their manager identifies them by; PresignUpload pins their folder
+	// to claim-photos so the grant cannot reach the rest of the bucket.
+	uploadRoutes.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.RolesAllowedMiddleware(app.AuthService, "admin", "team_head", "player_pending"))
 	{
 		uploadRoutes.POST("/presign", app.Handlers.UploadHandler.PresignUpload)
 		uploadRoutes.DELETE("", app.Handlers.UploadHandler.DeleteUpload)
@@ -358,6 +395,25 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		adminBudgets.PUT("/:teamId", app.Handlers.TransferHandler.AdminAdjustBudget)
 		adminBudgets.POST("/seed", app.Handlers.TransferHandler.AdminSeedBudgets)
 	}
+
+	// Cross-team oversight of the claim flow. Same approve/reject as a team head, plus
+	// revoke — the escape hatch for an approval that turns out to be the wrong person.
+	adminClaims := adminRoutes.Group("/claims")
+	adminClaims.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
+	{
+		adminClaims.GET("", app.Handlers.ClaimHandler.ListClaims)
+		adminClaims.POST("/:id/approve", app.Handlers.ClaimHandler.ApproveClaim)
+		adminClaims.POST("/:id/reject", app.Handlers.ClaimHandler.RejectClaim)
+		adminClaims.POST("/:id/revoke", app.Handlers.ClaimHandler.RevokeClaim)
+	}
+
+	adminClaimCodes := adminRoutes.Group("/claim-codes")
+	adminClaimCodes.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
+	{
+		adminClaimCodes.GET("", app.Handlers.ClaimHandler.ListClaimCodes)
+		adminClaimCodes.POST("", app.Handlers.ClaimHandler.CreateClaimCode)
+		adminClaimCodes.DELETE("/:id", app.Handlers.ClaimHandler.RevokeClaimCode)
+	}
 }
 
 func SetupTeamHeadRoutes(r *gin.RouterGroup, app *api.Application) {
@@ -378,6 +434,20 @@ func SetupTeamHeadRoutes(r *gin.RouterGroup, app *api.Application) {
 	// Allocations
 	thRoutes.GET("/allocations", app.Handlers.TeamTicketAllocationHandler.GetTeamAllocations)
 	thRoutes.POST("/allocations/issue", app.Handlers.TeamTicketAllocationHandler.IssueTeamTicket)
+
+	// Player account claims. This is where a player account is actually minted: the
+	// manager vouching for someone they know personally is the only identity check the
+	// system has, because the historical player import carried no contact details.
+	// Approvals sit inside the AuditLoggerMiddleware group, so each one is attributable.
+	thRoutes.GET("/claims", app.Handlers.ClaimHandler.ListClaims)
+	thRoutes.POST("/claims/:id/approve", app.Handlers.ClaimHandler.ApproveClaim)
+	thRoutes.POST("/claims/:id/reject", app.Handlers.ClaimHandler.RejectClaim)
+
+	// The code a manager hands to their squad. Generating rotates: the previous code is
+	// revoked so a team only ever has one live code.
+	thRoutes.GET("/claim-codes", app.Handlers.ClaimHandler.GetMyClaimCode)
+	thRoutes.POST("/claim-codes", app.Handlers.ClaimHandler.CreateClaimCode)
+	thRoutes.DELETE("/claim-codes/:id", app.Handlers.ClaimHandler.RevokeClaimCode)
 }
 
 func SetupAuthRoutes(r *gin.RouterGroup, app *api.Application) {

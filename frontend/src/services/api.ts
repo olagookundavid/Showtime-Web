@@ -33,7 +33,11 @@ api.interceptors.response.use(
         const status = error?.response?.status;
         const url: string = error?.config?.url || '';
         const hadToken = typeof localStorage !== 'undefined' && !!localStorage.getItem('showtime_access_token');
-        const isAuthEndpoint = /\/auth\/(login|register|forgot-password|reset-password|profile)/.test(url);
+        // The claim endpoints answer 401 for a bad/expired/exhausted team code, which
+        // says nothing about the caller's session. A claimant is signed in as
+        // player_pending while they finish their claim, so treating that 401 as an
+        // expired session would sign them out mid-flow.
+        const isAuthEndpoint = /\/auth\/(login|register|forgot-password|reset-password|profile)|\/claim\//.test(url);
         if (status === 401 && hadToken && !isAuthEndpoint) {
             localStorage.removeItem('showtime_access_token');
             if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
@@ -2317,6 +2321,182 @@ export const adminTransfersApi = {
     },
     seedBudgets: async (): Promise<void> => {
         await api.post('/admin/team-budgets/seed');
+    },
+};
+
+// ─── Player Account Claims ────────────────────────────────────────────────────
+// Every player in the database came from the historical import with no email, phone
+// or photo, so none of them can be authenticated by contact details. A claimant
+// identifies themselves to their team manager, who is the only party able to confirm
+// who they are; approval is what mints the account.
+
+export interface ClaimablePlayerData {
+    id: string;
+    name: string;
+    jersey_number?: number;
+    position?: string;
+}
+
+export interface VerifyClaimCodeData {
+    team_id: string;
+    team_name: string;
+    team_logo?: string;
+    players: ClaimablePlayerData[];
+}
+
+export interface SubmitClaimPayload {
+    code: string;
+    email: string;
+    password: string;
+    phone?: string;
+    player_id?: string;
+    full_name?: string;
+    proposed_jersey_number?: number;
+    proposed_position?: string;
+}
+
+export interface SubmitClaimData {
+    claim_id: string;
+    status: string;
+    access_token?: string;
+    user_id: string;
+    user_type: string;
+    message: string;
+}
+
+export interface MyClaimStatusData {
+    has_claim: boolean;
+    claim_id?: string;
+    status?: 'PENDING' | 'APPROVED' | 'REJECTED';
+    team_name?: string;
+    player_name?: string;
+    claimed_email?: string;
+    claimed_phone?: string;
+    claimed_photo?: string;
+    email_verified: boolean;
+    reject_reason?: string;
+    created_at?: string;
+}
+
+export interface PlayerClaimData {
+    id: string;
+    player_id?: string;
+    team_id: string;
+    team_name?: string;
+    status: 'PENDING' | 'APPROVED' | 'REJECTED';
+
+    claimed_email: string;
+    claimed_phone?: string;
+    claimed_photo?: string;
+    email_verified: boolean;
+
+    is_new_player_request: boolean;
+    proposed_name?: string;
+    proposed_jersey_number?: number;
+    proposed_position?: string;
+
+    player_name?: string;
+    player_jersey_number?: number;
+    player_position?: string;
+    player_image?: string;
+    past_teams?: string[];
+    matches_played: number;
+
+    reject_reason?: string;
+    reviewed_by?: string;
+    reviewed_at?: string;
+    created_at: string;
+}
+
+export interface ClaimCodeData {
+    id: string;
+    team_id: string;
+    team_name?: string;
+    code: string;
+    expires_at?: string;
+    max_uses: number;
+    uses: number;
+    revoked: boolean;
+    created_at: string;
+}
+
+export const claimApi = {
+    // Public — the claim page
+    verifyCode: async (code: string): Promise<VerifyClaimCodeData> => {
+        const res = await api.post<VerifyClaimCodeData>('/claim/verify-code', { code });
+        return res.data;
+    },
+    submit: async (payload: SubmitClaimPayload): Promise<SubmitClaimData> => {
+        const res = await api.post<SubmitClaimData>('/claim/submit', payload);
+        return res.data;
+    },
+    verifyEmail: async (token: string): Promise<void> => {
+        await api.post('/claim/verify-email', { token });
+    },
+
+    // The claimant's own pending claim
+    getMyStatus: async (): Promise<MyClaimStatusData> => {
+        const res = await api.get<MyClaimStatusData>('/claim/my-status');
+        return res.data;
+    },
+    setMyPhoto: async (photo: string): Promise<void> => {
+        await api.patch('/claim/my-photo', { photo });
+    },
+    resendVerification: async (): Promise<void> => {
+        await api.post('/claim/resend-verification');
+    },
+};
+
+// Team manager review + code management
+export const teamHeadClaimsApi = {
+    list: async (params?: { status?: string; search?: string; page?: number; limit?: number }): Promise<PaginatedResponse<PlayerClaimData>> => {
+        const res = await api.get<PaginatedResponse<PlayerClaimData>>('/team-head/claims', { params });
+        return res.data;
+    },
+    approve: async (id: string, data?: { name?: string; jersey_number?: number; position?: string }): Promise<void> => {
+        await api.post(`/team-head/claims/${id}/approve`, data || {});
+    },
+    reject: async (id: string, reason: string): Promise<void> => {
+        await api.post(`/team-head/claims/${id}/reject`, { reason });
+    },
+    getCode: async (): Promise<ClaimCodeData | null> => {
+        const res = await api.get<ClaimCodeData | { code: null }>('/team-head/claim-codes');
+        const data = res.data as ClaimCodeData;
+        return data && data.code ? data : null;
+    },
+    generateCode: async (data?: { expires_in_days?: number; max_uses?: number }): Promise<ClaimCodeData> => {
+        const res = await api.post<ClaimCodeData>('/team-head/claim-codes', data || {});
+        return res.data;
+    },
+    revokeCode: async (id: string): Promise<void> => {
+        await api.delete(`/team-head/claim-codes/${id}`);
+    },
+};
+
+export const adminClaimsApi = {
+    list: async (params?: { status?: string; search?: string; team_id?: string; page?: number; limit?: number }): Promise<PaginatedResponse<PlayerClaimData>> => {
+        const res = await api.get<PaginatedResponse<PlayerClaimData>>('/admin/claims', { params });
+        return res.data;
+    },
+    approve: async (id: string, data?: { name?: string; jersey_number?: number; position?: string }): Promise<void> => {
+        await api.post(`/admin/claims/${id}/approve`, data || {});
+    },
+    reject: async (id: string, reason: string): Promise<void> => {
+        await api.post(`/admin/claims/${id}/reject`, { reason });
+    },
+    revoke: async (id: string): Promise<void> => {
+        await api.post(`/admin/claims/${id}/revoke`);
+    },
+    listCodes: async (): Promise<ClaimCodeData[]> => {
+        const res = await api.get<{ data: ClaimCodeData[] }>('/admin/claim-codes');
+        return res.data.data || [];
+    },
+    generateCode: async (team_id: string, data?: { expires_in_days?: number; max_uses?: number }): Promise<ClaimCodeData> => {
+        const res = await api.post<ClaimCodeData>('/admin/claim-codes', { team_id, ...(data || {}) });
+        return res.data;
+    },
+    revokeCode: async (id: string): Promise<void> => {
+        await api.delete(`/admin/claim-codes/${id}`);
     },
 };
 

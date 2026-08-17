@@ -146,29 +146,14 @@ func (h *PlayerHandler) CreatePlayer(c *gin.Context) {
 		player.TeamID = scopedTeam
 	}
 
-	// Auto-provision user account if email provided and user doesn't exist
-	if player.Email != "" && h.authRepo != nil {
-		cleanEmail := strings.ToLower(strings.TrimSpace(player.Email))
-		user, _ := h.authRepo.GetUserByEmail(c.Request.Context(), cleanEmail)
-		if user != nil {
-			if user.Role == "user" {
-				_ = h.authRepo.UpdateUserRole(c.Request.Context(), user.ID, "player")
-			}
-			player.UserID = &user.ID
-		} else {
-			defaultPass := "NoPassword@123"
-			newUser := domain.User{
-				FullName: player.Name,
-				Email:    cleanEmail,
-				Role:     "player",
-			}
-			_ = newUser.Password.Set(&defaultPass)
-			newID, err := h.authRepo.Register(c.Request.Context(), newUser)
-			if err == nil && newID != nil {
-				player.UserID = newID
-			}
-		}
-	}
+	// Creating a player deliberately does NOT create a login account.
+	//
+	// This used to auto-provision a users row with the shared default password
+	// NoPassword@123 whenever an email was supplied, which meant anyone who controlled
+	// an email a manager had typed could use forgot-password to set a real password and
+	// log in as that player. That bypassed the team manager's approval entirely.
+	// Accounts are now minted only by an approved player claim, so approval is the one
+	// and only path to role = 'player' and to players.user_id.
 
 	if err := h.service.CreatePlayer(c.Request.Context(), player); err != nil {
 		if strings.Contains(err.Error(), "already exists") {

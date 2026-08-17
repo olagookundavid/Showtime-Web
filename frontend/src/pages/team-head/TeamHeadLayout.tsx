@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import api from '../../services/api';
+import api, { teamHeadClaimsApi } from '../../services/api';
 import { TeamHeadBottomNav } from './TeamHeadBottomNav';
 import {
     Squares2X2Icon,
@@ -33,6 +33,18 @@ const TeamHeadLayout = () => {
         }
         return () => { document.body.style.overflow = 'unset'; };
     }, [isSidebarOpen]);
+
+    // Surfaces how many players are waiting on this manager to confirm who they are.
+    // Without a badge the queue is invisible, and a claim nobody looks at is a player
+    // who never gets an account.
+    const { data: pendingClaims } = useQuery({
+        queryKey: ['teamHeadPendingClaims'],
+        queryFn: async () => {
+            const res = await teamHeadClaimsApi.list({ status: 'PENDING', limit: 1 });
+            return res.total || 0;
+        },
+        refetchOnWindowFocus: true,
+    });
 
     const { data: teamData, isLoading: loading } = useQuery({
         queryKey: ['myTeamHead'],
@@ -127,6 +139,17 @@ const TeamHeadLayout = () => {
                         <div className="flex items-center gap-3 px-1">
                             <TicketIcon className="w-5 h-5 flex-shrink-0" />
                             <span>Match Tickets</span>
+                        </div>
+                    </Link>
+                    <Link to="/team-head/claims" className={linkClass('/team-head/claims')}>
+                        <div className="flex items-center gap-3 px-1">
+                            <span className="text-base">🆔</span>
+                            <span>Account Claims</span>
+                            {!!pendingClaims && (
+                                <span className="ml-auto px-2 py-0.5 rounded-full bg-sffl-red text-white text-[10px] font-black">
+                                    {pendingClaims}
+                                </span>
+                            )}
                         </div>
                     </Link>
                 </nav>

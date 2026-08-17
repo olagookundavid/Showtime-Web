@@ -27,15 +27,21 @@ export const ProtectedRoute = ({ children, requireAdmin = false, requireRole }: 
     // app_admin is the superuser: it can reach anything an admin can.
     const isSuperUser = user?.role === 'admin' || user?.role === 'app_admin';
 
+    // A player_pending user is an account claimant whose team manager has not approved
+    // them yet. They have a real login but no privileges, so bounce them to the one
+    // screen that means something to them rather than dumping them on the landing page
+    // with no explanation of why they were turned away.
+    const deniedRedirect = user?.role === 'player_pending' ? '/claim/status' : '/';
+
     if (requireAdmin && !isSuperUser) {
-        return <Navigate to="/" replace />;
+        return <Navigate to={deniedRedirect} replace />;
     }
 
     if (requireRole) {
         const roles = Array.isArray(requireRole) ? requireRole : [requireRole];
         const allowed = roles.includes(user?.role || '') || (isSuperUser && roles.includes('admin'));
         if (!allowed) {
-            return <Navigate to="/" replace />;
+            return <Navigate to={deniedRedirect} replace />;
         }
     }
 

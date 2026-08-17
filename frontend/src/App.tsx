@@ -77,6 +77,7 @@ const AdminOrderDetail = lazy(() => import('./pages/admin/AdminOrderDetail').the
 // const AdminTOTW = lazy(() => import('./pages/admin/AdminTOTW').then(m => ({ default: m.AdminTOTW })));
 // const TOTWPage = lazy(() => import('./pages/stats/TOTWPage').then(m => ({ default: m.TOTWPage })));
 
+const AdminPlayerClaims = lazy(() => import('./pages/admin/AdminPlayerClaims'));
 const AdminContracts = lazy(() => import('./pages/admin/AdminContracts'));
 const AdminTransfers = lazy(() => import('./pages/admin/AdminTransfers'));
 const AdminTransferWindows = lazy(() => import('./pages/admin/AdminTransferWindows'));
@@ -90,12 +91,19 @@ const TeamHeadContracts = lazy(() => import('./pages/team-head/TeamHeadContracts
 const TeamHeadTransfers = lazy(() => import('./pages/team-head/TeamHeadTransfers').then(m => ({ default: m.TeamHeadTransfers })));
 const TeamHeadBudget = lazy(() => import('./pages/team-head/TeamHeadBudget').then(m => ({ default: m.TeamHeadBudget })));
 const TeamTickets = lazy(() => import('./pages/team-head/TeamTickets'));
+const TeamHeadClaims = lazy(() => import('./pages/team-head/TeamHeadClaims'));
 
 // Lazy load Player Portal Pages
 const PlayerPortalLayout = lazy(() => import('./pages/player-portal/PlayerPortalLayout'));
 const PlayerPortalOverview = lazy(() => import('./pages/player-portal/PlayerPortalOverview'));
 const PlayerPortalContracts = lazy(() => import('./pages/player-portal/PlayerPortalContracts'));
 const PlayerPortalTransfers = lazy(() => import('./pages/player-portal/PlayerPortalTransfers').then(m => ({ default: m.PlayerPortalTransfers })));
+
+// Player account claim flow. Unlisted by design: reachable by URL for players
+// onboarding off the historical import, but never linked from navigation.
+const ClaimAccountPage = lazy(() => import('./pages/claim/ClaimAccountPage'));
+const ClaimStatusPage = lazy(() => import('./pages/claim/ClaimStatusPage'));
+const ClaimVerifyEmailPage = lazy(() => import('./pages/claim/ClaimVerifyEmailPage'));
 
 // Lazy load Seller Pages
 const SellerLayout = lazy(() => import('./pages/seller/SellerLayout').then(m => ({ default: m.SellerLayout })));
@@ -121,6 +129,15 @@ function App() {
           <ErrorBoundary>
             <Suspense fallback={<Loader />}>
               <Routes>
+            {/* Player account claim flow — standalone, no site chrome, not in nav */}
+            <Route path="/claim" element={<ClaimAccountPage />} />
+            <Route path="/claim/verify" element={<ClaimVerifyEmailPage />} />
+            <Route path="/claim/status" element={
+              <ProtectedRoute>
+                <ClaimStatusPage />
+              </ProtectedRoute>
+            } />
+
             {/* Public Routes with Layout */}
             <Route element={<Layout />}>
               <Route path="/" element={<LandingPage />} />
@@ -204,6 +221,7 @@ function App() {
               <Route path="store" element={<AdminStore />} />
               <Route path="store/orders/:id" element={<AdminOrderDetail />} />
               <Route path="contracts" element={<AdminContracts />} />
+              <Route path="player-claims" element={<AdminPlayerClaims />} />
               <Route path="transfers" element={<AdminTransfers />} />
               <Route path="transfer-windows" element={<AdminTransferWindows />} />
               <Route path="settings" element={<AdminSettings />} />
@@ -221,6 +239,7 @@ function App() {
               <Route path="transfers" element={<TeamHeadTransfers />} />
               <Route path="budget" element={<TeamHeadBudget />} />
               <Route path="tickets" element={<TeamTickets />} />
+              <Route path="claims" element={<TeamHeadClaims />} />
             </Route>
 
             {/* Player Portal Routes */}

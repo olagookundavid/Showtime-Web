@@ -63,6 +63,7 @@ export const AdminLayout = () => {
         { name: 'Teams', path: '/admin/teams', icon: ShieldCheckIcon },
         { name: 'Competitions', path: '/admin/competitions', icon: ShieldCheckIcon },
         { name: 'Players', path: '/admin/players', icon: UserGroupIcon },
+        { name: 'Account Claims', path: '/admin/player-claims', icon: UsersIcon },
         { name: 'Contracts', path: '/admin/contracts', icon: UserGroupIcon },
         { name: 'Transfers', path: '/admin/transfers', icon: UserGroupIcon },
         { name: 'Transfer Windows', path: '/admin/transfer-windows', icon: CalendarIcon },

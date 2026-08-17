@@ -2,7 +2,9 @@ package transport
 
 import (
 	"fmt"
+	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
+	"showtime-backend/internal/middlewares"
 
 	"showtime-backend/internal/ports"
 
@@ -59,6 +61,17 @@ func (h *UploadHandler) PresignUpload(c *gin.Context) {
 		h.log.Warn("Invalid content type for upload", map[string]any{"content_type": req.ContentType})
 		helpers.BadResponse(c, "Invalid file type. Only JPEG, PNG, and WebP are allowed.")
 		return
+	}
+
+	// A player_pending user is an unapproved account claimant. They are allowed to
+	// upload exactly one thing — the photo their team manager reviews them by — so the
+	// folder they ask for is ignored and pinned to claim-photos. Without this, granting
+	// them presign access would open the whole bucket namespace to anyone who submits a
+	// claim.
+	if role, ok := c.Get(middlewares.UserRoleContextKey); ok {
+		if roleStr, _ := role.(string); roleStr == domain.RolePlayerPending {
+			req.Folder = "claim-photos"
+		}
 	}
 
 	h.log.Info("Generating presigned upload URL", map[string]any{

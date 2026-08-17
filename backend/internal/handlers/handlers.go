@@ -28,6 +28,7 @@ type Handlers struct {
 	TransferHandler             transport.ITransferHandler
 	NotificationHandler         transport.INotificationHandler
 	AppSettingHandler           transport.IAppSettingHandler
+	ClaimHandler                transport.IClaimHandler
 }
 
 func NewHandlers(
@@ -54,6 +55,7 @@ func NewHandlers(
 	transferHandler transport.ITransferHandler,
 	notificationHandler transport.INotificationHandler,
 	appSettingHandler transport.IAppSettingHandler,
+	claimHandler transport.IClaimHandler,
 ) Handlers {
 	return Handlers{
 		AuthHandler:                 authHandler,
@@ -79,7 +81,6 @@ func NewHandlers(
 		TransferHandler:             transferHandler,
 		NotificationHandler:         notificationHandler,
 		AppSettingHandler:           appSettingHandler,
+		ClaimHandler:                claimHandler,
 	}
 }
-
-

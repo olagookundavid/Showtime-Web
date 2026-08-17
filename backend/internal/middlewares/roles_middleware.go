@@ -8,6 +8,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// UserRoleContextKey holds the caller's resolved role, so a handler serving several
+// roles can narrow what each one is permitted to do without re-reading the profile.
+const UserRoleContextKey = "user_role"
+
 // RolesAllowedMiddleware checks if the user's role is in the list of allowed roles.
 func RolesAllowedMiddleware(authService services.IAuthService, allowedRoles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -24,6 +28,8 @@ func RolesAllowedMiddleware(authService services.IAuthService, allowedRoles ...s
 			c.Abort()
 			return
 		}
+
+		c.Set(UserRoleContextKey, userProfile.UserType)
 
 		// app_admin is the superuser and is allowed on every role-gated route
 		if userProfile.UserType == "app_admin" {
