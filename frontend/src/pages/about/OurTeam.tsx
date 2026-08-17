@@ -1,12 +1,26 @@
-
 interface TeamMember {
     name: string;
     role: string;
     image?: string;
     bio: string[];
-    /** Optional pill badge shown above the name (e.g. "League Administration"). */
+    /** Optional pill badge shown above the name (e.g. "Executive Leadership"). */
     badge?: string;
 }
+
+const PRESIDENT: TeamMember = {
+    name: 'Azeez Amida',
+    role: 'Founder & President',
+    image: '/images/leadership/azeez_amida.jpg',
+    badge: 'Executive Leadership',
+    bio: [
+        'Azeez Amida is the Founder and President of Showtime Flag Football League and one of the leading figures behind the growth and professionalisation of flag football in Nigeria.',
+        'Under his leadership, Showtime has evolved into one of the world’s fastest growing coed professional flag football league, creating structured competitive and development opportunities for hundreds of male and female athletes.',
+        'His vision is to build Showtime into a nationally relevant sports and media institution that develops talent, creates sustainable sporting careers, strengthens communities and presents Nigerian flag football to a global audience.',
+        'Beyond sport, Amida is a business executive, investor and author with more than two decades of professional experience. He is the President and Founder of Fusewall Holdings, Chairman of Coloplus Limited, and a former Chief Executive Officer of Pan African Towers and IHS Rwanda. His experience in building and transforming businesses continues to shape Showtime’s commercial strategy, operating discipline and long-term ambition.',
+        'Amida is the author of How to Grow Anything: A 6-Step Guide for Growing People, Businesses and Ideas and EPE Principle: Enter, Perform, Exit. His work explores leadership, organisational transformation, career development and the systems required to achieve sustainable growth.',
+        'Connect with him across social media at @azeezamida.'
+    ],
+};
 
 const COMMISSIONER: TeamMember = {
     name: 'Adebare Adejumo',
@@ -45,8 +59,7 @@ const LEADERS: TeamMember[] = [
 ];
 
 // Horizontal card with the picture on the left (top on mobile) and the
-// bio block on the right. Same shape for commissioner and VPs — only the
-// badge text changes.
+// bio block on the right.
 const TeamMemberCard = ({ member }: { member: TeamMember }) => (
     <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden group">
         <div className="flex flex-col md:flex-row items-stretch">
@@ -110,6 +123,9 @@ export const OurTeam = () => {
                     <p className="text-sm md:text-xl text-gray-300 mt-2 font-semibold uppercase tracking-widest">Showtime Leadership & Sporting Operations</p>
                 </div>
             </div>
+
+            {/* Founder & President */}
+            <TeamMemberCard member={PRESIDENT} />
 
             {/* Commissioner Highlight */}
             <TeamMemberCard member={COMMISSIONER} />
