@@ -247,7 +247,10 @@ func (r *PostgresClaimRepository) CreateClaimWithAccount(ctx context.Context, cl
 	`, user.FullName, user.Email, user.Password.Hash, user.Role, user.Phone).Scan(&userID)
 	if err != nil {
 		if strings.Contains(err.Error(), "users_email_key") {
-			return "", errors.New("that email address is already registered")
+			// users.email is UNIQUE, so anyone who already holds a site account — a
+			// ticket buyer, say — cannot currently claim their player record with that
+			// same address. Say what to do next instead of leaving them at a dead end.
+			return "", errors.New("that email address already has a Showtime account. Claim with a different email address, or ask your team manager to link your existing account")
 		}
 		return "", err
 	}
