@@ -116,7 +116,7 @@ func (h *PlayerHandler) ensureOwnsPlayer(c *gin.Context, playerID string) bool {
 		c.JSON(http.StatusNotFound, gin.H{"error": "player not found"})
 		return false
 	}
-	if existing.Team == nil || existing.Team.ID != scopedTeam {
+	if existing.Team == nil || !strings.EqualFold(existing.Team.ID, scopedTeam) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden: player belongs to another team"})
 		return false
 	}
@@ -215,8 +215,17 @@ func (h *PlayerHandler) UpdatePlayer(c *gin.Context) {
 	if !h.ensureOwnsPlayer(c, id) {
 		return
 	}
+
+	existing, err := h.service.GetPlayerByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "player not found"})
+		return
+	}
+
 	if scopedTeam, ok := scopedTeamID(c); ok {
 		req.TeamID = scopedTeam
+	} else if req.TeamID == "" && existing.Team != nil {
+		req.TeamID = existing.Team.ID
 	}
 
 	player := &domain.Player{

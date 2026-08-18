@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOutletContext } from 'react-router-dom';
 import api from '../../services/api';
 import { LightboxImage } from '../../components/ui';
+import toast from 'react-hot-toast';
 
 interface TeamInfo {
     id: string;
@@ -86,13 +87,15 @@ const TeamHeadPlayers = () => {
             };
             if (editing) {
                 await api.put(`/team-head/players/${editing.id}`, payload);
+                toast.success('Player updated successfully');
             } else {
                 await api.post('/team-head/players', payload);
+                toast.success('Player added successfully');
             }
             setShowModal(false);
             queryClient.invalidateQueries({ queryKey: ['teamHeadPlayers', team.id] });
         } catch (err: any) {
-            alert(err.response?.data?.error || 'Failed to save player.');
+            toast.error(err.response?.data?.error || 'Failed to save player.');
         } finally {
             setSaving(false);
         }
@@ -102,9 +105,10 @@ const TeamHeadPlayers = () => {
         if (!confirm('Delete this player?')) return;
         try {
             await api.delete(`/team-head/players/${id}`);
+            toast.success('Player deleted successfully');
             queryClient.invalidateQueries({ queryKey: ['teamHeadPlayers', team!.id] });
         } catch (err: any) {
-            alert(err.response?.data?.error || 'Failed to delete player.');
+            toast.error(err.response?.data?.error || 'Failed to delete player.');
         }
     };
 
@@ -245,7 +249,7 @@ const TeamHeadPlayers = () => {
                         </div>
                         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-end gap-3">
                             <button onClick={() => setShowModal(false)} className="px-5 py-2 border border-gray-300 dark:border-gray-600 rounded-lg font-bold hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300 transition-colors min-h-[44px]">Cancel</button>
-                            <button onClick={handleSave} disabled={saving || !form.name.trim() || !form.email.trim()}
+                            <button onClick={handleSave} disabled={saving || !form.name.trim()}
                                 className="px-5 py-2 bg-sffl-red text-white font-bold rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-h-[44px]">
                                 {saving ? 'Saving...' : editing ? 'Update' : 'Add'}
                             </button>

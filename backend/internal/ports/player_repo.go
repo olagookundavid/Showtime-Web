@@ -161,7 +161,7 @@ func (r *PostgresPlayerRepository) CreatePlayer(ctx context.Context, player *dom
 func (r *PostgresPlayerRepository) UpdatePlayer(ctx context.Context, player *domain.Player) error {
 	if player.JerseyNumber > 0 {
 		var existingCount int
-		err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM players WHERE COALESCE(team_id::text, '') = $1 AND jersey_number = $2 AND id != $3`, player.TeamID, player.JerseyNumber, player.ID).Scan(&existingCount)
+		err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM players WHERE LOWER(COALESCE(team_id::text, '')) = LOWER($1) AND jersey_number = $2 AND id != $3`, player.TeamID, player.JerseyNumber, player.ID).Scan(&existingCount)
 		if err == nil && existingCount > 0 {
 			return fmt.Errorf("jersey number %d already exists for this team", player.JerseyNumber)
 		}
