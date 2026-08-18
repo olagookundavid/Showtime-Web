@@ -126,15 +126,13 @@ func (r *PostgresPlayerRepository) GetPlayerByID(ctx context.Context, id string)
 	p.UserID = uid
 	p.Team.ID = p.TeamID
 
-	// Fallback: If user_id is nil, try matching users table by email and auto-link
-	if p.UserID == nil && p.Email != "" {
-		var matchedUserID string
-		userQuery := `SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`
-		if err := r.db.QueryRow(ctx, userQuery, p.Email).Scan(&matchedUserID); err == nil {
-			_ = r.UpdatePlayerUserID(ctx, p.ID, &matchedUserID)
-			p.UserID = &matchedUserID
-		}
-	}
+	// There used to be a fallback here that linked players.user_id to any users row
+	// sharing the player's email whenever this ran. It was removed because it granted
+	// account ownership with nobody approving it — the same bypass closed in
+	// CreatePlayer and AuthService.Register — and it did so as a write on a read path,
+	// so merely viewing a player was enough to trigger it. That is how a player ended up
+	// linked to an account whose role was never changed. players.user_id is now set only
+	// by ClaimService.ApproveClaim.
 
 	return &p, nil
 }
@@ -159,11 +157,27 @@ func (r *PostgresPlayerRepository) CreatePlayer(ctx context.Context, player *dom
 }
 
 func (r *PostgresPlayerRepository) UpdatePlayer(ctx context.Context, player *domain.Player) error {
+	// Only police jersey numbers when the number is actually changing.
+	//
+	// The edit form resends the player's existing number on every save, and nothing has
+	// ever enforced uniqueness at the database level, so the historical import left
+	// teams with duplicate numbers. Checking unconditionally meant both players in any
+	// such pair were permanently uneditable — a manager could not fix a photo, position
+	// or bio without first resolving a clash they may not even have known about.
+	// Assigning a number someone else already holds is still refused.
 	if player.JerseyNumber > 0 {
-		var existingCount int
-		err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM players WHERE LOWER(COALESCE(team_id::text, '')) = LOWER($1) AND jersey_number = $2 AND id != $3`, player.TeamID, player.JerseyNumber, player.ID).Scan(&existingCount)
-		if err == nil && existingCount > 0 {
-			return fmt.Errorf("jersey number %d already exists for this team", player.JerseyNumber)
+		var currentJersey int
+		if err := r.db.QueryRow(ctx,
+			`SELECT COALESCE(jersey_number, 0) FROM players WHERE id = $1`, player.ID).Scan(&currentJersey); err != nil {
+			return err
+		}
+
+		if currentJersey != player.JerseyNumber {
+			var existingCount int
+			err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM players WHERE LOWER(COALESCE(team_id::text, '')) = LOWER($1) AND jersey_number = $2 AND id != $3`, player.TeamID, player.JerseyNumber, player.ID).Scan(&existingCount)
+			if err == nil && existingCount > 0 {
+				return fmt.Errorf("jersey number %d already exists for this team", player.JerseyNumber)
+			}
 		}
 	}
 
@@ -337,4 +351,3 @@ func (r *PostgresPlayerRepository) HasPlayerWithEmail(ctx context.Context, email
 	err := r.db.QueryRow(ctx, query, email).Scan(&exists)
 	return exists, err
 }
-
