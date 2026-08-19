@@ -822,6 +822,9 @@ func (s *StoreService) CreateStoreProduct(ctx context.Context, createdBy string,
 	if err := validateProductOptions(req.Options); err != nil {
 		return nil, err
 	}
+	if len(req.Tags) == 0 {
+		return nil, fmt.Errorf("at least one product tag is required")
+	}
 	sku := strings.TrimSpace(req.SKU)
 	if sku == "" {
 		sku = generateProductSKU(req.Name)
@@ -851,6 +854,9 @@ func (s *StoreService) CreateStoreProduct(ctx context.Context, createdBy string,
 func (s *StoreService) UpdateStoreProduct(ctx context.Context, id string, req dto.UpdateStoreProductRequest) error {
 	if err := validateProductOptions(req.Options); err != nil {
 		return err
+	}
+	if len(req.Tags) == 0 {
+		return fmt.Errorf("at least one product tag is required")
 	}
 	sku := strings.TrimSpace(req.SKU)
 	if sku == "" {

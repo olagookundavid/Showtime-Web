@@ -204,7 +204,7 @@ export const AdminPlayers = () => {
                         className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 min-h-[44px] z-50 font-semibold text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
                         <option value="" className="truncate">All Teams</option>
-                        <option value="FREE_AGENT" className="truncate">Unassigned / Free Agents</option>
+                        <option value="FREE_AGENT" className="truncate">Free Agents (no active contract)</option>
                         {teams.map(t => <option key={t.id} value={t.id} className="truncate">{t.name}</option>)}
                     </select>
                     <button

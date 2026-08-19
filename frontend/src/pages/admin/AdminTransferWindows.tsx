@@ -1,11 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { adminTransfersApi, type TransferWindowData } from '../../services/api';
+import { adminTransfersApi, contractsApi, type TransferWindowData, type Player } from '../../services/api';
 import toast from 'react-hot-toast';
+
+const FREE_AGENTS_PER_PAGE = 24;
 
 export const AdminTransferWindows: React.FC = () => {
     const [windows, setWindows] = useState<TransferWindowData[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [showModal, setShowModal] = useState<boolean>(false);
+
+    // Free agents listed underneath the schedule.
+    const [freeAgents, setFreeAgents] = useState<Player[]>([]);
+    const [freeAgentSearch, setFreeAgentSearch] = useState<string>('');
+    const [freeAgentPage, setFreeAgentPage] = useState<number>(1);
+    const [freeAgentTotal, setFreeAgentTotal] = useState<number>(0);
+    const [freeAgentTotalPages, setFreeAgentTotalPages] = useState<number>(1);
+    const [freeAgentsLoading, setFreeAgentsLoading] = useState<boolean>(true);
 
     // Form state
     const [name, setName] = useState<string>('');
@@ -74,6 +84,41 @@ export const AdminTransferWindows: React.FC = () => {
         fetchWindows();
     }, []);
 
+    // Debounced so typing in the search box does not fire a request per keystroke.
+    // Inlined rather than lifted out so the effect owns every value it reads.
+    useEffect(() => {
+        let cancelled = false;
+        const timer = setTimeout(async () => {
+            setFreeAgentsLoading(true);
+            try {
+                const res = await contractsApi.getFreeAgents({
+                    search: freeAgentSearch,
+                    page: freeAgentPage,
+                    limit: FREE_AGENTS_PER_PAGE,
+                });
+                // A newer search may have superseded this one mid-flight.
+                if (cancelled) return;
+                setFreeAgents(res.data || []);
+                setFreeAgentTotal(res.total || 0);
+                setFreeAgentTotalPages(res.total_pages || 1);
+            } catch {
+                if (!cancelled) toast.error('Failed to load free agents');
+            } finally {
+                if (!cancelled) setFreeAgentsLoading(false);
+            }
+        }, 300);
+
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+        };
+    }, [freeAgentSearch, freeAgentPage]);
+
+    // A new search term invalidates whatever page the admin was on.
+    useEffect(() => {
+        setFreeAgentPage(1);
+    }, [freeAgentSearch]);
+
     const handleCreateWindow = async () => {
         if (!name || !opensAt || !closesAt) {
             toast.error('Please fill in all fields');
@@ -122,6 +167,12 @@ export const AdminTransferWindows: React.FC = () => {
         }
     };
 
+    // Spent windows are hidden: once a window has closed it is a historical record,
+    // not a schedule an admin acts on, and leaving them in buried the live one.
+    const now = Date.now();
+    const scheduledWindows = windows.filter(w => new Date(w.closes_at).getTime() >= now);
+    const spentWindowCount = windows.length - scheduledWindows.length;
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -141,8 +192,12 @@ export const AdminTransferWindows: React.FC = () => {
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
                 {loading ? (
                     <div className="p-12 text-center text-gray-400">Loading windows...</div>
-                ) : windows.length === 0 ? (
-                    <div className="p-12 text-center text-gray-400">No transfer windows configured yet.</div>
+                ) : scheduledWindows.length === 0 ? (
+                    <div className="p-12 text-center text-gray-400">
+                        {windows.length === 0
+                            ? 'No transfer windows configured yet.'
+                            : 'No current or upcoming transfer windows. Create one to reopen the market.'}
+                    </div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
@@ -156,7 +211,7 @@ export const AdminTransferWindows: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700 text-sm">
-                                {windows.map(w => (
+                                {scheduledWindows.map(w => (
                                     <tr key={w.id}>
                                         <td className="p-4 font-bold text-gray-900 dark:text-white">{w.name}</td>
                                         <td className="p-4 text-gray-600 dark:text-gray-300 font-mono text-xs">{new Date(w.opens_at).toLocaleString()}</td>
@@ -197,6 +252,88 @@ export const AdminTransferWindows: React.FC = () => {
                             </tbody>
                         </table>
                     </div>
+                )}
+            </div>
+
+            {spentWindowCount > 0 && (
+                <p className="text-xs text-gray-400 dark:text-gray-500 px-1">
+                    {spentWindowCount} closed {spentWindowCount === 1 ? 'window is' : 'windows are'} hidden from this schedule.
+                </p>
+            )}
+
+            {/* Free agents — players with no active contract, available to any club. */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="p-4 md:p-6 border-b border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h2 className="text-base font-black text-sffl-navy dark:text-white uppercase tracking-wider">
+                            Free Agents {!freeAgentsLoading && <span className="text-gray-400">({freeAgentTotal})</span>}
+                        </h2>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            Players with no active contract. Any club can sign them while a window is open.
+                        </p>
+                    </div>
+                    <input
+                        type="text"
+                        value={freeAgentSearch}
+                        onChange={e => setFreeAgentSearch(e.target.value)}
+                        placeholder="Search by name or position…"
+                        className="w-full sm:w-64 min-h-[40px] border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm"
+                    />
+                </div>
+
+                {freeAgentsLoading ? (
+                    <div className="p-12 text-center text-gray-400">Loading free agents...</div>
+                ) : freeAgents.length === 0 ? (
+                    <div className="p-12 text-center text-gray-400">
+                        {freeAgentSearch ? 'No free agents match that search.' : 'No free agents — every player holds an active contract.'}
+                    </div>
+                ) : (
+                    <>
+                        <div className="p-4 md:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {freeAgents.map(p => (
+                                <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
+                                    {p.image ? (
+                                        <img src={p.image} alt={p.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                                    ) : (
+                                        <div className="w-10 h-10 rounded-lg bg-sffl-navy/10 text-sffl-navy dark:text-blue-400 flex items-center justify-center font-black text-xs flex-shrink-0">
+                                            {p.jersey_number || '?'}
+                                        </div>
+                                    )}
+                                    <div className="min-w-0">
+                                        <div className="font-bold text-sm text-gray-900 dark:text-white truncate">{p.name}</div>
+                                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{p.position || 'Unassigned'} • Free Agent</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {freeAgentTotalPages > 1 && (
+                            <div className="px-4 md:px-6 py-4 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row items-center justify-between gap-3">
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                    Showing {(freeAgentPage - 1) * FREE_AGENTS_PER_PAGE + 1}–{Math.min(freeAgentPage * FREE_AGENTS_PER_PAGE, freeAgentTotal)} of {freeAgentTotal}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setFreeAgentPage(p => Math.max(1, p - 1))}
+                                        disabled={freeAgentPage <= 1}
+                                        className="px-3 py-1.5 min-h-[36px] border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold text-xs rounded-lg disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                    >
+                                        Previous
+                                    </button>
+                                    <span className="text-xs font-bold text-gray-600 dark:text-gray-300">
+                                        Page {freeAgentPage} of {freeAgentTotalPages}
+                                    </span>
+                                    <button
+                                        onClick={() => setFreeAgentPage(p => Math.min(freeAgentTotalPages, p + 1))}
+                                        disabled={freeAgentPage >= freeAgentTotalPages}
+                                        className="px-3 py-1.5 min-h-[36px] border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold text-xs rounded-lg disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 

@@ -39,7 +39,17 @@ func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string
 
 	if teamID != "" {
 		if teamID == "FREE_AGENT" || teamID == "UNASSIGNED" {
-			whereClause += ` AND (p.team_id IS NULL OR TRIM(COALESCE(p.team_id::text, '')) = '')`
+			// Free agency is defined by the contract, not by players.team_id.
+			//
+			// Filtering on team_id disagreed with every other free-agent surface
+			// (contracts.GetFreeAgents, the team-head market, IssueContract): a
+			// player whose contract had been terminated or had expired still
+			// carried their old team_id unless a release path happened to clear
+			// it, so this filter returned nothing while the contracts page
+			// plainly showed the contract as TERMINATED. Matching on the absence
+			// of an ACTIVE contract keeps the two views in agreement and still
+			// catches genuinely unassigned players, who have no contract either.
+			whereClause += ` AND p.id NOT IN (SELECT player_id FROM contracts WHERE status = 'ACTIVE')`
 		} else {
 			whereClause += ` AND p.team_id = $` + strconv.Itoa(argCount)
 			args = append(args, teamID)

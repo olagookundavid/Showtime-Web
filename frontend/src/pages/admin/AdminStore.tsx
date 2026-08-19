@@ -339,6 +339,10 @@ export const AdminStore = () => {
     const handleSaveEditor = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!editor) return;
+        if (!formData.tags || formData.tags.length === 0) {
+            setEditorError('At least one product tag is required.');
+            return;
+        }
         setEditorError('');
         setIsSavingEditor(true);
         try {
@@ -750,7 +754,7 @@ export const AdminStore = () => {
 
                                 {/* ── Product Tags ── */}
                                 <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-700">
-                                    <label className="text-xs font-bold uppercase text-gray-600 dark:text-gray-400 tracking-wider">Product Tags</label>
+                                    <label className="text-xs font-bold uppercase text-gray-600 dark:text-gray-400 tracking-wider">Product Tags <span className="text-sffl-red">* (Required)</span></label>
                                     <div className="flex flex-wrap gap-2 items-center">
                                         {STANDARD_TAGS.map(t => {
                                             const selected = formData.tags.includes(t);
