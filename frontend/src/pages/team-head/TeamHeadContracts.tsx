@@ -20,7 +20,7 @@ export const TeamHeadContracts: React.FC = () => {
     const fetchContracts = async () => {
         setLoading(true);
         try {
-            const res = await contractsApi.getTeamContracts({ limit: 100 });
+            const res = await contractsApi.getTeamContracts({ limit: 500 });
             setContracts(res.data || []);
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Failed to fetch team contracts');
