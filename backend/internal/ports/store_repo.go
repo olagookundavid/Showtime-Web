@@ -63,10 +63,11 @@ func scanProductRow(row pgx.Row, p *domain.Product) error {
 	var optionsRaw []byte
 	var createdBy *string
 	var createdByName string
+	var tags []string
 	if err := row.Scan(
 		&p.ID, &p.Name, &p.SKU, &p.Description, &p.Price, &p.Quantity, &p.Threshold,
 		&p.IsActive, &p.CreatedAt, &p.UpdatedAt, &optionsRaw, &p.RatingAvg, &p.RatingCount,
-		&createdBy, &createdByName,
+		&createdBy, &createdByName, &tags,
 	); err != nil {
 		return err
 	}
@@ -75,6 +76,10 @@ func scanProductRow(row pgx.Row, p *domain.Product) error {
 	}
 	p.CreatedBy = createdBy
 	p.CreatedByName = createdByName
+	if tags == nil {
+		tags = []string{}
+	}
+	p.Tags = tags
 	return nil
 }
 
@@ -116,7 +121,7 @@ func (r *StoreRepository) loadProductRelations(ctx context.Context, p *domain.Pr
 
 // Bare table columns. List/get queries wrap this with a LEFT JOIN to users
 // to attach the creator's display name (productSelectFrom).
-const productSelectColumns = `sp.id, sp.name, sp.sku, sp.description, sp.price, sp.quantity, sp.threshold, sp.is_active, sp.created_at, sp.updated_at, sp.options, sp.rating_avg, sp.rating_count, sp.created_by, COALESCE(u.full_name, '')`
+const productSelectColumns = `sp.id, sp.name, sp.sku, sp.description, sp.price, sp.quantity, sp.threshold, sp.is_active, sp.created_at, sp.updated_at, sp.options, sp.rating_avg, sp.rating_count, sp.created_by, COALESCE(u.full_name, ''), COALESCE(sp.tags, '{}')`
 
 const productSelectFrom = `FROM store_products sp LEFT JOIN users u ON u.id = sp.created_by`
 
@@ -778,13 +783,17 @@ func (r *StoreRepository) CreateStoreProduct(ctx context.Context, p domain.Produ
 		return nil, err
 	}
 
+	if p.Tags == nil {
+		p.Tags = []string{}
+	}
+
 	query := `
 		INSERT INTO store_products (
-			name, sku, description, price, quantity, threshold, is_active, options, created_by, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+			name, sku, description, price, quantity, threshold, is_active, options, created_by, tags, created_at, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
 		RETURNING id, created_at, updated_at`
 
-	err = r.Db.QueryRow(ctx, query, p.Name, p.SKU, p.Description, p.Price, p.Quantity, p.Threshold, p.IsActive, optionsJSON, p.CreatedBy).
+	err = r.Db.QueryRow(ctx, query, p.Name, p.SKU, p.Description, p.Price, p.Quantity, p.Threshold, p.IsActive, optionsJSON, p.CreatedBy, p.Tags).
 		Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		return nil, err
@@ -796,6 +805,10 @@ func (r *StoreRepository) UpdateStoreProduct(ctx context.Context, p domain.Produ
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
+	if p.Tags == nil {
+		p.Tags = []string{}
+	}
+
 	optionsJSON, err := marshalOptions(p.Options)
 	if err != nil {
 		return err
@@ -804,10 +817,10 @@ func (r *StoreRepository) UpdateStoreProduct(ctx context.Context, p domain.Produ
 	query := `
 		UPDATE store_products
 		SET name = $1, sku = $2, description = $3, price = $4, quantity = $5, threshold = $6,
-			is_active = $7, options = $8, updated_at = NOW()
-		WHERE id = $9`
+			is_active = $7, options = $8, tags = $9, updated_at = NOW()
+		WHERE id = $10`
 
-	tag, err := r.Db.Exec(ctx, query, p.Name, p.SKU, p.Description, p.Price, p.Quantity, p.Threshold, p.IsActive, optionsJSON, p.ID)
+	tag, err := r.Db.Exec(ctx, query, p.Name, p.SKU, p.Description, p.Price, p.Quantity, p.Threshold, p.IsActive, optionsJSON, p.Tags, p.ID)
 	if err != nil {
 		return err
 	}

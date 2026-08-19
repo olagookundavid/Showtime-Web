@@ -54,6 +54,7 @@ type StoreProductResponse struct {
 	RatingAvg     float64                  `json:"rating_avg"`
 	RatingCount   int                      `json:"rating_count"`
 	CreatedByName string                   `json:"created_by_name,omitempty"`
+	Tags          []string                 `json:"tags"`
 }
 
 // ProductReviewResponse is a single customer review surfaced on the storefront.
@@ -178,6 +179,7 @@ type CreateStoreProductRequest struct {
 	Threshold   int                `json:"threshold" binding:"min=0"`
 	IsActive    bool               `json:"is_active"`
 	Options     []ProductOptionDTO `json:"options"`
+	Tags        []string           `json:"tags"`
 }
 
 // UpdateStoreProductRequest represents payload for admin updating storefront products
@@ -190,5 +192,6 @@ type UpdateStoreProductRequest struct {
 	Threshold   int                `json:"threshold" binding:"min=0"`
 	IsActive    bool               `json:"is_active"`
 	Options     []ProductOptionDTO `json:"options"`
+	Tags        []string           `json:"tags"`
 }
 

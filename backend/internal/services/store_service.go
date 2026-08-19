@@ -80,6 +80,7 @@ func mapProductToStoreResponse(p *domain.Product) dto.StoreProductResponse {
 		RatingAvg:     p.RatingAvg,
 		RatingCount:   p.RatingCount,
 		CreatedByName: p.CreatedByName,
+		Tags:          p.Tags,
 	}
 
 	for _, img := range p.Images {
@@ -834,6 +835,7 @@ func (s *StoreService) CreateStoreProduct(ctx context.Context, createdBy string,
 		Threshold:   req.Threshold,
 		IsActive:    req.IsActive,
 		Options:     mapOptionsToDomain(req.Options),
+		Tags:        req.Tags,
 	}
 	if createdBy != "" {
 		p.CreatedBy = &createdBy
@@ -869,6 +871,7 @@ func (s *StoreService) UpdateStoreProduct(ctx context.Context, id string, req dt
 		Threshold:   req.Threshold,
 		IsActive:    req.IsActive,
 		Options:     mapOptionsToDomain(req.Options),
+		Tags:        req.Tags,
 	}
 	return s.repo.UpdateStoreProduct(ctx, p)
 }

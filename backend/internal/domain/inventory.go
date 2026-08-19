@@ -21,6 +21,7 @@ type Product struct {
 	RatingCount   int              `json:"rating_count"`
 	CreatedBy     *string          `json:"created_by,omitempty"`      // admin user id
 	CreatedByName string           `json:"created_by_name,omitempty"` // joined display name
+	Tags          []string         `json:"tags"`
 }
 
 // PriceForVariant returns the active price for the given variant, honouring

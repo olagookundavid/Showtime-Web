@@ -19,6 +19,8 @@ import { useImageUpload } from '../../hooks/useImageUpload';
 
 type Tab = 'PRODUCTS' | 'ORDERS';
 
+const STANDARD_TAGS = ['Jerseys', 'Merch', 'Books', 'Others'];
+
 type ProductFormData = {
     name: string;
     description: string;
@@ -26,6 +28,7 @@ type ProductFormData = {
     quantity: number;
     threshold: number;
     is_active: boolean;
+    tags: string[];
 };
 
 const emptyProductForm: ProductFormData = {
@@ -35,6 +38,7 @@ const emptyProductForm: ProductFormData = {
     quantity: 0,
     threshold: 5,
     is_active: true,
+    tags: [],
 };
 
 // VariantDraft mirrors the new ProductVariant shape (combination row) minus
@@ -126,6 +130,17 @@ export const AdminStore = () => {
     // Cleared on successful save (everything is now durable on the server).
     const sessionUploadedUrlsRef = useRef<Set<string>>(new Set());
     const { deleteImage } = useImageUpload();
+    const [customTagInput, setCustomTagInput] = useState('');
+
+    const handleAddCustomTag = () => {
+        const tag = customTagInput.trim();
+        if (!tag) return;
+        setFormData(d => ({
+            ...d,
+            tags: d.tags.includes(tag) ? d.tags : [...d.tags, tag],
+        }));
+        setCustomTagInput('');
+    };
 
     // Orders state
     const [ordersPage, setOrdersPage] = useState(1);
@@ -170,6 +185,7 @@ export const AdminStore = () => {
             quantity: p.quantity,
             threshold: p.threshold,
             is_active: p.is_active,
+            tags: p.tags || [],
         });
         setOptions((p.options || []).map(o => ({
             name: o.name,
@@ -349,6 +365,7 @@ export const AdminStore = () => {
                 quantity: Number(formData.quantity),
                 threshold: Number(formData.threshold),
                 is_active: formData.is_active,
+                tags: formData.tags || [],
                 options: cleanOptions,
             };
 
@@ -470,6 +487,15 @@ export const AdminStore = () => {
                                                         {p.is_active ? 'ACTIVE' : 'DRAFT'}
                                                     </span>
                                                 </div>
+                                                {p.tags && p.tags.length > 0 && (
+                                                    <div className="flex flex-wrap gap-1 mt-1.5">
+                                                        {p.tags.map(t => (
+                                                            <span key={t} className="bg-sffl-red/10 text-sffl-red text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                                                🏷️ {t}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
                                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 min-h-[32px]">
                                                     {p.description || 'No description provided.'}
                                                 </p>
@@ -720,6 +746,69 @@ export const AdminStore = () => {
                                     <label htmlFor="is_active" className="text-sm font-medium dark:text-gray-300 select-none cursor-pointer">
                                         Active (visible in storefront)
                                     </label>
+                                </div>
+
+                                {/* ── Product Tags ── */}
+                                <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                                    <label className="text-xs font-bold uppercase text-gray-600 dark:text-gray-400 tracking-wider">Product Tags</label>
+                                    <div className="flex flex-wrap gap-2 items-center">
+                                        {STANDARD_TAGS.map(t => {
+                                            const selected = formData.tags.includes(t);
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    key={t}
+                                                    onClick={() => {
+                                                        setFormData(d => ({
+                                                            ...d,
+                                                            tags: selected ? d.tags.filter(tag => tag !== t) : [...d.tags, t],
+                                                        }));
+                                                    }}
+                                                    className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                                                        selected
+                                                            ? 'bg-sffl-red text-white shadow-sm'
+                                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200'
+                                                    }`}
+                                                >
+                                                    {selected ? '✓ ' : '+ '}{t}
+                                                </button>
+                                            );
+                                        })}
+
+                                        {formData.tags.filter(t => !STANDARD_TAGS.includes(t)).map(customTag => (
+                                            <button
+                                                type="button"
+                                                key={customTag}
+                                                onClick={() => setFormData(d => ({ ...d, tags: d.tags.filter(tag => tag !== customTag) }))}
+                                                className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-600 text-white flex items-center gap-1 shadow-sm"
+                                            >
+                                                ✓ {customTag} <span className="text-xs opacity-70 hover:opacity-100">✕</span>
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    <div className="flex items-center gap-2 pt-1">
+                                        <input
+                                            type="text"
+                                            placeholder="Add custom tag (e.g. Footwear, Caps)..."
+                                            value={customTagInput}
+                                            onChange={e => setCustomTagInput(e.target.value)}
+                                            onKeyDown={e => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    handleAddCustomTag();
+                                                }
+                                            }}
+                                            className="flex-1 px-3 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-xs dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleAddCustomTag}
+                                            className="px-3 py-1.5 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-lg font-bold text-xs hover:bg-sffl-red dark:hover:bg-sffl-red dark:hover:text-white transition-colors"
+                                        >
+                                            Add Tag
+                                        </button>
+                                    </div>
                                 </div>
                             </section>
 

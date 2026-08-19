@@ -1543,6 +1543,7 @@ export interface StoreProduct {
     rating_avg: number;
     rating_count: number;
     created_by_name?: string;
+    tags?: string[];
 }
 
 export interface ProductReview {
