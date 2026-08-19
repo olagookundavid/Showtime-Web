@@ -318,7 +318,7 @@ func (r *PostgresContractRepository) ReactivateContract(ctx context.Context, id 
 }
 
 func (r *PostgresContractRepository) GetFreeAgents(ctx context.Context, search string, page, limit int) ([]domain.Player, int64, error) {
-	whereClause := ` WHERE p.id NOT IN (SELECT player_id FROM contracts WHERE status = 'ACTIVE')`
+	whereClause := ` WHERE NOT EXISTS (SELECT 1 FROM contracts c WHERE c.player_id = p.id AND c.status = 'ACTIVE') AND (p.team_id IS NULL OR TRIM(COALESCE(p.team_id::text, '')) = '')`
 	args := []any{}
 	argCount := 1
 
