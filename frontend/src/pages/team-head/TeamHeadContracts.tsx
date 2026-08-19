@@ -5,6 +5,9 @@ import toast from 'react-hot-toast';
 export const TeamHeadContracts: React.FC = () => {
     const [contracts, setContracts] = useState<ContractData[]>([]);
     const [freeAgents, setFreeAgents] = useState<Player[]>([]);
+    const [freeAgentPage, setFreeAgentPage] = useState<number>(1);
+    const [freeAgentTotal, setFreeAgentTotal] = useState<number>(0);
+    const [freeAgentTotalPages, setFreeAgentTotalPages] = useState<number>(1);
     const [activeTab, setActiveTab] = useState<'active' | 'pending' | 'free-agents'>('active');
     const [loading, setLoading] = useState<boolean>(true);
     const [search, setSearch] = useState<string>('');
@@ -28,8 +31,10 @@ export const TeamHeadContracts: React.FC = () => {
 
     const fetchFreeAgents = async () => {
         try {
-            const res = await contractsApi.getFreeAgents({ search, limit: 50 });
+            const res = await contractsApi.getFreeAgents({ search, page: freeAgentPage, limit: 24 });
             setFreeAgents(res.data || []);
+            setFreeAgentTotal(res.total || 0);
+            setFreeAgentTotalPages(res.total_pages || 1);
         } catch (err: any) {
             toast.error('Failed to fetch free agents');
         }
@@ -43,7 +48,7 @@ export const TeamHeadContracts: React.FC = () => {
         if (activeTab === 'free-agents') {
             fetchFreeAgents();
         }
-    }, [activeTab, search]);
+    }, [activeTab, search, freeAgentPage]);
 
     const handleIssueContract = async () => {
         if (!selectedPlayer) return;
@@ -284,36 +289,76 @@ export const TeamHeadContracts: React.FC = () => {
                         type="text"
                         placeholder="Search free agents by name or position..."
                         value={search}
-                        onChange={e => setSearch(e.target.value)}
+                        onChange={e => {
+                            setSearch(e.target.value);
+                            setFreeAgentPage(1);
+                        }}
                         className="w-full max-w-md px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sffl-red"
                     />
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {freeAgents.map(p => (
-                            <div key={p.id} className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    {p.image ? (
-                                        <img src={p.image} alt={p.name} className="w-12 h-12 rounded-full object-cover" />
-                                    ) : (
-                                        <div className="w-12 h-12 rounded-full bg-sffl-red/10 text-sffl-red flex items-center justify-center font-black text-lg">
-                                            {p.name.slice(0, 2)}
+                    {freeAgents.length === 0 ? (
+                        <div className="p-12 text-center text-gray-400 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+                            No free agents found matching your search.
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {freeAgents.map(p => (
+                                    <div key={p.id} className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            {p.image ? (
+                                                <img src={p.image} alt={p.name} className="w-12 h-12 rounded-full object-cover" />
+                                            ) : (
+                                                <div className="w-12 h-12 rounded-full bg-sffl-red/10 text-sffl-red flex items-center justify-center font-black text-lg">
+                                                    {p.name.slice(0, 2)}
+                                                </div>
+                                            )}
+                                            <div>
+                                                <h3 className="font-bold text-gray-900 dark:text-white">{p.name}</h3>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">{p.position || 'Unassigned'} • Free Agent</p>
+                                            </div>
                                         </div>
-                                    )}
+
+                                        <button
+                                            onClick={() => setSelectedPlayer(p)}
+                                            className="px-3 py-1.5 bg-sffl-red hover:bg-sffl-red/90 text-white text-xs font-bold rounded-lg transition-colors"
+                                        >
+                                            Offer Contract
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Pagination Footer */}
+                            {freeAgentTotalPages > 1 && (
+                                <div className="p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-gray-500">
                                     <div>
-                                        <h3 className="font-bold text-gray-900 dark:text-white">{p.name}</h3>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">{p.position || 'Unassigned'} • Free Agent</p>
+                                        Showing <span className="font-bold text-gray-900 dark:text-white">{freeAgents.length > 0 ? (freeAgentPage - 1) * 24 + 1 : 0}</span> to <span className="font-bold text-gray-900 dark:text-white">{Math.min(freeAgentPage * 24, freeAgentTotal)}</span> of <span className="font-bold text-gray-900 dark:text-white">{freeAgentTotal}</span> free agents
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => setFreeAgentPage(p => Math.max(1, p - 1))}
+                                            disabled={freeAgentPage <= 1}
+                                            className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg font-bold disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                        >
+                                            ← Previous
+                                        </button>
+                                        <span className="font-bold text-gray-700 dark:text-gray-300 px-2">
+                                            Page {freeAgentPage} of {freeAgentTotalPages}
+                                        </span>
+                                        <button
+                                            onClick={() => setFreeAgentPage(p => Math.min(freeAgentTotalPages, p + 1))}
+                                            disabled={freeAgentPage >= freeAgentTotalPages}
+                                            className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg font-bold disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                        >
+                                            Next →
+                                        </button>
                                     </div>
                                 </div>
-
-                                <button
-                                    onClick={() => setSelectedPlayer(p)}
-                                    className="px-3 py-1.5 bg-sffl-red hover:bg-sffl-red/90 text-white text-xs font-bold rounded-lg transition-colors"
-                                >
-                                    Offer Contract
-                                </button>
-                            </div>
-                        ))}
-                    </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
 

@@ -38,9 +38,13 @@ func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string
 	argCount := 1
 
 	if teamID != "" {
-		whereClause += ` AND p.team_id = $` + strconv.Itoa(argCount)
-		args = append(args, teamID)
-		argCount++
+		if teamID == "FREE_AGENT" || teamID == "UNASSIGNED" {
+			whereClause += ` AND (p.team_id IS NULL OR TRIM(COALESCE(p.team_id::text, '')) = '')`
+		} else {
+			whereClause += ` AND p.team_id = $` + strconv.Itoa(argCount)
+			args = append(args, teamID)
+			argCount++
+		}
 	}
 
 	if search != "" {
