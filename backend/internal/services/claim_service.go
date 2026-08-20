@@ -357,9 +357,12 @@ func (s *ClaimService) issueVerificationEmail(ctx context.Context, claimID, emai
 		return
 	}
 
+	// Falls back to localhost to match ticket_service and store_service. A fallback
+	// pointing at a real-looking domain would send verification links somewhere wrong
+	// and silently, whereas a localhost link is obviously broken and gets reported.
 	base := os.Getenv("FRONTEND_URL")
 	if base == "" {
-		base = "https://sffl.football"
+		base = "http://localhost:5173"
 	}
 	link := fmt.Sprintf("%s/claim/verify?token=%s", strings.TrimRight(base, "/"), rawToken)
 
