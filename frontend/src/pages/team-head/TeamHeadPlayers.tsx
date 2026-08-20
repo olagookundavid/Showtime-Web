@@ -1,9 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOutletContext } from 'react-router-dom';
 import api from '../../services/api';
 import { LightboxImage } from '../../components/ui';
 import toast from 'react-hot-toast';
+import {
+    MagnifyingGlassIcon,
+    ChevronLeftIcon,
+    ChevronRightIcon,
+    UserPlusIcon,
+    XMarkIcon,
+    PencilSquareIcon,
+    TrashIcon,
+} from '@heroicons/react/24/outline';
 
 interface TeamInfo {
     id: string;
@@ -23,6 +32,14 @@ interface Player {
     bio: string;
 }
 
+interface PaginatedPlayerResponse {
+    data: Player[];
+    total: number;
+    page: number;
+    limit: number;
+    total_pages: number;
+}
+
 const POSITIONS = ['Defender', 'Receiver', '-', 'QB', 'Rusher'];
 
 const emptyForm = {
@@ -33,19 +50,46 @@ const TeamHeadPlayers = () => {
     const { team } = useOutletContext<{ team: TeamInfo | null }>();
     const queryClient = useQueryClient();
 
-    const { data: playersData, isLoading: loading, error: queryError } = useQuery({
-        queryKey: ['teamHeadPlayers', team?.id],
+    // Pagination & Search States
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(20);
+    const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+
+    // Debounce search input by 300ms
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearch(search);
+            setPage(1); // Reset to page 1 on new search query
+        }, 300);
+        return () => clearTimeout(handler);
+    }, [search]);
+
+    // Locked to team.id (manager's own team) with full pagination & search
+    const { data: responseData, isLoading: loading, error: queryError } = useQuery<PaginatedPlayerResponse>({
+        queryKey: ['teamHeadPlayers', team?.id, page, limit, debouncedSearch],
         queryFn: async () => {
-            const res = await api.get('/team-head/players', { params: { team_id: team!.id } });
-            return res.data.data as Player[];
+            const res = await api.get('/team-head/players', {
+                params: {
+                    team_id: team!.id, // Locked to manager's assigned team
+                    page,
+                    limit,
+                    search: debouncedSearch,
+                },
+            });
+            return res.data;
         },
         enabled: !!team?.id,
     });
 
-    const players = playersData || [];
+    const players = responseData?.data || [];
+    const totalPlayers = responseData?.total || 0;
+    const totalPages = responseData?.total_pages || 1;
+    const currentPage = responseData?.page || page;
+
     const error = queryError ? (queryError as any).response?.data?.error || 'Failed to fetch players.' : '';
 
-    // Modal
+    // Modal States
     const [showModal, setShowModal] = useState(false);
     const [editing, setEditing] = useState<Player | null>(null);
     const [form, setForm] = useState(emptyForm);
@@ -114,6 +158,9 @@ const TeamHeadPlayers = () => {
 
     const setField = (field: string, value: string) => setForm(f => ({ ...f, [field]: value }));
 
+    const startItem = totalPlayers === 0 ? 0 : (currentPage - 1) * limit + 1;
+    const endItem = Math.min(currentPage * limit, totalPlayers);
+
     if (!team) {
         return (
             <div className="text-center py-20">
@@ -125,72 +172,228 @@ const TeamHeadPlayers = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            {/* Header Title & Add Button */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-sffl-navy dark:text-white">{team.name} — Players</h1>
-                    <p className="text-gray-600 dark:text-gray-400">Manage your team's roster.</p>
+                    <h1 className="text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white flex items-center gap-3">
+                        {team.logo && (
+                            <img src={team.logo} alt={team.name} className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-gray-700" />
+                        )}
+                        <span>{team.name} — Players</span>
+                    </h1>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        View and manage your team's official player roster.
+                    </p>
                 </div>
-                <button onClick={openCreate} className="bg-sffl-red hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
-                    + Add Player
+                <button
+                    onClick={openCreate}
+                    className="flex items-center justify-center gap-2 bg-sffl-red hover:bg-red-700 text-white font-bold py-2.5 px-5 rounded-xl shadow-md transition-transform active:scale-95 text-sm"
+                >
+                    <UserPlusIcon className="w-5 h-5" />
+                    <span>Add Player</span>
                 </button>
             </div>
 
+            {/* Error Banner */}
             {error && (
-                <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-4 rounded-lg border border-red-200 dark:border-red-800/30">
+                <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-4 rounded-xl border border-red-200 dark:border-red-800/30 text-sm font-semibold">
                     {error}
                 </div>
             )}
 
+            {/* Filter Bar: Search + Page Size Control */}
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                {/* Search Input */}
+                <div className="relative flex-1 max-w-md">
+                    <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                        type="text"
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        placeholder="Search player by name or position..."
+                        className="w-full pl-10 pr-10 py-2.5 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sffl-red"
+                    />
+                    {search && (
+                        <button
+                            onClick={() => setSearch('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-white"
+                        >
+                            <XMarkIcon className="w-4 h-4" />
+                        </button>
+                    )}
+                </div>
+
+                {/* Page Size & Summary */}
+                <div className="flex items-center gap-4 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center gap-2">
+                        <label htmlFor="pageSizeSelect" className="font-semibold whitespace-nowrap">Show:</label>
+                        <select
+                            id="pageSizeSelect"
+                            value={limit}
+                            onChange={e => {
+                                setLimit(Number(e.target.value));
+                                setPage(1);
+                            }}
+                            className="bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-1.5 font-bold text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sffl-red text-xs"
+                        >
+                            <option value={10}>10 per page</option>
+                            <option value={20}>20 per page</option>
+                            <option value={50}>50 per page</option>
+                            <option value={100}>100 per page</option>
+                        </select>
+                    </div>
+                    <span className="hidden sm:inline-block border-l border-gray-200 dark:border-gray-700 h-4" />
+                    <span className="font-bold text-gray-700 dark:text-gray-300">
+                        {totalPlayers} Total Players
+                    </span>
+                </div>
+            </div>
+
+            {/* Players Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {loading ? (
-                    <div className="col-span-full flex justify-center py-12">
+                    <div className="col-span-full flex justify-center py-16">
                         <div className="w-10 h-10 border-4 border-sffl-red border-t-transparent rounded-full animate-spin" />
                     </div>
                 ) : players.length === 0 ? (
-                    <div className="col-span-full text-center py-12 text-gray-500">No players yet. Add your first player!</div>
+                    <div className="col-span-full bg-white dark:bg-gray-800 rounded-2xl p-12 text-center border border-gray-200 dark:border-gray-700">
+                        <p className="text-lg font-bold text-gray-600 dark:text-gray-300">
+                            {debouncedSearch ? `No players matching "${debouncedSearch}"` : 'No players on roster yet.'}
+                        </p>
+                        <p className="text-sm text-gray-400 mt-1">
+                            {debouncedSearch ? 'Try clearing your search query.' : 'Click "+ Add Player" above to add your first team member.'}
+                        </p>
+                        {debouncedSearch && (
+                            <button
+                                onClick={() => setSearch('')}
+                                className="mt-4 px-4 py-2 bg-sffl-navy dark:bg-gray-700 text-white rounded-lg text-xs font-bold hover:opacity-90 transition-opacity"
+                            >
+                                Clear Search
+                            </button>
+                        )}
+                    </div>
                 ) : (
                     players.map(player => (
-                        <div key={player.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-all hover:shadow-lg">
-                            <div className="p-6">
-                                <div className="flex items-center gap-4 mb-4">
+                        <div
+                            key={player.id}
+                            className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden transition-all hover:shadow-md flex flex-col justify-between"
+                        >
+                            <div className="p-5">
+                                <div className="flex items-start gap-4">
                                     {player.image ? (
-                                        <LightboxImage 
-                                            src={player.image} 
-                                            alt={player.name} 
-                                            thumbnailClassName="w-14 h-14 rounded-full object-cover border-2 border-gray-200 shadow-sm" 
+                                        <LightboxImage
+                                            src={player.image}
+                                            alt={player.name}
+                                            thumbnailClassName="w-14 h-14 rounded-xl object-cover border border-gray-200 shadow-sm flex-shrink-0"
                                         />
                                     ) : (
-                                        <div className="w-14 h-14 rounded-full bg-sffl-navy/10 flex items-center justify-center text-xl font-black text-sffl-navy">
+                                        <div className="w-14 h-14 rounded-xl bg-sffl-navy/10 dark:bg-sffl-red/10 border border-sffl-navy/20 dark:border-sffl-red/20 flex items-center justify-center text-lg font-black text-sffl-navy dark:text-sffl-red flex-shrink-0">
                                             #{player.jersey_number || '?'}
                                         </div>
                                     )}
-                                    <div>
-                                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="text-base font-black text-gray-900 dark:text-white truncate" title={player.name}>
                                             {player.name}
                                         </h3>
-                                        <div className="flex gap-2 items-center text-sm text-gray-500 dark:text-gray-400">
-                                            <span className="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded text-xs font-bold">{player.position || 'N/A'}</span>
+                                        <div className="flex flex-wrap gap-1.5 items-center mt-1">
+                                            <span className="bg-gray-100 dark:bg-gray-700/70 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-md text-[11px] font-extrabold uppercase">
+                                                {player.position || 'N/A'}
+                                            </span>
                                             {player.jersey_number > 0 && (
-                                                <span className="text-xs">#{player.jersey_number}</span>
+                                                <span className="bg-sffl-red/10 text-sffl-red px-2 py-0.5 rounded-md text-[11px] font-black">
+                                                    #{player.jersey_number}
+                                                </span>
                                             )}
                                         </div>
+                                        {player.email && (
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 truncate" title={player.email}>
+                                                {player.email}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
-                                <div className="flex gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
-                                    <button onClick={() => openEdit(player)}
-                                        className="flex-1 text-sm font-bold text-blue-600 hover:text-blue-800 dark:text-blue-400 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
-                                        Edit
-                                    </button>
-                                    <button onClick={() => handleDelete(player.id)}
-                                        className="flex-1 text-sm font-bold text-red-600 hover:text-red-800 dark:text-red-400 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                                        Delete
-                                    </button>
-                                </div>
+
+                                {player.bio && (
+                                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-3 pt-3 border-t border-gray-100 dark:border-gray-700/60 line-clamp-2">
+                                        {player.bio}
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Card Actions */}
+                            <div className="px-5 py-3 bg-gray-50 dark:bg-gray-800/80 border-t border-gray-100 dark:border-gray-700 flex gap-2">
+                                <button
+                                    onClick={() => openEdit(player)}
+                                    className="flex-1 min-h-[38px] flex items-center justify-center gap-1.5 text-xs font-bold text-sffl-navy dark:text-blue-400 hover:bg-gray-200/60 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                >
+                                    <PencilSquareIcon className="w-4 h-4" />
+                                    <span>Edit</span>
+                                </button>
+                                <button
+                                    onClick={() => handleDelete(player.id)}
+                                    className="flex-1 min-h-[38px] flex items-center justify-center gap-1.5 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                >
+                                    <TrashIcon className="w-4 h-4" />
+                                    <span>Delete</span>
+                                </button>
                             </div>
                         </div>
                     ))
                 )}
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+                <div className="bg-white dark:bg-gray-800 px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs sm:text-sm">
+                    <div className="text-gray-500 dark:text-gray-400">
+                        Showing <span className="font-bold text-gray-900 dark:text-white">{startItem}</span> to{' '}
+                        <span className="font-bold text-gray-900 dark:text-white">{endItem}</span> of{' '}
+                        <span className="font-bold text-gray-900 dark:text-white">{totalPlayers}</span> players
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                        <button
+                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage <= 1 || loading}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-bold hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <ChevronLeftIcon className="w-4 h-4" />
+                            <span>Prev</span>
+                        </button>
+
+                        <div className="flex items-center gap-1 px-2">
+                            {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                                .map((p, idx, arr) => (
+                                    <div key={p} className="flex items-center">
+                                        {idx > 0 && p - arr[idx - 1] > 1 && (
+                                            <span className="px-1 text-gray-400">...</span>
+                                        )}
+                                        <button
+                                            onClick={() => setPage(p)}
+                                            className={`min-w-[32px] h-8 rounded-lg font-bold text-xs transition-colors ${
+                                                p === currentPage
+                                                    ? 'bg-sffl-red text-white shadow-sm'
+                                                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                            }`}
+                                        >
+                                            {p}
+                                        </button>
+                                    </div>
+                                ))}
+                        </div>
+
+                        <button
+                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage >= totalPages || loading}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-bold hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <span>Next</span>
+                            <ChevronRightIcon className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Create/Edit Modal */}
             {showModal && (
@@ -221,7 +424,7 @@ const TeamHeadPlayers = () => {
                                 </div>
                                 {!editing && (
                                     <div>
-                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Contract Length (Games/Weeks) *</label>
+                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Contract Length (Games) *</label>
                                         <input type="number" min="1" value={form.contract_length} onChange={e => setField('contract_length', e.target.value)}
                                             className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red" placeholder="Default 13" />
                                     </div>

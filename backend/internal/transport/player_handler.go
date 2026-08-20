@@ -45,14 +45,20 @@ func NewPlayerHandler(service services.IPlayerService, contractService services.
 // @Router       /api/v1/players [get]
 func (h *PlayerHandler) GetPlayers(c *gin.Context) {
 	teamID := c.Query("team_id")
+
+	// Security & Isolation: If the caller is a scoped team_head, strictly force teamID to their assigned team_id.
+	// This prevents team_heads from changing team_id in query params to inspect or tamper with another team's players.
+	if scopedTeam, ok := scopedTeamID(c); ok {
+		teamID = scopedTeam
+	}
+
 	searchTerm := c.Query("search")
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	if page < 1 {
 		page = 1
 	}
-	// limit defaults to 20 when missing or invalid; callers (admin/team-sheet pickers)
-	// can pass higher values explicitly and the backend will respect them.
+	// limit defaults to 20 when missing or invalid; callers can pass higher values explicitly
 	limit, err := strconv.Atoi(c.Query("limit"))
 	if err != nil || limit <= 0 {
 		limit = 20
