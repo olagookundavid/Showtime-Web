@@ -28,6 +28,7 @@ type IContractService interface {
 	GetContractByID(ctx context.Context, id string) (*dto.ContractResponse, error)
 	CheckAndExpireContracts(ctx context.Context, teamIDs ...string) (int, error)
 	AdminOverrideContract(ctx context.Context, id string, status string, reason string) error
+	AdminForceAcceptContract(ctx context.Context, contractID string, adminUserID string, adminName string) error
 }
 
 type ContractService struct {
@@ -566,6 +567,60 @@ func (s *ContractService) AdminOverrideContract(ctx context.Context, id string, 
 			}
 		}
 	}
+	return nil
+}
+
+// AdminForceAcceptContract activates a PENDING contract on behalf of a player who
+// may not have a claimed account. This bypasses the player-ownership check that
+// RespondToContract enforces. The caller (handler) is responsible for writing the
+// audit log with the admin's identity.
+func (s *ContractService) AdminForceAcceptContract(ctx context.Context, contractID string, adminUserID string, adminName string) error {
+	contract, err := s.repo.GetContractByID(ctx, contractID)
+	if err != nil || contract == nil {
+		return fmt.Errorf("contract not found")
+	}
+
+	if contract.Status != "PENDING" {
+		return fmt.Errorf("only PENDING contracts can be force-accepted (current status: %s)", contract.Status)
+	}
+
+	player, err := s.playerRepo.GetPlayerByID(ctx, contract.PlayerID)
+	if err != nil || player == nil {
+		return fmt.Errorf("player not found for this contract")
+	}
+
+	now := time.Now()
+
+	// Handle same-team renewal: terminate the previous active contract
+	active, _ := s.repo.GetActiveContractByPlayerID(ctx, contract.PlayerID)
+	if active != nil {
+		if active.TeamID != contract.TeamID {
+			return fmt.Errorf("player already has an active contract with a different team — use the transfer system instead")
+		}
+		// Same-team renewal/extension: terminate previous active contract
+		_ = s.repo.UpdateContractStatus(ctx, active.ID, "TERMINATED", "RENEWED", nil, nil, &now)
+	}
+
+	// Snapshot team match count at activation time
+	matchesAtStart, _ := s.repo.GetTeamFinishedMatchCount(ctx, contract.TeamID)
+	contract.MatchesAtStart = matchesAtStart
+
+	// Activate the contract
+	notes := fmt.Sprintf("Force-accepted by admin %s (%s)", adminName, adminUserID)
+	err = s.repo.UpdateContractStatus(ctx, contractID, "ACTIVE", notes, &now, nil, nil)
+	if err != nil {
+		return fmt.Errorf("failed to activate contract: %w", err)
+	}
+
+	// Assign player to team
+	player.TeamID = contract.TeamID
+	_ = s.playerRepo.UpdatePlayer(ctx, player)
+
+	// Notify offering manager that the contract was force-accepted by admin
+	msg := fmt.Sprintf("Admin %s force-accepted the contract for player %s.", adminName, player.Name)
+	refID := contractID
+	_ = s.notifService.Send(ctx, contract.OfferedBy, "CONTRACT_ACCEPTED", "Contract Force-Accepted (Admin)", msg, "contract", &refID)
+
 	return nil
 }
 

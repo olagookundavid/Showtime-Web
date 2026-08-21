@@ -1,12 +1,15 @@
 package transport
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
 	"pkg-common/helpers"
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/middlewares"
+	"showtime-backend/internal/ports"
 	"showtime-backend/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -23,14 +26,17 @@ type IContractHandler interface {
 	GetFreeAgents(c *gin.Context)
 	GetContractByID(c *gin.Context)
 	AdminOverrideContract(c *gin.Context)
+	AdminForceAcceptContract(c *gin.Context)
 }
 
 type ContractHandler struct {
-	service services.IContractService
+	service      services.IContractService
+	authRepo     ports.IAuthRepository
+	auditService services.IAuditService
 }
 
-func NewContractHandler(service services.IContractService) IContractHandler {
-	return &ContractHandler{service: service}
+func NewContractHandler(service services.IContractService, authRepo ports.IAuthRepository, auditService services.IAuditService) IContractHandler {
+	return &ContractHandler{service: service, authRepo: authRepo, auditService: auditService}
 }
 
 func (h *ContractHandler) IssueContract(c *gin.Context) {
@@ -232,4 +238,47 @@ func (h *ContractHandler) AdminOverrideContract(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Contract status overridden successfully"})
+}
+
+func (h *ContractHandler) AdminForceAcceptContract(c *gin.Context) {
+	contractID := c.Param("id")
+
+	payload, err := helpers.GetTokenPayloadFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	// Look up admin user to get their name for audit trail
+	adminUser, err := h.authRepo.GetUserByID(c.Request.Context(), payload.UserId)
+	if err != nil || adminUser == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "admin user not found"})
+		return
+	}
+
+	adminName := adminUser.FullName
+	if adminName == "" {
+		adminName = adminUser.Email
+	}
+
+	if err := h.service.AdminForceAcceptContract(c.Request.Context(), contractID, payload.UserId, adminName); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Write explicit audit log with admin identity and action details
+	detailsMap := map[string]interface{}{
+		"action":      "ADMIN_FORCE_ACCEPT_CONTRACT",
+		"contract_id": contractID,
+		"admin_id":    payload.UserId,
+		"admin_name":  adminName,
+		"admin_email": adminUser.Email,
+		"note":        fmt.Sprintf("Admin %s force-accepted contract %s on behalf of the player (player may not have a claimed account)", adminName, contractID),
+	}
+	detailsJSON, _ := json.Marshal(detailsMap)
+	detailsStr := string(detailsJSON)
+	entityID := contractID
+	h.auditService.LogAction(&payload.UserId, "ADMIN_FORCE_ACCEPT", "contract", &entityID, &detailsStr)
+
+	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Contract force-accepted by admin %s", adminName)})
 }

@@ -363,6 +363,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		adminContracts.GET("", app.Handlers.ContractHandler.GetTeamContracts)
 		adminContracts.GET("/:id", app.Handlers.ContractHandler.GetContractByID)
 		adminContracts.PUT("/:id/override", app.Handlers.ContractHandler.AdminOverrideContract)
+		adminContracts.POST("/:id/force-accept", app.Handlers.ContractHandler.AdminForceAcceptContract)
 	}
 
 	adminTransfers := adminRoutes.Group("/transfers")

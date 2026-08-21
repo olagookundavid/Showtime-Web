@@ -2295,6 +2295,10 @@ export const adminTransfersApi = {
     overrideContract: async (id: string, status: string, reason?: string): Promise<void> => {
         await api.put(`/admin/contracts/${id}/override`, { status, reason });
     },
+    forceAcceptContract: async (id: string): Promise<{ message: string }> => {
+        const res = await api.post<{ message: string }>(`/admin/contracts/${id}/force-accept`);
+        return res.data;
+    },
     overrideTransfer: async (id: string, status: string, notes?: string): Promise<void> => {
         await api.put(`/admin/transfers/${id}/override`, { status, notes });
     },

@@ -1,6 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { adminTransfersApi, contractsApi, type ContractData } from '../../services/api';
 import toast from 'react-hot-toast';
+import {
+    ChevronDownIcon,
+    CheckBadgeIcon,
+    XCircleIcon,
+    ClockIcon,
+    NoSymbolIcon,
+    ArrowPathIcon,
+} from '@heroicons/react/24/outline';
+
+// Status options for the admin override dropdown
+const OVERRIDE_STATUSES = [
+    { value: 'EXPIRED', label: 'Mark Expired', icon: ClockIcon, color: 'text-orange-600 dark:text-orange-400' },
+    { value: 'TERMINATED', label: 'Terminate', icon: XCircleIcon, color: 'text-red-600 dark:text-red-400' },
+    { value: 'REJECTED', label: 'Reject', icon: NoSymbolIcon, color: 'text-gray-600 dark:text-gray-400' },
+    { value: 'CANCELLED', label: 'Cancel', icon: NoSymbolIcon, color: 'text-gray-600 dark:text-gray-400' },
+];
 
 export const AdminContracts: React.FC = () => {
     const [contracts, setContracts] = useState<ContractData[]>([]);
@@ -11,6 +27,22 @@ export const AdminContracts: React.FC = () => {
     const [search, setSearch] = useState<string>('');
     const [total, setTotal] = useState<number>(0);
     const [totalPages, setTotalPages] = useState<number>(1);
+
+    // Dropdown menu state
+    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    const [forceAccepting, setForceAccepting] = useState<string | null>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+                setOpenMenuId(null);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const fetchContracts = async () => {
         setLoading(true);
@@ -35,16 +67,44 @@ export const AdminContracts: React.FC = () => {
         fetchContracts();
     }, [page, limit, statusFilter, search]);
 
-    const handleOverride = async (contractId: string, currentStatus: string) => {
-        const newStatus = window.prompt(`Override contract status (ACTIVE, EXPIRED, TERMINATED, REJECTED, CANCELLED). Current: ${currentStatus}`, 'EXPIRED');
-        if (!newStatus) return;
-
+    const handleOverride = async (contractId: string, newStatus: string) => {
+        const reason = window.prompt(`Reason for changing status to ${newStatus}? (optional)`);
         try {
-            await adminTransfersApi.overrideContract(contractId, newStatus.toUpperCase());
+            await adminTransfersApi.overrideContract(contractId, newStatus, reason || undefined);
             toast.success(`Contract status updated to ${newStatus}`);
+            setOpenMenuId(null);
             fetchContracts();
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Failed to override contract status');
+        }
+    };
+
+    const handleForceAccept = async (contractId: string, playerName: string) => {
+        const confirmed = window.confirm(
+            `⚠️ Force-Accept Contract\n\nThis will immediately activate the contract for "${playerName}" and assign them to the team — even if the player hasn't claimed their account.\n\nThis action will be recorded in the audit log with your admin name.\n\nProceed?`
+        );
+        if (!confirmed) return;
+
+        setForceAccepting(contractId);
+        try {
+            const result = await adminTransfersApi.forceAcceptContract(contractId);
+            toast.success(result.message || 'Contract force-accepted successfully');
+            setOpenMenuId(null);
+            fetchContracts();
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Failed to force-accept contract');
+        } finally {
+            setForceAccepting(null);
+        }
+    };
+
+    const statusBadgeClass = (status: string): string => {
+        switch (status) {
+            case 'ACTIVE': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+            case 'PENDING': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
+            case 'EXPIRED': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
+            case 'TERMINATED': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+            default: return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300';
         }
     };
 
@@ -117,6 +177,7 @@ export const AdminContracts: React.FC = () => {
                                         <th className="p-4">Played / Total</th>
                                         <th className="p-4">Value</th>
                                         <th className="p-4">Offered At</th>
+                                        <th className="p-4">Notes</th>
                                         <th className="p-4 text-right">Admin Actions</th>
                                     </tr>
                                 </thead>
@@ -126,28 +187,74 @@ export const AdminContracts: React.FC = () => {
                                             <td className="p-4 font-bold text-gray-900 dark:text-white">{c.player?.name || 'Unknown Player'}</td>
                                             <td className="p-4 font-semibold text-gray-700 dark:text-gray-300">{c.team?.name || 'Unassigned'}</td>
                                             <td className="p-4">
-                                                <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${
-                                                    c.status === 'ACTIVE'
-                                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                                        : c.status === 'PENDING'
-                                                        ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                                                        : c.status === 'EXPIRED'
-                                                        ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
-                                                        : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-                                                }`}>
+                                                <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${statusBadgeClass(c.status)}`}>
                                                     {c.status}
                                                 </span>
                                             </td>
                                             <td className="p-4 font-mono">{c.matches_played} / {c.contract_length}</td>
                                             <td className="p-4 font-bold">{c.player_value.toLocaleString()} pts</td>
                                             <td className="p-4 text-xs text-gray-400">{new Date(c.offered_at).toLocaleDateString()}</td>
+                                            <td className="p-4 text-xs text-gray-500 dark:text-gray-400 max-w-[200px] truncate" title={c.notes || c.termination_reason || ''}>
+                                                {c.termination_reason && (
+                                                    <span className="text-red-500 font-semibold">{c.termination_reason}</span>
+                                                )}
+                                                {!c.termination_reason && c.notes && (
+                                                    <span>{c.notes}</span>
+                                                )}
+                                            </td>
                                             <td className="p-4 text-right">
-                                                <button
-                                                    onClick={() => handleOverride(c.id, c.status)}
-                                                    className="px-3 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 text-xs font-bold rounded-lg transition-colors"
-                                                >
-                                                    Override Status
-                                                </button>
+                                                <div className="relative inline-block" ref={openMenuId === c.id ? menuRef : undefined}>
+                                                    <button
+                                                        onClick={() => setOpenMenuId(openMenuId === c.id ? null : c.id)}
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-xs font-bold rounded-lg transition-colors"
+                                                    >
+                                                        Actions
+                                                        <ChevronDownIcon className="w-3.5 h-3.5" />
+                                                    </button>
+
+                                                    {openMenuId === c.id && (
+                                                        <div className="absolute right-0 mt-1 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl z-50 py-1.5 animate-in fade-in slide-in-from-top-1">
+                                                            {/* Force Accept — only for PENDING contracts */}
+                                                            {c.status === 'PENDING' && (
+                                                                <>
+                                                                    <button
+                                                                        onClick={() => handleForceAccept(c.id, c.player?.name || 'Unknown')}
+                                                                        disabled={forceAccepting === c.id}
+                                                                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-left text-sm font-bold text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 disabled:opacity-50 transition-colors"
+                                                                    >
+                                                                        {forceAccepting === c.id ? (
+                                                                            <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                                                                        ) : (
+                                                                            <CheckBadgeIcon className="w-4 h-4" />
+                                                                        )}
+                                                                        <div>
+                                                                            <span>{forceAccepting === c.id ? 'Activating...' : 'Force Accept'}</span>
+                                                                            <p className="text-[10px] font-normal text-green-600/70 dark:text-green-400/60 mt-0.5">
+                                                                                Activate without player approval
+                                                                            </p>
+                                                                        </div>
+                                                                    </button>
+                                                                    <div className="mx-3 my-1 border-t border-gray-100 dark:border-gray-700" />
+                                                                </>
+                                                            )}
+
+                                                            {/* Override status options */}
+                                                            {OVERRIDE_STATUSES
+                                                                .filter(s => s.value !== c.status)
+                                                                .map(s => (
+                                                                    <button
+                                                                        key={s.value}
+                                                                        onClick={() => handleOverride(c.id, s.value)}
+                                                                        className={`w-full flex items-center gap-2.5 px-4 py-2 text-left text-sm font-semibold ${s.color} hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors`}
+                                                                    >
+                                                                        <s.icon className="w-4 h-4" />
+                                                                        {s.label}
+                                                                    </button>
+                                                                ))
+                                                            }
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
