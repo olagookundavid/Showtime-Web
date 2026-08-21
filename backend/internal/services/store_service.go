@@ -503,7 +503,7 @@ func (s *StoreService) dispatchResendEmails(order *domain.Order) {
 
 				<hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;">
 				<p style="font-size: 11px; color: #999; text-align: center; line-height: 1.5;">
-					If you have any questions or require custom modifications, please reach out to our team at support@sffl.football.<br>
+					If you have any questions or require custom modifications, please reach out to our team at support@showtimeflag.football.<br>
 					<strong>Showtime Flag Football League Lagos © 2026. All rights reserved.</strong>
 				</p>
 			</div>
@@ -520,7 +520,7 @@ func (s *StoreService) dispatchResendEmails(order *domain.Order) {
 	// also our admin notification recipient (same operator inbox).
 	adminEmail := os.Getenv("RESEND_FROM_EMAIL")
 	if adminEmail == "" {
-		adminEmail = "showtime@sffl.football"
+		adminEmail = "showtime@showtimeflag.football"
 	}
 
 	adminHTML := fmt.Sprintf(`
