@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
+import { useLiveStream } from '../../hooks/useLiveStream';
 
 interface NavbarProps {
     onMoreClick?: () => void;
@@ -16,6 +17,9 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
     const [mobileLeagueOpen, setMobileLeagueOpen] = useState(false);
     const { isAuthenticated, user, logout } = useAuth();
     const { count: cartCount } = useCart();
+    // Shares its query key with the landing hero, so the badge and the player
+    // flip on and off together off a single poll.
+    const { isLive } = useLiveStream();
     const navigate = useNavigate();
     const leagueTimeoutRef = useRef<number | null>(null);
     const storeTimeoutRef = useRef<number | null>(null);
@@ -88,6 +92,20 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                             className="w-12 h-12 sm:w-14 sm:h-14 object-contain transition-all duration-300 hover:scale-110"
                         />
                     </Link>
+
+                    {/* LIVE badge — only while we're on air, at every breakpoint
+                        (the main nav below is desktop-only). It sends visitors
+                        to the homepage, where the hero is the stream itself. */}
+                    {isLive && (
+                        <Link
+                            to="/"
+                            className="flex items-center gap-1.5 flex-shrink-0 bg-sffl-red hover:bg-sffl-red/90 text-white text-[10px] sm:text-xs font-black uppercase tracking-widest px-2.5 sm:px-3 py-1.5 rounded-full shadow-lg transition-all hover:scale-105 active:scale-95 ml-2"
+                            aria-label="Watch the live stream"
+                        >
+                            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-white animate-pulse" />
+                            Live
+                        </Link>
+                    )}
 
                     {/* Main Navigation - Center. Wider spacing now that the
                         About Us dropdown is gone — the remaining items get

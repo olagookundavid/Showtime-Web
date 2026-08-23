@@ -29,6 +29,8 @@ type Handlers struct {
 	NotificationHandler         transport.INotificationHandler
 	AppSettingHandler           transport.IAppSettingHandler
 	ClaimHandler                transport.IClaimHandler
+	CommentHandler              transport.ICommentHandler
+	LiveHandler                 transport.ILiveHandler
 }
 
 func NewHandlers(
@@ -56,6 +58,8 @@ func NewHandlers(
 	notificationHandler transport.INotificationHandler,
 	appSettingHandler transport.IAppSettingHandler,
 	claimHandler transport.IClaimHandler,
+	commentHandler transport.ICommentHandler,
+	liveHandler transport.ILiveHandler,
 ) Handlers {
 	return Handlers{
 		AuthHandler:                 authHandler,
@@ -82,5 +86,7 @@ func NewHandlers(
 		NotificationHandler:         notificationHandler,
 		AppSettingHandler:           appSettingHandler,
 		ClaimHandler:                claimHandler,
+		CommentHandler:              commentHandler,
+		LiveHandler:                 liveHandler,
 	}
 }

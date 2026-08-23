@@ -5,6 +5,7 @@ import { BottomNav } from './BottomNav';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { LatestMatchesCarousel, LatestMatchesInfoStrip } from './LatestMatchesCarousel';
+import { NewsletterPopup } from '../newsletter/NewsletterPopup';
 import {
     XMarkIcon,
     InformationCircleIcon,
@@ -70,6 +71,8 @@ export const Layout = () => {
             <Footer />
 
             <BottomNav onMoreClick={() => setIsMoreMenuOpen(prev => !prev)} />
+
+            <NewsletterPopup />
 
             {/* "More" Mobile Drawer */}
             <div

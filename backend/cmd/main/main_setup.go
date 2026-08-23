@@ -314,6 +314,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	windowRepo := ports.NewTransferWindowRepository(pool)
 	notifRepo := ports.NewNotificationRepository(pool)
 	claimRepo := ports.NewClaimRepository(pool)
+	commentRepo := ports.NewCommentRepository(pool)
 
 	// External Clients
 	paystackClient := services.NewPaystackClient()
@@ -331,6 +332,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	contractService := services.NewContractService(contractRepo, playerRepo, notifService, windowRepo)
 	transferService := services.NewTransferService(transferRepo, contractRepo, playerRepo, windowRepo, notifService, tmRepo)
 	claimService := services.NewClaimService(claimRepo, tmRepo, contractService, notifService, emailService, tokenMaker)
+	commentService := services.NewCommentService(commentRepo, newsRepo, matchRepo)
 
 	newsService := services.NewNewsService(newsRepo, storageService)
 	galleryService := services.NewGalleryService(galleryRepo)
@@ -374,9 +376,13 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	notifHandler := transport.NewNotificationHandler(notifService)
 	appSettingHandler := transport.NewAppSettingHandler(appSettingService)
 	claimHandler := transport.NewClaimHandler(claimService)
+	commentHandler := transport.NewCommentHandler(commentService, authRepo)
 
 	reliveService := services.NewReliveService()
 	reliveHandler := transport.NewReliveHandler(reliveService)
+
+	liveService := services.NewLiveService(appSettingRepo)
+	liveHandler := transport.NewLiveHandler(liveService)
 
 	h := handlers.NewHandlers(
 		authHandler, newsHandler, galleryHandler, matchHandler, playerHandler,
@@ -384,7 +390,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 		inventoryHandler, uploadHandler, totwHandler, storeHandler, importHandler,
 		heroSlideHandler, seasonHandler, playHandler, reliveHandler,
 		contractHandler, transferHandler, notifHandler, appSettingHandler,
-		claimHandler,
+		claimHandler, commentHandler, liveHandler,
 	)
 	return h, auditService, authService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService
 }

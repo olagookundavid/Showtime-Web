@@ -6,6 +6,7 @@ import { Loader } from '../../components/ui/Loader';
 import { LightboxImage } from '../../components/ui';
 import { PlayByPlayTimeline } from '../../components/matches/PlayByPlayTimeline';
 import { PublicMatchStats } from '../../components/matches/PublicMatchStats';
+import { CommentSection } from '../../components/comments/CommentSection';
 
 // Right-side value on the Player Rating tab. QB and undetermined "-" positions
 // have no rating formula yet (dash); a rateable player with no rating didn't
@@ -182,7 +183,7 @@ function TeamSheetRosterList({
 
 export const MatchDetail = () => {
     const { id } = useParams<{ id: string }>();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const compParam = searchParams.get('comp');
     const teamParam = searchParams.get('team');
 
@@ -201,7 +202,10 @@ export const MatchDetail = () => {
         retry: 1,
     });
 
-    const [activeTab, setActiveTab] = useState<'rating' | 'plays' | 'stats'>('rating');
+    const tabParam = searchParams.get('tab');
+    const initialTab = (tabParam === 'discussions' || tabParam === 'plays' || tabParam === 'stats' || tabParam === 'rating') ? tabParam : 'rating';
+
+    const [activeTab, setActiveTab] = useState<'rating' | 'plays' | 'stats' | 'discussions'>(initialTab);
     const [ratingSort, setRatingSort] = useState<RatingSort>('default');
     const cycleRatingSort = () => setRatingSort(s => (s === 'default' ? 'high' : s === 'high' ? 'low' : 'default'));
 
@@ -409,22 +413,30 @@ export const MatchDetail = () => {
                 </div>
             )}
 
-            {/* ── 3 Clean, Evenly Spaced Text Tabs (Former Format) ── */}
+            {/* ── 4 Clean, Evenly Spaced Text Tabs ── */}
             {!isBye && (
                 <div className="space-y-6">
                     {/* Evenly Spaced Border-Bottom Tab Bar */}
-                    <div className="grid grid-cols-3 border-b border-gray-200 dark:border-gray-700 mb-6 text-center">
+                    <div className="grid grid-cols-2 md:grid-cols-4 border-b border-gray-200 dark:border-gray-700 mb-6 text-center">
                         {([
                             ['rating', 'Player Rating'],
                             ['plays', 'Play by Play'],
                             ['stats', 'Match Stats'],
+                            ['discussions', 'Discussions'],
                         ] as const).map(([key, label]) => {
                             const isActive = activeTab === key;
                             return (
                                 <button
                                     key={key}
                                     type="button"
-                                    onClick={() => setActiveTab(key)}
+                                    onClick={() => {
+                                        setActiveTab(key);
+                                        setSearchParams(prev => {
+                                            const next = new URLSearchParams(prev);
+                                            next.set('tab', key);
+                                            return next;
+                                        }, { replace: true });
+                                    }}
                                     className={`py-3 px-2 text-center -mb-px font-black text-xs md:text-sm uppercase tracking-tight transition-colors border-b-2 ${
                                         isActive
                                             ? 'text-sffl-red border-sffl-red'
@@ -528,6 +540,11 @@ export const MatchDetail = () => {
                     {/* Tab 3: Match Stats Table (Full Player Box Score & Team Totals with Filters) */}
                     {activeTab === 'stats' && (
                         <PublicMatchStats matchId={match.id} />
+                    )}
+
+                    {/* Tab 4: Discussions */}
+                    {activeTab === 'discussions' && (
+                        <CommentSection entityType="match" entityId={match.id} />
                     )}
                 </div>
             )}

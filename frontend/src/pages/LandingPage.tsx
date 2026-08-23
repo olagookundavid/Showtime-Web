@@ -1,4 +1,6 @@
 import { MainHeroCarousel } from '../components/MainHeroCarousel';
+import { LiveHero } from '../components/LiveHero';
+import { useLiveStream } from '../hooks/useLiveStream';
 import { ReliveCarousel } from '../components/ReliveCarousel';
 import { HeroCarousel } from '../components/HeroCarousel';
 import { Link } from 'react-router-dom';
@@ -12,6 +14,10 @@ import { ArrowRightIcon } from '@heroicons/react/24/outline';
 import { LightboxImage } from '../components/ui/LightboxImage';
 
 export const LandingPage = () => {
+    // While the channel is live the hero *is* the stream; the carousel comes
+    // back on its own once the poll sees the broadcast end.
+    const { isLive, videoId, title: liveTitle } = useLiveStream();
+
     const { data: newsData, isLoading: loadingNews } = useQuery({
         queryKey: ['publicNews', "Commissioner's Note"],
         queryFn: () => getNews(1, 1, undefined, "Commissioner's Note"),
@@ -27,9 +33,13 @@ export const LandingPage = () => {
 
     return (
         <div className="space-y-6 md:space-y-12 pt-4">
-            {/* Hero Carousel Section */}
+            {/* Hero — the live stream when we're on air, the carousel otherwise */}
             <section className="px-1">
-                <MainHeroCarousel />
+                {isLive && videoId ? (
+                    <LiveHero videoId={videoId} title={liveTitle} />
+                ) : (
+                    <MainHeroCarousel />
+                )}
             </section>
 
             {/* RELIVE - YouTube Playlist Video Carousel */}

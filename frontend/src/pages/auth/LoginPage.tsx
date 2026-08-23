@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
+import { useReturnUrl, withReturnUrl } from '../../hooks/useReturnUrl';
 
 export const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -10,12 +11,13 @@ export const LoginPage = () => {
 
     const { login, isAuthenticated } = useAuth();
     const navigate = useNavigate();
+    const returnUrl = useReturnUrl();
 
     useEffect(() => {
         if (isAuthenticated) {
-            navigate('/');
+            navigate(returnUrl, { replace: true });
         }
-    }, [isAuthenticated, navigate]);
+    }, [isAuthenticated, navigate, returnUrl]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -25,7 +27,7 @@ export const LoginPage = () => {
 
         if (result.success) {
             toast.success('Welcome back!');
-            navigate('/');
+            navigate(returnUrl, { replace: true });
         } else if (result.mustReset) {
             toast.error(result.error || 'Please reset your default temporary password.');
             navigate('/forgot-password', { state: { email } });
@@ -100,7 +102,11 @@ export const LoginPage = () => {
                 {/* Sign Up Link */}
                 <p className="text-center text-sm text-gray-600 dark:text-gray-400 mt-6">
                     Don't have an account?{' '}
-                    <Link to="/signup" className="text-sffl-red font-bold hover:text-red-600 dark:hover:text-red-400 hover:underline transition-colors">
+                    <Link
+                        to={withReturnUrl('/signup', returnUrl)}
+                        state={{ returnUrl }}
+                        className="text-sffl-red font-bold hover:text-red-600 dark:hover:text-red-400 hover:underline transition-colors"
+                    >
                         Sign up for free
                     </Link>
                 </p>

@@ -103,6 +103,14 @@ func (s *NewsService) CreateNews(ctx context.Context, req dto.CreateNewsRequest)
 	if err := validateFeaturedMedia(&req); err != nil {
 		return err
 	}
+	// Comments are on unless the admin explicitly turned them off, matching the
+	// column default — a create request that omits the field must not produce an
+	// article whose comment box renders but rejects every post.
+	commentsEnabled := true
+	if req.CommentsEnabled != nil {
+		commentsEnabled = *req.CommentsEnabled
+	}
+
 	news := &domain.News{
 		Title:              req.Title,
 		Slug:               generateArticleSlug(req.Title),
@@ -113,6 +121,7 @@ func (s *NewsService) CreateNews(ctx context.Context, req dto.CreateNewsRequest)
 		FeaturedYoutubeURL: req.FeaturedYoutubeURL,
 		Author:             req.Author,
 		Category:           req.Category,
+		CommentsEnabled:    commentsEnabled,
 		PublishedAt:        time.Now(),
 		CreatedAt:          time.Now(),
 		UpdatedAt:          time.Now(),
@@ -157,6 +166,7 @@ func newsResponseFromDomain(n *domain.News) dto.NewsResponse {
 		PublishedAt:        n.PublishedAt,
 		CreatedAt:          n.CreatedAt,
 		UpdatedAt:          n.UpdatedAt,
+		CommentsEnabled:    n.CommentsEnabled,
 	}
 }
 
@@ -227,6 +237,11 @@ func (s *NewsService) UpdateNews(ctx context.Context, id string, req dto.CreateN
 	existingNews.FeaturedYoutubeURL = req.FeaturedYoutubeURL
 	existingNews.Author = req.Author
 	existingNews.Category = req.Category
+	// Omitted means unchanged — the dedicated comment-settings endpoint is free
+	// to flip this without a full article edit racing it back.
+	if req.CommentsEnabled != nil {
+		existingNews.CommentsEnabled = *req.CommentsEnabled
+	}
 	existingNews.UpdatedAt = time.Now()
 
 	return s.repo.Update(ctx, existingNews)

@@ -11,6 +11,10 @@ type CreateNewsRequest struct {
 	FeaturedYoutubeURL string `json:"featured_youtube_url"`
 	Author             string `json:"author"`
 	Category           string `json:"category"`
+	// Pointer so an omitted field means "leave it alone" rather than "disable
+	// comments": bound as a plain bool, any client that doesn't send the key
+	// would silently turn commenting off on every save.
+	CommentsEnabled *bool `json:"comments_enabled"`
 }
 
 type NewsResponse struct {
@@ -27,6 +31,7 @@ type NewsResponse struct {
 	PublishedAt        time.Time `json:"published_at"`
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          time.Time `json:"updated_at"`
+	CommentsEnabled    bool      `json:"comments_enabled"`
 }
 
 type PaginationQuery struct {

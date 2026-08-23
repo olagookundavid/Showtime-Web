@@ -7,6 +7,7 @@ import { LightboxImage } from '../../components/ui';
 import { NewsContent } from '../../components/news/NewsContent';
 import { YouTubeEmbed } from '../../components/news/YouTubeEmbed';
 import { parseYouTubeId } from '../../utils/newsContent';
+import { CommentSection } from '../../components/comments/CommentSection';
 
 export const NewsDetail = () => {
     const { slug } = useParams<{ slug: string }>();
@@ -104,6 +105,9 @@ export const NewsDetail = () => {
                     <div className="prose prose-lg max-w-none text-gray-700 dark:text-gray-300 leading-relaxed space-y-4">
                         <NewsContent content={article.content} />
                     </div>
+
+                    {/* Comments & Discussions */}
+                    <CommentSection entityType="news" entityId={article.id} commentsEnabled={article.comments_enabled} />
                 </div>
             </div>
 

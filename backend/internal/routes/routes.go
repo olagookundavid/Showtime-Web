@@ -74,12 +74,14 @@ func Routes(app *api.Application) *gin.Engine {
 	SetupTOTWRoutes(v1_api, app)
 	SetupStoreRoutes(v1_api, app)
 	SetupReliveRoutes(v1_api, app)
+	SetupLiveRoutes(v1_api, app)
 	SetupContractRoutes(v1_api, app)
 	SetupTransferRoutes(v1_api, app)
 	SetupPlayerPortalRoutes(v1_api, app)
 	SetupNotificationRoutes(v1_api, app)
 	SetupAppSettingRoutes(v1_api, app)
 	SetupClaimRoutes(v1_api, app)
+	SetupCommentRoutes(v1_api, app)
 	return r
 }
 
@@ -190,6 +192,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		newsGroup.POST("", app.Handlers.NewsHandler.CreateNews)
 		newsGroup.PUT("/:id", app.Handlers.NewsHandler.UpdateNews)
 		newsGroup.DELETE("/:id", app.Handlers.NewsHandler.DeleteNews)
+		newsGroup.PUT("/:id/comment-settings", app.Handlers.CommentHandler.UpdateNewsCommentSettings)
 	}
 
 	/*
@@ -389,6 +392,15 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		adminSettings.PUT("/font", app.Handlers.AppSettingHandler.UpdateAppFont)
 	}
 
+	// Live stream control — read the current state (including what auto
+	// detection sees) and force the hero on or off.
+	adminLive := adminRoutes.Group("/live")
+	adminLive.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
+	{
+		adminLive.GET("", app.Handlers.LiveHandler.GetAdminStatus)
+		adminLive.PUT("", app.Handlers.LiveHandler.UpdateOverride)
+	}
+
 	adminBudgets := adminRoutes.Group("/team-budgets")
 	adminBudgets.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
 	{
@@ -511,6 +523,12 @@ func SetupReliveRoutes(r *gin.RouterGroup, app *api.Application) {
 	{
 		reliveRoutes.GET("", app.Handlers.ReliveHandler.GetRelivePlaylist)
 	}
+}
+
+// SetupLiveRoutes exposes the live-stream status. The read is public — every
+// visitor polls it to decide between the hero carousel and the live player.
+func SetupLiveRoutes(r *gin.RouterGroup, app *api.Application) {
+	r.GET("/live", app.Handlers.LiveHandler.GetStatus)
 }
 
 func SetupSeasonRoutes(r *gin.RouterGroup, app *api.Application) {
@@ -704,6 +722,20 @@ func SetupNotificationRoutes(r *gin.RouterGroup, app *api.Application) {
 		notifGroup.GET("/unread-count", app.Handlers.NotificationHandler.GetUnreadCount)
 		notifGroup.PUT("/:id/read", app.Handlers.NotificationHandler.MarkAsRead)
 		notifGroup.PUT("/read-all", app.Handlers.NotificationHandler.MarkAllAsRead)
+	}
+}
+
+func SetupCommentRoutes(r *gin.RouterGroup, app *api.Application) {
+	// Public GET comments endpoint (uses OptionalTokenMiddleware so logged in callers get is_liked_by_caller)
+	r.GET("/comments", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.CommentHandler.GetComments)
+
+	// Protected comment mutation endpoints (require TokenMiddleware)
+	commentGroup := r.Group("/comments")
+	commentGroup.Use(commonAuth.TokenMiddleware(app.TokenMaker))
+	{
+		commentGroup.POST("", app.Handlers.CommentHandler.CreateComment)
+		commentGroup.DELETE("/:id", app.Handlers.CommentHandler.DeleteComment)
+		commentGroup.POST("/:id/like", app.Handlers.CommentHandler.ToggleLike)
 	}
 }
 

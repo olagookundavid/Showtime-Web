@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useReturnUrl, withReturnUrl } from '../../hooks/useReturnUrl';
 
 export const SignupPage = () => {
     const [name, setName] = useState('');
@@ -12,12 +13,13 @@ export const SignupPage = () => {
 
     const { signup, isAuthenticated } = useAuth();
     const navigate = useNavigate();
+    const returnUrl = useReturnUrl();
 
     useEffect(() => {
         if (isAuthenticated) {
-            navigate('/');
+            navigate(returnUrl, { replace: true });
         }
-    }, [isAuthenticated, navigate]);
+    }, [isAuthenticated, navigate, returnUrl]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -37,7 +39,7 @@ export const SignupPage = () => {
         const result = await signup(name, email, password);
 
         if (result.success) {
-            navigate('/');
+            navigate(returnUrl, { replace: true });
         } else {
             setError(result.error || 'Signup failed. Please try again.');
         }
@@ -146,7 +148,11 @@ export const SignupPage = () => {
                 {/* Login Link */}
                 <p className="text-center text-sm text-gray-600 dark:text-gray-400 mt-6">
                     Already have an account?{' '}
-                    <Link to="/login" className="text-sffl-red font-bold hover:text-red-600 dark:hover:text-red-400 hover:underline transition-colors">
+                    <Link
+                        to={withReturnUrl('/login', returnUrl)}
+                        state={{ returnUrl }}
+                        className="text-sffl-red font-bold hover:text-red-600 dark:hover:text-red-400 hover:underline transition-colors"
+                    >
                         Sign in
                     </Link>
                 </p>

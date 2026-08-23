@@ -13,13 +13,13 @@ import { parseYouTubeId, youTubeThumbnailUrl } from '../../utils/newsContent';
 interface FormData {
     title: string; excerpt: string; content: string;
     featured_image: string; featured_media_type: 'image' | 'youtube'; featured_youtube_url: string;
-    author: string; category: string;
+    author: string; category: string; comments_enabled: boolean;
 }
 
 const emptyForm: FormData = {
     title: '', excerpt: '', content: '',
     featured_image: '', featured_media_type: 'image', featured_youtube_url: '',
-    author: '', category: '',
+    author: '', category: '', comments_enabled: true,
 };
 
 const PAGE_SIZE = 10;
@@ -46,6 +46,7 @@ export const AdminNews = () => {
     const [saving, setSaving] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
+    const set = (field: keyof FormData, value: any) => setForm(prev => ({ ...prev, [field]: value }));
     const openCreate = () => { setEditingId(null); setForm(emptyForm); setShowModal(true); };
     const categories = ['General', 'Match Report', 'Transfer News', 'Interview', 'Analysis', 'Commissioner\'s Note', 'Community'];
 
@@ -62,7 +63,8 @@ export const AdminNews = () => {
             featured_image: n.featured_image || '',
             featured_media_type: n.featured_media_type === 'youtube' ? 'youtube' : 'image',
             featured_youtube_url: n.featured_youtube_url || '',
-            author: n.author || '', category: matchedCategory
+            author: n.author || '', category: matchedCategory,
+            comments_enabled: n.comments_enabled ?? true,
         });
         setShowModal(true);
     };
@@ -81,6 +83,7 @@ export const AdminNews = () => {
                 featured_media_type: form.featured_media_type,
                 featured_youtube_url: form.featured_media_type === 'youtube' ? form.featured_youtube_url : '',
                 author: form.author, category: form.category,
+                comments_enabled: form.comments_enabled,
             };
             if (editingId) await updateNews(editingId, payload);
             else await createNews(payload);
@@ -97,8 +100,6 @@ export const AdminNews = () => {
             setDeleteConfirm(null);
         } catch (err) { console.error(err); alert('Failed to delete'); }
     };
-
-    const set = (field: keyof FormData, value: string) => setForm(p => ({ ...p, [field]: value }));
 
     return (
         <div className="space-y-6">
@@ -252,6 +253,18 @@ export const AdminNews = () => {
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Content *</label>
                                 <NewsContentEditor value={form.content} onChange={v => set('content', v)} />
+                            </div>
+                            <div className="flex items-center justify-between p-3.5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-800 dark:text-white cursor-pointer">Enable Comments</label>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Allow logged-in users to discuss and comment on this article</p>
+                                </div>
+                                <input
+                                    type="checkbox"
+                                    checked={form.comments_enabled}
+                                    onChange={e => set('comments_enabled', e.target.checked)}
+                                    className="w-5 h-5 text-sffl-red rounded border-gray-300 focus:ring-sffl-red cursor-pointer"
+                                />
                             </div>
                             <div className="space-y-3">
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Featured Media</label>

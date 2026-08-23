@@ -121,6 +121,7 @@ export interface News {
     category: string;
     published_at: string;
     created_at: string;
+    comments_enabled?: boolean;
 }
 
 export const getNews = async (
@@ -175,6 +176,41 @@ export const getRelivePlaylist = async (playlistId?: string): Promise<RelivePlay
     const url = playlistId ? `/relive?playlist_id=${encodeURIComponent(playlistId)}` : '/relive';
     const response = await api.get<{ data: RelivePlaylist }>(url);
     return response.data.data;
+};
+
+// ─── Live stream ──────────────────────────────────────────────────────────────
+export interface LiveStatus {
+    is_live: boolean;
+    video_id?: string;
+    title?: string;
+    /** 'auto' = detected from the channel, 'manual' = an admin override decided it. */
+    source: 'auto' | 'manual';
+}
+
+export interface AdminLiveStatus extends LiveStatus {
+    mode: 'auto' | 'on' | 'off';
+    override_video_id: string;
+    override_title: string;
+    detected_live: boolean;
+    detected_video_id?: string;
+    detected_title?: string;
+    channel_handle: string;
+}
+
+export const getLiveStatus = async (): Promise<LiveStatus> => {
+    const response = await api.get<LiveStatus>('/live');
+    return response.data;
+};
+
+export const liveApi = {
+    getAdminStatus: async (): Promise<AdminLiveStatus> => {
+        const res = await api.get<AdminLiveStatus>('/admin/live');
+        return res.data;
+    },
+    setOverride: async (payload: { mode: 'auto' | 'on' | 'off'; video_id?: string; title?: string }): Promise<AdminLiveStatus> => {
+        const res = await api.put<AdminLiveStatus>('/admin/live', payload);
+        return res.data;
+    },
 };
 
 // ─── Gallery ──────────────────────────────────────────────────────────────────
@@ -564,6 +600,7 @@ export interface CreateNewsPayload {
     featured_youtube_url?: string;
     author?: string;
     category?: string;
+    comments_enabled?: boolean;
 }
 
 export interface CreateGalleryPayload {
@@ -2520,6 +2557,68 @@ export const appSettingsApi = {
     setFont: async (app_font_id: string): Promise<AppSettingsData> => {
         const res = await api.put<AppSettingsData>('/admin/app-settings/font', { app_font_id });
         return res.data;
+    },
+};
+
+export interface CommentData {
+    id: string;
+    entity_type: string;
+    entity_id: string;
+    user_id: string;
+    user_full_name: string;
+    user_avatar?: string;
+    user_role: string;
+    content: string;
+    parent_id?: string;
+    likes_count: number;
+    is_liked_by_caller: boolean;
+    created_at: string;
+    updated_at: string;
+    replies: CommentData[];
+}
+
+/** One page of a thread. `total` counts top-level comments (what pages are made
+ *  of); `total_all` includes replies and is the count shown on the thread. */
+export interface CommentPage {
+    data: CommentData[];
+    total: number;
+    total_all: number;
+    page: number;
+    limit: number;
+    total_pages: number;
+    has_more: boolean;
+}
+
+export const COMMENTS_PAGE_SIZE = 30;
+
+export const commentsApi = {
+    getComments: async (
+        entityType: string,
+        entityId: string,
+        page = 1,
+        limit = COMMENTS_PAGE_SIZE,
+    ): Promise<CommentPage> => {
+        const res = await api.get<CommentPage>('/comments', {
+            params: { entity_type: entityType, entity_id: entityId, page, limit },
+        });
+        return {
+            ...res.data,
+            data: res.data.data || [],
+        };
+    },
+    createComment: async (data: { entity_type: string; entity_id: string; content: string; parent_id?: string }): Promise<CommentData> => {
+        const res = await api.post<{ data: CommentData }>('/comments', data);
+        return res.data.data;
+    },
+    deleteComment: async (id: string): Promise<void> => {
+        await api.delete(`/comments/${id}`);
+    },
+    likeComment: async (id: string): Promise<{ liked: boolean; likes_count: number }> => {
+        const res = await api.post<{ liked: boolean; likes_count: number }>(`/comments/${id}/like`);
+        return res.data;
+    },
+    updateNewsCommentSettings: async (newsId: string, commentsEnabled: boolean): Promise<void> => {
+        await api.put(`/admin/news/${newsId}/comment-settings`, { comments_enabled: commentsEnabled });
     },
 };
 
