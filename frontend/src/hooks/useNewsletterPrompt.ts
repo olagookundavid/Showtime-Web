@@ -64,6 +64,13 @@ export function useNewsletterPrompt() {
     const location = useLocation();
 
     useEffect(() => {
+        // Escape hatch for testing/demoing: ?newsletter=1 opens it immediately,
+        // ignoring the delay, the session guard and any stored answer.
+        if (new URLSearchParams(location.search).get('newsletter') === '1') {
+            setIsOpen(true);
+            return;
+        }
+
         if (SUPPRESSED_PATHS.some(path => location.pathname.startsWith(path))) return;
         if (!isEligible()) return;
         // One appearance per browsing session, however much they navigate.
@@ -75,7 +82,7 @@ export function useNewsletterPrompt() {
         }, OPEN_DELAY_MS);
 
         return () => clearTimeout(timer);
-    }, [location.pathname]);
+    }, [location.pathname, location.search]);
 
     const dismiss = useCallback(() => {
         writeState('dismissed');

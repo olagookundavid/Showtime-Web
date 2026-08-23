@@ -80,8 +80,10 @@ export const NewsletterPopup = () => {
                 className="hidden"
             />
 
-            <div className="fixed inset-x-0 bottom-0 z-[70] p-3 sm:inset-x-auto sm:right-6 sm:bottom-6 sm:p-0 sm:max-w-sm w-full pointer-events-none">
-                <div className="pointer-events-auto bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-300 mb-14 sm:mb-0">
+            {/* Sits above the sticky navbar (z-50) so it reads as an overlay
+                rather than part of the page chrome. */}
+            <div className="fixed inset-x-0 top-0 z-[70] p-3 sm:p-6 flex justify-end pointer-events-none">
+                <div className="w-full max-w-md pointer-events-auto bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden animate-newsletter-in">
                     <div className="relative p-6">
                         <button
                             onClick={dismiss}
