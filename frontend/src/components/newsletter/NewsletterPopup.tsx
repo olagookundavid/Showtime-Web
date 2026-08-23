@@ -17,15 +17,20 @@ export const NewsletterPopup = () => {
     const { user } = useAuth();
 
     const [email, setEmail] = useState('');
+    const [firstName, setFirstName] = useState('');
     const [editing, setEditing] = useState(false);
     const [status, setStatus] = useState<'idle' | 'submitting' | 'done'>('idle');
     const [error, setError] = useState('');
     const submittingRef = useRef(false);
 
-    // Logged-in visitors get their address pre-filled; everyone else types one.
+    // Logged-in visitors get their details pre-filled; everyone else types them.
+    // Brevo's FIRSTNAME field wants a given name, and the account stores a full
+    // name, so take the leading word.
     const accountEmail = user?.email ?? '';
-    const usingAccountEmail = !!accountEmail && !editing;
-    const submittedEmail = usingAccountEmail ? accountEmail : email;
+    const accountFirstName = (user?.name ?? '').trim().split(/\s+/)[0] ?? '';
+    const usingAccountDetails = !!accountEmail && !editing;
+    const submittedEmail = usingAccountDetails ? accountEmail : email;
+    const submittedFirstName = usingAccountDetails ? accountFirstName : firstName;
 
     const finish = () => {
         submittingRef.current = false;
@@ -51,6 +56,11 @@ export const NewsletterPopup = () => {
     if (!isOpen || !BREVO_FORM_URL) return null;
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+        if (!submittedFirstName.trim()) {
+            e.preventDefault();
+            setError('Enter your first name.');
+            return;
+        }
         if (!EMAIL_PATTERN.test(submittedEmail.trim())) {
             e.preventDefault();
             setError('Enter a valid email address.');
@@ -124,30 +134,47 @@ export const NewsletterPopup = () => {
                                     onSubmit={handleSubmit}
                                     className="space-y-3"
                                 >
-                                    {usingAccountEmail ? (
+                                    {usingAccountDetails ? (
                                         <div>
+                                            <input type="hidden" name="FIRSTNAME" value={accountFirstName} />
                                             <input type="hidden" name="EMAIL" value={accountEmail} />
                                             <p className="text-sm text-gray-900 dark:text-white font-semibold break-all">
-                                                {accountEmail}
+                                                {accountFirstName} · {accountEmail}
                                             </p>
                                             <button
                                                 type="button"
-                                                onClick={() => { setEditing(true); setEmail(''); }}
+                                                onClick={() => {
+                                                    setEditing(true);
+                                                    setEmail('');
+                                                    setFirstName('');
+                                                }}
                                                 className="text-xs text-sffl-red hover:underline mt-1"
                                             >
-                                                Use a different email
+                                                Use different details
                                             </button>
                                         </div>
                                     ) : (
-                                        <input
-                                            type="email"
-                                            name="EMAIL"
-                                            value={email}
-                                            onChange={e => setEmail(e.target.value)}
-                                            placeholder="you@example.com"
-                                            autoComplete="email"
-                                            className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sffl-red/50"
-                                        />
+                                        <>
+                                            <input
+                                                type="text"
+                                                name="FIRSTNAME"
+                                                value={firstName}
+                                                onChange={e => setFirstName(e.target.value)}
+                                                placeholder="First name"
+                                                autoComplete="given-name"
+                                                maxLength={200}
+                                                className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sffl-red/50"
+                                            />
+                                            <input
+                                                type="email"
+                                                name="EMAIL"
+                                                value={email}
+                                                onChange={e => setEmail(e.target.value)}
+                                                placeholder="you@example.com"
+                                                autoComplete="email"
+                                                className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sffl-red/50"
+                                            />
+                                        </>
                                     )}
 
                                     {/* Brevo's spam trap: must be present and empty. */}

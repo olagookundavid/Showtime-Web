@@ -6,8 +6,8 @@ const SESSION_KEY = 'st_newsletter_seen';
 
 /** Dismissing buys a week of quiet. */
 const REPROMPT_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
-/** Let people actually look at the site before asking for anything. */
-const OPEN_DELAY_MS = 25_000;
+/** Just long enough for the page to paint before the card slides in. */
+const OPEN_DELAY_MS = 3_000;
 
 // Routes where a newsletter popup would interrupt something the visitor cares
 // about far more than our mailing list: signing in, or paying us money.
