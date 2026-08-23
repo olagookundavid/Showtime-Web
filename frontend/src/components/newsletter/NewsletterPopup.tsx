@@ -9,7 +9,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { useNewsletterPrompt } from '../../hooks/useNewsletterPrompt';
 
-/** Brevo's hosted form endpoint. Dormant until this is set. */
+/** Brevo's hosted form endpoint. Dormant until this is set in environment (.env). */
 const BREVO_FORM_URL = import.meta.env.VITE_BREVO_FORM_URL as string | undefined;
 
 const IFRAME_NAME = 'brevo-newsletter-sink';
@@ -72,16 +72,17 @@ export const NewsletterPopup = () => {
             setError('Please enter a valid email address.');
             return;
         }
-        // Deliberately NOT calling preventDefault: the browser posts the form
-        // to the hidden iframe below. A real form post isn't subject to CORS,
-        // which a fetch() to Brevo would be.
+
+        // Deliberately NOT calling preventDefault on valid inputs: the browser posts
+        // the form to the hidden iframe below. A native form POST isn't blocked by CORS,
+        // which an AJAX fetch() to Brevo's external hosted form would be.
         setError('');
         submittingRef.current = true;
         setStatus('submitting');
     };
 
-    // A fresh iframe fires load once for its blank document; only the load that
-    // follows an actual submit means Brevo answered.
+    // A fresh iframe fires load once for its initial blank document; only the load
+    // that follows an actual form submit means Brevo answered.
     const handleIframeLoad = () => {
         if (!submittingRef.current) return;
         finish();
@@ -89,9 +90,10 @@ export const NewsletterPopup = () => {
 
     return (
         <>
+            {/* Hidden iframe target for CORS-safe Brevo form submission */}
             <iframe
                 name={IFRAME_NAME}
-                title="Newsletter submission"
+                title="Newsletter submission sink"
                 onLoad={handleIframeLoad}
                 className="hidden"
             />
@@ -165,6 +167,8 @@ export const NewsletterPopup = () => {
                                 >
                                     {usingAccountDetails ? (
                                         <div className="p-3 rounded-xl bg-neutral-50 dark:bg-neutral-900/80 border border-neutral-200/80 dark:border-neutral-800 flex items-center justify-between gap-3">
+                                            <input type="hidden" name="FIRSTNAME" value={accountFirstName} />
+                                            <input type="hidden" name="EMAIL" value={accountEmail} />
                                             <div className="min-w-0">
                                                 <div className="flex items-center gap-1.5">
                                                     <span className="text-[10px] font-black uppercase tracking-wider text-sffl-red dark:text-red-400">
@@ -221,7 +225,7 @@ export const NewsletterPopup = () => {
                                         </>
                                     )}
 
-                                    {/* Brevo's spam trap: must be present and empty. */}
+                                    {/* Brevo's honeypot & locale parameters */}
                                     <input type="text" name="email_address_check" value="" readOnly hidden />
                                     <input type="hidden" name="locale" value="en" />
 
