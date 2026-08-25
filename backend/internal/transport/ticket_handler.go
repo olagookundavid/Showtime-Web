@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"pkg-common/helpers"
 	"strconv"
 
 	"showtime-backend/internal/dto"
@@ -251,7 +252,15 @@ func (h *TicketHandler) Purchase(c *gin.Context) {
 		callbackURL = origin + "/tickets/confirm"
 	}
 
-	result, err := h.service.Purchase(c.Request.Context(), req, callbackURL)
+	// Identity comes from the token, never the body — a discount code restricted
+	// to signed-in customers must not be unlockable by posting a user_id.
+	var userID *string
+	if payload, err := helpers.GetTokenPayloadFromContext(c); err == nil && payload != nil && payload.UserId != "" {
+		id := payload.UserId
+		userID = &id
+	}
+
+	result, err := h.service.Purchase(c.Request.Context(), req, callbackURL, userID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

@@ -70,7 +70,13 @@ export const LatestMatchesCarousel = () => {
 
     useEffect(() => {
         if (nextMatchRef.current && scrollContainerRef.current) {
-            nextMatchRef.current.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+            const container = scrollContainerRef.current;
+            const tile = nextMatchRef.current;
+            const containerRect = container.getBoundingClientRect();
+            const tileRect = tile.getBoundingClientRect();
+            const currentScroll = container.scrollLeft;
+            const targetScroll = currentScroll + (tileRect.left - containerRect.left) - (container.clientWidth / 2) + (tile.clientWidth / 2);
+            container.scrollTo({ left: Math.max(0, targetScroll), behavior: 'smooth' });
         }
     }, [nextMatchId]);
 

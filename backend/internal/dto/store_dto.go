@@ -120,6 +120,9 @@ type CheckoutRequest struct {
 	ShippingAddress    string             `json:"shipping_address" binding:"required"`
 	ShippingPostalCode string             `json:"shipping_postal_code"`
 	Items              []OrderItemRequest `json:"items" binding:"required,min=1,max=50,dive,required"`
+	// Optional. An invalid or inapplicable code fails the checkout outright
+	// rather than being ignored, so nobody pays full price believing otherwise.
+	DiscountCode string `json:"discount_code"`
 }
 
 // CheckoutResponse represents initialized Paystack payment parameters
@@ -156,6 +159,8 @@ type OrderResponse struct {
 	ShippingAddress    string              `json:"shipping_address"`
 	ShippingPostalCode string              `json:"shipping_postal_code"`
 	TotalAmount        float64             `json:"total_amount"`
+	DiscountCode       *string             `json:"discount_code,omitempty"`
+	DiscountAmount     float64             `json:"discount_amount"`
 	PaymentStatus      string              `json:"payment_status"`
 	FulfillmentStatus  string              `json:"fulfillment_status"`
 	PaystackReference  string              `json:"paystack_reference,omitempty"`

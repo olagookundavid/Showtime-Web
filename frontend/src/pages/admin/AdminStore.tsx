@@ -15,9 +15,10 @@ import {
 } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { ImageUploadField } from '../../components/ui/ImageUploadField';
+import { DiscountCodesPanel } from '../../components/admin/DiscountCodesPanel';
 import { useImageUpload } from '../../hooks/useImageUpload';
 
-type Tab = 'PRODUCTS' | 'ORDERS';
+type Tab = 'PRODUCTS' | 'ORDERS' | 'DISCOUNTS';
 
 const STANDARD_TAGS = ['Jerseys', 'Merch', 'Books', 'Others'];
 
@@ -442,7 +443,7 @@ export const AdminStore = () => {
 
             {/* Tabs */}
             <div className="flex border-b border-gray-200 dark:border-gray-700 gap-2">
-                {(['PRODUCTS', 'ORDERS'] as Tab[]).map(tab => (
+                {(['PRODUCTS', 'ORDERS', 'DISCOUNTS'] as Tab[]).map(tab => (
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
@@ -452,7 +453,7 @@ export const AdminStore = () => {
                                 : 'border-transparent text-gray-500 hover:text-sffl-navy dark:hover:text-white'
                         }`}
                     >
-                        {tab === 'PRODUCTS' ? '🛒 Catalog Products' : '📦 Online Orders'}
+                        {tab === 'PRODUCTS' ? '🛒 Catalog Products' : tab === 'ORDERS' ? '📦 Online Orders' : '🏷️ Discount Codes'}
                     </button>
                 ))}
             </div>
@@ -654,10 +655,13 @@ export const AdminStore = () => {
                 </div>
             )}
 
+            {/* DISCOUNT CODES TAB */}
+            {activeTab === 'DISCOUNTS' && <DiscountCodesPanel />}
+
             {/* Unified Product Editor (create + edit) */}
             {editor && (
-                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6" onClick={handleCloseEditor}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-3xl w-full shadow-2xl max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6" onClick={handleCloseEditor}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-3xl w-full shadow-2xl max-h-[85vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
                             <div>
                                 <h2 className="text-xl font-black dark:text-white">

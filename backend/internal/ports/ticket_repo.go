@@ -355,8 +355,8 @@ func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ti
 	}
 
 	query := `
-		INSERT INTO tickets (event_day_id, tier_id, email, phone, name, user_id, quantity, unit_price, total_amount, status, paystack_reference, paystack_access_code, ticket_code, team_id, referral_code, event_title, event_date, event_venue, tier_name)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+		INSERT INTO tickets (event_day_id, tier_id, email, phone, name, user_id, quantity, unit_price, total_amount, status, paystack_reference, paystack_access_code, ticket_code, team_id, referral_code, discount_code, discount_amount, event_title, event_date, event_venue, tier_name)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
 			COALESCE((SELECT title FROM event_days WHERE id = $1), ''),
 			(SELECT date FROM event_days WHERE id = $1),
 			COALESCE((SELECT venue FROM event_days WHERE id = $1), ''),
@@ -369,10 +369,18 @@ func (r *PostgresTicketRepository) Create(ctx context.Context, ticket *domain.Ti
 		ticket.EventDayID, ticket.TierID, ticket.Email, ticket.Phone, ticket.Name, ticket.UserID,
 		ticket.Quantity, ticket.UnitPrice, ticket.TotalAmount, ticket.Status,
 		ticket.PaystackReference, ticket.PaystackAccessCode, ticket.TicketCode, ticket.TeamID,
-		ticket.ReferralCode,
+		ticket.ReferralCode, ticket.DiscountCode, ticket.DiscountAmount,
 	).Scan(&ticket.ID, &ticket.CreatedAt, &ticket.UpdatedAt)
 	if err != nil {
 		return err
+	}
+
+	// Hold the code in the same transaction that claims the seat, so a buyer
+	// never takes one without the other.
+	if ticket.DiscountCodeID != nil && *ticket.DiscountCodeID != "" {
+		if err := reserveDiscountTx(ctx, tx, *ticket.DiscountCodeID, ticket.Email, ticket.UserID, nil, &ticket.ID, float64(ticket.DiscountAmount)); err != nil {
+			return err
+		}
 	}
 
 	return tx.Commit(ctx)
@@ -383,6 +391,7 @@ func (r *PostgresTicketRepository) GetByID(ctx context.Context, id string) (*dom
 		SELECT t.id, COALESCE(t.event_day_id::text, ''), COALESCE(t.tier_id::text, ''), t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
 			t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
 			t.checked_in_at, t.checked_in_by, t.referral_code, t.created_at, t.updated_at,
+			t.discount_code, t.discount_amount,
 			COALESCE(ed.title, t.event_title), COALESCE(ed.date, t.event_date), COALESCE(ed.venue, t.event_venue),
 			COALESCE(tt.name, t.tier_name), COALESCE(tt.price, t.unit_price)
 		FROM tickets t
@@ -398,6 +407,7 @@ func (r *PostgresTicketRepository) GetByReference(ctx context.Context, reference
 		SELECT t.id, COALESCE(t.event_day_id::text, ''), COALESCE(t.tier_id::text, ''), t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
 			t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
 			t.checked_in_at, t.checked_in_by, t.referral_code, t.created_at, t.updated_at,
+			t.discount_code, t.discount_amount,
 			COALESCE(ed.title, t.event_title), COALESCE(ed.date, t.event_date), COALESCE(ed.venue, t.event_venue),
 			COALESCE(tt.name, t.tier_name), COALESCE(tt.price, t.unit_price)
 		FROM tickets t
@@ -413,6 +423,7 @@ func (r *PostgresTicketRepository) GetByCode(ctx context.Context, code string) (
 		SELECT t.id, COALESCE(t.event_day_id::text, ''), COALESCE(t.tier_id::text, ''), t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
 			t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
 			t.checked_in_at, t.checked_in_by, t.referral_code, t.created_at, t.updated_at,
+			t.discount_code, t.discount_amount,
 			COALESCE(ed.title, t.event_title), COALESCE(ed.date, t.event_date), COALESCE(ed.venue, t.event_venue),
 			COALESCE(tt.name, t.tier_name), COALESCE(tt.price, t.unit_price)
 		FROM tickets t
@@ -434,6 +445,7 @@ func (r *PostgresTicketRepository) scanTicketRow(ctx context.Context, query stri
 		&t.Quantity, &t.UnitPrice, &t.TotalAmount,
 		&t.Status, &t.PaystackReference, &t.PaystackAccessCode, &t.TicketCode, &t.TeamID,
 		&t.CheckedInAt, &t.CheckedInBy, &t.ReferralCode, &t.CreatedAt, &t.UpdatedAt,
+			&t.DiscountCode, &t.DiscountAmount,
 		&edTitle, &edDate, &edVenue,
 		&tierName, &tierPrice,
 	)
@@ -470,6 +482,7 @@ func (r *PostgresTicketRepository) SearchByEmail(ctx context.Context, email stri
 		SELECT t.id, COALESCE(t.event_day_id::text, ''), COALESCE(t.tier_id::text, ''), t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
 			t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
 			t.checked_in_at, t.checked_in_by, t.referral_code, t.created_at, t.updated_at,
+			t.discount_code, t.discount_amount,
 			COALESCE(ed.title, t.event_title), COALESCE(tt.name, t.tier_name)
 		FROM tickets t
 		LEFT JOIN event_days ed ON t.event_day_id = ed.id
@@ -493,6 +506,7 @@ func (r *PostgresTicketRepository) SearchByEmail(ctx context.Context, email stri
 			&t.Quantity, &t.UnitPrice, &t.TotalAmount,
 			&t.Status, &t.PaystackReference, &t.PaystackAccessCode, &t.TicketCode, &t.TeamID,
 			&t.CheckedInAt, &t.CheckedInBy, &t.ReferralCode, &t.CreatedAt, &t.UpdatedAt,
+			&t.DiscountCode, &t.DiscountAmount,
 			&edTitle, &tierName,
 		); err != nil {
 			return nil, err
@@ -561,6 +575,7 @@ func (r *PostgresTicketRepository) List(ctx context.Context, eventDayID string, 
 		SELECT t.id, COALESCE(t.event_day_id::text, ''), COALESCE(t.tier_id::text, ''), t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
 			t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
 			t.checked_in_at, t.checked_in_by, t.referral_code, t.created_at, t.updated_at,
+			t.discount_code, t.discount_amount,
 			COALESCE(ed.title, t.event_title), COALESCE(tt.name, t.tier_name)
 		FROM tickets t
 		LEFT JOIN event_days ed ON t.event_day_id = ed.id
@@ -599,6 +614,7 @@ func (r *PostgresTicketRepository) List(ctx context.Context, eventDayID string, 
 			&t.Quantity, &t.UnitPrice, &t.TotalAmount,
 			&t.Status, &t.PaystackReference, &t.PaystackAccessCode, &t.TicketCode, &t.TeamID,
 			&t.CheckedInAt, &t.CheckedInBy, &t.ReferralCode, &t.CreatedAt, &t.UpdatedAt,
+			&t.DiscountCode, &t.DiscountAmount,
 			&edTitle, &tierName,
 		); err != nil {
 			return nil, 0, err
@@ -649,6 +665,7 @@ func (r *PostgresTicketRepository) GetRecentSales(ctx context.Context, limit int
 		SELECT t.id, COALESCE(t.event_day_id::text, ''), COALESCE(t.tier_id::text, ''), t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
 			t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
 			t.checked_in_at, t.checked_in_by, t.referral_code, t.created_at, t.updated_at,
+			t.discount_code, t.discount_amount,
 			COALESCE(ed.title, t.event_title), COALESCE(tt.name, t.tier_name)
 		FROM tickets t
 		LEFT JOIN event_days ed ON t.event_day_id = ed.id
@@ -672,6 +689,7 @@ func (r *PostgresTicketRepository) GetRecentSales(ctx context.Context, limit int
 			&t.Quantity, &t.UnitPrice, &t.TotalAmount,
 			&t.Status, &t.PaystackReference, &t.PaystackAccessCode, &t.TicketCode, &t.TeamID,
 			&t.CheckedInAt, &t.CheckedInBy, &t.ReferralCode, &t.CreatedAt, &t.UpdatedAt,
+			&t.DiscountCode, &t.DiscountAmount,
 			&edTitle, &tierName,
 		); err != nil {
 			return nil, err

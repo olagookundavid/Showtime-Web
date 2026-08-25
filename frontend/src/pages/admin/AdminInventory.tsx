@@ -579,8 +579,8 @@ export const AdminInventory = () => {
 
             {/* Add/Edit Product Modal */}
             {(isAdding || isEditing) && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-sm" onClick={handleCloseForm}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-sm" onClick={handleCloseForm}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[85vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 border-b dark:border-gray-700 flex-shrink-0 flex justify-between items-center">
                             <h2 className="text-lg font-bold text-gray-900 dark:text-white">
                                 {isEditing ? 'Edit Physical Product' : 'Add Physical Product'}

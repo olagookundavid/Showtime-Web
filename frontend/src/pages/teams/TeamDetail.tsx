@@ -218,7 +218,7 @@ export const TeamDetail = () => {
                     to={activeCompetitionId ? `/matches?comp=${activeCompetitionId}&team=${team.id}` : `/matches?team=${team.id}`}
                     className="bg-white dark:bg-gray-800 hover:bg-sffl-navy hover:text-white dark:hover:bg-sffl-navy border border-gray-100 dark:border-gray-700 rounded-xl p-3 md:p-4 text-center transition-all group shadow-sm hover:shadow-md"
                 >
-                    <div className="text-xl md:text-2xl mb-1">⚽</div>
+                    <div className="text-xl md:text-2xl mb-1">🏈</div>
                     <div className="text-[10px] md:text-xs uppercase font-black tracking-wider text-sffl-navy dark:text-white group-hover:text-white">Matches</div>
                 </Link>
             </div>

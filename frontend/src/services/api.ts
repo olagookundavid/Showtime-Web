@@ -857,6 +857,8 @@ export interface PurchaseTicketPayload {
     phone: string;
     quantity: number;
     referral_code?: string;
+    /** Distinct from referral_code (attribution only) — this one changes price. */
+    discount_code?: string;
 }
 
 
@@ -1620,6 +1622,8 @@ export interface CheckoutPayload {
     shipping_address: string;
     shipping_postal_code: string;
     items: CheckoutItemPayload[];
+    /** Optional. An invalid code fails the checkout rather than being ignored. */
+    discount_code?: string;
 }
 
 export interface CheckoutResponseData {
@@ -1653,6 +1657,8 @@ export interface Order {
     shipping_address: string;
     shipping_postal_code: string;
     total_amount: number;
+    discount_code?: string;
+    discount_amount: number;
     payment_status: 'pending' | 'paid' | 'failed';
     fulfillment_status: 'pending' | 'shipped' | 'delivered' | 'cancelled';
     paystack_reference?: string;
@@ -2619,6 +2625,103 @@ export const commentsApi = {
     },
     updateNewsCommentSettings: async (newsId: string, commentsEnabled: boolean): Promise<void> => {
         await api.put(`/admin/news/${newsId}/comment-settings`, { comments_enabled: commentsEnabled });
+    },
+};
+
+// ─── Discount codes ───────────────────────────────────────────────────────────
+
+/** Who may redeem a code. Defaults to 'all'. */
+export type DiscountAudience = 'all' | 'authenticated' | 'guest';
+
+/** One product or ticket tier a code covers, with its own naira reduction. */
+export interface DiscountCodeItem {
+    id?: string;
+    entity_type: 'product' | 'ticket_tier';
+    entity_id: string;
+    entity_name?: string;
+    entity_price?: number;
+    amount_off: number;
+}
+
+export interface DiscountCode {
+    id: string;
+    code: string;
+    description: string;
+    max_uses?: number | null;
+    used_count: number;
+    expires_at?: string | null;
+    audience: DiscountAudience;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+    items: DiscountCodeItem[];
+    is_expired: boolean;
+    is_exhausted: boolean;
+}
+
+export interface SaveDiscountCodePayload {
+    code: string;
+    description?: string;
+    max_uses?: number | null;
+    expires_at?: string | null;
+    audience?: DiscountAudience;
+    is_active?: boolean;
+    items: { entity_type: 'product' | 'ticket_tier'; entity_id: string; amount_off: number }[];
+}
+
+/** A product or tier selectable in the admin code editor. */
+export interface DiscountTarget {
+    entity_type: 'product' | 'ticket_tier';
+    entity_id: string;
+    name: string;
+    price: number;
+}
+
+export interface DiscountPreview {
+    code: string;
+    valid: boolean;
+    /** Why the code was rejected. Safe to show to the buyer verbatim. */
+    message?: string;
+    lines: { entity_type: string; entity_id: string; name: string; amount_off: number }[];
+    original_amount: number;
+    discount_amount: number;
+    final_amount: number;
+}
+
+export const discountsApi = {
+    list: async (): Promise<DiscountCode[]> => {
+        const res = await api.get<{ data: DiscountCode[] }>('/admin/discount-codes');
+        return res.data.data || [];
+    },
+    listTargets: async (): Promise<DiscountTarget[]> => {
+        const res = await api.get<{ data: DiscountTarget[] }>('/admin/discount-codes/targets');
+        return res.data.data || [];
+    },
+    create: async (payload: SaveDiscountCodePayload): Promise<DiscountCode> => {
+        const res = await api.post<{ data: DiscountCode }>('/admin/discount-codes', payload);
+        return res.data.data;
+    },
+    update: async (id: string, payload: SaveDiscountCodePayload): Promise<DiscountCode> => {
+        const res = await api.put<{ data: DiscountCode }>(`/admin/discount-codes/${id}`, payload);
+        return res.data.data;
+    },
+    remove: async (id: string): Promise<void> => {
+        await api.delete(`/admin/discount-codes/${id}`);
+    },
+
+    /**
+     * Asks the server what a code would do. The cart is re-priced server-side
+     * through the same path checkout uses, so the saving shown is the saving
+     * charged. Never applies the code — that happens at checkout.
+     */
+    preview: async (params: {
+        code: string;
+        items?: CheckoutItemPayload[];
+        tier_id?: string;
+        quantity?: number;
+    }): Promise<DiscountPreview> => {
+        const res = await api.post<DiscountPreview>('/discounts/preview', params);
+        return res.data;
     },
 };
 

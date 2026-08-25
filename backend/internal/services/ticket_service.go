@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 	"time"
@@ -32,7 +33,7 @@ type ITicketService interface {
 	DeleteTier(ctx context.Context, id string) error
 
 	// Tickets
-	Purchase(ctx context.Context, req dto.PurchaseTicketRequest, callbackURL string) (*dto.TicketResponse, error)
+	Purchase(ctx context.Context, req dto.PurchaseTicketRequest, callbackURL string, userID *string) (*dto.TicketResponse, error)
 	GiftTicket(ctx context.Context, req dto.GiftTicketRequest) (*dto.TicketResponse, error)
 	HandleWebhook(ctx context.Context, reference string) error
 	VerifyAndUpdate(ctx context.Context, reference string) (*dto.TicketResponse, error)
@@ -50,12 +51,14 @@ type ITicketService interface {
 
 
 type TicketService struct {
-	eventDayRepo ports.EventDayRepository
-	tierRepo     ports.TicketTierRepository
-	ticketRepo   ports.TicketRepository
-	matchRepo    ports.MatchRepository
-	paystack     *PaystackClient
-	email        ports.EmailService
+	eventDayRepo    ports.EventDayRepository
+	tierRepo        ports.TicketTierRepository
+	ticketRepo      ports.TicketRepository
+	matchRepo       ports.MatchRepository
+	paystack        *PaystackClient
+	email           ports.EmailService
+	discountService IDiscountService
+	discountRepo    ports.IDiscountRepository
 }
 
 func NewTicketService(
@@ -65,11 +68,15 @@ func NewTicketService(
 	matchRepo ports.MatchRepository,
 	paystack *PaystackClient,
 	emailService ports.EmailService,
+	discountService IDiscountService,
+	discountRepo ports.IDiscountRepository,
 ) *TicketService {
 	return &TicketService{
-		eventDayRepo: eventDayRepo,
-		tierRepo:     tierRepo,
-		ticketRepo:   ticketRepo,
+		discountService: discountService,
+		discountRepo:    discountRepo,
+		eventDayRepo:    eventDayRepo,
+		tierRepo:        tierRepo,
+		ticketRepo:      ticketRepo,
 		matchRepo:    matchRepo,
 		paystack:     paystack,
 		email:        emailService,
@@ -257,7 +264,10 @@ func (s *TicketService) DeleteTier(ctx context.Context, id string) error {
 // Tickets
 // ═══════════════════════════════════════════════════════════════════════════════
 
-func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequest, callbackURL string) (*dto.TicketResponse, error) {
+// Purchase books a ticket. userID is the authenticated buyer when there is one
+// and nil for a guest checkout; it is taken from the caller's token, never from
+// the request body.
+func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequest, callbackURL string, userID *string) (*dto.TicketResponse, error) {
 	// 1. Look up tier for price
 	tier, err := s.tierRepo.GetByID(ctx, req.TierID)
 	if err != nil {
@@ -285,6 +295,35 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 
 	// 3. Calculate total
 	totalAmount := tier.Price * req.Quantity
+
+	// 3b. Apply a discount code, if one was given. Priced off the tier's own
+	// price, never off anything the client sent. Like the storefront, an
+	// unusable code fails the purchase rather than being quietly ignored.
+	//
+	// The code discounts one ticket, not every ticket in the order — the same
+	// "once per product" rule the storefront uses.
+	var discountCode *string
+	var discountCodeID *string
+	var discountAmount int
+	if strings.TrimSpace(req.DiscountCode) != "" {
+		app, err := s.discountService.ApplyToCart(ctx, req.DiscountCode, userID != nil && *userID != "", []CartLine{{
+			EntityType: domain.DiscountEntityTicketTier,
+			EntityID:   req.TierID,
+			Name:       tier.Name,
+			UnitPrice:  float64(tier.Price),
+			Quantity:   req.Quantity,
+		}})
+		if err != nil {
+			return nil, err
+		}
+		discountAmount = int(math.Round(app.TotalDiscount))
+		totalAmount -= discountAmount
+		if totalAmount < 0 {
+			totalAmount = 0
+		}
+		discountCode = &app.Code
+		discountCodeID = &app.CodeID
+	}
 
 	// 4. Generate unique reference
 	reference := "SFFL-" + uuid.New().String()[:12]
@@ -337,6 +376,7 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 			Email:              req.Email,
 			Phone:              req.Phone,
 			Name:               req.Name,
+			UserID:             userID,
 			Quantity:           req.Quantity,
 			UnitPrice:          tier.Price,
 			TotalAmount:        totalAmount,
@@ -345,6 +385,9 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 			PaystackAccessCode: paystackAccessCode,
 			TicketCode:         GenerateTicketCode(),
 			ReferralCode:       referralCode,
+			DiscountCode:       discountCode,
+			DiscountAmount:     discountAmount,
+			DiscountCodeID:     discountCodeID,
 		}
 
 
@@ -370,6 +413,14 @@ func (s *TicketService) Purchase(ctx context.Context, req dto.PurchaseTicketRequ
 	if ticket.Status == domain.TicketStatusPaid {
 		// Increment sold count on tier
 		_ = s.tierRepo.IncrementSoldCount(ctx, ticket.TierID, ticket.Quantity)
+
+		// A free (or fully discounted) ticket never returns through the payment
+		// callback, so settle the code hold here.
+		if discountCodeID != nil {
+			if err := s.discountRepo.ConfirmRedemption(ctx, nil, &ticket.ID); err != nil {
+				fmt.Printf("⚠️ WARNING: failed to confirm discount on free ticket %s: %s\n", ticket.ID, err.Error())
+			}
+		}
 
 		// Load relations for email dispatch
 		ticket.Tier = tier
@@ -542,12 +593,21 @@ func (s *TicketService) HandleWebhook(ctx context.Context, reference string) err
 		if err := s.ticketRepo.UpdateStatus(ctx, ticket.ID, domain.TicketStatusPaid); err != nil {
 			return err
 		}
+		// Settle the discount hold. Only 'reserved' rows move, so a webhook retry
+		// changes nothing.
+		if err := s.discountRepo.ConfirmRedemption(ctx, nil, &ticket.ID); err != nil {
+			fmt.Printf("⚠️ WARNING: failed to confirm discount on ticket %s: %s\n", ticket.ID, err.Error())
+		}
 		// Increment sold count on tier (capacity-guarded, idempotent-bounded)
 		err = s.tierRepo.IncrementSoldCount(ctx, ticket.TierID, ticket.Quantity)
 		s.sendPurchaseEmail(ticket)
 		return err
 	}
 
+	// Payment failed — hand the code use back rather than burning it.
+	if err := s.discountRepo.ReleaseRedemption(ctx, nil, &ticket.ID); err != nil {
+		fmt.Printf("⚠️ WARNING: failed to release discount on ticket %s: %s\n", ticket.ID, err.Error())
+	}
 	return s.ticketRepo.UpdateStatus(ctx, ticket.ID, domain.TicketStatusFailed)
 }
 
@@ -613,12 +673,18 @@ func (s *TicketService) VerifyAndUpdate(ctx context.Context, reference string) (
 		if err := s.ticketRepo.UpdateStatus(ctx, ticket.ID, domain.TicketStatusPaid); err != nil {
 			return nil, err
 		}
+		if err := s.discountRepo.ConfirmRedemption(ctx, nil, &ticket.ID); err != nil {
+			fmt.Printf("⚠️ WARNING: failed to confirm discount on ticket %s: %s\n", ticket.ID, err.Error())
+		}
 		_ = s.tierRepo.IncrementSoldCount(ctx, ticket.TierID, ticket.Quantity)
 		ticket.Status = domain.TicketStatusPaid
 		s.sendPurchaseEmail(ticket)
 	} else {
 		if err := s.ticketRepo.UpdateStatus(ctx, ticket.ID, domain.TicketStatusFailed); err != nil {
 			return nil, err
+		}
+		if err := s.discountRepo.ReleaseRedemption(ctx, nil, &ticket.ID); err != nil {
+			fmt.Printf("⚠️ WARNING: failed to release discount on ticket %s: %s\n", ticket.ID, err.Error())
 		}
 		ticket.Status = domain.TicketStatusFailed
 	}

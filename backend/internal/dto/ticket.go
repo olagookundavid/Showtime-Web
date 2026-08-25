@@ -69,6 +69,9 @@ type PurchaseTicketRequest struct {
 	Phone        string  `json:"phone" binding:"required"`
 	Quantity     int     `json:"quantity" binding:"required,min=1,max=10"`
 	ReferralCode *string `json:"referral_code,omitempty"`
+	// Optional discount code. Distinct from ReferralCode (attribution only) and
+	// from a tier's access_code (unlocks a hidden tier) — this one changes price.
+	DiscountCode string `json:"discount_code"`
 }
 
 // GiftTicketRequest is used by an App Admin to issue a complimentary ticket

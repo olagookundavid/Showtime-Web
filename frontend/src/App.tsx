@@ -43,7 +43,6 @@ import { ReferralGeneratorPage } from './pages/tickets/ReferralGeneratorPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { SignupPage } from './pages/auth/SignupPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
-import { HighlightsPage } from './pages/HighlightsPage';
 import { PlayersPage } from './pages/players/PlayersPage';
 import { PlayerDetail } from './pages/players/PlayerDetail';
 import { TeamsPage } from './pages/teams/TeamsPage';
@@ -160,7 +159,6 @@ function App() {
               <Route path="/tickets" element={<TicketsPage />} />
               <Route path="/tickets/confirm" element={<TicketConfirmation />} />
               <Route path="/tickets/referrals" element={<ReferralGeneratorPage />} />
-              <Route path="/highlights" element={<HighlightsPage />} />
 
               {/* Player Profiles */}
               <Route path="/players" element={<PlayersPage />} />

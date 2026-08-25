@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
-import { getEventDays, getEventDayByDate, purchaseTicket, getUserProfile, type EventDayResponse, type TicketTierResponse, type PurchaseTicketPayload, type AuthUser } from '../../services/api';
+import { getEventDays, getEventDayByDate, purchaseTicket, getUserProfile, type EventDayResponse, type TicketTierResponse, type PurchaseTicketPayload, type AuthUser, type DiscountPreview } from '../../services/api';
+import { DiscountCodeInput } from '../../components/discounts/DiscountCodeInput';
+import { newsletterEnabled, subscribeToNewsletter, toFirstName } from '../../services/newsletter';
 
 export const TicketsPage = () => {
     const navigate = useNavigate();
@@ -34,6 +36,9 @@ export const TicketsPage = () => {
     const [selectedEventDay, setSelectedEventDay] = useState<EventDayResponse | null>(null);
     const [selectedTier, setSelectedTier] = useState<TicketTierResponse | null>(null);
     const [quantity, setQuantity] = useState(1);
+    // Server-priced preview of an applied discount code. Display only — the
+    // server re-prices the code at purchase time.
+    const [discount, setDiscount] = useState<DiscountPreview | null>(null);
     const [email, setEmail] = useState('');
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
@@ -42,6 +47,9 @@ export const TicketsPage = () => {
     const [userProfile, setUserProfile] = useState<AuthUser | null>(null);
     const [purchasing, setPurchasing] = useState(false);
     const [error, setError] = useState('');
+    // Consent must be given actively, so this starts unticked and stays out of
+    // the purchase validation — it can never block or fail a ticket sale.
+    const [joinNewsletter, setJoinNewsletter] = useState(false);
 
     const eventDays = specificDay && !specificDayError ? [specificDay] : (allDaysData || []);
     const loading = (!!dateParam && specificDay === undefined && !specificDayError) || (fetchAllDays && loadingAll);
@@ -106,9 +114,22 @@ export const TicketsPage = () => {
                 phone,
                 quantity,
                 referral_code: referralCode.trim() || undefined,
+                // Send the code, not the amount — the server recomputes it.
+                discount_code: discount?.code || undefined,
             };
 
             const result = await purchaseTicket(payload);
+
+            // Fire-and-forget, deliberately after the sale succeeded and never
+            // awaited: `keepalive` lets it complete even though the next line
+            // navigates away to Paystack, and a failure here is invisible to
+            // the buyer rather than costing them their ticket.
+            if (joinNewsletter) {
+                void subscribeToNewsletter(
+                    { firstName: toFirstName(name), email },
+                    { keepalive: true },
+                );
+            }
 
             if (result.authorization_url) {
                 window.location.href = result.authorization_url;
@@ -128,13 +149,24 @@ export const TicketsPage = () => {
         setSelectedTier(tier);
         setQuantity(1);
         setError('');
+        // Fresh purchase, fresh consent — never carry a previous tick over.
+        setJoinNewsletter(false);
+        // Likewise for a code applied to a tier the buyer has moved on from.
+        setDiscount(null);
     };
 
     const closePurchaseModal = () => {
         setSelectedTier(null);
         setQuantity(1);
         setError('');
+        setDiscount(null);
     };
+
+    // Totals for the purchase modal. selectedTier is null while the modal is
+    // closed, which just makes these zero.
+    const ticketSubtotal = (selectedTier?.price ?? 0) * quantity;
+    const ticketDiscount = discount?.discount_amount ?? 0;
+    const ticketTotal = Math.max(0, ticketSubtotal - ticketDiscount);
 
     const tierColorMap: Record<string, string> = {
         'Regular': 'from-red-500 to-red-700',
@@ -295,14 +327,22 @@ export const TicketsPage = () => {
 
             {/* Purchase Modal */}
             {selectedTier && selectedEventDay && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 overflow-y-auto flex items-start justify-center p-4 md:p-6">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full p-6 md:p-8 shadow-2xl animate-in my-auto">
-                        <h3 className="text-2xl font-black text-sffl-navy dark:text-white mb-4">
-                            Purchase Tickets
-                        </h3>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-3 sm:p-6 animate-fadeIn" onClick={closePurchaseModal}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in border border-gray-100 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                        <div className="p-4 sm:p-6 pb-4 border-b border-gray-100 dark:border-gray-700 flex-shrink-0 flex items-center justify-between">
+                            <h3 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white">
+                                Purchase Tickets
+                            </h3>
+                            <button
+                                onClick={closePurchaseModal}
+                                aria-label="Close"
+                                className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-2xl leading-none p-1"
+                            >
+                                ✕
+                            </button>
+                        </div>
 
-
-                        <div className="space-y-4 mb-6">
+                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
                             {/* Event Info */}
                             <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                                 <div className="font-bold text-sffl-navy dark:text-white">
@@ -413,11 +453,40 @@ export const TicketsPage = () => {
                                 </div>
                             </div>
 
+                            {/* Discount code — hidden on free tiers, where
+                                there is nothing left to take off. */}
+                            {selectedTier.price > 0 && (
+                                <div className="border-t dark:border-gray-700 pt-4">
+                                    <DiscountCodeInput
+                                        tierId={selectedTier.id}
+                                        quantity={quantity}
+                                        onChange={setDiscount}
+                                        disabled={purchasing}
+                                    />
+                                </div>
+                            )}
+
                             {/* Total */}
-                            <div className="border-t dark:border-gray-700 pt-4">
+                            <div className="border-t dark:border-gray-700 pt-4 space-y-1.5">
+                                {ticketDiscount > 0 && (
+                                    <>
+                                        <div className="flex justify-between items-baseline text-sm">
+                                            <span className="text-gray-500 dark:text-gray-400">Subtotal</span>
+                                            <span className="text-gray-500 dark:text-gray-400 line-through">
+                                                ₦{ticketSubtotal.toLocaleString()}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between items-baseline text-sm">
+                                            <span className="text-gray-500 dark:text-gray-400">Discount ({discount?.code})</span>
+                                            <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                                −₦{ticketDiscount.toLocaleString()}
+                                            </span>
+                                        </div>
+                                    </>
+                                )}
                                 <div className="flex justify-between items-baseline">
                                     <span className="text-gray-700 dark:text-gray-300 font-semibold">Total:</span>
-                                    <span className="text-3xl font-black text-sffl-red">₦{(selectedTier.price * quantity).toLocaleString()}</span>
+                                    <span className="text-3xl font-black text-sffl-red">₦{ticketTotal.toLocaleString()}</span>
                                 </div>
                             </div>
 
@@ -426,33 +495,53 @@ export const TicketsPage = () => {
                                     {error}
                                 </div>
                             )}
+
+                            {/* Optional newsletter opt-in. Unticked by default —
+                                a pre-ticked box isn't consent. */}
+                            {newsletterEnabled && (
+                                <label className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-600 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={joinNewsletter}
+                                        onChange={e => setJoinNewsletter(e.target.checked)}
+                                        className="mt-0.5 w-4 h-4 shrink-0 accent-sffl-red cursor-pointer"
+                                    />
+                                    <span className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+                                        <span className="font-bold text-gray-800 dark:text-white">Send me the Showtime newsletter</span>
+                                        <br />
+                                        Fixtures, match news and ticket drops. Unsubscribe any time.
+                                    </span>
+                                </label>
+                            )}
                         </div>
 
                         {/* Buttons */}
-                        <div className="flex gap-3">
-                            <button
-                                onClick={closePurchaseModal}
-                                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 rounded-lg transition"
-                                disabled={purchasing}
-                            >Cancel</button>
-                            <button
-                                onClick={handlePurchase}
-                                disabled={purchasing || !email || !name || !phone.trim()}
-                                className="flex-1 bg-sffl-red hover:bg-[#A52323] text-white font-bold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                            >
-                                {purchasing ? (
-                                    <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Processing...</>
-                                ) : (
-                                    selectedTier.price === 0 ? '🎟️ Get Free Ticket' : '💳 Pay with Paystack'
-                                )}
-                            </button>
-                        </div>
+                        <div className="p-4 sm:p-6 border-t border-gray-100 dark:border-gray-700 flex-shrink-0 bg-gray-50/60 dark:bg-gray-800/60 space-y-3">
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={closePurchaseModal}
+                                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white font-bold py-3 rounded-lg transition"
+                                    disabled={purchasing}
+                                >Cancel</button>
+                                <button
+                                    onClick={handlePurchase}
+                                    disabled={purchasing || !email || !name || !phone.trim()}
+                                    className="flex-1 bg-sffl-red hover:bg-[#A52323] text-white font-bold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                >
+                                    {purchasing ? (
+                                        <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Processing...</>
+                                    ) : (
+                                        ticketTotal === 0 ? '🎟️ Get Free Ticket' : '💳 Pay with Paystack'
+                                    )}
+                                </button>
+                            </div>
 
-                        <p className="text-xs text-gray-500 text-center mt-4">
-                            {selectedTier.price === 0
-                                ? '✨ Your free ticket will be sent instantly'
-                                : '🔒 You will be redirected to Paystack for secure payment'}
-                        </p>
+                            <p className="text-[11px] text-gray-500 text-center">
+                                {ticketTotal === 0
+                                    ? '✨ Your free ticket will be sent instantly'
+                                    : '🔒 You will be redirected to Paystack for secure payment'}
+                            </p>
+                        </div>
                     </div>
                 </div>
             )}

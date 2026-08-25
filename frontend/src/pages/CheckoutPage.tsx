@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
+import { newsletterEnabled, subscribeToNewsletter, toFirstName } from '../services/newsletter';
 import {
     getStoreProduct,
     getSavedAddresses,
@@ -10,15 +11,18 @@ import {
     initializeCheckout,
     type StoreProduct,
     type SavedAddress,
-    type CheckoutPayload
+    type CheckoutPayload,
+    type DiscountPreview
 } from '../services/api';
 import { LazyImage } from '../components/common/LazyImage';
+import { DiscountCodeInput } from '../components/discounts/DiscountCodeInput';
 import { formatVariantLabel } from '../utils/storeStock';
 
 export const CheckoutPage = () => {
     const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
     const { user, isAuthenticated } = useAuth();
-    const { items: cartItems, subtotal: cartSubtotal } = useCart();
+    const { items: cartItems, subtotal: cartSubtotal, clear: clearCart } = useCart();
     const queryClient = useQueryClient();
 
     // Cart-mode (when arriving from /store/cart) takes the line items straight
@@ -32,11 +36,17 @@ export const CheckoutPage = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formError, setFormError] = useState<string>('');
     const [payError, setPayError] = useState<string>('');
+    // Consent must be given actively, so this starts unticked and stays out of
+    // checkout validation — it can never block or fail an order.
+    const [joinNewsletter, setJoinNewsletter] = useState(false);
     // Logged-in users can opt to persist this address to their address book.
     // Default ON when they don't have any saved addresses yet, OFF otherwise
     // (handled below once savedAddresses has loaded).
     const [saveAddress, setSaveAddress] = useState<boolean>(false);
     const [selectedSavedAddressId, setSelectedSavedAddressId] = useState<string | null>(null);
+    // Server-priced preview of an applied discount code. Display only — the
+    // authoritative discount is recomputed at checkout from the code alone.
+    const [discount, setDiscount] = useState<DiscountPreview | null>(null);
 
     // Form State
     const [shippingForm, setShippingForm] = useState({
@@ -64,6 +74,25 @@ export const CheckoutPage = () => {
         queryFn: getSavedAddresses,
         enabled: isAuthenticated,
     });
+
+    // The line items for this checkout, shared by the discount preview and the
+    // order payload so a code is always priced against exactly what gets bought.
+    // In cart-mode they come from CartContext; otherwise from the URL params.
+    // Declared above the early returns below — it is a hook, so it has to run
+    // on every render.
+    const checkoutItems = useMemo(
+        () =>
+            isCartCheckout
+                ? cartItems.map(i => ({
+                      product_id: i.product_id,
+                      variant_id: i.variant_id || undefined,
+                      quantity: i.quantity,
+                  }))
+                : product
+                  ? [{ product_id: product.id, variant_id: variantId || undefined, quantity }]
+                  : [],
+        [isCartCheckout, cartItems, product, variantId, quantity],
+    );
 
     if (!isCartCheckout && loadingProduct) {
         return (
@@ -98,8 +127,16 @@ export const CheckoutPage = () => {
     const matchedVariant = product?.variants?.find(v => v.id === variantId);
     const unitPrice = matchedVariant && matchedVariant.price > 0 ? matchedVariant.price : (product?.price || 0);
     const subtotal = isCartCheckout ? cartSubtotal : unitPrice * quantity;
+    // Must stay 0 until the backend charges shipping. The server prices an order
+    // from the cart alone (priceCart) — the shipping_* fields it stores are the
+    // delivery address, not a cost — so whatever is set here is displayed to the
+    // buyer but never added to the Paystack amount. Making this non-zero would
+    // quote a total higher than what actually gets charged.
     const shippingCost = 0; // Free promo
-    const totalAmount = subtotal + shippingCost;
+    // A code can cover the whole cart, so clamp at zero rather than showing a
+    // negative total.
+    const discountAmount = discount?.discount_amount ?? 0;
+    const totalAmount = Math.max(0, subtotal + shippingCost - discountAmount);
 
     // When the user manually edits a field after picking a saved address, treat
     // it as a fresh entry — they're no longer reusing the saved one.
@@ -178,17 +215,7 @@ export const CheckoutPage = () => {
         setIsSubmitting(true);
         setPayError('');
         try {
-            // In cart-mode the items array is fed by CartContext; otherwise
-            // it's the single product/variant from URL params.
-            const items = isCartCheckout
-                ? cartItems.map(i => ({
-                    product_id: i.product_id,
-                    variant_id: i.variant_id || undefined,
-                    quantity: i.quantity,
-                }))
-                : product
-                    ? [{ product_id: product.id, variant_id: variantId || undefined, quantity }]
-                    : [];
+            const items = checkoutItems;
 
             const payload: CheckoutPayload = {
                 customer_name: shippingForm.recipient_name,
@@ -200,11 +227,37 @@ export const CheckoutPage = () => {
                 shipping_address: shippingForm.street_address,
                 shipping_postal_code: shippingForm.postal_code || '100001',
                 items,
+                // Send the code, not the amount. The server re-prices it, so a
+                // tampered preview can't buy anything cheaply.
+                discount_code: discount?.code || undefined,
             };
 
             const response = await initializeCheckout(payload);
-            if (!response || !response.paystack_url) {
-                throw new Error('No checkout URL received from merchant API.');
+            if (!response) {
+                throw new Error('No response received from merchant API.');
+            }
+
+            // Fire-and-forget, deliberately after the order succeeded and never
+            // awaited: `keepalive` lets it finish across the redirect to
+            // Paystack, and a failure here stays invisible to the customer
+            // rather than costing them their order.
+            if (joinNewsletter) {
+                void subscribeToNewsletter(
+                    {
+                        firstName: toFirstName(shippingForm.recipient_name),
+                        email: shippingForm.email,
+                    },
+                    { keepalive: true },
+                );
+            }
+
+            // A code can cover the order in full. There is nothing to pay, so the
+            // server already booked it as paid and there is no Paystack URL —
+            // go straight to the confirmation page.
+            if (!response.paystack_url) {
+                clearCart();
+                navigate(`/store/confirm?reference=${encodeURIComponent(response.order_reference)}`);
+                return;
             }
             if (!isAllowedPaystackUrl(response.paystack_url)) {
                 throw new Error('Unexpected payment redirect URL — checkout aborted for your safety.');
@@ -495,11 +548,31 @@ export const CheckoutPage = () => {
                                 </div>
                             )}
 
+                            {/* Optional newsletter opt-in. Unticked by default —
+                                a pre-ticked box isn't consent. */}
+                            {newsletterEnabled && !isSubmitting && (
+                                <label className="flex items-start gap-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/50 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={joinNewsletter}
+                                        onChange={e => setJoinNewsletter(e.target.checked)}
+                                        className="mt-0.5 w-4 h-4 shrink-0 accent-sffl-red cursor-pointer"
+                                    />
+                                    <span className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+                                        <span className="font-black text-sffl-navy dark:text-white uppercase tracking-wider">Send me the Showtime newsletter</span>
+                                        <br />
+                                        Fixtures, match news and new drops. Unsubscribe any time.
+                                    </span>
+                                </label>
+                            )}
+
                             {isSubmitting ? (
                                 <div className="text-center py-6 space-y-4">
                                     <div className="w-10 h-10 border-4 border-sffl-red border-t-transparent rounded-full animate-spin mx-auto"></div>
                                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wider animate-pulse">
-                                        Connecting safely to Paystack payment gateway...
+                                        {totalAmount === 0
+                                            ? 'Confirming your order...'
+                                            : 'Connecting safely to Paystack payment gateway...'}
                                     </p>
                                 </div>
                             ) : (
@@ -516,7 +589,7 @@ export const CheckoutPage = () => {
                                         onClick={handlePayNow}
                                         className="flex-[2] bg-sffl-red hover:bg-red-700 text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all transform active:scale-95 shadow-xl hover:shadow-sffl-red/20"
                                     >
-                                        Pay With Paystack →
+                                        {totalAmount === 0 ? 'Complete Order →' : 'Pay With Paystack →'}
                                     </button>
                                 </div>
                             )}
@@ -572,11 +645,27 @@ export const CheckoutPage = () => {
                     </div>
                     )}
 
+                    <div className="pt-1 pb-3 border-b dark:border-gray-800">
+                        <DiscountCodeInput
+                            items={checkoutItems}
+                            onChange={setDiscount}
+                            disabled={isSubmitting}
+                        />
+                    </div>
+
                     <div className="space-y-2 text-xs pt-1">
                         <div className="flex justify-between text-gray-500">
                             <span>Subtotal</span>
                             <span className="font-semibold text-gray-900 dark:text-white">₦{subtotal.toLocaleString()}</span>
                         </div>
+                        {discountAmount > 0 && (
+                            <div className="flex justify-between text-gray-500">
+                                <span>Discount ({discount?.code})</span>
+                                <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                    −₦{discountAmount.toLocaleString()}
+                                </span>
+                            </div>
+                        )}
                         <div className="flex justify-between text-gray-500">
                             <span>Shipping Promo</span>
                             <span className="font-semibold text-emerald-500 uppercase text-[10px] bg-emerald-500/10 px-1.5 py-0.5 rounded">FREE</span>

@@ -21,6 +21,7 @@ type IStoreService interface {
 	ListStoreProducts(ctx context.Context) ([]dto.StoreProductResponse, error)
 	GetStoreProduct(ctx context.Context, id string) (*dto.StoreProductResponse, error)
 	CreateOrder(ctx context.Context, userID *string, req dto.CheckoutRequest) (*dto.CheckoutResponse, error)
+	PriceCartLines(ctx context.Context, items []dto.OrderItemRequest) ([]CartLine, error)
 	VerifyPayment(ctx context.Context, paystackRef string) (*dto.OrderResponse, error)
 	VerifyOrder(ctx context.Context, id string) (*dto.OrderResponse, error)
 	GetOrder(ctx context.Context, id string) (*dto.OrderResponse, error)
@@ -47,18 +48,22 @@ type IStoreService interface {
 }
 
 type StoreService struct {
-	repo           ports.IStoreRepository
-	paystackClient *PaystackClient
-	emailService   *email.ResendService
-	storage        ports.StorageService
+	repo            ports.IStoreRepository
+	paystackClient  *PaystackClient
+	emailService    *email.ResendService
+	storage         ports.StorageService
+	discountService IDiscountService
+	discountRepo    ports.IDiscountRepository
 }
 
-func NewStoreService(repo ports.IStoreRepository, paystackClient *PaystackClient, emailService *email.ResendService, storage ports.StorageService) IStoreService {
+func NewStoreService(repo ports.IStoreRepository, paystackClient *PaystackClient, emailService *email.ResendService, storage ports.StorageService, discountService IDiscountService, discountRepo ports.IDiscountRepository) IStoreService {
 	return &StoreService{
-		repo:           repo,
-		paystackClient: paystackClient,
-		emailService:   emailService,
-		storage:        storage,
+		repo:            repo,
+		paystackClient:  paystackClient,
+		emailService:    emailService,
+		storage:         storage,
+		discountService: discountService,
+		discountRepo:    discountRepo,
 	}
 }
 
@@ -191,6 +196,8 @@ func mapOrderToResponse(o *domain.Order) dto.OrderResponse {
 		ShippingAddress:    o.ShippingAddress,
 		ShippingPostalCode: o.ShippingPostalCode,
 		TotalAmount:        o.TotalAmount,
+		DiscountCode:       o.DiscountCode,
+		DiscountAmount:     o.DiscountAmount,
 		PaymentStatus:      o.PaymentStatus,
 		FulfillmentStatus:  o.FulfillmentStatus,
 		PaystackReference:  o.PaystackReference,
@@ -215,20 +222,22 @@ func mapOrderToResponse(o *domain.Order) dto.OrderResponse {
 	return res
 }
 
-func (s *StoreService) CreateOrder(ctx context.Context, userID *string, req dto.CheckoutRequest) (*dto.CheckoutResponse, error) {
-	if len(req.Items) == 0 {
-		return nil, errors.New("cannot create order with no items")
-	}
-
+// priceCart validates a set of requested items and prices them from the
+// database. It is the single source of truth for what a cart costs: both the
+// real checkout and the discount preview go through it, so the figure quoted to
+// a buyer and the figure they are charged cannot drift apart.
+//
+// Stock is not touched here — it is reserved later, inside repo.CreateOrder,
+// under FOR UPDATE locks.
+func (s *StoreService) priceCart(ctx context.Context, items []dto.OrderItemRequest) ([]domain.OrderItem, []CartLine, float64, error) {
 	var totalAmount float64
-	orderItems := make([]domain.OrderItem, 0, len(req.Items))
+	orderItems := make([]domain.OrderItem, 0, len(items))
+	cartLines := make([]CartLine, 0, len(items))
 
-	// Validate items + compute the authoritative total from server-side prices.
-	// Stock is reserved later inside repo.CreateOrder under FOR UPDATE locks.
-	for _, reqItem := range req.Items {
+	for _, reqItem := range items {
 		p, err := s.repo.GetStoreProduct(ctx, reqItem.ProductID)
 		if err != nil {
-			return nil, fmt.Errorf("failed to fetch product %s: %w", reqItem.ProductID, err)
+			return nil, nil, 0, fmt.Errorf("failed to fetch product %s: %w", reqItem.ProductID, err)
 		}
 
 		// Soft-deleted / deactivated products must not be purchasable even if a
@@ -236,14 +245,14 @@ func (s *StoreService) CreateOrder(ctx context.Context, userID *string, req dto.
 		// products but the checkout fetch is by-ID and doesn't filter, so guard
 		// here.
 		if !p.IsActive {
-			return nil, fmt.Errorf("product %q is no longer available", p.Name)
+			return nil, nil, 0, fmt.Errorf("product %q is no longer available", p.Name)
 		}
 
 		unitPrice := p.Price
 		var variantLabel string
 
 		if len(p.Variants) > 0 && (reqItem.VariantID == nil || *reqItem.VariantID == "") {
-			return nil, appErrors.ErrVariantRequired
+			return nil, nil, 0, appErrors.ErrVariantRequired
 		}
 
 		if reqItem.VariantID != nil && *reqItem.VariantID != "" {
@@ -256,7 +265,7 @@ func (s *StoreService) CreateOrder(ctx context.Context, userID *string, req dto.
 			}
 
 			if selectedVariant == nil {
-				return nil, appErrors.ErrVariantNotFound
+				return nil, nil, 0, appErrors.ErrVariantNotFound
 			}
 
 			unitPrice = p.PriceForVariant(selectedVariant)
@@ -273,6 +282,52 @@ func (s *StoreService) CreateOrder(ctx context.Context, userID *string, req dto.
 			Quantity:     reqItem.Quantity,
 			UnitPrice:    unitPrice,
 		})
+
+		cartLines = append(cartLines, CartLine{
+			EntityType: domain.DiscountEntityProduct,
+			EntityID:   reqItem.ProductID,
+			Name:       p.Name,
+			UnitPrice:  unitPrice,
+			Quantity:   reqItem.Quantity,
+		})
+	}
+
+	return orderItems, cartLines, totalAmount, nil
+}
+
+// PriceCartLines exposes the discount-relevant view of priceCart for the code
+// preview endpoint.
+func (s *StoreService) PriceCartLines(ctx context.Context, items []dto.OrderItemRequest) ([]CartLine, error) {
+	_, lines, _, err := s.priceCart(ctx, items)
+	return lines, err
+}
+
+func (s *StoreService) CreateOrder(ctx context.Context, userID *string, req dto.CheckoutRequest) (*dto.CheckoutResponse, error) {
+	if len(req.Items) == 0 {
+		return nil, errors.New("cannot create order with no items")
+	}
+
+	orderItems, cartLines, totalAmount, err := s.priceCart(ctx, req.Items)
+	if err != nil {
+		return nil, err
+	}
+
+	// Price the discount off the server-side cart, never off anything the client
+	// sent. A code that doesn't apply fails the checkout rather than being
+	// dropped silently — the buyer chose to use it and must not be charged full
+	// price without being told.
+	var discountCode *string
+	var discountCodeID *string
+	var discountAmount float64
+	if strings.TrimSpace(req.DiscountCode) != "" {
+		app, err := s.discountService.ApplyToCart(ctx, req.DiscountCode, userID != nil && *userID != "", cartLines)
+		if err != nil {
+			return nil, err
+		}
+		totalAmount = app.FinalAmount
+		discountAmount = app.TotalDiscount
+		discountCode = &app.Code
+		discountCodeID = &app.CodeID
 	}
 
 	// Full UUID (not truncated) — this reference is what Paystack echoes back to
@@ -294,19 +349,34 @@ func (s *StoreService) CreateOrder(ctx context.Context, userID *string, req dto.
 		callbackURL = fmt.Sprintf("%s/store/confirm", frontendURL)
 	}
 
-	// Initialize Paystack payment BEFORE reserving stock. If reservation later
-	// fails (race with concurrent buyers), the orphaned Paystack txn simply
-	// expires unused — no charge, no money lost.
-	paystackReq := PaystackInitRequest{
-		Email:       req.CustomerEmail,
-		Amount:      paystackAmountKobo,
-		Reference:   paystackRef,
-		CallbackURL: callbackURL,
+	// A discount can now cover the whole cart. Paystack rejects a zero-amount
+	// transaction, so a fully-discounted order skips the gateway entirely and is
+	// booked as paid — the same treatment free tickets already get.
+	isFree := paystackAmountKobo <= 0
+
+	var authorizationURL, accessCode string
+	if !isFree {
+		// Initialize Paystack payment BEFORE reserving stock. If reservation later
+		// fails (race with concurrent buyers), the orphaned Paystack txn simply
+		// expires unused — no charge, no money lost.
+		paystackReq := PaystackInitRequest{
+			Email:       req.CustomerEmail,
+			Amount:      paystackAmountKobo,
+			Reference:   paystackRef,
+			CallbackURL: callbackURL,
+		}
+
+		paystackResp, err := s.paystackClient.InitializeTransaction(paystackReq)
+		if err != nil {
+			return nil, fmt.Errorf("paystack initialization failed: %w", err)
+		}
+		authorizationURL = paystackResp.Data.AuthorizationURL
+		accessCode = paystackResp.Data.AccessCode
 	}
 
-	paystackResp, err := s.paystackClient.InitializeTransaction(paystackReq)
-	if err != nil {
-		return nil, fmt.Errorf("paystack initialization failed: %w", err)
+	paymentStatus := "pending"
+	if isFree {
+		paymentStatus = "paid"
 	}
 
 	order := domain.Order{
@@ -321,29 +391,48 @@ func (s *StoreService) CreateOrder(ctx context.Context, userID *string, req dto.
 		ShippingAddress:    req.ShippingAddress,
 		ShippingPostalCode: req.ShippingPostalCode,
 		TotalAmount:        totalAmount,
-		PaymentStatus:      "pending",
+		DiscountCode:       discountCode,
+		DiscountAmount:     discountAmount,
+		DiscountCodeID:     discountCodeID,
+		PaymentStatus:      paymentStatus,
 		FulfillmentStatus:  "pending",
 		PaystackReference:  paystackRef,
-		PaystackAccessCode: paystackResp.Data.AccessCode,
+		PaystackAccessCode: accessCode,
 		Items:              orderItems,
 	}
 
 	created, err := s.repo.CreateOrder(ctx, order)
 	if err != nil {
-		// Pass through known business errors (insufficient stock etc.) cleanly.
+		// Pass through known business errors (insufficient stock, a code that ran
+		// out between pricing and reserving) cleanly.
 		if errors.Is(err, appErrors.ErrInsufficientStock) ||
 			errors.Is(err, appErrors.ErrVariantNotFound) ||
-			errors.Is(err, appErrors.ErrVariantRequired) {
+			errors.Is(err, appErrors.ErrVariantRequired) ||
+			errors.Is(err, appErrors.ErrDiscountNotFound) ||
+			errors.Is(err, appErrors.ErrDiscountInactive) ||
+			errors.Is(err, appErrors.ErrDiscountExpired) ||
+			errors.Is(err, appErrors.ErrDiscountExhausted) {
 			return nil, err
 		}
 		return nil, fmt.Errorf("failed to save pending order: %w", err)
 	}
 
+	// A free order never comes back through the payment callback, so settle the
+	// code hold and send the confirmation here instead.
+	if isFree {
+		if discountCodeID != nil {
+			if err := s.discountRepo.ConfirmRedemption(ctx, &created.ID, nil); err != nil {
+				fmt.Printf("⚠️ WARNING: failed to confirm discount on free order %s: %s\n", created.ID, err.Error())
+			}
+		}
+		s.dispatchResendEmails(created)
+	}
+
 	return &dto.CheckoutResponse{
 		OrderReference:     created.OrderReference,
-		PaystackURL:        paystackResp.Data.AuthorizationURL,
+		PaystackURL:        authorizationURL,
 		PaystackRef:        paystackRef,
-		PaystackAccessCode: paystackResp.Data.AccessCode,
+		PaystackAccessCode: accessCode,
 	}, nil
 }
 
@@ -372,6 +461,10 @@ func (s *StoreService) VerifyPayment(ctx context.Context, paystackRef string) (*
 		if err := s.repo.MarkOrderFailedAndRestoreStock(ctx, order.ID); err != nil {
 			fmt.Printf("⚠️ WARNING: Failed to mark order %s failed / restore stock: %s\n", order.ID, err.Error())
 		}
+		// Hand the code use back so a failed payment doesn't burn it.
+		if err := s.discountRepo.ReleaseRedemption(ctx, &order.ID, nil); err != nil {
+			fmt.Printf("⚠️ WARNING: Failed to release discount on order %s: %s\n", order.ID, err.Error())
+		}
 		refreshed, err := s.repo.GetOrder(ctx, order.ID)
 		if err == nil {
 			order = refreshed
@@ -392,6 +485,12 @@ func (s *StoreService) VerifyPayment(ctx context.Context, paystackRef string) (*
 	err = s.repo.UpdateOrderPaymentStatus(ctx, order.ID, "paid")
 	if err != nil {
 		return nil, fmt.Errorf("failed to update payment status: %w", err)
+	}
+
+	// Settle the code hold. Only 'reserved' rows move, so a webhook retry that
+	// re-runs this path is a no-op.
+	if err := s.discountRepo.ConfirmRedemption(ctx, &order.ID, nil); err != nil {
+		fmt.Printf("⚠️ WARNING: Failed to confirm discount on order %s: %s\n", order.ID, err.Error())
 	}
 
 	// User Saved Address Auto-Save logic for future checkouts
@@ -932,6 +1031,10 @@ func mapOptionsToDomain(opts []dto.ProductOptionDTO) []domain.ProductOption {
 func (s *StoreService) CancelOrder(ctx context.Context, id string) (*dto.OrderResponse, error) {
 	if err := s.repo.CancelOrderAndRestoreStock(ctx, id); err != nil {
 		return nil, err
+	}
+	// Stock came back; the code use should too.
+	if err := s.discountRepo.ReleaseRedemption(ctx, &id, nil); err != nil {
+		fmt.Printf("⚠️ WARNING: Failed to release discount on cancelled order %s: %s\n", id, err.Error())
 	}
 	o, err := s.repo.GetOrder(ctx, id)
 	if err != nil {

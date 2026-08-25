@@ -61,20 +61,28 @@ type SavedAddress struct {
 
 // Order represents an online storefront transaction
 type Order struct {
-	ID                 string      `json:"id"`
-	OrderReference     string      `json:"order_reference"`
-	UserID             *string     `json:"user_id,omitempty"` // Nullable for guest checkouts
-	CustomerName       string      `json:"customer_name"`
-	CustomerEmail      string      `json:"customer_email"`
-	CustomerPhone      string      `json:"customer_phone"`
-	ShippingCountry    string      `json:"shipping_country"`
-	ShippingState      string      `json:"shipping_state"`
-	ShippingCity       string      `json:"shipping_city"`
-	ShippingAddress    string      `json:"shipping_address"`
-	ShippingPostalCode string      `json:"shipping_postal_code"`
-	TotalAmount        float64     `json:"total_amount"`
+	ID                 string  `json:"id"`
+	OrderReference     string  `json:"order_reference"`
+	UserID             *string `json:"user_id,omitempty"` // Nullable for guest checkouts
+	CustomerName       string  `json:"customer_name"`
+	CustomerEmail      string  `json:"customer_email"`
+	CustomerPhone      string  `json:"customer_phone"`
+	ShippingCountry    string  `json:"shipping_country"`
+	ShippingState      string  `json:"shipping_state"`
+	ShippingCity       string  `json:"shipping_city"`
+	ShippingAddress    string  `json:"shipping_address"`
+	ShippingPostalCode string  `json:"shipping_postal_code"`
+	TotalAmount        float64 `json:"total_amount"`
+	// Snapshot of the code redeemed and what it saved, so a receipt stays
+	// truthful even if the code is later edited or deleted.
+	DiscountCode   *string `json:"discount_code,omitempty"`
+	DiscountAmount float64 `json:"discount_amount"`
+	// DiscountCodeID is not a column on the order. It carries the code to
+	// reserve into CreateOrder, so the hold on the code is taken in the same
+	// transaction as the stock — an order never takes one without the other.
+	DiscountCodeID     *string     `json:"-"`
 	PaymentStatus      string      `json:"payment_status"`     // e.g. "pending", "paid", "failed"
-	FulfillmentStatus  string      `json:"fulfillment_status"`   // e.g. "pending", "shipped", "delivered"
+	FulfillmentStatus  string      `json:"fulfillment_status"` // e.g. "pending", "shipped", "delivered"
 	PaystackReference  string      `json:"paystack_reference"`
 	PaystackAccessCode string      `json:"paystack_access_code"`
 	CreatedAt          time.Time   `json:"created_at"`
@@ -86,16 +94,16 @@ type Order struct {
 // customers with a paid order containing the product can post one; one review
 // per (product, user) is enforced at the DB level.
 type ProductReview struct {
-	ID            string    `json:"id"`
-	ProductID     string    `json:"product_id"`
-	UserID        string    `json:"user_id"`
-	OrderID       *string   `json:"order_id,omitempty"`
-	UserName      string    `json:"user_name,omitempty"` // joined from users table at read time
-	Rating        int       `json:"rating"`
-	Title         string    `json:"title,omitempty"`
-	Body          string    `json:"body,omitempty"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID        string    `json:"id"`
+	ProductID string    `json:"product_id"`
+	UserID    string    `json:"user_id"`
+	OrderID   *string   `json:"order_id,omitempty"`
+	UserName  string    `json:"user_name,omitempty"` // joined from users table at read time
+	Rating    int       `json:"rating"`
+	Title     string    `json:"title,omitempty"`
+	Body      string    `json:"body,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // OrderItem represents a single item configuration within an online order.

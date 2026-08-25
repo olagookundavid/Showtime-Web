@@ -82,6 +82,7 @@ func Routes(app *api.Application) *gin.Engine {
 	SetupAppSettingRoutes(v1_api, app)
 	SetupClaimRoutes(v1_api, app)
 	SetupCommentRoutes(v1_api, app)
+	SetupDiscountRoutes(v1_api, app)
 	return r
 }
 
@@ -593,7 +594,10 @@ func SetupTicketRoutes(r *gin.RouterGroup, app *api.Application) {
 
 		limitedTickets := ticketRoutes.Group("", commonAuth.RateLimit(rls))
 		{
-			limitedTickets.POST("/purchase", app.Handlers.TicketHandler.Purchase)
+			// Optional auth: guests still buy tickets, but a signed-in buyer is
+			// recognised so members-only discount codes work and the ticket is
+			// linked to their account.
+			limitedTickets.POST("/purchase", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.TicketHandler.Purchase)
 		}
 
 		ticketRoutes.POST("/webhook", app.Handlers.TicketHandler.Webhook)
@@ -722,6 +726,25 @@ func SetupNotificationRoutes(r *gin.RouterGroup, app *api.Application) {
 		notifGroup.GET("/unread-count", app.Handlers.NotificationHandler.GetUnreadCount)
 		notifGroup.PUT("/:id/read", app.Handlers.NotificationHandler.MarkAsRead)
 		notifGroup.PUT("/read-all", app.Handlers.NotificationHandler.MarkAllAsRead)
+	}
+}
+
+func SetupDiscountRoutes(r *gin.RouterGroup, app *api.Application) {
+	// Public preview. Optional auth because a code can be restricted to
+	// signed-in customers, and the preview must reflect the same answer the
+	// checkout will give.
+	r.POST("/discounts/preview", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.DiscountHandler.Preview)
+
+	// Admin management, alongside the rest of the store administration.
+	adminDiscounts := r.Group("/admin/discount-codes")
+	adminDiscounts.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.AdminOnlyMiddleware(app.AuthService))
+	{
+		adminDiscounts.GET("", app.Handlers.DiscountHandler.List)
+		adminDiscounts.GET("/targets", app.Handlers.DiscountHandler.ListTargets)
+		adminDiscounts.GET("/:id", app.Handlers.DiscountHandler.Get)
+		adminDiscounts.POST("", app.Handlers.DiscountHandler.Create)
+		adminDiscounts.PUT("/:id", app.Handlers.DiscountHandler.Update)
+		adminDiscounts.DELETE("/:id", app.Handlers.DiscountHandler.Delete)
 	}
 }
 

@@ -315,6 +315,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	notifRepo := ports.NewNotificationRepository(pool)
 	claimRepo := ports.NewClaimRepository(pool)
 	commentRepo := ports.NewCommentRepository(pool)
+	discountRepo := ports.NewDiscountRepository(pool)
 
 	// External Clients
 	paystackClient := services.NewPaystackClient()
@@ -333,19 +334,20 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	transferService := services.NewTransferService(transferRepo, contractRepo, playerRepo, windowRepo, notifService, tmRepo)
 	claimService := services.NewClaimService(claimRepo, tmRepo, contractService, notifService, emailService, tokenMaker)
 	commentService := services.NewCommentService(commentRepo, newsRepo, matchRepo)
+	discountService := services.NewDiscountService(discountRepo)
 
 	newsService := services.NewNewsService(newsRepo, storageService)
 	galleryService := services.NewGalleryService(galleryRepo)
 	matchService := services.NewMatchService(matchRepo, storageService, contractService)
 	playerService := services.NewPlayerService(playerRepo, storageService)
-	ticketService := services.NewTicketService(eventDayRepo, tierRepo, ticketRepo, matchRepo, paystackClient, emailService)
+	ticketService := services.NewTicketService(eventDayRepo, tierRepo, ticketRepo, matchRepo, paystackClient, emailService, discountService, discountRepo)
 	tmService := services.NewTeamManagerService(tmRepo, authRepo)
 	analyticsService := services.NewAnalyticsService(authRepo, ticketRepo, analyticsRepo)
 	tmAllocService := services.NewTeamTicketAllocationService(tmAllocRepo, ticketRepo, tierRepo, eventDayRepo, emailService)
 	statsService := services.NewStatsService(statsRepo, matchRepo)
 	inventoryService := services.NewInventoryService(inventoryRepo)
 	totwService := services.NewTOTWService(totwRepo)
-	storeService := services.NewStoreService(storeRepo, paystackClient, emailService, storageService)
+	storeService := services.NewStoreService(storeRepo, paystackClient, emailService, storageService, discountService, discountRepo)
 	importService := services.NewImportService(importRepo, matchRepo)
 	heroSlideService := services.NewHeroSlideService(heroSlideRepo, newsRepo)
 	seasonService := services.NewSeasonService(seasonRepo)
@@ -377,6 +379,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	appSettingHandler := transport.NewAppSettingHandler(appSettingService)
 	claimHandler := transport.NewClaimHandler(claimService)
 	commentHandler := transport.NewCommentHandler(commentService, authRepo)
+	discountHandler := transport.NewDiscountHandler(discountService, storeService, tierRepo)
 
 	reliveService := services.NewReliveService()
 	reliveHandler := transport.NewReliveHandler(reliveService)
@@ -390,7 +393,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 		inventoryHandler, uploadHandler, totwHandler, storeHandler, importHandler,
 		heroSlideHandler, seasonHandler, playHandler, reliveHandler,
 		contractHandler, transferHandler, notifHandler, appSettingHandler,
-		claimHandler, commentHandler, liveHandler,
+		claimHandler, commentHandler, discountHandler, liveHandler,
 	)
 	return h, auditService, authService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService
 }

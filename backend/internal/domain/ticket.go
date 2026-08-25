@@ -62,12 +62,18 @@ type Ticket struct {
 	TicketCode         string       `json:"ticket_code"`
 	Phone              string       `json:"phone"`
 	Name               string       `json:"name"`
-	TeamID             *string      `json:"team_id,omitempty"`
-	CheckedInAt        *time.Time   `json:"checked_in_at,omitempty"`
-	CheckedInBy        *string      `json:"checked_in_by,omitempty"`
-	ReferralCode       *string      `json:"referral_code,omitempty"`
-	CreatedAt          time.Time    `json:"created_at"`
-	UpdatedAt          time.Time    `json:"updated_at"`
+	// Snapshot of any discount code redeemed on this purchase.
+	DiscountCode   *string `json:"discount_code,omitempty"`
+	DiscountAmount int     `json:"discount_amount"`
+	// DiscountCodeID is not a column. It carries the code to reserve into
+	// Create, so the hold is taken in the same transaction that claims the seat.
+	DiscountCodeID *string    `json:"-"`
+	TeamID         *string    `json:"team_id,omitempty"`
+	CheckedInAt    *time.Time `json:"checked_in_at,omitempty"`
+	CheckedInBy    *string    `json:"checked_in_by,omitempty"`
+	ReferralCode   *string    `json:"referral_code,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
 
 	// Relations
 	EventDay *EventDay   `json:"event_day,omitempty"`
@@ -95,5 +101,3 @@ type ReferralStats struct {
 	TotalRevenue int       `json:"total_revenue"`
 	CreatedAt    time.Time `json:"created_at"`
 }
-
-

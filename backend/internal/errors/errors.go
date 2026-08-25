@@ -26,6 +26,20 @@ var ErrInsufficientStock = errors.New("insufficient stock")
 var ErrVariantRequired = errors.New("variant selection required for this product")
 var ErrVariantNotFound = errors.New("variant not found on product")
 
+// Discount-code errors. Each is worded as the buyer should see it, because the
+// checkout surfaces them verbatim — a code that silently does nothing is worse
+// than one that says why it did nothing.
+var (
+	ErrDiscountNotFound      = errors.New("this code isn't valid")
+	ErrDiscountInactive      = errors.New("this code is no longer active")
+	ErrDiscountExpired       = errors.New("this code has expired")
+	ErrDiscountExhausted     = errors.New("this code has already been fully used")
+	ErrDiscountNotApplicable = errors.New("this code doesn't apply to anything in your order")
+	ErrDiscountMembersOnly   = errors.New("this code is for signed-in customers only")
+	ErrDiscountGuestsOnly    = errors.New("this code is for new guest checkouts only")
+	ErrDuplicateDiscountCode = errors.New("a discount code with that name already exists")
+)
+
 var (
 	ErrExampleNotFound  = errors.New("example not found")
 	ErrDuplicateExample = errors.New("example already exists")

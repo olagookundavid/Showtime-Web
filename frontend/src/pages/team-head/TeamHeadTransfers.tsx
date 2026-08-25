@@ -604,14 +604,14 @@ export const TeamHeadTransfers: React.FC = () => {
 
             {/* Modal for Placing Bid */}
             {selectedListing && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 space-y-6 shadow-2xl border border-gray-100 dark:border-gray-700">
-                        <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-3 sm:p-6" onClick={() => setSelectedListing(null)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[85vh] flex flex-col overflow-hidden shadow-2xl border border-gray-100 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
                             <h3 className="text-xl font-black text-gray-900 dark:text-white">Place Bid</h3>
-                            <button onClick={() => setSelectedListing(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-lg">✕</button>
+                            <button onClick={() => setSelectedListing(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-lg p-1">✕</button>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
                             <div>
                                 <p className="text-sm font-semibold text-gray-500">Target Player</p>
                                 <p className="text-lg font-black text-gray-900 dark:text-white">{selectedListing.player?.name} ({selectedListing.from_team?.name})</p>
@@ -637,7 +637,7 @@ export const TeamHeadTransfers: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="flex gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+                        <div className="flex gap-3 p-4 sm:p-6 pt-4 border-t border-gray-100 dark:border-gray-700 flex-shrink-0 bg-gray-50/50 dark:bg-gray-800/50">
                             <button
                                 onClick={() => setSelectedListing(null)}
                                 className="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold text-sm rounded-xl hover:bg-gray-200 transition-colors"
@@ -658,14 +658,14 @@ export const TeamHeadTransfers: React.FC = () => {
 
             {/* Modal for Listing Player */}
             {showListModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 space-y-6 shadow-2xl border border-gray-100 dark:border-gray-700">
-                        <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-3 sm:p-6" onClick={() => setShowListModal(false)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[85vh] flex flex-col overflow-hidden shadow-2xl border border-gray-100 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
                             <h3 className="text-xl font-black text-gray-900 dark:text-white">List Player for Sale</h3>
-                            <button onClick={() => setShowListModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-lg">✕</button>
+                            <button onClick={() => setShowListModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-lg p-1">✕</button>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Select Player</label>
                                 <select
@@ -696,7 +696,7 @@ export const TeamHeadTransfers: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="flex gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+                        <div className="flex gap-3 p-4 sm:p-6 pt-4 border-t border-gray-100 dark:border-gray-700 flex-shrink-0 bg-gray-50/50 dark:bg-gray-800/50">
                             <button
                                 onClick={() => setShowListModal(false)}
                                 className="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold text-sm rounded-xl hover:bg-gray-200 transition-colors"
@@ -717,14 +717,14 @@ export const TeamHeadTransfers: React.FC = () => {
 
             {/* Modal for Direct Sale */}
             {showDirectSaleModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 space-y-6 shadow-2xl border border-gray-100 dark:border-gray-700">
-                        <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-3 sm:p-6" onClick={() => setShowDirectSaleModal(false)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[85vh] flex flex-col overflow-hidden shadow-2xl border border-gray-100 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
                             <h3 className="text-xl font-black text-gray-900 dark:text-white">Propose Direct Sale</h3>
-                            <button onClick={() => setShowDirectSaleModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-lg">✕</button>
+                            <button onClick={() => setShowDirectSaleModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-lg p-1">✕</button>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Select Player to Sell</label>
                                 <select
@@ -769,7 +769,7 @@ export const TeamHeadTransfers: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="flex gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+                        <div className="flex gap-3 p-4 sm:p-6 pt-4 border-t border-gray-100 dark:border-gray-700 flex-shrink-0 bg-gray-50/50 dark:bg-gray-800/50">
                             <button
                                 onClick={() => setShowDirectSaleModal(false)}
                                 className="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold text-sm rounded-xl hover:bg-gray-200 transition-colors"
@@ -790,14 +790,14 @@ export const TeamHeadTransfers: React.FC = () => {
 
             {/* Modal for Transfer Request */}
             {showRequestModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 space-y-6 shadow-2xl border border-gray-100 dark:border-gray-700">
-                        <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-3 sm:p-6" onClick={() => setShowRequestModal(false)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[85vh] flex flex-col overflow-hidden shadow-2xl border border-gray-100 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
                             <h3 className="text-xl font-black text-gray-900 dark:text-white">Request Player Transfer</h3>
-                            <button onClick={() => setShowRequestModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-lg">✕</button>
+                            <button onClick={() => setShowRequestModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-lg p-1">✕</button>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Target Team</label>
                                 <select
@@ -845,7 +845,7 @@ export const TeamHeadTransfers: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="flex gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+                        <div className="flex gap-3 p-4 sm:p-6 pt-4 border-t border-gray-100 dark:border-gray-700 flex-shrink-0 bg-gray-50/50 dark:bg-gray-800/50">
                             <button
                                 onClick={() => setShowRequestModal(false)}
                                 className="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold text-sm rounded-xl hover:bg-gray-200 transition-colors"

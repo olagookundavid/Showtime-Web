@@ -308,8 +308,8 @@ export default function Home() {
                         <Link to="/tickets" className="flex items-center justify-center min-h-[60px] rounded-full bg-white text-sffl-navy px-12 py-4 font-black shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 uppercase tracking-widest text-lg">
                             🎟️ Buy Tickets
                         </Link>
-                        <Link to="/highlights" className="flex items-center justify-center min-h-[60px] rounded-full bg-white/10 backdrop-blur-md text-white px-12 py-4 font-black border border-white/20 hover:bg-white/20 hover:scale-105 active:scale-95 transition-all duration-300 uppercase tracking-widest text-lg">
-                            ▶️ Watch Highlights
+                        <Link to="/matches" className="flex items-center justify-center min-h-[60px] rounded-full bg-white/10 backdrop-blur-md text-white px-12 py-4 font-black border border-white/20 hover:bg-white/20 hover:scale-105 active:scale-95 transition-all duration-300 uppercase tracking-widest text-lg">
+                            📅 See Fixtures
                         </Link>
                     </div>
                 </div>

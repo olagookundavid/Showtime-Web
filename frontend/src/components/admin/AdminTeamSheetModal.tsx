@@ -179,8 +179,8 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
     const selectedCount = activeSelected.length;
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-3 sm:p-6" onClick={onClose}>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
 
                 {/* Header */}
                 <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-between items-start">
@@ -390,7 +390,7 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
 
             {/* ── Off-Roster Confirmation Modal ── */}
             {pendingPlayer && (
-                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4" onClick={() => setPendingPlayer(null)}>
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[110] p-4" onClick={() => setPendingPlayer(null)}>
                     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <h3 className="text-lg font-black text-sffl-navy dark:text-white mb-2">Add Off-Roster Player?</h3>
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
