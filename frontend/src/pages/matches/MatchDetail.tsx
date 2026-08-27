@@ -8,6 +8,8 @@ import { PlayByPlayTimeline } from '../../components/matches/PlayByPlayTimeline'
 import { PublicMatchStats } from '../../components/matches/PublicMatchStats';
 import { CommentSection } from '../../components/comments/CommentSection';
 
+import { formatMatchTime, formatMatchDate } from '../../utils/dateUtils';
+
 // Right-side value on the Player Rating tab. QB and undetermined "-" positions
 // have no rating formula yet (dash); a rateable player with no rating didn't
 // play / had no qualifying activity, shown as the base 5.0.
@@ -50,22 +52,6 @@ const RATING_SORT_LABEL: Record<RatingSort, string> = {
     high: '▼ Highest rated',
     low: '▲ Lowest rated',
 };
-
-function formatTime(raw: string | null | undefined): string {
-    if (!raw) return '--:--';
-    if (raw.startsWith('0001')) return '--:--';
-    const t = raw.includes('T') ? raw.split('T')[1] : raw;
-    return t.slice(0, 5);
-}
-
-function formatDate(raw: string | null | undefined): string {
-    if (!raw) return '';
-    try {
-        return new Date(raw).toLocaleDateString('en-GB', {
-            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-        });
-    } catch { return raw.split('T')[0]; }
-}
 
 function getMatchMvpPlayerId(
     homeSheet: TeamSheetPlayer[],
@@ -307,7 +293,7 @@ export const MatchDetail = () => {
                             {match.competition?.logo && (
                                 <img src={match.competition.logo} alt={match.competition.name} className="w-5 h-5 object-contain" />
                             )}
-                            <span>{match.competition?.name}</span> {!isBye && ` • ${formatDate(match.date)}`}
+                            <span>{match.competition?.name}</span> {!isBye && ` • ${formatMatchDate(match.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`}
                         </p>
                         {match.venue && !isBye && (
                             <p className="text-gray-500 text-xs mt-1">📍 {match.venue}</p>
@@ -365,9 +351,9 @@ export const MatchDetail = () => {
                             ) : (
                                 <div className="bg-white/10 backdrop-blur-sm px-4 md:px-8 py-2 md:py-4 rounded-xl md:rounded-2xl text-center border border-white/10">
                                     <div className="text-white font-black text-xl md:text-4xl tracking-tight">
-                                        {formatTime(match.start_time)}
+                                        {formatMatchTime(match.start_time, match.date)}
                                     </div>
-                                    <div className="text-gray-400 text-[10px] md:text-xs mt-0.5 md:mt-1 font-semibold">KICK OFF</div>
+                                    <div className="text-gray-400 text-[10px] md:text-xs mt-0.5 md:mt-1 font-semibold">KICK OFF (WAT)</div>
                                 </div>
                             )}
                             <span className="text-gray-500 text-[10px] md:text-xs font-bold tracking-widest uppercase">VS</span>

@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import type { Match } from '../../services/api';
 import { generateGoogleCalendarLink } from '../../utils/calendarUtils';
+import { formatMatchTime, formatMatchDate } from '../../utils/dateUtils';
 import { LightboxImage } from '../ui';
 
 interface MatchCardProps {
@@ -16,26 +17,6 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
         ((match.home_team?.id && !match.away_team?.id && match.status === 'FINISHED') ||
          (!match.home_team?.id && match.away_team?.id && match.status === 'FINISHED'));
 
-    const formatDate = (dateString: string) => {
-        const options: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: 'numeric' };
-        return new Date(dateString).toLocaleDateString(undefined, options);
-    };
-
-    const formatTime = (timeString: string, dateString?: string) => {
-        if (!timeString || timeString.includes('T00:00:00') || timeString === '00:00:00' || timeString === '00:00') return 'TBD';
-
-        // timeString might be full timestamp or just time.
-        // If it's just a time like '15:00:00', combine it with the date to make it valid for Date constructor
-        let validDateString = timeString;
-        
-        if (dateString && timeString && !timeString.includes('T') && !timeString.includes('-')) {
-            const datePart = dateString.split('T')[0];
-            validDateString = `${datePart}T${timeString}Z`;
-        }
-
-        return new Date(validDateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    };
-
     return (
         <div
             onClick={isBye ? undefined : onClick}
@@ -46,7 +27,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
             {/* Header: Date/Time or Status */}
             <div className={`p-2.5 md:p-3 text-center text-[10px] md:text-sm font-bold uppercase tracking-wider ${isLive ? 'bg-sffl-red text-white animate-pulse' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-white'}`}>
                 {match.round && <span className="mr-2 px-1.5 py-0.5 rounded bg-sffl-navy/80 text-white text-[9px] md:text-xs">{match.round}</span>}
-                {isLive ? 'LIVE NOW' : isBye ? 'PLAYOFF BYE' : isFinished ? 'Final Score' : `${formatDate(match.date)} • ${formatTime(match.start_time, match.date)}`}
+                {isLive ? 'LIVE NOW' : isBye ? 'PLAYOFF BYE' : isFinished ? 'Final Score' : `${formatMatchDate(match.date)} • ${formatMatchTime(match.start_time, match.date)}`}
             </div>
 
             {/* Teams & Score - Condensed for Density */}

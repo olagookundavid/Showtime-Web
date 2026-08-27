@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import type { Match } from '../../services/api';
+import { formatMatchTime, formatMatchDate } from '../../utils/dateUtils';
 import { LightboxImage } from '../ui';
 
 interface CompactMatchCardProps {
@@ -16,22 +17,6 @@ export const CompactMatchCard: React.FC<CompactMatchCardProps> = ({ match, onCli
         ((match.home_team?.id && !match.away_team?.id && match.status === 'FINISHED') ||
          (!match.home_team?.id && match.away_team?.id && match.status === 'FINISHED'));
 
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    };
-
-    const formatTime = (timeString: string, dateString?: string) => {
-        if (!timeString || timeString.includes('T00:00:00') || timeString === '00:00:00') return 'TBD';
-        
-        let validDateString = timeString;
-        if (dateString && !timeString.includes('T') && !timeString.includes('-')) {
-            const datePart = dateString.split('T')[0];
-            validDateString = `${datePart}T${timeString}Z`;
-        }
-        return new Date(validDateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    };
-
     return (
         <div
             onClick={isBye ? undefined : onClick}
@@ -42,7 +27,7 @@ export const CompactMatchCard: React.FC<CompactMatchCardProps> = ({ match, onCli
             {/* Header */}
             {!hideHeaderAndVenue && (
                 <div className={`py-2 px-4 text-center text-[10px] font-black uppercase tracking-widest ${isLive ? 'bg-sffl-red text-white animate-pulse' : 'bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300'}`}>
-                    {isLive ? 'LIVE NOW' : isBye ? 'PLAYOFF BYE' : isFinished ? 'Final Result' : `${formatDate(match.date)} • ${formatTime(match.start_time, match.date)}`}
+                    {isLive ? 'LIVE NOW' : isBye ? 'PLAYOFF BYE' : isFinished ? 'Final Result' : `${formatMatchDate(match.date, { month: 'short', day: 'numeric' })} • ${formatMatchTime(match.start_time, match.date)}`}
                 </div>
             )}
 

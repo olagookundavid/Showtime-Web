@@ -10,6 +10,7 @@ import { Loader } from '../../components/ui/Loader';
 import { AdminTeamSheetModal } from '../../components/admin/AdminTeamSheetModal';
 import { AdminKnockoutBracket } from '../../components/admin/AdminKnockoutBracket';
 import { KNOCKOUT_STAGES } from '../../components/matches/BracketView';
+import { formatMatchTime } from '../../utils/dateUtils';
 
 interface FormData {
     competition_id: string;
@@ -393,9 +394,7 @@ export const AdminMatches = () => {
                                             {dayMatches.map((m: Match) => (
                                                 <tr key={m.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 text-sm">
                                                     <td className="px-4 py-3 text-gray-600 dark:text-gray-300 font-medium">
-                                                        {(!m.start_time || m.start_time.includes('T00:00:00') || m.start_time === '00:00:00' || m.start_time === '00:00') 
-                                                            ? 'TBD' 
-                                                            : (m.start_time.includes('T') ? m.start_time.split('T')[1].slice(0, 5) : m.start_time)}
+                                                        {formatMatchTime(m.start_time, m.date)}
                                                     </td>
                                                     <td className="px-4 py-3 font-bold text-gray-900 dark:text-gray-100 uppercase">
                                                         {m.home_team?.short_name || 'TBD'} vs {m.away_team?.short_name || 'TBD'}

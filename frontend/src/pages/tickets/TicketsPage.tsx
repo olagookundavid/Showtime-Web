@@ -6,6 +6,8 @@ import { getEventDays, getEventDayByDate, purchaseTicket, getUserProfile, type E
 import { DiscountCodeInput } from '../../components/discounts/DiscountCodeInput';
 import { newsletterEnabled, subscribeToNewsletter, toFirstName } from '../../services/newsletter';
 
+import { formatMatchTime } from '../../utils/dateUtils';
+
 export const TicketsPage = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -275,7 +277,7 @@ export const TicketsPage = () => {
                                     <div className="mt-4 flex flex-wrap gap-2">
                                         {eventDay.matches.map((m) => (
                                             <span key={m.id} className="bg-white/10 px-3 py-1 rounded-full text-xs font-semibold">
-                                                {m.home_team} vs {m.away_team} • {new Date(m.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                {m.home_team} vs {m.away_team} • {formatMatchTime(m.start_time)}
                                             </span>
                                         ))}
                                     </div>
