@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { getEventDays, getEventDayByDate, purchaseTicket, getUserProfile, type EventDayResponse, type TicketTierResponse, type PurchaseTicketPayload, type AuthUser, type DiscountPreview } from '../../services/api';
@@ -96,6 +97,17 @@ export const TicketsPage = () => {
             setReferralCode(refParam);
         }
     }, [searchParams]);
+
+    // Lock body scroll while purchase modal is open on mobile
+    useEffect(() => {
+        if (selectedTier && selectedEventDay) {
+            const prevOverflow = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
+            return () => {
+                document.body.style.overflow = prevOverflow;
+            };
+        }
+    }, [selectedTier, selectedEventDay]);
 
     const handlePurchase = async () => {
         if (!selectedEventDay || !selectedTier || !email || !name || !phone.trim()) {
@@ -326,10 +338,18 @@ export const TicketsPage = () => {
             )}
 
             {/* Purchase Modal */}
-            {selectedTier && selectedEventDay && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-3 sm:p-6 animate-fadeIn" onClick={closePurchaseModal}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in border border-gray-100 dark:border-gray-700" onClick={e => e.stopPropagation()}>
-                        <div className="p-4 sm:p-6 pb-4 border-b border-gray-100 dark:border-gray-700 flex-shrink-0 flex items-center justify-between">
+            {selectedTier && selectedEventDay && createPortal(
+                <div
+                    className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden animate-fadeIn"
+                    onClick={closePurchaseModal}
+                    role="dialog"
+                    aria-modal="true"
+                >
+                    <div
+                        className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in border border-gray-100 dark:border-gray-700 my-auto"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="p-4 sm:p-6 pb-3 sm:pb-4 border-b border-gray-100 dark:border-gray-700 flex-shrink-0 flex items-center justify-between">
                             <h3 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white">
                                 Purchase Tickets
                             </h3>
@@ -342,7 +362,7 @@ export const TicketsPage = () => {
                             </button>
                         </div>
 
-                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
+                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
                             {/* Event Info */}
                             <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                                 <div className="font-bold text-sffl-navy dark:text-white">
@@ -516,17 +536,17 @@ export const TicketsPage = () => {
                         </div>
 
                         {/* Buttons */}
-                        <div className="p-4 sm:p-6 border-t border-gray-100 dark:border-gray-700 flex-shrink-0 bg-gray-50/60 dark:bg-gray-800/60 space-y-3">
+                        <div className="p-4 sm:p-6 border-t border-gray-100 dark:border-gray-700 flex-shrink-0 bg-gray-50/90 dark:bg-gray-800/90 space-y-3">
                             <div className="flex gap-3">
                                 <button
                                     onClick={closePurchaseModal}
-                                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white font-bold py-3 rounded-lg transition"
+                                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white font-bold py-3 rounded-lg transition min-h-[44px]"
                                     disabled={purchasing}
                                 >Cancel</button>
                                 <button
                                     onClick={handlePurchase}
                                     disabled={purchasing || !email || !name || !phone.trim()}
-                                    className="flex-1 bg-sffl-red hover:bg-[#A52323] text-white font-bold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    className="flex-1 bg-sffl-red hover:bg-[#A52323] text-white font-bold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-h-[44px]"
                                 >
                                     {purchasing ? (
                                         <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Processing...</>
@@ -543,7 +563,8 @@ export const TicketsPage = () => {
                             </p>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

@@ -103,7 +103,12 @@ const AdminUsers = () => {
                     className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-sffl-red focus:border-sffl-red px-3 py-2 min-h-[44px] z-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-colors cursor-pointer min-w-[120px]"
                 >
                     <option value="user" className="truncate">User</option>
-                    <option value="player" className="truncate">Player</option>
+                    {/* Player roles are display-only. They're granted solely by approving a
+                        claim, which also links the account to its player record — assigning
+                        one here would leave the player portal permanently empty. Kept in the
+                        list (disabled) so existing player accounts still render their role. */}
+                    <option value="player" disabled className="truncate">Player — via claim approval only</option>
+                    <option value="player_pending" disabled className="truncate">Player (pending claim)</option>
                     <option value="team_head" className="truncate">Team Head</option>
                     <option value="ticketer" className="truncate">Ticketer</option>
                     <option value="referee" className="truncate">Referee</option>
@@ -173,8 +178,8 @@ const AdminUsers = () => {
 
             {/* Edit User Modal */}
             {editingUser && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-3 sm:p-6" onClick={() => setEditingUser(null)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" onClick={() => setEditingUser(null)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex items-center justify-between">
                             <div>
                                 <h2 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white">Edit User</h2>
@@ -182,14 +187,14 @@ const AdminUsers = () => {
                             </div>
                             <button onClick={() => setEditingUser(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-xl font-bold p-1">✕</button>
                         </div>
-                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
+                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Full Name *</label>
                                 <input
                                     type="text"
                                     value={editForm.fullname}
                                     onChange={(e) => setEditForm(prev => ({ ...prev, fullname: e.target.value }))}
-                                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 min-h-[44px] bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-sffl-red transition-colors"
+                                    className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-3.5 py-2.5 min-h-[44px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-sffl-red transition-colors text-sm font-semibold"
                                     placeholder="Full Name"
                                 />
                             </div>
@@ -199,22 +204,22 @@ const AdminUsers = () => {
                                     type="tel"
                                     value={editForm.phone}
                                     onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
-                                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 min-h-[44px] bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-sffl-red transition-colors"
+                                    className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-3.5 py-2.5 min-h-[44px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-sffl-red transition-colors text-sm font-semibold"
                                     placeholder="Phone Number"
                                 />
                             </div>
                         </div>
-                        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-end gap-2">
+                        <div className="p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-end gap-3 bg-gray-50 dark:bg-gray-800/90">
                             <button
                                 onClick={() => setEditingUser(null)}
-                                className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 dark:text-gray-300"
+                                className="px-5 py-2.5 min-h-[44px] bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-bold text-sm transition-colors"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleEditSave}
                                 disabled={saving || !editForm.fullname.trim()}
-                                className="px-4 py-2 min-h-[44px] bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-5 py-2.5 min-h-[44px] bg-sffl-red hover:bg-red-700 text-white text-sm font-bold rounded-xl shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {saving ? 'Saving...' : 'Save Changes'}
                             </button>

@@ -67,30 +67,62 @@ function formatDate(raw: string | null | undefined): string {
     } catch { return raw.split('T')[0]; }
 }
 
+function getMatchMvpPlayerId(
+    homeSheet: TeamSheetPlayer[],
+    awaySheet: TeamSheetPlayer[],
+    homeScore: number,
+    awayScore: number
+): string | null {
+    let targetSheet: TeamSheetPlayer[] = [];
+
+    if (homeScore > awayScore) {
+        targetSheet = homeSheet;
+    } else if (awayScore > homeScore) {
+        targetSheet = awaySheet;
+    } else {
+        targetSheet = [...homeSheet, ...awaySheet];
+    }
+
+    let maxRating = 5.0;
+    let mvpPlayerId: string | null = null;
+
+    targetSheet.forEach(p => {
+        if (p.position !== '-' && p.rating != null && p.rating > maxRating) {
+            maxRating = p.rating;
+            mvpPlayerId = p.player_id;
+        }
+    });
+
+    if (!mvpPlayerId) {
+        [...homeSheet, ...awaySheet].forEach(p => {
+            if (p.position !== '-' && p.rating != null && p.rating > maxRating) {
+                maxRating = p.rating;
+                mvpPlayerId = p.player_id;
+            }
+        });
+    }
+
+    return mvpPlayerId;
+}
+
 function TeamSheetRosterList({
     sheet,
     matchId,
     competitionId,
     matchDate,
     ratingSort,
+    mvpPlayerId,
 }: {
     sheet: TeamSheetPlayer[];
     matchId: string;
     competitionId?: string;
     matchDate?: string;
     ratingSort: RatingSort;
+    mvpPlayerId: string | null;
 }) {
     if (sheet.length === 0) {
         return <p className="text-gray-400 dark:text-gray-600 italic text-sm text-center py-4">No roster data</p>;
     }
-
-    // Find highest rating for star icon (must be > 5.0)
-    let maxRating = 5.0;
-    sheet.forEach(p => {
-        if (p.position !== '-' && p.rating != null && p.rating > maxRating) {
-            maxRating = p.rating;
-        }
-    });
 
     // Group players:
     // 1. Rated above or below 5.0 (p.position !== '-' && p.rating != null && p.rating !== 5.0)
@@ -104,7 +136,7 @@ function TeamSheetRosterList({
     const sortedBaseline = sortByRating(baselinePlayers, ratingSort);
 
     const renderPlayerRow = (player: TeamSheetPlayer, isGreyedOut = false) => {
-        const isHighest = player.position !== '-' && player.rating != null && player.rating === maxRating && maxRating > 5.0;
+        const isMvp = player.player_id === mvpPlayerId;
         return (
             <Link
                 key={player.player_id}
@@ -134,7 +166,7 @@ function TeamSheetRosterList({
                     <div className="text-xs text-gray-400 font-semibold">{jerseyLabel(player.jersey_number)} · {player.position}</div>
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {isHighest && <span className="text-amber-500 text-sm" title="Highest Rated Player">⭐</span>}
+                    {isMvp && <span className="text-amber-500 text-sm" title="Match MVP">⭐</span>}
                     <span className={`text-sm font-black tabular-nums ${isGreyedOut ? 'text-gray-400 dark:text-gray-500' : 'text-sffl-navy dark:text-gray-200'}`}>
                         {ratingLabel(player)}
                     </span>
@@ -154,7 +186,7 @@ function TeamSheetRosterList({
                 <div className="py-2.5">
                     <div className="relative flex items-center justify-center">
                         <div className="border-t border-gray-200 dark:border-gray-700 w-full" />
-                        <span className="bg-white dark:bg-gray-800 px-3 text-[10px] uppercase font-bold text-gray-400 dark:text-gray-500 tracking-wider whitespace-nowrap">
+                        <span className="bg-white dark:bg-gray-800 px-3 text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400 tracking-wider whitespace-nowrap">
                             5.0 Rating · Might not have played in the game
                         </span>
                         <div className="border-t border-gray-200 dark:border-gray-700 w-full" />
@@ -166,7 +198,7 @@ function TeamSheetRosterList({
                 still show the caveat as a standalone note */}
             {ratedPlayers.length === 0 && (baselinePlayers.length > 0 || nonRateablePlayers.length > 0) && (
                 <div className="pt-1 pb-2.5">
-                    <span className="block text-center text-[10px] uppercase font-bold text-gray-400 dark:text-gray-500 tracking-wider">
+                    <span className="block text-center text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400 tracking-wider">
                         5.0 Rating · Might not have played in the game
                     </span>
                 </div>
@@ -413,11 +445,11 @@ export const MatchDetail = () => {
                 </div>
             )}
 
-            {/* ── 4 Clean, Evenly Spaced Text Tabs ── */}
+            {/* ── 4 Clean, Evenly Spaced Segmented Tabs ── */}
             {!isBye && (
                 <div className="space-y-6">
-                    {/* Evenly Spaced Border-Bottom Tab Bar */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 border-b border-gray-200 dark:border-gray-700 mb-6 text-center">
+                    {/* Segmented High-Contrast Tab Bar */}
+                    <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm grid grid-cols-2 md:grid-cols-4 gap-1.5 mb-6 text-center">
                         {([
                             ['rating', 'Player Rating'],
                             ['plays', 'Play by Play'],
@@ -437,10 +469,10 @@ export const MatchDetail = () => {
                                             return next;
                                         }, { replace: true });
                                     }}
-                                    className={`py-3 px-2 text-center -mb-px font-black text-xs md:text-sm uppercase tracking-tight transition-colors border-b-2 ${
+                                    className={`py-2.5 px-3 rounded-xl text-center font-black text-xs md:text-sm uppercase tracking-tight transition-all duration-200 ${
                                         isActive
-                                            ? 'text-sffl-red border-sffl-red'
-                                            : 'text-gray-400 border-transparent hover:text-sffl-navy dark:hover:text-white'
+                                            ? 'bg-sffl-red text-white shadow-md shadow-sffl-red/20 scale-[1.01]'
+                                            : 'text-gray-600 dark:text-gray-300 hover:text-sffl-navy dark:hover:text-white hover:bg-gray-100/70 dark:hover:bg-gray-700/60'
                                     }`}
                                 >
                                     {label}
@@ -451,12 +483,12 @@ export const MatchDetail = () => {
 
                     {/* Tab 1: Player Rating (Roster) */}
                     {activeTab === 'rating' && (
-                        <div className="bg-white dark:bg-gray-800/80 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/50 overflow-hidden">
-                            <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-700/50 flex items-center justify-between gap-3">
+                        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                            <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3">
                                 <h3 className="text-xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">Player Rating</h3>
                                 {hasTeamSheet && (
                                     <div className="flex items-center gap-2 flex-shrink-0">
-                                        <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Sort</span>
+                                        <span className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Sort</span>
                                         <button
                                             type="button"
                                             onClick={cycleRatingSort}
@@ -472,63 +504,70 @@ export const MatchDetail = () => {
                                 <div className="py-14 text-center">
                                     <p className="text-gray-500 dark:text-gray-400 font-semibold text-sm">No team sheet announced for this match yet.</p>
                                 </div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100 dark:divide-gray-700/50">
-                                    {/* Home Sheet */}
-                                    <div className="p-5">
-                                        <div className="flex items-center gap-3 mb-4">
-                                            {homeTeam?.logo && (
-                                                <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-gray-100 dark:ring-gray-700">
-                                                    <LightboxImage 
-                                                        src={homeTeam.logo} 
-                                                        alt={homeTeam.name} 
-                                                        thumbnailClassName="w-full h-full"
-                                                        imgClassName="w-full h-full object-cover" 
-                                                    />
-                                                </div>
-                                            )}
-                                            <h4 className="font-black text-base text-sffl-navy dark:text-white truncate min-w-0">{homeTeam?.name}</h4>
-                                            <span className="text-xs bg-sffl-navy/10 dark:bg-white/10 text-sffl-navy dark:text-gray-300 font-bold px-2 py-0.5 rounded-full flex-shrink-0">
-                                                {homeSheet.length}
-                                            </span>
+                            ) : (() => {
+                                const homeScore = match.home_score ?? 0;
+                                const awayScore = match.away_score ?? 0;
+                                const mvpPlayerId = getMatchMvpPlayerId(homeSheet, awaySheet, homeScore, awayScore);
+                                return (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-200 dark:divide-gray-700">
+                                        {/* Home Sheet */}
+                                        <div className="p-5">
+                                            <div className="flex items-center gap-3 mb-4">
+                                                {homeTeam?.logo && (
+                                                    <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-gray-100 dark:ring-gray-700">
+                                                        <LightboxImage 
+                                                            src={homeTeam.logo} 
+                                                            alt={homeTeam.name} 
+                                                            thumbnailClassName="w-full h-full"
+                                                            imgClassName="w-full h-full object-cover" 
+                                                        />
+                                                    </div>
+                                                )}
+                                                <h4 className="font-black text-base text-sffl-navy dark:text-white truncate min-w-0">{homeTeam?.name}</h4>
+                                                <span className="text-xs bg-sffl-navy/10 dark:bg-white/10 text-sffl-navy dark:text-gray-300 font-bold px-2 py-0.5 rounded-full flex-shrink-0">
+                                                    {homeSheet.length}
+                                                </span>
+                                            </div>
+                                            <TeamSheetRosterList 
+                                                sheet={homeSheet} 
+                                                matchId={match.id} 
+                                                competitionId={match.competition?.id} 
+                                                matchDate={match.date} 
+                                                ratingSort={ratingSort} 
+                                                mvpPlayerId={mvpPlayerId}
+                                            />
                                         </div>
-                                        <TeamSheetRosterList 
-                                            sheet={homeSheet} 
-                                            matchId={match.id} 
-                                            competitionId={match.competition?.id} 
-                                            matchDate={match.date} 
-                                            ratingSort={ratingSort} 
-                                        />
-                                    </div>
 
-                                    {/* Away Sheet */}
-                                    <div className="p-5">
-                                        <div className="flex items-center gap-3 mb-4">
-                                            {awayTeam?.logo && (
-                                                <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-gray-100 dark:ring-gray-700">
-                                                    <LightboxImage 
-                                                        src={awayTeam.logo} 
-                                                        alt={awayTeam.name} 
-                                                        thumbnailClassName="w-full h-full"
-                                                        imgClassName="w-full h-full object-cover" 
-                                                    />
-                                                </div>
-                                            )}
-                                            <h4 className="font-black text-base text-sffl-navy dark:text-white truncate min-w-0">{awayTeam?.name}</h4>
-                                            <span className="text-xs bg-sffl-navy/10 dark:bg-white/10 text-sffl-navy dark:text-gray-300 font-bold px-2 py-0.5 rounded-full flex-shrink-0">
-                                                {awaySheet.length}
-                                            </span>
+                                        {/* Away Sheet */}
+                                        <div className="p-5">
+                                            <div className="flex items-center gap-3 mb-4">
+                                                {awayTeam?.logo && (
+                                                    <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-gray-100 dark:ring-gray-700">
+                                                        <LightboxImage 
+                                                            src={awayTeam.logo} 
+                                                            alt={awayTeam.name} 
+                                                            thumbnailClassName="w-full h-full"
+                                                            imgClassName="w-full h-full object-cover" 
+                                                        />
+                                                    </div>
+                                                )}
+                                                <h4 className="font-black text-base text-sffl-navy dark:text-white truncate min-w-0">{awayTeam?.name}</h4>
+                                                <span className="text-xs bg-sffl-navy/10 dark:bg-white/10 text-sffl-navy dark:text-gray-300 font-bold px-2 py-0.5 rounded-full flex-shrink-0">
+                                                    {awaySheet.length}
+                                                </span>
+                                            </div>
+                                            <TeamSheetRosterList 
+                                                sheet={awaySheet} 
+                                                matchId={match.id} 
+                                                competitionId={match.competition?.id} 
+                                                matchDate={match.date} 
+                                                ratingSort={ratingSort} 
+                                                mvpPlayerId={mvpPlayerId}
+                                            />
                                         </div>
-                                        <TeamSheetRosterList 
-                                            sheet={awaySheet} 
-                                            matchId={match.id} 
-                                            competitionId={match.competition?.id} 
-                                            matchDate={match.date} 
-                                            ratingSort={ratingSort} 
-                                        />
                                     </div>
-                                </div>
-                            )}
+                                );
+                            })()}
                         </div>
                     )}
 

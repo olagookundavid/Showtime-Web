@@ -660,8 +660,8 @@ export const AdminStore = () => {
 
             {/* Unified Product Editor (create + edit) */}
             {editor && (
-                <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6" onClick={handleCloseEditor}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-3xl w-full shadow-2xl max-h-[85vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" onClick={handleCloseEditor}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-3xl w-full shadow-2xl max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
                             <div>
                                 <h2 className="text-xl font-black dark:text-white">
@@ -674,8 +674,8 @@ export const AdminStore = () => {
                             <button onClick={handleCloseEditor} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-xl p-1">✕</button>
                         </div>
 
-                        <form onSubmit={handleSaveEditor} className="flex flex-col flex-1 overflow-hidden">
-                            <div className="p-4 sm:p-6 space-y-6 overflow-y-auto flex-1">
+                        <form onSubmit={handleSaveEditor} className="flex flex-col flex-1 overflow-hidden min-h-0">
+                            <div className="p-4 sm:p-6 space-y-6 overflow-y-auto overscroll-contain flex-1 min-h-0">
                             {/* ── Product details ─────────────────────────────── */}
                             <section className="space-y-4">
                                 <h3 className="text-[10px] uppercase font-black tracking-widest text-sffl-red">Product Details</h3>
@@ -1056,19 +1056,19 @@ export const AdminStore = () => {
 
                             </div>
 
-                            <div className="flex justify-end gap-3 p-4 border-t border-gray-100 dark:border-gray-700 flex-shrink-0 bg-gray-50/50 dark:bg-gray-800">
+                            <div className="flex justify-end gap-3 p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-gray-50 dark:bg-gray-800/90">
                                 <button
                                     type="button"
                                     onClick={handleCloseEditor}
                                     disabled={isSavingEditor}
-                                    className="px-5 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 min-h-[44px]"
+                                    className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 min-h-[44px] transition-colors"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={isSavingEditor}
-                                    className="px-6 py-2.5 bg-sffl-red hover:bg-red-700 text-white rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 min-h-[44px]"
+                                    className="px-6 py-2.5 bg-sffl-red hover:bg-red-700 text-white rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 min-h-[44px] shadow-sm transition-colors"
                                 >
                                     {isSavingEditor
                                         ? 'Saving…'

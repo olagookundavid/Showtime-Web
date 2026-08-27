@@ -161,7 +161,7 @@ const TeamHeadLayout = () => {
             </aside>
 
             {/* Main Content Area */}
-            <main className="flex-1 w-full min-w-0 p-2 md:p-8 pt-14 md:pt-8 overflow-y-auto pb-20 md:pb-8">
+            <main className="flex-1 w-full min-w-0 p-2 md:p-8 pt-14 md:pt-8 overflow-y-auto pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-8">
                 <Outlet context={{ team }} />
             </main>
 

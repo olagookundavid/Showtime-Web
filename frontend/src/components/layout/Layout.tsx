@@ -38,7 +38,7 @@ export const Layout = () => {
 
 
     return (
-        <div className={`flex flex-col min-h-screen w-full max-w-[100vw] transition-colors duration-500 bg-transparent pb-14 lg:pb-0 overscroll-y-none`}>
+        <div className={`flex flex-col min-h-screen w-full max-w-[100vw] transition-colors duration-500 bg-transparent overscroll-y-none`}>
             {/* Global Background - High-contrast atmospheric version */}
             <div className="fixed inset-0 -z-50 bg-slate-200 dark:bg-black">
                 <div 
@@ -64,7 +64,7 @@ export const Layout = () => {
             {/* Home-only info strip sits below the sticky chrome and scrolls
                 away with the rest of the page. */}
             {location.pathname === '/' && <LatestMatchesInfoStrip />}
-            <main className="flex-grow w-full max-w-page mx-auto px-2 sm:px-6 lg:px-8 py-3 md:py-8 relative z-10 overscroll-y-none">
+            <main className="flex-grow w-full max-w-page mx-auto px-2 sm:px-6 lg:px-8 py-3 md:py-8 pb-8 md:pb-8 relative z-10 overscroll-y-none">
                 <Outlet />
             </main>
 
@@ -91,7 +91,7 @@ export const Layout = () => {
 
                     <div className={`transition-all duration-300 flex w-[200%] ${activeSubMenu === 'about' ? '-translate-x-1/2' : 'translate-x-0'}`}>
                         {/* Main Menu Slide */}
-                        <div className="w-1/2 p-6 max-h-[85vh] overflow-y-auto pb-20">
+                        <div className="w-1/2 p-6 max-h-[calc(90dvh-1rem)] overflow-y-auto overscroll-contain pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))]">
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-xl font-black italic text-sffl-navy dark:text-white uppercase tracking-tighter">DISCOVER</h2>
                                 <button onClick={() => setIsMoreMenuOpen(false)} className="p-2 -mr-2 text-gray-400 dark:text-gray-500">
@@ -176,7 +176,7 @@ export const Layout = () => {
                         </div>
 
                         {/* About Sub-Menu Slide */}
-                        <div className="w-1/2 p-6 flex flex-col max-h-[85vh] overflow-y-auto pb-20">
+                        <div className="w-1/2 p-6 flex flex-col max-h-[calc(90dvh-1rem)] overflow-y-auto overscroll-contain pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))]">
                             <div className="flex items-center gap-4 mb-6">
                                 <button onClick={() => setActiveSubMenu('main')} className="p-2 -ml-2 text-sffl-red hover:bg-sffl-red/10 rounded-full transition-all">
                                     <ChevronLeftIcon className="w-6 h-6" />

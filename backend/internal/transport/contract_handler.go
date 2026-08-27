@@ -2,12 +2,14 @@ package transport
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 
 	"pkg-common/helpers"
 	"showtime-backend/internal/dto"
+	appErrors "showtime-backend/internal/errors"
 	"showtime-backend/internal/middlewares"
 	"showtime-backend/internal/ports"
 	"showtime-backend/internal/services"
@@ -190,6 +192,13 @@ func (h *ContractHandler) GetMyContracts(c *gin.Context) {
 
 	res, err := h.service.GetMyContracts(c.Request.Context(), payload.UserId)
 	if err != nil {
+		// 409, not 500: the account is fine, it just has no player attached yet.
+		// The portal keys off this to explain the claim step instead of showing
+		// an empty table.
+		if errors.Is(err, appErrors.ErrPlayerNotLinked) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error(), "code": "PLAYER_NOT_LINKED"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

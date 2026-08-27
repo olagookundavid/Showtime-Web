@@ -6,6 +6,7 @@ import (
 
 	"pkg-common/helpers"
 	"showtime-backend/internal/dto"
+	appErrors "showtime-backend/internal/errors"
 	"showtime-backend/internal/middlewares"
 	"showtime-backend/internal/ports"
 	"showtime-backend/internal/services"
@@ -291,7 +292,13 @@ func (h *TransferHandler) GetMyTransfers(c *gin.Context) {
 
 	player, err := h.playerRepo.GetPlayerByUserID(c.Request.Context(), payload.UserId)
 	if err != nil || player == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "player profile not found"})
+		// Same shape as GetMyContracts: 409 rather than 404 (the account exists,
+		// it just has no player attached) plus a code the portal can key off to
+		// explain the claim step instead of showing a bare "not found".
+		c.JSON(http.StatusConflict, gin.H{
+			"error": appErrors.ErrPlayerNotLinked.Error(),
+			"code":  "PLAYER_NOT_LINKED",
+		})
 		return
 	}
 

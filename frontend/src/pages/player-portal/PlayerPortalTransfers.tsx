@@ -1,18 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { playerPortalApi, type TransferData } from '../../services/api';
 import toast from 'react-hot-toast';
+import { NotLinkedNotice } from '../../components/player-portal/NotLinkedNotice';
+import { apiError } from '../../components/player-portal/apiError';
 
 export const PlayerPortalTransfers: React.FC = () => {
     const [transfers, setTransfers] = useState<TransferData[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
+    const [notLinked, setNotLinked] = useState<boolean>(false);
 
     const fetchTransfers = async () => {
         setLoading(true);
         try {
             const res = await playerPortalApi.getMyTransfers();
             setTransfers(res.data || []);
-        } catch {
-            toast.error('Failed to load transfer history');
+            setNotLinked(false);
+        } catch (err) {
+            // Expected state for an account whose claim hasn't been approved —
+            // explain it rather than firing an error toast.
+            if (apiError(err).code === 'PLAYER_NOT_LINKED') {
+                setNotLinked(true);
+            } else {
+                toast.error('Failed to load transfer history');
+            }
         } finally {
             setLoading(false);
         }
@@ -44,11 +54,16 @@ export const PlayerPortalTransfers: React.FC = () => {
                 <p className="text-sm text-gray-500 dark:text-gray-400">Complete record of your club movements, direct sales, and transfer requests.</p>
             </div>
 
+            {notLinked && <NotLinkedNotice />}
+
+            {!notLinked && (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
                 {loading ? (
                     <div className="p-12 text-center text-gray-400">Loading transfer history...</div>
                 ) : transfers.length === 0 ? (
-                    <div className="p-12 text-center text-gray-400">No transfer records found.</div>
+                    <div className="p-12 text-center text-gray-400">
+                        No transfer records yet. Moves between clubs will appear here once they complete.
+                    </div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
@@ -92,6 +107,7 @@ export const PlayerPortalTransfers: React.FC = () => {
                     </div>
                 )}
             </div>
+            )}
         </div>
     );
 };

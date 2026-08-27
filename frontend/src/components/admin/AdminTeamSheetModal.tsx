@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
@@ -19,7 +20,9 @@ interface QuickAddForm {
     jersey_number: string;
 }
 
-const POSITIONS = ['Defender', 'Receiver', '-', 'QB', 'Rusher'];
+// Center is rated identically to Receiver (same formula) — see
+// backend/internal/domain/player_rating.go RateByPosition.
+const POSITIONS = ['Defender', 'Receiver', 'Center', '-', 'QB', 'Rusher'];
 
 const emptyQuickAdd: QuickAddForm = { name: '', position: '', jersey_number: '' };
 
@@ -178,12 +181,12 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
 
     const selectedCount = activeSelected.length;
 
-    return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-3 sm:p-6" onClick={onClose}>
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+    return createPortal(
+        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" onClick={onClose}>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
 
                 {/* Header */}
-                <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-between items-start">
+                <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-between items-start">
                     <div>
                         <h2 className="text-2xl font-black text-sffl-navy dark:text-white">Team Sheet</h2>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -208,7 +211,7 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
                     ))}
                 </div>
 
-                <div className="p-5 overflow-y-auto flex-1 space-y-5">
+                <div className="p-4 sm:p-5 overflow-y-auto overscroll-contain flex-1 min-h-0 space-y-5">
                     {loadingSheet ? <div className="py-8"><Loader /></div> : (
                         <>
                             {/* ── Search / Add Player ── */}
@@ -370,7 +373,7 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
                 </div>
 
                 {/* Footer */}
-                <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl">
+                <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:pb-4">
                     <div className="text-xs text-gray-500 dark:text-gray-400 font-semibold space-y-0.5">
                         <div>🏠 Home: {selectedHomePlayers.length} player{selectedHomePlayers.length !== 1 ? 's' : ''}</div>
                         <div>✈️ Away: {selectedAwayPlayers.length} player{selectedAwayPlayers.length !== 1 ? 's' : ''}</div>
@@ -417,6 +420,7 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
                     </div>
                 </div>
             )}
-        </div>
+        </div>,
+        document.body
     );
 };

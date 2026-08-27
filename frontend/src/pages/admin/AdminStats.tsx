@@ -307,8 +307,8 @@ export const AdminStats = () => {
 
             {/* Stats Entry Modal */}
             {showModal && activePlayer && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-3 sm:p-6" onClick={() => setShowModal(false)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" onClick={() => setShowModal(false)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-between items-center">
                             <div>
                                 <h2 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white">Record Stats</h2>
@@ -321,35 +321,35 @@ export const AdminStats = () => {
                             </button>
                         </div>
 
-                        <div className="p-4 sm:p-6 relative overflow-y-auto flex-1">
+                        <div className="p-4 sm:p-6 relative overflow-y-auto overscroll-contain flex-1 min-h-0">
                             {loadingExisting && (
                                 <div className="absolute inset-0 bg-white/50 dark:bg-gray-800/50 backdrop-blur-[1px] flex items-center justify-center z-20">
                                     <Loader />
                                 </div>
                             )}
 
-                            <div className="bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 p-4 rounded-xl mb-6 text-sm font-medium border border-blue-100 dark:border-blue-800">
+                            <div className="bg-sffl-navy/5 dark:bg-gray-700/50 text-sffl-navy dark:text-gray-200 p-4 rounded-xl mb-6 text-sm font-medium border border-sffl-navy/10 dark:border-gray-600">
                                 ℹ️ Update the stats for this player. <b>Saving will add to existing stats</b> for this specific match.
                             </div>
 
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                 {STAT_FIELDS.map(field => (
-                                    <div key={field.key} className="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-xl border border-gray-100 dark:border-gray-700">
-                                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider">{field.label}</label>
+                                    <div key={field.key} className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl border border-gray-200 dark:border-gray-600">
+                                        <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2 uppercase tracking-wider">{field.label}</label>
                                         <input
                                             type="number"
                                             value={form[field.key]}
                                             onChange={e => setForm({ ...form, [field.key]: e.target.value })}
-                                            className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 font-bold text-center text-sffl-navy dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-transparent outline-none transition-all"
+                                            className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 font-bold text-center text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-sffl-red outline-none transition-all"
                                         />
                                     </div>
                                 ))}
                             </div>
                         </div>
 
-                        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-end gap-3 bg-gray-50 dark:bg-gray-800/90 rounded-b-2xl">
-                            <button onClick={() => setShowModal(false)} className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all min-h-[44px]">Cancel</button>
-                            <button onClick={handleSave} disabled={saving} className="px-8 py-2 bg-sffl-navy hover:bg-sffl-navy-light text-white font-black uppercase tracking-wider text-sm rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 min-h-[44px] disabled:opacity-50 flex items-center gap-2">
+                        <div className="p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-end gap-3 bg-gray-50 dark:bg-gray-800/90 rounded-b-2xl">
+                            <button onClick={() => setShowModal(false)} className="px-6 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl font-bold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all min-h-[44px] text-sm">Cancel</button>
+                            <button onClick={handleSave} disabled={saving} className="px-8 py-2.5 bg-sffl-red hover:bg-red-700 text-white font-black uppercase tracking-wider text-sm rounded-xl shadow-sm hover:shadow-md transition-all duration-300 min-h-[44px] disabled:opacity-50 flex items-center gap-2">
                                 {saving ? (
                                     <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Saving...</>
                                 ) : 'Update Stats'}

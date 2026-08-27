@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { LockClosedIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
@@ -29,13 +30,13 @@ export const AuthPromptModal: React.FC<AuthPromptModalProps> = ({
         });
     };
 
-    return (
+    return createPortal(
         <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200"
+            className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden animate-in fade-in duration-200"
             onClick={onClose}
         >
             <div
-                className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-md p-6 border border-gray-200 dark:border-gray-700 overflow-hidden relative"
+                className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-md max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] overflow-y-auto overscroll-contain p-6 border border-gray-200 dark:border-gray-700 relative my-auto"
                 onClick={e => e.stopPropagation()}
             >
                 <button
@@ -84,6 +85,7 @@ export const AuthPromptModal: React.FC<AuthPromptModalProps> = ({
                     </p>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };

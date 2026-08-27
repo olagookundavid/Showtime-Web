@@ -17,6 +17,12 @@ type Step = 'code' | 'player' | 'account';
 
 const NOT_LISTED = '__NOT_LISTED__';
 
+// Position choices for a brand-new (unlisted) claim. Center is rated
+// identically to Receiver — see backend/internal/domain/player_rating.go
+// RateByPosition. No "-" option here (that's an admin-only "unrated" sentinel,
+// not something a self-service claimant should pick).
+const CLAIM_POSITIONS = ['QB', 'Receiver', 'Center', 'Defender', 'Rusher'];
+
 export const ClaimAccountPage: React.FC = () => {
     const [step, setStep] = useState<Step>('code');
     const [submitting, setSubmitting] = useState(false);
@@ -249,12 +255,16 @@ export const ClaimAccountPage: React.FC = () => {
                                             <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
                                                 Position
                                             </label>
-                                            <input
-                                                type="text"
+                                            <select
                                                 value={position}
                                                 onChange={e => setPosition(e.target.value)}
                                                 className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm"
-                                            />
+                                            >
+                                                <option value="">Select position…</option>
+                                                {CLAIM_POSITIONS.map(pos => (
+                                                    <option key={pos} value={pos}>{pos}</option>
+                                                ))}
+                                            </select>
                                         </div>
                                     </div>
                                 </div>

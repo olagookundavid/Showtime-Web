@@ -7,6 +7,7 @@ import (
 
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
+	appErrors "showtime-backend/internal/errors"
 	"showtime-backend/internal/ports"
 )
 
@@ -369,7 +370,10 @@ func (s *ContractService) GetTeamContracts(ctx context.Context, teamID string, s
 func (s *ContractService) GetMyContracts(ctx context.Context, userID string) ([]dto.ContractResponse, error) {
 	player, err := s.playerRepo.GetPlayerByUserID(ctx, userID)
 	if err != nil || player == nil {
-		return []dto.ContractResponse{}, nil
+		// Deliberately an error, not an empty list. An account with no player
+		// behind it can never accept anything, and returning [] made that look
+		// identical to a player who simply has no contracts yet.
+		return nil, appErrors.ErrPlayerNotLinked
 	}
 
 	contracts, err := s.repo.GetContractsByPlayerID(ctx, player.ID)

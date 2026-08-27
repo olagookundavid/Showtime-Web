@@ -1,6 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 
+// Keeps the toggle inside the viewport and, on the breakpoints where the fixed
+// bottom nav is on screen (below lg), above it. Applied on load as well as on
+// drag: the position is persisted, so a spot saved before the nav existed — or
+// saved on a desktop window and later opened on a phone — would otherwise be
+// restored sitting underneath it.
+const clampPosition = (pos: { x: number; y: number }) => {
+    const minBottom = window.innerWidth < 1024 ? 9 : 1;
+    return {
+        x: Math.max(1, Math.min(pos.x, 96)),
+        y: Math.max(minBottom, Math.min(pos.y, 96)),
+    };
+};
+
 export const FloatingThemeToggle = () => {
     const { isDarkMode, toggleDarkMode } = useTheme();
     const [position, setPosition] = useState({ x: 2, y: 92 }); // Default position: top-right corner
@@ -17,13 +30,31 @@ export const FloatingThemeToggle = () => {
             try {
                 const parsed = JSON.parse(savedPos);
                 if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
-                    setPosition(parsed);
+                    setPosition(clampPosition(parsed));
                 }
             } catch (e) {
                 console.error("Failed to parse toggle position", e);
             }
         }
     }, []);
+
+    // Re-clamp when the viewport changes. Crossing the lg breakpoint — rotating a
+    // tablet, or dragging a desktop window narrow — brings the fixed bottom nav
+    // into play, and a position that was legal a moment ago can end up underneath
+    // it. Skipped mid-drag so this never fights the pointer.
+    useEffect(() => {
+        if (isDragging) return;
+        const onResize = () => setPosition(prev => {
+            const next = clampPosition(prev);
+            return next.x === prev.x && next.y === prev.y ? prev : next;
+        });
+        window.addEventListener('resize', onResize);
+        window.addEventListener('orientationchange', onResize);
+        return () => {
+            window.removeEventListener('resize', onResize);
+            window.removeEventListener('orientationchange', onResize);
+        };
+    }, [isDragging]);
 
     const handlePointerDown = (e: React.PointerEvent) => {
         setIsDragging(true);
@@ -50,15 +81,11 @@ export const FloatingThemeToggle = () => {
         const dxPct = (dx / window.innerWidth) * 100;
         const dyPct = (dy / window.innerHeight) * 100;
 
-        // Calculate new position relative to bottom-right origin
-        let newX = posStartRef.current.x - dxPct;
-        let newY = posStartRef.current.y - dyPct;
-
-        // Clamp to screen bounds allowing it to get much closer to the edges
-        newX = Math.max(0.5, Math.min(newX, 98));
-        newY = Math.max(0.5, Math.min(newY, 98));
-
-        setPosition({ x: newX, y: newY });
+        // Position is relative to the bottom-right origin.
+        setPosition(clampPosition({
+            x: posStartRef.current.x - dxPct,
+            y: posStartRef.current.y - dyPct,
+        }));
     };
 
     const handlePointerUp = (e: React.PointerEvent) => {

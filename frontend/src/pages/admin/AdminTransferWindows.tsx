@@ -339,14 +339,14 @@ export const AdminTransferWindows: React.FC = () => {
 
             {/* Modal for creating window */}
             {showModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-3 sm:p-6" onClick={() => setShowModal(false)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[85vh] flex flex-col overflow-hidden shadow-2xl border border-gray-100 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" onClick={() => setShowModal(false)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-100 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
                             <h3 className="text-xl font-black text-gray-900 dark:text-white">Create Transfer Window</h3>
                             <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-lg p-1">✕</button>
                         </div>
 
-                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
+                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Window Name</label>
                                 <input
@@ -354,7 +354,7 @@ export const AdminTransferWindows: React.FC = () => {
                                     placeholder="e.g. Mid-Season Transfer Window"
                                     value={name}
                                     onChange={e => setName(e.target.value)}
-                                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-semibold"
+                                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-sffl-red focus:border-sffl-red"
                                 />
                             </div>
 
@@ -364,7 +364,7 @@ export const AdminTransferWindows: React.FC = () => {
                                     type="datetime-local"
                                     value={opensAt}
                                     onChange={e => setOpensAt(e.target.value)}
-                                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-semibold"
+                                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-sffl-red focus:border-sffl-red"
                                 />
                             </div>
 
@@ -374,22 +374,22 @@ export const AdminTransferWindows: React.FC = () => {
                                     type="datetime-local"
                                     value={closesAt}
                                     onChange={e => setClosesAt(e.target.value)}
-                                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-semibold"
+                                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-sffl-red focus:border-sffl-red"
                                 />
                             </div>
                         </div>
 
-                        <div className="flex gap-3 p-4 sm:p-6 pt-4 border-t border-gray-100 dark:border-gray-700 flex-shrink-0 bg-gray-50/50 dark:bg-gray-800/50">
+                        <div className="flex gap-3 p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-gray-50 dark:bg-gray-800/90">
                             <button
                                 onClick={() => setShowModal(false)}
-                                className="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold text-sm rounded-xl hover:bg-gray-200 transition-colors"
+                                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-bold text-sm rounded-xl transition-colors min-h-[44px]"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleCreateWindow}
                                 disabled={submitting}
-                                className="flex-1 py-2.5 bg-sffl-red hover:bg-sffl-red/90 text-white font-bold text-sm rounded-xl transition-colors disabled:opacity-50"
+                                className="flex-1 py-2.5 bg-sffl-red hover:bg-red-700 text-white font-bold text-sm rounded-xl transition-colors disabled:opacity-50 min-h-[44px] shadow-sm"
                             >
                                 {submitting ? 'Creating...' : 'Create Window'}
                             </button>
@@ -400,21 +400,21 @@ export const AdminTransferWindows: React.FC = () => {
 
             {/* Modal for editing window */}
             {editingWindow && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-3 sm:p-6" onClick={() => setEditingWindow(null)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[85vh] flex flex-col overflow-hidden shadow-2xl border border-gray-100 dark:border-gray-700" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
+                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" onClick={() => setEditingWindow(null)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
                             <h3 className="text-xl font-black text-gray-900 dark:text-white">Edit Transfer Window</h3>
                             <button onClick={() => setEditingWindow(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-lg p-1">✕</button>
                         </div>
 
-                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
+                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Window Name</label>
                                 <input
                                     type="text"
                                     value={editName}
                                     onChange={e => setEditName(e.target.value)}
-                                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-semibold"
+                                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-sffl-red focus:border-sffl-red"
                                 />
                             </div>
 
@@ -424,7 +424,7 @@ export const AdminTransferWindows: React.FC = () => {
                                     type="datetime-local"
                                     value={editOpensAt}
                                     onChange={e => setEditOpensAt(e.target.value)}
-                                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-semibold"
+                                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-sffl-red focus:border-sffl-red"
                                 />
                             </div>
 
@@ -434,7 +434,7 @@ export const AdminTransferWindows: React.FC = () => {
                                     type="datetime-local"
                                     value={editClosesAt}
                                     onChange={e => setEditClosesAt(e.target.value)}
-                                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-semibold"
+                                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-sffl-red focus:border-sffl-red"
                                 />
                             </div>
 
@@ -452,17 +452,17 @@ export const AdminTransferWindows: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="flex gap-3 p-4 sm:p-6 pt-4 border-t border-gray-100 dark:border-gray-700 flex-shrink-0 bg-gray-50/50 dark:bg-gray-800/50">
+                        <div className="flex gap-3 p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-gray-50 dark:bg-gray-800/90">
                             <button
                                 onClick={() => setEditingWindow(null)}
-                                className="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold text-sm rounded-xl hover:bg-gray-200 transition-colors"
+                                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-bold text-sm rounded-xl transition-colors min-h-[44px]"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleUpdateWindow}
                                 disabled={submitting}
-                                className="flex-1 py-2.5 bg-sffl-red hover:bg-sffl-red/90 text-white font-bold text-sm rounded-xl transition-colors disabled:opacity-50"
+                                className="flex-1 py-2.5 bg-sffl-red hover:bg-red-700 text-white font-bold text-sm rounded-xl transition-colors disabled:opacity-50 min-h-[44px] shadow-sm"
                             >
                                 {submitting ? 'Saving...' : 'Save Changes'}
                             </button>

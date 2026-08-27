@@ -183,7 +183,7 @@ export const AdminLayout = () => {
             </aside>
 
             {/* Main Content Area */}
-            <main className="flex-1 w-full min-w-0 p-2 lg:p-8 pt-22 lg:pt-8 overflow-y-auto overscroll-y-none bg-transparent pb-20 lg:pb-8 relative z-10">
+            <main className="flex-1 w-full min-w-0 p-2 lg:p-8 pt-22 lg:pt-8 overflow-y-auto overscroll-y-none bg-transparent pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-8 relative z-10">
                 <Outlet />
             </main>
 
@@ -200,7 +200,7 @@ export const AdminLayout = () => {
                         <XMarkIcon className="w-6 h-6" />
                     </button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                <div className="flex-1 overflow-y-auto p-2 space-y-1 pb-[calc(4rem+env(safe-area-inset-bottom,0px))]">
                     {adminLinks.map(link => {
                         const active = location.pathname === link.path || (link.path !== '/admin' && location.pathname.startsWith(link.path));
                         return (

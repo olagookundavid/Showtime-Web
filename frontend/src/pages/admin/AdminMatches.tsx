@@ -305,7 +305,7 @@ export const AdminMatches = () => {
                         </form>
                     )}
                     {isKnockout && (
-                        <span className="px-2.5 py-1.5 rounded-lg bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 text-xs font-black uppercase tracking-wider">
+                        <span className="px-2.5 py-1.5 rounded-lg bg-sffl-navy/10 text-sffl-navy dark:bg-gray-700 dark:text-gray-200 text-xs font-black uppercase tracking-wider">
                             Knockout Bracket
                         </span>
                     )}
@@ -400,12 +400,12 @@ export const AdminMatches = () => {
                                                     <td className="px-4 py-3 font-bold text-gray-900 dark:text-gray-100 uppercase">
                                                         {m.home_team?.short_name || 'TBD'} vs {m.away_team?.short_name || 'TBD'}
                                                         {m.round && (
-                                                            <span className="ml-2 px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 text-[10px] font-bold tracking-wide normal-case">
+                                                            <span className="ml-2 px-1.5 py-0.5 rounded bg-sffl-navy/10 text-sffl-navy dark:bg-gray-700 dark:text-gray-200 text-[10px] font-bold tracking-wide normal-case">
                                                                 {m.round}
                                                             </span>
                                                         )}
                                                         {m.second_leg_match_id && (
-                                                            <span className="ml-1 px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-[10px] font-bold tracking-wide normal-case">
+                                                            <span className="ml-1 px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 text-[10px] font-bold tracking-wide normal-case">
                                                                 2L
                                                             </span>
                                                         )}
@@ -424,10 +424,10 @@ export const AdminMatches = () => {
                                                     <td className="px-4 py-3 text-right">
                                                         <div className="flex justify-end gap-2">
                                                             {!isCompleted ? (
-                                                                <>
-                                                                    <button onClick={() => setTeamSheetMatch(m)} className="px-2.5 py-1 bg-purple-50 text-purple-600 hover:bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400 dark:hover:bg-purple-900/50 font-bold text-xs rounded-md shadow-sm transition-all">Team Sheet</button>
-                                                                    <button onClick={() => openEdit(m)} className="px-2.5 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 font-bold text-xs rounded-md shadow-sm transition-all">Edit</button>
-                                                                    <button onClick={() => setDeleteConfirm(m.id)} className="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 font-bold text-xs rounded-md shadow-sm transition-all">Delete</button>
+                                                                  <>
+                                                                    <button onClick={() => setTeamSheetMatch(m)} className="px-2.5 py-1 bg-sffl-navy/10 text-sffl-navy hover:bg-sffl-navy hover:text-white dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 font-bold text-xs rounded-md shadow-sm transition-all">Team Sheet</button>
+                                                                    <button onClick={() => openEdit(m)} className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold text-xs rounded-md shadow-sm transition-all border border-gray-200 dark:border-gray-600">Edit</button>
+                                                                    <button onClick={() => setDeleteConfirm(m.id)} className="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white dark:bg-red-950/40 dark:text-red-400 dark:hover:bg-red-900/50 font-bold text-xs rounded-md shadow-sm transition-all">Delete</button>
                                                                 </>
                                                             ) : (
                                                                 <span className="text-gray-400 dark:text-gray-600 text-xs font-semibold">Locked</span>
@@ -470,13 +470,13 @@ export const AdminMatches = () => {
 
             {/* Create/Edit Modal */}
             {showModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-3 sm:p-6" onClick={() => setShowModal(false)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" onClick={() => setShowModal(false)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex items-center justify-between">
                             <h2 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white">{editingId ? 'Edit Match' : 'Add Match'}</h2>
                             <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-xl font-bold p-1">✕</button>
                         </div>
-                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
+                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Competition *</label>
@@ -511,8 +511,8 @@ export const AdminMatches = () => {
                             </div>
 
                             {formIsKnockout && (
-                                <div className="bg-purple-50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800/30 rounded-xl p-4 space-y-4">
-                                    <div className="text-xs font-black text-purple-700 dark:text-purple-400 uppercase tracking-widest">Bracket Setup</div>
+                                <div className="bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl p-4 space-y-4">
+                                    <div className="text-xs font-black text-sffl-navy dark:text-gray-200 uppercase tracking-widest">Bracket Setup</div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Stage *</label>

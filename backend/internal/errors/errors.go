@@ -21,6 +21,12 @@ var ErrServerError = fmt.Errorf("something went wrong")
 
 var ErrNotFound = errors.New("not found")
 
+// ErrPlayerNotLinked distinguishes "this account has no player record behind it"
+// from "this player simply has no contracts yet". Both used to surface as an
+// empty list, which left a player staring at a blank portal with nothing telling
+// them their claim still needs approving.
+var ErrPlayerNotLinked = errors.New("this account isn't linked to a player profile yet")
+
 // Store-domain errors surfaced to the HTTP layer as 4xx
 var ErrInsufficientStock = errors.New("insufficient stock")
 var ErrVariantRequired = errors.New("variant selection required for this product")

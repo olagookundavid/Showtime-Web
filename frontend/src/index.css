@@ -67,6 +67,17 @@ button, input, select, textarea {
     font-family: inherit;
 }
 
+/* Ensure select dropdown options render crisp backgrounds and text in both light and dark mode */
+select option {
+    background-color: #FFFFFF;
+    color: #111827;
+}
+
+.dark select option {
+    background-color: #1F2937;
+    color: #FFFFFF;
+}
+
 /* Root container must also prevent overscroll on iOS */
 #root {
     min-height: 100vh;

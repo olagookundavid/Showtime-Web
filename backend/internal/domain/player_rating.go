@@ -7,9 +7,10 @@ import "math"
 // 0.0–10.0 from a single stat line (one game, or an aggregated season/career
 // rollup — the math is identical, only the input totals differ).
 //
-// Only Receiver, Defender and Rusher are implemented here (v1). The Quarterback
-// rating (QB_RATING_V1.1) is deferred: it needs per-QB `drives`, `punts` and
-// `turnovers`, which aren't tracked yet.
+// Only Receiver, Defender and Rusher are implemented here (v1) — Center uses
+// the Receiver formula verbatim (same inputs, no separate spec). The
+// Quarterback rating (QB_RATING_V1.1) is deferred: it needs per-QB `drives`,
+// `punts` and `turnovers`, which aren't tracked yet.
 //
 // NOTE ON SPEC SAMPLES: the "Suggested API Response" blocks in the Defender and
 // Receiver specs are illustrative and internally inconsistent (e.g. the Defender
@@ -119,8 +120,10 @@ type RatingStatLine struct {
 
 // RateByPosition computes a rating for a stat line using the formula for the
 // player's rating category (the value stored in players.position after the
-// backfill: "Receiver" / "Defender" / "Rusher" / "QB" / "-"). It returns nil
-// for positions with no implemented formula ("-"), so callers can render those distinctly from a genuine UNRATED result.
+// backfill: "Receiver" / "Center" / "Defender" / "Rusher" / "QB" / "-"). Center
+// shares the Receiver formula. It returns nil for positions with no
+// implemented formula ("-"), so callers can render those distinctly from a
+// genuine UNRATED result.
 func RateByPosition(position string, s RatingStatLine) *RatingResult {
 	var res RatingResult
 	switch position {
@@ -143,7 +146,8 @@ func RateByPosition(position string, s RatingStatLine) *RatingResult {
 			OtherTurnovers:      otherTurnovers,
 			Punts:               s.Punts,
 		})
-	case "Receiver":
+	case "Receiver", "Center":
+		// Center is scored identically to Receiver — same formula, same inputs.
 		res = CalculateReceiverRating(ReceiverRatingInput{
 			Receptions: s.Receptions, ReceivingTDs: s.ReceivingTDs,
 			ExtraPointTDs: s.ExtraPointTDs, Drops: s.Drops,

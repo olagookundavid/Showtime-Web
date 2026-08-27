@@ -38,4 +38,14 @@ scripts/historical-import/
 scratch/
 **/scratch/
 
+# Local-only demo/diagnostic tooling. Hardcodes a localhost DSN and demo
+# credentials and is only ever run by hand against a developer's own database,
+# so it stays out of the repo.
+backend/cmd/seed_demo/
+
+# Local-only database seed data, run by hand against a developer's own database.
+# Not to be confused with internal/sql/migrations, which IS tracked and is the
+# only thing go:embed picks up (see migrations_embeded.go).
+backend/internal/sql/seeds/
+
 

@@ -225,6 +225,32 @@ func (h *AuthHandler) UpdateUserRole(c *gin.Context) {
 		return
 	}
 
+	// 'player' is not assignable here. Granting it by hand produces an account
+	// that can reach the player portal but has no players row behind it —
+	// players.user_id is only ever set by ClaimService.ApproveClaim — so the
+	// portal loads empty forever and the person can never accept a contract.
+	// The claim flow promotes the role and links the record in one transaction,
+	// which is why it is the only way in.
+	if req.Role == "player" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "The player role cannot be assigned here. Ask the player to claim their profile at /claim using their team's claim code — approving that claim under Admin → Account Claims promotes the account and links it to their player record. Assigning the role by hand leaves the player portal permanently empty.",
+		})
+		return
+	}
+
+	// 'player' is not assignable by hand. Granting it here produces an account
+	// that reaches the player portal with no players row behind it, because
+	// players.user_id is only ever set by ClaimService.ApproveClaim — so the
+	// portal loads empty forever and the person can never accept a contract.
+	// The claim flow promotes the role and links the record in one transaction,
+	// which is why it is the only way in.
+	if req.Role == "player" || req.Role == "player_pending" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "The player role can't be assigned here — it would create an account with no player record behind it, and an empty player portal. Ask the player to claim their profile at /claim using their team's claim code; approving that claim (Admin → Account Claims, or the manager's own Claims tab) promotes the account and links it to their player record in one step.",
+		})
+		return
+	}
+
 	// Privilege-escalation guard: only an app_admin may grant the elevated
 	// admin / app_admin roles. The route admits plain admins (for assigning
 	// lesser roles like ticketer/team_head), so without this an admin could

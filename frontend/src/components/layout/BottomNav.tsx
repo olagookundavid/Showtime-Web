@@ -37,7 +37,7 @@ export const BottomNav = (_props: BottomNavProps) => {
     };
 
     return (
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-14 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 flex items-center justify-around px-2 z-50 pb-safe shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-[calc(3.5rem+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)] bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-t border-gray-200/80 dark:border-gray-800 flex items-center justify-around px-1 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
             {navItems.map((item) => {
                 const active = isActive(item.path, item.exact);
                 const Icon = active ? item.solidIcon : item.icon;
@@ -46,12 +46,12 @@ export const BottomNav = (_props: BottomNavProps) => {
                     <Link
                         key={item.name}
                         to={item.path}
-                        className={`flex flex-col items-center justify-center w-full h-full transition-colors ${
+                        className={`flex flex-col items-center justify-center w-full h-14 py-1 transition-colors ${
                             active ? 'text-sffl-red' : 'text-gray-500 dark:text-gray-400'
                         }`}
                     >
-                        <Icon className="w-5 h-5 mb-0.5" />
-                        <span className="text-[10px] font-medium leading-none">{item.name}</span>
+                        <Icon className="w-5 h-5 mb-0.5 shrink-0" />
+                        <span className="text-[10px] font-bold leading-none">{item.name}</span>
                     </Link>
                 );
             })}

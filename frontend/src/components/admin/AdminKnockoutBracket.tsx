@@ -161,9 +161,9 @@ export const AdminKnockoutBracket = ({ competitionId, matches, isCompleted, onAd
                                                 </div>
                                                 {!isCompleted && (
                                                     <div className="flex border-t border-gray-100 dark:border-gray-700 divide-x divide-gray-100 dark:divide-gray-700">
-                                                        <button onClick={() => onEdit(m)} className="flex-1 py-2 text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors">Edit / Score</button>
-                                                        <button onClick={() => onTeamSheet(m)} className="flex-1 py-2 text-[10px] font-bold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-colors">Sheet</button>
-                                                        <button onClick={() => onDelete(m.id)} className="flex-1 py-2 text-[10px] font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors">Del</button>
+                                                        <button onClick={() => onEdit(m)} className="flex-1 py-2 text-[10px] font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">Edit / Score</button>
+                                                        <button onClick={() => onTeamSheet(m)} className="flex-1 py-2 text-[10px] font-bold text-sffl-navy dark:text-gray-200 hover:bg-sffl-navy/5 dark:hover:bg-gray-700 transition-colors">Sheet</button>
+                                                        <button onClick={() => onDelete(m.id)} className="flex-1 py-2 text-[10px] font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors">Del</button>
                                                     </div>
                                                 )}
                                             </div>

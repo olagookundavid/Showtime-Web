@@ -604,17 +604,17 @@ export const TeamHeadTransfers: React.FC = () => {
 
             {/* Modal for Placing Bid */}
             {selectedListing && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-3 sm:p-6" onClick={() => setSelectedListing(null)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[85vh] flex flex-col overflow-hidden shadow-2xl border border-gray-100 dark:border-gray-700" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
-                            <h3 className="text-xl font-black text-gray-900 dark:text-white">Place Bid</h3>
+                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" onClick={() => setSelectedListing(null)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
+                            <h3 className="text-xl font-black text-sffl-navy dark:text-white">Place Bid</h3>
                             <button onClick={() => setSelectedListing(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-lg p-1">✕</button>
                         </div>
 
-                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
+                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
                             <div>
-                                <p className="text-sm font-semibold text-gray-500">Target Player</p>
-                                <p className="text-lg font-black text-gray-900 dark:text-white">{selectedListing.player?.name} ({selectedListing.from_team?.name})</p>
+                                <p className="text-xs uppercase font-bold text-gray-500 dark:text-gray-400 tracking-wider">Target Player</p>
+                                <p className="text-lg font-black text-gray-900 dark:text-white mt-0.5">{selectedListing.player?.name} <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">({selectedListing.from_team?.name})</span></p>
                             </div>
 
                             <div>
@@ -627,27 +627,27 @@ export const TeamHeadTransfers: React.FC = () => {
                                     min="100000"
                                     value={bidValue}
                                     onChange={e => setBidValue(parseInt(e.target.value, 10))}
-                                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-semibold"
+                                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-sffl-red focus:border-sffl-red"
                                 />
                                 {budget && (
-                                    <span className={`text-xs mt-1 block font-medium ${bidValue > budget.remaining ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
+                                    <span className={`text-xs mt-1.5 block font-semibold ${bidValue > budget.remaining ? 'text-red-500 font-bold' : 'text-gray-500 dark:text-gray-400'}`}>
                                         Remaining Budget: {budget.remaining.toLocaleString()} pts
                                     </span>
                                 )}
                             </div>
                         </div>
 
-                        <div className="flex gap-3 p-4 sm:p-6 pt-4 border-t border-gray-100 dark:border-gray-700 flex-shrink-0 bg-gray-50/50 dark:bg-gray-800/50">
+                        <div className="flex gap-3 p-4 sm:p-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-gray-50 dark:bg-gray-800/90">
                             <button
                                 onClick={() => setSelectedListing(null)}
-                                className="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold text-sm rounded-xl hover:bg-gray-200 transition-colors"
+                                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold text-sm rounded-xl transition-colors border border-gray-200 dark:border-gray-600"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handlePlaceBid}
                                 disabled={submittingBid || (budget ? bidValue > budget.remaining : false)}
-                                className="flex-1 py-2.5 bg-sffl-navy hover:bg-sffl-navy/90 text-white font-bold text-sm rounded-xl transition-colors disabled:opacity-50"
+                                className="flex-1 py-2.5 bg-sffl-red hover:bg-red-700 text-white font-bold text-sm rounded-xl transition-colors disabled:opacity-50 shadow-sm"
                             >
                                 {submittingBid ? 'Placing Bid...' : 'Submit Bid'}
                             </button>
@@ -658,14 +658,14 @@ export const TeamHeadTransfers: React.FC = () => {
 
             {/* Modal for Listing Player */}
             {showListModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-3 sm:p-6" onClick={() => setShowListModal(false)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[85vh] flex flex-col overflow-hidden shadow-2xl border border-gray-100 dark:border-gray-700" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
-                            <h3 className="text-xl font-black text-gray-900 dark:text-white">List Player for Sale</h3>
+                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" onClick={() => setShowListModal(false)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
+                            <h3 className="text-xl font-black text-sffl-navy dark:text-white">List Player for Sale</h3>
                             <button onClick={() => setShowListModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-lg p-1">✕</button>
                         </div>
 
-                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
+                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Select Player</label>
                                 <select
@@ -674,11 +674,11 @@ export const TeamHeadTransfers: React.FC = () => {
                                         setSelectedContract(c || null);
                                         if (c) setAskingPrice(c.player_value);
                                     }}
-                                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-semibold"
+                                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-sffl-red focus:border-sffl-red"
                                 >
-                                    <option value="">-- Choose active player --</option>
+                                    <option value="" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">-- Choose active player --</option>
                                     {myContracts.map(c => (
-                                        <option key={c.id} value={c.id}>{c.player?.name} ({c.player?.position})</option>
+                                        <option key={c.id} value={c.id} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">{c.player?.name} ({c.player?.position}) - Val: {c.player_value.toLocaleString()} pts</option>
                                     ))}
                                 </select>
                             </div>
@@ -688,25 +688,25 @@ export const TeamHeadTransfers: React.FC = () => {
                                 <input
                                     type="number"
                                     step="100000"
-                                    min="100000"
+                                    min="0"
                                     value={askingPrice}
                                     onChange={e => setAskingPrice(parseInt(e.target.value, 10))}
-                                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-semibold"
+                                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-sffl-red focus:border-sffl-red"
                                 />
                             </div>
                         </div>
 
-                        <div className="flex gap-3 p-4 sm:p-6 pt-4 border-t border-gray-100 dark:border-gray-700 flex-shrink-0 bg-gray-50/50 dark:bg-gray-800/50">
+                        <div className="flex gap-3 p-4 sm:p-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-gray-50 dark:bg-gray-800/90">
                             <button
                                 onClick={() => setShowListModal(false)}
-                                className="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold text-sm rounded-xl hover:bg-gray-200 transition-colors"
+                                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold text-sm rounded-xl transition-colors border border-gray-200 dark:border-gray-600"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleListPlayer}
                                 disabled={submittingListing || !selectedContract}
-                                className="flex-1 py-2.5 bg-sffl-red hover:bg-sffl-red/90 text-white font-bold text-sm rounded-xl transition-colors disabled:opacity-50"
+                                className="flex-1 py-2.5 bg-sffl-red hover:bg-red-700 text-white font-bold text-sm rounded-xl transition-colors disabled:opacity-50 shadow-sm"
                             >
                                 {submittingListing ? 'Publishing...' : 'Publish Listing'}
                             </button>
@@ -717,14 +717,14 @@ export const TeamHeadTransfers: React.FC = () => {
 
             {/* Modal for Direct Sale */}
             {showDirectSaleModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-3 sm:p-6" onClick={() => setShowDirectSaleModal(false)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[85vh] flex flex-col overflow-hidden shadow-2xl border border-gray-100 dark:border-gray-700" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
-                            <h3 className="text-xl font-black text-gray-900 dark:text-white">Propose Direct Sale</h3>
+                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" onClick={() => setShowDirectSaleModal(false)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
+                            <h3 className="text-xl font-black text-sffl-navy dark:text-white">Propose Direct Sale</h3>
                             <button onClick={() => setShowDirectSaleModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-lg p-1">✕</button>
                         </div>
 
-                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
+                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Select Player to Sell</label>
                                 <select
@@ -733,11 +733,11 @@ export const TeamHeadTransfers: React.FC = () => {
                                         setSelectedContract(c || null);
                                         if (c) setDirectSalePrice(c.player_value);
                                     }}
-                                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-semibold"
+                                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-sffl-red focus:border-sffl-red"
                                 >
-                                    <option value="">-- Choose active player --</option>
+                                    <option value="" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">-- Choose active player --</option>
                                     {myContracts.map(c => (
-                                        <option key={c.id} value={c.id}>{c.player?.name} ({c.player?.position})</option>
+                                        <option key={c.id} value={c.id} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">{c.player?.name} ({c.player?.position})</option>
                                     ))}
                                 </select>
                             </div>
@@ -747,11 +747,11 @@ export const TeamHeadTransfers: React.FC = () => {
                                 <select
                                     value={directSaleTargetTeamId}
                                     onChange={e => setDirectSaleTargetTeamId(e.target.value)}
-                                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-semibold"
+                                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-sffl-red focus:border-sffl-red"
                                 >
-                                    <option value="">-- Choose target team --</option>
+                                    <option value="" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">-- Choose target team --</option>
                                     {allTeams.map(tm => (
-                                        <option key={tm.id} value={tm.id}>{tm.name}</option>
+                                        <option key={tm.id} value={tm.id} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">{tm.name}</option>
                                     ))}
                                 </select>
                             </div>
@@ -764,22 +764,22 @@ export const TeamHeadTransfers: React.FC = () => {
                                     min="0"
                                     value={directSalePrice}
                                     onChange={e => setDirectSalePrice(parseInt(e.target.value, 10))}
-                                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-semibold"
+                                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-sffl-red focus:border-sffl-red"
                                 />
                             </div>
                         </div>
 
-                        <div className="flex gap-3 p-4 sm:p-6 pt-4 border-t border-gray-100 dark:border-gray-700 flex-shrink-0 bg-gray-50/50 dark:bg-gray-800/50">
+                        <div className="flex gap-3 p-4 sm:p-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-gray-50 dark:bg-gray-800/90">
                             <button
                                 onClick={() => setShowDirectSaleModal(false)}
-                                className="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold text-sm rounded-xl hover:bg-gray-200 transition-colors"
+                                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold text-sm rounded-xl transition-colors border border-gray-200 dark:border-gray-600"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleCreateDirectSale}
                                 disabled={submittingDirectSale || !selectedContract || !directSaleTargetTeamId}
-                                className="flex-1 py-2.5 bg-sffl-navy hover:bg-sffl-navy/90 text-white font-bold text-sm rounded-xl transition-colors disabled:opacity-50"
+                                className="flex-1 py-2.5 bg-sffl-red hover:bg-red-700 text-white font-bold text-sm rounded-xl transition-colors disabled:opacity-50 shadow-sm"
                             >
                                 {submittingDirectSale ? 'Submitting...' : 'Submit Sale Proposal'}
                             </button>
@@ -790,24 +790,24 @@ export const TeamHeadTransfers: React.FC = () => {
 
             {/* Modal for Transfer Request */}
             {showRequestModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-3 sm:p-6" onClick={() => setShowRequestModal(false)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[85vh] flex flex-col overflow-hidden shadow-2xl border border-gray-100 dark:border-gray-700" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
-                            <h3 className="text-xl font-black text-gray-900 dark:text-white">Request Player Transfer</h3>
+                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" onClick={() => setShowRequestModal(false)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
+                            <h3 className="text-xl font-black text-sffl-navy dark:text-white">Request Player Transfer</h3>
                             <button onClick={() => setShowRequestModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-lg p-1">✕</button>
                         </div>
 
-                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
+                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Target Team</label>
                                 <select
                                     value={requestTargetTeamId}
                                     onChange={e => handleSelectTargetTeamForRequest(e.target.value)}
-                                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-semibold"
+                                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-sffl-red focus:border-sffl-red"
                                 >
-                                    <option value="">-- Choose team --</option>
+                                    <option value="" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">-- Choose team --</option>
                                     {allTeams.map(tm => (
-                                        <option key={tm.id} value={tm.id}>{tm.name}</option>
+                                        <option key={tm.id} value={tm.id} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">{tm.name}</option>
                                     ))}
                                 </select>
                             </div>
@@ -818,11 +818,11 @@ export const TeamHeadTransfers: React.FC = () => {
                                     value={requestPlayerId}
                                     onChange={e => setRequestPlayerId(e.target.value)}
                                     disabled={!requestTargetTeamId}
-                                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-semibold disabled:opacity-50"
+                                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold disabled:opacity-50 focus:ring-2 focus:ring-sffl-red focus:border-sffl-red"
                                 >
-                                    <option value="">-- Choose player --</option>
+                                    <option value="" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">-- Choose player --</option>
                                     {targetTeamPlayers.map(p => (
-                                        <option key={p.id} value={p.id}>{p.name} ({p.position})</option>
+                                        <option key={p.id} value={p.id} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">{p.name} ({p.position})</option>
                                     ))}
                                 </select>
                             </div>
@@ -835,27 +835,27 @@ export const TeamHeadTransfers: React.FC = () => {
                                     min="100000"
                                     value={requestPrice}
                                     onChange={e => setRequestPrice(parseInt(e.target.value, 10))}
-                                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-semibold"
+                                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-sffl-red focus:border-sffl-red"
                                 />
                                 {budget && (
-                                    <span className={`text-xs mt-1 block font-medium ${requestPrice > budget.remaining ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
+                                    <span className={`text-xs mt-1.5 block font-semibold ${requestPrice > budget.remaining ? 'text-red-500 font-bold' : 'text-gray-500 dark:text-gray-400'}`}>
                                         Remaining Budget: {budget.remaining.toLocaleString()} pts
                                     </span>
                                 )}
                             </div>
                         </div>
 
-                        <div className="flex gap-3 p-4 sm:p-6 pt-4 border-t border-gray-100 dark:border-gray-700 flex-shrink-0 bg-gray-50/50 dark:bg-gray-800/50">
+                        <div className="flex gap-3 p-4 sm:p-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-gray-50 dark:bg-gray-800/90">
                             <button
                                 onClick={() => setShowRequestModal(false)}
-                                className="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold text-sm rounded-xl hover:bg-gray-200 transition-colors"
+                                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold text-sm rounded-xl transition-colors border border-gray-200 dark:border-gray-600"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleCreateRequest}
                                 disabled={submittingRequest || !requestPlayerId || (budget ? requestPrice > budget.remaining : false)}
-                                className="flex-1 py-2.5 bg-sffl-red hover:bg-sffl-red/90 text-white font-bold text-sm rounded-xl transition-colors disabled:opacity-50"
+                                className="flex-1 py-2.5 bg-sffl-red hover:bg-red-700 text-white font-bold text-sm rounded-xl transition-colors disabled:opacity-50 shadow-sm"
                             >
                                 {submittingRequest ? 'Sending Request...' : 'Send Transfer Request'}
                             </button>

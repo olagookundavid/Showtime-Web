@@ -40,7 +40,7 @@ export const Modal = ({ open, onClose, title, subtitle, children, maxWidth = 'xl
 
     const node = (
         <div
-            className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn"
+            className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden animate-fadeIn"
             onClick={onClose}
             role="dialog"
             aria-modal="true"
@@ -48,10 +48,10 @@ export const Modal = ({ open, onClose, title, subtitle, children, maxWidth = 'xl
         >
             <div
                 onClick={(e) => e.stopPropagation()}
-                className={`bg-white dark:bg-gray-800 rounded-2xl ${widthClass[maxWidth]} w-full shadow-2xl max-h-[90vh] flex flex-col`}
+                className={`bg-white dark:bg-gray-800 rounded-2xl ${widthClass[maxWidth]} w-full shadow-2xl max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-100 dark:border-gray-700`}
             >
                 {(title || subtitle) && (
-                    <div className="flex justify-between items-start gap-4 p-6 pb-4 border-b border-gray-100 dark:border-gray-700">
+                    <div className="flex justify-between items-start gap-4 p-4 sm:p-6 pb-3 sm:pb-4 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
                         <div>
                             {title && (
                                 <h2 id="modal-title" className="text-xl font-black text-sffl-navy dark:text-white">{title}</h2>
@@ -69,7 +69,7 @@ export const Modal = ({ open, onClose, title, subtitle, children, maxWidth = 'xl
                         </button>
                     </div>
                 )}
-                <div className="overflow-y-auto p-6">
+                <div className="overflow-y-auto overscroll-contain p-4 sm:p-6 flex-1 min-h-0">
                     {children}
                 </div>
             </div>

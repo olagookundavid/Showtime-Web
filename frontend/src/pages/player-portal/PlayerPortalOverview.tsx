@@ -2,18 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { playerPortalApi, type ContractData } from '../../services/api';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
+import { NotLinkedNotice } from '../../components/player-portal/NotLinkedNotice';
+import { apiError } from '../../components/player-portal/apiError';
 
 export const PlayerPortalOverview: React.FC = () => {
     const [contracts, setContracts] = useState<ContractData[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
+    const [notLinked, setNotLinked] = useState<boolean>(false);
 
     const fetchContracts = async () => {
         setLoading(true);
         try {
             const res = await playerPortalApi.getContracts();
             setContracts(res || []);
-        } catch {
-            toast.error('Failed to load contract details');
+            setNotLinked(false);
+        } catch (err) {
+            // An unlinked account is an expected state, not a failure — explain
+            // it in place rather than firing an error toast at the player.
+            if (apiError(err).code === 'PLAYER_NOT_LINKED') {
+                setNotLinked(true);
+            } else {
+                toast.error('Failed to load contract details');
+            }
         } finally {
             setLoading(false);
         }
@@ -44,6 +54,12 @@ export const PlayerPortalOverview: React.FC = () => {
                 <p className="text-sm text-gray-500 dark:text-gray-400">View active contract details and manage pending offers from team managers.</p>
             </div>
 
+            {/* Either/or, never both. With no player record behind the account the
+                status card below falls through to its "Free Agent — managers can
+                issue offers to sign you" state, which is a different situation
+                entirely and reads as a contradiction next to the notice. */}
+            {notLinked ? <NotLinkedNotice /> : (
+            <>
             {/* Pending Offers Alert Section */}
             {pendingOffers.length > 0 && (
                 <div className="space-y-4">
@@ -149,6 +165,8 @@ export const PlayerPortalOverview: React.FC = () => {
                     </div>
                 )}
             </div>
+            </>
+            )}
         </div>
     );
 };

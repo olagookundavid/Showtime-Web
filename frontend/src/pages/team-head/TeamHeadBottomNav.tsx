@@ -30,7 +30,7 @@ export const TeamHeadBottomNav = ({ onMoreClick }: TeamHeadBottomNavProps) => {
     };
 
     return (
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 h-14 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center justify-around px-2 z-50 pb-safe shadow-lg">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 h-[calc(3.5rem+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)] bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border-t border-gray-200/80 dark:border-gray-700 flex items-center justify-around px-1 z-50 shadow-lg">
             {navItems.map((item) => {
                 const active = isActive(item);
                 const Icon = active ? item.solidIcon : item.icon;
@@ -39,10 +39,10 @@ export const TeamHeadBottomNav = ({ onMoreClick }: TeamHeadBottomNavProps) => {
                     <Link
                         key={item.name}
                         to={item.path}
-                        className={`flex flex-col items-center justify-center w-full h-full transition-colors ${active ? 'text-sffl-red' : 'text-gray-400'
+                        className={`flex flex-col items-center justify-center w-full h-14 py-1 transition-colors ${active ? 'text-sffl-red' : 'text-gray-400'
                             }`}
                     >
-                        <Icon className="w-5 h-5 mb-0.5" />
+                        <Icon className="w-5 h-5 mb-0.5 shrink-0" />
                         <span className="text-[10px] font-bold leading-none uppercase">{item.name}</span>
                     </Link>
                 );
@@ -50,9 +50,9 @@ export const TeamHeadBottomNav = ({ onMoreClick }: TeamHeadBottomNavProps) => {
 
             <button
                 onClick={onMoreClick}
-                className="flex flex-col items-center justify-center w-full h-full text-gray-400"
+                className="flex flex-col items-center justify-center w-full h-14 py-1 text-gray-400"
             >
-                <Bars3Icon className="w-5 h-5 mb-0.5" />
+                <Bars3Icon className="w-5 h-5 mb-0.5 shrink-0" />
                 <span className="text-[10px] font-bold leading-none uppercase">Back</span>
             </button>
         </nav>

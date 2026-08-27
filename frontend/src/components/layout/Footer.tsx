@@ -2,8 +2,12 @@ import { Link } from 'react-router-dom';
 import { CopyableEmail } from '../common/CopyableEmail';
 
 export const Footer = () => {
+    // The footer carries the whole page's clearance for the fixed BottomNav, which
+    // is lg:hidden — so the padding must revert at lg, not md. At md the nav is
+    // still on screen and 2rem of padding leaves it covering the copyright line
+    // (iPad portrait is exactly 768px).
     return (
-        <footer className="bg-sffl-navy dark:bg-gray-950 text-white p-4 md:p-8 mt-auto border-t border-gray-800 dark:border-gray-700">
+        <footer className="bg-sffl-navy dark:bg-gray-950 text-white p-4 md:p-8 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] lg:pb-8 mt-auto border-t border-gray-800 dark:border-gray-700">
             {/* Mobile: 1-col stack. Tablet: 2-col grid. Desktop: flex row with
                 space evenly distributed between columns regardless of their
                 content width, so the Branding column's wider wordmark doesn't
@@ -97,7 +101,7 @@ export const Footer = () => {
                     </div>
                 </div>
             </div>
-            <div className="text-center text-gray-600 text-[10px] mt-6 md:mt-8 border-t border-gray-800 pt-3 md:pt-4">
+            <div className="text-center text-gray-400 dark:text-gray-500 text-[10px] md:text-xs mt-6 md:mt-8 border-t border-gray-800 dark:border-gray-800/80 pt-3 md:pt-4">
                 &copy; 2026 Showtime Flag Football League.
             </div>
         </footer>
