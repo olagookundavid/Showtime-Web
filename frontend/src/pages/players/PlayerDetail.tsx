@@ -121,7 +121,18 @@ export const PlayerDetail = () => {
                     {/* Player Info */}
                     <div className="text-white flex flex-col justify-center gap-1 md:gap-4">
                         <h1 className="text-3xl md:text-6xl font-black uppercase tracking-tighter leading-none">{player.name}</h1>
-                        <div className="text-lg md:text-2xl font-black text-sffl-red italic">{player.position}</div>
+                        <div className="flex items-center gap-3">
+                            <div className="text-lg md:text-2xl font-black text-sffl-red italic">{player.position}</div>
+                            {player.gender && (
+                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-black uppercase border ${
+                                    player.gender === 'F' 
+                                        ? 'bg-pink-500/20 text-pink-200 border-pink-500/40' 
+                                        : 'bg-blue-500/20 text-blue-200 border-blue-500/40'
+                                }`}>
+                                    {player.gender === 'F' ? 'Female (F)' : player.gender === 'M' ? 'Male (M)' : player.gender}
+                                </span>
+                            )}
+                        </div>
                         {player.team?.id ? (
                             <Link
                                 to={`/teams/${player.team.id}`}

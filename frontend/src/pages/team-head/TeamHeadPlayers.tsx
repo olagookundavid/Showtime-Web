@@ -25,6 +25,7 @@ interface Player {
     id: string;
     name: string;
     position: string;
+    gender?: string;
     jersey_number: number;
     email?: string;
     image: string;
@@ -45,7 +46,7 @@ interface PaginatedPlayerResponse {
 const POSITIONS = ['Defender', 'Receiver', 'Center', '-', 'QB', 'Rusher'];
 
 const emptyForm = {
-    name: '', position: '', jersey_number: '', email: '', image: '', bio: '', contract_length: '13',
+    name: '', position: '', gender: '', jersey_number: '', email: '', image: '', bio: '', contract_length: '13',
 };
 
 const TeamHeadPlayers = () => {
@@ -108,6 +109,7 @@ const TeamHeadPlayers = () => {
         setForm({
             name: p.name || '',
             position: p.position || '',
+            gender: p.gender || '',
             jersey_number: p.jersey_number?.toString() || '0',
             email: p.email || '',
             image: p.image || '',
@@ -124,6 +126,7 @@ const TeamHeadPlayers = () => {
             const payload = {
                 name: form.name,
                 position: form.position,
+                gender: form.gender,
                 jersey_number: parseInt(form.jersey_number) || 0,
                 email: form.email,
                 image: form.image,
@@ -301,6 +304,17 @@ const TeamHeadPlayers = () => {
                                             <span className="bg-gray-100 dark:bg-gray-700/70 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-md text-[11px] font-extrabold uppercase">
                                                 {player.position || 'N/A'}
                                             </span>
+                                            {player.gender && (
+                                                <span className={`px-2 py-0.5 rounded-md text-[11px] font-extrabold ${
+                                                    player.gender === 'F'
+                                                        ? 'bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-300'
+                                                        : player.gender === 'M'
+                                                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                                                        : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
+                                                }`}>
+                                                    {player.gender === 'F' ? 'Female (F)' : player.gender === 'M' ? 'Male (M)' : player.gender}
+                                                </span>
+                                            )}
                                             {player.jersey_number > 0 && (
                                                 <span className="bg-sffl-red/10 text-sffl-red px-2 py-0.5 rounded-md text-[11px] font-black">
                                                     #{player.jersey_number}
@@ -432,12 +446,20 @@ const TeamHeadPlayers = () => {
                                     </div>
                                 )}
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Position</label>
                                     <select value={form.position} onChange={e => setField('position', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-3.5 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-sffl-red text-sm font-semibold">
                                         <option value="" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">Select...</option>
                                         {POSITIONS.map(p => <option key={p} value={p} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">{p}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Gender</label>
+                                    <select value={form.gender} onChange={e => setField('gender', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-3.5 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-sffl-red text-sm font-semibold">
+                                        <option value="" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">Select...</option>
+                                        <option value="M" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">Male (M)</option>
+                                        <option value="F" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">Female (F)</option>
                                     </select>
                                 </div>
                                 <div>

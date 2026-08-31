@@ -74,6 +74,7 @@ func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string
 			COALESCE(p.jersey_number, 0), COALESCE(p.position, ''),
 			COALESCE(p.team_id::text, ''),
 			COALESCE(p.bio, ''), COALESCE(p.image, ''), p.email,
+			COALESCE(p.gender, ''),
 			p.created_at, p.updated_at,
 			COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, '')
 		FROM players p
@@ -101,6 +102,7 @@ func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string
 		p.Team = &domain.Team{}
 		err := rows.Scan(
 			&p.ID, &p.Name, &p.JerseyNumber, &p.Position, &p.TeamID, &p.Bio, &p.Image, &p.Email,
+			&p.Gender,
 			&p.CreatedAt, &p.UpdatedAt,
 			&p.Team.Name, &p.Team.ShortName, &p.Team.Logo,
 		)
@@ -120,6 +122,7 @@ func (r *PostgresPlayerRepository) GetPlayerByID(ctx context.Context, id string)
 			COALESCE(p.jersey_number, 0), COALESCE(p.position, ''),
 			COALESCE(p.team_id::text, ''),
 			COALESCE(p.bio, ''), COALESCE(p.image, ''), p.email,
+			COALESCE(p.gender, ''),
 			p.user_id, p.created_at, p.updated_at,
 			COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, '')
 		FROM players p
@@ -131,6 +134,7 @@ func (r *PostgresPlayerRepository) GetPlayerByID(ctx context.Context, id string)
 	var uid *string
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&p.ID, &p.Name, &p.JerseyNumber, &p.Position, &p.TeamID, &p.Bio, &p.Image, &p.Email,
+		&p.Gender,
 		&uid, &p.CreatedAt, &p.UpdatedAt,
 		&p.Team.Name, &p.Team.ShortName, &p.Team.Logo,
 	)
@@ -139,14 +143,6 @@ func (r *PostgresPlayerRepository) GetPlayerByID(ctx context.Context, id string)
 	}
 	p.UserID = uid
 	p.Team.ID = p.TeamID
-
-	// There used to be a fallback here that linked players.user_id to any users row
-	// sharing the player's email whenever this ran. It was removed because it granted
-	// account ownership with nobody approving it — the same bypass closed in
-	// CreatePlayer and AuthService.Register — and it did so as a write on a read path,
-	// so merely viewing a player was enough to trigger it. That is how a player ended up
-	// linked to an account whose role was never changed. players.user_id is now set only
-	// by ClaimService.ApproveClaim.
 
 	return &p, nil
 }
@@ -161,24 +157,16 @@ func (r *PostgresPlayerRepository) CreatePlayer(ctx context.Context, player *dom
 	}
 
 	query := `
-		INSERT INTO players (name, jersey_number, position, team_id, bio, image, email, user_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO players (name, jersey_number, position, team_id, bio, image, email, user_id, gender)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id, created_at, updated_at
 	`
 	return r.db.QueryRow(ctx, query,
-		player.Name, player.JerseyNumber, player.Position, player.TeamID, player.Bio, player.Image, player.Email, player.UserID,
+		player.Name, player.JerseyNumber, player.Position, player.TeamID, player.Bio, player.Image, player.Email, player.UserID, player.Gender,
 	).Scan(&player.ID, &player.CreatedAt, &player.UpdatedAt)
 }
 
 func (r *PostgresPlayerRepository) UpdatePlayer(ctx context.Context, player *domain.Player) error {
-	// Only police jersey numbers when the number is actually changing.
-	//
-	// The edit form resends the player's existing number on every save, and nothing has
-	// ever enforced uniqueness at the database level, so the historical import left
-	// teams with duplicate numbers. Checking unconditionally meant both players in any
-	// such pair were permanently uneditable — a manager could not fix a photo, position
-	// or bio without first resolving a clash they may not even have known about.
-	// Assigning a number someone else already holds is still refused.
 	if player.JerseyNumber > 0 {
 		var currentJersey int
 		if err := r.db.QueryRow(ctx,
@@ -195,18 +183,14 @@ func (r *PostgresPlayerRepository) UpdatePlayer(ctx context.Context, player *dom
 		}
 	}
 
-	// team_id is NULLIF'd because domain.Player.TeamID is a plain string: releasing a
-	// player is expressed as "", and passing that straight into a UUID column made
-	// Postgres reject the whole UPDATE ("invalid input syntax for type uuid"). Every
-	// contract expiry silently failed to release its player because of it.
 	query := `
 		UPDATE players SET
-			name=$1, jersey_number=$2, position=$3, team_id=NULLIF($4::text, '')::uuid, bio=$5, image=$6, email=$7, user_id=COALESCE($8, user_id),
+			name=$1, jersey_number=$2, position=$3, team_id=NULLIF($4::text, '')::uuid, bio=$5, image=$6, email=$7, user_id=COALESCE($8, user_id), gender=$9,
 			updated_at=NOW()
-		WHERE id=$9
+		WHERE id=$10
 	`
 	_, err := r.db.Exec(ctx, query,
-		player.Name, player.JerseyNumber, player.Position, player.TeamID, player.Bio, player.Image, player.Email, player.UserID,
+		player.Name, player.JerseyNumber, player.Position, player.TeamID, player.Bio, player.Image, player.Email, player.UserID, player.Gender,
 		player.ID,
 	)
 	return err
@@ -302,6 +286,7 @@ func (r *PostgresPlayerRepository) GetPlayerByUserID(ctx context.Context, userID
 			COALESCE(p.jersey_number, 0), COALESCE(p.position, ''),
 			COALESCE(p.team_id::text, ''),
 			COALESCE(p.bio, ''), COALESCE(p.image, ''), p.email,
+			COALESCE(p.gender, ''),
 			p.user_id, p.created_at, p.updated_at,
 			COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, '')
 		FROM players p
@@ -313,6 +298,7 @@ func (r *PostgresPlayerRepository) GetPlayerByUserID(ctx context.Context, userID
 	var uid *string
 	err := r.db.QueryRow(ctx, query, userID).Scan(
 		&p.ID, &p.Name, &p.JerseyNumber, &p.Position, &p.TeamID, &p.Bio, &p.Image, &p.Email,
+		&p.Gender,
 		&uid, &p.CreatedAt, &p.UpdatedAt,
 		&p.Team.Name, &p.Team.ShortName, &p.Team.Logo,
 	)
@@ -329,6 +315,7 @@ func (r *PostgresPlayerRepository) GetPlayerByUserID(ctx context.Context, userID
 			COALESCE(p.jersey_number, 0), COALESCE(p.position, ''),
 			COALESCE(p.team_id::text, ''),
 			COALESCE(p.bio, ''), COALESCE(p.image, ''), p.email,
+			COALESCE(p.gender, ''),
 			p.user_id, p.created_at, p.updated_at,
 			COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, '')
 		FROM players p
@@ -339,6 +326,7 @@ func (r *PostgresPlayerRepository) GetPlayerByUserID(ctx context.Context, userID
 	`
 	err = r.db.QueryRow(ctx, fallbackQuery, userID).Scan(
 		&p.ID, &p.Name, &p.JerseyNumber, &p.Position, &p.TeamID, &p.Bio, &p.Image, &p.Email,
+		&p.Gender,
 		&uid, &p.CreatedAt, &p.UpdatedAt,
 		&p.Team.Name, &p.Team.ShortName, &p.Team.Logo,
 	)

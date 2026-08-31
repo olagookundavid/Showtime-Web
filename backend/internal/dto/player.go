@@ -5,6 +5,7 @@ type CreatePlayerRequest struct {
 	Name           string `json:"name" binding:"required"`
 	JerseyNumber   int    `json:"jersey_number"`
 	Position       string `json:"position"`
+	Gender         string `json:"gender"`
 	TeamID         string `json:"team_id" binding:"required"`
 	Bio            string `json:"bio"`
 	Image          string `json:"image"`
@@ -16,6 +17,7 @@ type UpdatePlayerRequest struct {
 	Name         string `json:"name"`
 	JerseyNumber *int   `json:"jersey_number"`
 	Position     string `json:"position"`
+	Gender       string `json:"gender"`
 	TeamID       string `json:"team_id"`
 	Bio          string `json:"bio"`
 	Image        string `json:"image"`
@@ -27,6 +29,7 @@ type PlayerResponse struct {
 	Name         string        `json:"name"`
 	JerseyNumber int           `json:"jersey_number"`
 	Position     string        `json:"position"`
+	Gender       string        `json:"gender,omitempty"`
 	Team         *TeamResponse `json:"team,omitempty"`
 	Bio          string        `json:"bio"`
 	Image        string        `json:"image"`

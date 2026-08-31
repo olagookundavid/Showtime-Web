@@ -13,13 +13,14 @@ interface FormData {
     name: string;
     jersey_number: string;
     position: string;
+    gender: string;
     team_id: string;
     bio: string;
     image: string;
     email: string;
 }
 const emptyForm: FormData = {
-    name: '', jersey_number: '', position: '', team_id: '',
+    name: '', jersey_number: '', position: '', gender: '', team_id: '',
     bio: '', image: '', email: ''
 };
 
@@ -68,6 +69,7 @@ export const AdminPlayers = () => {
             name: p.name,
             jersey_number: p.jersey_number?.toString() || '',
             position: p.position || '',
+            gender: p.gender || '',
             team_id: p.team?.id || '',
             bio: p.bio || '',
             image: p.image || '',
@@ -101,6 +103,7 @@ export const AdminPlayers = () => {
                 name: form.name.trim(),
                 jersey_number: jerseyNum,
                 position: form.position,
+                gender: form.gender,
                 team_id: form.team_id,
                 bio: form.bio,
                 image: form.image,
@@ -176,6 +179,22 @@ export const AdminPlayers = () => {
             accessor: 'position',
             sortable: true,
             cell: (p) => <span className="px-2 py-1 bg-gray-100 dark:bg-gray-600 rounded-full text-xs font-bold dark:text-gray-300">{p.position}</span>
+        },
+        {
+            header: 'Gender',
+            sortable: true,
+            sortValue: (p) => p.gender || '',
+            cell: (p) => (
+                <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                    p.gender === 'F' 
+                        ? 'bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-300' 
+                        : p.gender === 'M' 
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300' 
+                        : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
+                }`}>
+                    {p.gender === 'F' ? 'Female (F)' : p.gender === 'M' ? 'Male (M)' : '—'}
+                </span>
+            )
         },
         {
             header: 'Team',
@@ -259,12 +278,20 @@ export const AdminPlayers = () => {
                                     <input type="number" value={form.jersey_number} onChange={e => set('jersey_number', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" min="1" max="99" placeholder="e.g. 10" required />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Position</label>
                                     <select value={form.position} onChange={e => set('position', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-[44px] z-50">
                                         <option value="" className="truncate">Select...</option>
                                         {POSITIONS.map(p => <option key={p} value={p} className="truncate">{p}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Gender</label>
+                                    <select value={form.gender} onChange={e => set('gender', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-[44px] z-50">
+                                        <option value="">Select...</option>
+                                        <option value="M">Male (M)</option>
+                                        <option value="F">Female (F)</option>
                                     </select>
                                 </div>
                                 <div>
@@ -274,10 +301,10 @@ export const AdminPlayers = () => {
                                         {teams.map(t => <option key={t.id} value={t.id} className="truncate">{t.name}</option>)}
                                     </select>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Email <span className="text-gray-400 font-normal">(optional)</span></label>
-                                    <input type="email" value={form.email} onChange={e => set('email', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="player@example.com" />
-                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Email <span className="text-gray-400 font-normal">(optional)</span></label>
+                                <input type="email" value={form.email} onChange={e => set('email', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="player@example.com" />
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Bio</label>
