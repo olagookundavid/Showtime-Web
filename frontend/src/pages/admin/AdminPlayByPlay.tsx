@@ -26,6 +26,7 @@ import {
 import { StatsTable } from '../../components/stats/StatsTable';
 import { useAuth } from '../../contexts/AuthContext';
 import { getPlayStatAccruals } from '../../utils/statAccrualDeriver';
+import { formatMatchDate, formatMatchTime } from '../../utils/dateUtils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -397,6 +398,8 @@ export const AdminPlayByPlay = () => {
     const [w, setW] = useState<Wizard>(emptyWizard);
     const [saving, setSaving] = useState(false);
 
+    const [visibleCount, setVisibleCount] = useState(10);
+
     const { data: matchesData } = useQuery({
         queryKey: ['pbpMatches'],
         queryFn: () => getMatches(undefined, 1, 100),
@@ -404,9 +407,57 @@ export const AdminPlayByPlay = () => {
     // Latest matches first — makes the most likely picks (today's/this week's
     // games) sit at the top instead of scattered through whatever order the
     // API returned.
-    const matches: Match[] = [...(matchesData?.data || [])].sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
+    const matches: Match[] = useMemo(() => {
+        return [...(matchesData?.data || [])].sort(
+            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        );
+    }, [matchesData]);
+
+    const visibleMatches: Match[] = useMemo(() => {
+        const sliced = matches.slice(0, visibleCount);
+        // If current match is outside the top slice, keep it included so selection doesn't break
+        if (matchId && !sliced.some(m => m.id === matchId)) {
+            const currentMatch = matches.find(m => m.id === matchId);
+            if (currentMatch) {
+                sliced.push(currentMatch);
+                sliced.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            }
+        }
+        return sliced;
+    }, [matches, visibleCount, matchId]);
+
+    interface MatchGroup {
+        header: string;
+        matches: Match[];
+    }
+
+    const groupedMatches: MatchGroup[] = useMemo(() => {
+        const groupsMap = new Map<string, Match[]>();
+        for (const m of visibleMatches) {
+            const formattedDate = formatMatchDate(m.date, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+            const roundLabel = m.round ? m.round.trim() : '';
+            const compLabel = m.competition?.name ? `(${m.competition.name})` : '';
+
+            let headerKey = '';
+            if (roundLabel) {
+                headerKey = `${roundLabel} · ${formattedDate} ${compLabel}`.trim();
+            } else {
+                headerKey = `Game Day · ${formattedDate} ${compLabel}`.trim();
+            }
+
+            if (!groupsMap.has(headerKey)) {
+                groupsMap.set(headerKey, []);
+            }
+            groupsMap.get(headerKey)!.push(m);
+        }
+
+        const result: MatchGroup[] = [];
+        groupsMap.forEach((matchesInGroup, header) => {
+            result.push({ header, matches: matchesInGroup });
+        });
+        return result;
+    }, [visibleMatches]);
+
     const match = matches.find(m => m.id === matchId);
     // Play-by-play is locked per match by default; treat unknown as locked.
     const locked = !!matchId && match?.pbp_locked !== false;
@@ -979,19 +1030,47 @@ export const AdminPlayByPlay = () => {
 
             {/* Match picker */}
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Match</label>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-2">
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-300">Select Match</label>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                        Showing {Math.min(visibleMatches.length, matches.length)} of {matches.length} latest matches
+                    </span>
+                </div>
                 <select
                     value={matchId}
                     onChange={e => { setMatchId(e.target.value); resetWizard(); }}
-                    className="w-full border rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2.5 text-sm font-semibold dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red focus:outline-none"
                 >
                     <option value="">Select a match…</option>
-                    {matches.map(m => (
-                        <option key={m.id} value={m.id}>
-                            {m.home_team?.name} vs {m.away_team?.name} · {new Date(m.date).toLocaleDateString()} {m.status === 'LIVE' ? '· LIVE' : ''}
-                        </option>
+                    {groupedMatches.map(group => (
+                        <optgroup key={group.header} label={`📅 ${group.header}`}>
+                            {group.matches.map(m => (
+                                <option key={m.id} value={m.id}>
+                                    {m.home_team?.name} vs {m.away_team?.name} {formatMatchTime(m.start_time) !== 'TBD' ? `· ${formatMatchTime(m.start_time)}` : ''} {m.status === 'LIVE' ? '· 🔴 LIVE' : m.status === 'FINISHED' ? '· FINISHED' : ''}
+                                </option>
+                            ))}
+                        </optgroup>
                     ))}
                 </select>
+
+                {visibleCount < matches.length && (
+                    <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+                        <button
+                            type="button"
+                            onClick={() => setVisibleCount(prev => Math.min(matches.length, prev + 10))}
+                            className="px-3 py-1.5 bg-sffl-navy/10 hover:bg-sffl-navy/20 dark:bg-gray-700 dark:hover:bg-gray-600 text-sffl-navy dark:text-white font-bold text-xs rounded-lg transition-colors"
+                        >
+                            + Load 10 More Matches
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setVisibleCount(matches.length)}
+                            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700/60 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold text-xs rounded-lg transition-colors"
+                        >
+                            Show All ({matches.length})
+                        </button>
+                    </div>
+                )}
             </div>
 
             {matchId && (

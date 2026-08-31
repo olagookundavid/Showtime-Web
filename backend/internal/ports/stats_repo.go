@@ -262,6 +262,24 @@ func buildStatsWhereClause(filter domain.StatsFilter) (string, []interface{}) {
 		argCount++
 	}
 
+	if filter.Position != "" && strings.ToUpper(strings.TrimSpace(filter.Position)) != "ALL" {
+		pos := strings.ToUpper(strings.TrimSpace(filter.Position))
+		switch pos {
+		case "QB", "QUARTERBACK":
+			conditions = append(conditions, "(UPPER(COALESCE(p.position, '')) = 'QB' OR UPPER(COALESCE(p.position, '')) = 'QUARTERBACK')")
+		case "REC", "RECEIVER", "CENTER", "C":
+			conditions = append(conditions, "(UPPER(COALESCE(p.position, '')) IN ('REC', 'RECEIVER', 'WR', 'WIDE RECEIVER', 'CENTER', 'C'))")
+		case "RUSH", "RUSHER":
+			conditions = append(conditions, "(UPPER(COALESCE(p.position, '')) IN ('RUSH', 'RUSHER', 'DE', 'DT', 'EDGE', 'BLITZER'))")
+		case "DEF", "DEFENDER":
+			conditions = append(conditions, "(UPPER(COALESCE(p.position, '')) IN ('DEF', 'DEFENDER', 'DB', 'CB', 'SAFETY', 'FS', 'SS', 'LB'))")
+		default:
+			conditions = append(conditions, fmt.Sprintf("UPPER(COALESCE(p.position, '')) = $%d", argCount))
+			args = append(args, pos)
+			argCount++
+		}
+	}
+
 	whereClause := ""
 	if len(conditions) > 0 {
 		whereClause = "WHERE " + strings.Join(conditions, " AND ")

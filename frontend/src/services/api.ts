@@ -1276,7 +1276,7 @@ export interface UpsertPlayerStatPayload {
     defensive_xp_tds: number;
 }
 
-export const getPlayerStats = async (compId?: string, eventDay?: string, page = 1, limit = 20, playerId?: string, search?: string, sort?: string, teamId?: string): Promise<PaginatedResponse<PlayerStat>> => {
+export const getPlayerStats = async (compId?: string, eventDay?: string, page = 1, limit = 20, playerId?: string, search?: string, sort?: string, teamId?: string, position?: string): Promise<PaginatedResponse<PlayerStat>> => {
     let url = '/stats/players';
     const params = new URLSearchParams();
     if (compId) params.append('competition_id', compId);
@@ -1285,6 +1285,7 @@ export const getPlayerStats = async (compId?: string, eventDay?: string, page = 
     if (teamId) params.append('team_id', teamId);
     if (search) params.append('search', search);
     if (sort) params.append('sort', sort);
+    if (position && position !== 'ALL') params.append('position', position);
     params.append('page', page.toString());
     params.append('limit', limit.toString());
     if (params.toString()) url += `?${params.toString()}`;

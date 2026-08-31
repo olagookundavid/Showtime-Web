@@ -154,8 +154,8 @@ export const StatsPage = () => {
     }, [urlDate, selectedDate]);
 
     const { data: playerStatsPagination, isLoading: loadingPlayers } = useQuery({
-        queryKey: ['playerStatsFiltered', selectedCompetitionId, selectedDate, page, urlPlayerId, searchQuery, sortBy, urlTeam],
-        queryFn: () => getPlayerStats(selectedCompetitionId, selectedDate, page, limit, urlPlayerId || undefined, searchQuery || undefined, sortBy || undefined, urlTeam || undefined),
+        queryKey: ['playerStatsFiltered', selectedCompetitionId, selectedDate, page, urlPlayerId, searchQuery, sortBy, urlTeam, positionFilter],
+        queryFn: () => getPlayerStats(selectedCompetitionId, selectedDate, page, limit, urlPlayerId || undefined, searchQuery || undefined, sortBy || undefined, urlTeam || undefined, positionFilter || undefined),
         enabled: activeTab === 'players',
     });
 
