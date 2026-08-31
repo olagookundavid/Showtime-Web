@@ -155,8 +155,19 @@ export const PlayersPage = () => {
                                 <Link to={`/players/${player.id}${selectedTeamId ? `?team=${selectedTeamId}` : ''}`} className="p-2 md:p-6 flex-1 flex flex-col justify-between hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                                     <div>
                                         <h3 className="text-xs md:text-2xl font-black text-sffl-navy dark:text-white truncate">{player.name}</h3>
-                                        <div className="text-[10px] md:text-sm text-sffl-red font-bold truncate">
-                                            {player.position}
+                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                            <span className="text-[10px] md:text-sm text-sffl-red font-bold truncate">
+                                                {player.position}
+                                            </span>
+                                            {player.gender && (
+                                                <span className={`text-[9px] md:text-xs font-bold px-1.5 py-0.5 rounded ${
+                                                    player.gender === 'F'
+                                                        ? 'bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-300'
+                                                        : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                                                }`}>
+                                                    {player.gender === 'F' ? 'F' : 'M'}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
 

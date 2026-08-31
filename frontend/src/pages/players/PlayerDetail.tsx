@@ -5,6 +5,7 @@ import { Loader } from '../../components/ui/Loader';
 import { Spinner } from '../../components/ui';
 import { useSearchParams } from 'react-router-dom';
 import { SeasonPlayoffTabs } from '../../components/common/SeasonPlayoffTabs';
+import { getStatsForPosition } from '../../utils/positionStatsMatrix';
 
 const StatCard = ({ label, value }: { label: string, value: number }) => {
     return (
@@ -223,24 +224,13 @@ export const PlayerDetail = () => {
                             </span>
                         </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
-                        <StatCard label="Passing TDs" value={stats.passing_tds} />
-                        <StatCard label="Comp. Passes" value={stats.completed_passes} />
-                        <StatCard label="Pass Attempts" value={stats.passing_attempts} />
-                        <StatCard label="Rushing TDs" value={stats.rushing_tds} />
-                        <StatCard label="Rush Attempts" value={stats.rushing_attempts} />
-                        <StatCard label="Receiving TDs" value={stats.receiving_tds} />
-                        <StatCard label="Receptions" value={stats.receptions} />
-                        <StatCard label="INT Thrown" value={stats.interceptions_thrown} />
-                        <StatCard label="INT Caught" value={stats.interceptions} />
-                        <StatCard label="DEF Sacks" value={stats.def_sacks} />
-                        <StatCard label="QB Sacks" value={stats.qb_sacks} />
-                        <StatCard label="Flag Pulls" value={stats.flag_pulls} />
-                        <StatCard label="DEF TDs" value={stats.defensive_tds} />
-                        <StatCard label="DEF XP TDs" value={stats.defensive_xp_tds ?? 0} />
-                        <StatCard label="Pass Deflect" value={stats.pass_deflections} />
-                        <StatCard label="Drops" value={stats.drops} />
-                        <StatCard label="Extra Points" value={stats.extra_points_tds} />
-                        <StatCard label="Safety" value={stats.safety} />
+                        {getStatsForPosition(player.position).map((statDef) => (
+                            <StatCard
+                                key={statDef.key}
+                                label={statDef.shortLabel}
+                                value={(stats as any)[statDef.key] ?? 0}
+                            />
+                        ))}
                     </div>
                 </div>
                 ) : (

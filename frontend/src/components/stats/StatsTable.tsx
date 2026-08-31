@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import type { PlayerStat, TeamStat } from '../../services/api';
 import { Link } from 'react-router-dom';
 import { LightboxImage, Spinner } from '../ui';
+import { normalizePosition, ALL_STAT_DEFINITIONS, POSITION_STAT_KEYS } from '../../utils/positionStatsMatrix';
 
 interface StatsTableProps {
     type: 'players' | 'teams';
@@ -10,54 +11,20 @@ interface StatsTableProps {
     sortBy?: string;
     onSortChange?: (key: string) => void;
     isLoading?: boolean;
+    positionFilter?: string;
 }
 
-// Order must mirror the stat cells in the table body below.
-// `top` is the category, `bottom` is the stat — rendered as two stacked lines
-// in the header (e.g. "Passing" over "ATT"). Single-concept columns leave
-// `top` empty and just show the bottom label.
-const STAT_COLS = [
-    { key: 'apps', top: '', bottom: 'Apps', title: 'Appearances (Games Played)', bg: '', playerOnly: true },
-    { key: 'passing_attempts', top: 'Pass', bottom: 'ATT', title: 'Pass Attempts', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
-    { key: 'completed_passes', top: 'Pass', bottom: 'COMP', title: 'Pass Completions', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
-    { key: 'incomplete_passes', top: 'Pass', bottom: 'INC', title: 'Incomplete Passes', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
-    { key: 'passing_yards', top: 'Pass', bottom: 'YDS', title: 'Passing Yards', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
-    { key: 'passing_tds', top: 'Pass', bottom: 'TDs', title: 'Passing Touchdowns', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
-    { key: 'interceptions_thrown', top: 'Int', bottom: 'Thrown', title: 'Interceptions Thrown', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
-    { key: 'uncatchable_passes', top: 'Pass', bottom: 'Unc', title: 'Uncatchable Passes', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
-    { key: 'thrown_away_passes', top: 'Pass', bottom: 'TA', title: 'Thrown-Away Passes', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
-    { key: 'batted_down_passes', top: 'Pass', bottom: 'Batted', title: 'Batted-Down Passes (QB)', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
-    { key: 'qb_sacks', top: 'QB', bottom: 'Sacks', title: 'QB Sacks Accounted (QB fault)', bg: 'bg-blue-50/30 dark:bg-blue-900/10' },
-    { key: 'rushing_attempts', top: 'Rush', bottom: 'ATT', title: 'Rushing Attempts', bg: 'bg-green-50/30 dark:bg-green-900/10' },
-    { key: 'rushing_yards', top: 'Rush', bottom: 'YDS', title: 'Rushing Yards', bg: 'bg-green-50/30 dark:bg-green-900/10' },
-    { key: 'rushing_tds', top: 'Rush', bottom: 'TDs', title: 'Rushing Touchdowns', bg: 'bg-green-50/30 dark:bg-green-900/10' },
-    { key: 'receptions', top: '', bottom: 'Rec', title: 'Receptions', bg: 'bg-yellow-50/30 dark:bg-yellow-900/10' },
-    { key: 'targets', top: '', bottom: 'Tgt', title: 'Targets (thrown to)', bg: 'bg-yellow-50/30 dark:bg-yellow-900/10' },
-    { key: 'receiving_yards', top: 'Rec', bottom: 'YDS', title: 'Receiving Yards', bg: 'bg-yellow-50/30 dark:bg-yellow-900/10' },
-    { key: 'receiving_tds', top: 'RC', bottom: 'TDs', title: 'Receiving Touchdowns', bg: 'bg-yellow-50/30 dark:bg-yellow-900/10' },
-    { key: 'drops', top: '', bottom: 'Drops', title: 'Drops', bg: 'bg-yellow-50/30 dark:bg-yellow-900/10' },
-    { key: 'xp_attempts', top: 'XP', bottom: 'Att', title: 'Extra-Point Attempts', bg: 'bg-purple-50/30 dark:bg-purple-900/10' },
-    { key: 'xp_good', top: 'XP', bottom: 'Good', title: 'Extra Points Made', bg: 'bg-purple-50/30 dark:bg-purple-900/10' },
-    { key: 'xp_fail', top: 'XP', bottom: 'Fail', title: 'Extra Points Failed', bg: 'bg-purple-50/30 dark:bg-purple-900/10' },
-    { key: 'extra_points_tds', top: 'X-Pts', bottom: 'TDs', title: 'Extra Point Touchdowns (scorer)', bg: 'bg-purple-50/30 dark:bg-purple-900/10' },
-    { key: 'flag_pulls', top: 'Flag', bottom: 'Pulls', title: 'Flag Pulls (Tackles)', bg: 'bg-red-50/30 dark:bg-red-900/10' },
-    { key: 'pass_deflections', top: 'Pass', bottom: 'Defl', title: 'Pass Deflections', bg: 'bg-red-50/30 dark:bg-red-900/10' },
-    { key: 'interceptions', top: 'Def', bottom: 'INT', title: 'Interceptions Caught', bg: 'bg-red-50/30 dark:bg-red-900/10' },
-    { key: 'def_sacks', top: 'Def', bottom: 'Sacks', title: 'Defensive Sacks (Def fault)', bg: 'bg-red-50/30 dark:bg-red-900/10' },
-    { key: 'defensive_tds', top: 'Def', bottom: 'TDs', title: 'Defensive Touchdowns', bg: 'bg-red-50/30 dark:bg-red-900/10' },
-    { key: 'defensive_xp_tds', top: 'Def XP', bottom: 'TDs', title: 'Defensive Extra-Point TDs (interception returned on an extra point)', bg: 'bg-red-50/30 dark:bg-red-900/10' },
-    { key: 'safety', top: '', bottom: 'Safety', title: 'Safeties', bg: 'bg-red-50/30 dark:bg-red-900/10' },
-    { key: 'safety_conceded', top: 'Safety', bottom: 'Conc', title: 'Safeties Conceded (QB)', bg: 'bg-red-50/30 dark:bg-red-900/10' },
-    // Team-only stats — shown only in the team view, tinted amber and set off
-    // with a divider so they read as a distinct block after the player totals.
-    { key: 'total_plays', top: 'Team', bottom: 'Plays', title: 'Total Plays (from scrimmage)', bg: 'bg-amber-50 dark:bg-amber-900/20', teamOnly: true, divider: true },
-    { key: 'drives', top: 'Team', bottom: 'Drives', title: 'Offensive Drives', bg: 'bg-amber-50 dark:bg-amber-900/20', teamOnly: true },
-    { key: 'first_downs', top: 'Team', bottom: '1st Dn', title: 'First Downs', bg: 'bg-amber-50 dark:bg-amber-900/20', teamOnly: true },
-    { key: 'turnovers', top: 'Team', bottom: 'TO', title: 'Turnovers', bg: 'bg-amber-50 dark:bg-amber-900/20', teamOnly: true },
-    { key: 'punts', top: 'Team', bottom: 'Punts', title: 'Punts', bg: 'bg-amber-50 dark:bg-amber-900/20', teamOnly: true },
-    { key: 'penalties', top: 'Team', bottom: 'Pen', title: 'Penalties', bg: 'bg-amber-50 dark:bg-amber-900/20', teamOnly: true },
-    { key: 'penalty_yards', top: 'Pen', bottom: 'YDS', title: 'Penalty Yards', bg: 'bg-amber-50 dark:bg-amber-900/20', teamOnly: true },
-];
+// Map from ALL_STAT_DEFINITIONS to table column format
+const STAT_COLS = ALL_STAT_DEFINITIONS.map(def => ({
+    key: def.key,
+    top: def.topHeader ?? '',
+    bottom: def.bottomHeader,
+    title: def.title,
+    bg: def.bg ?? '',
+    playerOnly: def.playerOnly,
+    teamOnly: def.teamOnly,
+    divider: def.divider
+}));
 
 // A thicker left border marks the boundary where team-only stats begin.
 const dividerClass = (col: { divider?: boolean }) => (col.divider ? 'border-l-2 border-l-amber-400 dark:border-l-amber-600' : '');
@@ -67,14 +34,32 @@ const dividerClass = (col: { divider?: boolean }) => (col.divider ? 'border-l-2 
 const STICKY_HEAD_BG = 'bg-gray-50 dark:bg-gray-800';
 const STICKY_BODY_BG = 'bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-800';
 
-export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], teamStats = [], sortBy = '', onSortChange, isLoading = false }) => {
+export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], teamStats = [], sortBy = '', onSortChange, isLoading = false, positionFilter = 'QB' }) => {
     const isPlayer = type === 'players';
-    const rawData = isPlayer ? playerStats : teamStats;
+    const normalizedPos = normalizePosition(positionFilter);
+
+    // If a position filter is active, filter player rows by normalized position (Center is treated as Receiver)
+    const filteredPlayerStats = useMemo(() => {
+        if (!isPlayer || normalizedPos === 'ALL') return playerStats;
+        return playerStats.filter(p => normalizePosition(p.player_position) === normalizedPos);
+    }, [isPlayer, playerStats, normalizedPos]);
+
+    const rawData = isPlayer ? filteredPlayerStats : teamStats;
 
     const [localSortBy, setLocalSortBy] = useState<string>('');
     const activeSortBy = sortBy || localSortBy;
 
-    const visibleStatCols = STAT_COLS.filter(c => isPlayer ? !(c as { teamOnly?: boolean }).teamOnly : !c.playerOnly);
+    // Filter visible columns based on whether viewing teams or a specific player position
+    const visibleStatCols = useMemo(() => {
+        if (!isPlayer) {
+            return STAT_COLS.filter(c => !c.playerOnly);
+        }
+        if (normalizedPos === 'ALL') {
+            return STAT_COLS.filter(c => !c.teamOnly);
+        }
+        const allowedKeys = new Set(POSITION_STAT_KEYS[normalizedPos]);
+        return STAT_COLS.filter(c => !c.teamOnly && allowedKeys.has(c.key));
+    }, [isPlayer, normalizedPos]);
 
     // Clicking a stat header ranks leaders first (server-side if callback provided,
     // otherwise client-side sort); clicking it again returns to default order.

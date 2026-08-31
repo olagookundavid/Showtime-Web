@@ -15,6 +15,7 @@ export const StatsPage = () => {
     const urlSearch = searchParams.get('search');
     const urlTeam = searchParams.get('team');
     const urlTab = searchParams.get('tab');
+    const urlPos = searchParams.get('pos');
 
     const [selectedCompetitionId, setSelectedCompetitionId] = useState<string>(() => {
         return urlComp || sessionStorage.getItem('sffl_stats_comp') || '';
@@ -24,6 +25,9 @@ export const StatsPage = () => {
     });
     const [searchQuery, setSearchQuery] = useState(() => {
         return urlSearch || sessionStorage.getItem('sffl_stats_search') || '';
+    });
+    const [positionFilter, setPositionFilter] = useState<string>(() => {
+        return urlPos || 'QB';
     });
     const [activeTab, setActiveTab] = useState<'players' | 'teams'>(() => {
         const storedTab = sessionStorage.getItem('sffl_stats_tab');
@@ -72,12 +76,13 @@ export const StatsPage = () => {
         if (urlComp && urlComp !== selectedCompetitionId) setSelectedCompetitionId(urlComp);
         if (urlDate !== null && urlDate !== selectedDate) setSelectedDate(urlDate);
         if (urlSearch !== null && urlSearch !== searchQuery) setSearchQuery(urlSearch);
+        if (urlPos !== null && urlPos !== positionFilter) setPositionFilter(urlPos || 'QB');
         
         const targetTab = urlTab === 'teams' ? 'teams' : 'players';
         if (urlTab && targetTab !== activeTab) {
             setActiveTab(targetTab);
         }
-    }, [urlComp, urlDate, urlSearch, urlTab]);
+    }, [urlComp, urlDate, urlSearch, urlTab, urlPos]);
 
     // Sync restored/default state back to URL parameters if they are missing
     useEffect(() => {
@@ -96,6 +101,10 @@ export const StatsPage = () => {
             params.set('search', searchQuery);
             updated = true;
         }
+        if (positionFilter && !params.has('pos')) {
+            params.set('pos', positionFilter);
+            updated = true;
+        }
         if (activeTab && !params.has('tab')) {
             params.set('tab', activeTab);
             updated = true;
@@ -104,7 +113,7 @@ export const StatsPage = () => {
         if (updated) {
             setSearchParams(params, { replace: true });
         }
-    }, [selectedCompetitionId, selectedDate, searchQuery, activeTab, searchParams, setSearchParams]);
+    }, [selectedCompetitionId, selectedDate, searchQuery, positionFilter, activeTab, searchParams, setSearchParams]);
 
     const { data: competitionsData, isLoading: compLoading } = useQuery({
         queryKey: ['publicCompetitions'],
@@ -433,6 +442,44 @@ export const StatsPage = () => {
                         )}
                     </div>
 
+                    {/* Position Filter Pills (When Player Stats Tab is Active) */}
+                    {activeTab === 'players' && (
+                        <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide py-1 bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                            <span className="text-xs font-black uppercase tracking-wider text-gray-400 dark:text-gray-400 shrink-0 mr-1 flex items-center gap-1.5">
+                                <span>🏈</span> Position:
+                            </span>
+                            {[
+                                { id: 'QB', label: 'Quarterbacks (QB)' },
+                                { id: 'REC', label: 'Receivers / Centers (REC)' },
+                                { id: 'RUSH', label: 'Rushers (RUSH)' },
+                                { id: 'DEF', label: 'Defenders (DEF)' },
+                            ].map((pos) => {
+                                const isActive = (positionFilter || 'QB') === pos.id;
+                                return (
+                                    <button
+                                        key={pos.id}
+                                        type="button"
+                                        onClick={() => {
+                                            setPositionFilter(pos.id);
+                                            setSortBy('');
+                                            setPage(1);
+                                            const params = new URLSearchParams(searchParams);
+                                            params.set('pos', pos.id);
+                                            setSearchParams(params, { replace: true });
+                                        }}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all shrink-0 cursor-pointer ${
+                                            isActive
+                                                ? 'bg-sffl-navy dark:bg-sffl-red text-white shadow-md scale-105'
+                                                : 'bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+                                        }`}
+                                    >
+                                        {pos.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+
                     <StatsTable
                         type={activeTab}
                         playerStats={playerStats}
@@ -440,6 +487,7 @@ export const StatsPage = () => {
                         sortBy={sortBy}
                         onSortChange={handleSortChange}
                         isLoading={activeTab === 'players' ? loadingPlayers : loadingTeams}
+                        positionFilter={positionFilter}
                     />
 
                     {/* Pagination Controls */}

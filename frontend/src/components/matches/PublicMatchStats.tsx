@@ -7,6 +7,7 @@ import { Spinner } from '../ui';
 export const PublicMatchStats = ({ matchId }: { matchId: string }) => {
     const [activeTab, setActiveTab] = useState<'players' | 'teams'>('players');
     const [selectedTeamId, setSelectedTeamId] = useState<string>('all');
+    const [positionFilter, setPositionFilter] = useState<string>('ALL');
     const [sortBy, setSortBy] = useState<string>('');
 
     const { data, isLoading, isError } = useQuery({
@@ -211,12 +212,34 @@ export const PublicMatchStats = ({ matchId }: { matchId: string }) => {
                             ))}
                         </div>
                     )}
+
+                    {/* Position Filter Pills (Player Stats view only) */}
+                    {activeTab === 'players' && (
+                        <div className="flex items-center gap-1.5 flex-wrap w-full pt-2 border-t border-gray-100 dark:border-gray-700/50">
+                            <span className="text-[11px] font-bold text-gray-400 mr-1">Position:</span>
+                            {[
+                                { id: 'QB', label: 'QB' },
+                                { id: 'REC', label: 'REC / Center' },
+                                { id: 'RUSH', label: 'RUSH' },
+                                { id: 'DEF', label: 'DEF' },
+                            ].map(p => (
+                                <button
+                                    key={p.id}
+                                    type="button"
+                                    onClick={() => setPositionFilter(p.id)}
+                                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${positionFilter === p.id ? 'bg-sffl-navy dark:bg-sffl-red text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200'}`}
+                                >
+                                    {p.label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
 
             {/* Render Stats Table */}
             {activeTab === 'players' ? (
-                <StatsTable type="players" playerStats={filteredPlayerStats} sortBy={sortBy} onSortChange={setSortBy} />
+                <StatsTable type="players" playerStats={filteredPlayerStats} sortBy={sortBy} onSortChange={setSortBy} positionFilter={positionFilter} />
             ) : (
                 <StatsTable type="teams" teamStats={derivedTeamStats} sortBy={sortBy} onSortChange={setSortBy} />
             )}

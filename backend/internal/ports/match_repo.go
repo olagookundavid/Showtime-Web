@@ -943,7 +943,7 @@ func (r *PostgresMatchRepository) GetTeamSheet(ctx context.Context, matchID stri
 	// come from player_stats (per player), not team_match_stats — a backup QB must
 	// not be credited with the starter's whole-game totals.
 	query := `
-		SELECT mts.team_id, p.id, p.name, p.jersey_number, p.position, p.image,
+		SELECT mts.team_id, p.id, p.name, p.jersey_number, p.position, COALESCE(p.gender, ''), p.image,
 			COALESCE(ps.receptions, 0), COALESCE(ps.receiving_tds, 0),
 			COALESCE(ps.extra_points_tds, 0), COALESCE(ps.drops, 0),
 			COALESCE(ps.flag_pulls, 0), COALESCE(ps.pass_deflections, 0),
@@ -978,7 +978,7 @@ func (r *PostgresMatchRepository) GetTeamSheet(ctx context.Context, matchID stri
 		// image might be null
 		var img *string
 		var line domain.RatingStatLine
-		if err := rows.Scan(&teamID, &p.PlayerID, &p.Name, &p.JerseyNumber, &p.Position, &img,
+		if err := rows.Scan(&teamID, &p.PlayerID, &p.Name, &p.JerseyNumber, &p.Position, &p.Gender, &img,
 			&line.Receptions, &line.ReceivingTDs, &line.ExtraPointTDs, &line.Drops,
 			&line.FlagPulls, &line.PassDeflections, &line.Interceptions, &line.DefensiveTDs,
 			&line.Safeties, &line.DefensiveXPTDs, &line.DefensiveSacks,
@@ -1094,6 +1094,7 @@ func (r *PostgresMatchRepository) GetEligiblePlayersForMatchDay(ctx context.Cont
 			p.id, p.name,
 			COALESCE(p.jersey_number, 0) AS jersey_number,
 			COALESCE(p.position, '') AS position,
+			COALESCE(p.gender, '') AS gender,
 			p.team_id,
 			COALESCE(p.bio, '') AS bio,
 			COALESCE(p.image, '') AS image,
@@ -1118,7 +1119,7 @@ func (r *PostgresMatchRepository) GetEligiblePlayersForMatchDay(ctx context.Cont
 		var p domain.Player
 		var team domain.Team
 		if err := rows.Scan(
-			&p.ID, &p.Name, &p.JerseyNumber, &p.Position, &p.TeamID, &p.Bio,
+			&p.ID, &p.Name, &p.JerseyNumber, &p.Position, &p.Gender, &p.TeamID, &p.Bio,
 			&p.Image, &p.Email,
 			&p.CreatedAt, &p.UpdatedAt,
 			&team.ID, &team.Name, &team.ShortName, &team.Logo,

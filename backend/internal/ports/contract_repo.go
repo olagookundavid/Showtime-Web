@@ -336,6 +336,7 @@ func (r *PostgresContractRepository) GetFreeAgents(ctx context.Context, search s
 	query := `
 		SELECT
 			p.id, p.name, COALESCE(p.jersey_number, 0), COALESCE(p.position, ''),
+			COALESCE(p.gender, ''),
 			COALESCE(p.team_id::text, ''), COALESCE(p.bio, ''), COALESCE(p.image, ''),
 			p.email, p.user_id, p.created_at, p.updated_at
 		FROM players p` + whereClause + ` ORDER BY p.name ASC`
@@ -361,6 +362,7 @@ func (r *PostgresContractRepository) GetFreeAgents(ctx context.Context, search s
 		var uid *string
 		err := rows.Scan(
 			&p.ID, &p.Name, &p.JerseyNumber, &p.Position,
+			&p.Gender,
 			&p.TeamID, &p.Bio, &p.Image, &p.Email, &uid,
 			&p.CreatedAt, &p.UpdatedAt,
 		)

@@ -403,6 +403,7 @@ func (s *ContractService) GetFreeAgents(ctx context.Context, search string, page
 			Name:         p.Name,
 			JerseyNumber: p.JerseyNumber,
 			Position:     p.Position,
+			Gender:       p.Gender,
 			Bio:          p.Bio,
 			Image:        p.Image,
 			Email:        p.Email,
@@ -682,6 +683,7 @@ func (s *ContractService) mapContractToResponse(c *domain.Contract, currentTeamM
 			Name:         c.Player.Name,
 			JerseyNumber: c.Player.JerseyNumber,
 			Position:     c.Player.Position,
+			Gender:       c.Player.Gender,
 			Image:        c.Player.Image,
 		}
 	}

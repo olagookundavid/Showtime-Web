@@ -17,30 +17,11 @@ import { Loader } from '../../components/ui/Loader';
 import { LightboxImage } from '../../components/ui';
 import { DataTable, type Column } from '../../components/ui/DataTable';
 import { useAuth } from '../../contexts/AuthContext';
+import { ALL_STAT_DEFINITIONS, getStatsForPosition } from '../../utils/positionStatsMatrix';
 
-const STAT_FIELDS = [
-    { key: 'passing_attempts', label: 'Pass Attempts' },
-    { key: 'completed_passes', label: 'Pass Completions' },
-    { key: 'passing_tds', label: 'Pass TDs' },
-    { key: 'interceptions_thrown', label: 'INTs Thrown' },
-    { key: 'qb_sacks', label: 'QB Sacks' },
-    { key: 'rushing_attempts', label: 'Rush Attempts' },
-    { key: 'rushing_tds', label: 'Rush TDs' },
-    { key: 'receptions', label: 'Receptions' },
-    { key: 'receiving_tds', label: 'Rec. TDs' },
-    { key: 'drops', label: 'Drops' },
-    { key: 'flag_pulls', label: 'Flag Pulls (Tackles)' },
-    { key: 'interceptions', label: 'INTs Caught' },
-    { key: 'pass_deflections', label: 'Pass Deflections' },
-    { key: 'def_sacks', label: 'Defensive Sacks' },
-    { key: 'defensive_tds', label: 'Defensive TDs' },
-    { key: 'defensive_xp_tds', label: 'Def. XP TDs' },
-    { key: 'extra_points_tds', label: 'Extra Points' },
-    { key: 'safety', label: 'Safeties' },
-] as const;
+const STAT_FIELDS = ALL_STAT_DEFINITIONS.filter(s => !s.teamOnly);
 
-type StatKeys = typeof STAT_FIELDS[number]['key'];
-type FormState = Record<StatKeys, string>;
+type FormState = Record<string, string>;
 
 const emptyForm: FormState = STAT_FIELDS.reduce((acc, field) => {
     acc[field.key] = '0';
@@ -333,12 +314,12 @@ export const AdminStats = () => {
                             </div>
 
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                {STAT_FIELDS.map(field => (
+                                {getStatsForPosition(activePlayer.position).filter(s => !s.teamOnly).map(field => (
                                     <div key={field.key} className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl border border-gray-200 dark:border-gray-600">
                                         <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2 uppercase tracking-wider">{field.label}</label>
                                         <input
                                             type="number"
-                                            value={form[field.key]}
+                                            value={form[field.key] ?? '0'}
                                             onChange={e => setForm({ ...form, [field.key]: e.target.value })}
                                             className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 font-bold text-center text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-sffl-red outline-none transition-all"
                                         />

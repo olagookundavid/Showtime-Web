@@ -121,6 +121,7 @@ type TeamSheetPlayer struct {
 	Name         string `json:"name" db:"name"`
 	JerseyNumber int    `json:"jersey_number" db:"jersey_number"`
 	Position     string `json:"position" db:"position"`
+	Gender       string `json:"gender,omitempty" db:"gender"`
 	Image        string `json:"image" db:"image"`
 	// Rating is this player's per-match rating (Receiver/Defender/Rusher only).
 	// nil when the position isn't rateable (QB or undetermined "-") or the player

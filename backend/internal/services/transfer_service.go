@@ -806,6 +806,7 @@ func (s *TransferService) mapTransferToResponse(t *domain.Transfer) dto.Transfer
 			Name:         t.Player.Name,
 			JerseyNumber: t.Player.JerseyNumber,
 			Position:     t.Player.Position,
+			Gender:       t.Player.Gender,
 			Image:        t.Player.Image,
 		}
 	}

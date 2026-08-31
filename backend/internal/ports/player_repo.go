@@ -158,7 +158,7 @@ func (r *PostgresPlayerRepository) CreatePlayer(ctx context.Context, player *dom
 
 	query := `
 		INSERT INTO players (name, jersey_number, position, team_id, bio, image, email, user_id, gender)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9, ''))
 		RETURNING id, created_at, updated_at
 	`
 	return r.db.QueryRow(ctx, query,
@@ -185,7 +185,7 @@ func (r *PostgresPlayerRepository) UpdatePlayer(ctx context.Context, player *dom
 
 	query := `
 		UPDATE players SET
-			name=$1, jersey_number=$2, position=$3, team_id=NULLIF($4::text, '')::uuid, bio=$5, image=$6, email=$7, user_id=COALESCE($8, user_id), gender=$9,
+			name=$1, jersey_number=$2, position=$3, team_id=NULLIF($4::text, '')::uuid, bio=$5, image=$6, email=$7, user_id=COALESCE($8, user_id), gender=NULLIF($9, ''),
 			updated_at=NOW()
 		WHERE id=$10
 	`
