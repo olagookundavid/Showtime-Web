@@ -25,6 +25,7 @@ export interface Player {
     teamId: string;
     number: number;
     position: string;
+    gender?: string;
     stats: {
         touchdowns: number;
         interceptions: number;

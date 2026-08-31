@@ -3,6 +3,7 @@ export interface Player {
     name: string;
     jerseyNumber: number;
     position: string;
+    gender?: string;
     team: string;
     stats: {
         touchdowns: number;

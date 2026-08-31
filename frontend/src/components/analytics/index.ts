@@ -1,0 +1,1 @@
+export { BrevoTracker } from './BrevoTracker';

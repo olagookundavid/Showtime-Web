@@ -113,6 +113,8 @@ import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { Toaster } from 'react-hot-toast';
 import { FloatingThemeToggle } from './components/common/FloatingThemeToggle';
 import { AdSenseScript } from './components/monetization';
+import { BrevoTracker } from './components/analytics';
+import { Analytics } from '@vercel/analytics/react';
 import './index.css';
 
 function App() {
@@ -126,6 +128,10 @@ function App() {
         <BrowserRouter>
           <ScrollToTop />
           <AdSenseScript />
+          {/* Visitor analytics. Both render null; see config/analytics.ts for
+              why there are two and what each one is actually good for. */}
+          <Analytics />
+          <BrevoTracker />
           <ErrorBoundary>
             <Suspense fallback={<Loader />}>
               <Routes>

@@ -481,6 +481,7 @@ export interface TeamSheetPlayer {
     name: string;
     jersey_number: number;
     position: string;
+    gender?: string;
     image: string;
     // Per-match rating (Receiver/Defender/Rusher only). Null/absent for QB and
     // undetermined "-" positions, and for rateable players with no activity.
@@ -566,6 +567,7 @@ export interface Player {
     name: string;
     jersey_number: number;
     position: string;
+    gender?: string;
     team: Team;
     bio: string;
     image: string;
@@ -634,6 +636,7 @@ export interface CreatePlayerPayload {
     name: string;
     jersey_number?: number;
     position?: string;
+    gender?: string;
     team_id: string;
     bio?: string;
     image?: string;
