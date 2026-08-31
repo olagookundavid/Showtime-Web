@@ -408,7 +408,24 @@ export const AdminPlayByPlay = () => {
     // games) sit at the top instead of scattered through whatever order the
     // API returned.
     const matches: Match[] = useMemo(() => {
-        return [...(matchesData?.data || [])].sort(
+        const rawMatches = matchesData?.data || [];
+        
+        // Get today's YYYY-MM-DD in local time to accurately filter out future matches
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const todayDateOnly = `${year}-${month}-${day}`;
+
+        // Only show matches that have been played (FINISHED / LIVE) or are scheduled for today or earlier
+        const playableMatches = rawMatches.filter(m => {
+            if (m.status === 'FINISHED' || m.status === 'LIVE') return true;
+            if (!m.date) return false;
+            const matchDateOnly = m.date.includes('T') ? m.date.split('T')[0] : m.date.substring(0, 10);
+            return matchDateOnly <= todayDateOnly;
+        });
+
+        return playableMatches.sort(
             (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
         );
     }, [matchesData]);
