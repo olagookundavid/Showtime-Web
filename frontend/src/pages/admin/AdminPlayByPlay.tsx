@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
@@ -166,26 +166,106 @@ interface PlayerFieldProps {
     value: string; // player_id
     onChange: (v: string) => void;
     roster: TeamSheetPlayer[];
+    favoriteIds?: string[];
 }
 
-const PlayerField = ({ label, value, onChange, roster }: PlayerFieldProps) => {
+const PlayerField = ({ label, value, onChange, roster, favoriteIds = [] }: PlayerFieldProps) => {
     const [query, setQuery] = useState('');
     const [isOpen, setIsOpen] = useState(false);
 
     const selectedPlayer = roster.find(p => p.player_id === value);
 
-    const filtered = sortedRoster(roster).filter(p => {
-        const q = query.toLowerCase().trim();
-        if (!q) return true;
-        const numMatch = p.jersey_number ? String(p.jersey_number) === q : false;
-        const nameMatch = p.name.toLowerCase().includes(q);
-        const posMatch = p.position ? p.position.toLowerCase().includes(q) : false;
-        return numMatch || nameMatch || posMatch;
-    });
+    // Resolve up to 3 favorites from roster
+    const favoritePlayers = useMemo(() => {
+        if (!favoriteIds || favoriteIds.length === 0) return [];
+        return favoriteIds
+            .map(id => roster.find(p => p.player_id === id))
+            .filter((p): p is TeamSheetPlayer => Boolean(p))
+            .slice(0, 3);
+    }, [favoriteIds, roster]);
+
+    // Smart dual search: numbers (jersey #) vs letters (name / position)
+    const filtered = useMemo(() => {
+        const q = query.trim();
+        if (!q) return sortedRoster(roster);
+
+        const cleanQuery = q.startsWith('#') ? q.slice(1) : q;
+        const isNumeric = /^\d+$/.test(cleanQuery);
+
+        if (isNumeric) {
+            // Jersey number search: exact number matches first, then prefix matches
+            return [...roster]
+                .filter(p => {
+                    if (p.jersey_number == null) return false;
+                    const jStr = String(p.jersey_number);
+                    return jStr === cleanQuery || jStr.startsWith(cleanQuery) || jStr.includes(cleanQuery);
+                })
+                .sort((a, b) => {
+                    const aStr = String(a.jersey_number || '');
+                    const bStr = String(b.jersey_number || '');
+                    if (aStr === cleanQuery && bStr !== cleanQuery) return -1;
+                    if (bStr === cleanQuery && aStr !== cleanQuery) return 1;
+                    if (aStr.startsWith(cleanQuery) && !bStr.startsWith(cleanQuery)) return -1;
+                    if (bStr.startsWith(cleanQuery) && !aStr.startsWith(cleanQuery)) return 1;
+                    return (a.jersey_number || 0) - (b.jersey_number || 0);
+                });
+        } else {
+            // Text / Name search
+            const qLower = q.toLowerCase();
+            return [...roster]
+                .filter(p => {
+                    const nameMatch = p.name.toLowerCase().includes(qLower);
+                    const posMatch = p.position ? p.position.toLowerCase().includes(qLower) : false;
+                    return nameMatch || posMatch;
+                })
+                .sort((a, b) => {
+                    const aStarts = a.name.toLowerCase().startsWith(qLower);
+                    const bStarts = b.name.toLowerCase().startsWith(qLower);
+                    if (aStarts && !bStarts) return -1;
+                    if (bStarts && !aStarts) return 1;
+                    return a.name.localeCompare(b.name);
+                });
+        }
+    }, [roster, query]);
 
     return (
         <div className="relative">
-            <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">{label}</label>
+            <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-300">{label}</label>
+                {selectedPlayer && (
+                    <span className="text-[11px] font-semibold text-sffl-red">
+                        #{selectedPlayer.jersey_number} {selectedPlayer.name}
+                    </span>
+                )}
+            </div>
+
+            {/* Quick Favorites Pill Bar (up to 3) */}
+            {favoritePlayers.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-0.5">
+                        ⭐ Quick:
+                    </span>
+                    {favoritePlayers.map(p => (
+                        <button
+                            key={p.player_id}
+                            type="button"
+                            onClick={() => {
+                                onChange(p.player_id);
+                                setQuery('');
+                                setIsOpen(false);
+                            }}
+                            className={`text-xs font-bold px-2 py-0.5 rounded-md border transition-all ${
+                                value === p.player_id
+                                    ? 'bg-sffl-red text-white border-sffl-red shadow-sm'
+                                    : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-600'
+                            }`}
+                        >
+                            {p.jersey_number ? `#${p.jersey_number} ` : ''}{p.name.split(' ')[0]}
+                        </button>
+                    ))}
+                </div>
+            )}
+
             <div className="relative">
                 <input
                     type="text"
@@ -206,31 +286,61 @@ const PlayerField = ({ label, value, onChange, roster }: PlayerFieldProps) => {
                     </button>
                 )}
             </div>
+
             {isOpen && (
-                <div className="absolute z-30 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800">
+                <div className="absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
                     <button
                         type="button"
-                        onMouseDown={() => { onChange(''); setIsOpen(false); }}
+                        onMouseDown={() => { onChange(''); setIsOpen(false); setQuery(''); }}
                         className="w-full px-3 py-2 text-left text-xs font-bold text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                     >
                         — Clear selection —
                     </button>
-                    {filtered.length === 0 ? (
-                        <div className="px-3 py-2 text-xs text-gray-500">No matching player</div>
-                    ) : (
-                        filtered.map(p => (
-                            <button
-                                key={p.player_id}
-                                type="button"
-                                onMouseDown={() => { onChange(p.player_id); setIsOpen(false); setQuery(''); }}
-                                className={`w-full px-3 py-2 text-left text-sm font-semibold hover:bg-sffl-red/10 dark:hover:bg-sffl-red/20 ${p.player_id === value ? 'bg-sffl-red/10 text-sffl-red font-bold' : 'text-gray-900 dark:text-white'}`}
-                            >
-                                {p.jersey_number ? <span className="inline-block w-8 text-sffl-red font-bold">#{p.jersey_number}</span> : null}
-                                <span>{p.name}</span>
-                                {p.position ? <span className="ml-2 text-xs font-normal text-gray-400">({p.position})</span> : null}
-                            </button>
-                        ))
+
+                    {/* If no active search query and favorites exist, show favorites section first */}
+                    {!query.trim() && favoritePlayers.length > 0 && (
+                        <div className="py-1">
+                            <div className="px-3 py-1 bg-amber-50/60 dark:bg-amber-950/30 text-[10px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                                ⭐ Recent Favorites ({favoritePlayers.length})
+                            </div>
+                            {favoritePlayers.map(p => (
+                                <button
+                                    key={`fav-${p.player_id}`}
+                                    type="button"
+                                    onMouseDown={() => { onChange(p.player_id); setIsOpen(false); setQuery(''); }}
+                                    className={`w-full px-3 py-2 text-left text-sm font-semibold hover:bg-sffl-red/10 dark:hover:bg-sffl-red/20 ${p.player_id === value ? 'bg-sffl-red/10 text-sffl-red font-bold' : 'text-gray-900 dark:text-white'}`}
+                                >
+                                    {p.jersey_number ? <span className="inline-block w-8 text-sffl-red font-bold">#{p.jersey_number}</span> : null}
+                                    <span>{p.name}</span>
+                                    {p.position ? <span className="ml-2 text-xs font-normal text-gray-400">({p.position})</span> : null}
+                                </button>
+                            ))}
+                        </div>
                     )}
+
+                    <div>
+                        {!query.trim() && favoritePlayers.length > 0 && (
+                            <div className="px-3 py-1 bg-gray-50 dark:bg-gray-700/50 text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                All Players
+                            </div>
+                        )}
+                        {filtered.length === 0 ? (
+                            <div className="px-3 py-2 text-xs text-gray-500">No matching player</div>
+                        ) : (
+                            filtered.map(p => (
+                                <button
+                                    key={p.player_id}
+                                    type="button"
+                                    onMouseDown={() => { onChange(p.player_id); setIsOpen(false); setQuery(''); }}
+                                    className={`w-full px-3 py-2 text-left text-sm font-semibold hover:bg-sffl-red/10 dark:hover:bg-sffl-red/20 ${p.player_id === value ? 'bg-sffl-red/10 text-sffl-red font-bold' : 'text-gray-900 dark:text-white'}`}
+                                >
+                                    {p.jersey_number ? <span className="inline-block w-8 text-sffl-red font-bold">#{p.jersey_number}</span> : null}
+                                    <span>{p.name}</span>
+                                    {p.position ? <span className="ml-2 text-xs font-normal text-gray-400">({p.position})</span> : null}
+                                </button>
+                            ))
+                        )}
+                    </div>
                 </div>
             )}
         </div>
@@ -550,9 +660,97 @@ export const AdminPlayByPlay = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [plays, matchId]);
 
-    const offenseTeamId = ctx.offense === 'home' ? match?.home_team?.id : ctx.offense === 'away' ? match?.away_team?.id : undefined;
+    const [recentPlayers, setRecentPlayers] = useState<Record<string, string[]>>({});
+    const syncedOffenseRef = useRef<string>('');
 
-    const resetWizard = () => setW(emptyWizard);
+    const offenseTeamId = ctx.offense === 'home' ? match?.home_team?.id : ctx.offense === 'away' ? match?.away_team?.id : undefined;
+    const defenseTeamId = ctx.offense === 'home' ? match?.away_team?.id : ctx.offense === 'away' ? match?.home_team?.id : undefined;
+    const penaltyTeamId = w.penaltyTeam === 'home' ? match?.home_team?.id : w.penaltyTeam === 'away' ? match?.away_team?.id : offenseTeamId;
+
+    // Seed recent/favorite players from the existing match plays
+    useEffect(() => {
+        if (!plays || plays.length === 0 || !match) return;
+        const initialRecents: Record<string, string[]> = {};
+        const addRecent = (roleKey: string, playerId?: string) => {
+            if (!playerId) return;
+            const list = initialRecents[roleKey] || [];
+            if (!list.includes(playerId)) {
+                list.push(playerId);
+                initialRecents[roleKey] = list.slice(0, 3);
+            }
+        };
+
+        const reversedPlays = [...plays].sort((a, b) => (b.seq ?? 0) - (a.seq ?? 0));
+        for (const p of reversedPlays) {
+            const offTeamId = p.offense_team_id;
+            const defTeamId = offTeamId === match.home_team?.id ? match.away_team?.id : match.home_team?.id;
+
+            if (offTeamId) {
+                if (p.center_id) addRecent(`${offTeamId}_center`, p.center_id);
+                if (p.off_qb_id) addRecent(`${offTeamId}_qb`, p.off_qb_id);
+                if (p.target_id) {
+                    addRecent(`${offTeamId}_target`, p.target_id);
+                    addRecent(`${offTeamId}_carrier`, p.target_id);
+                }
+            }
+            if (defTeamId) {
+                if (p.rusher_id) addRecent(`${defTeamId}_rusher`, p.rusher_id);
+                if (p.defender_id) addRecent(`${defTeamId}_defender`, p.defender_id);
+            }
+        }
+
+        setRecentPlayers(prev => ({ ...initialRecents, ...prev }));
+    }, [plays, match]);
+
+    const getFavorites = (teamId: string | undefined, role: string): string[] => {
+        if (!teamId) return [];
+        return recentPlayers[`${teamId}_${role}`] || [];
+    };
+
+    const handlePlayerSelect = (wizardField: keyof Wizard, teamId: string | undefined, role: string, playerId: string) => {
+        setField(wizardField, playerId);
+        if (playerId && teamId) {
+            setRecentPlayers(prev => {
+                const roleKey = `${teamId}_${role}`;
+                const existing = prev[roleKey] || [];
+                const filtered = existing.filter(id => id !== playerId);
+                return {
+                    ...prev,
+                    [roleKey]: [playerId, ...filtered].slice(0, 3),
+                };
+            });
+        }
+    };
+
+    // Sticky Center & QB for current offense
+    const stickyCenter = (offenseTeamId && recentPlayers[`${offenseTeamId}_center`]?.[0]) || '';
+    const stickyQb = (offenseTeamId && recentPlayers[`${offenseTeamId}_qb`]?.[0]) || '';
+
+    const resetWizard = () => {
+        setW({
+            ...emptyWizard,
+            centerId: stickyCenter,
+            qbId: stickyQb,
+        });
+    };
+
+    // Keep sticky Center/QB synced when offense changes
+    useEffect(() => {
+        if (!offenseTeamId) return;
+        if (syncedOffenseRef.current !== offenseTeamId) {
+            syncedOffenseRef.current = offenseTeamId;
+            const teamCenter = recentPlayers[`${offenseTeamId}_center`]?.[0] || '';
+            const teamQb = recentPlayers[`${offenseTeamId}_qb`]?.[0] || '';
+            setW(prev => {
+                if (prev.editingId) return prev;
+                return {
+                    ...prev,
+                    centerId: teamCenter || prev.centerId,
+                    qbId: teamQb || prev.qbId,
+                };
+            });
+        }
+    }, [offenseTeamId, recentPlayers]);
 
     const setField = <K extends keyof Wizard>(k: K, v: Wizard[K]) => setW(prev => ({ ...prev, [k]: v }));
 
@@ -1215,7 +1413,7 @@ export const AdminPlayByPlay = () => {
                     <Section active title="What happened?">
                         <div className="flex flex-wrap gap-2">
                             {([['pass', 'Pass'], ['run', 'Run'], ['xp', 'Extra Point'], ['special', 'Special (KO/Punt)'], ['penalty', 'Penalty only'], ['event', 'Game event']] as [Kind, string][]).map(([k, label]) => (
-                                <button key={k} className={chip(w.kind === k)} onClick={() => setW({ ...emptyWizard, editingId: w.editingId, centerId: w.centerId, snapOutcome: w.snapOutcome, kind: k })}>{label}</button>
+                                <button key={k} className={chip(w.kind === k)} onClick={() => setW({ ...emptyWizard, editingId: w.editingId, centerId: w.centerId || stickyCenter, qbId: w.qbId || stickyQb, snapOutcome: w.snapOutcome, kind: k })}>{label}</button>
                             ))}
                         </div>
 
@@ -1224,42 +1422,42 @@ export const AdminPlayByPlay = () => {
                             <div className="flex flex-wrap gap-2">
                                 <button
                                     type="button"
-                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, centerId: w.centerId, snapOutcome: w.snapOutcome, kind: 'pass', rushOutcome: 'no_sack', passOutcome: 'incomplete', incompleteOption: 'uncatchable', passFinalOutcome: 'next_down' })}
+                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, centerId: w.centerId || stickyCenter, qbId: w.qbId || stickyQb, snapOutcome: w.snapOutcome, kind: 'pass', rushOutcome: 'no_sack', passOutcome: 'incomplete', incompleteOption: 'uncatchable', passFinalOutcome: 'next_down' })}
                                     className="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md text-xs font-bold text-gray-700 dark:text-gray-200 transition-colors"
                                 >
                                     🏈 Incomplete Pass
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, centerId: w.centerId, snapOutcome: w.snapOutcome, kind: 'pass', rushOutcome: 'no_sack', passOutcome: 'complete', passDefenderAction: 'FG', passFinalOutcome: 'next_down' })}
+                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, centerId: w.centerId || stickyCenter, qbId: w.qbId || stickyQb, snapOutcome: w.snapOutcome, kind: 'pass', rushOutcome: 'no_sack', passOutcome: 'complete', passDefenderAction: 'FG', passFinalOutcome: 'next_down' })}
                                     className="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md text-xs font-bold text-gray-700 dark:text-gray-200 transition-colors"
                                 >
                                     ✅ Complete Pass
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, centerId: w.centerId, snapOutcome: w.snapOutcome, kind: 'run', runDefenderAction: 'FG', runPlayOutcome: 'next_down' })}
+                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, centerId: w.centerId || stickyCenter, qbId: w.qbId || stickyQb, snapOutcome: w.snapOutcome, kind: 'run', runDefenderAction: 'FG', runPlayOutcome: 'next_down' })}
                                     className="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md text-xs font-bold text-gray-700 dark:text-gray-200 transition-colors"
                                 >
                                     🏃 Run
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, centerId: w.centerId, snapOutcome: w.snapOutcome, kind: 'pass', rushOutcome: 'no_sack', passOutcome: 'complete', passFinalOutcome: 'TD' })}
-                                    className="px-2.5 py-1 bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 rounded-md text-xs font-bold text-emerald-800 dark:text-emerald-200 transition-colors"
-                                >
-                                    🏆 Touchdown Pass
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, centerId: w.centerId, snapOutcome: w.snapOutcome, kind: 'event', eventKind: 'EH' })}
-                                    className="px-2.5 py-1 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 rounded-md text-xs font-bold text-slate-800 dark:text-slate-200 transition-colors"
+                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, centerId: w.centerId || stickyCenter, snapOutcome: w.snapOutcome, kind: 'event', eventKind: 'EH' })}
+                                    className="px-2.5 py-1 bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-200 rounded-md text-xs font-bold text-amber-800 dark:text-amber-200 transition-colors"
                                 >
                                     ⏱️ End of Half
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, centerId: w.centerId, snapOutcome: w.snapOutcome, kind: 'event', eventKind: 'OMW' })}
+                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, centerId: w.centerId || stickyCenter, snapOutcome: w.snapOutcome, kind: 'event', eventKind: 'EG' })}
+                                    className="px-2.5 py-1 bg-blue-100 dark:bg-blue-900/40 hover:bg-blue-200 rounded-md text-xs font-bold text-blue-800 dark:text-blue-200 transition-colors"
+                                >
+                                    🏁 End of Game
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setW({ ...emptyWizard, editingId: w.editingId, centerId: w.centerId || stickyCenter, snapOutcome: w.snapOutcome, kind: 'event', eventKind: 'OMW' })}
                                     className="px-2.5 py-1 bg-rose-100 dark:bg-rose-900/40 hover:bg-rose-200 rounded-md text-xs font-bold text-rose-800 dark:text-rose-200 transition-colors"
                                 >
                                     ⚠️ 1-Minute Warning
@@ -1273,12 +1471,24 @@ export const AdminPlayByPlay = () => {
                     {w.kind === 'pass' && !isBadSnap && (
                         <Section active title="The pass">
                             <div className="space-y-4">
-                                <PlayerField label={`QB (${teamName(ctx.offense)})`} value={w.qbId} onChange={v => setField('qbId', v)} roster={offenseRoster} />
+                                <PlayerField
+                                    label={`QB (${teamName(ctx.offense)})`}
+                                    value={w.qbId}
+                                    onChange={v => handlePlayerSelect('qbId', offenseTeamId, 'qb', v)}
+                                    roster={offenseRoster}
+                                    favoriteIds={getFavorites(offenseTeamId, 'qb')}
+                                />
 
                                 {/* Section: Rush */}
                                 <div className="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-xl border border-gray-200 dark:border-gray-600 space-y-3">
                                     <div className="text-xs font-bold text-sffl-navy dark:text-gray-200 uppercase tracking-wider">Rush</div>
-                                    <PlayerField label={`Rusher (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.rusherId} onChange={v => setField('rusherId', v)} roster={defenseRoster} />
+                                    <PlayerField
+                                        label={`Rusher (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`}
+                                        value={w.rusherId}
+                                        onChange={v => handlePlayerSelect('rusherId', defenseTeamId, 'rusher', v)}
+                                        roster={defenseRoster}
+                                        favoriteIds={getFavorites(defenseTeamId, 'rusher')}
+                                    />
                                     <div>
                                         <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Rush Outcome</div>
                                         <div className="flex flex-wrap gap-2">
@@ -1312,7 +1522,13 @@ export const AdminPlayByPlay = () => {
                                     {w.rushOutcome === 'int' && (
                                         <div className="space-y-3">
                                             <p className="text-xs font-semibold text-red-600 dark:text-red-400">Play ends as an interception credited to the rusher.</p>
-                                            <PlayerField label={`Target Receiver (${teamName(ctx.offense)})`} value={w.targetId} onChange={v => setField('targetId', v)} roster={offenseRoster} />
+                                            <PlayerField
+                                                label={`Target Receiver (${teamName(ctx.offense)})`}
+                                                value={w.targetId}
+                                                onChange={v => handlePlayerSelect('targetId', offenseTeamId, 'target', v)}
+                                                roster={offenseRoster}
+                                                favoriteIds={getFavorites(offenseTeamId, 'target')}
+                                            />
                                         </div>
                                     )}
                                 </div>
@@ -1331,7 +1547,13 @@ export const AdminPlayByPlay = () => {
 
                                         {w.passOutcome === 'complete' && (
                                             <div className="space-y-4 pt-2 border-t border-gray-200 dark:border-gray-700">
-                                                <PlayerField label={`Target (${teamName(ctx.offense)})`} value={w.targetId} onChange={v => setField('targetId', v)} roster={offenseRoster} />
+                                                <PlayerField
+                                                    label={`Target (${teamName(ctx.offense)})`}
+                                                    value={w.targetId}
+                                                    onChange={v => handlePlayerSelect('targetId', offenseTeamId, 'target', v)}
+                                                    roster={offenseRoster}
+                                                    favoriteIds={getFavorites(offenseTeamId, 'target')}
+                                                />
                                                 <label className="block">
                                                     <span className="text-xs font-bold text-gray-600 dark:text-gray-300">Yards gained</span>
                                                     <input type="number" value={w.yards} onChange={e => setField('yards', e.target.value)} className="ml-2 w-24 border rounded-lg px-2 py-1.5 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
@@ -1344,7 +1566,13 @@ export const AdminPlayByPlay = () => {
                                                         ))}
                                                     </div>
                                                 </div>
-                                                <PlayerField label={`Coverage Defender (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.defenderId} onChange={v => setField('defenderId', v)} roster={defenseRoster} />
+                                                <PlayerField
+                                                    label={`Coverage Defender (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`}
+                                                    value={w.defenderId}
+                                                    onChange={v => handlePlayerSelect('defenderId', defenseTeamId, 'defender', v)}
+                                                    roster={defenseRoster}
+                                                    favoriteIds={getFavorites(defenseTeamId, 'defender')}
+                                                />
                                                 <div>
                                                     <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Final Outcome</div>
                                                     <div className="flex flex-wrap gap-2">
@@ -1359,7 +1587,13 @@ export const AdminPlayByPlay = () => {
 
                                         {w.passOutcome === 'incomplete' && (
                                             <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-700">
-                                                <PlayerField label={`Target (${teamName(ctx.offense)})`} value={w.targetId} onChange={v => setField('targetId', v)} roster={offenseRoster} />
+                                                <PlayerField
+                                                    label={`Target (${teamName(ctx.offense)})`}
+                                                    value={w.targetId}
+                                                    onChange={v => handlePlayerSelect('targetId', offenseTeamId, 'target', v)}
+                                                    roster={offenseRoster}
+                                                    favoriteIds={getFavorites(offenseTeamId, 'target')}
+                                                />
                                                 <div>
                                                     <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Incomplete Reason</div>
                                                     <div className="flex flex-wrap gap-2">
@@ -1369,7 +1603,13 @@ export const AdminPlayByPlay = () => {
                                                     </div>
                                                 </div>
                                                 {w.incompleteOption === 'batted_down' && (
-                                                    <PlayerField label={`Coverage Defender (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.defenderId} onChange={v => setField('defenderId', v)} roster={defenseRoster} />
+                                                    <PlayerField
+                                                        label={`Coverage Defender (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`}
+                                                        value={w.defenderId}
+                                                        onChange={v => handlePlayerSelect('defenderId', defenseTeamId, 'defender', v)}
+                                                        roster={defenseRoster}
+                                                        favoriteIds={getFavorites(defenseTeamId, 'defender')}
+                                                    />
                                                 )}
                                                 <div>
                                                     <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Play Outcome</div>
@@ -1384,8 +1624,20 @@ export const AdminPlayByPlay = () => {
 
                                         {w.passOutcome === 'int' && (
                                             <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-700">
-                                                <PlayerField label={`Target Receiver (${teamName(ctx.offense)})`} value={w.targetId} onChange={v => setField('targetId', v)} roster={offenseRoster} />
-                                                <PlayerField label={`Interceptor / Defender (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.defenderId} onChange={v => setField('defenderId', v)} roster={defenseRoster} />
+                                                <PlayerField
+                                                    label={`Target Receiver (${teamName(ctx.offense)})`}
+                                                    value={w.targetId}
+                                                    onChange={v => handlePlayerSelect('targetId', offenseTeamId, 'target', v)}
+                                                    roster={offenseRoster}
+                                                    favoriteIds={getFavorites(offenseTeamId, 'target')}
+                                                />
+                                                <PlayerField
+                                                    label={`Interceptor / Defender (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`}
+                                                    value={w.defenderId}
+                                                    onChange={v => handlePlayerSelect('defenderId', defenseTeamId, 'defender', v)}
+                                                    roster={defenseRoster}
+                                                    favoriteIds={getFavorites(defenseTeamId, 'defender')}
+                                                />
                                                 <div>
                                                     <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Final Outcome</div>
                                                     <div className="flex flex-wrap gap-2">
@@ -1420,7 +1672,13 @@ export const AdminPlayByPlay = () => {
                     {w.kind === 'run' && (
                         <Section active title="The run">
                             <div className="space-y-4">
-                                <PlayerField label={`Carrier (${teamName(ctx.offense)})`} value={w.carrierId} onChange={v => setField('carrierId', v)} roster={offenseRoster} />
+                                <PlayerField
+                                    label={`Carrier (${teamName(ctx.offense)})`}
+                                    value={w.carrierId}
+                                    onChange={v => handlePlayerSelect('carrierId', offenseTeamId, 'carrier', v)}
+                                    roster={offenseRoster}
+                                    favoriteIds={getFavorites(offenseTeamId, 'carrier')}
+                                />
                                 <label className="block">
                                     <span className="text-xs font-bold text-gray-600 dark:text-gray-300">Yards</span>
                                     <input type="number" value={w.yards} onChange={e => setField('yards', e.target.value)} className="ml-2 w-24 border rounded-lg px-2 py-1.5 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
@@ -1433,7 +1691,13 @@ export const AdminPlayByPlay = () => {
                                         ))}
                                     </div>
                                 </div>
-                                <PlayerField label={`Coverage Defender (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.defenderId} onChange={v => setField('defenderId', v)} roster={defenseRoster} />
+                                <PlayerField
+                                    label={`Coverage Defender (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`}
+                                    value={w.defenderId}
+                                    onChange={v => handlePlayerSelect('defenderId', defenseTeamId, 'defender', v)}
+                                    roster={defenseRoster}
+                                    favoriteIds={getFavorites(defenseTeamId, 'defender')}
+                                />
                                 <div>
                                     <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Play Outcome</div>
                                     <div className="flex flex-wrap gap-2">
@@ -1456,12 +1720,30 @@ export const AdminPlayByPlay = () => {
                                 </div>
                                 {w.xpType === 'XP-P' && (
                                     <>
-                                        <PlayerField label="QB" value={w.qbId} onChange={v => setField('qbId', v)} roster={offenseRoster} />
-                                        <PlayerField label="Target" value={w.targetId} onChange={v => setField('targetId', v)} roster={offenseRoster} />
+                                        <PlayerField
+                                            label="QB"
+                                            value={w.qbId}
+                                            onChange={v => handlePlayerSelect('qbId', offenseTeamId, 'qb', v)}
+                                            roster={offenseRoster}
+                                            favoriteIds={getFavorites(offenseTeamId, 'qb')}
+                                        />
+                                        <PlayerField
+                                            label="Target"
+                                            value={w.targetId}
+                                            onChange={v => handlePlayerSelect('targetId', offenseTeamId, 'target', v)}
+                                            roster={offenseRoster}
+                                            favoriteIds={getFavorites(offenseTeamId, 'target')}
+                                        />
                                     </>
                                 )}
                                 {w.xpType === 'PAT-R' && (
-                                    <PlayerField label="Carrier" value={w.carrierId} onChange={v => setField('carrierId', v)} roster={offenseRoster} />
+                                    <PlayerField
+                                        label="Carrier"
+                                        value={w.carrierId}
+                                        onChange={v => handlePlayerSelect('carrierId', offenseTeamId, 'carrier', v)}
+                                        roster={offenseRoster}
+                                        favoriteIds={getFavorites(offenseTeamId, 'carrier')}
+                                    />
                                 )}
                                 <div className="flex gap-2">
                                     <button className={chip(w.xpResult === 'XP')} onClick={() => setField('xpResult', 'XP')}>Good</button>
@@ -1494,7 +1776,13 @@ export const AdminPlayByPlay = () => {
                                     </select>
                                     {w.penaltyCode && (
                                         <div className="flex items-end gap-3">
-                                            <PlayerField label="Penalty Player (optional)" value={w.penaltyPlayerId} onChange={v => setField('penaltyPlayerId', v)} roster={penaltyRoster} />
+                                            <PlayerField
+                                                label="Penalty Player (optional)"
+                                                value={w.penaltyPlayerId}
+                                                onChange={v => handlePlayerSelect('penaltyPlayerId', penaltyTeamId, 'penalty', v)}
+                                                roster={penaltyRoster}
+                                                favoriteIds={getFavorites(penaltyTeamId, 'penalty')}
+                                            />
                                             <label className="block">
                                                 <span className="text-xs font-bold text-gray-600 dark:text-gray-300">Yards</span>
                                                 <input type="number" value={w.penaltyYards} onChange={e => setField('penaltyYards', e.target.value)} className="ml-2 w-20 border rounded-lg px-2 py-1.5 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
@@ -1514,7 +1802,13 @@ export const AdminPlayByPlay = () => {
 
                                 {w.receiverOutcome === 'catch' && (
                                     <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-700">
-                                        <PlayerField label={`Who caught it? (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`} value={w.targetId} onChange={v => setField('targetId', v)} roster={defenseRoster} />
+                                        <PlayerField
+                                            label={`Who caught it? (${teamName(ctx.offense === 'home' ? 'away' : ctx.offense === 'away' ? 'home' : '')})`}
+                                            value={w.targetId}
+                                            onChange={v => handlePlayerSelect('targetId', defenseTeamId, 'target', v)}
+                                            roster={defenseRoster}
+                                            favoriteIds={getFavorites(defenseTeamId, 'target')}
+                                        />
                                         <div>
                                             <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Defender Action</div>
                                             <div className="flex gap-2">
@@ -1523,7 +1817,13 @@ export const AdminPlayByPlay = () => {
                                                 ))}
                                             </div>
                                         </div>
-                                        <PlayerField label={`Coverage Defender (${teamName(ctx.offense)})`} value={w.defenderId} onChange={v => setField('defenderId', v)} roster={offenseRoster} />
+                                        <PlayerField
+                                            label={`Coverage Defender (${teamName(ctx.offense)})`}
+                                            value={w.defenderId}
+                                            onChange={v => handlePlayerSelect('defenderId', offenseTeamId, 'defender', v)}
+                                            roster={offenseRoster}
+                                            favoriteIds={getFavorites(offenseTeamId, 'defender')}
+                                        />
                                         <div>
                                             <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Play Outcome</div>
                                             <div className="flex gap-2">
@@ -1550,7 +1850,13 @@ export const AdminPlayByPlay = () => {
                                     <option value="">Select penalty…</option>
                                     {Object.entries(PENALTY_LABELS).map(([code, label]) => <option key={code} value={code}>{code} — {label}</option>)}
                                 </select>
-                                <PlayerField label="Player (optional)" value={w.penaltyPlayerId} onChange={v => setField('penaltyPlayerId', v)} roster={penaltyRoster} />
+                                <PlayerField
+                                    label="Player (optional)"
+                                    value={w.penaltyPlayerId}
+                                    onChange={v => handlePlayerSelect('penaltyPlayerId', penaltyTeamId, 'penalty', v)}
+                                    roster={penaltyRoster}
+                                    favoriteIds={getFavorites(penaltyTeamId, 'penalty')}
+                                />
                                 <label className="block">
                                     <span className="text-xs font-bold text-gray-600 dark:text-gray-300">Penalty yards</span>
                                     <input type="number" value={w.penaltyYards} onChange={e => setField('penaltyYards', e.target.value)} className="ml-2 w-24 border rounded-lg px-2 py-1.5 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
@@ -1592,7 +1898,13 @@ export const AdminPlayByPlay = () => {
                             </select>
                             {w.penaltyCode && (
                                 <div className="flex items-end gap-3">
-                                    <PlayerField label="Penalty Player (optional)" value={w.penaltyPlayerId} onChange={v => setField('penaltyPlayerId', v)} roster={penaltyRoster} />
+                                    <PlayerField
+                                        label="Penalty Player (optional)"
+                                        value={w.penaltyPlayerId}
+                                        onChange={v => handlePlayerSelect('penaltyPlayerId', penaltyTeamId, 'penalty', v)}
+                                        roster={penaltyRoster}
+                                        favoriteIds={getFavorites(penaltyTeamId, 'penalty')}
+                                    />
                                     <label className="block">
                                         <span className="text-xs font-bold text-gray-600 dark:text-gray-300">Yards</span>
                                         <input type="number" value={w.penaltyYards} onChange={e => setField('penaltyYards', e.target.value)} className="ml-2 w-20 border rounded-lg px-2 py-1.5 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
