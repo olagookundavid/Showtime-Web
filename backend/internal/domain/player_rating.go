@@ -33,7 +33,7 @@ const (
 	ReceiverFormulaVersion    = "RECEIVER_RATING_V1.1"
 	DefenderFormulaVersion    = "DEFENDER_RATING_V1.0"
 	RusherFormulaVersion      = "RUSHER_RATING_V1.0"
-	QuarterbackFormulaVersion = "QB_RATING_V1.1"
+	QuarterbackFormulaVersion = "QB_RATING_V1.3"
 )
 
 // Baseline every player starts from, and the display bounds.
@@ -116,6 +116,9 @@ type RatingStatLine struct {
 	Drives              int
 	Turnovers           int
 	Punts               int
+	UncatchablePasses   int
+	ThrownAwayPasses    int
+	BattedDownPasses    int
 }
 
 // RateByPosition computes a rating for a stat line using the formula for the
@@ -144,7 +147,9 @@ func RateByPosition(position string, s RatingStatLine) *RatingResult {
 			RushingTDs:          s.RushingTDs,
 			ExtraPointTDs:       s.ExtraPointTDs,
 			OtherTurnovers:      otherTurnovers,
-			Punts:               s.Punts,
+			UncatchablePasses:   s.UncatchablePasses,
+			ThrownAwayPasses:    s.ThrownAwayPasses,
+			BattedDownPasses:    s.BattedDownPasses,
 		})
 	case "Receiver", "Center":
 		// Center is scored identically to Receiver — same formula, same inputs.
@@ -397,13 +402,13 @@ func CalculateRusherRating(in RusherRatingInput) RatingResult {
 	return res
 }
 
-// ─── Quarterback (QB_RATING_V1.1) ──────────────────────────────────────────
+// ─── Quarterback (QB_RATING_V1.3) ──────────────────────────────────────────
 
 // QuarterbackRatingInput is the stat line a quarterback rating is computed from.
 type QuarterbackRatingInput struct {
 	PassingAttempts     int
 	CompletedPasses     int
-	PassingYards        int
+	PassingYards        int // optional / display only in v1.3
 	PassingTDs          int
 	InterceptionsThrown int
 	QBSacks             int
@@ -412,10 +417,35 @@ type QuarterbackRatingInput struct {
 	RushingTDs          int
 	ExtraPointTDs       int
 	OtherTurnovers      int
-	Punts               int
+	UncatchablePasses   int
+	ThrownAwayPasses    int
+	BattedDownPasses    int
 }
 
-// CalculateQuarterbackRating implements QB_RATING_V1.1.
+// Quarterback formula weights / benchmarks (QB_RATING_V1.3).
+const (
+	qbCompletionWeight    = 2.50
+	qbCompletionBenchmark = 0.55 // neutral completion rate (55%)
+	qbCompletionCap       = 1.00 // +/- 1.00 completion component cap
+	qbFullReliability     = 6.0  // adjusted attempts for full reliability
+
+	qbPassingTDPerUnit = 1.30
+	qbPassingTDCap     = 5.20
+
+	qbRushingTDPerUnit = 1.25
+	qbRushingTDCap     = 2.50
+
+	qbXPTDPerUnit = 0.40
+	qbXPTDCap     = 1.20
+
+	qbIntPerUnit = 1.00
+	qbIntCap     = 3.00
+
+	qbOtherTurnoverPerUnit = 1.00
+	qbSackPerUnit          = 0.25
+)
+
+// CalculateQuarterbackRating implements QB_RATING_V1.3.
 func CalculateQuarterbackRating(in QuarterbackRatingInput) RatingResult {
 	res := RatingResult{
 		FormulaVersion: QuarterbackFormulaVersion,
@@ -427,48 +457,62 @@ func CalculateQuarterbackRating(in QuarterbackRatingInput) RatingResult {
 		return res
 	}
 
+	// Status (Spec §4):
+	// OFFICIAL: Game final and Passing Attempts >= 3
+	// PROVISIONAL: Game final and Passing Attempts = 1 or 2
 	if in.PassingAttempts >= 3 {
 		res.Status = RatingStatusOfficial
-	} else if in.PassingAttempts >= 1 {
+	} else {
 		res.Status = RatingStatusProvisional
 	}
 
-	// 1. Completion Component: 3.00 * ((completed_passes / passing_attempts) - 0.55)
-	completionComp := 3.00 * ((float64(in.CompletedPasses) / float64(in.PassingAttempts)) - 0.55)
+	// 1. Adjusted Passing Attempts (§5)
+	// Adjusted Attempts = Passing Attempts - Uncatchable Passes - Throwaways - Batted Passes
+	// Validation: Adjusted Attempts must be >= Completed Passes and >= Passing Touchdowns.
+	adjustedAttempts := in.PassingAttempts
+	exclusions := in.UncatchablePasses + in.ThrownAwayPasses + in.BattedDownPasses
+	if exclusions > 0 {
+		testAdj := in.PassingAttempts - exclusions
+		if testAdj >= in.CompletedPasses && testAdj >= in.PassingTDs && testAdj > 0 {
+			adjustedAttempts = testAdj
+		}
+	}
 
-	// 2. Yards Per Attempt Component: ypa = passing_yards / passing_attempts, capped between -1.20 and +1.50
-	ypa := float64(in.PassingYards) / float64(in.PassingAttempts)
-	yardsComp := math.Max(-1.20, math.Min(1.50, 0.40*(ypa-5.50)))
+	// 2. Completion Component (§6)
+	// Completion Rate = Completed Passes / Adjusted Attempts
+	// Completion Component = CLAMP(-1.00, 1.00, 2.50 * (Completion Rate - 0.55))
+	completionRate := float64(in.CompletedPasses) / float64(adjustedAttempts)
+	completionComp := math.Max(-qbCompletionCap, math.Min(qbCompletionCap, qbCompletionWeight*(completionRate-qbCompletionBenchmark)))
 
-	// 3. Raw Performance Rating & Reliability Adjustment
-	rawPerf := ratingBaseline + completionComp + yardsComp
-	reliability := math.Min(1.0, float64(in.PassingAttempts)/6.0)
-	reliablePerf := ratingBaseline + (rawPerf-ratingBaseline)*reliability
+	// 3. Reliability Adjustment (§7)
+	// Reliability = MIN(1.0, Adjusted Attempts / 6)
+	// Reliable Performance Rating = 5.0 + (Completion Component * Reliability)
+	reliability := math.Min(1.0, float64(adjustedAttempts)/qbFullReliability)
+	reliablePerf := ratingBaseline + (completionComp * reliability)
+	rawPerf := ratingBaseline + completionComp
 
-	// 4. Confirmed Game-Impact Components (Applied AFTER Reliability)
-	passingTdImpact := capped(0.90, in.PassingTDs, 3.60)
-	rushingTdImpact := capped(1.25, in.RushingTDs, 2.50)
-	xpTdImpact := capped(0.40, in.ExtraPointTDs, 1.20)
-	positiveImpact := passingTdImpact + rushingTdImpact + xpTdImpact
+	// 4. Direct Game-Impact Components (§8)
+	passingTDImpact := capped(qbPassingTDPerUnit, in.PassingTDs, qbPassingTDCap)
+	rushingTDImpact := capped(qbRushingTDPerUnit, in.RushingTDs, qbRushingTDCap)
+	xpTDImpact := capped(qbXPTDPerUnit, in.ExtraPointTDs, qbXPTDCap)
+	positiveImpact := passingTDImpact + rushingTDImpact + xpTDImpact
 
-	interceptionPenalty := 1.50 * float64(in.InterceptionsThrown)
-	otherTurnoverPenalty := 1.00 * float64(in.OtherTurnovers)
-	qbSackPenalty := 0.35 * float64(in.QBSacks)
-	puntPenalty := 0.25 * float64(in.Punts)
-	negativeImpact := interceptionPenalty + otherTurnoverPenalty + qbSackPenalty + puntPenalty
+	interceptionPenalty := capped(qbIntPerUnit, in.InterceptionsThrown, qbIntCap)
+	otherTurnoverPenalty := qbOtherTurnoverPerUnit * float64(in.OtherTurnovers)
+	qbSackPenalty := qbSackPerUnit * float64(in.QBSacks)
+	negativeImpact := interceptionPenalty + otherTurnoverPenalty + qbSackPenalty
 
+	// 5. Final Calculation (§9)
 	final := round1(clampRating(reliablePerf + positiveImpact - negativeImpact))
 
 	res.Components = map[string]float64{
-		"completion":     completionComp,
-		"yards":          yardsComp,
-		"passing_td":     passingTdImpact,
-		"rushing_td":     rushingTdImpact,
-		"extra_point_td": xpTdImpact,
-		"interception":   -interceptionPenalty,
-		"other_turnover": -otherTurnoverPenalty,
-		"qb_sack":        -qbSackPenalty,
-		"punt":           -puntPenalty,
+		"completion":         completionComp,
+		"passing_touchdowns": passingTDImpact,
+		"rushing_touchdowns": rushingTDImpact,
+		"extra_point_td":     xpTDImpact,
+		"interceptions":      -interceptionPenalty,
+		"other_turnovers":    -otherTurnoverPenalty,
+		"qb_sacks":           -qbSackPenalty,
 	}
 	res.RawRating = rawPerf
 	res.ReliabilityFactor = reliability

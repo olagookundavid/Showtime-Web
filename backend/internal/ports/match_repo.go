@@ -33,7 +33,7 @@ type MatchRepository interface {
 	CanRemoveTeamFromCompetition(ctx context.Context, competitionID, teamID string) (bool, string, error)
 
 	// Matches
-	GetMatches(ctx context.Context, competitionID string, status string, page, limit int, search string, date ...string) ([]domain.Match, int64, error)
+	GetMatches(ctx context.Context, competitionID string, teamID string, status string, page, limit int, search string, date ...string) ([]domain.Match, int64, error)
 	GetMatchByID(ctx context.Context, id string) (*domain.Match, error)
 	CreateMatch(ctx context.Context, match *domain.Match) error
 	UpdateMatch(ctx context.Context, match *domain.Match) error
@@ -397,7 +397,7 @@ func (r *PostgresMatchRepository) CanRemoveTeamFromCompetition(ctx context.Conte
 }
 
 // --- Matches ---
-func (r *PostgresMatchRepository) GetMatches(ctx context.Context, competitionID string, status string, page, limit int, search string, date ...string) ([]domain.Match, int64, error) {
+func (r *PostgresMatchRepository) GetMatches(ctx context.Context, competitionID string, teamID string, status string, page, limit int, search string, date ...string) ([]domain.Match, int64, error) {
 	offset := (page - 1) * limit
 
 	// Base query
@@ -436,6 +436,16 @@ func (r *PostgresMatchRepository) GetMatches(ctx context.Context, competitionID 
 		whereClause += fmt.Sprintf(" AND m.status = $%d", len(args))
 	}
 
+	// Filtering by club has to happen here rather than in the client. The Match
+	// Hub used to fetch a page of *all* the competition's matches and filter it
+	// in the browser, so a club's fixtures were scattered across pages — and
+	// because the visible list was then short enough not to scroll, the
+	// infinite-scroll observer never fired and the rest were never loaded.
+	if teamID != "" {
+		args = append(args, teamID)
+		whereClause += fmt.Sprintf(" AND (m.home_team_id = $%d OR m.away_team_id = $%d)", len(args), len(args))
+	}
+
 	if search != "" {
 		args = append(args, "%"+search+"%")
 		whereClause += fmt.Sprintf(" AND (ht.name ILIKE $%d OR at.name ILIKE $%d OR c.name ILIKE $%d)", len(args), len(args), len(args))
@@ -456,8 +466,13 @@ func (r *PostgresMatchRepository) GetMatches(ctx context.Context, competitionID 
 		return nil, 0, err
 	}
 
-	// Add Ordering and Pagination
-	orderBy := "m.date DESC, m.time DESC"
+	// Add Ordering and Pagination.
+	//
+	// Time is always ASC, even when the days run newest-first. The UI groups
+	// matches under a date heading, and within one day a reader expects the
+	// card order to follow the schedule — the 16:00 kickoff above the 18:00 —
+	// which time DESC inverted.
+	orderBy := "m.date DESC, m.time ASC"
 	if status == "SCHEDULED" {
 		orderBy = "m.date ASC, m.time ASC"
 	}

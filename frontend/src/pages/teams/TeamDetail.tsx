@@ -31,13 +31,14 @@ export const TeamDetail = () => {
     // and the Standings quick-link's ?comp= param.
     const { data: matchesPage } = useQuery({
         queryKey: ['publicTeamCurrentComp', id],
-        queryFn: () => getMatches(undefined, 1, 50),
+        // Filtered by club server-side, so this is the team's own latest match
+        // rather than the league's. Scanning the last 50 league-wide matches and
+        // narrowing here meant a club that hadn't played recently found nothing
+        // and silently fell back to the first active competition's standings.
+        queryFn: () => getMatches(undefined, 1, 1, undefined, undefined, id),
         enabled: !!id,
     });
-    const teamMatches = (matchesPage?.data || []).filter(
-        m => m.home_team?.id === id || m.away_team?.id === id
-    );
-    const teamCompetitionId = teamMatches[0]?.competition?.id;
+    const teamCompetitionId = (matchesPage?.data || [])[0]?.competition?.id;
 
     const { data: competitionsData } = useQuery({
         queryKey: ['publicCompetitions'],

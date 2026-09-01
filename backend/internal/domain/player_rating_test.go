@@ -181,24 +181,138 @@ func TestCalculateRusherRating(t *testing.T) {
 }
 
 func TestCalculateQuarterbackRating(t *testing.T) {
-	// Worked Example from Spec §10 (Kayode Mafe):
-	// passing_attempts: 27, completed_passes: 19, passing_yards: 173, passing_tds: 4,
-	// rushing_attempts: 2, rushing_yards: 13, rushing_tds: 0, interceptions_thrown: 0,
-	// qb_sacks: 0, extra_point_tds: 0, other_turnovers: 0, punts: 0
-	// Expected: status OFFICIAL, final_rating 9.4
-	in := QuarterbackRatingInput{
-		PassingAttempts: 27, CompletedPasses: 19, PassingYards: 173, PassingTDs: 4,
-		RushingAttempts: 2, RushingYards: 13, RushingTDs: 0, InterceptionsThrown: 0,
-		QBSacks: 0, ExtraPointTDs: 0, OtherTurnovers: 0, Punts: 0,
+	cases := []struct {
+		name       string
+		in         QuarterbackRatingInput
+		wantStatus string
+		wantFinal  float64
+		wantRaw    float64
+		wantRel    float64
+		checkRaw   bool
+		checkRel   bool
+	}{
+		{
+			// Spec §11 Worked Example (Disputed 4.2 performance resolved to 7.5):
+			// 21 attempts, 8 completions, 3 pass TDs, 1 INT, 0 sacks, 0 rush, 0 exclusions.
+			// completionRate = 8/21 = 0.380952 => compComp = 2.50*(0.380952-0.55) = -0.422619
+			// rawPerf = 5.0 - 0.422619 = 4.577381, rel = 1.0 => reliablePerf = 4.577381
+			// passTD = 3.90, INT = -1.00 => final = 7.477381 => 7.5
+			name: "spec v1.3 worked example",
+			in: QuarterbackRatingInput{
+				PassingAttempts:     21,
+				CompletedPasses:     8,
+				PassingTDs:          3,
+				InterceptionsThrown: 1,
+			},
+			wantStatus: RatingStatusOfficial,
+			wantFinal:  7.5,
+			wantRaw:    4.5773809523809525,
+			wantRel:    1.0,
+			checkRaw:   true,
+			checkRel:   true,
+		},
+		{
+			// Spec §12 Calibration 1: 8/21, 3 pass TD, 0 INT, 0 sacks => 8.5
+			name: "calibration 8/21 3 TD 0 INT",
+			in: QuarterbackRatingInput{
+				PassingAttempts:     21,
+				CompletedPasses:     8,
+				PassingTDs:          3,
+				InterceptionsThrown: 0,
+			},
+			wantStatus: RatingStatusOfficial,
+			wantFinal:  8.5,
+		},
+		{
+			// Spec §12 Calibration 2: 8/21, 3 pass TD, 2 INT, 0 sacks => 6.5
+			name: "calibration 8/21 3 TD 2 INT",
+			in: QuarterbackRatingInput{
+				PassingAttempts:     21,
+				CompletedPasses:     8,
+				PassingTDs:          3,
+				InterceptionsThrown: 2,
+			},
+			wantStatus: RatingStatusOfficial,
+			wantFinal:  6.5,
+		},
+		{
+			// Spec §12 Calibration 3: 19/27, 4 pass TD, 0 INT, 0 sacks => 10.0 (clamped from 10.6)
+			name: "calibration 19/27 4 TD 0 INT",
+			in: QuarterbackRatingInput{
+				PassingAttempts:     27,
+				CompletedPasses:     19,
+				PassingTDs:          4,
+				InterceptionsThrown: 0,
+			},
+			wantStatus: RatingStatusOfficial,
+			wantFinal:  10.0,
+		},
+		{
+			// Spec §12 Calibration 4: 3/6, 0 TD, 0 INT, 0 sacks => 4.9
+			name: "calibration 3/6 0 TD 0 INT",
+			in: QuarterbackRatingInput{
+				PassingAttempts:     6,
+				CompletedPasses:     3,
+				PassingTDs:          0,
+				InterceptionsThrown: 0,
+			},
+			wantStatus: RatingStatusOfficial,
+			wantFinal:  4.9,
+		},
+		{
+			// Spec §12 Calibration 5: 0 attempts => UNRATED, 0.0
+			name:       "calibration 0 attempts unrated",
+			in:         QuarterbackRatingInput{},
+			wantStatus: RatingStatusUnrated,
+			wantFinal:  0.0,
+		},
+		{
+			// Provisional rating with 1 or 2 attempts
+			// 1 attempt, 1 completion (100%): compComp = 2.50*(1.0 - 0.55) = +1.0 (capped at 1.0)
+			// raw = 6.0, rel = 1/6 = 0.166667 => reliable = 5.0 + 1.0 * 0.166667 = 5.1667 => 5.2
+			name: "provisional 1 attempt 1 comp",
+			in: QuarterbackRatingInput{
+				PassingAttempts: 1,
+				CompletedPasses: 1,
+			},
+			wantStatus: RatingStatusProvisional,
+			wantFinal:  5.2,
+		},
+		{
+			// Adjusted attempts with valid exclusions:
+			// 10 attempts, 2 throwaways, 1 batted = 7 adjusted attempts.
+			// 5 completions / 7 adj attempts = 71.4%
+			name: "adjusted attempts exclusions",
+			in: QuarterbackRatingInput{
+				PassingAttempts:   10,
+				CompletedPasses:   5,
+				ThrownAwayPasses:  2,
+				BattedDownPasses:  1,
+				PassingTDs:        1,
+			},
+			wantStatus: RatingStatusOfficial,
+			wantFinal:  6.7, // 5.0 + 2.5*(5/7-0.55)*1.0 + 1.3 = 5.0 + 0.4107 + 1.3 = 6.71 => 6.7
+		},
 	}
-	res := CalculateQuarterbackRating(in)
-	if res.Status != RatingStatusOfficial {
-		t.Errorf("status = %q, want %q", res.Status, RatingStatusOfficial)
-	}
-	if res.FinalRating != 9.4 {
-		t.Errorf("final_rating = %v, want 9.4", res.FinalRating)
-	}
-	if res.FormulaVersion != QuarterbackFormulaVersion {
-		t.Errorf("formula version = %q, want %q", res.FormulaVersion, QuarterbackFormulaVersion)
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			res := CalculateQuarterbackRating(c.in)
+			if res.Status != c.wantStatus {
+				t.Errorf("status = %q, want %q", res.Status, c.wantStatus)
+			}
+			if !approx(res.FinalRating, c.wantFinal) {
+				t.Errorf("final_rating = %v, want %v", res.FinalRating, c.wantFinal)
+			}
+			if c.checkRaw && !approx(res.RawRating, c.wantRaw) {
+				t.Errorf("raw_rating = %v, want %v", res.RawRating, c.wantRaw)
+			}
+			if c.checkRel && !approx(res.ReliabilityFactor, c.wantRel) {
+				t.Errorf("reliability = %v, want %v", res.ReliabilityFactor, c.wantRel)
+			}
+			if res.FormulaVersion != QuarterbackFormulaVersion {
+				t.Errorf("formula version = %q, want %q", res.FormulaVersion, QuarterbackFormulaVersion)
+			}
+		})
 	}
 }

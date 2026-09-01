@@ -529,7 +529,10 @@ export const getMatches = async (
     page: number = 1,
     limit: number = 10,
     status?: string,
-    search?: string
+    search?: string,
+    /** Narrow to one club. Filtered server-side so a club's fixtures aren't
+     *  scattered across pages the client would have to fetch to find them. */
+    teamId?: string
 ): Promise<PaginatedResponse<Match>> => {
     let url = `/matches?page=${page}&limit=${limit}`;
     if (competitionId) {
@@ -540,6 +543,9 @@ export const getMatches = async (
     }
     if (search) {
         url += `&search=${encodeURIComponent(search)}`;
+    }
+    if (teamId) {
+        url += `&team_id=${teamId}`;
     }
     const response = await api.get<PaginatedResponse<Match>>(url);
     return response.data;
@@ -2040,6 +2046,15 @@ export interface StatsCompare {
 
 export const getStatsCompare = async (matchId: string): Promise<StatsCompare> => {
     const res = await api.get<StatsCompare>(`/admin/matches/${matchId}/stats-compare`);
+    return { derived: res.data.derived || [], current: res.data.current || [] };
+};
+
+// Box score for the public match page. Same derivation as the admin compare
+// endpoint above, but unauthenticated — that one sits under /admin and is gated
+// to admin/referee/stats, so using it here left the stats blank for anyone not
+// signed in as staff. `current` only ever comes back empty.
+export const getPublicMatchStats = async (matchId: string): Promise<StatsCompare> => {
+    const res = await api.get<StatsCompare>(`/matches/${matchId}/stats`);
     return { derived: res.data.derived || [], current: res.data.current || [] };
 };
 

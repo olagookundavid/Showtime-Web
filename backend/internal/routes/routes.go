@@ -549,6 +549,12 @@ func SetupMatchRoutes(r *gin.RouterGroup, app *api.Application) {
 		matchRoutes.GET("/:id", app.Handlers.MatchHandler.GetMatchDetail)
 		matchRoutes.GET("/:id/plays", app.Handlers.PlayHandler.ListPlays)
 		matchRoutes.GET("/:id/plays/stream", app.Handlers.PlayHandler.StreamPlays)
+		// Box score for the public match page. The equivalent admin route
+		// (/admin/matches/:id/stats-compare) is gated to admin/referee/stats, so
+		// pointing the public page at it left the stats blank for everyone who
+		// wasn't signed in as staff — while the play log right beside it, served
+		// from this same public group, rendered fine.
+		matchRoutes.GET("/:id/stats", app.Handlers.PlayHandler.PublicMatchStats)
 		matchRoutes.GET("/standings", app.Handlers.MatchHandler.GetStandings)
 		matchRoutes.GET("/teams", app.Handlers.MatchHandler.GetAllTeams)
 		matchRoutes.GET("/days", app.Handlers.MatchHandler.GetMatchDays)

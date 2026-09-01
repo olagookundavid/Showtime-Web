@@ -209,7 +209,11 @@ func (s *TicketService) SearchByEmail(ctx context.Context, email string) ([]dto.
 }
 func (s *TicketService) getMatchesForDate(ctx context.Context, date time.Time) []domain.Match {
 	dateStr := date.Format("2006-01-02")
-	matches, _, _ := s.matchRepo.GetMatches(ctx, "", "", 1, 50, dateStr)
+	// dateStr is the trailing variadic `date` argument, NOT `search`. Passing it
+	// positionally landed it in search, which looks for a team or competition
+	// *named* "2026-08-15" — so this always came back empty and event days showed
+	// no fixtures.
+	matches, _, _ := s.matchRepo.GetMatches(ctx, "", "", "", 1, 50, "", dateStr)
 	return matches
 }
 

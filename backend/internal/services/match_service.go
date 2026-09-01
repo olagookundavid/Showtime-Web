@@ -20,7 +20,7 @@ type IMatchService interface {
 	GetTeamsByCompetition(ctx context.Context, competitionID string, status string) ([]dto.TeamResponse, error)
 	AddTeamToCompetition(ctx context.Context, competitionID, teamID string) error
 	RemoveTeamFromCompetition(ctx context.Context, competitionID, teamID string) error
-	GetMatches(ctx context.Context, competitionID string, status string, page, limit int, search string) (dto.PaginatedResult[dto.MatchResponse], error)
+	GetMatches(ctx context.Context, competitionID string, teamID string, status string, page, limit int, search string) (dto.PaginatedResult[dto.MatchResponse], error)
 	GetStandings(ctx context.Context, competitionID string) ([]dto.StandingResponse, error)
 	CreateMatch(ctx context.Context, match *domain.Match) error
 	UpdateMatch(ctx context.Context, match *domain.Match) error
@@ -258,8 +258,8 @@ func getString(s *string) string {
 	return *s
 }
 
-func (s *MatchService) GetMatches(ctx context.Context, competitionID string, status string, page, limit int, search string) (dto.PaginatedResult[dto.MatchResponse], error) {
-	matches, total, err := s.repo.GetMatches(ctx, competitionID, status, page, limit, search)
+func (s *MatchService) GetMatches(ctx context.Context, competitionID string, teamID string, status string, page, limit int, search string) (dto.PaginatedResult[dto.MatchResponse], error) {
+	matches, total, err := s.repo.GetMatches(ctx, competitionID, teamID, status, page, limit, search)
 	if err != nil {
 		return dto.PaginatedResult[dto.MatchResponse]{}, err
 	}

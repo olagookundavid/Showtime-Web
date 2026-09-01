@@ -130,12 +130,14 @@ export const MatchHub = () => {
         isFetchingNextPage: matchesLoading,
         isLoading: initialMatchesLoading
     } = useInfiniteQuery({
-        queryKey: ['publicMatchesInfinite', selectedCompetitionId, statusFilter],
+        queryKey: ['publicMatchesInfinite', selectedCompetitionId, statusFilter, teamParam],
         queryFn: ({ pageParam = 1 }) => getMatches(
             selectedCompetitionId,
             pageParam as number,
             10,
-            statusFilter === 'ALL' ? undefined : statusFilter
+            statusFilter === 'ALL' ? undefined : statusFilter,
+            undefined,
+            teamParam || undefined
         ),
         initialPageParam: 1,
         getNextPageParam: (lastPage, allPages) => {
@@ -145,11 +147,14 @@ export const MatchHub = () => {
         enabled: !!selectedCompetitionId,
     });
 
-    const matches = useMemo(() => {
-        const rawMatches = infiniteMatchesData?.pages?.reduce((acc: Match[], p: PaginatedResponse<Match>) => acc.concat(p?.data || []), []) || [];
-        if (!teamParam) return rawMatches;
-        return rawMatches.filter(m => m.home_team?.id === teamParam || m.away_team?.id === teamParam);
-    }, [infiniteMatchesData, teamParam]);
+    // No client-side team filtering: ?team= is pushed into the query above. Doing
+    // it here meant a club's fixtures were spread across pages that were never
+    // fetched — and with the visible list too short to scroll, the infinite-scroll
+    // observer never fired to fetch them.
+    const matches = useMemo(
+        () => infiniteMatchesData?.pages?.reduce((acc: Match[], p: PaginatedResponse<Match>) => acc.concat(p?.data || []), []) || [],
+        [infiniteMatchesData]
+    );
     const hasMore = hasNextPage;
     const loading = loadingComps || initialMatchesLoading;
 

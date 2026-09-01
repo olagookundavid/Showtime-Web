@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getStatsCompare, type TeamStat } from '../../services/api';
+import { getPublicMatchStats, type TeamStat } from '../../services/api';
 import { StatsTable } from '../stats/StatsTable';
 import { Spinner } from '../ui';
 
@@ -12,7 +12,7 @@ export const PublicMatchStats = ({ matchId }: { matchId: string }) => {
 
     const { data, isLoading, isError } = useQuery({
         queryKey: ['publicMatchStatsCompare', matchId],
-        queryFn: () => getStatsCompare(matchId),
+        queryFn: () => getPublicMatchStats(matchId),
         enabled: !!matchId,
     });
 

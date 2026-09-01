@@ -86,12 +86,16 @@ func (h *MatchHandler) GetCompetitions(c *gin.Context) {
 // @Router       /api/v1/matches [get]
 func (h *MatchHandler) GetMatches(c *gin.Context) {
 	competitionID := c.Query("competition_id")
+	// Club filter. Previously the Match Hub pulled a page of every match in the
+	// competition and narrowed it in the browser, which hid fixtures that fell on
+	// later pages.
+	teamID := c.Query("team_id")
 	status := c.Query("status")
 	search := c.Query("search")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 
-	matches, err := h.service.GetMatches(c.Request.Context(), competitionID, status, page, limit, search)
+	matches, err := h.service.GetMatches(c.Request.Context(), competitionID, teamID, status, page, limit, search)
 	if err != nil {
 		helpers.ServerErrorResponse(c, err)
 		return

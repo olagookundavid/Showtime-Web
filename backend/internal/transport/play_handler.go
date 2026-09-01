@@ -27,6 +27,7 @@ type IPlayHandler interface {
 	UpdatePlay(c *gin.Context)
 	DeletePlay(c *gin.Context)
 	CompareStats(c *gin.Context)
+	PublicMatchStats(c *gin.Context)
 	CommitStats(c *gin.Context)
 	GetMatchRules(c *gin.Context)
 	GetRules(c *gin.Context)
@@ -186,6 +187,32 @@ func (h *PlayHandler) CompareStats(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"derived": derived, "current": current})
+}
+
+// PublicMatchStats is the box score as shown on the public match page.
+//
+// It exists separately from CompareStats because that one lives under /admin and
+// is gated to admin/referee/stats — so the public match page silently rendered
+// nothing for logged-out visitors while working fine for an admin. The stats
+// themselves were never the problem: they are derived from the play log on every
+// request, so there is nothing to commit and nothing to keep in sync.
+//
+// Only the derived side is returned. The committed set is a diffing aid for the
+// admin compare view and has no meaning to a visitor.
+func (h *PlayHandler) PublicMatchStats(c *gin.Context) {
+	matchID := c.Param("id")
+	if matchID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Match ID is required"})
+		return
+	}
+	derived, err := h.service.DeriveMatchStats(c.Request.Context(), matchID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	// Same envelope as the admin compare endpoint so both can share one client
+	// type; `current` is intentionally always empty here.
+	c.JSON(http.StatusOK, gin.H{"derived": derived, "current": []any{}})
 }
 
 // CommitStats writes the derived stats into player_stats for the match.
