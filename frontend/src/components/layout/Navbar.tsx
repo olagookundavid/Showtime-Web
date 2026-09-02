@@ -158,6 +158,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                             )}
                         </div>
                         <Link to="/news" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105">News</Link>
+                        <Link to="/fantasy" className="hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105 uppercase text-yellow-400">Fantasy</Link>
                         
                         {/* Store Dropdown */}
                         <div 
@@ -351,6 +352,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                         <Link to="/players" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors uppercase">Players</Link>
                         <Link to="/stats" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors uppercase">Stats</Link>
                         <Link to="/news" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors uppercase">News</Link>
+                        <Link to="/fantasy" onClick={() => setMobileMenuOpen(false)} className="text-yellow-400 hover:text-yellow-300 text-lg font-bold py-2 transition-colors uppercase">Fantasy</Link>
 
                         <button
                             onClick={() => setMobileStoreOpen(!mobileStoreOpen)}

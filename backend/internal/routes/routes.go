@@ -83,6 +83,7 @@ func Routes(app *api.Application) *gin.Engine {
 	SetupClaimRoutes(v1_api, app)
 	SetupCommentRoutes(v1_api, app)
 	SetupDiscountRoutes(v1_api, app)
+	SetupFantasyRoutes(v1_api, app)
 	return r
 }
 
@@ -197,13 +198,13 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	/*
-	galleryGroup := adminRoutes.Group("/gallery")
-	galleryGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
-	{
-		galleryGroup.POST("", app.Handlers.GalleryHandler.CreateGallery)
-		galleryGroup.PUT("/:id", app.Handlers.GalleryHandler.UpdateGallery)
-		galleryGroup.DELETE("/:id", app.Handlers.GalleryHandler.DeleteGallery)
-	}
+		galleryGroup := adminRoutes.Group("/gallery")
+		galleryGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
+		{
+			galleryGroup.POST("", app.Handlers.GalleryHandler.CreateGallery)
+			galleryGroup.PUT("/:id", app.Handlers.GalleryHandler.UpdateGallery)
+			galleryGroup.DELETE("/:id", app.Handlers.GalleryHandler.DeleteGallery)
+		}
 	*/
 
 	// Hero slides — open to admin and above. Only the Administrator (gift-ticket)
@@ -503,11 +504,11 @@ func SetupNewsRoutes(r *gin.RouterGroup, app *api.Application) {
 
 func SetupGalleryRoutes(r *gin.RouterGroup, app *api.Application) {
 	/*
-	galleryRoutes := r.Group("/gallery")
-	{
-		galleryRoutes.GET("", app.Handlers.GalleryHandler.GetGallery)
-		galleryRoutes.GET("/:id", app.Handlers.GalleryHandler.GetGalleryByID)
-	}
+		galleryRoutes := r.Group("/gallery")
+		{
+			galleryRoutes.GET("", app.Handlers.GalleryHandler.GetGallery)
+			galleryRoutes.GET("/:id", app.Handlers.GalleryHandler.GetGalleryByID)
+		}
 	*/
 }
 
@@ -768,3 +769,82 @@ func SetupCommentRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 }
 
+func SetupFantasyRoutes(r *gin.RouterGroup, app *api.Application) {
+	fantasyRoutes := r.Group("/fantasy")
+	{
+		// Public Catalog & Leaderboards
+		fantasyRoutes.GET("/season", app.Handlers.FantasyHandler.GetActiveSeason)
+		fantasyRoutes.GET("/season/:id/gameweeks", app.Handlers.FantasyHandler.GetGameweeks)
+		fantasyRoutes.GET("/season/:id/market", app.Handlers.FantasyHandler.ListPlayerMarket)
+		fantasyRoutes.GET("/players/:id/gameweek/:gwId/breakdown", app.Handlers.FantasyHandler.GetPlayerBreakdown)
+		fantasyRoutes.GET("/leagues/public", app.Handlers.FantasyLeagueHandler.ListPublicLeagues)
+		fantasyRoutes.GET("/leagues/:id/leaderboard", app.Handlers.FantasyLeagueHandler.GetLeaderboard)
+		fantasyRoutes.GET("/season/:id/leaderboard", app.Handlers.FantasyLeagueHandler.GetOverallLeaderboard)
+
+		// Webhook (Unauthenticated, HMAC signature validated)
+		fantasyRoutes.POST("/leagues/webhook", app.Handlers.FantasyLeagueHandler.LeagueWebhook)
+
+		// Authenticated User Operations
+		protected := fantasyRoutes.Group("")
+		protected.Use(commonAuth.TokenMiddleware(app.TokenMaker))
+		{
+			protected.POST("/lineups", app.Handlers.FantasyHandler.SaveLineup)
+			protected.GET("/lineups/mine", app.Handlers.FantasyHandler.GetMyLineup)
+
+			protected.POST("/leagues", app.Handlers.FantasyLeagueHandler.CreateLeague)
+			protected.GET("/leagues/mine", app.Handlers.FantasyLeagueHandler.ListMyLeagues)
+
+			// Stricter limiter on the Paystack-initiating endpoints — guards
+			// against runaway clients exhausting Paystack quota or spawning
+			// orphan pending memberships.
+			rls := commonAuth.RateLimitStruct{
+				LimiterEnabled: true,
+				Rps:            5,
+				Burst:          10,
+			}
+			limitedLeagues := protected.Group("", commonAuth.RateLimit(rls))
+			{
+				limitedLeagues.POST("/leagues/join", app.Handlers.FantasyLeagueHandler.JoinLeague)
+				limitedLeagues.POST("/leagues/verify", app.Handlers.FantasyLeagueHandler.VerifyLeaguePayment)
+
+				// Withdrawals move real money out, so they sit behind the same
+				// stricter limiter as the pay-in endpoints.
+				limitedLeagues.POST("/payouts", app.Handlers.FantasyPayoutHandler.RequestPayout)
+			}
+
+			protected.GET("/wallet", app.Handlers.FantasyPayoutHandler.GetWallet)
+			protected.GET("/payouts", app.Handlers.FantasyPayoutHandler.ListMyPayouts)
+			protected.POST("/payouts/:id/cancel", app.Handlers.FantasyPayoutHandler.CancelPayout)
+		}
+	}
+
+	// Admin Fantasy Operations
+	adminFantasy := r.Group("/admin/fantasy")
+	adminFantasy.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.AdminOnlyMiddleware(app.AuthService))
+	{
+		adminFantasy.POST("/seasons", app.Handlers.FantasyHandler.AdminCreateSeason)
+		adminFantasy.POST("/seasons/:id/activate", app.Handlers.FantasyHandler.AdminActivateSeason)
+		adminFantasy.POST("/seasons/:id/gameweeks", app.Handlers.FantasyHandler.AdminCreateGameweek)
+		adminFantasy.POST("/seasons/:id/prices/initialize", app.Handlers.FantasyHandler.AdminInitializePrices)
+		adminFantasy.POST("/gameweeks/:id/finalize", app.Handlers.FantasyHandler.AdminFinalizeGameweek)
+		adminFantasy.POST("/gameweeks/:id/deadline", app.Handlers.FantasyHandler.AdminUpdateGameweekDeadline)
+
+		// Oversight
+		adminFantasy.GET("/seasons/:id/overview", app.Handlers.FantasyPayoutHandler.AdminGetOverview)
+		adminFantasy.GET("/seasons/:id/managers", app.Handlers.FantasyPayoutHandler.AdminListManagers)
+		adminFantasy.GET("/seasons/:id/leagues", app.Handlers.FantasyPayoutHandler.AdminListLeagues)
+		adminFantasy.POST("/seasons/:id/settle", app.Handlers.FantasyPayoutHandler.AdminSettleSeason)
+		adminFantasy.POST("/seasons/:id/complete", app.Handlers.FantasyPayoutHandler.AdminCompleteSeason)
+
+		// League finance & prize settlement
+		adminFantasy.GET("/leagues/:id/finance", app.Handlers.FantasyPayoutHandler.AdminGetLeagueFinance)
+		adminFantasy.GET("/leagues/:id/members", app.Handlers.FantasyPayoutHandler.AdminListLeagueMembers)
+		adminFantasy.PUT("/leagues/:id/prizes", app.Handlers.FantasyPayoutHandler.AdminSetPrizeStructure)
+		adminFantasy.POST("/leagues/:id/settle", app.Handlers.FantasyPayoutHandler.AdminSettleLeague)
+
+		// Payout queue
+		adminFantasy.GET("/payouts", app.Handlers.FantasyPayoutHandler.AdminListPayouts)
+		adminFantasy.PUT("/payouts/:id/status", app.Handlers.FantasyPayoutHandler.AdminUpdatePayoutStatus)
+		adminFantasy.GET("/users/:id/wallet", app.Handlers.FantasyPayoutHandler.AdminGetUserWallet)
+	}
+}

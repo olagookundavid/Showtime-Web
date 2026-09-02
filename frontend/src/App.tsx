@@ -19,6 +19,14 @@ const MyOrdersPage = lazy(() => import('./pages/MyOrdersPage').then(m => ({ defa
 const ProductReviewsPage = lazy(() => import('./pages/ProductReviewsPage').then(m => ({ default: m.ProductReviewsPage })));
 const CartPage = lazy(() => import('./pages/CartPage').then(m => ({ default: m.CartPage })));
 
+// Lazy load Fantasy Pages
+const FantasyHub = lazy(() => import('./pages/fantasy/FantasyHub').then(m => ({ default: m.FantasyHub })));
+const FantasySquadBuilder = lazy(() => import('./pages/fantasy/FantasySquadBuilder').then(m => ({ default: m.FantasySquadBuilder })));
+const FantasyMyTeam = lazy(() => import('./pages/fantasy/FantasyMyTeam').then(m => ({ default: m.FantasyMyTeam })));
+const FantasyLeagues = lazy(() => import('./pages/fantasy/FantasyLeagues').then(m => ({ default: m.FantasyLeagues })));
+const FantasyLeaderboard = lazy(() => import('./pages/fantasy/FantasyLeaderboard').then(m => ({ default: m.FantasyLeaderboard })));
+const FantasyWallet = lazy(() => import('./pages/fantasy/FantasyWallet').then(m => ({ default: m.FantasyWallet })));
+
 import { AboutShowtimeFlag } from './pages/about/AboutShowtimeFlag';
 import { MediaGuidelines } from './pages/about/MediaGuidelines';
 import { GameplayRules } from './pages/about/GameplayRules';
@@ -82,6 +90,7 @@ const AdminContracts = lazy(() => import('./pages/admin/AdminContracts'));
 const AdminTransfers = lazy(() => import('./pages/admin/AdminTransfers'));
 const AdminTransferWindows = lazy(() => import('./pages/admin/AdminTransferWindows'));
 const AdminSettings = lazy(() => import('./pages/admin/AdminSettings').then(m => ({ default: m.AdminSettings })));
+const AdminFantasy = lazy(() => import('./pages/admin/AdminFantasy').then(m => ({ default: m.AdminFantasy })));
 
 // Lazy load Team Head Pages
 const TeamHeadLayout = lazy(() => import('./pages/team-head/TeamHeadLayout'));
@@ -183,6 +192,30 @@ function App() {
               <Route path="/store/confirm" element={<OrderConfirmationPage />} />
               <Route path="/store/orders" element={<MyOrdersPage />} />
 
+              {/* Fantasy Flag Football */}
+              <Route path="/fantasy" element={<FantasyHub />} />
+              <Route path="/fantasy/build" element={
+                <ProtectedRoute>
+                  <FantasySquadBuilder />
+                </ProtectedRoute>
+              } />
+              <Route path="/fantasy/my-team" element={
+                <ProtectedRoute>
+                  <FantasyMyTeam />
+                </ProtectedRoute>
+              } />
+              <Route path="/fantasy/leagues" element={
+                <ProtectedRoute>
+                  <FantasyLeagues />
+                </ProtectedRoute>
+              } />
+              <Route path="/fantasy/wallet" element={
+                <ProtectedRoute>
+                  <FantasyWallet />
+                </ProtectedRoute>
+              } />
+              <Route path="/fantasy/leaderboard/:id" element={<FantasyLeaderboard />} />
+
               {/* About Us Pages */}
               <Route path="/about/showtime-flag" element={<AboutShowtimeFlag />} />
               <Route path="/about/media-guidelines" element={<MediaGuidelines />} />
@@ -230,6 +263,7 @@ function App() {
               <Route path="player-claims" element={<AdminPlayerClaims />} />
               <Route path="transfers" element={<AdminTransfers />} />
               <Route path="transfer-windows" element={<AdminTransferWindows />} />
+              <Route path="fantasy" element={<AdminFantasy />} />
               <Route path="settings" element={<AdminSettings />} />
             </Route>
 

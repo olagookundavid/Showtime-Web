@@ -2744,6 +2744,578 @@ export const discountsApi = {
     },
 };
 
+// ─── Fantasy Module Types & API ──────────────────────────────────────────────
+
+export type FantasySlot =
+    | 'QB_M'
+    | 'QB_F'
+    | 'REC_1'
+    | 'REC_2'
+    | 'REC_3'
+    | 'REC_4'
+    | 'REC_5'
+    | 'RUSHER'
+    | 'DEF_1'
+    | 'DEF_2'
+    | 'DEF_3'
+    | 'DEF_4'
+    | 'DEF_5'
+    | 'DEF_6';
+
+export interface FantasySeason {
+    id: string;
+    competition_id: string;
+    name: string;
+    squad_size: number;
+    budget: number;
+    min_female_offense: number;
+    min_female_defense: number;
+    max_per_club: number;
+    lock_mins_before: number;
+    status: 'DRAFT' | 'ACTIVE' | 'COMPLETED';
+    created_at: string;
+}
+
+export interface FantasyGameweek {
+    id: string;
+    season_id: string;
+    number: number;
+    event_day_id: string;
+    deadline: string;
+    status: 'SCHEDULED' | 'LOCKED' | 'LIVE' | 'FINALIZED';
+}
+
+export interface FantasyPlayerListItem {
+    player_id: string;
+    player_name: string;
+    player_image: string;
+    position: string;
+    gender: string;
+    team_id: string;
+    team_name: string;
+    team_short_name: string;
+    team_logo: string;
+    price: number;
+    rating: number;
+    total_points: number;
+    selected_by_pct: number;
+}
+
+export interface FantasyLineupPick {
+    slot: FantasySlot;
+    player_id: string;
+    player_name?: string;
+    player_image?: string;
+    position?: string;
+    gender?: string;
+    team_id?: string;
+    team_name?: string;
+    team_short_name?: string;
+    team_logo?: string;
+    purchase_price: number;
+    current_price: number;
+    points: number;
+}
+
+export interface FantasyLineupResponse {
+    id: string;
+    team_id: string;
+    team_name: string;
+    gameweek_id: string;
+    total_spent: number;
+    remaining_budget: number;
+    points: number;
+    status: 'DRAFT' | 'LOCKED';
+    is_rollover: boolean;
+    picks: FantasyLineupPick[];
+}
+
+export interface PointsBreakdown {
+    version: string;
+    passing_yards_pts: number;
+    passing_tds_pts: number;
+    interceptions_thrown_pts: number;
+    qb_sacks_pts: number;
+    rushing_yards_pts: number;
+    rushing_tds_pts: number;
+    receptions_pts: number;
+    receiving_yards_pts: number;
+    receiving_tds_pts: number;
+    drops_pts: number;
+    xp_good_pts: number;
+    extra_point_tds_pts: number;
+    bad_snaps_pts: number;
+    offensive_positive: number;
+    offensive_negative: number;
+    offensive_total: number;
+    flag_pulls_pts: number;
+    pass_deflections_pts: number;
+    interceptions_pts: number;
+    def_sacks_pts: number;
+    defensive_tds_pts: number;
+    defensive_xp_tds_pts: number;
+    safety_pts: number;
+    safety_conceded_pts: number;
+    defensive_total: number;
+    net_total: number;
+}
+
+export interface PlayerGWBreakdownResponse {
+    player_id: string;
+    player_name: string;
+    match_id: string;
+    match_label: string;
+    points: number;
+    breakdown: PointsBreakdown;
+}
+
+export interface FantasyLeague {
+    id: string;
+    season_id: string;
+    name: string;
+    type: 'OVERALL' | 'PUBLIC' | 'PRIVATE';
+    invite_code?: string;
+    // Absent/empty for the system-owned OVERALL league, which has no human owner.
+    created_by_user_id?: string;
+    entry_fee: number;
+    max_members: number;
+    member_count: number;
+    createdAt?: string;
+}
+
+export interface JoinLeagueResponse {
+    league_id: string;
+    league_name: string;
+    paystack_url?: string;
+    paystack_ref?: string;
+    paystack_access_code?: string;
+}
+
+export interface LeaderboardEntry {
+    rank: number;
+    user_id: string;
+    user_name: string;
+    team_name: string;
+    team_id: string;
+    gw_points: number;
+    total_points: number;
+}
+
+export const fantasyApi = {
+    getActiveSeason: async (): Promise<FantasySeason | null> => {
+        const res = await api.get<{ data: FantasySeason | null }>('/fantasy/season');
+        return res.data.data;
+    },
+    getGameweeks: async (seasonId: string): Promise<FantasyGameweek[]> => {
+        const res = await api.get<{ data: FantasyGameweek[] }>(`/fantasy/season/${seasonId}/gameweeks`);
+        return res.data.data || [];
+    },
+    listPlayerMarket: async (
+        seasonId: string,
+        params?: {
+            /** Comma-separated list of positions, e.g. "Receiver,Center". Filtered server-side. */
+            position?: string;
+            /** 'M' or 'F'. Omit for any gender. Filtered server-side. */
+            gender?: 'M' | 'F';
+            team_id?: string;
+            search?: string;
+            sort?: string;
+            page?: number;
+            limit?: number;
+        }
+    ): Promise<{ data: FantasyPlayerListItem[]; total: number; total_pages: number }> => {
+        const res = await api.get<{ data: FantasyPlayerListItem[]; total: number; total_pages: number }>(
+            `/fantasy/season/${seasonId}/market`,
+            { params }
+        );
+        return res.data;
+    },
+    getPlayerBreakdown: async (playerId: string, gwId: string): Promise<PlayerGWBreakdownResponse> => {
+        const res = await api.get<{ data: PlayerGWBreakdownResponse }>(
+            `/fantasy/players/${playerId}/gameweek/${gwId}/breakdown`
+        );
+        return res.data.data;
+    },
+    saveLineup: async (payload: {
+        season_id: string;
+        gameweek_id: string;
+        team_name: string;
+        picks: { player_id: string; slot: FantasySlot }[];
+    }): Promise<FantasyLineupResponse> => {
+        const res = await api.post<{ data: FantasyLineupResponse }>('/fantasy/lineups', payload);
+        return res.data.data;
+    },
+    getMyLineup: async (seasonId: string, gameweekId: string): Promise<FantasyLineupResponse | null> => {
+        const res = await api.get<{ data: FantasyLineupResponse | null }>('/fantasy/lineups/mine', {
+            params: { season_id: seasonId, gameweek_id: gameweekId },
+        });
+        return res.data.data;
+    },
+    listPublicLeagues: async (seasonId: string): Promise<FantasyLeague[]> => {
+        const res = await api.get<{ data: FantasyLeague[] }>('/fantasy/leagues/public', {
+            params: { season_id: seasonId },
+        });
+        return res.data.data || [];
+    },
+    listMyLeagues: async (seasonId: string): Promise<FantasyLeague[]> => {
+        const res = await api.get<{ data: FantasyLeague[] }>('/fantasy/leagues/mine', {
+            params: { season_id: seasonId },
+        });
+        return res.data.data || [];
+    },
+    createLeague: async (payload: {
+        season_id: string;
+        name: string;
+        type: 'PUBLIC' | 'PRIVATE';
+        entry_fee: number;
+        max_members: number;
+    }): Promise<FantasyLeague> => {
+        const res = await api.post<{ data: FantasyLeague }>('/fantasy/leagues', payload);
+        return res.data.data;
+    },
+    joinLeague: async (seasonId: string, inviteCode: string): Promise<JoinLeagueResponse> => {
+        const res = await api.post<JoinLeagueResponse>(
+            '/fantasy/leagues/join',
+            { invite_code: inviteCode },
+            { params: { season_id: seasonId } }
+        );
+        return res.data;
+    },
+    verifyLeaguePayment: async (reference: string): Promise<{ message: string }> => {
+        const res = await api.post<{ message: string }>('/fantasy/leagues/verify', { reference });
+        return res.data;
+    },
+    getLeaderboard: async (
+        leagueId: string,
+        params?: { gameweek_id?: string; page?: number; limit?: number }
+    ): Promise<{ data: LeaderboardEntry[]; total: number; total_pages: number }> => {
+        const res = await api.get<{ data: LeaderboardEntry[]; total: number; total_pages: number }>(
+            `/fantasy/leagues/${leagueId}/leaderboard`,
+            { params }
+        );
+        return res.data;
+    },
+    getOverallLeaderboard: async (
+        seasonId: string,
+        params?: { gameweek_id?: string; page?: number; limit?: number }
+    ): Promise<{ data: LeaderboardEntry[]; total: number; total_pages: number }> => {
+        const res = await api.get<{ data: LeaderboardEntry[]; total: number; total_pages: number }>(
+            `/fantasy/season/${seasonId}/leaderboard`,
+            { params }
+        );
+        return res.data;
+    },
+
+    // Admin
+    adminCreateSeason: async (payload: {
+        competition_id: string;
+        name: string;
+        squad_size: number;
+        budget: number;
+        min_female_offense: number;
+        min_female_defense: number;
+        max_per_club: number;
+        lock_mins_before: number;
+    }): Promise<FantasySeason> => {
+        const res = await api.post<{ data: FantasySeason }>('/admin/fantasy/seasons', payload);
+        return res.data.data;
+    },
+    adminActivateSeason: async (seasonId: string): Promise<void> => {
+        await api.post(`/admin/fantasy/seasons/${seasonId}/activate`);
+    },
+    adminCreateGameweek: async (
+        seasonId: string,
+        // Omit `deadline` and the server computes it from the event day's first
+        // kickoff minus the season's lock_mins_before. Supply an RFC3339 string
+        // to override that.
+        payload: { number: number; event_day_id: string; deadline?: string }
+    ): Promise<FantasyGameweek> => {
+        const res = await api.post<{ data: FantasyGameweek }>(`/admin/fantasy/seasons/${seasonId}/gameweeks`, payload);
+        return res.data.data;
+    },
+    /** Corrects a gameweek's lock deadline after creation. `deadline` is RFC3339. */
+    adminUpdateGameweekDeadline: async (gwId: string, deadline: string): Promise<void> => {
+        await api.post(`/admin/fantasy/gameweeks/${gwId}/deadline`, { deadline });
+    },
+    adminInitializePrices: async (seasonId: string): Promise<void> => {
+        await api.post(`/admin/fantasy/seasons/${seasonId}/prices/initialize`);
+    },
+    /** Safe to re-run: re-finalizing recomputes scores rather than double-counting. */
+    adminFinalizeGameweek: async (gwId: string): Promise<void> => {
+        await api.post(`/admin/fantasy/gameweeks/${gwId}/finalize`);
+    },
+};
+
+// ─── Fantasy Wallet, Payouts & Admin Finance ─────────────────────────────────
+
+// Every amount below is integer kobo (₦1 = 100 kobo), matching the Paystack
+// amounts used on the way in. Divide by 100 to display naira.
+export const koboToNaira = (kobo: number) => kobo / 100;
+
+export const formatKobo = (kobo: number) =>
+    `₦${(kobo / 100).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+export type WalletTransactionType = 'WINNINGS' | 'PAYOUT' | 'PAYOUT_REVERSAL' | 'ADJUSTMENT';
+
+export interface WalletTransaction {
+    id: string;
+    amount_kobo: number; // signed: credits positive, debits negative
+    type: WalletTransactionType;
+    league_id?: string;
+    league_name?: string;
+    description: string;
+    created_at: string;
+}
+
+export interface BankDetails {
+    bank_name: string;
+    account_number: string;
+    account_name: string;
+}
+
+export interface FantasyWallet {
+    balance_kobo: number;
+    pending_payout_kobo: number;
+    lifetime_won_kobo: number;
+    lifetime_paid_kobo: number;
+    min_payout_kobo: number;
+    can_request_payout: boolean;
+    last_bank_details?: BankDetails;
+    transactions: WalletTransaction[];
+}
+
+export type PayoutStatus = 'PENDING' | 'PROCESSING' | 'PAID' | 'REJECTED' | 'CANCELLED';
+
+export interface PayoutRequest {
+    id: string;
+    user_id: string;
+    user_name?: string;
+    user_email?: string;
+    amount_kobo: number;
+    status: PayoutStatus;
+    bank_name: string;
+    account_number: string;
+    account_name: string;
+    user_notes: string;
+    admin_notes: string;
+    payment_reference?: string;
+    processed_at?: string;
+    created_at: string;
+}
+
+export interface PrizeAward {
+    user_id: string;
+    team_id: string;
+    team_name: string;
+    user_name: string;
+    rank: number;
+    points: number;
+    amount_kobo: number;
+    shared_with: number; // >1 when the position was tied
+    description: string;
+}
+
+export interface PrizeTier {
+    rank: number;
+    percent: number;
+    amount_kobo: number;
+}
+
+export interface LeagueFinance {
+    league_id: string;
+    league_name: string;
+    type: 'OVERALL' | 'PUBLIC' | 'PRIVATE';
+    entry_fee_kobo: number;
+    paid_members: number;
+    pending_members: number;
+    gross_entry_kobo: number;
+    platform_cut_kobo: number;
+    prize_pool_kobo: number;
+    cut_percent: number;
+    settled: boolean;
+    settled_at?: string;
+    prize_structure: PrizeTier[];
+    awards: PrizeAward[]; // projected before settlement, actual after
+}
+
+export interface AdminFantasyOverview {
+    season_id: string;
+    season_name: string;
+    status: string;
+    total_managers: number;
+    total_lineups: number;
+    total_leagues: number;
+    paid_leagues: number;
+    gross_entry_kobo: number;
+    platform_cut_kobo: number;
+    prize_pool_kobo: number;
+    cut_percent: number;
+    unsettled_leagues: number;
+    wallet_liability_kobo: number;
+    pending_payout_kobo: number;
+    pending_payout_count: number;
+    paid_out_kobo: number;
+}
+
+export interface AdminManagerRow {
+    rank: number;
+    user_id: string;
+    user_name: string;
+    user_email: string;
+    team_id: string;
+    team_name: string;
+    total_points: number;
+    lineup_count: number;
+    league_count: number;
+    wallet_balance_kobo: number;
+    created_at: string;
+}
+
+export interface AdminLeagueRow {
+    league_id: string;
+    name: string;
+    type: 'OVERALL' | 'PUBLIC' | 'PRIVATE';
+    invite_code?: string;
+    owner_name?: string;
+    entry_fee_kobo: number;
+    max_members: number;
+    member_count: number;
+    paid_members: number;
+    pending_members: number;
+    gross_entry_kobo: number;
+    platform_cut_kobo: number;
+    prize_pool_kobo: number;
+    settled: boolean;
+    settled_at?: string;
+    created_at: string;
+}
+
+export interface AdminLeagueMemberRow {
+    user_id: string;
+    user_name: string;
+    user_email: string;
+    team_id: string;
+    team_name: string;
+    total_points: number;
+    payment_status: 'FREE' | 'PENDING' | 'PAID' | 'FAILED';
+    paystack_reference?: string;
+    joined_at: string;
+}
+
+export interface SettlementResult {
+    leagues_settled: number;
+    leagues_skipped: number;
+    total_awarded_kobo: number;
+    platform_cut_kobo: number;
+    awards: PrizeAward[];
+}
+
+interface Paged<T> {
+    data: T[];
+    total: number;
+    page: number;
+    limit: number;
+    total_pages: number;
+}
+
+export const fantasyWalletApi = {
+    getWallet: async (): Promise<FantasyWallet> => {
+        const res = await api.get<{ data: FantasyWallet }>('/fantasy/wallet');
+        return res.data.data;
+    },
+    // Throws 409 when the balance is too low; the message is in error.response.data.error.
+    requestPayout: async (payload: {
+        amount_kobo: number;
+        bank_name: string;
+        account_number: string;
+        account_name: string;
+        user_notes?: string;
+    }): Promise<PayoutRequest> => {
+        const res = await api.post<{ data: PayoutRequest }>('/fantasy/payouts', payload);
+        return res.data.data;
+    },
+    listMyPayouts: async (): Promise<PayoutRequest[]> => {
+        const res = await api.get<{ data: PayoutRequest[] }>('/fantasy/payouts');
+        return res.data.data || [];
+    },
+    cancelPayout: async (id: string): Promise<PayoutRequest> => {
+        const res = await api.post<{ data: PayoutRequest }>(`/fantasy/payouts/${id}/cancel`);
+        return res.data.data;
+    },
+};
+
+export const fantasyAdminApi = {
+    getOverview: async (seasonId: string): Promise<AdminFantasyOverview> => {
+        const res = await api.get<{ data: AdminFantasyOverview }>(`/admin/fantasy/seasons/${seasonId}/overview`);
+        return res.data.data;
+    },
+    listManagers: async (
+        seasonId: string,
+        params?: { search?: string; page?: number; limit?: number }
+    ): Promise<Paged<AdminManagerRow>> => {
+        const res = await api.get<Paged<AdminManagerRow>>(`/admin/fantasy/seasons/${seasonId}/managers`, { params });
+        return res.data;
+    },
+    // Includes PRIVATE leagues, unlike the public browse endpoint.
+    listLeagues: async (
+        seasonId: string,
+        params?: { search?: string; page?: number; limit?: number }
+    ): Promise<Paged<AdminLeagueRow>> => {
+        const res = await api.get<Paged<AdminLeagueRow>>(`/admin/fantasy/seasons/${seasonId}/leagues`, { params });
+        return res.data;
+    },
+    getLeagueFinance: async (leagueId: string): Promise<LeagueFinance> => {
+        const res = await api.get<{ data: LeagueFinance }>(`/admin/fantasy/leagues/${leagueId}/finance`);
+        return res.data.data;
+    },
+    listLeagueMembers: async (leagueId: string): Promise<AdminLeagueMemberRow[]> => {
+        const res = await api.get<{ data: AdminLeagueMemberRow[] }>(`/admin/fantasy/leagues/${leagueId}/members`);
+        return res.data.data || [];
+    },
+    setPrizeStructure: async (
+        leagueId: string,
+        tiers: { rank: number; percent: number }[]
+    ): Promise<LeagueFinance> => {
+        const res = await api.put<{ data: LeagueFinance }>(`/admin/fantasy/leagues/${leagueId}/prizes`, { tiers });
+        return res.data.data;
+    },
+    // Throws 409 if the league was already settled.
+    settleLeague: async (leagueId: string): Promise<SettlementResult> => {
+        const res = await api.post<{ data: SettlementResult }>(`/admin/fantasy/leagues/${leagueId}/settle`);
+        return res.data.data;
+    },
+    settleSeason: async (seasonId: string): Promise<SettlementResult> => {
+        const res = await api.post<{ data: SettlementResult }>(`/admin/fantasy/seasons/${seasonId}/settle`);
+        return res.data.data;
+    },
+    // Settles every outstanding paid league, then closes the season.
+    completeSeason: async (seasonId: string): Promise<SettlementResult> => {
+        const res = await api.post<{ data: SettlementResult }>(`/admin/fantasy/seasons/${seasonId}/complete`);
+        return res.data.data;
+    },
+    listPayouts: async (params?: {
+        status?: PayoutStatus | '';
+        page?: number;
+        limit?: number;
+    }): Promise<Paged<PayoutRequest>> => {
+        const res = await api.get<Paged<PayoutRequest>>('/admin/fantasy/payouts', { params });
+        return res.data;
+    },
+    // payment_reference is required when moving a payout to PAID.
+    updatePayoutStatus: async (
+        payoutId: string,
+        payload: { status: 'PROCESSING' | 'PAID' | 'REJECTED'; admin_notes?: string; payment_reference?: string }
+    ): Promise<PayoutRequest> => {
+        const res = await api.put<{ data: PayoutRequest }>(`/admin/fantasy/payouts/${payoutId}/status`, payload);
+        return res.data.data;
+    },
+    getUserWallet: async (userId: string): Promise<FantasyWallet> => {
+        const res = await api.get<{ data: FantasyWallet }>(`/admin/fantasy/users/${userId}/wallet`);
+        return res.data.data;
+    },
+};
+
 export default api;
+
 
 

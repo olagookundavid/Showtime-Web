@@ -81,6 +81,7 @@ export const AdminLayout = () => {
         { name: 'Users', path: '/admin/users', icon: UsersIcon },
         { name: 'Inventory', path: '/admin/inventory', icon: BuildingStorefrontIcon },
         { name: 'Online Store', path: '/admin/store', icon: BuildingStorefrontIcon },
+        { name: 'Fantasy', path: '/admin/fantasy', icon: ShieldCheckIcon },
         { name: 'App Settings', path: '/admin/settings', icon: Cog6ToothIcon },
         { name: 'Administrator', path: '/admin/administrator', icon: GiftIcon },
     ];

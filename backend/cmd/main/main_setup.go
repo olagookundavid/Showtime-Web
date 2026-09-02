@@ -231,6 +231,15 @@ func cronjobs(app *api.Application, ctx context.Context, cancel context.CancelFu
 		}
 	})
 
+	// Run every 5 minutes to lock scheduled fantasy gameweeks and roll over unedited lineups
+	c.AddFunc("*/5 * * * *", func() {
+		if app.FantasyService != nil {
+			if err := app.FantasyService.AutoLockGameweeks(ctx); err != nil {
+				app.Logger.Error(fmt.Sprintf("Fantasy auto-lock job failed: %v", err), nil)
+			}
+		}
+	})
+
 	app.Logger.Info("Starting scheduler...", nil)
 	c.Start()
 
@@ -284,7 +293,7 @@ func ExampleQueueProducer(log *logger.Logger) queue.MessagePublisher {
 
 // wireDependencies initializes and injects all dependencies (Repository -> Service -> Handler)
 // returning the fully assembled Handlers struct, the AuditService, and the TicketService.
-func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Logger) (handlers.Handlers, services.IAuditService, services.IAuthService, services.ITeamManagerService, *services.TicketService, ports.StorageService, services.IContractService, services.ITransferService, services.INotificationService, services.ITransferWindowService) {
+func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Logger) (handlers.Handlers, services.IAuditService, services.IAuthService, services.ITeamManagerService, *services.TicketService, ports.StorageService, services.IContractService, services.ITransferService, services.INotificationService, services.ITransferWindowService, services.IFantasyService) {
 	// Infrastructure
 	auditRepo := ports.NewAuditRepository(pool)
 	authRepo := ports.NewAuthRepository(pool)
@@ -316,6 +325,11 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	claimRepo := ports.NewClaimRepository(pool)
 	commentRepo := ports.NewCommentRepository(pool)
 	discountRepo := ports.NewDiscountRepository(pool)
+
+	// Fantasy Repositories
+	fantasyRepo := ports.NewFantasyRepository(pool)
+	fantasyLeagueRepo := ports.NewFantasyLeagueRepository(pool)
+	fantasyPayoutRepo := ports.NewFantasyPayoutRepository(pool)
 
 	// External Clients
 	paystackClient := services.NewPaystackClient()
@@ -354,6 +368,10 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	playService := services.NewPlayService(playRepo, matchRepo, statsRepo)
 	appSettingService := services.NewAppSettingService(appSettingRepo)
 
+	fantasyService := services.NewFantasyService(fantasyRepo, fantasyLeagueRepo, playerRepo, matchRepo)
+	fantasyLeagueService := services.NewFantasyLeagueService(fantasyLeagueRepo, fantasyRepo, authRepo, paystackClient)
+	fantasyPayoutService := services.NewFantasyPayoutService(fantasyPayoutRepo, fantasyLeagueRepo, fantasyRepo, appSettingRepo)
+
 	// Transport / Handlers
 	authHandler := transport.NewAuthHandler(authService)
 	newsHandler := transport.NewNewsHandler(newsService)
@@ -387,6 +405,10 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	liveService := services.NewLiveService(appSettingRepo)
 	liveHandler := transport.NewLiveHandler(liveService)
 
+	fantasyHandler := transport.NewFantasyHandler(fantasyService)
+	fantasyLeagueHandler := transport.NewFantasyLeagueHandler(fantasyLeagueService)
+	fantasyPayoutHandler := transport.NewFantasyPayoutHandler(fantasyPayoutService)
+
 	h := handlers.NewHandlers(
 		authHandler, newsHandler, galleryHandler, matchHandler, playerHandler,
 		ticketHandler, tmHandler, analyticsHandler, tmAllocHandler, statsHandler,
@@ -394,6 +416,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 		heroSlideHandler, seasonHandler, playHandler, reliveHandler,
 		contractHandler, transferHandler, notifHandler, appSettingHandler,
 		claimHandler, commentHandler, discountHandler, liveHandler,
+		fantasyHandler, fantasyLeagueHandler, fantasyPayoutHandler,
 	)
-	return h, auditService, authService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService
+	return h, auditService, authService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService, fantasyService
 }
