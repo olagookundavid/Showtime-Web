@@ -167,7 +167,7 @@ export function FantasySquadBuilder() {
     const { data: marketData, isLoading: marketLoading } = useQuery({
         queryKey: ['playerMarket', season?.id, activeModalSlot?.allowedPositions, activeModalSlot?.requiredGender, marketSearch],
         queryFn: () => {
-            if (!season?.id || !activeModalSlot) return Promise.resolve({ data: [], total: 0, total_pages: 0 });
+            if (!season?.id || !activeModalSlot) return Promise.resolve({ data: [], total: 0, total_pages: 0, my_rank: 0 });
             return fantasyApi.listPlayerMarket(season.id, {
                 position: activeModalSlot.allowedPositions[0],
                 gender: activeModalSlot.requiredGender,

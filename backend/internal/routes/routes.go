@@ -778,8 +778,10 @@ func SetupFantasyRoutes(r *gin.RouterGroup, app *api.Application) {
 		fantasyRoutes.GET("/season/:id/market", app.Handlers.FantasyHandler.ListPlayerMarket)
 		fantasyRoutes.GET("/players/:id/gameweek/:gwId/breakdown", app.Handlers.FantasyHandler.GetPlayerBreakdown)
 		fantasyRoutes.GET("/leagues/public", app.Handlers.FantasyLeagueHandler.ListPublicLeagues)
-		fantasyRoutes.GET("/leagues/:id/leaderboard", app.Handlers.FantasyLeagueHandler.GetLeaderboard)
-		fantasyRoutes.GET("/season/:id/leaderboard", app.Handlers.FantasyLeagueHandler.GetOverallLeaderboard)
+		// Optional auth so a signed-in viewer's own rank comes back with the
+		// table; anonymous visitors still get the public standings.
+		fantasyRoutes.GET("/leagues/:id/leaderboard", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.FantasyLeagueHandler.GetLeaderboard)
+		fantasyRoutes.GET("/season/:id/leaderboard", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.FantasyLeagueHandler.GetOverallLeaderboard)
 
 		// Webhook (Unauthenticated, HMAC signature validated)
 		fantasyRoutes.POST("/leagues/webhook", app.Handlers.FantasyLeagueHandler.LeagueWebhook)

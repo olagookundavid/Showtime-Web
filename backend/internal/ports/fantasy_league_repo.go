@@ -33,6 +33,9 @@ type IFantasyLeagueRepository interface {
 	// ListMyLeaguesWithRank returns the manager's mini-leagues along with where
 	// they currently sit in each, for the dashboard.
 	ListMyLeaguesWithRank(ctx context.Context, userID, seasonID string) ([]dto.DashboardLeagueRow, error)
+	// GetMyRankInLeague locates a viewer inside one league's table, so the UI
+	// can open the leaderboard on the page they are actually on.
+	GetMyRankInLeague(ctx context.Context, leagueID, userID string) (int, error)
 	GetLeaderboard(ctx context.Context, leagueID string, gameweekID *string, page, limit int) ([]dto.LeaderboardEntry, int, error)
 	GetOverallLeaderboard(ctx context.Context, seasonID string, gameweekID *string, page, limit int) ([]dto.LeaderboardEntry, int, error)
 }
@@ -394,6 +397,34 @@ func (r *FantasyLeagueRepository) ListMyLeaguesWithRank(ctx context.Context, use
 		list = append(list, row)
 	}
 	return list, rows.Err()
+}
+
+func (r *FantasyLeagueRepository) GetMyRankInLeague(ctx context.Context, leagueID, userID string) (int, error) {
+	if userID == "" {
+		return 0, nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	query := `
+		SELECT rnk FROM (
+			SELECT flm.user_id,
+			       RANK() OVER (ORDER BY ft.total_points DESC) AS rnk
+			FROM fantasy_league_members flm
+			JOIN fantasy_teams ft ON flm.team_id = ft.id
+			WHERE flm.league_id = $1 AND flm.payment_status IN ('FREE', 'PAID')
+		) ranked
+		WHERE user_id = $2
+	`
+	var rank int
+	if err := r.pool.QueryRow(ctx, query, leagueID, userID).Scan(&rank); err != nil {
+		// Not a member is not an error — the viewer simply has no position.
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("failed to find your position in this league: %w", err)
+	}
+	return rank, nil
 }
 
 func (r *FantasyLeagueRepository) GetLeaderboard(ctx context.Context, leagueID string, gameweekID *string, page, limit int) ([]dto.LeaderboardEntry, int, error) {

@@ -542,6 +542,31 @@ func TestFantasyLeagueRepositoryQueries(t *testing.T) {
 		}
 	})
 
+	// Lets the leaderboard open on the page the viewer is actually on.
+	t.Run("my rank inside one league", func(t *testing.T) {
+		rank, err := repo.GetMyRankInLeague(ctx, f.leagueID, f.userID)
+		if err != nil {
+			t.Fatalf("GetMyRankInLeague: %v", err)
+		}
+		if rank != 1 {
+			t.Errorf("expected the sole member to be rank 1, got %d", rank)
+		}
+
+		// A non-member has no position, and that is not an error.
+		rank, err = repo.GetMyRankInLeague(ctx, f.leagueID, "00000000-0000-0000-0000-000000000000")
+		if err != nil {
+			t.Fatalf("GetMyRankInLeague for a non-member: %v", err)
+		}
+		if rank != 0 {
+			t.Errorf("expected no rank for a non-member, got %d", rank)
+		}
+
+		// An anonymous viewer short-circuits without touching the database.
+		if rank, err = repo.GetMyRankInLeague(ctx, f.leagueID, ""); err != nil || rank != 0 {
+			t.Errorf("expected no rank for an anonymous viewer, got %d (%v)", rank, err)
+		}
+	})
+
 	// Powers the dashboard's "your mini-leagues and where you sit" panel.
 	t.Run("my leagues with rank", func(t *testing.T) {
 		rows, err := repo.ListMyLeaguesWithRank(ctx, f.userID, f.seasonID)

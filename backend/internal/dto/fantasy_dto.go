@@ -189,8 +189,12 @@ type LeagueResponse struct {
 	CreatedAt       string `json:"created_at"`
 }
 
+// JoinLeagueRequest identifies the league either way round: a PUBLIC league can
+// be joined straight from the browse list by id, while a PRIVATE one still
+// needs its invite code. Exactly one of the two is required.
 type JoinLeagueRequest struct {
-	InviteCode string `json:"invite_code" binding:"required"`
+	InviteCode string `json:"invite_code" binding:"omitempty"`
+	LeagueID   string `json:"league_id" binding:"omitempty,uuid"`
 }
 
 type JoinLeagueResponse struct {

@@ -2891,6 +2891,22 @@ export interface JoinLeagueResponse {
     paystack_access_code?: string;
 }
 
+// my_rank is the signed-in viewer's own position, 0 when anonymous or not in
+// the table. The UI uses it to open on their page rather than page 1.
+export interface Leaderboard {
+    data: LeaderboardEntry[];
+    total: number;
+    total_pages: number;
+    my_rank: number;
+}
+
+interface RawLeaderboard {
+    data: LeaderboardEntry[] | null;
+    total: number;
+    total_pages: number;
+    my_rank?: number;
+}
+
 export interface LeaderboardEntry {
     rank: number;
     user_id: string;
@@ -2973,10 +2989,15 @@ export const fantasyApi = {
         const res = await api.post<{ data: FantasyLeague }>('/fantasy/leagues', payload);
         return res.data.data;
     },
-    joinLeague: async (seasonId: string, inviteCode: string): Promise<JoinLeagueResponse> => {
+    // A PUBLIC league is joined straight from the browse list by id; a PRIVATE
+    // one needs its invite code. Pass whichever you have.
+    joinLeague: async (
+        seasonId: string,
+        by: { invite_code?: string; league_id?: string }
+    ): Promise<JoinLeagueResponse> => {
         const res = await api.post<JoinLeagueResponse>(
             '/fantasy/leagues/join',
-            { invite_code: inviteCode },
+            by,
             { params: { season_id: seasonId } }
         );
         return res.data;
@@ -2988,24 +3009,24 @@ export const fantasyApi = {
     getLeaderboard: async (
         leagueId: string,
         params?: { gameweek_id?: string; page?: number; limit?: number }
-    ): Promise<{ data: LeaderboardEntry[]; total: number; total_pages: number }> => {
-        const res = await api.get<{ data: LeaderboardEntry[] | null; total: number; total_pages: number }>(
+    ): Promise<Leaderboard> => {
+        const res = await api.get<RawLeaderboard>(
             `/fantasy/leagues/${leagueId}/leaderboard`,
             { params }
         );
         // An empty list must reach the UI as [], never null — callers read
         // .length and .map on it directly.
-        return { ...res.data, data: res.data.data ?? [] };
+        return { ...res.data, data: res.data.data ?? [], my_rank: res.data.my_rank ?? 0 };
     },
     getOverallLeaderboard: async (
         seasonId: string,
         params?: { gameweek_id?: string; page?: number; limit?: number }
-    ): Promise<{ data: LeaderboardEntry[]; total: number; total_pages: number }> => {
-        const res = await api.get<{ data: LeaderboardEntry[] | null; total: number; total_pages: number }>(
+    ): Promise<Leaderboard> => {
+        const res = await api.get<RawLeaderboard>(
             `/fantasy/season/${seasonId}/leaderboard`,
             { params }
         );
-        return { ...res.data, data: res.data.data ?? [] };
+        return { ...res.data, data: res.data.data ?? [], my_rank: res.data.my_rank ?? 0 };
     },
 
     // Admin

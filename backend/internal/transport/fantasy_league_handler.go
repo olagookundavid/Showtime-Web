@@ -62,6 +62,13 @@ func (h *FantasyLeagueHandler) GetLeaderboard(c *gin.Context) {
 		return
 	}
 
+	// Optional auth: a signed-in viewer also gets their own position, so the
+	// client can jump straight to the page they are on.
+	myRank := 0
+	if payload, err := helpers.GetTokenPayloadFromContext(c); err == nil && payload != nil {
+		myRank, _ = h.service.GetMyRankInLeague(c.Request.Context(), leagueID, payload.UserId)
+	}
+
 	totalPages := 0
 	if limit > 0 {
 		totalPages = (total + limit - 1) / limit
@@ -73,6 +80,7 @@ func (h *FantasyLeagueHandler) GetLeaderboard(c *gin.Context) {
 		"page":        page,
 		"limit":       limit,
 		"total_pages": totalPages,
+		"my_rank":     myRank,
 	})
 }
 
@@ -92,6 +100,11 @@ func (h *FantasyLeagueHandler) GetOverallLeaderboard(c *gin.Context) {
 		return
 	}
 
+	myRank := 0
+	if payload, err := helpers.GetTokenPayloadFromContext(c); err == nil && payload != nil {
+		myRank, _ = h.service.GetMyOverallRank(c.Request.Context(), seasonID, payload.UserId)
+	}
+
 	totalPages := 0
 	if limit > 0 {
 		totalPages = (total + limit - 1) / limit
@@ -103,6 +116,7 @@ func (h *FantasyLeagueHandler) GetOverallLeaderboard(c *gin.Context) {
 		"page":        page,
 		"limit":       limit,
 		"total_pages": totalPages,
+		"my_rank":     myRank,
 	})
 }
 

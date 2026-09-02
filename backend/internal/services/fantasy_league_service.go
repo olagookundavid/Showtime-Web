@@ -28,6 +28,10 @@ type IFantasyLeagueService interface {
 	ListPublicLeagues(ctx context.Context, seasonID string) ([]dto.LeagueResponse, error)
 	GetLeaderboard(ctx context.Context, leagueID string, gameweekID *string, page, limit int) ([]dto.LeaderboardEntry, int, error)
 	GetOverallLeaderboard(ctx context.Context, seasonID string, gameweekID *string, page, limit int) ([]dto.LeaderboardEntry, int, error)
+	// Rank lookups let the leaderboard open on the page the viewer is on
+	// rather than page 1, which is meaningless to a mid-table manager.
+	GetMyRankInLeague(ctx context.Context, leagueID, userID string) (int, error)
+	GetMyOverallRank(ctx context.Context, seasonID, userID string) (int, error)
 }
 
 type FantasyLeagueService struct {
@@ -146,19 +150,41 @@ func (s *FantasyLeagueService) CreateLeague(ctx context.Context, userID string, 
 
 func (s *FantasyLeagueService) JoinLeague(ctx context.Context, userID, seasonID string, req dto.JoinLeagueRequest) (*dto.JoinLeagueResponse, error) {
 	code := strings.TrimSpace(req.InviteCode)
-	league, err := s.repo.GetLeagueByInviteCode(ctx, code)
-	if err != nil || league == nil {
-		return nil, errors.New("invalid or expired league invite code")
+	leagueID := strings.TrimSpace(req.LeagueID)
+
+	var league *domain.FantasyLeague
+	var err error
+	switch {
+	case leagueID != "":
+		// Joining from the browse list. Only PUBLIC leagues are listed there,
+		// and a private league must not be joinable by guessing its id.
+		league, err = s.repo.GetLeagueByID(ctx, leagueID)
+		if err != nil {
+			return nil, err
+		}
+		if league == nil || league.Type != domain.LeagueTypePublic {
+			return nil, errors.New("that league is invite-only — ask its owner for the code")
+		}
+	case code != "":
+		league, err = s.repo.GetLeagueByInviteCode(ctx, code)
+		if err != nil || league == nil {
+			return nil, errors.New("invalid or expired league invite code")
+		}
+	default:
+		return nil, errors.New("choose a league to join, or enter an invite code")
 	}
 
 	if league.SeasonID != seasonID {
 		return nil, errors.New("league is not for the current season")
 	}
 
-	// 1. Ensure user has a fantasy team
+	// Entering the season is a separate, earlier step.
 	team, err := s.fantasyRepo.GetTeamByUserAndSeason(ctx, userID, seasonID)
-	if err != nil || team == nil {
-		return nil, errors.New("please create your fantasy lineup before joining a league")
+	if err != nil {
+		return nil, err
+	}
+	if team == nil {
+		return nil, errors.New("join this season before joining a league")
 	}
 
 	// 2. Check if already a member
@@ -366,6 +392,27 @@ func (s *FantasyLeagueService) ListPublicLeagues(ctx context.Context, seasonID s
 		})
 	}
 	return res, nil
+}
+
+func (s *FantasyLeagueService) GetMyRankInLeague(ctx context.Context, leagueID, userID string) (int, error) {
+	if userID == "" {
+		return 0, nil
+	}
+	return s.repo.GetMyRankInLeague(ctx, leagueID, userID)
+}
+
+// GetMyOverallRank is the viewer's position across every manager in a season.
+// An anonymous viewer, or one who hasn't joined, simply has no position.
+func (s *FantasyLeagueService) GetMyOverallRank(ctx context.Context, seasonID, userID string) (int, error) {
+	if userID == "" {
+		return 0, nil
+	}
+	team, err := s.fantasyRepo.GetTeamByUserAndSeason(ctx, userID, seasonID)
+	if err != nil || team == nil {
+		return 0, err
+	}
+	rank, _, err := s.fantasyRepo.GetTeamOverallRank(ctx, seasonID, team.ID)
+	return rank, err
 }
 
 func (s *FantasyLeagueService) GetLeaderboard(ctx context.Context, leagueID string, gameweekID *string, page, limit int) ([]dto.LeaderboardEntry, int, error) {
