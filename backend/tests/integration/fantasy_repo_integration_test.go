@@ -228,6 +228,56 @@ func TestFantasyRepositoryQueries(t *testing.T) {
 		}
 	})
 
+	// A season is created as DRAFT, and GetActiveSeason only returns ACTIVE
+	// ones. Without a listing that ignores status, an admin cannot see — let
+	// alone activate — the season they just created, and the whole feature is
+	// unreachable. This guards that dead end.
+	t.Run("a draft season is invisible to GetActiveSeason but listed for admin", func(t *testing.T) {
+		draftID := mustScan(t, f.pool,
+			`INSERT INTO fantasy_seasons (competition_id, name, status) VALUES ($1, 'ITest Draft', 'DRAFT') RETURNING id`,
+			f.compID)
+		t.Cleanup(func() {
+			_, _ = f.pool.Exec(ctx, `DELETE FROM fantasy_seasons WHERE id = $1`, draftID)
+		})
+
+		active, err := repo.GetActiveSeason(ctx)
+		if err != nil {
+			t.Fatalf("GetActiveSeason: %v", err)
+		}
+		if active != nil && active.ID == draftID {
+			t.Error("GetActiveSeason must not return a DRAFT season")
+		}
+
+		all, err := repo.ListSeasons(ctx)
+		if err != nil {
+			t.Fatalf("ListSeasons: %v", err)
+		}
+		var foundDraft bool
+		for _, s := range all {
+			if s.ID == draftID {
+				foundDraft = true
+				if s.Status != domain.FantasySeasonDraft {
+					t.Errorf("expected the season to be DRAFT, got %s", s.Status)
+				}
+			}
+		}
+		if !foundDraft {
+			t.Error("ListSeasons must include DRAFT seasons so an admin can activate them")
+		}
+
+		// And once activated it becomes the live season players can see.
+		if err := repo.UpdateSeasonStatus(ctx, draftID, domain.FantasySeasonActive); err != nil {
+			t.Fatalf("UpdateSeasonStatus: %v", err)
+		}
+		activated, err := repo.GetActiveSeason(ctx)
+		if err != nil {
+			t.Fatalf("GetActiveSeason after activation: %v", err)
+		}
+		if activated == nil {
+			t.Fatal("expected an active season after activation")
+		}
+	})
+
 	t.Run("first kickoff resolves through the event day FK", func(t *testing.T) {
 		kickoff, err := repo.GetEventDayFirstKickoff(ctx, f.eventDayID)
 		if err != nil {

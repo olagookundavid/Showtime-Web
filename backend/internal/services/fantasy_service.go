@@ -23,6 +23,7 @@ type IFantasyService interface {
 
 	// User Operations
 	GetActiveSeason(ctx context.Context) (*dto.FantasySeasonResponse, error)
+	ListSeasons(ctx context.Context) ([]dto.FantasySeasonResponse, error)
 	GetGameweeks(ctx context.Context, seasonID string) ([]dto.GameweekResponse, error)
 	ListPlayerMarket(ctx context.Context, seasonID string, positions []string, gender, teamID, search, sortBy string, page, limit int) ([]dto.FantasyPlayerListItem, int, error)
 	SaveLineup(ctx context.Context, userID string, req dto.SaveLineupRequest) (*dto.FantasyLineupResponse, error)
@@ -335,6 +336,20 @@ func (s *FantasyService) GetActiveSeason(ctx context.Context) (*dto.FantasySeaso
 		return nil, nil
 	}
 	return seasonResponse(season), nil
+}
+
+// ListSeasons powers the admin season picker. It returns drafts too, which is
+// the only way an admin can reach a newly created season to activate it.
+func (s *FantasyService) ListSeasons(ctx context.Context) ([]dto.FantasySeasonResponse, error) {
+	list, err := s.repo.ListSeasons(ctx)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]dto.FantasySeasonResponse, 0, len(list))
+	for i := range list {
+		res = append(res, *seasonResponse(&list[i]))
+	}
+	return res, nil
 }
 
 func (s *FantasyService) GetGameweeks(ctx context.Context, seasonID string) ([]dto.GameweekResponse, error) {

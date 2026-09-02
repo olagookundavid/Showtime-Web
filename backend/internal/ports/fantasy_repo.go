@@ -18,6 +18,10 @@ type IFantasyRepository interface {
 	// Season
 	CreateSeason(ctx context.Context, s *domain.FantasySeason) error
 	GetActiveSeason(ctx context.Context) (*domain.FantasySeason, error)
+	// ListSeasons returns every season regardless of status. Admin screens need
+	// this: a season is created as DRAFT, so GetActiveSeason cannot see it and
+	// there would be no way to reach the activate action.
+	ListSeasons(ctx context.Context) ([]domain.FantasySeason, error)
 	GetSeasonByID(ctx context.Context, id string) (*domain.FantasySeason, error)
 	UpdateSeasonStatus(ctx context.Context, id string, status domain.FantasySeasonStatus) error
 
@@ -130,6 +134,37 @@ func (r *FantasyRepository) GetActiveSeason(ctx context.Context) (*domain.Fantas
 		return nil, fmt.Errorf("failed to get active fantasy season: %w", err)
 	}
 	return &s, nil
+}
+
+func (r *FantasyRepository) ListSeasons(ctx context.Context) ([]domain.FantasySeason, error) {
+	query := `
+		SELECT id, competition_id, name, squad_size, budget, min_female_offense,
+		       min_female_defense, max_per_club, lock_mins_before, status, created_at, updated_at
+		FROM fantasy_seasons
+		ORDER BY created_at DESC
+	`
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	rows, err := r.pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list fantasy seasons: %w", err)
+	}
+	defer rows.Close()
+
+	var list []domain.FantasySeason
+	for rows.Next() {
+		var s domain.FantasySeason
+		if err := rows.Scan(
+			&s.ID, &s.CompetitionID, &s.Name, &s.SquadSize, &s.Budget,
+			&s.MinFemaleOffense, &s.MinFemaleDefense, &s.MaxPerClub,
+			&s.LockMinsBefore, &s.Status, &s.CreatedAt, &s.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		list = append(list, s)
+	}
+	return list, rows.Err()
 }
 
 func (r *FantasyRepository) GetSeasonByID(ctx context.Context, id string) (*domain.FantasySeason, error) {

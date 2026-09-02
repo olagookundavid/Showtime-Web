@@ -3245,6 +3245,13 @@ export const fantasyWalletApi = {
 };
 
 export const fantasyAdminApi = {
+    // Returns every season including DRAFT ones. `getActiveSeason` only ever
+    // returns an ACTIVE season, so admin screens must use this or they cannot
+    // see — let alone activate — a season they just created.
+    listSeasons: async (): Promise<FantasySeason[]> => {
+        const res = await api.get<{ data: FantasySeason[] }>('/admin/fantasy/seasons');
+        return res.data.data || [];
+    },
     getOverview: async (seasonId: string): Promise<AdminFantasyOverview> => {
         const res = await api.get<{ data: AdminFantasyOverview }>(`/admin/fantasy/seasons/${seasonId}/overview`);
         return res.data.data;

@@ -21,6 +21,7 @@ type IFantasyHandler interface {
 	GetMyLineup(c *gin.Context)
 
 	// Admin
+	AdminListSeasons(c *gin.Context)
 	AdminCreateSeason(c *gin.Context)
 	AdminActivateSeason(c *gin.Context)
 	AdminCreateGameweek(c *gin.Context)
@@ -163,6 +164,17 @@ func (h *FantasyHandler) GetMyLineup(c *gin.Context) {
 }
 
 // ─── Admin Handlers ───────────────────────────────────────────────────────────
+
+// AdminListSeasons returns every season, including drafts, so the admin can
+// see and activate a season it just created.
+func (h *FantasyHandler) AdminListSeasons(c *gin.Context) {
+	list, err := h.service.ListSeasons(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": list})
+}
 
 func (h *FantasyHandler) AdminCreateSeason(c *gin.Context) {
 	var req dto.CreateFantasySeasonRequest

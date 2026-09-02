@@ -92,10 +92,10 @@ const SectionCard = ({ title, icon: Icon, children, action }: {
     children: React.ReactNode;
     action?: React.ReactNode;
 }) => (
-    <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden">
-        <div className="p-4 border-b border-neutral-800 flex items-center justify-between gap-3">
-            <h3 className="text-base font-black uppercase tracking-wider text-white flex items-center gap-2">
-                {Icon && <Icon className="w-4 h-4 text-yellow-500" />} {title}
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3 bg-gray-50 dark:bg-gray-700/40">
+            <h3 className="text-base font-black uppercase tracking-wider text-sffl-navy dark:text-white flex items-center gap-2">
+                {Icon && <Icon className="w-4 h-4 text-sffl-red" />} {title}
             </h3>
             {action}
         </div>
@@ -110,21 +110,21 @@ const StatCard = ({ label, value, hint, tone = 'neutral' }: {
     tone?: 'neutral' | 'yellow' | 'emerald' | 'red';
 }) => {
     const toneCls =
-        tone === 'yellow' ? 'text-yellow-400' :
+        tone === 'yellow' ? 'text-sffl-red' :
         tone === 'emerald' ? 'text-emerald-400' :
         tone === 'red' ? 'text-red-400' : 'text-white';
     return (
-        <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-4">
-            <span className="text-[10px] font-black uppercase tracking-wider text-neutral-500 block">{label}</span>
+        <div className="bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl p-4">
+            <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 block">{label}</span>
             <span className={`block mt-1.5 text-xl font-black tabular-nums ${toneCls}`}>{value}</span>
-            {hint && <span className="block mt-1 text-[11px] text-neutral-500">{hint}</span>}
+            {hint && <span className="block mt-1 text-[11px] text-gray-400 dark:text-gray-500">{hint}</span>}
         </div>
     );
 };
 
 const TypeBadge = ({ type }: { type: 'OVERALL' | 'PUBLIC' | 'PRIVATE' }) => {
     const cls =
-        type === 'OVERALL' ? 'bg-yellow-500/10 border-yellow-500/25 text-yellow-400' :
+        type === 'OVERALL' ? 'bg-yellow-500/10 border-yellow-500/25 text-sffl-red' :
         type === 'PUBLIC' ? 'bg-sky-500/10 border-sky-500/25 text-sky-400' :
         'bg-purple-500/10 border-purple-500/25 text-purple-400';
     return (
@@ -139,7 +139,7 @@ const PaymentBadge = ({ status }: { status: 'FREE' | 'PENDING' | 'PAID' | 'FAILE
         status === 'PAID' ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400' :
         status === 'PENDING' ? 'bg-amber-500/10 border-amber-500/25 text-amber-400' :
         status === 'FAILED' ? 'bg-red-500/10 border-red-500/25 text-red-400' :
-        'bg-neutral-800 border-neutral-700 text-neutral-400';
+        'bg-neutral-800 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400';
     return (
         <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${cls}`}>
             {status}
@@ -153,7 +153,7 @@ const PayoutBadge = ({ status }: { status: PayoutStatus }) => {
         status === 'PENDING' ? 'bg-amber-500/10 border-amber-500/25 text-amber-400' :
         status === 'PROCESSING' ? 'bg-sky-500/10 border-sky-500/25 text-sky-400' :
         status === 'REJECTED' ? 'bg-red-500/10 border-red-500/25 text-red-400' :
-        'bg-neutral-800 border-neutral-700 text-neutral-400';
+        'bg-neutral-800 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400';
     return (
         <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${cls}`}>
             {status}
@@ -165,7 +165,7 @@ const SettledBadge = ({ settled }: { settled: boolean }) => (
     <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${
         settled
             ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400'
-            : 'bg-neutral-800 border-neutral-700 text-neutral-400'
+            : 'bg-neutral-800 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400'
     }`}>
         {settled ? 'Settled' : 'Open'}
     </span>
@@ -177,13 +177,13 @@ const SearchBox = ({ value, onChange, placeholder }: {
     placeholder: string;
 }) => (
     <div className="relative w-full sm:w-80">
-        <MagnifyingGlassIcon className="w-4 h-4 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
+        <MagnifyingGlassIcon className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
         <input
             type="text"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder}
-            className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-9 pr-3 py-2.5 text-sm text-white placeholder:text-neutral-600 focus:outline-none focus:border-yellow-500"
+            className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl pl-9 pr-3 py-2.5 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
         />
     </div>
 );
@@ -194,22 +194,22 @@ const Pager = ({ page, totalPages, total, onPage }: {
     total: number;
     onPage: (p: number) => void;
 }) => (
-    <div className="flex items-center justify-between gap-3 p-4 border-t border-neutral-800">
-        <span className="text-[11px] text-neutral-500">
+    <div className="flex items-center justify-between gap-3 p-4 border-t border-gray-200 dark:border-gray-700">
+        <span className="text-[11px] text-gray-500 dark:text-gray-400">
             Page {page} of {Math.max(totalPages, 1)} · {total} total
         </span>
         <div className="flex items-center gap-2">
             <button
                 onClick={() => onPage(page - 1)}
                 disabled={page <= 1}
-                className="px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-white text-[11px] font-bold uppercase transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-[11px] font-bold uppercase transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
                 Prev
             </button>
             <button
                 onClick={() => onPage(page + 1)}
                 disabled={page >= totalPages}
-                className="px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-white text-[11px] font-bold uppercase transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-[11px] font-bold uppercase transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
                 Next
             </button>
@@ -233,38 +233,38 @@ const ConfirmDialog = ({ open, title, warning, body, confirmLabel, pending, onCo
 }) => {
     if (!open) return null;
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div className="w-full max-w-lg bg-neutral-900 border border-amber-500/30 rounded-2xl shadow-2xl overflow-hidden">
-                <div className="flex items-start justify-between gap-4 p-5 border-b border-neutral-800 bg-amber-500/5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div className="w-full max-w-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-3xl shadow-2xl overflow-hidden">
+                <div className="flex items-start justify-between gap-4 p-5 border-b border-gray-200 dark:border-gray-700 bg-red-50/50 dark:bg-red-950/20">
                     <div className="flex items-start gap-3">
-                        <ExclamationTriangleIcon className="w-6 h-6 text-amber-400 shrink-0 mt-0.5" />
+                        <ExclamationTriangleIcon className="w-6 h-6 text-sffl-red shrink-0 mt-0.5" />
                         <div>
-                            <h4 className="text-base font-black uppercase tracking-wider text-white">{title}</h4>
-                            <p className="text-xs text-amber-300/90 mt-1">{warning}</p>
+                            <h4 className="text-base font-black uppercase tracking-wider text-sffl-navy dark:text-white">{title}</h4>
+                            <p className="text-xs text-red-600 dark:text-red-400 mt-1">{warning}</p>
                         </div>
                     </div>
                     <button
                         onClick={onCancel}
-                        className="text-neutral-500 hover:text-white transition cursor-pointer"
+                        className="text-gray-400 hover:text-gray-600 dark:hover:text-white transition cursor-pointer"
                         aria-label="Cancel"
                     >
                         <XMarkIcon className="w-5 h-5" />
                     </button>
                 </div>
 
-                {body && <div className="p-5 border-b border-neutral-800">{body}</div>}
+                {body && <div className="p-5 border-b border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-300">{body}</div>}
 
                 <div className="p-5 flex items-center justify-end gap-3">
                     <button
                         onClick={onCancel}
-                        className="px-5 py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-white font-bold text-xs uppercase transition cursor-pointer"
+                        className="px-5 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold text-xs uppercase transition cursor-pointer"
                     >
                         Cancel
                     </button>
                     <button
                         onClick={onConfirm}
                         disabled={pending}
-                        className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs uppercase tracking-wider transition shadow-lg shadow-amber-500/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase tracking-wider transition shadow-lg shadow-sffl-red/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {pending ? <Spinner /> : confirmLabel}
                     </button>
@@ -282,29 +282,88 @@ const settlementSummary = (r: SettlementResult): string =>
 export function AdminFantasy() {
     const [tab, setTab] = useState<TabKey>('setup');
 
-    const { data: season, isLoading: seasonLoading } = useQuery({
+    // Admin must load every season, not just the active one: a season is
+    // created as DRAFT, so getActiveSeason would return null and there would be
+    // no way to reach the Activate action for the season just created.
+    const { data: seasons = [], isLoading: seasonLoading } = useQuery({
         queryKey: ['adminFantasySeason'],
-        queryFn: fantasyApi.getActiveSeason,
+        queryFn: fantasyAdminApi.listSeasons,
     });
+
+    // Prefer the live season; otherwise fall back to the newest one so a fresh
+    // draft is visible and can be activated.
+    const season = seasons.find(s => s.status === 'ACTIVE') ?? seasons[0] ?? null;
+
+    // Shares SetupTab's query key, so react-query serves both from one request.
+    const { data: gameweeks = [] } = useQuery({
+        queryKey: ['adminFantasyGameweeks', season?.id],
+        queryFn: () => (season?.id ? fantasyApi.getGameweeks(season.id) : Promise.resolve([])),
+        enabled: !!season?.id,
+    });
+
+    // An active season with no open gameweek still shows players nothing, which
+    // reads as "the feature is broken" rather than "setup is incomplete".
+    const hasOpenGameweek = gameweeks.some(gw => gw.status === 'SCHEDULED');
 
     if (seasonLoading) {
         return <Loader />;
     }
 
     return (
-        <div className="p-6 max-w-7xl mx-auto space-y-6 text-white">
+        <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6 text-gray-900 dark:text-white">
             {/* Header */}
-            <div className="border-b border-neutral-800 pb-5">
-                <h1 className="text-2xl font-black uppercase tracking-tight text-white flex items-center gap-2">
-                    <TrophyIcon className="w-6 h-6 text-yellow-500" /> Fantasy League Operations
+            <div className="border-b border-gray-200 dark:border-gray-700 pb-5">
+                <h1 className="text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white flex items-center gap-2">
+                    <TrophyIcon className="w-6 h-6 text-sffl-red" /> Fantasy League Operations
                 </h1>
-                <p className="text-xs text-neutral-400 mt-1">
+                <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">
                     Season and gameweek setup, league oversight, manager records, season finances, and the manual payout queue.
                 </p>
             </div>
 
+            {/* A created season is DRAFT until activated, and a draft is
+                invisible to players. Say so plainly — otherwise "created
+                successfully" followed by an empty public site is baffling. */}
+            {season && season.status !== 'ACTIVE' && (
+                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 flex items-start gap-3">
+                    <ExclamationTriangleIcon className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                    <div className="text-sm">
+                        <p className="font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                            {season.name} is {season.status}
+                        </p>
+                        <p className="text-gray-600 dark:text-gray-300 mt-1">
+                            {season.status === 'DRAFT'
+                                ? 'Players cannot see this season yet. Activate it below, then initialize player prices and schedule at least one gameweek before managers can pick a squad.'
+                                : 'This season is completed. Players can still view final standings, but no new squads can be entered.'}
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {season && season.status === 'ACTIVE' && !hasOpenGameweek && (
+                <div className="rounded-2xl border border-sky-500/30 bg-sky-500/10 p-4 flex items-start gap-3">
+                    <ExclamationTriangleIcon className="w-5 h-5 text-sky-500 shrink-0 mt-0.5" />
+                    <div className="text-sm">
+                        <p className="font-black uppercase tracking-wider text-sky-600 dark:text-sky-400">
+                            Season is live, but nothing is open for entry
+                        </p>
+                        <p className="text-gray-600 dark:text-gray-300 mt-1">
+                            Managers can't pick a squad until a gameweek is scheduled and still ahead of its deadline.
+                            Schedule one in <strong>Setup</strong> — it needs an event day that already has fixtures,
+                            since the deadline is derived from the first kickoff.
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {!season && (
+                <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-800/80 p-4 text-sm text-gray-600 dark:text-gray-300">
+                    No fantasy season exists yet. Create one in <strong>Setup</strong> to unlock the other tabs.
+                </div>
+            )}
+
             {/* Tab bar */}
-            <div className="flex flex-wrap gap-2 bg-neutral-900 border border-neutral-800 rounded-2xl p-2">
+            <div className="flex flex-wrap gap-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border border-gray-200 dark:border-gray-700 rounded-2xl p-2 shadow-sm">
                 {TABS.map(({ key, label, icon: Icon }) => {
                     const active = tab === key;
                     const locked = key !== 'setup' && !season;
@@ -316,8 +375,8 @@ export function AdminFantasy() {
                             disabled={locked}
                             className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                                 active
-                                    ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/10'
-                                    : 'bg-neutral-950 text-neutral-400 hover:text-white hover:bg-neutral-800'
+                                    ? 'bg-yellow-500 text-black shadow-lg shadow-sffl-red/20'
+                                    : 'bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 hover:text-white hover:bg-neutral-800'
                             }`}
                         >
                             <Icon className="w-4 h-4" /> {label}
@@ -466,18 +525,18 @@ function SetupTab({ season }: { season: FantasySeason | null }) {
         <div className="space-y-8">
             {/* Season Operations Card */}
             {!season ? (
-                <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-xl">
-                    <h2 className="text-lg font-black uppercase text-white mb-4 flex items-center gap-2">
-                        <PlusIcon className="w-5 h-5 text-yellow-500" /> Create Fantasy Season
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm">
+                    <h2 className="text-lg font-black uppercase text-sffl-navy dark:text-white mb-4 flex items-center gap-2">
+                        <PlusIcon className="w-5 h-5 text-sffl-red" /> Create Fantasy Season
                     </h2>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label className="text-xs font-bold text-neutral-400 uppercase block mb-1">Competition</label>
+                            <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">Competition</label>
                             <select
                                 value={seasonForm.competition_id}
                                 onChange={(e) => setSeasonForm({ ...seasonForm, competition_id: e.target.value })}
-                                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-yellow-500"
+                                className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                             >
                                 <option value="">Select Competition...</option>
                                 {competitionsData?.data?.map(c => (
@@ -487,32 +546,32 @@ function SetupTab({ season }: { season: FantasySeason | null }) {
                         </div>
 
                         <div>
-                            <label className="text-xs font-bold text-neutral-400 uppercase block mb-1">Season Name</label>
+                            <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">Season Name</label>
                             <input
                                 type="text"
                                 value={seasonForm.name}
                                 onChange={(e) => setSeasonForm({ ...seasonForm, name: e.target.value })}
-                                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-yellow-500"
+                                className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                             />
                         </div>
 
                         <div>
-                            <label className="text-xs font-bold text-neutral-400 uppercase block mb-1">Salary Cap Budget (SC)</label>
+                            <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">Salary Cap Budget (SC)</label>
                             <input
                                 type="number"
                                 value={seasonForm.budget}
                                 onChange={(e) => setSeasonForm({ ...seasonForm, budget: parseFloat(e.target.value) || 230 })}
-                                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-yellow-500"
+                                className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                             />
                         </div>
 
                         <div>
-                            <label className="text-xs font-bold text-neutral-400 uppercase block mb-1">Lock Minutes Before Kickoff</label>
+                            <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">Lock Minutes Before Kickoff</label>
                             <input
                                 type="number"
                                 value={seasonForm.lock_mins_before}
                                 onChange={(e) => setSeasonForm({ ...seasonForm, lock_mins_before: parseInt(e.target.value) || 15 })}
-                                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-yellow-500"
+                                className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                             />
                         </div>
                     </div>
@@ -520,23 +579,23 @@ function SetupTab({ season }: { season: FantasySeason | null }) {
                     <button
                         onClick={() => createSeasonMutation.mutate()}
                         disabled={createSeasonMutation.isPending}
-                        className="mt-6 px-6 py-3 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-black font-extrabold text-xs uppercase transition shadow-lg cursor-pointer"
+                        className="mt-6 px-6 py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black shadow-md text-xs uppercase transition shadow-lg cursor-pointer"
                     >
                         {createSeasonMutation.isPending ? <Spinner /> : 'Launch Season'}
                     </button>
                 </div>
             ) : (
-                <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-xl">
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
                             <div className="flex items-center gap-2">
                                 <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
                                     {season.status}
                                 </span>
-                                <span className="text-xs text-neutral-400">Budget: <strong>{season.budget} SC</strong></span>
-                                <span className="text-xs text-neutral-400">Squad Size: <strong>{season.squad_size} Starters</strong></span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">Budget: <strong>{season.budget} SC</strong></span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">Squad Size: <strong>{season.squad_size} Starters</strong></span>
                             </div>
-                            <h2 className="text-xl font-black uppercase text-white mt-1">{season.name}</h2>
+                            <h2 className="text-xl font-black uppercase text-sffl-navy dark:text-white mt-1">{season.name}</h2>
                         </div>
 
                         <div className="flex items-center gap-2">
@@ -552,9 +611,9 @@ function SetupTab({ season }: { season: FantasySeason | null }) {
                             <button
                                 onClick={() => initPricesMutation.mutate(season.id)}
                                 disabled={initPricesMutation.isPending}
-                                className="px-4 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-white font-bold text-xs uppercase flex items-center gap-1.5 transition cursor-pointer"
+                                className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold text-xs uppercase flex items-center gap-1.5 transition cursor-pointer"
                             >
-                                <CurrencyDollarIcon className="w-3.5 h-3.5 text-yellow-400" /> Initialize Prices
+                                <CurrencyDollarIcon className="w-3.5 h-3.5 text-sffl-red" /> Initialize Prices
                             </button>
                         </div>
                     </div>
@@ -565,28 +624,28 @@ function SetupTab({ season }: { season: FantasySeason | null }) {
             {season && (
                 <div className="space-y-6">
                     {/* Create Gameweek Form */}
-                    <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6">
-                        <h3 className="text-base font-black uppercase text-white mb-4 flex items-center gap-2">
-                            <CalendarIcon className="w-4 h-4 text-yellow-400" /> Schedule New Gameweek
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm">
+                        <h3 className="text-base font-black uppercase text-sffl-navy dark:text-white mb-4 flex items-center gap-2">
+                            <CalendarIcon className="w-4 h-4 text-sffl-red" /> Schedule New Gameweek
                         </h3>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <label className="text-xs font-bold text-neutral-400 uppercase block mb-1">Gameweek Number</label>
+                                <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">Gameweek Number</label>
                                 <input
                                     type="number"
                                     value={gwForm.number}
                                     onChange={(e) => setGwForm({ ...gwForm, number: parseInt(e.target.value) || 1 })}
-                                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-yellow-500"
+                                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                                 />
                             </div>
 
                             <div>
-                                <label className="text-xs font-bold text-neutral-400 uppercase block mb-1">Associated Event Day</label>
+                                <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">Associated Event Day</label>
                                 <select
                                     value={gwForm.event_day_id}
                                     onChange={(e) => setGwForm({ ...gwForm, event_day_id: e.target.value })}
-                                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-yellow-500"
+                                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                                 >
                                     <option value="">Select Event Day...</option>
                                     {eventDays.map(ed => (
@@ -598,16 +657,16 @@ function SetupTab({ season }: { season: FantasySeason | null }) {
                             </div>
 
                             <div className="sm:col-span-2">
-                                <label className="text-xs font-bold text-neutral-400 uppercase block mb-1">
-                                    Lock Deadline <span className="text-neutral-500 normal-case font-medium">(optional)</span>
+                                <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">
+                                    Lock Deadline <span className="text-gray-400 dark:text-gray-500 normal-case font-medium">(optional)</span>
                                 </label>
                                 <input
                                     type="datetime-local"
                                     value={gwForm.deadline}
                                     onChange={(e) => setGwForm({ ...gwForm, deadline: e.target.value })}
-                                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-yellow-500"
+                                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                                 />
-                                <p className="text-[11px] text-neutral-500 mt-1.5">
+                                <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1.5">
                                     Leave blank and the server computes it from the event day's first kickoff
                                     minus the season's lock window ({season.lock_mins_before} mins).
                                 </p>
@@ -617,24 +676,24 @@ function SetupTab({ season }: { season: FantasySeason | null }) {
                         <button
                             onClick={() => createGwMutation.mutate()}
                             disabled={createGwMutation.isPending}
-                            className="mt-4 px-5 py-2.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-black font-bold text-xs uppercase transition cursor-pointer"
+                            className="mt-4 px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold shadow-md text-xs uppercase transition cursor-pointer"
                         >
                             {createGwMutation.isPending ? <Spinner /> : 'Schedule Gameweek'}
                         </button>
                     </div>
 
                     {/* Gameweeks List */}
-                    <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden">
-                        <div className="p-4 border-b border-neutral-800">
-                            <h3 className="text-base font-black uppercase text-white">Gameweeks</h3>
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm">
+                        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                            <h3 className="text-base font-black uppercase text-sffl-navy dark:text-white">Gameweeks</h3>
                         </div>
 
                         {gameweeks.length === 0 ? (
-                            <div className="p-8 text-center text-neutral-400 text-xs">
+                            <div className="p-8 text-center text-gray-500 dark:text-gray-400 text-xs">
                                 No gameweeks scheduled yet.
                             </div>
                         ) : (
-                            <div className="divide-y divide-neutral-800">
+                            <div className="divide-y divide-gray-100 dark:divide-gray-700">
                                 {gameweeks.map(gw => {
                                     const isFinalized = gw.status === 'FINALIZED';
                                     const isEditingDeadline = editingDeadlineGwId === gw.id;
@@ -646,13 +705,13 @@ function SetupTab({ season }: { season: FantasySeason | null }) {
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-xs font-black text-white">Gameweek {gw.number}</span>
                                                         <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
-                                                            isFinalized ? 'bg-neutral-800 text-neutral-400' :
+                                                            isFinalized ? 'bg-neutral-800 text-gray-500 dark:text-gray-400' :
                                                             gw.status === 'LOCKED' ? 'bg-red-500/10 text-red-400' : 'bg-emerald-500/10 text-emerald-400'
                                                         }`}>
                                                             {gw.status}
                                                         </span>
                                                     </div>
-                                                    <p className="text-xs text-neutral-400 mt-0.5">
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                                                         Lock Deadline: {new Date(gw.deadline).toLocaleString()}
                                                     </p>
                                                 </div>
@@ -667,9 +726,9 @@ function SetupTab({ season }: { season: FantasySeason | null }) {
                                                             setEditingDeadlineGwId(gw.id);
                                                             setDeadlineDraft(toDateTimeLocalValue(gw.deadline));
                                                         }}
-                                                        className="px-4 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-white text-xs font-bold uppercase flex items-center gap-1.5 transition cursor-pointer"
+                                                        className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-xs font-bold uppercase flex items-center gap-1.5 transition cursor-pointer"
                                                     >
-                                                        <ClockIcon className="w-3.5 h-3.5 text-yellow-400" />
+                                                        <ClockIcon className="w-3.5 h-3.5 text-sffl-red" />
                                                         {isEditingDeadline ? 'Cancel' : 'Edit Deadline'}
                                                     </button>
 
@@ -688,20 +747,20 @@ function SetupTab({ season }: { season: FantasySeason | null }) {
                                             </div>
 
                                             {isEditingDeadline && (
-                                                <div className="mt-3 p-3 rounded-xl bg-neutral-950 border border-neutral-800 flex flex-col sm:flex-row sm:items-end gap-3">
+                                                <div className="mt-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-end gap-3">
                                                     <div className="flex-1">
-                                                        <label className="text-xs font-bold text-neutral-400 uppercase block mb-1">New Lock Deadline</label>
+                                                        <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">New Lock Deadline</label>
                                                         <input
                                                             type="datetime-local"
                                                             value={deadlineDraft}
                                                             onChange={(e) => setDeadlineDraft(e.target.value)}
-                                                            className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-yellow-500"
+                                                            className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                                                         />
                                                     </div>
                                                     <button
                                                         onClick={() => updateDeadlineMutation.mutate({ gwId: gw.id, deadline: deadlineDraft })}
                                                         disabled={updateDeadlineMutation.isPending || !deadlineDraft}
-                                                        className="px-5 py-2.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-black font-bold text-xs uppercase transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        className="px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold shadow-md text-xs uppercase transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                                     >
                                                         {updateDeadlineMutation.isPending ? <Spinner /> : 'Save Deadline'}
                                                     </button>
@@ -746,12 +805,12 @@ function LeaguesTab({ seasonId }: { seasonId: string }) {
             {isLoading ? (
                 <div className="p-10"><Loader /></div>
             ) : leagues.length === 0 ? (
-                <div className="p-8 text-center text-neutral-400 text-xs">No leagues found.</div>
+                <div className="p-8 text-center text-gray-500 dark:text-gray-400 text-xs">No leagues found.</div>
             ) : (
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
-                            <tr className="text-[10px] font-black uppercase tracking-wider text-neutral-500 border-b border-neutral-800">
+                            <tr className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 border-b border-gray-200 dark:border-gray-700">
                                 <th className="px-4 py-3">League</th>
                                 <th className="px-4 py-3">Type</th>
                                 <th className="px-4 py-3">Owner</th>
@@ -762,7 +821,7 @@ function LeaguesTab({ seasonId }: { seasonId: string }) {
                                 <th className="px-4 py-3" />
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-neutral-800">
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                             {leagues.map(l => {
                                 const isOpen = openLeagueId === l.league_id;
                                 const isPaid = l.entry_fee_kobo > 0;
@@ -770,36 +829,36 @@ function LeaguesTab({ seasonId }: { seasonId: string }) {
                                     <Fragment key={l.league_id}>
                                         <tr
                                             onClick={() => setOpenLeagueId(isOpen ? null : l.league_id)}
-                                            className={`text-sm cursor-pointer transition ${isOpen ? 'bg-neutral-950' : 'hover:bg-neutral-950/60'}`}
+                                            className={`text-sm cursor-pointer transition ${isOpen ? 'bg-gray-50 dark:bg-gray-700/50' : 'hover:bg-gray-50 dark:bg-gray-700/50/60'}`}
                                         >
                                             <td className="px-4 py-3 font-bold text-white">{l.name}</td>
                                             <td className="px-4 py-3"><TypeBadge type={l.type} /></td>
-                                            <td className="px-4 py-3 text-neutral-400 text-xs">{l.owner_name || '—'}</td>
-                                            <td className="px-4 py-3 text-right tabular-nums text-neutral-300">
-                                                {isPaid ? formatKobo(l.entry_fee_kobo) : <span className="text-neutral-600">Free</span>}
+                                            <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">{l.owner_name || '—'}</td>
+                                            <td className="px-4 py-3 text-right tabular-nums text-gray-700 dark:text-gray-300">
+                                                {isPaid ? formatKobo(l.entry_fee_kobo) : <span className="text-gray-400 dark:text-gray-500">Free</span>}
                                             </td>
                                             <td className="px-4 py-3 text-xs">
                                                 <span className="text-white font-bold tabular-nums">{l.member_count}</span>
                                                 {isPaid && (
-                                                    <span className="text-neutral-500 ml-2">
+                                                    <span className="text-gray-400 dark:text-gray-500 ml-2">
                                                         <span className="text-emerald-400">{l.paid_members} paid</span>
                                                         {' · '}
                                                         <span className="text-amber-400">{l.pending_members} pending</span>
                                                     </span>
                                                 )}
                                             </td>
-                                            <td className="px-4 py-3 text-right tabular-nums font-bold text-yellow-400">
-                                                {isPaid ? formatKobo(l.prize_pool_kobo) : <span className="text-neutral-600">—</span>}
+                                            <td className="px-4 py-3 text-right tabular-nums font-bold text-sffl-red">
+                                                {isPaid ? formatKobo(l.prize_pool_kobo) : <span className="text-gray-400 dark:text-gray-500">—</span>}
                                             </td>
                                             <td className="px-4 py-3">
-                                                {isPaid ? <SettledBadge settled={l.settled} /> : <span className="text-[10px] text-neutral-600 uppercase font-black">Free league</span>}
+                                                {isPaid ? <SettledBadge settled={l.settled} /> : <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-black">Free league</span>}
                                             </td>
-                                            <td className="px-4 py-3 text-right text-neutral-500">
+                                            <td className="px-4 py-3 text-right text-gray-400 dark:text-gray-500">
                                                 {isOpen ? <ChevronUpIcon className="w-4 h-4 inline" /> : <ChevronDownIcon className="w-4 h-4 inline" />}
                                             </td>
                                         </tr>
                                         {isOpen && (
-                                            <tr className="bg-neutral-950">
+                                            <tr className="bg-gray-50 dark:bg-gray-700/50">
                                                 <td colSpan={8} className="px-4 pb-5 pt-1">
                                                     <LeagueDetailPanel league={l} seasonId={seasonId} />
                                                 </td>
@@ -890,22 +949,22 @@ function LeagueDetailPanel({ league, seasonId }: { league: AdminLeagueRow; seaso
     return (
         <div className="space-y-4 border-l-2 border-yellow-500/30 pl-4">
             {/* Money ledger */}
-            <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4">
-                <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400 mb-3 flex items-center gap-2">
-                    <BanknotesIcon className="w-4 h-4 text-yellow-500" /> League Finance
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm">
+                <h4 className="text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-2">
+                    <BanknotesIcon className="w-4 h-4 text-sffl-red" /> League Finance
                 </h4>
                 <div className="space-y-1.5 text-sm max-w-md">
                     <div className="flex items-center justify-between">
-                        <span className="text-neutral-400">Gross collected ({finance.paid_members} paid entries)</span>
+                        <span className="text-gray-500 dark:text-gray-400">Gross collected ({finance.paid_members} paid entries)</span>
                         <span className="font-bold tabular-nums text-white">{formatKobo(finance.gross_entry_kobo)}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                        <span className="text-neutral-400">Less platform cut ({finance.cut_percent}%)</span>
+                        <span className="text-gray-500 dark:text-gray-400">Less platform cut ({finance.cut_percent}%)</span>
                         <span className="font-bold tabular-nums text-red-400">−{formatKobo(finance.platform_cut_kobo)}</span>
                     </div>
-                    <div className="flex items-center justify-between pt-2 border-t border-neutral-800">
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
                         <span className="text-white font-black uppercase text-xs tracking-wider">Prize pool</span>
-                        <span className="font-black tabular-nums text-yellow-400 text-base">{formatKobo(finance.prize_pool_kobo)}</span>
+                        <span className="font-black tabular-nums text-sffl-red text-base">{formatKobo(finance.prize_pool_kobo)}</span>
                     </div>
                     {finance.pending_members > 0 && (
                         <p className="text-[11px] text-amber-400 pt-1">
@@ -921,10 +980,10 @@ function LeagueDetailPanel({ league, seasonId }: { league: AdminLeagueRow; seaso
             </div>
 
             {/* Awards */}
-            <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
-                <div className="p-4 border-b border-neutral-800 flex items-center justify-between gap-3 flex-wrap">
-                    <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400 flex items-center gap-2">
-                        <TrophyIcon className="w-4 h-4 text-yellow-500" /> Awards
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow-sm">
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3 flex-wrap">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                        <TrophyIcon className="w-4 h-4 text-sffl-red" /> Awards
                         <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${
                             settled
                                 ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400'
@@ -933,18 +992,18 @@ function LeagueDetailPanel({ league, seasonId }: { league: AdminLeagueRow; seaso
                             {settled ? 'Final' : 'Projected'}
                         </span>
                     </h4>
-                    <span className="text-[11px] text-neutral-500">
+                    <span className="text-[11px] text-gray-400 dark:text-gray-500">
                         {finance.awards.length} winner(s) · {formatKobo(awardTotal)}
                     </span>
                 </div>
                 {finance.awards.length === 0 ? (
-                    <div className="p-5 text-center text-neutral-500 text-xs">
+                    <div className="p-5 text-center text-gray-400 dark:text-gray-500 text-xs">
                         No awards {settled ? 'were made' : 'projected yet'} — set a prize structure and make sure members have paid.
                     </div>
                 ) : (
                     <table className="w-full text-left text-sm">
                         <thead>
-                            <tr className="text-[10px] font-black uppercase tracking-wider text-neutral-500 border-b border-neutral-800">
+                            <tr className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 border-b border-gray-200 dark:border-gray-700">
                                 <th className="px-4 py-2.5">Place</th>
                                 <th className="px-4 py-2.5">Manager</th>
                                 <th className="px-4 py-2.5">Team</th>
@@ -952,16 +1011,16 @@ function LeagueDetailPanel({ league, seasonId }: { league: AdminLeagueRow; seaso
                                 <th className="px-4 py-2.5 text-right">Award</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-neutral-800">
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                             {finance.awards.map((a, i) => (
                                 <tr key={`${a.user_id}-${a.rank}-${i}`}>
                                     <td className="px-4 py-2.5 font-black text-white whitespace-nowrap">
                                         {awardPlaceLabel(a.rank, a.shared_with)}
                                     </td>
-                                    <td className="px-4 py-2.5 text-neutral-300">{a.user_name}</td>
-                                    <td className="px-4 py-2.5 text-neutral-400 text-xs">{a.team_name}</td>
-                                    <td className="px-4 py-2.5 text-right tabular-nums text-neutral-300">{a.points}</td>
-                                    <td className="px-4 py-2.5 text-right tabular-nums font-black text-yellow-400">
+                                    <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">{a.user_name}</td>
+                                    <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 text-xs">{a.team_name}</td>
+                                    <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{a.points}</td>
+                                    <td className="px-4 py-2.5 text-right tabular-nums font-black text-sffl-red">
                                         {formatKobo(a.amount_kobo)}
                                     </td>
                                 </tr>
@@ -972,31 +1031,31 @@ function LeagueDetailPanel({ league, seasonId }: { league: AdminLeagueRow; seaso
             </div>
 
             {/* Prize structure editor */}
-            <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4">
-                <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400 mb-3 flex items-center gap-2">
-                    <CurrencyDollarIcon className="w-4 h-4 text-yellow-500" /> Prize Structure
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm">
+                <h4 className="text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-2">
+                    <CurrencyDollarIcon className="w-4 h-4 text-sffl-red" /> Prize Structure
                     {settled && (
-                        <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded border bg-neutral-800 border-neutral-700 text-neutral-400 flex items-center gap-1">
+                        <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded border bg-neutral-800 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 flex items-center gap-1">
                             <LockClosedIcon className="w-3 h-3" /> Locked
                         </span>
                     )}
                 </h4>
 
                 {settled ? (
-                    <p className="text-xs text-neutral-500">
+                    <p className="text-xs text-gray-400 dark:text-gray-500">
                         This league is settled — its prize structure can no longer be changed.
                     </p>
                 ) : (
                     <>
                         <div className="space-y-2 max-w-md">
                             {tiers.length === 0 && (
-                                <p className="text-xs text-neutral-500">
+                                <p className="text-xs text-gray-400 dark:text-gray-500">
                                     No prize structure set. Add positions below — the server requires ranks 1, 2, 3… with no gaps, totalling at most 100%.
                                 </p>
                             )}
                             {tiers.map((t, i) => (
                                 <div key={i} className="flex items-center gap-2">
-                                    <span className="w-16 text-xs font-black uppercase text-neutral-400 tabular-nums">
+                                    <span className="w-16 text-xs font-black uppercase text-gray-500 dark:text-gray-400 tabular-nums">
                                         {ordinal(t.rank)}
                                     </span>
                                     <div className="relative flex-1">
@@ -1010,16 +1069,16 @@ function LeagueDetailPanel({ league, seasonId }: { league: AdminLeagueRow; seaso
                                                 next[i] = { ...next[i], percent: parseFloat(e.target.value) || 0 };
                                                 setTiers(next);
                                             }}
-                                            className="w-full bg-neutral-950 border border-neutral-800 rounded-xl py-2.5 pl-3 pr-8 text-sm text-white tabular-nums focus:outline-none focus:border-yellow-500"
+                                            className="w-full bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl py-2.5 pl-3 pr-8 text-sm text-white tabular-nums focus:outline-none focus:border-yellow-500"
                                         />
-                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-500">%</span>
+                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-500">%</span>
                                     </div>
-                                    <span className="w-32 text-right text-xs tabular-nums text-neutral-400">
+                                    <span className="w-32 text-right text-xs tabular-nums text-gray-500 dark:text-gray-400">
                                         {formatKobo(Math.round(finance.prize_pool_kobo * (Number(t.percent) || 0) / 100))}
                                     </span>
                                     <button
                                         onClick={() => setTiers(tiers.filter((_, idx) => idx !== i))}
-                                        className="p-2 rounded-lg bg-neutral-800 hover:bg-red-500/20 hover:text-red-400 text-neutral-400 transition cursor-pointer"
+                                        className="p-2 rounded-lg bg-neutral-800 hover:bg-red-500/20 hover:text-red-400 text-gray-500 dark:text-gray-400 transition cursor-pointer"
                                         aria-label={`Remove position ${t.rank}`}
                                     >
                                         <TrashIcon className="w-4 h-4" />
@@ -1031,26 +1090,26 @@ function LeagueDetailPanel({ league, seasonId }: { league: AdminLeagueRow; seaso
                         <div className="flex items-center gap-3 flex-wrap mt-4">
                             <button
                                 onClick={() => setTiers([...tiers, { rank: tiers.length + 1, percent: 0 }])}
-                                className="px-4 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-white text-xs font-bold uppercase flex items-center gap-1.5 transition cursor-pointer"
+                                className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-xs font-bold uppercase flex items-center gap-1.5 transition cursor-pointer"
                             >
-                                <PlusIcon className="w-3.5 h-3.5 text-yellow-400" /> Add Position
+                                <PlusIcon className="w-3.5 h-3.5 text-sffl-red" /> Add Position
                             </button>
                             <button
                                 onClick={() => savePrizesMutation.mutate()}
                                 disabled={savePrizesMutation.isPending || tierDraft === null}
-                                className="px-5 py-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-black font-bold text-xs uppercase transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-5 py-2 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold shadow-md text-xs uppercase transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {savePrizesMutation.isPending ? <Spinner /> : 'Save Structure'}
                             </button>
                             {tierDraft !== null && (
                                 <button
                                     onClick={() => setTierDraft(null)}
-                                    className="px-4 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-bold uppercase transition cursor-pointer"
+                                    className="px-4 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-gray-700 dark:text-gray-300 text-xs font-bold uppercase transition cursor-pointer"
                                 >
                                     Discard Changes
                                 </button>
                             )}
-                            <span className={`text-xs font-bold tabular-nums ${totalPercent > 100 ? 'text-red-400' : 'text-neutral-400'}`}>
+                            <span className={`text-xs font-bold tabular-nums ${totalPercent > 100 ? 'text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
                                 Total: {totalPercent}% {totalPercent > 100 && '— over 100%, the server will reject this'}
                             </span>
                         </div>
@@ -1059,21 +1118,21 @@ function LeagueDetailPanel({ league, seasonId }: { league: AdminLeagueRow; seaso
             </div>
 
             {/* Members */}
-            <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
-                <div className="p-4 border-b border-neutral-800">
-                    <h4 className="text-xs font-black uppercase tracking-wider text-neutral-400 flex items-center gap-2">
-                        <UsersIcon className="w-4 h-4 text-yellow-500" /> Members ({members.length})
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow-sm">
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                        <UsersIcon className="w-4 h-4 text-sffl-red" /> Members ({members.length})
                     </h4>
                 </div>
                 {membersLoading ? (
                     <div className="py-8"><Loader /></div>
                 ) : members.length === 0 ? (
-                    <div className="p-5 text-center text-neutral-500 text-xs">No members yet.</div>
+                    <div className="p-5 text-center text-gray-400 dark:text-gray-500 text-xs">No members yet.</div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm">
                             <thead>
-                                <tr className="text-[10px] font-black uppercase tracking-wider text-neutral-500 border-b border-neutral-800">
+                                <tr className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 border-b border-gray-200 dark:border-gray-700">
                                     <th className="px-4 py-2.5">Manager</th>
                                     <th className="px-4 py-2.5">Email</th>
                                     <th className="px-4 py-2.5">Team</th>
@@ -1082,15 +1141,15 @@ function LeagueDetailPanel({ league, seasonId }: { league: AdminLeagueRow; seaso
                                     <th className="px-4 py-2.5">Paystack Ref</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-neutral-800">
+                            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                                 {members.map(m => (
                                     <tr key={m.user_id}>
                                         <td className="px-4 py-2.5 font-bold text-white">{m.user_name}</td>
-                                        <td className="px-4 py-2.5 text-neutral-400 text-xs">{m.user_email}</td>
-                                        <td className="px-4 py-2.5 text-neutral-300 text-xs">{m.team_name}</td>
-                                        <td className="px-4 py-2.5 text-right tabular-nums text-neutral-300">{m.total_points}</td>
+                                        <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 text-xs">{m.user_email}</td>
+                                        <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300 text-xs">{m.team_name}</td>
+                                        <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{m.total_points}</td>
                                         <td className="px-4 py-2.5"><PaymentBadge status={m.payment_status} /></td>
-                                        <td className="px-4 py-2.5 text-[11px] font-mono text-neutral-500">
+                                        <td className="px-4 py-2.5 text-[11px] font-mono text-gray-400 dark:text-gray-500">
                                             {m.paystack_reference || '—'}
                                         </td>
                                     </tr>
@@ -1108,7 +1167,7 @@ function LeagueDetailPanel({ league, seasonId }: { league: AdminLeagueRow; seaso
                         <h4 className="text-xs font-black uppercase tracking-wider text-amber-300 flex items-center gap-2">
                             <ShieldCheckIcon className="w-4 h-4" /> Settle League
                         </h4>
-                        <p className="text-[11px] text-neutral-400 mt-1 max-w-lg">
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 max-w-lg">
                             Credits {formatKobo(awardTotal)} to {finance.awards.length} winner wallet(s) and closes this league's prize pool. This moves real money and cannot be undone.
                         </p>
                     </div>
@@ -1133,16 +1192,16 @@ function LeagueDetailPanel({ league, seasonId }: { league: AdminLeagueRow; seaso
                 body={
                     <div className="space-y-2 text-sm">
                         <div className="flex items-center justify-between">
-                            <span className="text-neutral-400">League</span>
+                            <span className="text-gray-500 dark:text-gray-400">League</span>
                             <span className="font-bold text-white">{finance.league_name}</span>
                         </div>
                         <div className="flex items-center justify-between">
-                            <span className="text-neutral-400">Winners to be credited</span>
+                            <span className="text-gray-500 dark:text-gray-400">Winners to be credited</span>
                             <span className="font-bold text-white tabular-nums">{finance.awards.length}</span>
                         </div>
-                        <div className="flex items-center justify-between pt-2 border-t border-neutral-800">
+                        <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
                             <span className="text-white font-black uppercase text-xs tracking-wider">Total credited</span>
-                            <span className="font-black text-yellow-400 text-lg tabular-nums">{formatKobo(awardTotal)}</span>
+                            <span className="font-black text-sffl-red text-lg tabular-nums">{formatKobo(awardTotal)}</span>
                         </div>
                     </div>
                 }
@@ -1177,12 +1236,12 @@ function ManagersTab({ seasonId }: { seasonId: string }) {
             {isLoading ? (
                 <div className="p-10"><Loader /></div>
             ) : managers.length === 0 ? (
-                <div className="p-8 text-center text-neutral-400 text-xs">No managers found.</div>
+                <div className="p-8 text-center text-gray-500 dark:text-gray-400 text-xs">No managers found.</div>
             ) : (
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                         <thead>
-                            <tr className="text-[10px] font-black uppercase tracking-wider text-neutral-500 border-b border-neutral-800">
+                            <tr className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 border-b border-gray-200 dark:border-gray-700">
                                 <th className="px-4 py-3 text-right">#</th>
                                 <th className="px-4 py-3">Manager</th>
                                 <th className="px-4 py-3">Email</th>
@@ -1193,16 +1252,16 @@ function ManagersTab({ seasonId }: { seasonId: string }) {
                                 <th className="px-4 py-3 text-right">Wallet</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-neutral-800">
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                             {managers.map(m => (
-                                <tr key={m.user_id} className="hover:bg-neutral-950/60 transition">
-                                    <td className="px-4 py-3 text-right tabular-nums font-black text-neutral-500">{m.rank}</td>
+                                <tr key={m.user_id} className="hover:bg-gray-50 dark:bg-gray-700/50/60 transition">
+                                    <td className="px-4 py-3 text-right tabular-nums font-black text-gray-400 dark:text-gray-500">{m.rank}</td>
                                     <td className="px-4 py-3 font-bold text-white">{m.user_name}</td>
-                                    <td className="px-4 py-3 text-neutral-400 text-xs">{m.user_email}</td>
-                                    <td className="px-4 py-3 text-neutral-300 text-xs">{m.team_name}</td>
-                                    <td className="px-4 py-3 text-right tabular-nums font-bold text-yellow-400">{m.total_points}</td>
-                                    <td className="px-4 py-3 text-right tabular-nums text-neutral-300">{m.lineup_count}</td>
-                                    <td className="px-4 py-3 text-right tabular-nums text-neutral-300">{m.league_count}</td>
+                                    <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">{m.user_email}</td>
+                                    <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-xs">{m.team_name}</td>
+                                    <td className="px-4 py-3 text-right tabular-nums font-bold text-sffl-red">{m.total_points}</td>
+                                    <td className="px-4 py-3 text-right tabular-nums text-gray-700 dark:text-gray-300">{m.lineup_count}</td>
+                                    <td className="px-4 py-3 text-right tabular-nums text-gray-700 dark:text-gray-300">{m.league_count}</td>
                                     <td className="px-4 py-3 text-right tabular-nums text-emerald-400 font-bold">
                                         {formatKobo(m.wallet_balance_kobo)}
                                     </td>
@@ -1279,19 +1338,19 @@ function FinanceTab({ seasonId }: { seasonId: string }) {
                 <div className="p-5">
                     <div className="max-w-xl space-y-2 text-sm">
                         <div className="flex items-center justify-between">
-                            <span className="text-neutral-400">Gross entry collected</span>
+                            <span className="text-gray-500 dark:text-gray-400">Gross entry collected</span>
                             <span className="font-bold tabular-nums text-white text-base">{formatKobo(overview.gross_entry_kobo)}</span>
                         </div>
                         <div className="flex items-center justify-between">
-                            <span className="text-neutral-400">Less platform cut ({overview.cut_percent}%)</span>
+                            <span className="text-gray-500 dark:text-gray-400">Less platform cut ({overview.cut_percent}%)</span>
                             <span className="font-bold tabular-nums text-emerald-400 text-base">{formatKobo(overview.platform_cut_kobo)}</span>
                         </div>
-                        <div className="flex items-center justify-between pt-3 border-t border-neutral-800">
+                        <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
                             <span className="text-white font-black uppercase text-xs tracking-wider">Prize pool owed to managers</span>
-                            <span className="font-black tabular-nums text-yellow-400 text-xl">{formatKobo(overview.prize_pool_kobo)}</span>
+                            <span className="font-black tabular-nums text-sffl-red text-xl">{formatKobo(overview.prize_pool_kobo)}</span>
                         </div>
                     </div>
-                    <p className="text-[11px] text-neutral-500 mt-4">
+                    <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-4">
                         Platform cut is the house's revenue; the prize pool is what gets distributed to winners at settlement.
                     </p>
                 </div>
@@ -1329,7 +1388,7 @@ function FinanceTab({ seasonId }: { seasonId: string }) {
 
             {/* Season-wide money actions */}
             <div className="bg-neutral-900 border border-amber-500/30 rounded-2xl overflow-hidden">
-                <div className="p-4 border-b border-neutral-800 bg-amber-500/5">
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-amber-500/5">
                     <h3 className="text-base font-black uppercase tracking-wider text-white flex items-center gap-2">
                         <ExclamationTriangleIcon className="w-4 h-4 text-amber-400" /> Season Settlement
                     </h3>
@@ -1339,10 +1398,10 @@ function FinanceTab({ seasonId }: { seasonId: string }) {
                 </div>
 
                 <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-4 flex flex-col justify-between gap-4">
+                    <div className="bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl p-4 flex flex-col justify-between gap-4">
                         <div>
-                            <h4 className="text-xs font-black uppercase tracking-wider text-white">Settle All Leagues</h4>
-                            <p className="text-[11px] text-neutral-400 mt-1.5">
+                            <h4 className="text-xs font-black uppercase tracking-wider text-sffl-navy dark:text-white">Settle All Leagues</h4>
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5">
                                 Settles every outstanding paid league and credits winners, but leaves the season open
                                 so gameweeks can still be scored.
                             </p>
@@ -1356,10 +1415,10 @@ function FinanceTab({ seasonId }: { seasonId: string }) {
                         </button>
                     </div>
 
-                    <div className="bg-neutral-950 border border-red-500/25 rounded-xl p-4 flex flex-col justify-between gap-4">
+                    <div className="bg-gray-50 dark:bg-gray-700/50 border border-red-500/25 rounded-xl p-4 flex flex-col justify-between gap-4">
                         <div>
-                            <h4 className="text-xs font-black uppercase tracking-wider text-white">Complete Season</h4>
-                            <p className="text-[11px] text-neutral-400 mt-1.5">
+                            <h4 className="text-xs font-black uppercase tracking-wider text-sffl-navy dark:text-white">Complete Season</h4>
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5">
                                 Settles every outstanding paid league <strong className="text-white">and then closes the season</strong>.
                                 Once closed the season is final — do this only when every gameweek has been scored.
                             </p>
@@ -1385,14 +1444,14 @@ function FinanceTab({ seasonId }: { seasonId: string }) {
                 body={
                     <div className="space-y-2 text-sm">
                         <div className="flex items-center justify-between">
-                            <span className="text-neutral-400">Unsettled paid leagues</span>
+                            <span className="text-gray-500 dark:text-gray-400">Unsettled paid leagues</span>
                             <span className="font-bold text-white tabular-nums">{overview.unsettled_leagues}</span>
                         </div>
-                        <div className="flex items-center justify-between pt-2 border-t border-neutral-800">
+                        <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
                             <span className="text-white font-black uppercase text-xs tracking-wider">Season prize pool</span>
-                            <span className="font-black text-yellow-400 text-lg tabular-nums">{formatKobo(overview.prize_pool_kobo)}</span>
+                            <span className="font-black text-sffl-red text-lg tabular-nums">{formatKobo(overview.prize_pool_kobo)}</span>
                         </div>
-                        <p className="text-[11px] text-neutral-500 pt-1">
+                        <p className="text-[11px] text-gray-400 dark:text-gray-500 pt-1">
                             The season stays open afterwards — use Complete Season to close it.
                         </p>
                     </div>
@@ -1410,16 +1469,16 @@ function FinanceTab({ seasonId }: { seasonId: string }) {
                 body={
                     <div className="space-y-2 text-sm">
                         <div className="flex items-center justify-between">
-                            <span className="text-neutral-400">Season</span>
+                            <span className="text-gray-500 dark:text-gray-400">Season</span>
                             <span className="font-bold text-white">{overview.season_name}</span>
                         </div>
                         <div className="flex items-center justify-between">
-                            <span className="text-neutral-400">Leagues still to settle</span>
+                            <span className="text-gray-500 dark:text-gray-400">Leagues still to settle</span>
                             <span className="font-bold text-white tabular-nums">{overview.unsettled_leagues}</span>
                         </div>
-                        <div className="flex items-center justify-between pt-2 border-t border-neutral-800">
+                        <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
                             <span className="text-white font-black uppercase text-xs tracking-wider">Prize pool to distribute</span>
-                            <span className="font-black text-yellow-400 text-lg tabular-nums">{formatKobo(overview.prize_pool_kobo)}</span>
+                            <span className="font-black text-sffl-red text-lg tabular-nums">{formatKobo(overview.prize_pool_kobo)}</span>
                         </div>
                         <p className="text-[11px] text-red-400 pt-1">
                             After this the season is closed and no further gameweeks can be scored.
@@ -1475,7 +1534,7 @@ function PayoutsTab() {
                             className={`px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition cursor-pointer ${
                                 status === f.key
                                     ? 'bg-yellow-500 text-black'
-                                    : 'bg-neutral-950 text-neutral-400 hover:text-white hover:bg-neutral-800'
+                                    : 'bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 hover:text-white hover:bg-neutral-800'
                             }`}
                         >
                             {f.label}
@@ -1484,8 +1543,8 @@ function PayoutsTab() {
                 </div>
             }
         >
-            <div className="px-4 py-3 border-b border-neutral-800 bg-neutral-950/50">
-                <p className="text-[11px] text-neutral-500">
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50/50">
+                <p className="text-[11px] text-gray-400 dark:text-gray-500">
                     Manual queue, oldest request first. Transfer the money in your banking app using the account details
                     shown, then mark the request Paid with the bank transfer reference.
                 </p>
@@ -1494,9 +1553,9 @@ function PayoutsTab() {
             {isLoading ? (
                 <div className="p-10"><Loader /></div>
             ) : payouts.length === 0 ? (
-                <div className="p-8 text-center text-neutral-400 text-xs">No payout requests in this view.</div>
+                <div className="p-8 text-center text-gray-500 dark:text-gray-400 text-xs">No payout requests in this view.</div>
             ) : (
-                <div className="divide-y divide-neutral-800">
+                <div className="divide-y divide-gray-100 dark:divide-gray-700">
                     {payouts.map(p => <PayoutRow key={p.id} payout={p} />)}
                 </div>
             )}
@@ -1553,14 +1612,14 @@ function PayoutRow({ payout }: { payout: PayoutRequest }) {
                 <div className="lg:w-64 shrink-0">
                     <div className="flex items-center gap-2 flex-wrap">
                         <PayoutBadge status={payout.status} />
-                        <span className="text-[11px] text-neutral-500">
+                        <span className="text-[11px] text-gray-400 dark:text-gray-500">
                             {new Date(payout.created_at).toLocaleString()}
                         </span>
                     </div>
                     <p className="text-sm font-black text-white mt-1.5">{payout.user_name || 'Unknown manager'}</p>
-                    <p className="text-[11px] text-neutral-400">{payout.user_email || '—'}</p>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400">{payout.user_email || '—'}</p>
                     {payout.user_notes && (
-                        <p className="text-[11px] text-neutral-400 mt-2 italic border-l-2 border-neutral-700 pl-2">
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2 italic border-l-2 border-gray-300 dark:border-gray-600 pl-2">
                             “{payout.user_notes}”
                         </p>
                     )}
@@ -1577,24 +1636,24 @@ function PayoutRow({ payout }: { payout: PayoutRequest }) {
                 </div>
 
                 {/* Bank details — the operator retypes these into their banking app */}
-                <div className="flex-1 bg-neutral-950 border border-neutral-800 rounded-xl p-4">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-neutral-500 block mb-2">
+                <div className="flex-1 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl p-4">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 block mb-2">
                         Transfer To
                     </span>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
-                            <span className="text-[10px] font-bold uppercase text-neutral-600 block">Bank</span>
+                            <span className="text-[10px] font-bold uppercase text-gray-400 dark:text-gray-500 block">Bank</span>
                             <span className="text-sm font-bold text-white break-words">{payout.bank_name}</span>
                         </div>
                         <div>
-                            <span className="text-[10px] font-bold uppercase text-neutral-600 block">Account Number</span>
+                            <span className="text-[10px] font-bold uppercase text-gray-400 dark:text-gray-500 block">Account Number</span>
                             <div className="flex items-center gap-2">
                                 <span className="text-lg font-black text-white font-mono tracking-widest tabular-nums">
                                     {payout.account_number}
                                 </span>
                                 <button
                                     onClick={copyAccountNumber}
-                                    className="p-1.5 rounded-lg bg-neutral-800 hover:bg-yellow-500 hover:text-black text-neutral-300 transition cursor-pointer"
+                                    className="p-1.5 rounded-lg bg-neutral-800 hover:bg-yellow-500 hover:text-black text-gray-700 dark:text-gray-300 transition cursor-pointer"
                                     aria-label="Copy account number"
                                     title="Copy account number"
                                 >
@@ -1603,7 +1662,7 @@ function PayoutRow({ payout }: { payout: PayoutRequest }) {
                             </div>
                         </div>
                         <div>
-                            <span className="text-[10px] font-bold uppercase text-neutral-600 block">Account Name</span>
+                            <span className="text-[10px] font-bold uppercase text-gray-400 dark:text-gray-500 block">Account Name</span>
                             <span className="text-sm font-bold text-white break-words">{payout.account_name}</span>
                         </div>
                     </div>
@@ -1611,13 +1670,13 @@ function PayoutRow({ payout }: { payout: PayoutRequest }) {
 
                 {/* Amount + actions */}
                 <div className="lg:w-64 shrink-0 flex flex-col gap-2">
-                    <div className="bg-neutral-950 border border-yellow-500/25 rounded-xl px-4 py-3 text-right">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-neutral-500 block">Amount</span>
-                        <span className="text-2xl font-black text-yellow-400 tabular-nums">{formatKobo(payout.amount_kobo)}</span>
+                    <div className="bg-gray-50 dark:bg-gray-700/50 border border-yellow-500/25 rounded-xl px-4 py-3 text-right">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 block">Amount</span>
+                        <span className="text-2xl font-black text-sffl-red tabular-nums">{formatKobo(payout.amount_kobo)}</span>
                     </div>
 
                     {isTerminal ? (
-                        <p className="text-[11px] text-neutral-500 text-right">
+                        <p className="text-[11px] text-gray-400 dark:text-gray-500 text-right">
                             {payout.status === 'CANCELLED' ? 'Cancelled by the manager.' : 'Closed — status can no longer change.'}
                             {payout.processed_at && ` (${new Date(payout.processed_at).toLocaleDateString()})`}
                         </p>
@@ -1627,7 +1686,7 @@ function PayoutRow({ payout }: { payout: PayoutRequest }) {
                                 <button
                                     onClick={() => updateMutation.mutate({ status: 'PROCESSING' })}
                                     disabled={updateMutation.isPending}
-                                    className="px-4 py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-white font-bold text-xs uppercase transition cursor-pointer disabled:opacity-50"
+                                    className="px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold text-xs uppercase transition cursor-pointer disabled:opacity-50"
                                 >
                                     Mark Processing
                                 </button>
@@ -1640,7 +1699,7 @@ function PayoutRow({ payout }: { payout: PayoutRequest }) {
                             </button>
                             <button
                                 onClick={() => setMode(mode === 'reject' ? null : 'reject')}
-                                className="px-4 py-2.5 rounded-xl bg-neutral-800 hover:bg-red-500/20 hover:text-red-400 text-neutral-300 font-bold text-xs uppercase transition cursor-pointer"
+                                className="px-4 py-2.5 rounded-xl bg-neutral-800 hover:bg-red-500/20 hover:text-red-400 text-gray-700 dark:text-gray-300 font-bold text-xs uppercase transition cursor-pointer"
                             >
                                 {mode === 'reject' ? 'Cancel' : 'Reject'}
                             </button>
@@ -1654,7 +1713,7 @@ function PayoutRow({ payout }: { payout: PayoutRequest }) {
                     <label className="text-xs font-black uppercase tracking-wider text-emerald-300 block mb-1">
                         Bank Transfer Reference <span className="text-red-400">*required</span>
                     </label>
-                    <p className="text-[11px] text-neutral-400 mb-2">
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
                         The reference your bank gave for this transfer. Marking paid debits the manager's wallet permanently.
                     </p>
                     <div className="flex flex-col sm:flex-row gap-3">
@@ -1663,7 +1722,7 @@ function PayoutRow({ payout }: { payout: PayoutRequest }) {
                             value={paymentReference}
                             onChange={(e) => setPaymentReference(e.target.value)}
                             placeholder="e.g. GTB/TRF/00918273"
-                            className="flex-1 bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-sm text-white placeholder:text-neutral-600 focus:outline-none focus:border-emerald-500"
+                            className="flex-1 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm text-white placeholder:text-gray-400 dark:text-gray-500 focus:outline-none focus:border-emerald-500"
                         />
                         <button
                             onClick={() => updateMutation.mutate({
@@ -1695,7 +1754,7 @@ function PayoutRow({ payout }: { payout: PayoutRequest }) {
                             value={adminNotes}
                             onChange={(e) => setAdminNotes(e.target.value)}
                             placeholder="e.g. Account name does not match the registered manager"
-                            className="flex-1 bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-sm text-white placeholder:text-neutral-600 focus:outline-none focus:border-red-500"
+                            className="flex-1 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm text-white placeholder:text-gray-400 dark:text-gray-500 focus:outline-none focus:border-red-500"
                         />
                         <button
                             onClick={() => updateMutation.mutate({ status: 'REJECTED', admin_notes: adminNotes.trim() })}

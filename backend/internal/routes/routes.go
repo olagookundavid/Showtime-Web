@@ -822,6 +822,7 @@ func SetupFantasyRoutes(r *gin.RouterGroup, app *api.Application) {
 	adminFantasy := r.Group("/admin/fantasy")
 	adminFantasy.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.AdminOnlyMiddleware(app.AuthService))
 	{
+		adminFantasy.GET("/seasons", app.Handlers.FantasyHandler.AdminListSeasons)
 		adminFantasy.POST("/seasons", app.Handlers.FantasyHandler.AdminCreateSeason)
 		adminFantasy.POST("/seasons/:id/activate", app.Handlers.FantasyHandler.AdminActivateSeason)
 		adminFantasy.POST("/seasons/:id/gameweeks", app.Handlers.FantasyHandler.AdminCreateGameweek)
