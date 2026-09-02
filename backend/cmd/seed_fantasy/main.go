@@ -320,7 +320,9 @@ func ensureCompetition(ctx ctxT, pool *pgxpool.Pool, name string) string {
 	if id != "" {
 		return id
 	}
-	_ = pool.QueryRow(ctx, `INSERT INTO competitions (name) VALUES ($1) RETURNING id::text`, name).Scan(&id)
+	// logo is nullable but is read into a plain string in several queries, so
+	// seed an empty string rather than leaving it NULL.
+	_ = pool.QueryRow(ctx, `INSERT INTO competitions (name, logo) VALUES ($1, '') RETURNING id::text`, name).Scan(&id)
 	return id
 }
 
@@ -330,7 +332,7 @@ func ensureTeam(ctx ctxT, pool *pgxpool.Pool, name, short string) string {
 	if id != "" {
 		return id
 	}
-	_ = pool.QueryRow(ctx, `INSERT INTO teams (name, short_name) VALUES ($1,$2) RETURNING id::text`,
+	_ = pool.QueryRow(ctx, `INSERT INTO teams (name, short_name, logo) VALUES ($1,$2,'') RETURNING id::text`,
 		name, short).Scan(&id)
 	return id
 }

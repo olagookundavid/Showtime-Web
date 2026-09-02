@@ -93,7 +93,7 @@ func (r *PostgresMatchRepository) GetCompetitions(ctx context.Context, page, lim
 		return nil, 0, err
 	}
 
-	query := `SELECT id, name, logo, status, format, playoff_competition_id, COALESCE(tie_breaker_rule, 'PCT_PD_PF_PA_NAME'), created_at, updated_at ` + baseQuery +
+	query := `SELECT id, name, COALESCE(logo, ''), status, format, playoff_competition_id, COALESCE(tie_breaker_rule, 'PCT_PD_PF_PA_NAME'), created_at, updated_at ` + baseQuery +
 		` ORDER BY created_at DESC LIMIT $` + strconv.Itoa(argCount) + ` OFFSET $` + strconv.Itoa(argCount+1)
 	args = append(args, limit, offset)
 
@@ -115,7 +115,7 @@ func (r *PostgresMatchRepository) GetCompetitions(ctx context.Context, page, lim
 }
 
 func (r *PostgresMatchRepository) GetCompetitionByID(ctx context.Context, id string) (*domain.Competition, error) {
-	query := `SELECT id, name, logo, status, format, playoff_competition_id, COALESCE(tie_breaker_rule, 'PCT_PD_PF_PA_NAME'), created_at, updated_at FROM competitions WHERE id = $1`
+	query := `SELECT id, name, COALESCE(logo, ''), status, format, playoff_competition_id, COALESCE(tie_breaker_rule, 'PCT_PD_PF_PA_NAME'), created_at, updated_at FROM competitions WHERE id = $1`
 	var c domain.Competition
 	err := r.db.QueryRow(ctx, query, id).Scan(&c.ID, &c.Name, &c.Logo, &c.Status, &c.Format, &c.PlayoffCompetitionID, &c.TieBreakerRule, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
@@ -212,7 +212,7 @@ func (r *PostgresMatchRepository) GetTeams(ctx context.Context, page, limit int,
 	offset := (page - 1) * limit
 
 	countQuery := `SELECT COUNT(*) FROM teams WHERE 1=1`
-	query := `SELECT id, name, short_name, logo, COALESCE(status, 'active') as status, created_at, updated_at FROM teams WHERE 1=1`
+	query := `SELECT id, name, COALESCE(short_name, ''), COALESCE(logo, ''), COALESCE(status, 'active') as status, created_at, updated_at FROM teams WHERE 1=1`
 
 	args := []interface{}{}
 	argIndex := 1
@@ -259,7 +259,7 @@ func (r *PostgresMatchRepository) GetTeams(ctx context.Context, page, limit int,
 }
 
 func (r *PostgresMatchRepository) GetAllTeams(ctx context.Context, status string) ([]domain.Team, error) {
-	query := `SELECT id, name, short_name, logo, COALESCE(status, 'active') as status, created_at, updated_at FROM teams WHERE 1=1`
+	query := `SELECT id, name, COALESCE(short_name, ''), COALESCE(logo, ''), COALESCE(status, 'active') as status, created_at, updated_at FROM teams WHERE 1=1`
 	args := []interface{}{}
 
 	if status != "" {
@@ -286,7 +286,7 @@ func (r *PostgresMatchRepository) GetAllTeams(ctx context.Context, status string
 }
 
 func (r *PostgresMatchRepository) GetTeamByID(ctx context.Context, id string) (*domain.Team, error) {
-	query := `SELECT id, name, short_name, logo, COALESCE(status, 'active') as status, created_at, updated_at FROM teams WHERE id = $1`
+	query := `SELECT id, name, COALESCE(short_name, ''), COALESCE(logo, ''), COALESCE(status, 'active') as status, created_at, updated_at FROM teams WHERE id = $1`
 	var t domain.Team
 	err := r.db.QueryRow(ctx, query, id).Scan(&t.ID, &t.Name, &t.ShortName, &t.Logo, &t.Status, &t.CreatedAt, &t.UpdatedAt)
 	if err != nil {
@@ -319,7 +319,7 @@ func (r *PostgresMatchRepository) DeleteTeam(ctx context.Context, id string) err
 }
 
 func (r *PostgresMatchRepository) GetTeamsByCompetition(ctx context.Context, competitionID string, status string) ([]domain.Team, error) {
-	query := `SELECT DISTINCT t.id, t.name, t.short_name, t.logo, COALESCE(t.status, 'active') as status, t.created_at, t.updated_at
+	query := `SELECT DISTINCT t.id, t.name, COALESCE(t.short_name, ''), COALESCE(t.logo, ''), COALESCE(t.status, 'active') as status, t.created_at, t.updated_at
 		FROM teams t
 		INNER JOIN competition_teams ct ON ct.team_id = t.id
 		WHERE ct.competition_id = $1`
@@ -407,7 +407,7 @@ func (r *PostgresMatchRepository) GetMatches(ctx context.Context, competitionID 
 		SELECT
 			m.id, m.competition_id, COALESCE(m.home_team_id::text, ''), COALESCE(m.away_team_id::text, ''), m.date, m.time, m.venue, m.status, m.home_score, m.away_score, m.highlights_url, m.ticket_url, m.created_at, m.updated_at,
 			COALESCE(m.round, ''), m.bracket_pos, m.feeds_match_id::text, COALESCE(m.feeds_slot, ''), m.second_leg_match_id::text, m.pbp_locked,
-			c.id, c.name, c.logo, COALESCE(c.format, 'LEAGUE'),
+			COALESCE(c.id::text, ''), COALESCE(c.name, ''), COALESCE(c.logo, ''), COALESCE(c.format, 'LEAGUE'),
 			COALESCE(ht.id::text, ''), COALESCE(ht.name, ''), COALESCE(ht.short_name, ''), COALESCE(ht.logo, ''),
 			COALESCE(at.id::text, ''), COALESCE(at.name, ''), COALESCE(at.short_name, ''), COALESCE(at.logo, '')
 		FROM matches m
@@ -616,7 +616,7 @@ func (r *PostgresMatchRepository) GetStandings(ctx context.Context, competitionI
             COALESCE(s.goal_difference, 0) as goal_difference,
             COALESCE(s.pct, 0) as pct,
             COALESCE(s.l5, '') as l5,
-            t.id::text, t.name, t.short_name, t.logo
+            t.id::text, t.name, COALESCE(t.short_name, ''), COALESCE(t.logo, '')
         FROM (
             SELECT team_id FROM competition_teams WHERE competition_id::text = $1
             UNION
@@ -1041,7 +1041,7 @@ func (r *PostgresMatchRepository) GetMatchDetail(ctx context.Context, matchID st
 		SELECT
 			m.id, m.competition_id, COALESCE(m.home_team_id::text, ''), COALESCE(m.away_team_id::text, ''), m.date, m.time, m.venue, m.status, m.home_score, m.away_score, m.highlights_url, m.ticket_url, m.created_at, m.updated_at,
 			COALESCE(m.round, ''), m.bracket_pos, m.feeds_match_id::text, COALESCE(m.feeds_slot, ''), m.pbp_locked,
-			c.id, c.name, c.logo, COALESCE(c.format, 'LEAGUE'),
+			COALESCE(c.id::text, ''), COALESCE(c.name, ''), COALESCE(c.logo, ''), COALESCE(c.format, 'LEAGUE'),
 			COALESCE(ht.id::text, ''), COALESCE(ht.name, ''), COALESCE(ht.short_name, ''), COALESCE(ht.logo, ''),
 			COALESCE(at.id::text, ''), COALESCE(at.name, ''), COALESCE(at.short_name, ''), COALESCE(at.logo, '')
 		FROM matches m
@@ -1115,7 +1115,7 @@ func (r *PostgresMatchRepository) GetEligiblePlayersForMatchDay(ctx context.Cont
 			COALESCE(p.image, '') AS image,
 			COALESCE(p.email, '') AS email,
 			p.created_at, p.updated_at,
-			t.id AS t_id, t.name AS t_name, t.short_name AS t_short_name, COALESCE(t.logo, '') AS t_logo
+			t.id AS t_id, t.name AS t_name, COALESCE(t.short_name, '') AS t_short_name, COALESCE(t.logo, '') AS t_logo
 		FROM players p
 		JOIN match_team_sheets mts ON p.id = mts.player_id
 		JOIN matches m ON mts.match_id = m.id
