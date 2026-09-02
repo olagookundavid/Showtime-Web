@@ -2989,21 +2989,23 @@ export const fantasyApi = {
         leagueId: string,
         params?: { gameweek_id?: string; page?: number; limit?: number }
     ): Promise<{ data: LeaderboardEntry[]; total: number; total_pages: number }> => {
-        const res = await api.get<{ data: LeaderboardEntry[]; total: number; total_pages: number }>(
+        const res = await api.get<{ data: LeaderboardEntry[] | null; total: number; total_pages: number }>(
             `/fantasy/leagues/${leagueId}/leaderboard`,
             { params }
         );
-        return res.data;
+        // An empty list must reach the UI as [], never null — callers read
+        // .length and .map on it directly.
+        return { ...res.data, data: res.data.data ?? [] };
     },
     getOverallLeaderboard: async (
         seasonId: string,
         params?: { gameweek_id?: string; page?: number; limit?: number }
     ): Promise<{ data: LeaderboardEntry[]; total: number; total_pages: number }> => {
-        const res = await api.get<{ data: LeaderboardEntry[]; total: number; total_pages: number }>(
+        const res = await api.get<{ data: LeaderboardEntry[] | null; total: number; total_pages: number }>(
             `/fantasy/season/${seasonId}/leaderboard`,
             { params }
         );
-        return res.data;
+        return { ...res.data, data: res.data.data ?? [] };
     },
 
     // Admin

@@ -20,6 +20,7 @@ package tests_integration
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -468,6 +469,56 @@ func TestFantasyLeagueRepositoryQueries(t *testing.T) {
 		}
 		if _, err := repo.CountActiveMembers(ctx, f.leagueID); err != nil {
 			t.Errorf("CountActiveMembers: %v", err)
+		}
+	})
+
+	// A nil Go slice marshals to JSON `null`, not `[]`. The fantasy hub read
+	// `leaderboardData.data.length` straight off the response, so an empty
+	// leaderboard — a brand new season with no managers — crashed the page for
+	// every visitor. Empty list endpoints must serialise as [].
+	t.Run("an empty leaderboard serialises as [] not null", func(t *testing.T) {
+		emptyLeagueID := mustScan(t, f.pool,
+			`INSERT INTO fantasy_leagues (season_id, name, type, created_by_user_id, entry_fee)
+			 VALUES ($1, 'ITest Empty', 'PUBLIC', $2, 0) RETURNING id`,
+			f.seasonID, f.userID)
+		t.Cleanup(func() {
+			_, _ = f.pool.Exec(ctx, `DELETE FROM fantasy_leagues WHERE id = $1`, emptyLeagueID)
+		})
+
+		entries, _, err := repo.GetLeaderboard(ctx, emptyLeagueID, nil, 1, 25)
+		if err != nil {
+			t.Fatalf("GetLeaderboard: %v", err)
+		}
+		if entries == nil {
+			t.Fatal("an empty leaderboard must be an empty slice, not nil")
+		}
+
+		encoded, err := json.Marshal(entries)
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+		if string(encoded) != "[]" {
+			t.Errorf("expected an empty leaderboard to encode as [], got %s", encoded)
+		}
+
+		// The season-wide board has the same contract.
+		emptySeasonID := mustScan(t, f.pool,
+			`INSERT INTO fantasy_seasons (competition_id, name, status) VALUES ($1, 'ITest Empty Season', 'DRAFT') RETURNING id`,
+			f.compID)
+		t.Cleanup(func() {
+			_, _ = f.pool.Exec(ctx, `DELETE FROM fantasy_seasons WHERE id = $1`, emptySeasonID)
+		})
+
+		overall, _, err := repo.GetOverallLeaderboard(ctx, emptySeasonID, nil, 1, 25)
+		if err != nil {
+			t.Fatalf("GetOverallLeaderboard: %v", err)
+		}
+		encoded, err = json.Marshal(overall)
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+		if string(encoded) != "[]" {
+			t.Errorf("expected an empty overall leaderboard to encode as [], got %s", encoded)
 		}
 	})
 

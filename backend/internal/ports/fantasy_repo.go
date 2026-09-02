@@ -155,7 +155,7 @@ func (r *FantasyRepository) ListSeasons(ctx context.Context) ([]domain.FantasySe
 	}
 	defer rows.Close()
 
-	var list []domain.FantasySeason
+	list := make([]domain.FantasySeason, 0)
 	for rows.Next() {
 		var s domain.FantasySeason
 		if err := rows.Scan(
@@ -343,7 +343,7 @@ func (r *FantasyRepository) ListGameweeks(ctx context.Context, seasonID string) 
 	}
 	defer rows.Close()
 
-	var list []domain.FantasyGameweek
+	list := make([]domain.FantasyGameweek, 0)
 	for rows.Next() {
 		var gw domain.FantasyGameweek
 		if err := rows.Scan(
@@ -421,7 +421,7 @@ func (r *FantasyRepository) GetGameweeksDueForLock(ctx context.Context) ([]domai
 	}
 	defer rows.Close()
 
-	var list []domain.FantasyGameweek
+	list := make([]domain.FantasyGameweek, 0)
 	for rows.Next() {
 		var gw domain.FantasyGameweek
 		if err := rows.Scan(
@@ -629,7 +629,7 @@ func (r *FantasyRepository) GetSeasonRatingLines(ctx context.Context, competitio
 	}
 	defer rows.Close()
 
-	var list []PlayerRatingLine
+	list := make([]PlayerRatingLine, 0)
 	for rows.Next() {
 		var pr PlayerRatingLine
 		l := &pr.Line
@@ -732,7 +732,7 @@ func (r *FantasyRepository) ListAllActiveTeamsInSeason(ctx context.Context, seas
 	}
 	defer rows.Close()
 
-	var teams []domain.FantasyTeam
+	teams := make([]domain.FantasyTeam, 0)
 	for rows.Next() {
 		var t domain.FantasyTeam
 		if err := rows.Scan(
@@ -1099,7 +1099,7 @@ func (r *FantasyRepository) GetLockedLineupsForGameweek(ctx context.Context, gam
 	}
 	defer rows.Close()
 
-	var lineups []domain.FantasyLineup
+	lineups := make([]domain.FantasyLineup, 0)
 	byID := make(map[string]int)
 	for rows.Next() {
 		var l domain.FantasyLineup
@@ -1230,7 +1230,7 @@ func (r *FantasyRepository) GetPlayerStatsByEventDay(ctx context.Context, eventD
 	}
 	defer rows.Close()
 
-	var list []domain.PlayerStat
+	list := make([]domain.PlayerStat, 0)
 	for rows.Next() {
 		var s domain.PlayerStat
 		if err := rows.Scan(

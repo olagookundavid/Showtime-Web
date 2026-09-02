@@ -318,7 +318,7 @@ func (s *FantasyLeagueService) ListMyLeagues(ctx context.Context, userID, season
 		return nil, err
 	}
 
-	var res []dto.LeagueResponse
+	res := make([]dto.LeagueResponse, 0)
 	for _, l := range leagues {
 		code := ""
 		if l.InviteCode != nil {
@@ -346,7 +346,7 @@ func (s *FantasyLeagueService) ListPublicLeagues(ctx context.Context, seasonID s
 		return nil, err
 	}
 
-	var res []dto.LeagueResponse
+	res := make([]dto.LeagueResponse, 0)
 	for _, l := range leagues {
 		code := ""
 		if l.InviteCode != nil {

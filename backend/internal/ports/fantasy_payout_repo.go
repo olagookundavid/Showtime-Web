@@ -134,7 +134,7 @@ func (r *FantasyPayoutRepository) ListWalletTransactions(ctx context.Context, us
 	}
 	defer rows.Close()
 
-	var list []domain.WalletTransaction
+	list := make([]domain.WalletTransaction, 0)
 	for rows.Next() {
 		var t domain.WalletTransaction
 		if err := rows.Scan(&t.ID, &t.UserID, &t.AmountKobo, &t.Type, &t.LeagueID,
@@ -284,7 +284,7 @@ func (r *FantasyPayoutRepository) ListPayoutRequestsByUser(ctx context.Context, 
 	}
 	defer rows.Close()
 
-	var list []domain.PayoutRequest
+	list := make([]domain.PayoutRequest, 0)
 	for rows.Next() {
 		p, err := scanPayout(rows)
 		if err != nil {
@@ -330,7 +330,7 @@ func (r *FantasyPayoutRepository) ListPayoutRequests(ctx context.Context, status
 	}
 	defer rows.Close()
 
-	var list []domain.PayoutRequest
+	list := make([]domain.PayoutRequest, 0)
 	for rows.Next() {
 		p, err := scanPayout(rows)
 		if err != nil {
@@ -475,7 +475,7 @@ func (r *FantasyPayoutRepository) GetPrizeStructure(ctx context.Context, leagueI
 	}
 	defer rows.Close()
 
-	var tiers []domain.PrizeTier
+	tiers := make([]domain.PrizeTier, 0)
 	for rows.Next() {
 		var t domain.PrizeTier
 		if err := rows.Scan(&t.ID, &t.LeagueID, &t.Rank, &t.Percent); err != nil {
@@ -542,7 +542,7 @@ func (r *FantasyPayoutRepository) GetLeagueStandings(ctx context.Context, league
 	}
 	defer rows.Close()
 
-	var list []domain.PrizeStanding
+	list := make([]domain.PrizeStanding, 0)
 	for rows.Next() {
 		var s domain.PrizeStanding
 		if err := rows.Scan(&s.UserID, &s.TeamID, &s.TeamName, &s.UserName, &s.Points); err != nil {
@@ -642,7 +642,7 @@ func (r *FantasyPayoutRepository) ListUnsettledPaidLeagues(ctx context.Context, 
 	}
 	defer rows.Close()
 
-	var list []domain.FantasyLeague
+	list := make([]domain.FantasyLeague, 0)
 	for rows.Next() {
 		var l domain.FantasyLeague
 		if err := rows.Scan(&l.ID, &l.SeasonID, &l.Name, &l.Type, &l.InviteCode,
@@ -847,7 +847,7 @@ func (r *FantasyPayoutRepository) ListLeagueMembers(ctx context.Context, leagueI
 	}
 	defer rows.Close()
 
-	var list []dto.AdminLeagueMemberRow
+	list := make([]dto.AdminLeagueMemberRow, 0)
 	for rows.Next() {
 		var m dto.AdminLeagueMemberRow
 		var joined time.Time

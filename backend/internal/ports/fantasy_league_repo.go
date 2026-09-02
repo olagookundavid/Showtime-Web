@@ -167,7 +167,7 @@ func (r *FantasyLeagueRepository) ListLeaguesByUser(ctx context.Context, userID,
 	}
 	defer rows.Close()
 
-	var list []domain.FantasyLeague
+	list := make([]domain.FantasyLeague, 0)
 	for rows.Next() {
 		var l domain.FantasyLeague
 		if err := rows.Scan(
@@ -205,7 +205,7 @@ func (r *FantasyLeagueRepository) ListPublicLeagues(ctx context.Context, seasonI
 	}
 	defer rows.Close()
 
-	var list []domain.FantasyLeague
+	list := make([]domain.FantasyLeague, 0)
 	for rows.Next() {
 		var l domain.FantasyLeague
 		if err := rows.Scan(
@@ -411,7 +411,7 @@ func (r *FantasyLeagueRepository) GetLeaderboard(ctx context.Context, leagueID s
 	}
 	defer rows.Close()
 
-	var list []dto.LeaderboardEntry
+	list := make([]dto.LeaderboardEntry, 0)
 	rank := offset + 1
 	for rows.Next() {
 		var item dto.LeaderboardEntry
@@ -482,7 +482,7 @@ func (r *FantasyLeagueRepository) GetOverallLeaderboard(ctx context.Context, sea
 	}
 	defer rows.Close()
 
-	var list []dto.LeaderboardEntry
+	list := make([]dto.LeaderboardEntry, 0)
 	rank := offset + 1
 	for rows.Next() {
 		var item dto.LeaderboardEntry
