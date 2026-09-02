@@ -788,6 +788,8 @@ func SetupFantasyRoutes(r *gin.RouterGroup, app *api.Application) {
 		protected := fantasyRoutes.Group("")
 		protected.Use(commonAuth.TokenMiddleware(app.TokenMaker))
 		{
+			protected.GET("/dashboard", app.Handlers.FantasyHandler.GetDashboard)
+			protected.POST("/seasons/:id/enter", app.Handlers.FantasyHandler.EnterSeason)
 			protected.POST("/lineups", app.Handlers.FantasyHandler.SaveLineup)
 			protected.GET("/lineups/mine", app.Handlers.FantasyHandler.GetMyLineup)
 

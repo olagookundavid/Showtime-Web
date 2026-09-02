@@ -20,12 +20,13 @@ import (
 type fakeFantasyRepo struct {
 	ports.IFantasyRepository
 
-	season     *domain.FantasySeason
-	liveSeason *domain.FantasySeason
-	gameweeks  map[string]*domain.FantasyGameweek
-	candidates map[string]domain.LineupCandidate
-	teams      []domain.FantasyTeam
-	stats      []domain.PlayerStat
+	season      *domain.FantasySeason
+	liveSeason  *domain.FantasySeason
+	enteredTeam *domain.FantasyTeam
+	gameweeks   map[string]*domain.FantasyGameweek
+	candidates  map[string]domain.LineupCandidate
+	teams       []domain.FantasyTeam
+	stats       []domain.PlayerStat
 
 	// lineups is keyed "teamID|gameweekID"; priorLocked by teamID.
 	lineups     map[string]*domain.FantasyLineup
@@ -85,6 +86,14 @@ func (f *fakeFantasyRepo) GetLineupCandidates(_ context.Context, _, _ string, id
 		}
 	}
 	return out, nil
+}
+
+func (f *fakeFantasyRepo) GetTeamByUserAndSeason(_ context.Context, _, _ string) (*domain.FantasyTeam, error) {
+	return f.enteredTeam, nil
+}
+
+func (f *fakeFantasyRepo) GetTeamOverallRank(_ context.Context, _, _ string) (int, int, error) {
+	return 1, 1, nil
 }
 
 func (f *fakeFantasyRepo) GetOrCreateTeam(_ context.Context, userID, seasonID, name string) (*domain.FantasyTeam, error) {
@@ -269,6 +278,7 @@ func newServiceWith(squad []domain.LineupCandidate) (*fakeFantasyRepo, *fakeLeag
 	for _, c := range squad {
 		repo.candidates[c.PlayerID] = c
 	}
+	repo.enteredTeam = &domain.FantasyTeam{ID: "team-user-1", UserID: "user-1", SeasonID: "season-1", Name: "Test XI"}
 	leagues := &fakeLeagueRepo{overall: &domain.FantasyLeague{ID: "overall-1", Type: domain.LeagueTypeOverall}}
 	return repo, leagues, NewFantasyService(repo, leagues, nil, nil)
 }
@@ -336,6 +346,53 @@ func TestActivateSeason(t *testing.T) {
 	})
 }
 
+// ─── Season entry ─────────────────────────────────────────────────────────────
+
+// Entering is the deliberate opt-in that replaced being signed up as a side
+// effect of saving a squad.
+func TestEnterSeason(t *testing.T) {
+	t.Run("creates the manager's team", func(t *testing.T) {
+		repo := newFakeRepo()
+		repo.season = testSeason()
+		svc := NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil)
+
+		team, err := svc.EnterSeason(context.Background(), "user-1", "season-1",
+			dto.EnterSeasonRequest{TeamName: "  Lagos Lions  "})
+		if err != nil {
+			t.Fatalf("entering failed: %v", err)
+		}
+		if team.Name != "Lagos Lions" {
+			t.Errorf("expected the team name trimmed, got %q", team.Name)
+		}
+	})
+
+	t.Run("refuses a season that is not live", func(t *testing.T) {
+		repo := newFakeRepo()
+		repo.season = testSeason()
+		repo.season.Status = domain.FantasySeasonDraft
+		svc := NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil)
+
+		_, err := svc.EnterSeason(context.Background(), "user-1", "season-1",
+			dto.EnterSeasonRequest{TeamName: "Lagos Lions"})
+		assertErrContains(t, err, "not open for entry")
+	})
+
+	t.Run("entering does not join any league", func(t *testing.T) {
+		repo := newFakeRepo()
+		repo.season = testSeason()
+		leagues := &fakeLeagueRepo{overall: &domain.FantasyLeague{ID: "overall-1", Type: domain.LeagueTypeOverall}}
+		svc := NewFantasyService(repo, leagues, nil, nil)
+
+		if _, err := svc.EnterSeason(context.Background(), "user-1", "season-1",
+			dto.EnterSeasonRequest{TeamName: "Lagos Lions"}); err != nil {
+			t.Fatalf("entering failed: %v", err)
+		}
+		if leagues.added != 0 {
+			t.Errorf("entering a season must not join a league, but joined %d", leagues.added)
+		}
+	})
+}
+
 // ─── Lineup validation ────────────────────────────────────────────────────────
 
 func TestLineupValidation(t *testing.T) {
@@ -355,8 +412,10 @@ func TestLineupValidation(t *testing.T) {
 		if len(repo.savedPicks) != 14 {
 			t.Errorf("expected 14 picks persisted, got %d", len(repo.savedPicks))
 		}
-		if leagues.added != 1 {
-			t.Errorf("expected the manager to be enrolled in the overall league once, got %d", leagues.added)
+		// Saving a squad must not sign the manager up to anything — joining a
+		// league is always a separate, deliberate act.
+		if leagues.added != 0 {
+			t.Errorf("saving a lineup must not join any league, but joined %d", leagues.added)
 		}
 	})
 
@@ -530,6 +589,16 @@ func TestLineupValidation(t *testing.T) {
 
 		_, err := svc.SaveLineup(context.Background(), "user-1", saveRequest(validSquad()))
 		assertErrContains(t, err, "locked or finalized")
+	})
+
+	// The manager complained about being enrolled without choosing to be, so
+	// entry is now a prerequisite rather than a side effect.
+	t.Run("refuses a squad from someone who has not entered the season", func(t *testing.T) {
+		repo, _, svc := newServiceWith(validSquad())
+		repo.enteredTeam = nil
+
+		_, err := svc.SaveLineup(context.Background(), "user-1", saveRequest(validSquad()))
+		assertErrContains(t, err, "join this season before picking a squad")
 	})
 
 	t.Run("rejects a submission to an inactive season", func(t *testing.T) {

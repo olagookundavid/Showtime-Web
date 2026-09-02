@@ -3220,6 +3220,56 @@ interface Paged<T> {
     total_pages: number;
 }
 
+// ─── Season entry & dashboard ────────────────────────────────────────────────
+
+export interface DashboardTeam {
+    id: string;
+    name: string;
+    total_points: number;
+    gameweek_points: number;
+    overall_rank: number;
+    total_managers: number;
+}
+
+export interface DashboardLeagueRow {
+    league_id: string;
+    name: string;
+    type: 'OVERALL' | 'PUBLIC' | 'PRIVATE';
+    member_count: number;
+    my_rank: number;
+    entry_fee_kobo: number;
+}
+
+export interface FantasyDashboard {
+    season: FantasySeason;
+    // false until the manager has deliberately joined the season.
+    entered: boolean;
+    team?: DashboardTeam;
+    lineup?: FantasyLineupResponse;
+    current_gameweek?: FantasyGameweek;
+    deadline_passed: boolean;
+    leagues: DashboardLeagueRow[];
+    top_managers: LeaderboardEntry[];
+}
+
+export const fantasySeasonApi = {
+    // Works before entry too: an un-entered visitor gets the season and
+    // standings, which is what the "join this season" screen renders.
+    getDashboard: async (seasonId?: string): Promise<FantasyDashboard | null> => {
+        const res = await api.get<{ data: FantasyDashboard | null }>('/fantasy/dashboard', {
+            params: seasonId ? { season_id: seasonId } : undefined,
+        });
+        return res.data.data;
+    },
+    // The deliberate opt-in. Nothing is created for a manager until this runs.
+    enterSeason: async (seasonId: string, teamName: string): Promise<DashboardTeam> => {
+        const res = await api.post<{ data: DashboardTeam }>(`/fantasy/seasons/${seasonId}/enter`, {
+            team_name: teamName,
+        });
+        return res.data.data;
+    },
+};
+
 export const fantasyWalletApi = {
     getWallet: async (): Promise<FantasyWallet> => {
         const res = await api.get<{ data: FantasyWallet }>('/fantasy/wallet');

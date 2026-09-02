@@ -17,6 +17,8 @@ type IFantasyHandler interface {
 	GetGameweeks(c *gin.Context)
 	ListPlayerMarket(c *gin.Context)
 	GetPlayerBreakdown(c *gin.Context)
+	EnterSeason(c *gin.Context)
+	GetDashboard(c *gin.Context)
 	SaveLineup(c *gin.Context)
 	GetMyLineup(c *gin.Context)
 
@@ -114,6 +116,45 @@ func (h *FantasyHandler) GetPlayerBreakdown(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": breakdown})
+}
+
+// EnterSeason signs the manager up for a season — the deliberate opt-in that
+// replaces being enrolled as a side effect of saving a squad.
+func (h *FantasyHandler) EnterSeason(c *gin.Context) {
+	payload, err := helpers.GetTokenPayloadFromContext(c)
+	if err != nil || payload == nil {
+		helpers.UnAuthorizedResponse(c, "unauthorized")
+		return
+	}
+
+	var req dto.EnterSeasonRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	team, err := h.service.EnterSeason(c.Request.Context(), payload.UserId, c.Param("id"), req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"message": "You're in. Good luck!", "data": team})
+}
+
+// GetDashboard is the manager's weekly landing view.
+func (h *FantasyHandler) GetDashboard(c *gin.Context) {
+	payload, err := helpers.GetTokenPayloadFromContext(c)
+	if err != nil || payload == nil {
+		helpers.UnAuthorizedResponse(c, "unauthorized")
+		return
+	}
+
+	res, err := h.service.GetDashboard(c.Request.Context(), payload.UserId, c.Query("season_id"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": res})
 }
 
 func (h *FantasyHandler) SaveLineup(c *gin.Context) {

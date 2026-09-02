@@ -30,6 +30,9 @@ type IFantasyLeagueRepository interface {
 	GetMemberByPaystackRef(ctx context.Context, ref string) (*domain.FantasyLeagueMember, error)
 	UpdateMemberPaymentStatus(ctx context.Context, id string, status domain.FantasyLeaguePaymentStatus) error
 
+	// ListMyLeaguesWithRank returns the manager's mini-leagues along with where
+	// they currently sit in each, for the dashboard.
+	ListMyLeaguesWithRank(ctx context.Context, userID, seasonID string) ([]dto.DashboardLeagueRow, error)
 	GetLeaderboard(ctx context.Context, leagueID string, gameweekID *string, page, limit int) ([]dto.LeaderboardEntry, int, error)
 	GetOverallLeaderboard(ctx context.Context, seasonID string, gameweekID *string, page, limit int) ([]dto.LeaderboardEntry, int, error)
 }
@@ -349,6 +352,48 @@ func (r *FantasyLeagueRepository) UpdateMemberPaymentStatus(ctx context.Context,
 	query := `UPDATE fantasy_league_members SET payment_status = $1 WHERE id = $2`
 	_, err := r.pool.Exec(ctx, query, status, id)
 	return err
+}
+
+// ListMyLeaguesWithRank returns every league the manager belongs to in a
+// season, with their position in each. Ranking happens per league in one pass
+// rather than a query per league.
+func (r *FantasyLeagueRepository) ListMyLeaguesWithRank(ctx context.Context, userID, seasonID string) ([]dto.DashboardLeagueRow, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	query := `
+		WITH ranked AS (
+			SELECT flm.league_id, flm.user_id,
+			       RANK() OVER (PARTITION BY flm.league_id ORDER BY ft.total_points DESC) AS rnk
+			FROM fantasy_league_members flm
+			JOIN fantasy_teams ft ON flm.team_id = ft.id
+			WHERE flm.payment_status IN ('FREE', 'PAID')
+		)
+		SELECT l.id, l.name, l.type, l.entry_fee,
+		       (SELECT COUNT(*) FROM fantasy_league_members m
+		        WHERE m.league_id = l.id AND m.payment_status IN ('FREE', 'PAID')),
+		       r.rnk
+		FROM ranked r
+		JOIN fantasy_leagues l ON r.league_id = l.id
+		WHERE r.user_id = $1 AND l.season_id = $2
+		ORDER BY l.entry_fee DESC, l.name ASC
+	`
+	rows, err := r.pool.Query(ctx, query, userID, seasonID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list your leagues: %w", err)
+	}
+	defer rows.Close()
+
+	list := make([]dto.DashboardLeagueRow, 0)
+	for rows.Next() {
+		var row dto.DashboardLeagueRow
+		if err := rows.Scan(&row.LeagueID, &row.Name, &row.Type, &row.EntryFeeKobo,
+			&row.MemberCount, &row.MyRank); err != nil {
+			return nil, err
+		}
+		list = append(list, row)
+	}
+	return list, rows.Err()
 }
 
 func (r *FantasyLeagueRepository) GetLeaderboard(ctx context.Context, leagueID string, gameweekID *string, page, limit int) ([]dto.LeaderboardEntry, int, error) {

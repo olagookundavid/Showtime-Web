@@ -50,6 +50,9 @@ type IFantasyRepository interface {
 	GetTeamByUserAndSeason(ctx context.Context, userID, seasonID string) (*domain.FantasyTeam, error)
 	GetTeamByID(ctx context.Context, id string) (*domain.FantasyTeam, error)
 	ListAllActiveTeamsInSeason(ctx context.Context, seasonID string) ([]domain.FantasyTeam, error)
+	// GetTeamOverallRank returns the team's position among every manager in the
+	// season, and how many managers there are.
+	GetTeamOverallRank(ctx context.Context, seasonID, teamID string) (int, int, error)
 	// RecalculateTeamTotalPoints rebuilds a team's season total from its locked
 	// lineups. Idempotent by construction, so a gameweek can be re-scored.
 	RecalculateTeamTotalPoints(ctx context.Context, teamID string) error
@@ -750,6 +753,33 @@ func (r *FantasyRepository) ListAllActiveTeamsInSeason(ctx context.Context, seas
 // accumulating is what makes re-scoring a gameweek safe — an incremental
 // `total_points + delta` would double-count on every re-run, so a corrected
 // stat could never be applied without corrupting the standings.
+// GetTeamOverallRank ranks a team against every manager in its season. RANK()
+// rather than ROW_NUMBER() so managers level on points genuinely share a
+// position instead of being separated arbitrarily.
+func (r *FantasyRepository) GetTeamOverallRank(ctx context.Context, seasonID, teamID string) (int, int, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	query := `
+		SELECT rnk, total FROM (
+			SELECT id,
+			       RANK() OVER (ORDER BY total_points DESC) AS rnk,
+			       COUNT(*) OVER () AS total
+			FROM fantasy_teams
+			WHERE season_id = $1
+		) ranked
+		WHERE id = $2
+	`
+	var rank, total int
+	if err := r.pool.QueryRow(ctx, query, seasonID, teamID).Scan(&rank, &total); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, 0, nil
+		}
+		return 0, 0, fmt.Errorf("failed to rank team: %w", err)
+	}
+	return rank, total, nil
+}
+
 func (r *FantasyRepository) RecalculateTeamTotalPoints(ctx context.Context, teamID string) error {
 	query := `
 		UPDATE fantasy_teams ft

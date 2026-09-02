@@ -59,6 +59,52 @@ type GameweekResponse struct {
 	FirstKickoff string `json:"first_kickoff,omitempty"`
 }
 
+// ─── Season entry ─────────────────────────────────────────────────────────────
+
+type EnterSeasonRequest struct {
+	TeamName string `json:"team_name" binding:"required,min=3,max=40"`
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+
+// DashboardTeam is the manager's own standing in the season.
+type DashboardTeam struct {
+	ID             string  `json:"id"`
+	Name           string  `json:"name"`
+	TotalPoints    float64 `json:"total_points"`
+	GameweekPoints float64 `json:"gameweek_points"`
+	OverallRank    int     `json:"overall_rank"`
+	TotalManagers  int     `json:"total_managers"`
+}
+
+// DashboardLeagueRow is one of the manager's mini-leagues and where they sit.
+type DashboardLeagueRow struct {
+	LeagueID     string `json:"league_id"`
+	Name         string `json:"name"`
+	Type         string `json:"type"`
+	MemberCount  int    `json:"member_count"`
+	MyRank       int    `json:"my_rank"`
+	EntryFeeKobo int64  `json:"entry_fee_kobo"`
+}
+
+// FantasyDashboardResponse is everything the manager's weekly landing page
+// needs, in one round trip.
+type FantasyDashboardResponse struct {
+	Season  FantasySeasonResponse `json:"season"`
+	Entered bool                  `json:"entered"`
+
+	Team   *DashboardTeam         `json:"team,omitempty"`
+	Lineup *FantasyLineupResponse `json:"lineup,omitempty"`
+
+	// CurrentGameweek is the one open for entry, or the most recent otherwise.
+	CurrentGameweek *GameweekResponse `json:"current_gameweek,omitempty"`
+	// DeadlinePassed distinguishes "still time to edit" from "locked in".
+	DeadlinePassed bool `json:"deadline_passed"`
+
+	Leagues     []DashboardLeagueRow `json:"leagues"`
+	TopManagers []LeaderboardEntry   `json:"top_managers"`
+}
+
 // ─── Lineup Submission / Save DTOs ────────────────────────────────────────────
 
 type LineupSlotItem struct {

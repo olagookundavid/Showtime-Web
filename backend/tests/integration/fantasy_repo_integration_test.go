@@ -403,6 +403,26 @@ func TestFantasyRepositoryQueries(t *testing.T) {
 		}
 	})
 
+	// Powers the "you are Nth of M" figure on the manager's dashboard.
+	t.Run("overall rank", func(t *testing.T) {
+		rank, total, err := repo.GetTeamOverallRank(ctx, f.seasonID, f.teamID)
+		if err != nil {
+			t.Fatalf("GetTeamOverallRank: %v", err)
+		}
+		if rank != 1 || total != 1 {
+			t.Errorf("expected the only manager to be 1 of 1, got %d of %d", rank, total)
+		}
+
+		// A manager who isn't in the season has no rank rather than an error.
+		rank, _, err = repo.GetTeamOverallRank(ctx, f.seasonID, "00000000-0000-0000-0000-000000000000")
+		if err != nil {
+			t.Fatalf("GetTeamOverallRank for an unknown team: %v", err)
+		}
+		if rank != 0 {
+			t.Errorf("expected no rank for a team outside the season, got %d", rank)
+		}
+	})
+
 	t.Run("team reads and total recalculation", func(t *testing.T) {
 		if _, err := repo.GetTeamByUserAndSeason(ctx, f.userID, f.seasonID); err != nil {
 			t.Errorf("GetTeamByUserAndSeason: %v", err)
@@ -519,6 +539,42 @@ func TestFantasyLeagueRepositoryQueries(t *testing.T) {
 		}
 		if string(encoded) != "[]" {
 			t.Errorf("expected an empty overall leaderboard to encode as [], got %s", encoded)
+		}
+	})
+
+	// Powers the dashboard's "your mini-leagues and where you sit" panel.
+	t.Run("my leagues with rank", func(t *testing.T) {
+		rows, err := repo.ListMyLeaguesWithRank(ctx, f.userID, f.seasonID)
+		if err != nil {
+			t.Fatalf("ListMyLeaguesWithRank: %v", err)
+		}
+		if len(rows) == 0 {
+			t.Fatal("expected the seeded league the manager belongs to")
+		}
+		var found bool
+		for _, r := range rows {
+			if r.LeagueID == f.leagueID {
+				found = true
+				if r.MyRank != 1 || r.MemberCount != 1 {
+					t.Errorf("expected rank 1 of 1 member, got rank %d of %d", r.MyRank, r.MemberCount)
+				}
+				if r.EntryFeeKobo != 100000 {
+					t.Errorf("expected the entry fee carried through, got %d", r.EntryFeeKobo)
+				}
+			}
+		}
+		if !found {
+			t.Error("the manager's own league was missing from the list")
+		}
+
+		// Someone with no leagues gets an empty list, not null.
+		none, err := repo.ListMyLeaguesWithRank(ctx, "00000000-0000-0000-0000-000000000000", f.seasonID)
+		if err != nil {
+			t.Fatalf("ListMyLeaguesWithRank for a stranger: %v", err)
+		}
+		encoded, _ := json.Marshal(none)
+		if string(encoded) != "[]" {
+			t.Errorf("expected [] for a manager with no leagues, got %s", encoded)
 		}
 	})
 

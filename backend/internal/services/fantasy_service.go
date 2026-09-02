@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"showtime-backend/internal/domain"
@@ -27,6 +28,8 @@ type IFantasyService interface {
 	ListSeasons(ctx context.Context) ([]dto.FantasySeasonResponse, error)
 	GetGameweeks(ctx context.Context, seasonID string) ([]dto.GameweekResponse, error)
 	ListPlayerMarket(ctx context.Context, seasonID string, positions []string, gender, teamID, search, sortBy string, page, limit int) ([]dto.FantasyPlayerListItem, int, error)
+	EnterSeason(ctx context.Context, userID, seasonID string, req dto.EnterSeasonRequest) (*dto.DashboardTeam, error)
+	GetDashboard(ctx context.Context, userID, seasonID string) (*dto.FantasyDashboardResponse, error)
 	SaveLineup(ctx context.Context, userID string, req dto.SaveLineupRequest) (*dto.FantasyLineupResponse, error)
 	GetMyLineup(ctx context.Context, userID, seasonID, gameweekID string) (*dto.FantasyLineupResponse, error)
 	GetPlayerBreakdown(ctx context.Context, playerID, gameweekID string) (*dto.PlayerGWBreakdownResponse, error)
@@ -134,15 +137,15 @@ func (s *FantasyService) ActivateSeason(ctx context.Context, seasonID string) er
 	return s.repo.UpdateSeasonStatus(ctx, seasonID, domain.FantasySeasonActive)
 }
 
-// CreateGameweek registers a match day. The submission deadline is the event
-// day's first kickoff minus the season's lock_mins_before, unless the admin
-// supplies an explicit override.
 // DeleteSeason discards a draft season, for clearing up ones created by
 // mistake. The repository refuses anything already launched or entered.
 func (s *FantasyService) DeleteSeason(ctx context.Context, seasonID string) error {
 	return s.repo.DeleteSeason(ctx, seasonID)
 }
 
+// CreateGameweek registers a match day. The submission deadline is the event
+// day's first kickoff minus the season's lock_mins_before, unless the admin
+// supplies an explicit override.
 func (s *FantasyService) CreateGameweek(ctx context.Context, seasonID string, req dto.CreateGameweekRequest) (*dto.GameweekResponse, error) {
 	season, err := s.repo.GetSeasonByID(ctx, seasonID)
 	if err != nil {
@@ -395,6 +398,112 @@ func (s *FantasyService) ListPlayerMarket(ctx context.Context, seasonID string, 
 	return s.repo.ListPlayerMarket(ctx, seasonID, positions, gender, teamID, search, sortBy, page, limit)
 }
 
+// EnterSeason signs a manager up, creating their team. This is the only place a
+// team is created: joining is always something the manager chose to do, never a
+// side effect of another action. Re-entering just renames an existing team, so
+// a double submit is harmless.
+func (s *FantasyService) EnterSeason(ctx context.Context, userID, seasonID string, req dto.EnterSeasonRequest) (*dto.DashboardTeam, error) {
+	season, err := s.repo.GetSeasonByID(ctx, seasonID)
+	if err != nil {
+		return nil, err
+	}
+	if season == nil {
+		return nil, errors.New("season not found")
+	}
+	if season.Status != domain.FantasySeasonActive {
+		return nil, errors.New("this season is not open for entry")
+	}
+
+	team, err := s.repo.GetOrCreateTeam(ctx, userID, seasonID, strings.TrimSpace(req.TeamName))
+	if err != nil {
+		return nil, fmt.Errorf("failed to enter the season: %w", err)
+	}
+
+	rank, total, err := s.repo.GetTeamOverallRank(ctx, seasonID, team.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.DashboardTeam{
+		ID: team.ID, Name: team.Name, TotalPoints: team.TotalPoints,
+		OverallRank: rank, TotalManagers: total,
+	}, nil
+}
+
+// GetDashboard assembles the manager's weekly landing view. It works before
+// entry too — an un-entered visitor gets the season and the standings, which is
+// what the "join this season" screen shows.
+func (s *FantasyService) GetDashboard(ctx context.Context, userID, seasonID string) (*dto.FantasyDashboardResponse, error) {
+	var season *domain.FantasySeason
+	var err error
+	if seasonID == "" {
+		season, err = s.repo.GetActiveSeason(ctx)
+	} else {
+		season, err = s.repo.GetSeasonByID(ctx, seasonID)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if season == nil {
+		return nil, nil
+	}
+
+	res := &dto.FantasyDashboardResponse{
+		Season:      *seasonResponse(season),
+		Leagues:     make([]dto.DashboardLeagueRow, 0),
+		TopManagers: make([]dto.LeaderboardEntry, 0),
+	}
+
+	// The gameweek the manager cares about: the one still open, else the latest.
+	gw, err := s.repo.GetCurrentGameweek(ctx, season.ID)
+	if err != nil {
+		return nil, err
+	}
+	if gw != nil {
+		res.CurrentGameweek = gameweekResponse(gw, nil)
+		res.DeadlinePassed = time.Now().After(gw.Deadline)
+	}
+
+	if top, _, err := s.leagueRepo.GetOverallLeaderboard(ctx, season.ID, nil, 1, 5); err == nil {
+		res.TopManagers = top
+	}
+
+	team, err := s.repo.GetTeamByUserAndSeason(ctx, userID, season.ID)
+	if err != nil {
+		return nil, err
+	}
+	if team == nil {
+		return res, nil // not entered yet
+	}
+	res.Entered = true
+
+	rank, total, err := s.repo.GetTeamOverallRank(ctx, season.ID, team.ID)
+	if err != nil {
+		return nil, err
+	}
+	res.Team = &dto.DashboardTeam{
+		ID: team.ID, Name: team.Name, TotalPoints: team.TotalPoints,
+		OverallRank: rank, TotalManagers: total,
+	}
+
+	if leagues, err := s.leagueRepo.ListMyLeaguesWithRank(ctx, userID, season.ID); err == nil {
+		res.Leagues = leagues
+	}
+
+	if gw != nil {
+		lineup, err := s.GetMyLineup(ctx, userID, season.ID, gw.ID)
+		if err != nil {
+			return nil, err
+		}
+		res.Lineup = lineup
+		if lineup != nil {
+			res.Team.GameweekPoints = lineup.Points
+		}
+	}
+
+	return res, nil
+}
+
 // SaveLineup validates and persists a manager's squad for a gameweek. Every
 // squad rule is enforced here — the client mirrors these checks for feedback,
 // but this is the authority.
@@ -457,19 +566,21 @@ func (s *FantasyService) SaveLineup(ctx context.Context, userID string, req dto.
 		return nil, err
 	}
 
-	team, err := s.repo.GetOrCreateTeam(ctx, userID, season.ID, req.TeamName)
+	// Entering a season is a deliberate act (EnterSeason), never a side effect
+	// of saving a squad — a manager should never find themselves signed up to
+	// something they did not choose. Saving a lineup renames their existing
+	// entry at most.
+	team, err := s.repo.GetTeamByUserAndSeason(ctx, userID, season.ID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize user fantasy team: %w", err)
+		return nil, err
 	}
-
-	// Every manager belongs to the season's official league.
-	if overall, err := s.leagueRepo.GetOverallLeague(ctx, season.ID); err == nil && overall != nil {
-		_ = s.leagueRepo.AddMember(ctx, &domain.FantasyLeagueMember{
-			LeagueID:      overall.ID,
-			UserID:        userID,
-			TeamID:        team.ID,
-			PaymentStatus: domain.LeaguePaymentFree,
-		})
+	if team == nil {
+		return nil, errors.New("join this season before picking a squad")
+	}
+	if req.TeamName != "" && req.TeamName != team.Name {
+		if team, err = s.repo.GetOrCreateTeam(ctx, userID, season.ID, req.TeamName); err != nil {
+			return nil, fmt.Errorf("failed to rename your team: %w", err)
+		}
 	}
 
 	lineupPicks := make([]domain.FantasyLineupPick, 0, len(picks))

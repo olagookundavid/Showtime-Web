@@ -21,6 +21,7 @@ const CartPage = lazy(() => import('./pages/CartPage').then(m => ({ default: m.C
 
 // Lazy load Fantasy Pages
 const FantasyHub = lazy(() => import('./pages/fantasy/FantasyHub').then(m => ({ default: m.FantasyHub })));
+const FantasyDashboard = lazy(() => import('./pages/fantasy/FantasyDashboard').then(m => ({ default: m.FantasyDashboard })));
 const FantasySquadBuilder = lazy(() => import('./pages/fantasy/FantasySquadBuilder').then(m => ({ default: m.FantasySquadBuilder })));
 const FantasyMyTeam = lazy(() => import('./pages/fantasy/FantasyMyTeam').then(m => ({ default: m.FantasyMyTeam })));
 const FantasyLeagues = lazy(() => import('./pages/fantasy/FantasyLeagues').then(m => ({ default: m.FantasyLeagues })));
@@ -194,6 +195,11 @@ function App() {
 
               {/* Fantasy Flag Football */}
               <Route path="/fantasy" element={<FantasyHub />} />
+              <Route path="/fantasy/dashboard" element={
+                <ProtectedRoute>
+                  <FantasyDashboard />
+                </ProtectedRoute>
+              } />
               <Route path="/fantasy/build" element={
                 <ProtectedRoute>
                   <FantasySquadBuilder />
