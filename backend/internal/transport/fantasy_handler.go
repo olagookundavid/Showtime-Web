@@ -24,6 +24,7 @@ type IFantasyHandler interface {
 	AdminListSeasons(c *gin.Context)
 	AdminCreateSeason(c *gin.Context)
 	AdminActivateSeason(c *gin.Context)
+	AdminDeleteSeason(c *gin.Context)
 	AdminCreateGameweek(c *gin.Context)
 	AdminUpdateGameweekDeadline(c *gin.Context)
 	AdminInitializePrices(c *gin.Context)
@@ -202,6 +203,14 @@ func (h *FantasyHandler) AdminActivateSeason(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Fantasy season activated successfully"})
+}
+
+func (h *FantasyHandler) AdminDeleteSeason(c *gin.Context) {
+	if err := h.service.DeleteSeason(c.Request.Context(), c.Param("id")); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Draft season deleted"})
 }
 
 func (h *FantasyHandler) AdminCreateGameweek(c *gin.Context) {

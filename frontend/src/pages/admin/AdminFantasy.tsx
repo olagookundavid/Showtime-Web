@@ -19,7 +19,10 @@ import {
     TrashIcon,
     LockClosedIcon,
     ShieldCheckIcon,
-    Cog6ToothIcon
+    Cog6ToothIcon,
+    ArrowLeftIcon,
+    RocketLaunchIcon,
+    ChevronRightIcon
 } from '@heroicons/react/24/outline';
 import {
     fantasyApi,
@@ -68,15 +71,27 @@ const ordinal = (n: number): string => {
 const awardPlaceLabel = (rank: number, sharedWith: number): string =>
     sharedWith > 1 ? `Joint ${ordinal(rank)} (${sharedWith} way)` : ordinal(rank);
 
-const TABS = [
+/**
+ * Top level of the page. Payouts sits here rather than inside a season because
+ * the payout queue is global — `listPayouts` takes no season id, so nesting it
+ * under a season implied a scoping that does not exist.
+ */
+const TOP_TABS = [
+    { key: 'seasons', label: 'Seasons', icon: TrophyIcon },
+    { key: 'payouts', label: 'Payouts', icon: CurrencyDollarIcon },
+] as const;
+
+type TopTabKey = typeof TOP_TABS[number]['key'];
+
+/** Sub-tabs, only reachable once a specific season has been drilled into. */
+const SEASON_TABS = [
     { key: 'setup', label: 'Setup', icon: Cog6ToothIcon },
     { key: 'leagues', label: 'Leagues', icon: TrophyIcon },
     { key: 'managers', label: 'Managers', icon: UsersIcon },
     { key: 'finance', label: 'Finance', icon: BanknotesIcon },
-    { key: 'payouts', label: 'Payouts', icon: CurrencyDollarIcon },
 ] as const;
 
-type TabKey = typeof TABS[number]['key'];
+type SeasonTabKey = typeof SEASON_TABS[number]['key'];
 
 // ─── Shared presentational bits ──────────────────────────────────────────────
 
@@ -168,6 +183,31 @@ const SettledBadge = ({ settled }: { settled: boolean }) => (
             : 'bg-neutral-800 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400'
     }`}>
         {settled ? 'Settled' : 'Open'}
+    </span>
+);
+
+/**
+ * A season's status is the single thing that decides whether players can see
+ * it at all, so the meaning travels with the badge everywhere it is shown.
+ */
+const SEASON_STATUS_META: Record<FantasySeason['status'], { cls: string; meaning: string }> = {
+    DRAFT: {
+        cls: 'bg-amber-500/10 border-amber-500/25 text-amber-600 dark:text-amber-400',
+        meaning: 'Created but private — players cannot see it',
+    },
+    ACTIVE: {
+        cls: 'bg-emerald-500/10 border-emerald-500/25 text-emerald-600 dark:text-emerald-400',
+        meaning: 'Live — players can enter squads',
+    },
+    COMPLETED: {
+        cls: 'bg-neutral-500/10 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400',
+        meaning: 'Finished — final standings only',
+    },
+};
+
+const SeasonStatusBadge = ({ status }: { status: FantasySeason['status'] }) => (
+    <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${SEASON_STATUS_META[status].cls}`}>
+        {status}
     </span>
 );
 
@@ -280,30 +320,20 @@ const settlementSummary = (r: SettlementResult): string =>
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export function AdminFantasy() {
-    const [tab, setTab] = useState<TabKey>('setup');
+    const [topTab, setTopTab] = useState<TopTabKey>('seasons');
+    // `null` is the seasons index; a season id drills into that season.
+    const [selectedSeasonId, setSelectedSeasonId] = useState<string | null>(null);
 
     // Admin must load every season, not just the active one: a season is
     // created as DRAFT, so getActiveSeason would return null and there would be
-    // no way to reach the Activate action for the season just created.
+    // no way to reach the Release action for the season just created.
     const { data: seasons = [], isLoading: seasonLoading } = useQuery({
         queryKey: ['adminFantasySeason'],
         queryFn: fantasyAdminApi.listSeasons,
     });
 
-    // Prefer the live season; otherwise fall back to the newest one so a fresh
-    // draft is visible and can be activated.
-    const season = seasons.find(s => s.status === 'ACTIVE') ?? seasons[0] ?? null;
-
-    // Shares SetupTab's query key, so react-query serves both from one request.
-    const { data: gameweeks = [] } = useQuery({
-        queryKey: ['adminFantasyGameweeks', season?.id],
-        queryFn: () => (season?.id ? fantasyApi.getGameweeks(season.id) : Promise.resolve([])),
-        enabled: !!season?.id,
-    });
-
-    // An active season with no open gameweek still shows players nothing, which
-    // reads as "the feature is broken" rather than "setup is incomplete".
-    const hasOpenGameweek = gameweeks.some(gw => gw.status === 'SCHEDULED');
+    // Falls back to the index if the drilled-into season disappears (deleted).
+    const selectedSeason = seasons.find(s => s.id === selectedSeasonId) ?? null;
 
     if (seasonLoading) {
         return <Loader />;
@@ -317,14 +347,395 @@ export function AdminFantasy() {
                     <TrophyIcon className="w-6 h-6 text-sffl-red" /> Fantasy League Operations
                 </h1>
                 <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    Season and gameweek setup, league oversight, manager records, season finances, and the manual payout queue.
+                    Every fantasy season you run, and the manual payout queue that spans all of them.
                 </p>
             </div>
 
-            {/* A created season is DRAFT until activated, and a draft is
+            {/* Top-level tab bar */}
+            <div className="flex flex-wrap gap-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border border-gray-200 dark:border-gray-700 rounded-2xl p-2 shadow-sm">
+                {TOP_TABS.map(({ key, label, icon: Icon }) => {
+                    const active = topTab === key;
+                    return (
+                        <button
+                            key={key}
+                            type="button"
+                            onClick={() => setTopTab(key)}
+                            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition cursor-pointer ${
+                                active
+                                    ? 'bg-yellow-500 text-black shadow-lg shadow-sffl-red/20'
+                                    : 'bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 hover:text-white hover:bg-neutral-800'
+                            }`}
+                        >
+                            <Icon className="w-4 h-4" /> {label}
+                        </button>
+                    );
+                })}
+            </div>
+
+            {topTab === 'payouts' && <PayoutsTab />}
+
+            {topTab === 'seasons' && (
+                selectedSeason
+                    ? <SeasonDetail season={selectedSeason} onBack={() => setSelectedSeasonId(null)} />
+                    : <SeasonsIndex seasons={seasons} onManage={setSelectedSeasonId} />
+            )}
+        </div>
+    );
+}
+
+// ─── Release (activate) — shared by the index row and the detail header ───────
+
+/**
+ * "Release" is the admin-facing word for activating a DRAFT: it is the moment
+ * the season becomes visible to every player, so both call sites confirm first.
+ */
+function useReleaseSeasonMutation(onDone?: () => void) {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (seasonId: string) => fantasyApi.adminActivateSeason(seasonId),
+        onSuccess: () => {
+            toast.success('Season released — players can see it now.');
+            queryClient.invalidateQueries({ queryKey: ['adminFantasySeason'] });
+            onDone?.();
+        },
+        onError: (err: any) => toast.error(err?.response?.data?.error || err.message),
+    });
+}
+
+const ReleaseConfirm = ({ season, open, pending, onCancel, onConfirm }: {
+    season: FantasySeason;
+    open: boolean;
+    pending: boolean;
+    onCancel: () => void;
+    onConfirm: () => void;
+}) => (
+    <ConfirmDialog
+        open={open}
+        title={`Release ${season.name}?`}
+        warning="Releasing publishes this season to every player on the site."
+        confirmLabel="Yes, Release Season"
+        pending={pending}
+        onCancel={onCancel}
+        onConfirm={onConfirm}
+        body={
+            <div className="space-y-2 text-sm">
+                <p>
+                    The season moves from <strong>DRAFT</strong> to <strong>ACTIVE</strong>. Players will
+                    immediately see it and can start entering squads.
+                </p>
+                <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                    After releasing, initialize player prices and schedule at least one gameweek —
+                    without an open gameweek managers still cannot pick a squad.
+                </p>
+            </div>
+        }
+    />
+);
+
+// ─── Seasons index ───────────────────────────────────────────────────────────
+
+function SeasonsIndex({ seasons, onManage }: {
+    seasons: FantasySeason[];
+    onManage: (seasonId: string) => void;
+}) {
+    const queryClient = useQueryClient();
+    const [releasing, setReleasing] = useState<FantasySeason | null>(null);
+    const [deleting, setDeleting] = useState<FantasySeason | null>(null);
+
+    const releaseMutation = useReleaseSeasonMutation(() => setReleasing(null));
+
+    const deleteMutation = useMutation({
+        mutationFn: async (seasonId: string) => fantasyAdminApi.deleteSeason(seasonId),
+        onSuccess: () => {
+            toast.success('Season deleted.');
+            setDeleting(null);
+            queryClient.invalidateQueries({ queryKey: ['adminFantasySeason'] });
+        },
+        // The server refuses anything that isn't an untouched draft — its own
+        // wording ("season has squads entered") is more useful than ours.
+        onError: (err: any) => toast.error(err?.response?.data?.error || err.message),
+    });
+
+    return (
+        <div className="space-y-6">
+            {/* What the three statuses actually mean — the thing that confused us */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {(Object.keys(SEASON_STATUS_META) as FantasySeason['status'][]).map(status => (
+                    <div
+                        key={status}
+                        className="bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl p-3"
+                    >
+                        <SeasonStatusBadge status={status} />
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2">
+                            {SEASON_STATUS_META[status].meaning}
+                        </p>
+                    </div>
+                ))}
+            </div>
+
+            <SectionCard title={`All Seasons (${seasons.length})`} icon={TrophyIcon}>
+                {seasons.length === 0 ? (
+                    <div className="p-8 text-center">
+                        <p className="text-sm font-black uppercase tracking-wider text-sffl-navy dark:text-white">
+                            No fantasy seasons yet
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 max-w-md mx-auto">
+                            Creating a season is the first step — everything else (leagues, gameweeks, managers,
+                            prize money) hangs off one. A new season starts as a <strong>DRAFT</strong>, which is
+                            private to you, so nothing goes live until you release it.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                        {seasons.map(s => (
+                            <div key={s.id} className="p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                                <div className="min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <SeasonStatusBadge status={s.status} />
+                                        <h4 className="text-sm font-black uppercase tracking-wider text-sffl-navy dark:text-white">
+                                            {s.name}
+                                        </h4>
+                                    </div>
+                                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5">
+                                        {SEASON_STATUS_META[s.status].meaning}
+                                    </p>
+                                    <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">
+                                        Budget <strong className="text-gray-600 dark:text-gray-300">{s.budget} SC</strong>
+                                        {' · '}Squad <strong className="text-gray-600 dark:text-gray-300">{s.squad_size}</strong>
+                                        {' · '}Min female <strong className="text-gray-600 dark:text-gray-300">{s.min_female_offense} OFF / {s.min_female_defense} DEF</strong>
+                                        {' · '}Max <strong className="text-gray-600 dark:text-gray-300">{s.max_per_club}</strong> per club
+                                        {' · '}Lock <strong className="text-gray-600 dark:text-gray-300">{s.lock_mins_before} mins</strong> before kickoff
+                                        {' · '}Created {new Date(s.created_at).toLocaleDateString()}
+                                    </p>
+                                </div>
+
+                                <div className="flex items-center gap-2 flex-wrap shrink-0">
+                                    {s.status === 'DRAFT' && (
+                                        <>
+                                            <button
+                                                onClick={() => setReleasing(s)}
+                                                className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer"
+                                            >
+                                                <RocketLaunchIcon className="w-3.5 h-3.5" /> Release
+                                            </button>
+                                            <button
+                                                onClick={() => setDeleting(s)}
+                                                className="p-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-red-500/20 hover:text-red-500 text-gray-500 dark:text-gray-400 transition cursor-pointer"
+                                                aria-label={`Delete ${s.name}`}
+                                                title="Delete draft season"
+                                            >
+                                                <TrashIcon className="w-4 h-4" />
+                                            </button>
+                                        </>
+                                    )}
+                                    <button
+                                        onClick={() => onManage(s.id)}
+                                        className="px-5 py-2 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition shadow-md cursor-pointer"
+                                    >
+                                        Manage <ChevronRightIcon className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </SectionCard>
+
+            <CreateSeasonCard />
+
+            {releasing && (
+                <ReleaseConfirm
+                    season={releasing}
+                    open
+                    pending={releaseMutation.isPending}
+                    onCancel={() => setReleasing(null)}
+                    onConfirm={() => releaseMutation.mutate(releasing.id)}
+                />
+            )}
+
+            {deleting && (
+                <ConfirmDialog
+                    open
+                    title={`Delete ${deleting.name}?`}
+                    warning="This permanently removes the season and every gameweek scheduled under it."
+                    confirmLabel="Yes, Delete Season"
+                    pending={deleteMutation.isPending}
+                    onCancel={() => setDeleting(null)}
+                    onConfirm={() => deleteMutation.mutate(deleting.id)}
+                    body={
+                        <p className="text-sm">
+                            Only a draft season that nobody has entered a squad in can be deleted. The season row
+                            and its gameweeks are removed and cannot be recovered.
+                        </p>
+                    }
+                />
+            )}
+        </div>
+    );
+}
+
+// ─── Create season (moved off Setup — a season is created from the index) ────
+
+function CreateSeasonCard() {
+    const queryClient = useQueryClient();
+
+    const { data: competitionsData } = useQuery({
+        queryKey: ['adminCompetitions'],
+        queryFn: () => getCompetitions(1, 50),
+    });
+
+    const [seasonForm, setSeasonForm] = useState({
+        competition_id: '',
+        name: 'Showtime Season 2026 Fantasy',
+        budget: 230,
+        min_female_offense: 3,
+        min_female_defense: 3,
+        max_per_club: 4,
+        lock_mins_before: 15,
+    });
+
+    const createSeasonMutation = useMutation({
+        mutationFn: async () => {
+            if (!seasonForm.competition_id) throw new Error("Select a competition");
+            return fantasyApi.adminCreateSeason({
+                competition_id: seasonForm.competition_id,
+                name: seasonForm.name,
+                squad_size: 14,
+                budget: seasonForm.budget,
+                min_female_offense: seasonForm.min_female_offense,
+                min_female_defense: seasonForm.min_female_defense,
+                max_per_club: seasonForm.max_per_club,
+                lock_mins_before: seasonForm.lock_mins_before,
+            });
+        },
+        onSuccess: () => {
+            toast.success("Fantasy season created as a draft!");
+            queryClient.invalidateQueries({ queryKey: ['adminFantasySeason'] });
+        },
+        onError: (err: any) => toast.error(err?.response?.data?.error || err.message),
+    });
+
+    return (
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm">
+            <h2 className="text-lg font-black uppercase tracking-wider text-sffl-navy dark:text-white flex items-center gap-2">
+                <PlusIcon className="w-5 h-5 text-sffl-red" /> Create Fantasy Season
+            </h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 mb-4">
+                The new season starts as a <strong>DRAFT</strong> — private to admins until you release it.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">Competition</label>
+                    <select
+                        value={seasonForm.competition_id}
+                        onChange={(e) => setSeasonForm({ ...seasonForm, competition_id: e.target.value })}
+                        className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
+                    >
+                        <option value="">Select Competition...</option>
+                        {competitionsData?.data?.map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div>
+                    <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">Season Name</label>
+                    <input
+                        type="text"
+                        value={seasonForm.name}
+                        onChange={(e) => setSeasonForm({ ...seasonForm, name: e.target.value })}
+                        className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
+                    />
+                </div>
+
+                <div>
+                    <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">Salary Cap Budget (SC)</label>
+                    <input
+                        type="number"
+                        value={seasonForm.budget}
+                        onChange={(e) => setSeasonForm({ ...seasonForm, budget: parseFloat(e.target.value) || 230 })}
+                        className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
+                    />
+                </div>
+
+                <div>
+                    <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">Lock Minutes Before Kickoff</label>
+                    <input
+                        type="number"
+                        value={seasonForm.lock_mins_before}
+                        onChange={(e) => setSeasonForm({ ...seasonForm, lock_mins_before: parseInt(e.target.value) || 15 })}
+                        className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
+                    />
+                </div>
+            </div>
+
+            <button
+                onClick={() => createSeasonMutation.mutate()}
+                disabled={createSeasonMutation.isPending}
+                className="mt-6 px-6 py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black shadow-md text-xs uppercase transition shadow-lg cursor-pointer"
+            >
+                {createSeasonMutation.isPending ? <Spinner /> : 'Create Draft Season'}
+            </button>
+        </div>
+    );
+}
+
+// ─── Season detail (one season, four sub-tabs) ───────────────────────────────
+
+function SeasonDetail({ season, onBack }: { season: FantasySeason; onBack: () => void }) {
+    const [tab, setTab] = useState<SeasonTabKey>('setup');
+    const [releasing, setReleasing] = useState(false);
+
+    const releaseMutation = useReleaseSeasonMutation(() => setReleasing(false));
+
+    // Shares SetupTab's query key, so react-query serves both from one request.
+    const { data: gameweeks = [] } = useQuery({
+        queryKey: ['adminFantasyGameweeks', season.id],
+        queryFn: () => fantasyApi.getGameweeks(season.id),
+    });
+
+    // An active season with no open gameweek still shows players nothing, which
+    // reads as "the feature is broken" rather than "setup is incomplete".
+    const hasOpenGameweek = gameweeks.some(gw => gw.status === 'SCHEDULED');
+
+    return (
+        <div className="space-y-6">
+            <button
+                onClick={onBack}
+                className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 hover:text-sffl-red transition cursor-pointer"
+            >
+                <ArrowLeftIcon className="w-4 h-4" /> All Seasons
+            </button>
+
+            {/* Season header */}
+            <div className="bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+                <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <SeasonStatusBadge status={season.status} />
+                        <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                            {SEASON_STATUS_META[season.status].meaning}
+                        </span>
+                    </div>
+                    <h2 className="text-xl font-black uppercase tracking-wider text-sffl-navy dark:text-white mt-1.5">
+                        {season.name}
+                    </h2>
+                </div>
+
+                {season.status === 'DRAFT' && (
+                    <button
+                        onClick={() => setReleasing(true)}
+                        className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition shadow-lg shadow-emerald-500/20 cursor-pointer shrink-0"
+                    >
+                        <RocketLaunchIcon className="w-4 h-4" /> Release Season
+                    </button>
+                )}
+            </div>
+
+            {/* A created season is DRAFT until released, and a draft is
                 invisible to players. Say so plainly — otherwise "created
                 successfully" followed by an empty public site is baffling. */}
-            {season && season.status !== 'ACTIVE' && (
+            {season.status !== 'ACTIVE' && (
                 <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 flex items-start gap-3">
                     <ExclamationTriangleIcon className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                     <div className="text-sm">
@@ -333,14 +744,14 @@ export function AdminFantasy() {
                         </p>
                         <p className="text-gray-600 dark:text-gray-300 mt-1">
                             {season.status === 'DRAFT'
-                                ? 'Players cannot see this season yet. Activate it below, then initialize player prices and schedule at least one gameweek before managers can pick a squad.'
+                                ? 'Players cannot see this season yet. Release it above, then initialize player prices and schedule at least one gameweek before managers can pick a squad.'
                                 : 'This season is completed. Players can still view final standings, but no new squads can be entered.'}
                         </p>
                     </div>
                 </div>
             )}
 
-            {season && season.status === 'ACTIVE' && !hasOpenGameweek && (
+            {season.status === 'ACTIVE' && !hasOpenGameweek && (
                 <div className="rounded-2xl border border-sky-500/30 bg-sky-500/10 p-4 flex items-start gap-3">
                     <ExclamationTriangleIcon className="w-5 h-5 text-sky-500 shrink-0 mt-0.5" />
                     <div className="text-sm">
@@ -356,24 +767,16 @@ export function AdminFantasy() {
                 </div>
             )}
 
-            {!season && (
-                <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-800/80 p-4 text-sm text-gray-600 dark:text-gray-300">
-                    No fantasy season exists yet. Create one in <strong>Setup</strong> to unlock the other tabs.
-                </div>
-            )}
-
-            {/* Tab bar */}
+            {/* Sub-tab bar */}
             <div className="flex flex-wrap gap-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border border-gray-200 dark:border-gray-700 rounded-2xl p-2 shadow-sm">
-                {TABS.map(({ key, label, icon: Icon }) => {
+                {SEASON_TABS.map(({ key, label, icon: Icon }) => {
                     const active = tab === key;
-                    const locked = key !== 'setup' && !season;
                     return (
                         <button
                             key={key}
                             type="button"
-                            onClick={() => !locked && setTab(key)}
-                            disabled={locked}
-                            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                            onClick={() => setTab(key)}
+                            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition cursor-pointer ${
                                 active
                                     ? 'bg-yellow-500 text-black shadow-lg shadow-sffl-red/20'
                                     : 'bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 hover:text-white hover:bg-neutral-800'
@@ -385,45 +788,35 @@ export function AdminFantasy() {
                 })}
             </div>
 
-            {tab === 'setup' && <SetupTab season={season ?? null} />}
-            {tab === 'leagues' && season && <LeaguesTab seasonId={season.id} />}
-            {tab === 'managers' && season && <ManagersTab seasonId={season.id} />}
-            {tab === 'finance' && season && <FinanceTab seasonId={season.id} />}
-            {tab === 'payouts' && <PayoutsTab />}
+            {tab === 'setup' && <SetupTab season={season} />}
+            {tab === 'leagues' && <LeaguesTab seasonId={season.id} />}
+            {tab === 'managers' && <ManagersTab seasonId={season.id} />}
+            {tab === 'finance' && <FinanceTab seasonId={season.id} />}
+
+            <ReleaseConfirm
+                season={season}
+                open={releasing}
+                pending={releaseMutation.isPending}
+                onCancel={() => setReleasing(false)}
+                onConfirm={() => releaseMutation.mutate(season.id)}
+            />
         </div>
     );
 }
 
 // ─── Setup tab (season + gameweek management) ────────────────────────────────
 
-function SetupTab({ season }: { season: FantasySeason | null }) {
+function SetupTab({ season }: { season: FantasySeason }) {
     const queryClient = useQueryClient();
 
     const { data: gameweeks = [], isLoading: gwLoading } = useQuery({
-        queryKey: ['adminFantasyGameweeks', season?.id],
-        queryFn: () => (season?.id ? fantasyApi.getGameweeks(season.id) : Promise.resolve([])),
-        enabled: !!season?.id,
-    });
-
-    const { data: competitionsData } = useQuery({
-        queryKey: ['adminCompetitions'],
-        queryFn: () => getCompetitions(1, 50),
+        queryKey: ['adminFantasyGameweeks', season.id],
+        queryFn: () => fantasyApi.getGameweeks(season.id),
     });
 
     const { data: eventDays = [] } = useQuery({
         queryKey: ['adminEventDays'],
         queryFn: () => getEventDays(),
-    });
-
-    // Create Season Form State
-    const [seasonForm, setSeasonForm] = useState({
-        competition_id: '',
-        name: 'Showtime Season 2026 Fantasy',
-        budget: 230,
-        min_female_offense: 3,
-        min_female_defense: 3,
-        max_per_club: 4,
-        lock_mins_before: 15,
     });
 
     // Create Gameweek Form State. `deadline` is a `datetime-local` value and is
@@ -440,36 +833,6 @@ function SetupTab({ season }: { season: FantasySeason | null }) {
     const [deadlineDraft, setDeadlineDraft] = useState('');
 
     // Mutations
-    const createSeasonMutation = useMutation({
-        mutationFn: async () => {
-            if (!seasonForm.competition_id) throw new Error("Select a competition");
-            return fantasyApi.adminCreateSeason({
-                competition_id: seasonForm.competition_id,
-                name: seasonForm.name,
-                squad_size: 14,
-                budget: seasonForm.budget,
-                min_female_offense: seasonForm.min_female_offense,
-                min_female_defense: seasonForm.min_female_defense,
-                max_per_club: seasonForm.max_per_club,
-                lock_mins_before: seasonForm.lock_mins_before,
-            });
-        },
-        onSuccess: () => {
-            toast.success("Fantasy season created!");
-            queryClient.invalidateQueries({ queryKey: ['adminFantasySeason'] });
-        },
-        onError: (err: any) => toast.error(err?.response?.data?.error || err.message),
-    });
-
-    const activateSeasonMutation = useMutation({
-        mutationFn: async (seasonId: string) => fantasyApi.adminActivateSeason(seasonId),
-        onSuccess: () => {
-            toast.success("Fantasy season activated!");
-            queryClient.invalidateQueries({ queryKey: ['adminFantasySeason'] });
-        },
-        onError: (err: any) => toast.error(err?.response?.data?.error || err.message),
-    });
-
     const initPricesMutation = useMutation({
         mutationFn: async (seasonId: string) => fantasyApi.adminInitializePrices(seasonId),
         onSuccess: () => toast.success("Player prices initialized! (Base 10 SC)"),
@@ -478,7 +841,6 @@ function SetupTab({ season }: { season: FantasySeason | null }) {
 
     const createGwMutation = useMutation({
         mutationFn: async () => {
-            if (!season?.id) throw new Error("No season");
             if (!gwForm.event_day_id) throw new Error("Select an Event Day");
             return fantasyApi.adminCreateGameweek(season.id, {
                 number: gwForm.number,
@@ -524,256 +886,181 @@ function SetupTab({ season }: { season: FantasySeason | null }) {
     return (
         <div className="space-y-8">
             {/* Season Operations Card */}
-            {!season ? (
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <SeasonStatusBadge status={season.status} />
+                            <span className="text-xs text-gray-500 dark:text-gray-400">Budget: <strong>{season.budget} SC</strong></span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">Squad Size: <strong>{season.squad_size} Starters</strong></span>
+                        </div>
+                        <h2 className="text-xl font-black uppercase text-sffl-navy dark:text-white mt-1">{season.name}</h2>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => initPricesMutation.mutate(season.id)}
+                            disabled={initPricesMutation.isPending}
+                            className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold text-xs uppercase flex items-center gap-1.5 transition cursor-pointer"
+                        >
+                            <CurrencyDollarIcon className="w-3.5 h-3.5 text-sffl-red" /> Initialize Prices
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Gameweeks Section */}
+            <div className="space-y-6">
+                {/* Create Gameweek Form */}
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm">
-                    <h2 className="text-lg font-black uppercase text-sffl-navy dark:text-white mb-4 flex items-center gap-2">
-                        <PlusIcon className="w-5 h-5 text-sffl-red" /> Create Fantasy Season
-                    </h2>
+                    <h3 className="text-base font-black uppercase text-sffl-navy dark:text-white mb-4 flex items-center gap-2">
+                        <CalendarIcon className="w-4 h-4 text-sffl-red" /> Schedule New Gameweek
+                    </h3>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">Competition</label>
+                            <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">Gameweek Number</label>
+                            <input
+                                type="number"
+                                value={gwForm.number}
+                                onChange={(e) => setGwForm({ ...gwForm, number: parseInt(e.target.value) || 1 })}
+                                className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">Associated Event Day</label>
                             <select
-                                value={seasonForm.competition_id}
-                                onChange={(e) => setSeasonForm({ ...seasonForm, competition_id: e.target.value })}
+                                value={gwForm.event_day_id}
+                                onChange={(e) => setGwForm({ ...gwForm, event_day_id: e.target.value })}
                                 className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                             >
-                                <option value="">Select Competition...</option>
-                                {competitionsData?.data?.map(c => (
-                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                <option value="">Select Event Day...</option>
+                                {eventDays.map(ed => (
+                                    <option key={ed.id} value={ed.id}>
+                                        {ed.title} ({new Date(ed.date).toLocaleDateString()})
+                                    </option>
                                 ))}
                             </select>
                         </div>
 
-                        <div>
-                            <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">Season Name</label>
+                        <div className="sm:col-span-2">
+                            <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">
+                                Lock Deadline <span className="text-gray-400 dark:text-gray-500 normal-case font-medium">(optional)</span>
+                            </label>
                             <input
-                                type="text"
-                                value={seasonForm.name}
-                                onChange={(e) => setSeasonForm({ ...seasonForm, name: e.target.value })}
+                                type="datetime-local"
+                                value={gwForm.deadline}
+                                onChange={(e) => setGwForm({ ...gwForm, deadline: e.target.value })}
                                 className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                             />
-                        </div>
-
-                        <div>
-                            <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">Salary Cap Budget (SC)</label>
-                            <input
-                                type="number"
-                                value={seasonForm.budget}
-                                onChange={(e) => setSeasonForm({ ...seasonForm, budget: parseFloat(e.target.value) || 230 })}
-                                className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">Lock Minutes Before Kickoff</label>
-                            <input
-                                type="number"
-                                value={seasonForm.lock_mins_before}
-                                onChange={(e) => setSeasonForm({ ...seasonForm, lock_mins_before: parseInt(e.target.value) || 15 })}
-                                className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
-                            />
+                            <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1.5">
+                                Leave blank and the server computes it from the event day's first kickoff
+                                minus the season's lock window ({season.lock_mins_before} mins).
+                            </p>
                         </div>
                     </div>
 
                     <button
-                        onClick={() => createSeasonMutation.mutate()}
-                        disabled={createSeasonMutation.isPending}
-                        className="mt-6 px-6 py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black shadow-md text-xs uppercase transition shadow-lg cursor-pointer"
+                        onClick={() => createGwMutation.mutate()}
+                        disabled={createGwMutation.isPending}
+                        className="mt-4 px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold shadow-md text-xs uppercase transition cursor-pointer"
                     >
-                        {createSeasonMutation.isPending ? <Spinner /> : 'Launch Season'}
+                        {createGwMutation.isPending ? <Spinner /> : 'Schedule Gameweek'}
                     </button>
                 </div>
-            ) : (
-                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                                    {season.status}
-                                </span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">Budget: <strong>{season.budget} SC</strong></span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">Squad Size: <strong>{season.squad_size} Starters</strong></span>
-                            </div>
-                            <h2 className="text-xl font-black uppercase text-sffl-navy dark:text-white mt-1">{season.name}</h2>
-                        </div>
 
-                        <div className="flex items-center gap-2">
-                            {season.status === 'DRAFT' && (
-                                <button
-                                    onClick={() => activateSeasonMutation.mutate(season.id)}
-                                    disabled={activateSeasonMutation.isPending}
-                                    className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase transition"
-                                >
-                                    Activate Season
-                                </button>
-                            )}
-                            <button
-                                onClick={() => initPricesMutation.mutate(season.id)}
-                                disabled={initPricesMutation.isPending}
-                                className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold text-xs uppercase flex items-center gap-1.5 transition cursor-pointer"
-                            >
-                                <CurrencyDollarIcon className="w-3.5 h-3.5 text-sffl-red" /> Initialize Prices
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Gameweeks Section */}
-            {season && (
-                <div className="space-y-6">
-                    {/* Create Gameweek Form */}
-                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm">
-                        <h3 className="text-base font-black uppercase text-sffl-navy dark:text-white mb-4 flex items-center gap-2">
-                            <CalendarIcon className="w-4 h-4 text-sffl-red" /> Schedule New Gameweek
-                        </h3>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">Gameweek Number</label>
-                                <input
-                                    type="number"
-                                    value={gwForm.number}
-                                    onChange={(e) => setGwForm({ ...gwForm, number: parseInt(e.target.value) || 1 })}
-                                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">Associated Event Day</label>
-                                <select
-                                    value={gwForm.event_day_id}
-                                    onChange={(e) => setGwForm({ ...gwForm, event_day_id: e.target.value })}
-                                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
-                                >
-                                    <option value="">Select Event Day...</option>
-                                    {eventDays.map(ed => (
-                                        <option key={ed.id} value={ed.id}>
-                                            {ed.title} ({new Date(ed.date).toLocaleDateString()})
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div className="sm:col-span-2">
-                                <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">
-                                    Lock Deadline <span className="text-gray-400 dark:text-gray-500 normal-case font-medium">(optional)</span>
-                                </label>
-                                <input
-                                    type="datetime-local"
-                                    value={gwForm.deadline}
-                                    onChange={(e) => setGwForm({ ...gwForm, deadline: e.target.value })}
-                                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
-                                />
-                                <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1.5">
-                                    Leave blank and the server computes it from the event day's first kickoff
-                                    minus the season's lock window ({season.lock_mins_before} mins).
-                                </p>
-                            </div>
-                        </div>
-
-                        <button
-                            onClick={() => createGwMutation.mutate()}
-                            disabled={createGwMutation.isPending}
-                            className="mt-4 px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold shadow-md text-xs uppercase transition cursor-pointer"
-                        >
-                            {createGwMutation.isPending ? <Spinner /> : 'Schedule Gameweek'}
-                        </button>
+                {/* Gameweeks List */}
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm">
+                    <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                        <h3 className="text-base font-black uppercase text-sffl-navy dark:text-white">Gameweeks</h3>
                     </div>
 
-                    {/* Gameweeks List */}
-                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm">
-                        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                            <h3 className="text-base font-black uppercase text-sffl-navy dark:text-white">Gameweeks</h3>
+                    {gameweeks.length === 0 ? (
+                        <div className="p-8 text-center text-gray-500 dark:text-gray-400 text-xs">
+                            No gameweeks scheduled yet.
                         </div>
+                    ) : (
+                        <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                            {gameweeks.map(gw => {
+                                const isFinalized = gw.status === 'FINALIZED';
+                                const isEditingDeadline = editingDeadlineGwId === gw.id;
 
-                        {gameweeks.length === 0 ? (
-                            <div className="p-8 text-center text-gray-500 dark:text-gray-400 text-xs">
-                                No gameweeks scheduled yet.
-                            </div>
-                        ) : (
-                            <div className="divide-y divide-gray-100 dark:divide-gray-700">
-                                {gameweeks.map(gw => {
-                                    const isFinalized = gw.status === 'FINALIZED';
-                                    const isEditingDeadline = editingDeadlineGwId === gw.id;
-
-                                    return (
-                                        <div key={gw.id} className="p-4">
-                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                                <div>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-xs font-black text-white">Gameweek {gw.number}</span>
-                                                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
-                                                            isFinalized ? 'bg-neutral-800 text-gray-500 dark:text-gray-400' :
-                                                            gw.status === 'LOCKED' ? 'bg-red-500/10 text-red-400' : 'bg-emerald-500/10 text-emerald-400'
-                                                        }`}>
-                                                            {gw.status}
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                                        Lock Deadline: {new Date(gw.deadline).toLocaleString()}
-                                                    </p>
-                                                </div>
-
+                                return (
+                                    <div key={gw.id} className="p-4">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                            <div>
                                                 <div className="flex items-center gap-2">
-                                                    <button
-                                                        onClick={() => {
-                                                            if (isEditingDeadline) {
-                                                                setEditingDeadlineGwId(null);
-                                                                return;
-                                                            }
-                                                            setEditingDeadlineGwId(gw.id);
-                                                            setDeadlineDraft(toDateTimeLocalValue(gw.deadline));
-                                                        }}
-                                                        className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-xs font-bold uppercase flex items-center gap-1.5 transition cursor-pointer"
-                                                    >
-                                                        <ClockIcon className="w-3.5 h-3.5 text-sffl-red" />
-                                                        {isEditingDeadline ? 'Cancel' : 'Edit Deadline'}
-                                                    </button>
-
-                                                    {/* Finalizing is re-runnable — it recomputes rather than
-                                                        double-counts — and is the path for correcting stats
-                                                        after the fact, so it stays available once finalized. */}
-                                                    <button
-                                                        onClick={() => finalizeGwMutation.mutate(gw.id)}
-                                                        disabled={finalizeGwMutation.isPending}
-                                                        className="px-4 py-2 rounded-xl bg-neutral-800 hover:bg-yellow-500 hover:text-black text-xs font-bold uppercase flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
-                                                    >
-                                                        {isFinalized && <ArrowPathIcon className="w-3.5 h-3.5" />}
-                                                        {isFinalized ? 'Re-score' : 'Finalize & Score'}
-                                                    </button>
+                                                    <span className="text-xs font-black text-white">Gameweek {gw.number}</span>
+                                                    <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
+                                                        isFinalized ? 'bg-neutral-800 text-gray-500 dark:text-gray-400' :
+                                                        gw.status === 'LOCKED' ? 'bg-red-500/10 text-red-400' : 'bg-emerald-500/10 text-emerald-400'
+                                                    }`}>
+                                                        {gw.status}
+                                                    </span>
                                                 </div>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                                    Lock Deadline: {new Date(gw.deadline).toLocaleString()}
+                                                </p>
                                             </div>
 
-                                            {isEditingDeadline && (
-                                                <div className="mt-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-end gap-3">
-                                                    <div className="flex-1">
-                                                        <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">New Lock Deadline</label>
-                                                        <input
-                                                            type="datetime-local"
-                                                            value={deadlineDraft}
-                                                            onChange={(e) => setDeadlineDraft(e.target.value)}
-                                                            className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
-                                                        />
-                                                    </div>
-                                                    <button
-                                                        onClick={() => updateDeadlineMutation.mutate({ gwId: gw.id, deadline: deadlineDraft })}
-                                                        disabled={updateDeadlineMutation.isPending || !deadlineDraft}
-                                                        className="px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold shadow-md text-xs uppercase transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    >
-                                                        {updateDeadlineMutation.isPending ? <Spinner /> : 'Save Deadline'}
-                                                    </button>
-                                                </div>
-                                            )}
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() => {
+                                                        if (isEditingDeadline) {
+                                                            setEditingDeadlineGwId(null);
+                                                            return;
+                                                        }
+                                                        setEditingDeadlineGwId(gw.id);
+                                                        setDeadlineDraft(toDateTimeLocalValue(gw.deadline));
+                                                    }}
+                                                    className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-xs font-bold uppercase flex items-center gap-1.5 transition cursor-pointer"
+                                                >
+                                                    <ClockIcon className="w-3.5 h-3.5 text-sffl-red" />
+                                                    {isEditingDeadline ? 'Cancel' : 'Edit Deadline'}
+                                                </button>
+
+                                                {/* Finalizing is re-runnable — it recomputes rather than
+                                                    double-counts — and is the path for correcting stats
+                                                    after the fact, so it stays available once finalized. */}
+                                                <button
+                                                    onClick={() => finalizeGwMutation.mutate(gw.id)}
+                                                    disabled={finalizeGwMutation.isPending}
+                                                    className="px-4 py-2 rounded-xl bg-neutral-800 hover:bg-yellow-500 hover:text-black text-xs font-bold uppercase flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+                                                >
+                                                    {isFinalized && <ArrowPathIcon className="w-3.5 h-3.5" />}
+                                                    {isFinalized ? 'Re-score' : 'Finalize & Score'}
+                                                </button>
+                                            </div>
                                         </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
+
+                                        {isEditingDeadline && (
+                                            <div className="mt-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-end gap-3">
+                                                <div className="flex-1">
+                                                    <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">New Lock Deadline</label>
+                                                    <input
+                                                        type="datetime-local"
+                                                        value={deadlineDraft}
+                                                        onChange={(e) => setDeadlineDraft(e.target.value)}
+                                                        className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
+                                                    />
+                                                </div>
+                                                <button
+                                                    onClick={() => updateDeadlineMutation.mutate({ gwId: gw.id, deadline: deadlineDraft })}
+                                                    disabled={updateDeadlineMutation.isPending || !deadlineDraft}
+                                                    className="px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold shadow-md text-xs uppercase transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    {updateDeadlineMutation.isPending ? <Spinner /> : 'Save Deadline'}
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
-            )}
+            </div>
         </div>
     );
 }
@@ -797,85 +1084,217 @@ function LeaguesTab({ seasonId }: { seasonId: string }) {
     const leagues = data?.data || [];
 
     return (
-        <SectionCard
-            title="Leagues"
-            icon={TrophyIcon}
-            action={<SearchBox value={searchInput} onChange={setSearchInput} placeholder="Search leagues..." />}
-        >
-            {isLoading ? (
-                <div className="p-10"><Loader /></div>
-            ) : leagues.length === 0 ? (
-                <div className="p-8 text-center text-gray-500 dark:text-gray-400 text-xs">No leagues found.</div>
-            ) : (
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead>
-                            <tr className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 border-b border-gray-200 dark:border-gray-700">
-                                <th className="px-4 py-3">League</th>
-                                <th className="px-4 py-3">Type</th>
-                                <th className="px-4 py-3">Owner</th>
-                                <th className="px-4 py-3 text-right">Entry Fee</th>
-                                <th className="px-4 py-3">Members</th>
-                                <th className="px-4 py-3 text-right">Prize Pool</th>
-                                <th className="px-4 py-3">Status</th>
-                                <th className="px-4 py-3" />
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                            {leagues.map(l => {
-                                const isOpen = openLeagueId === l.league_id;
-                                const isPaid = l.entry_fee_kobo > 0;
-                                return (
-                                    <Fragment key={l.league_id}>
-                                        <tr
-                                            onClick={() => setOpenLeagueId(isOpen ? null : l.league_id)}
-                                            className={`text-sm cursor-pointer transition ${isOpen ? 'bg-gray-50 dark:bg-gray-700/50' : 'hover:bg-gray-50 dark:bg-gray-700/50/60'}`}
-                                        >
-                                            <td className="px-4 py-3 font-bold text-white">{l.name}</td>
-                                            <td className="px-4 py-3"><TypeBadge type={l.type} /></td>
-                                            <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">{l.owner_name || '—'}</td>
-                                            <td className="px-4 py-3 text-right tabular-nums text-gray-700 dark:text-gray-300">
-                                                {isPaid ? formatKobo(l.entry_fee_kobo) : <span className="text-gray-400 dark:text-gray-500">Free</span>}
-                                            </td>
-                                            <td className="px-4 py-3 text-xs">
-                                                <span className="text-white font-bold tabular-nums">{l.member_count}</span>
-                                                {isPaid && (
-                                                    <span className="text-gray-400 dark:text-gray-500 ml-2">
-                                                        <span className="text-emerald-400">{l.paid_members} paid</span>
-                                                        {' · '}
-                                                        <span className="text-amber-400">{l.pending_members} pending</span>
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-3 text-right tabular-nums font-bold text-sffl-red">
-                                                {isPaid ? formatKobo(l.prize_pool_kobo) : <span className="text-gray-400 dark:text-gray-500">—</span>}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                {isPaid ? <SettledBadge settled={l.settled} /> : <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-black">Free league</span>}
-                                            </td>
-                                            <td className="px-4 py-3 text-right text-gray-400 dark:text-gray-500">
-                                                {isOpen ? <ChevronUpIcon className="w-4 h-4 inline" /> : <ChevronDownIcon className="w-4 h-4 inline" />}
-                                            </td>
-                                        </tr>
-                                        {isOpen && (
-                                            <tr className="bg-gray-50 dark:bg-gray-700/50">
-                                                <td colSpan={8} className="px-4 pb-5 pt-1">
-                                                    <LeagueDetailPanel league={l} seasonId={seasonId} />
+        <div className="space-y-6">
+            <CreateLeagueCard seasonId={seasonId} />
+
+            <SectionCard
+                title="Leagues"
+                icon={TrophyIcon}
+                action={<SearchBox value={searchInput} onChange={setSearchInput} placeholder="Search leagues..." />}
+            >
+                {isLoading ? (
+                    <div className="p-10"><Loader /></div>
+                ) : leagues.length === 0 ? (
+                    <div className="p-8 text-center text-gray-500 dark:text-gray-400 text-xs">No leagues found.</div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead>
+                                <tr className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 border-b border-gray-200 dark:border-gray-700">
+                                    <th className="px-4 py-3">League</th>
+                                    <th className="px-4 py-3">Type</th>
+                                    <th className="px-4 py-3">Owner</th>
+                                    <th className="px-4 py-3 text-right">Entry Fee</th>
+                                    <th className="px-4 py-3">Members</th>
+                                    <th className="px-4 py-3 text-right">Prize Pool</th>
+                                    <th className="px-4 py-3">Status</th>
+                                    <th className="px-4 py-3" />
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                                {leagues.map(l => {
+                                    const isOpen = openLeagueId === l.league_id;
+                                    const isPaid = l.entry_fee_kobo > 0;
+                                    return (
+                                        <Fragment key={l.league_id}>
+                                            <tr
+                                                onClick={() => setOpenLeagueId(isOpen ? null : l.league_id)}
+                                                className={`text-sm cursor-pointer transition ${isOpen ? 'bg-gray-50 dark:bg-gray-700/50' : 'hover:bg-gray-50 dark:bg-gray-700/50/60'}`}
+                                            >
+                                                <td className="px-4 py-3 font-bold text-white">{l.name}</td>
+                                                <td className="px-4 py-3"><TypeBadge type={l.type} /></td>
+                                                <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">{l.owner_name || '—'}</td>
+                                                <td className="px-4 py-3 text-right tabular-nums text-gray-700 dark:text-gray-300">
+                                                    {isPaid ? formatKobo(l.entry_fee_kobo) : <span className="text-gray-400 dark:text-gray-500">Free</span>}
+                                                </td>
+                                                <td className="px-4 py-3 text-xs">
+                                                    <span className="text-white font-bold tabular-nums">{l.member_count}</span>
+                                                    {isPaid && (
+                                                        <span className="text-gray-400 dark:text-gray-500 ml-2">
+                                                            <span className="text-emerald-400">{l.paid_members} paid</span>
+                                                            {' · '}
+                                                            <span className="text-amber-400">{l.pending_members} pending</span>
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3 text-right tabular-nums font-bold text-sffl-red">
+                                                    {isPaid ? formatKobo(l.prize_pool_kobo) : <span className="text-gray-400 dark:text-gray-500">—</span>}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {isPaid ? <SettledBadge settled={l.settled} /> : <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-black">Free league</span>}
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-gray-400 dark:text-gray-500">
+                                                    {isOpen ? <ChevronUpIcon className="w-4 h-4 inline" /> : <ChevronDownIcon className="w-4 h-4 inline" />}
                                                 </td>
                                             </tr>
-                                        )}
-                                    </Fragment>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+                                            {isOpen && (
+                                                <tr className="bg-gray-50 dark:bg-gray-700/50">
+                                                    <td colSpan={8} className="px-4 pb-5 pt-1">
+                                                        <LeagueDetailPanel league={l} seasonId={seasonId} />
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </Fragment>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+
+                {data && (
+                    <Pager page={data.page || page} totalPages={data.total_pages || 1} total={data.total || 0} onPage={setPage} />
+                )}
+            </SectionCard>
+        </div>
+    );
+}
+
+// ─── Create league ───────────────────────────────────────────────────────────
+
+/**
+ * Entry fee is typed in naira because that's what an operator thinks in, but
+ * every money value in the API is integer kobo — convert on the way out only.
+ */
+function CreateLeagueCard({ seasonId }: { seasonId: string }) {
+    const queryClient = useQueryClient();
+    const [open, setOpen] = useState(false);
+    const [form, setForm] = useState({
+        name: '',
+        type: 'PUBLIC' as 'PUBLIC' | 'PRIVATE',
+        entry_fee_naira: 0,
+        max_members: 0,
+    });
+
+    const createLeagueMutation = useMutation({
+        mutationFn: async () => {
+            if (!form.name.trim()) throw new Error('Give the league a name');
+            return fantasyApi.createLeague({
+                season_id: seasonId,
+                name: form.name.trim(),
+                type: form.type,
+                entry_fee: Math.round((Number(form.entry_fee_naira) || 0) * 100),
+                max_members: Number(form.max_members) || 0,
+            });
+        },
+        onSuccess: () => {
+            toast.success('League created!');
+            setForm({ name: '', type: 'PUBLIC', entry_fee_naira: 0, max_members: 0 });
+            setOpen(false);
+            queryClient.invalidateQueries({ queryKey: ['adminFantasyLeagues'] });
+        },
+        onError: (err: any) => toast.error(err?.response?.data?.error || err.message),
+    });
+
+    const feeKobo = Math.round((Number(form.entry_fee_naira) || 0) * 100);
+
+    return (
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm">
+            <div className="p-4 flex items-center justify-between gap-3 bg-gray-50 dark:bg-gray-700/40">
+                <div>
+                    <h3 className="text-base font-black uppercase tracking-wider text-sffl-navy dark:text-white flex items-center gap-2">
+                        <PlusIcon className="w-4 h-4 text-sffl-red" /> Create League
+                    </h3>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                        A <strong>PUBLIC</strong> league is browsable by any player; a <strong>PRIVATE</strong> one is
+                        joinable by invite code only.
+                    </p>
+                </div>
+                <button
+                    onClick={() => setOpen(o => !o)}
+                    className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold text-xs uppercase transition cursor-pointer shrink-0"
+                >
+                    {open ? 'Cancel' : 'New League'}
+                </button>
+            </div>
+
+            {open && (
+                <div className="p-5 border-t border-gray-200 dark:border-gray-700">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">League Name</label>
+                            <input
+                                type="text"
+                                value={form.name}
+                                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                                placeholder="e.g. Showtime Office League"
+                                className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">Type</label>
+                            <select
+                                value={form.type}
+                                onChange={(e) => setForm({ ...form, type: e.target.value as 'PUBLIC' | 'PRIVATE' })}
+                                className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
+                            >
+                                <option value="PUBLIC">PUBLIC — anyone can browse and join</option>
+                                <option value="PRIVATE">PRIVATE — invite code only</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">Entry Fee (₦)</label>
+                            <input
+                                type="number"
+                                min={0}
+                                value={form.entry_fee_naira}
+                                onChange={(e) => setForm({ ...form, entry_fee_naira: parseFloat(e.target.value) || 0 })}
+                                className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white tabular-nums focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
+                            />
+                            <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1.5">
+                                {feeKobo > 0
+                                    ? <>Members pay <strong className="text-sffl-red">{formatKobo(feeKobo)}</strong> to join.</>
+                                    : 'Zero makes this a free league — no prize pool and nothing to settle.'}
+                            </p>
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">Max Members</label>
+                            <input
+                                type="number"
+                                min={0}
+                                value={form.max_members}
+                                onChange={(e) => setForm({ ...form, max_members: parseInt(e.target.value) || 0 })}
+                                className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white tabular-nums focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
+                            />
+                            <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1.5">
+                                0 means unlimited.
+                            </p>
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={() => createLeagueMutation.mutate()}
+                        disabled={createLeagueMutation.isPending || !form.name.trim()}
+                        className="mt-5 px-6 py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black shadow-md text-xs uppercase tracking-wider transition shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {createLeagueMutation.isPending ? <Spinner /> : 'Create League'}
+                    </button>
                 </div>
             )}
-
-            {data && (
-                <Pager page={data.page || page} totalPages={data.total_pages || 1} total={data.total || 0} onPage={setPage} />
-            )}
-        </SectionCard>
+        </div>
     );
 }
 

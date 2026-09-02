@@ -24,6 +24,9 @@ type IFantasyRepository interface {
 	ListSeasons(ctx context.Context) ([]domain.FantasySeason, error)
 	GetSeasonByID(ctx context.Context, id string) (*domain.FantasySeason, error)
 	UpdateSeasonStatus(ctx context.Context, id string, status domain.FantasySeasonStatus) error
+	// DeleteSeason removes a season that was never launched. Refuses anything
+	// but a DRAFT, and anything managers have already entered.
+	DeleteSeason(ctx context.Context, id string) error
 
 	// Gameweek
 	CreateGameweek(ctx context.Context, gw *domain.FantasyGameweek) error
@@ -199,6 +202,49 @@ func (r *FantasyRepository) UpdateSeasonStatus(ctx context.Context, id string, s
 
 	_, err := r.pool.Exec(ctx, query, status, id)
 	return err
+}
+
+// DeleteSeason discards an unlaunched season. Deleting cascades to gameweeks,
+// leagues and prices, so it is deliberately restricted: only a DRAFT with no
+// squads entered can go, which makes it safe for clearing up seasons created
+// by mistake without ever being able to erase a live competition.
+func (r *FantasyRepository) DeleteSeason(ctx context.Context, id string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	var status domain.FantasySeasonStatus
+	if err := tx.QueryRow(ctx,
+		`SELECT status FROM fantasy_seasons WHERE id = $1 FOR UPDATE`, id,
+	).Scan(&status); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return errors.New("season not found")
+		}
+		return err
+	}
+	if status != domain.FantasySeasonDraft {
+		return fmt.Errorf("only a draft season can be deleted — this one is %s", status)
+	}
+
+	var teamCount int
+	if err := tx.QueryRow(ctx,
+		`SELECT COUNT(*) FROM fantasy_teams WHERE season_id = $1`, id,
+	).Scan(&teamCount); err != nil {
+		return err
+	}
+	if teamCount > 0 {
+		return fmt.Errorf("this season already has %d squad(s) entered and cannot be deleted", teamCount)
+	}
+
+	if _, err := tx.Exec(ctx, `DELETE FROM fantasy_seasons WHERE id = $1`, id); err != nil {
+		return fmt.Errorf("failed to delete season: %w", err)
+	}
+	return tx.Commit(ctx)
 }
 
 // ─── Gameweek Methods ─────────────────────────────────────────────────────────

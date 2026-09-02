@@ -15,6 +15,7 @@ type IFantasyService interface {
 	// Admin
 	CreateSeason(ctx context.Context, req dto.CreateFantasySeasonRequest) (*dto.FantasySeasonResponse, error)
 	ActivateSeason(ctx context.Context, seasonID string) error
+	DeleteSeason(ctx context.Context, seasonID string) error
 	CreateGameweek(ctx context.Context, seasonID string, req dto.CreateGameweekRequest) (*dto.GameweekResponse, error)
 	UpdateGameweekDeadline(ctx context.Context, gameweekID string, req dto.UpdateGameweekDeadlineRequest) (*dto.GameweekResponse, error)
 	InitializePlayerPrices(ctx context.Context, seasonID string) error
@@ -103,6 +104,10 @@ func (s *FantasyService) CreateSeason(ctx context.Context, req dto.CreateFantasy
 	return seasonResponse(season), nil
 }
 
+// ActivateSeason publishes a season to players. Only one season may be live at
+// a time: players are served "the active season", so a second one would leave
+// the game silently showing whichever sorted first, with no indication that
+// another existed.
 func (s *FantasyService) ActivateSeason(ctx context.Context, seasonID string) error {
 	season, err := s.repo.GetSeasonByID(ctx, seasonID)
 	if err != nil {
@@ -111,12 +116,33 @@ func (s *FantasyService) ActivateSeason(ctx context.Context, seasonID string) er
 	if season == nil {
 		return errors.New("season not found")
 	}
+	if season.Status == domain.FantasySeasonActive {
+		return errors.New("this season is already live")
+	}
+	if season.Status == domain.FantasySeasonCompleted {
+		return errors.New("this season has been completed and cannot be reopened")
+	}
+
+	live, err := s.repo.GetActiveSeason(ctx)
+	if err != nil {
+		return err
+	}
+	if live != nil && live.ID != seasonID {
+		return fmt.Errorf("%q is already live — complete it before releasing another season", live.Name)
+	}
+
 	return s.repo.UpdateSeasonStatus(ctx, seasonID, domain.FantasySeasonActive)
 }
 
 // CreateGameweek registers a match day. The submission deadline is the event
 // day's first kickoff minus the season's lock_mins_before, unless the admin
 // supplies an explicit override.
+// DeleteSeason discards a draft season, for clearing up ones created by
+// mistake. The repository refuses anything already launched or entered.
+func (s *FantasyService) DeleteSeason(ctx context.Context, seasonID string) error {
+	return s.repo.DeleteSeason(ctx, seasonID)
+}
+
 func (s *FantasyService) CreateGameweek(ctx context.Context, seasonID string, req dto.CreateGameweekRequest) (*dto.GameweekResponse, error) {
 	season, err := s.repo.GetSeasonByID(ctx, seasonID)
 	if err != nil {

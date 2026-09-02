@@ -3252,6 +3252,11 @@ export const fantasyAdminApi = {
         const res = await api.get<{ data: FantasySeason[] }>('/admin/fantasy/seasons');
         return res.data.data || [];
     },
+    // Only a DRAFT season with no squads entered can be deleted; the server
+    // refuses anything already launched.
+    deleteSeason: async (seasonId: string): Promise<void> => {
+        await api.delete(`/admin/fantasy/seasons/${seasonId}`);
+    },
     getOverview: async (seasonId: string): Promise<AdminFantasyOverview> => {
         const res = await api.get<{ data: AdminFantasyOverview }>(`/admin/fantasy/seasons/${seasonId}/overview`);
         return res.data.data;

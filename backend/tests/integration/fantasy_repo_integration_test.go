@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -275,6 +276,49 @@ func TestFantasyRepositoryQueries(t *testing.T) {
 		}
 		if activated == nil {
 			t.Fatal("expected an active season after activation")
+		}
+	})
+
+	// Deleting a season cascades to its gameweeks, leagues and prices, so the
+	// guards matter: an admin clearing up seasons created by mistake must never
+	// be able to erase a live competition or one people have entered.
+	t.Run("only an unentered draft season can be deleted", func(t *testing.T) {
+		draftID := mustScan(t, f.pool,
+			`INSERT INTO fantasy_seasons (competition_id, name, status) VALUES ($1, 'ITest Deletable', 'DRAFT') RETURNING id`,
+			f.compID)
+
+		if err := repo.DeleteSeason(ctx, draftID); err != nil {
+			t.Fatalf("an empty draft should be deletable: %v", err)
+		}
+		if gone, _ := repo.GetSeasonByID(ctx, draftID); gone != nil {
+			t.Error("expected the draft season to be gone")
+		}
+
+		// The fixture season is ACTIVE and has a squad entered.
+		err := repo.DeleteSeason(ctx, f.seasonID)
+		if err == nil {
+			t.Fatal("expected an active season to be undeletable")
+		}
+		if !strings.Contains(err.Error(), "draft") {
+			t.Errorf("expected the refusal to explain the draft rule, got: %v", err)
+		}
+		if still, _ := repo.GetSeasonByID(ctx, f.seasonID); still == nil {
+			t.Error("the active season must survive a refused delete")
+		}
+
+		// A draft that already has a squad entered is also protected.
+		enteredID := mustScan(t, f.pool,
+			`INSERT INTO fantasy_seasons (competition_id, name, status) VALUES ($1, 'ITest Entered', 'DRAFT') RETURNING id`,
+			f.compID)
+		mustExec(t, f.pool,
+			`INSERT INTO fantasy_teams (user_id, season_id, name) VALUES ($1, $2, 'Squatter XI')`,
+			f.userID, enteredID)
+		t.Cleanup(func() {
+			_, _ = f.pool.Exec(ctx, `DELETE FROM fantasy_seasons WHERE id = $1`, enteredID)
+		})
+
+		if err := repo.DeleteSeason(ctx, enteredID); err == nil {
+			t.Error("expected a draft with squads entered to be undeletable")
 		}
 	})
 

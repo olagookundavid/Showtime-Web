@@ -21,6 +21,7 @@ type fakeFantasyRepo struct {
 	ports.IFantasyRepository
 
 	season     *domain.FantasySeason
+	liveSeason *domain.FantasySeason
 	gameweeks  map[string]*domain.FantasyGameweek
 	candidates map[string]domain.LineupCandidate
 	teams      []domain.FantasyTeam
@@ -34,6 +35,7 @@ type fakeFantasyRepo struct {
 
 	// observed effects
 	teamTotals   map[string]float64
+	seasonStatus map[string]domain.FantasySeasonStatus
 	gwStatus     map[string]domain.GameweekStatus
 	clonedInto   []string
 	lockedGWs    []string
@@ -45,13 +47,14 @@ type fakeFantasyRepo struct {
 
 func newFakeRepo() *fakeFantasyRepo {
 	return &fakeFantasyRepo{
-		gameweeks:   map[string]*domain.FantasyGameweek{},
-		candidates:  map[string]domain.LineupCandidate{},
-		lineups:     map[string]*domain.FantasyLineup{},
-		priorLocked: map[string]*domain.FantasyLineup{},
-		teamTotals:  map[string]float64{},
-		gwStatus:    map[string]domain.GameweekStatus{},
-		pickPoints:  map[string]map[string]float64{},
+		gameweeks:    map[string]*domain.FantasyGameweek{},
+		candidates:   map[string]domain.LineupCandidate{},
+		lineups:      map[string]*domain.FantasyLineup{},
+		priorLocked:  map[string]*domain.FantasyLineup{},
+		teamTotals:   map[string]float64{},
+		seasonStatus: map[string]domain.FantasySeasonStatus{},
+		gwStatus:     map[string]domain.GameweekStatus{},
+		pickPoints:   map[string]map[string]float64{},
 	}
 }
 
@@ -59,6 +62,15 @@ func lineupKey(teamID, gwID string) string { return teamID + "|" + gwID }
 
 func (f *fakeFantasyRepo) GetSeasonByID(_ context.Context, _ string) (*domain.FantasySeason, error) {
 	return f.season, nil
+}
+
+func (f *fakeFantasyRepo) GetActiveSeason(_ context.Context) (*domain.FantasySeason, error) {
+	return f.liveSeason, nil
+}
+
+func (f *fakeFantasyRepo) UpdateSeasonStatus(_ context.Context, id string, st domain.FantasySeasonStatus) error {
+	f.seasonStatus[id] = st
+	return nil
 }
 
 func (f *fakeFantasyRepo) GetGameweekByID(_ context.Context, id string) (*domain.FantasyGameweek, error) {
@@ -269,6 +281,59 @@ func saveRequest(squad []domain.LineupCandidate) dto.SaveLineupRequest {
 	return dto.SaveLineupRequest{
 		SeasonID: "season-1", GameweekID: "gw-1", TeamName: "Test XI", Picks: picks,
 	}
+}
+
+// ─── Season activation ────────────────────────────────────────────────────────
+
+// Players are served "the active season", so two live at once would silently
+// hide one of them.
+func TestActivateSeason(t *testing.T) {
+	newSvc := func(target *domain.FantasySeason, live *domain.FantasySeason) (*fakeFantasyRepo, IFantasyService) {
+		repo := newFakeRepo()
+		repo.season = target
+		repo.liveSeason = live
+		return repo, NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil)
+	}
+
+	t.Run("releases a draft when nothing else is live", func(t *testing.T) {
+		draft := &domain.FantasySeason{ID: "s1", Name: "Season 1", Status: domain.FantasySeasonDraft}
+		repo, svc := newSvc(draft, nil)
+
+		if err := svc.ActivateSeason(context.Background(), "s1"); err != nil {
+			t.Fatalf("expected the draft to be released, got: %v", err)
+		}
+		if repo.seasonStatus["s1"] != domain.FantasySeasonActive {
+			t.Errorf("expected the season to be ACTIVE, got %s", repo.seasonStatus["s1"])
+		}
+	})
+
+	t.Run("refuses when another season is already live", func(t *testing.T) {
+		draft := &domain.FantasySeason{ID: "s2", Name: "Season 2", Status: domain.FantasySeasonDraft}
+		live := &domain.FantasySeason{ID: "s1", Name: "Season 1", Status: domain.FantasySeasonActive}
+		repo, svc := newSvc(draft, live)
+
+		err := svc.ActivateSeason(context.Background(), "s2")
+		assertErrContains(t, err, "already live")
+		if _, wrote := repo.seasonStatus["s2"]; wrote {
+			t.Error("a refused activation must not change the season's status")
+		}
+	})
+
+	t.Run("refuses to reopen a completed season", func(t *testing.T) {
+		done := &domain.FantasySeason{ID: "s3", Name: "Old", Status: domain.FantasySeasonCompleted}
+		_, svc := newSvc(done, nil)
+
+		err := svc.ActivateSeason(context.Background(), "s3")
+		assertErrContains(t, err, "cannot be reopened")
+	})
+
+	t.Run("is a no-op complaint when already live", func(t *testing.T) {
+		live := &domain.FantasySeason{ID: "s4", Name: "Live", Status: domain.FantasySeasonActive}
+		_, svc := newSvc(live, live)
+
+		err := svc.ActivateSeason(context.Background(), "s4")
+		assertErrContains(t, err, "already live")
+	})
 }
 
 // ─── Lineup validation ────────────────────────────────────────────────────────
