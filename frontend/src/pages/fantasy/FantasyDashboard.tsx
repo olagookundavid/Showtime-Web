@@ -116,7 +116,7 @@ export function FantasyDashboard() {
     if (!dashboard.entered) {
         return (
             <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 bg-white dark:bg-gray-800 rounded-2xl md:rounded-3xl border border-gray-200 dark:border-gray-700 shadow-sm p-8 md:p-12">
-                <div className="w-16 h-16 rounded-2xl bg-yellow-500/10 dark:bg-yellow-500/20 flex items-center justify-center text-yellow-500 mb-4">
+                <div className="w-16 h-16 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 flex items-center justify-center text-amber-500 mb-4">
                     <SparklesIcon className="w-10 h-10" />
                 </div>
                 <h1 className="text-2xl font-black uppercase tracking-tight text-sffl-navy dark:text-white mb-2">
@@ -374,7 +374,7 @@ export function FantasyDashboard() {
                                             {l.type || 'LEAGUE'}
                                         </span>
                                         {num(l.entry_fee_kobo) > 0 && (
-                                            <span className="text-xs font-bold text-yellow-600 dark:text-yellow-500">
+                                            <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
                                                 Entry {formatKobo(num(l.entry_fee_kobo))}
                                             </span>
                                         )}
