@@ -159,6 +159,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		teamsGroup.POST("", app.Handlers.MatchHandler.CreateTeam)
 		teamsGroup.PUT("/:id", app.Handlers.MatchHandler.UpdateTeam)
 		teamsGroup.DELETE("/:id", app.Handlers.MatchHandler.DeleteTeam)
+		teamsGroup.GET("/manager-candidates", app.Handlers.TeamManagerHandler.ListManagerCandidates)
 		teamsGroup.GET("/:id/managers", app.Handlers.TeamManagerHandler.GetManagersForTeam)
 		teamsGroup.POST("/:id/manager", app.Handlers.TeamManagerHandler.AssignManager)
 		teamsGroup.DELETE("/:id/manager/:user_id", app.Handlers.TeamManagerHandler.RemoveManager)
@@ -197,13 +198,13 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	}
 
 	/*
-	galleryGroup := adminRoutes.Group("/gallery")
-	galleryGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
-	{
-		galleryGroup.POST("", app.Handlers.GalleryHandler.CreateGallery)
-		galleryGroup.PUT("/:id", app.Handlers.GalleryHandler.UpdateGallery)
-		galleryGroup.DELETE("/:id", app.Handlers.GalleryHandler.DeleteGallery)
-	}
+		galleryGroup := adminRoutes.Group("/gallery")
+		galleryGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
+		{
+			galleryGroup.POST("", app.Handlers.GalleryHandler.CreateGallery)
+			galleryGroup.PUT("/:id", app.Handlers.GalleryHandler.UpdateGallery)
+			galleryGroup.DELETE("/:id", app.Handlers.GalleryHandler.DeleteGallery)
+		}
 	*/
 
 	// Hero slides — open to admin and above. Only the Administrator (gift-ticket)
@@ -503,11 +504,11 @@ func SetupNewsRoutes(r *gin.RouterGroup, app *api.Application) {
 
 func SetupGalleryRoutes(r *gin.RouterGroup, app *api.Application) {
 	/*
-	galleryRoutes := r.Group("/gallery")
-	{
-		galleryRoutes.GET("", app.Handlers.GalleryHandler.GetGallery)
-		galleryRoutes.GET("/:id", app.Handlers.GalleryHandler.GetGalleryByID)
-	}
+		galleryRoutes := r.Group("/gallery")
+		{
+			galleryRoutes.GET("", app.Handlers.GalleryHandler.GetGallery)
+			galleryRoutes.GET("/:id", app.Handlers.GalleryHandler.GetGalleryByID)
+		}
 	*/
 }
 
@@ -767,4 +768,3 @@ func SetupCommentRoutes(r *gin.RouterGroup, app *api.Application) {
 		commentGroup.POST("/:id/like", app.Handlers.CommentHandler.ToggleLike)
 	}
 }
-

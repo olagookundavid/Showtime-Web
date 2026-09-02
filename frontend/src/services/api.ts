@@ -1046,6 +1046,22 @@ export const getTeamManagers = async (teamId: string) => {
     return response.data;
 };
 
+// Every team_head user, with whichever team they currently manage (if any) —
+// powers the "Assign Team Head" dropdown so it can show ALL team_head users
+// (not just unassigned ones) and explain why a name is greyed out.
+export interface ManagerCandidate {
+    user_id: string;
+    full_name: string;
+    email: string;
+    assigned_team_id?: string;
+    assigned_team_name?: string;
+}
+
+export const getManagerCandidates = async (): Promise<ManagerCandidate[]> => {
+    const response = await api.get<{ data: ManagerCandidate[] }>('/admin/teams/manager-candidates');
+    return response.data.data || [];
+};
+
 export const assignTeamManager = async (teamId: string, userId: string) => {
     const response = await api.post(`/admin/teams/${teamId}/manager`, { user_id: userId });
     return response.data;

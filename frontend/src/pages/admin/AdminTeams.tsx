@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import {
     getAdminTeams, createTeam, updateTeam, deleteTeam,
     getTeamManagers, assignTeamManager, removeTeamManager,
-    getAdminUsers
+    getManagerCandidates, type ManagerCandidate,
 } from '../../services/api';
 import { ImageUploadField, LightboxImage } from '../../components/ui';
 
@@ -23,6 +23,8 @@ interface Manager {
     user_id: string;
     team_id: string;
     created_at: string;
+    user_full_name?: string;
+    user_email?: string;
 }
 
 const AdminTeams = () => {
@@ -60,7 +62,7 @@ const AdminTeams = () => {
     // Manager modal
     const [managerModal, setManagerModal] = useState<{ teamId: string; teamName: string } | null>(null);
     const [managers, setManagers] = useState<Manager[]>([]);
-    const [teamHeadUsers, setTeamHeadUsers] = useState<any[]>([]);
+    const [candidates, setCandidates] = useState<ManagerCandidate[]>([]);
     const [selectedUserId, setSelectedUserId] = useState('');
     const [loadingManagers, setLoadingManagers] = useState(false);
 
@@ -139,13 +141,12 @@ const AdminTeams = () => {
         setManagerModal({ teamId, teamName });
         setLoadingManagers(true);
         try {
-            const [managersRes, usersRes] = await Promise.all([
+            const [managersRes, candidatesRes] = await Promise.all([
                 getTeamManagers(teamId),
-                getAdminUsers({ search: '', limit: 100 })
+                getManagerCandidates(),
             ]);
             setManagers(managersRes.data || []);
-            const allUsers = usersRes.data || [];
-            setTeamHeadUsers(allUsers.filter((u: any) => u.role === 'team_head'));
+            setCandidates(candidatesRes);
         } catch (err: any) {
             console.error(err);
             toast.error('Failed to load managers');
@@ -159,12 +160,20 @@ const AdminTeams = () => {
         try {
             await assignTeamManager(managerModal.teamId, selectedUserId);
             setSelectedUserId('');
-            const res = await getTeamManagers(managerModal.teamId);
-            setManagers(res.data || []);
-            toast.success('Manager assigned globally');
+            const [managersRes, candidatesRes] = await Promise.all([
+                getTeamManagers(managerModal.teamId),
+                getManagerCandidates(),
+            ]);
+            setManagers(managersRes.data || []);
+            setCandidates(candidatesRes);
+            toast.success('Manager assigned');
         } catch (err: any) {
             console.error(err);
-            toast.error(err.response?.data?.message || err.response?.data?.error || 'Failed to assign manager.');
+            // The backend blocks assigning someone who already manages a
+            // different team and explains which one in this message — e.g.
+            // "this is the manager of Delta Panthers — remove them from that
+            // team first" — so non-technical admins get a clear reason.
+            toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to assign manager.');
         }
     };
 
@@ -419,12 +428,17 @@ const AdminTeams = () => {
                                     ) : (
                                         <ul className="divide-y divide-gray-200 dark:divide-gray-700">
                                             {managers.map(m => (
-                                                <li key={m.id} className="flex items-center justify-between py-3">
-                                                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                                        User: {m.user_id.slice(0, 8)}...
-                                                    </span>
+                                                <li key={m.id} className="flex items-center justify-between py-3 gap-3">
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
+                                                            {m.user_full_name || m.user_email || 'Unknown user'}
+                                                        </p>
+                                                        {m.user_full_name && m.user_email && (
+                                                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{m.user_email}</p>
+                                                        )}
+                                                    </div>
                                                     <button onClick={() => handleRemoveManager(m.user_id)}
-                                                        className="text-red-600 hover:text-red-800 text-sm font-bold">
+                                                        className="text-red-600 hover:text-red-800 text-sm font-bold flex-shrink-0">
                                                         Remove
                                                     </button>
                                                 </li>
@@ -437,16 +451,32 @@ const AdminTeams = () => {
                                         <div className="flex gap-2">
                                             <select value={selectedUserId} onChange={e => setSelectedUserId(e.target.value)}
                                                 className="flex-1 min-h-[44px] z-50 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-white truncate">
-                                                <option value="" className="truncate">Select a team_head user...</option>
-                                                {teamHeadUsers.map((u: any) => (
-                                                    <option key={u.id} value={u.id} className="truncate">{u.fullname || u.email}</option>
-                                                ))}
+                                                <option value="">Select a team head...</option>
+                                                {candidates
+                                                    // Already listed above with a Remove button — no need to offer them again.
+                                                    .filter(c => !managers.some(m => m.user_id === c.user_id))
+                                                    .map(c => {
+                                                        const managesElsewhere = !!c.assigned_team_id;
+                                                        return (
+                                                            <option
+                                                                key={c.user_id}
+                                                                value={c.user_id}
+                                                                style={managesElsewhere ? { color: '#9ca3af' } : undefined}
+                                                            >
+                                                                {c.full_name || c.email}
+                                                                {managesElsewhere ? ` — Manager of ${c.assigned_team_name}` : ''}
+                                                            </option>
+                                                        );
+                                                    })}
                                             </select>
                                             <button onClick={handleAssign} disabled={!selectedUserId}
                                                 className="px-4 py-2 bg-green-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:bg-green-700 disabled:opacity-50 text-sm transition-all">
                                                 Assign
                                             </button>
                                         </div>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
+                                            Greyed-out names already manage another team — picking one and assigning will show why it's blocked.
+                                        </p>
                                     </div>
                                 </>
                             )}
