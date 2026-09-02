@@ -449,8 +449,13 @@ const AdminTeams = () => {
                                     <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                                         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Assign Team Head</label>
                                         <div className="flex gap-2">
+                                            {/* min-w-0 is load-bearing here: a flex child's implicit
+                                                min-width:auto otherwise overrides `truncate` and lets a
+                                                long option label (e.g. "... — Manager of X") grow the
+                                                select and push the Assign button off-screen. flex-shrink-0
+                                                on the button below guarantees it never yields space. */}
                                             <select value={selectedUserId} onChange={e => setSelectedUserId(e.target.value)}
-                                                className="flex-1 min-h-[44px] z-50 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-white truncate">
+                                                className="min-w-0 flex-1 min-h-[44px] z-50 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-white truncate">
                                                 <option value="">Select a team head...</option>
                                                 {candidates
                                                     // Already listed above with a Remove button — no need to offer them again.
@@ -470,7 +475,7 @@ const AdminTeams = () => {
                                                     })}
                                             </select>
                                             <button onClick={handleAssign} disabled={!selectedUserId}
-                                                className="px-4 py-2 bg-green-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:bg-green-700 disabled:opacity-50 text-sm transition-all">
+                                                className="flex-shrink-0 px-4 py-2 bg-green-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:bg-green-700 disabled:opacity-50 text-sm transition-all">
                                                 Assign
                                             </button>
                                         </div>
