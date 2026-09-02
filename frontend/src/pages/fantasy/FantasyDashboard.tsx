@@ -18,15 +18,18 @@ import {
     MapPinIcon,
 } from '@heroicons/react/24/outline';
 import {
-    fantasyApi,
     fantasySeasonApi,
     formatKobo,
     type FantasyLineupPick,
     type DashboardLeagueRow,
-    type Leaderboard,
     type LeaderboardEntry,
 } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
+import {
+    useFantasyLeaderboard,
+    rankBadgeClass,
+    OVERALL,
+} from '../../hooks/useFantasyLeaderboard';
 
 /** Everything off the wire is treated as possibly-missing: a brand new season
  *  legitimately has no team, no lineup, no leagues and no managers. */
@@ -80,20 +83,6 @@ function useCountdown(deadline?: string | null): string | null {
 
     return label;
 }
-
-const LEADERBOARD_LIMIT = 20;
-const OVERALL = 'overall';
-
-const EMPTY_BOARD: Leaderboard = { data: [], total: 0, total_pages: 0, my_rank: 0 };
-
-const rankBadgeClass = (rank: number): string =>
-    rank === 1
-        ? 'bg-amber-400 text-gray-900 shadow-md ring-2 ring-amber-400/50'
-        : rank === 2
-        ? 'bg-gray-300 text-gray-800'
-        : rank === 3
-        ? 'bg-amber-700 text-white'
-        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300';
 
 /** One leaderboard row, shared by the pinned podium and the paged window. */
 function LeaderboardRow({
@@ -151,71 +140,21 @@ function DashboardLeaderboard({
     leagues: DashboardLeagueRow[];
 }) {
     const [scope, setScope] = useState<string>(OVERALL);
-    // null means "wherever the manager is"; a number is a page they chose.
-    const [pageOverride, setPageOverride] = useState<number | null>(null);
 
     const leagueOptions = (leagues ?? [])
         .filter((l) => !!l?.league_id && l.type !== 'OVERALL')
         .map((l) => ({ id: l.league_id, name: l.name || 'Unnamed league' }));
 
-    const fetchBoard = (targetPage: number, limit: number): Promise<Leaderboard> => {
-        const params = { page: targetPage, limit };
-        if (scope === OVERALL) {
-            if (!seasonId) return Promise.resolve(EMPTY_BOARD);
-            return fantasyApi.getOverallLeaderboard(seasonId, params);
-        }
-        return fantasyApi.getLeaderboard(scope, params);
-    };
+    const {
+        isLoading, isEmpty, topThree, windowRows, total, totalPages, page,
+        myRank, canJumpToMe, allOnPodium, goToPage, jumpToMe, resetPaging, fallbackRankAt,
+    } = useFantasyLeaderboard({ seasonId, scope, queryPrefix: 'fantasyDashLeaderboard' });
 
-    const scopeReady = scope === OVERALL ? !!seasonId : !!scope;
-
-    // The podium query also carries my_rank and the row count, which decide
-    // which page opens — so it resolves before the windowed query runs.
-    const topQuery = useQuery({
-        queryKey: ['fantasyDashLeaderboardTop', scope, seasonId],
-        queryFn: () => fetchBoard(1, 3),
-        enabled: scopeReady,
-    });
-    const topBoard = topQuery.data;
-
-    const knownTotal = num(topBoard?.total);
-    const pagesFromTotal = Math.max(1, Math.ceil(knownTotal / LEADERBOARD_LIMIT) || 1);
-    const rankForPaging = topQuery.isFetched ? num(topBoard?.my_rank) : 0;
-    // Clamped so a rank that runs ahead of the data never lands past the end.
-    const myPage =
-        rankForPaging > 0
-            ? Math.min(Math.max(1, Math.ceil(rankForPaging / LEADERBOARD_LIMIT)), pagesFromTotal)
-            : 1;
-    // Derived, never set from an effect: the window simply opens on the
-    // manager's page until they choose another one.
-    const page = pageOverride ?? myPage;
-
-    const { data: board, isLoading: boardLoading } = useQuery({
-        queryKey: ['fantasyDashLeaderboard', scope, seasonId, page],
-        queryFn: () => fetchBoard(page, LEADERBOARD_LIMIT),
-        enabled: scopeReady && topQuery.isFetched,
-    });
-
-    const isLoading = topQuery.isLoading || boardLoading;
-    const totalPages = Math.max(1, num(board?.total_pages) || pagesFromTotal);
-    const total = num(board?.total) || knownTotal;
-    const safePage = Math.min(Math.max(1, page), totalPages);
-    const myRank = rankForPaging || num(board?.my_rank);
-
-    const goToPage = (p: number) => setPageOverride(Math.min(Math.max(1, p), totalPages));
-
-    const topThree: LeaderboardEntry[] = (topBoard?.data ?? []).filter(Boolean).slice(0, 3);
-    const pinnedIds = new Set(topThree.map((e) => e?.team_id).filter(Boolean));
-    const rows: LeaderboardEntry[] = (board?.data ?? []).filter(Boolean);
-    // The podium above owns these rows — never print a manager twice.
-    const windowRows = rows.filter((e) => !(e?.team_id && pinnedIds.has(e.team_id)));
-
-    const isEmpty = !isLoading && total === 0 && rows.length === 0 && topThree.length === 0;
-    const canJumpToMe = myRank > 0 && safePage !== myPage;
+    const safePage = page;
 
     const selectScope = (next: string) => {
         setScope(next);
-        setPageOverride(null);
+        resetPaging();
     };
 
     const fullTableTo =
@@ -308,7 +247,7 @@ function DashboardLeaderboard({
                         {canJumpToMe && (
                             <button
                                 type="button"
-                                onClick={() => setPageOverride(null)}
+                                onClick={jumpToMe}
                                 className="px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-sffl-red hover:text-white text-gray-700 dark:text-gray-200 text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1.5 transition"
                             >
                                 <MapPinIcon className="w-3.5 h-3.5" /> Jump to me
@@ -318,7 +257,7 @@ function DashboardLeaderboard({
 
                     {windowRows.length === 0 ? (
                         <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-6">
-                            {total <= topThree.length
+                            {allOnPodium
                                 ? 'Everyone in this table is on the podium above.'
                                 : 'Nothing more to show on this page.'}
                         </p>
@@ -328,7 +267,7 @@ function DashboardLeaderboard({
                                 <LeaderboardRow
                                     key={entry?.team_id ?? `row-${idx}`}
                                     entry={entry}
-                                    fallbackRank={(safePage - 1) * LEADERBOARD_LIMIT + idx + 1}
+                                    fallbackRank={fallbackRankAt(idx)}
                                     isMe={myRank > 0 && num(entry?.rank) === myRank}
                                 />
                             ))}
