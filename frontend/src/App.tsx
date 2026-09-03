@@ -25,6 +25,7 @@ const FantasyDashboard = lazy(() => import('./pages/fantasy/FantasyDashboard').t
 const FantasySquadBuilder = lazy(() => import('./pages/fantasy/FantasySquadBuilder').then(m => ({ default: m.FantasySquadBuilder })));
 const FantasyMyTeam = lazy(() => import('./pages/fantasy/FantasyMyTeam').then(m => ({ default: m.FantasyMyTeam })));
 const FantasyLeagues = lazy(() => import('./pages/fantasy/FantasyLeagues').then(m => ({ default: m.FantasyLeagues })));
+const FantasyLeagueConfirm = lazy(() => import('./pages/fantasy/FantasyLeagueConfirm').then(m => ({ default: m.FantasyLeagueConfirm })));
 const FantasyLeaderboard = lazy(() => import('./pages/fantasy/FantasyLeaderboard').then(m => ({ default: m.FantasyLeaderboard })));
 const FantasyWallet = lazy(() => import('./pages/fantasy/FantasyWallet').then(m => ({ default: m.FantasyWallet })));
 
@@ -221,6 +222,11 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="/fantasy/leaderboard/:id" element={<FantasyLeaderboard />} />
+              <Route path="/fantasy/leagues/confirm" element={
+                <ProtectedRoute>
+                  <FantasyLeagueConfirm />
+                </ProtectedRoute>
+              } />
 
               {/* About Us Pages */}
               <Route path="/about/showtime-flag" element={<AboutShowtimeFlag />} />

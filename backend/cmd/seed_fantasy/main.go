@@ -59,15 +59,18 @@ var clubs = []club{
 	{name: "Port Harcourt Sharks", short: "PHS"},
 }
 
+// Emails use a real-looking domain: Paystack validates the payer address and
+// rejects reserved TLDs such as .test, which would make a paid-league checkout
+// impossible for a seeded manager.
 var managers = []manager{
-	{"manager1@fantasy.test", "Ada Obi", "Ada's Avengers"},
-	{"manager2@fantasy.test", "Tunde Bello", "Bello Ballers"},
-	{"manager3@fantasy.test", "Chioma Eze", "Eze Elite"},
-	{"manager4@fantasy.test", "Musa Ibrahim", "Musa United"},
-	{"manager5@fantasy.test", "Ngozi Okafor", "Okafor XI"},
-	{"manager6@fantasy.test", "Segun Ade", "Ade Army"},
-	{"manager7@fantasy.test", "Halima Sani", "Sani Stars"},
-	{"manager8@fantasy.test", "Emeka Nwosu", "Nwosu Nation"},
+	{"manager1@example.com", "Ada Obi", "Ada's Avengers"},
+	{"manager2@example.com", "Tunde Bello", "Bello Ballers"},
+	{"manager3@example.com", "Chioma Eze", "Eze Elite"},
+	{"manager4@example.com", "Musa Ibrahim", "Musa United"},
+	{"manager5@example.com", "Ngozi Okafor", "Okafor XI"},
+	{"manager6@example.com", "Segun Ade", "Ade Army"},
+	{"manager7@example.com", "Halima Sani", "Sani Stars"},
+	{"manager8@example.com", "Emeka Nwosu", "Nwosu Nation"},
 }
 
 // squadTemplate is the 12-player roster every club gets. Between them the six

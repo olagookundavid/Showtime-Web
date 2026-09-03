@@ -96,7 +96,7 @@ export function FantasyHub() {
                 <div className="relative z-10 max-w-4xl mx-auto text-center">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-yellow-400 text-xs font-bold uppercase tracking-wider mb-5 backdrop-blur-md">
                         <BoltIcon className="w-3.5 h-3.5 text-yellow-400" />
-                        {entered ? 'You Are Entered' : 'Season Open — Entry By Choice'}
+                        {entered ? 'You Are In' : 'Season Open — Let’s Go!'}
                     </div>
 
                     <h1 className="text-3xl sm:text-5xl md:text-6xl font-black italic uppercase tracking-tighter text-white mb-4">
@@ -190,15 +190,19 @@ export function FantasyHub() {
                         )}
                     </div>
 
-                    {/* Who's already in — only shown when we actually have the numbers */}
-                    <p className="text-xs text-gray-300 font-medium mt-6">
-                        {gameweek ? `Currently on Gameweek ${gameweek.number}. ` : ''}
-                        {entered && totalManagers > 0
-                            ? `${totalManagers.toLocaleString()} manager${totalManagers === 1 ? '' : 's'} in this season.`
-                            : topManagers.length > 0
-                            ? 'Managers are already on the board — see the standings below.'
-                            : 'Be one of the first managers on the board.'}
-                    </p>
+                    {/* Who's already in — only shown when we actually have the
+                        numbers. One statement per line: they are unrelated
+                        facts and read as a run-on sentence together. */}
+                    <div className="text-xs text-gray-300 font-medium mt-6 space-y-1">
+                        {gameweek && <p>Currently on Gameweek {gameweek.number}.</p>}
+                        <p>
+                            {entered && totalManagers > 0
+                                ? `${totalManagers.toLocaleString()} manager${totalManagers === 1 ? '' : 's'} in this season.`
+                                : topManagers.length > 0
+                                    ? 'Managers are already on the board — see the standings below.'
+                                    : 'Be one of the first managers on the board.'}
+                        </p>
+                    </div>
                 </div>
             </div>
 
@@ -275,11 +279,10 @@ export function FantasyHub() {
                         {topManagers.map((entry, idx) => (
                             <div key={entry.team_id ?? idx} className="py-3.5 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 px-2 rounded-xl transition">
                                 <div className="flex items-center gap-3 min-w-0">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
-                                        entry.rank === 1 ? 'bg-amber-400 text-gray-900 shadow-md ring-2 ring-amber-400/50' :
-                                        entry.rank === 2 ? 'bg-gray-300 text-gray-800' :
-                                        entry.rank === 3 ? 'bg-amber-700 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
-                                    }`}>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${entry.rank === 1 ? 'bg-amber-400 text-gray-900 shadow-md ring-2 ring-amber-400/50' :
+                                            entry.rank === 2 ? 'bg-gray-300 text-gray-800' :
+                                                entry.rank === 3 ? 'bg-amber-700 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                                        }`}>
                                         {num(entry.rank) > 0 ? entry.rank : idx + 1}
                                     </div>
                                     <div className="min-w-0">
@@ -329,8 +332,8 @@ export function FantasyHub() {
                             {trimmedName.length === 0
                                 ? 'This is the name shown on every leaderboard.'
                                 : nameValid
-                                ? `${trimmedName.length}/40 characters`
-                                : 'Team name must be between 3 and 40 characters.'}
+                                    ? `${trimmedName.length}/40 characters`
+                                    : 'Team name must be between 3 and 40 characters.'}
                         </p>
 
                         <button
