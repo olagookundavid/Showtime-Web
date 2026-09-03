@@ -37,6 +37,7 @@ type IFantasyLeagueService interface {
 type FantasyLeagueService struct {
 	repo           ports.IFantasyLeagueRepository
 	fantasyRepo    ports.IFantasyRepository
+	payoutRepo     ports.IFantasyPayoutRepository
 	authRepo       ports.IAuthRepository
 	paystackClient *PaystackClient
 }
@@ -44,12 +45,14 @@ type FantasyLeagueService struct {
 func NewFantasyLeagueService(
 	repo ports.IFantasyLeagueRepository,
 	fantasyRepo ports.IFantasyRepository,
+	payoutRepo ports.IFantasyPayoutRepository,
 	authRepo ports.IAuthRepository,
 	paystackClient *PaystackClient,
 ) IFantasyLeagueService {
 	return &FantasyLeagueService{
 		repo:           repo,
 		fantasyRepo:    fantasyRepo,
+		payoutRepo:     payoutRepo,
 		authRepo:       authRepo,
 		paystackClient: paystackClient,
 	}
@@ -119,6 +122,21 @@ func (s *FantasyLeagueService) CreateLeague(ctx context.Context, userID string, 
 
 	if league == nil {
 		return nil, errors.New("failed to create league: could not generate a unique invite code")
+	}
+
+	// The creator's own prize split. Saved before anyone can join, so the terms
+	// a manager reads in the join dialogue are the terms they compete under.
+	if len(req.PrizeStructure) > 0 {
+		tiers := make([]domain.PrizeTier, 0, len(req.PrizeStructure))
+		for _, t := range req.PrizeStructure {
+			tiers = append(tiers, domain.PrizeTier{Rank: t.Rank, Percent: t.Percent})
+		}
+		if err := domain.ValidatePrizeStructure(tiers); err != nil {
+			return nil, err
+		}
+		if err := s.payoutRepo.SetPrizeStructure(ctx, league.ID, tiers); err != nil {
+			return nil, fmt.Errorf("league created but its prize split could not be saved: %w", err)
+		}
 	}
 
 	// Creator auto-joins their own league if they have an existing fantasy team

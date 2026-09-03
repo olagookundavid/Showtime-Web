@@ -174,6 +174,10 @@ type CreateLeagueRequest struct {
 	Type       string `json:"type" binding:"required,oneof=PUBLIC PRIVATE"`
 	EntryFee   int    `json:"entry_fee" binding:"min=0"`   // In kobo (₦ * 100)
 	MaxMembers int    `json:"max_members" binding:"min=0"` // 0 = unlimited
+	// How the prize pool is divided. Set by whoever creates the league — it is
+	// their competition to shape. Omitted, it falls back to the default split,
+	// and an admin can still adjust it later.
+	PrizeStructure []PrizeTierInput `json:"prize_structure" binding:"omitempty,max=50,dive"`
 }
 
 type LeagueResponse struct {

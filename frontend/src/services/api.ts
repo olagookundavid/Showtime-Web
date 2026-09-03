@@ -2985,6 +2985,9 @@ export const fantasyApi = {
         type: 'PUBLIC' | 'PRIVATE';
         entry_fee: number;
         max_members: number;
+        // How the creator wants the pool divided. Omitted, the season default
+        // (50/30/20) applies.
+        prize_structure?: { rank: number; percent: number }[];
     }): Promise<FantasyLeague> => {
         const res = await api.post<{ data: FantasyLeague }>('/fantasy/leagues', payload);
         return res.data.data;
@@ -3291,6 +3294,36 @@ export const fantasySeasonApi = {
         const res = await api.post<{ data: DashboardTeam }>(`/fantasy/seasons/${seasonId}/enter`, {
             team_name: teamName,
         });
+        return res.data.data;
+    },
+};
+
+export interface LeagueJoinPreview {
+    league_id: string;
+    name: string;
+    type: 'OVERALL' | 'PUBLIC' | 'PRIVATE';
+    owner_name?: string;
+    invite_code?: string;
+    entry_fee_kobo: number;
+    member_count: number;
+    max_members: number; // 0 = unlimited
+    is_full: boolean;
+    already_member: boolean;
+    membership_status?: 'FREE' | 'PENDING' | 'PAID' | 'FAILED';
+    prize_pool_kobo: number;
+    platform_cut_kobo: number;
+    cut_percent: number;
+    prize_structure: PrizeTier[];
+    // Entry fees are never returned once paid.
+    refundable: boolean;
+    settled: boolean;
+}
+
+export const fantasyLeagueApi = {
+    // The terms of a league — cost, field size, prize split, refund policy —
+    // read before any join or payment is set in motion.
+    getJoinPreview: async (leagueId: string): Promise<LeagueJoinPreview> => {
+        const res = await api.get<{ data: LeagueJoinPreview }>(`/fantasy/leagues/${leagueId}/preview`);
         return res.data.data;
     },
 };

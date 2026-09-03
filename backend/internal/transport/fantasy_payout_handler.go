@@ -20,6 +20,8 @@ type IFantasyPayoutHandler interface {
 	ListMyPayouts(c *gin.Context)
 	CancelPayout(c *gin.Context)
 
+	GetLeagueJoinPreview(c *gin.Context)
+
 	// Admin
 	AdminGetOverview(c *gin.Context)
 	AdminListManagers(c *gin.Context)
@@ -118,6 +120,23 @@ func (h *FantasyPayoutHandler) CancelPayout(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Payout request cancelled and funds returned", "data": res})
+}
+
+// GetLeagueJoinPreview backs the dialogue a manager reads before joining.
+func (h *FantasyPayoutHandler) GetLeagueJoinPreview(c *gin.Context) {
+	// Signed in or not, the terms are readable; membership details only appear
+	// when we know who is asking.
+	userID := ""
+	if payload, err := helpers.GetTokenPayloadFromContext(c); err == nil && payload != nil {
+		userID = payload.UserId
+	}
+
+	preview, err := h.service.GetJoinPreview(c.Request.Context(), userID, c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": preview})
 }
 
 // ─── Admin ────────────────────────────────────────────────────────────────────

@@ -37,6 +37,9 @@ type IFantasyPayoutService interface {
 	ListLeagueMembers(ctx context.Context, leagueID string) ([]dto.AdminLeagueMemberRow, error)
 	ListAllLeagues(ctx context.Context, seasonID, search string, page, limit int) ([]dto.AdminLeagueRow, int, error)
 	GetLeagueFinance(ctx context.Context, leagueID string) (*dto.LeagueFinanceResponse, error)
+	// GetJoinPreview is the manager-facing terms of a league, read before
+	// committing to it.
+	GetJoinPreview(ctx context.Context, userID, leagueID string) (*dto.LeagueJoinPreview, error)
 
 	// Admin — prizes & settlement
 	SetPrizeStructure(ctx context.Context, leagueID string, req dto.SetPrizeStructureRequest) (*dto.LeagueFinanceResponse, error)
@@ -326,6 +329,81 @@ func (s *FantasyPayoutService) GetLeagueFinance(ctx context.Context, leagueID st
 		res.SettledAt = league.SettledAt.Format(time.RFC3339)
 	}
 	return res, nil
+}
+
+// GetJoinPreview describes a league on the manager's own terms: what it costs,
+// how many are already in, how the pool is divided, and that an entry fee is
+// not refundable. Deliberately shown before a join is set in motion — a paid
+// league sends the manager to a payment page, which is not something a single
+// unexplained button press should trigger.
+func (s *FantasyPayoutService) GetJoinPreview(ctx context.Context, userID, leagueID string) (*dto.LeagueJoinPreview, error) {
+	league, err := s.leagueRepo.GetLeagueByID(ctx, leagueID)
+	if err != nil {
+		return nil, err
+	}
+	if league == nil {
+		return nil, errors.New("league not found")
+	}
+
+	paid, _, err := s.repo.CountPaidMembers(ctx, leagueID)
+	if err != nil {
+		return nil, err
+	}
+	active, err := s.leagueRepo.CountActiveMembers(ctx, leagueID)
+	if err != nil {
+		return nil, err
+	}
+
+	cut := s.platformCutPercent(ctx)
+	gross := int64(league.EntryFee) * int64(paid)
+	cutKobo, poolKobo := domain.SplitPool(gross, cut)
+	if league.SettledAt != nil {
+		cutKobo, poolKobo = league.PlatformCutKobo, league.PrizePoolKobo
+	}
+
+	tiers, err := s.repo.GetPrizeStructure(ctx, leagueID)
+	if err != nil {
+		return nil, err
+	}
+	if len(tiers) == 0 {
+		tiers = domain.DefaultPrizeStructure
+	}
+	structure := make([]dto.PrizeTierResponse, 0, len(tiers))
+	for _, t := range tiers {
+		structure = append(structure, dto.PrizeTierResponse{
+			Rank:       t.Rank,
+			Percent:    t.Percent,
+			AmountKobo: poolKobo * int64(t.Percent*1000) / 100000,
+		})
+	}
+
+	preview := &dto.LeagueJoinPreview{
+		LeagueID:        league.ID,
+		Name:            league.Name,
+		Type:            string(league.Type),
+		EntryFeeKobo:    int64(league.EntryFee),
+		MemberCount:     active,
+		MaxMembers:      league.MaxMembers,
+		IsFull:          league.MaxMembers > 0 && active >= league.MaxMembers,
+		PrizePoolKobo:   poolKobo,
+		PlatformCutKobo: cutKobo,
+		CutPercent:      cut,
+		PrizeStructure:  structure,
+		Refundable:      false,
+		Settled:         league.SettledAt != nil,
+	}
+
+	// The invite code is only of use to someone already inside a private league.
+	if member, err := s.leagueRepo.GetMember(ctx, leagueID, userID); err == nil && member != nil {
+		preview.AlreadyMember = member.PaymentStatus == domain.LeaguePaymentFree ||
+			member.PaymentStatus == domain.LeaguePaymentPaid
+		preview.MembershipStatus = string(member.PaymentStatus)
+		if preview.AlreadyMember && league.InviteCode != nil {
+			preview.InviteCode = *league.InviteCode
+		}
+	}
+
+	return preview, nil
 }
 
 // ─── Prizes & settlement ──────────────────────────────────────────────────────

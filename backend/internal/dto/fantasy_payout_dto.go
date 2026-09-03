@@ -111,6 +111,39 @@ type LeagueFinanceResponse struct {
 	Awards []domain.PrizeAward `json:"awards"`
 }
 
+// LeagueJoinPreview is everything a manager should read before committing to a
+// league — what it costs, who they are competing against, how the money is
+// split, and that an entry fee cannot be taken back. Shown before any join or
+// payment is set in motion.
+type LeagueJoinPreview struct {
+	LeagueID   string `json:"league_id"`
+	Name       string `json:"name"`
+	Type       string `json:"type"`
+	OwnerName  string `json:"owner_name,omitempty"`
+	InviteCode string `json:"invite_code,omitempty"`
+
+	EntryFeeKobo int64 `json:"entry_fee_kobo"`
+	MemberCount  int   `json:"member_count"`
+	MaxMembers   int   `json:"max_members"` // 0 = unlimited
+	IsFull       bool  `json:"is_full"`
+
+	// Where the viewer already stands, so the dialogue can say "you're in"
+	// rather than offering to join twice.
+	AlreadyMember    bool   `json:"already_member"`
+	MembershipStatus string `json:"membership_status,omitempty"`
+
+	// The pool as it stands today; it grows with every paid entry.
+	PrizePoolKobo   int64               `json:"prize_pool_kobo"`
+	PlatformCutKobo int64               `json:"platform_cut_kobo"`
+	CutPercent      float64             `json:"cut_percent"`
+	PrizeStructure  []PrizeTierResponse `json:"prize_structure"`
+
+	// Entry fees are never returned once paid; stated outright rather than
+	// buried, since a manager is about to part with money.
+	Refundable bool `json:"refundable"`
+	Settled    bool `json:"settled"`
+}
+
 // ─── Admin oversight ──────────────────────────────────────────────────────────
 
 // AdminFantasyOverview is the headline dashboard for a season.

@@ -369,7 +369,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	appSettingService := services.NewAppSettingService(appSettingRepo)
 
 	fantasyService := services.NewFantasyService(fantasyRepo, fantasyLeagueRepo, playerRepo, matchRepo)
-	fantasyLeagueService := services.NewFantasyLeagueService(fantasyLeagueRepo, fantasyRepo, authRepo, paystackClient)
+	fantasyLeagueService := services.NewFantasyLeagueService(fantasyLeagueRepo, fantasyRepo, fantasyPayoutRepo, authRepo, paystackClient)
 	fantasyPayoutService := services.NewFantasyPayoutService(fantasyPayoutRepo, fantasyLeagueRepo, fantasyRepo, appSettingRepo)
 
 	// Transport / Handlers
