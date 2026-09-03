@@ -3326,6 +3326,14 @@ export const fantasyLeagueApi = {
         const res = await api.get<{ data: LeagueJoinPreview }>(`/fantasy/leagues/${leagueId}/preview`);
         return res.data.data;
     },
+    // A private league is never listed, so its invite code is the only handle a
+    // prospective member has. Same terms, resolved by code.
+    getJoinPreviewByCode: async (code: string): Promise<LeagueJoinPreview> => {
+        const res = await api.get<{ data: LeagueJoinPreview }>('/fantasy/leagues/preview', {
+            params: { code },
+        });
+        return res.data.data;
+    },
 };
 
 export const fantasyWalletApi = {

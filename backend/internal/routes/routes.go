@@ -781,7 +781,9 @@ func SetupFantasyRoutes(r *gin.RouterGroup, app *api.Application) {
 		// Optional auth so a signed-in viewer's own rank comes back with the
 		// table; anonymous visitors still get the public standings.
 		fantasyRoutes.GET("/leagues/:id/leaderboard", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.FantasyLeagueHandler.GetLeaderboard)
-		// The terms of a league, read before committing to it.
+		// The terms of a league, read before committing to it. The by-code form
+		// covers private leagues, which are never listed.
+		fantasyRoutes.GET("/leagues/preview", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.FantasyPayoutHandler.GetLeagueJoinPreviewByCode)
 		fantasyRoutes.GET("/leagues/:id/preview", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.FantasyPayoutHandler.GetLeagueJoinPreview)
 		fantasyRoutes.GET("/season/:id/leaderboard", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.FantasyLeagueHandler.GetOverallLeaderboard)
 

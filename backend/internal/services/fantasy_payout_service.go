@@ -40,6 +40,7 @@ type IFantasyPayoutService interface {
 	// GetJoinPreview is the manager-facing terms of a league, read before
 	// committing to it.
 	GetJoinPreview(ctx context.Context, userID, leagueID string) (*dto.LeagueJoinPreview, error)
+	GetJoinPreviewByCode(ctx context.Context, userID, code string) (*dto.LeagueJoinPreview, error)
 
 	// Admin — prizes & settlement
 	SetPrizeStructure(ctx context.Context, leagueID string, req dto.SetPrizeStructureRequest) (*dto.LeagueFinanceResponse, error)
@@ -344,6 +345,26 @@ func (s *FantasyPayoutService) GetJoinPreview(ctx context.Context, userID, leagu
 	if league == nil {
 		return nil, errors.New("league not found")
 	}
+	return s.buildJoinPreview(ctx, userID, league)
+}
+
+// GetJoinPreviewByCode resolves a private league from its invite code. A
+// private league is never listed, so the code is the only handle a prospective
+// member has — without this they would be asked to commit money against terms
+// they cannot see.
+func (s *FantasyPayoutService) GetJoinPreviewByCode(ctx context.Context, userID, code string) (*dto.LeagueJoinPreview, error) {
+	league, err := s.leagueRepo.GetLeagueByInviteCode(ctx, strings.TrimSpace(code))
+	if err != nil {
+		return nil, err
+	}
+	if league == nil {
+		return nil, errors.New("invalid or expired league invite code")
+	}
+	return s.buildJoinPreview(ctx, userID, league)
+}
+
+func (s *FantasyPayoutService) buildJoinPreview(ctx context.Context, userID string, league *domain.FantasyLeague) (*dto.LeagueJoinPreview, error) {
+	leagueID := league.ID
 
 	paid, _, err := s.repo.CountPaidMembers(ctx, leagueID)
 	if err != nil {

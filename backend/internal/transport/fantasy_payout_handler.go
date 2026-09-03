@@ -21,6 +21,7 @@ type IFantasyPayoutHandler interface {
 	CancelPayout(c *gin.Context)
 
 	GetLeagueJoinPreview(c *gin.Context)
+	GetLeagueJoinPreviewByCode(c *gin.Context)
 
 	// Admin
 	AdminGetOverview(c *gin.Context)
@@ -132,6 +133,28 @@ func (h *FantasyPayoutHandler) GetLeagueJoinPreview(c *gin.Context) {
 	}
 
 	preview, err := h.service.GetJoinPreview(c.Request.Context(), userID, c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": preview})
+}
+
+// GetLeagueJoinPreviewByCode backs the same dialogue for a private league,
+// which is never listed and so can only be reached by its invite code.
+func (h *FantasyPayoutHandler) GetLeagueJoinPreviewByCode(c *gin.Context) {
+	code := c.Query("code")
+	if code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "an invite code is required"})
+		return
+	}
+
+	userID := ""
+	if payload, err := helpers.GetTokenPayloadFromContext(c); err == nil && payload != nil {
+		userID = payload.UserId
+	}
+
+	preview, err := h.service.GetJoinPreviewByCode(c.Request.Context(), userID, code)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
