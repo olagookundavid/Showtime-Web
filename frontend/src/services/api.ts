@@ -2995,12 +2995,16 @@ export const fantasyApi = {
         seasonId: string,
         by: { invite_code?: string; league_id?: string }
     ): Promise<JoinLeagueResponse> => {
-        const res = await api.post<JoinLeagueResponse>(
+        // The handler wraps the payload as { message, data }, so the join
+        // details are a level down. Returning the envelope left paystack_url
+        // undefined, and a paid join silently reported success instead of
+        // sending the manager to checkout.
+        const res = await api.post<{ message: string; data: JoinLeagueResponse }>(
             '/fantasy/leagues/join',
             by,
             { params: { season_id: seasonId } }
         );
-        return res.data;
+        return res.data.data;
     },
     verifyLeaguePayment: async (reference: string): Promise<{ message: string }> => {
         const res = await api.post<{ message: string }>('/fantasy/leagues/verify', { reference });
