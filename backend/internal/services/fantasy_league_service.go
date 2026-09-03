@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -22,7 +21,7 @@ import (
 
 type IFantasyLeagueService interface {
 	CreateLeague(ctx context.Context, userID string, req dto.CreateLeagueRequest) (*dto.LeagueResponse, error)
-	JoinLeague(ctx context.Context, userID, seasonID string, req dto.JoinLeagueRequest) (*dto.JoinLeagueResponse, error)
+	JoinLeague(ctx context.Context, userID, seasonID, callbackURL string, req dto.JoinLeagueRequest) (*dto.JoinLeagueResponse, error)
 	LeagueWebhook(ctx context.Context, payload []byte, signature string) error
 	VerifyLeaguePayment(ctx context.Context, userID, reference string) error
 	ListMyLeagues(ctx context.Context, userID, seasonID string) ([]dto.LeagueResponse, error)
@@ -59,21 +58,6 @@ func NewFantasyLeagueService(
 // inviteCodeAttempts bounds how many fresh codes we try before giving up when
 // the generated code collides with an existing one.
 const inviteCodeAttempts = 5
-
-// fantasyCallbackURL is where Paystack returns the payer after checkout. The
-// page reads the reference off the query string and verifies it, which is what
-// promotes the membership from PENDING to PAID. Mirrors how the store builds
-// its own callback.
-func fantasyCallbackURL() string {
-	if url := os.Getenv("PAYSTACK_FANTASY_CALLBACK_URL"); url != "" {
-		return url
-	}
-	frontendURL := os.Getenv("FRONTEND_URL")
-	if frontendURL == "" {
-		frontendURL = "http://localhost:5173"
-	}
-	return fmt.Sprintf("%s/fantasy/leagues/confirm", frontendURL)
-}
 
 func generateInviteCode() (string, error) {
 	// 32 characters divides 256 evenly, so the modulo below is bias-free.
@@ -164,7 +148,7 @@ func (s *FantasyLeagueService) CreateLeague(ctx context.Context, userID string, 
 	}, nil
 }
 
-func (s *FantasyLeagueService) JoinLeague(ctx context.Context, userID, seasonID string, req dto.JoinLeagueRequest) (*dto.JoinLeagueResponse, error) {
+func (s *FantasyLeagueService) JoinLeague(ctx context.Context, userID, seasonID, callbackURL string, req dto.JoinLeagueRequest) (*dto.JoinLeagueResponse, error) {
 	code := strings.TrimSpace(req.InviteCode)
 	leagueID := strings.TrimSpace(req.LeagueID)
 
@@ -237,12 +221,13 @@ func (s *FantasyLeagueService) JoinLeague(ctx context.Context, userID, seasonID 
 		// Without a callback Paystack has nowhere to send the payer back to,
 		// so nothing ever confirms the payment and the membership sits on
 		// PENDING for ever. The webhook alone can't be relied on — it can't
-		// reach a local machine at all.
+		// reach a local machine at all. The URL is derived from the caller's
+		// own origin, so it follows whatever host the manager is actually on.
 		paystackReq := PaystackInitRequest{
 			Email:       user.Email,
 			Amount:      league.EntryFee, // in kobo
 			Reference:   ref,
-			CallbackURL: fantasyCallbackURL(),
+			CallbackURL: callbackURL,
 		}
 		paystackResp, err := s.paystackClient.InitializeTransaction(paystackReq)
 		if err != nil {

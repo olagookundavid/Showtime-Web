@@ -164,7 +164,20 @@ func (h *FantasyLeagueHandler) JoinLeague(c *gin.Context) {
 		return
 	}
 
-	res, err := h.service.JoinLeague(c.Request.Context(), payload.UserId, seasonID, req)
+	// Where Paystack returns the payer, built from the request the same way the
+	// ticket purchase does. Taking it from the caller's own origin means it
+	// follows whatever host the manager is on — localhost in development, the
+	// real domain in production — with nothing to configure.
+	scheme := "https"
+	if c.Request.TLS == nil {
+		scheme = "http"
+	}
+	callbackURL := scheme + "://" + c.Request.Host + "/fantasy/leagues/confirm"
+	if origin := c.GetHeader("Origin"); origin != "" {
+		callbackURL = origin + "/fantasy/leagues/confirm"
+	}
+
+	res, err := h.service.JoinLeague(c.Request.Context(), payload.UserId, seasonID, callbackURL, req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
