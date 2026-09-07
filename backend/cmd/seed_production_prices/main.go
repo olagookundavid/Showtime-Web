@@ -195,7 +195,8 @@ func main() {
 		fmt.Println("MODE: LIVE PRODUCTION SEED (Will commit changes)")
 	}
 	fmt.Printf("Target Season: %s (%s)\n", targetSeason.Name, targetSeason.ID)
-	fmt.Println("========================================================\n")
+	fmt.Println("========================================================")
+	fmt.Println()
 
 	tx, err := pool.Begin(ctx)
 	if err != nil {
