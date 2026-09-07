@@ -329,6 +329,41 @@ export function FantasySquadBuilder() {
         return mySquad.players.filter(p => !p.starting);
     }, [mySquad]);
 
+    // Already filtered by position and gender server-side.
+    const marketPlayers = marketData?.data ?? [];
+
+    // Split the picker in two: who the manager already owns and can field right
+    // away, and who they would have to buy first. Owned players come first
+    // because fielding one costs nothing and is almost always the intent.
+    const ownedForSlot = useMemo(() => {
+        if (!activeModalSlot || !mySquad) return [];
+        const allowed = new Set(activeModalSlot.allowedPositions);
+        return mySquad.players
+            .filter((p) => allowed.has(p.position))
+            .filter((p) => !activeModalSlot.requiredGender ||
+                (p.gender || 'M').toUpperCase().startsWith(activeModalSlot.requiredGender))
+            .filter((p) => !marketSearch ||
+                p.name.toLowerCase().includes(marketSearch.toLowerCase()));
+    }, [activeModalSlot, mySquad, marketSearch]);
+
+    const ownedIds = useMemo(
+        () => new Set((mySquad?.players ?? []).map((p) => p.player_id)),
+        [mySquad],
+    );
+
+    // Anyone already owned is shown in the section above, so the market half
+    // lists only players who would need signing.
+    const buyablePlayers = useMemo(
+        () => marketPlayers.filter((p) => !ownedIds.has(p.player_id)),
+        [marketPlayers, ownedIds],
+    );
+
+    // Bench market: anyone not already owned
+    const buyableBenchPlayers = useMemo(
+        () => (benchMarketData?.data ?? []).filter((p) => !ownedIds.has(p.player_id)),
+        [benchMarketData, ownedIds],
+    );
+
     // Save Lineup Mutation
     const saveMutation = useMutation({
         mutationFn: () => {
@@ -504,40 +539,6 @@ export function FantasySquadBuilder() {
         return def.unit === selectedUnitTab;
     });
 
-    // Already filtered by position and gender server-side.
-    const marketPlayers = marketData?.data ?? [];
-
-    // Split the picker in two: who the manager already owns and can field right
-    // away, and who they would have to buy first. Owned players come first
-    // because fielding one costs nothing and is almost always the intent.
-    const ownedForSlot = useMemo(() => {
-        if (!activeModalSlot || !mySquad) return [];
-        const allowed = new Set(activeModalSlot.allowedPositions);
-        return mySquad.players
-            .filter((p) => allowed.has(p.position))
-            .filter((p) => !activeModalSlot.requiredGender ||
-                (p.gender || 'M').toUpperCase().startsWith(activeModalSlot.requiredGender))
-            .filter((p) => !marketSearch ||
-                p.name.toLowerCase().includes(marketSearch.toLowerCase()));
-    }, [activeModalSlot, mySquad, marketSearch]);
-
-    const ownedIds = useMemo(
-        () => new Set((mySquad?.players ?? []).map((p) => p.player_id)),
-        [mySquad],
-    );
-
-    // Anyone already owned is shown in the section above, so the market half
-    // lists only players who would need signing.
-    const buyablePlayers = useMemo(
-        () => marketPlayers.filter((p) => !ownedIds.has(p.player_id)),
-        [marketPlayers, ownedIds],
-    );
-
-    // Bench market: anyone not already owned
-    const buyableBenchPlayers = useMemo(
-        () => (benchMarketData?.data ?? []).filter((p) => !ownedIds.has(p.player_id)),
-        [benchMarketData, ownedIds],
-    );
 
     // Signing from the picker puts them in the squad, then straight into the
     // slot the manager opened — one action, not two.
