@@ -27,8 +27,8 @@ __debug_bin*
 
 # Secrets and credentials
 *.json
+!cmd/seed_production_prices/*.json
 secrets/
-# (or to be more strict: secrets/*.json)
 
 # Swagger docs (optional)
 /docs

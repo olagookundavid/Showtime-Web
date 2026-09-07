@@ -10,7 +10,6 @@ package main
 
 import (
 	"context"
-	_ "embed"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -22,9 +21,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-//go:embed players_pricing.json
-var embeddedPlayersPricing []byte
 
 type rawPlayerStats struct {
 	PassAtt           int `json:"pass_att"`
