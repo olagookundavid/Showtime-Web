@@ -365,9 +365,9 @@ def print_summary(players):
         print(f"  {tier:<10} : {tier_counts[tier]:>3} players")
 
     price_counts = Counter([p['final_price'] for p in players])
-    print("\nPrice Distribution (SC):")
+    print("\nPrice Distribution (₦m):")
     for price in sorted(price_counts.keys()):
-        print(f"  ₦{price:4.1f}m ({price:4.1f} SC) : {price_counts[price]:>3} players")
+        print(f"  ₦{price:4.1f}m : {price_counts[price]:>3} players")
 
     club_counts = Counter([p['team_name'] for p in players])
     print(f"\nClubs ({len(club_counts)}):")

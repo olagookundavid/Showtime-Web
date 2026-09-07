@@ -200,10 +200,10 @@ func main() {
 				fmt.Printf("Failed to auto-create fantasy season: %v\n", err)
 				os.Exit(1)
 			}
-			fmt.Printf("Auto-created active fantasy season: %s (%s, Budget: %.2f SC)\n", targetSeason.Name, targetSeason.ID, targetSeason.Budget)
+			fmt.Printf("Auto-created active fantasy season: %s (%s, Budget: ₦%.1fm)\n", targetSeason.Name, targetSeason.ID, targetSeason.Budget)
 		} else {
 			targetSeason = seasons[0]
-			fmt.Printf("Auto-selected season: %s (%s, Status: %s, Budget: %.2f SC)\n", targetSeason.Name, targetSeason.ID, targetSeason.Status, targetSeason.Budget)
+			fmt.Printf("Auto-selected season: %s (%s, Status: %s, Budget: ₦%.1fm)\n", targetSeason.Name, targetSeason.ID, targetSeason.Status, targetSeason.Budget)
 		}
 		if len(seasons) > 1 {
 			fmt.Println("Other available seasons (use --season-id to target one specifically):")
@@ -439,14 +439,14 @@ func main() {
 		fmt.Printf("  %-10s : %3d players\n", t, tierCounts[t])
 	}
 
-	fmt.Println("\nPrice Distribution (SC):")
+	fmt.Println("\nPrice Distribution (₦m):")
 	var sortedPrices []float64
 	for p := range priceCounts {
 		sortedPrices = append(sortedPrices, p)
 	}
 	sort.Float64s(sortedPrices)
 	for _, p := range sortedPrices {
-		fmt.Printf("  ₦%4.1fm (%4.1f SC): %3d players\n", p, p, priceCounts[p])
+		fmt.Printf("  ₦%4.1fm : %3d players\n", p, priceCounts[p])
 	}
 	fmt.Println("----------------------------------------------------")
 
