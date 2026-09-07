@@ -1,24 +1,34 @@
-import { useState, useEffect, useMemo, useRef, type MouseEvent } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { 
-    UsersIcon, 
-    CheckCircleIcon, 
-    ExclamationCircleIcon, 
-    ChevronRightIcon, 
-    XMarkIcon, 
-    MagnifyingGlassIcon, 
-    BookmarkSquareIcon, 
-    SparklesIcon 
+import {
+    UsersIcon,
+    CheckCircleIcon,
+    ExclamationCircleIcon,
+    ChevronRightIcon,
+    XMarkIcon,
+    MagnifyingGlassIcon,
+    BookmarkSquareIcon,
+    SparklesIcon,
+    BanknotesIcon,
+    ArrowsRightLeftIcon,
+    ArrowUturnDownIcon,
+    ArrowUpTrayIcon,
+    MinusCircleIcon,
+    PlusCircleIcon,
+    ExclamationTriangleIcon,
+    LockClosedIcon,
 } from '@heroicons/react/24/outline';
-import { 
-    fantasyApi, 
+import {
+    fantasyApi,
     fantasySeasonApi,
-    type FantasySlot, 
-    type FantasyPlayerListItem,
-    formatFantasyPrice,
     fantasySquadApi,
+    type FantasySlot,
+    type FantasyPlayerListItem,
+    type Squad,
+    type SquadPlayer,
+    formatFantasyPrice,
 } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { Loader } from '../../components/ui/Loader';
@@ -81,6 +91,11 @@ const formatPositions = (positions: string[]): string =>
         ? positions[0] || ''
         : `${positions.slice(0, -1).join(', ')} or ${positions[positions.length - 1]}`;
 
+const isFemale = (g?: string): boolean => (g || '').toUpperCase().startsWith('F');
+
+const unitOf = (position: string): 'offense' | 'defense' =>
+    position === 'Rusher' || position === 'Defender' ? 'defense' : 'offense';
+
 export function FantasySquadBuilder() {
     // Shares the hub/dashboard query key, so this is a cache hit rather than
     // an extra request.
@@ -122,6 +137,14 @@ export function FantasySquadBuilder() {
     const [selectedUnitTab, setSelectedUnitTab] = useState<'ALL' | 'OFFENSE' | 'DEFENSE'>('ALL');
     const [activeModalSlot, setActiveModalSlot] = useState<SlotDefinition | null>(null);
     const [marketSearch, setMarketSearch] = useState('');
+    // Player action popover: which slot's player is showing actions
+    const [actionSlot, setActionSlot] = useState<FantasySlot | null>(null);
+    // Sell confirmation dialog
+    const [confirmSell, setConfirmSell] = useState<SquadPlayer | null>(null);
+    // When selling from the starting 14: open market after sell completes
+    const [pendingTransferOutSlot, setPendingTransferOutSlot] = useState<SlotDefinition | null>(null);
+    // Market browser for bench signing
+    const [showBenchMarket, setShowBenchMarket] = useState(false);
 
     const hydratedGameweekIdRef = useRef<string | null>(null);
 
@@ -181,15 +204,38 @@ export function FantasySquadBuilder() {
         enabled: !!season?.id,
     });
 
+    const refreshSquad = (next: Squad) => {
+        queryClient.setQueryData(['fantasySquad', season?.id], next);
+        queryClient.invalidateQueries({ queryKey: ['fantasyDashboard'] });
+        queryClient.invalidateQueries({ queryKey: ['fantasyLineup'] });
+    };
+
     // Buying from inside the picker, for a squad that has no one for this slot.
     const buyMutation = useMutation({
         mutationFn: (playerId: string) => fantasySquadApi.buyPlayer(season!.id, playerId),
         onSuccess: (next, playerId) => {
-            queryClient.setQueryData(['fantasySquad', season?.id], next);
+            refreshSquad(next);
             const signed = next.players.find((p) => p.player_id === playerId);
             if (signed) toast.success(`Signed ${signed.name}.`);
         },
         onError: (err: any) => toast.error(err?.response?.data?.error || 'Could not sign this player.'),
+    });
+
+    // Selling a player from the squad
+    const sellMutation = useMutation({
+        mutationFn: (playerId: string) => fantasySquadApi.sellPlayer(season!.id, playerId),
+        onSuccess: (next) => {
+            refreshSquad(next);
+            setConfirmSell(null);
+            toast.success('Sold — the money is back in your bank.');
+
+            // If this was a "Transfer Out" from a starting slot, open market for replacement
+            if (pendingTransferOutSlot) {
+                setActiveModalSlot(pendingTransferOutSlot);
+                setPendingTransferOutSlot(null);
+            }
+        },
+        onError: (err: any) => toast.error(err?.response?.data?.error || 'Could not sell this player.'),
     });
 
     // Player Market Query for Active Modal Slot
@@ -210,6 +256,19 @@ export function FantasySquadBuilder() {
         enabled: !!season?.id && !!activeModalSlot,
     });
 
+    // Market for bench signings — all positions, no slot filter
+    const { data: benchMarketData, isLoading: benchMarketLoading } = useQuery({
+        queryKey: ['benchMarket', season?.id, marketSearch],
+        queryFn: () => {
+            if (!season?.id) return Promise.resolve({ data: [], total: 0, total_pages: 0, my_rank: 0 });
+            return fantasyApi.listPlayerMarket(season.id, {
+                search: marketSearch,
+                limit: 100,
+            });
+        },
+        enabled: !!season?.id && showBenchMarket,
+    });
+
     // Calculations & Invariant Validations
     const calculations = useMemo(() => {
         let totalSpent = 0;
@@ -226,9 +285,9 @@ export function FantasySquadBuilder() {
                 filledCount++;
                 chosenPlayerIds.add(player.player_id);
 
-                const isFemale = (player.gender || '').toUpperCase() === 'F';
-                if (def.unit === 'OFFENSE' && isFemale) offenseFemales++;
-                if (def.unit === 'DEFENSE' && isFemale) defenseFemales++;
+                const isFem = (player.gender || '').toUpperCase() === 'F';
+                if (def.unit === 'OFFENSE' && isFem) offenseFemales++;
+                if (def.unit === 'DEFENSE' && isFem) defenseFemales++;
 
                 if (player.team_id) {
                     clubCounts[player.team_id] = (clubCounts[player.team_id] || 0) + 1;
@@ -263,6 +322,12 @@ export function FantasySquadBuilder() {
             isValid,
         };
     }, [squad, season]);
+
+    // Bench / reserve players (owned but not in the starting 14)
+    const benchPlayers = useMemo(() => {
+        if (!mySquad) return [];
+        return mySquad.players.filter(p => !p.starting);
+    }, [mySquad]);
 
     // Save Lineup Mutation
     const saveMutation = useMutation({
@@ -310,13 +375,90 @@ export function FantasySquadBuilder() {
         setActiveModalSlot(null);
     };
 
-    const handleRemovePlayer = (slot: FantasySlot, e: MouseEvent) => {
-        e.stopPropagation();
+
+    // "Move to Bench" — remove from starting slot
+    const handleMoveToBench = (slot: FantasySlot) => {
         setSquad(prev => ({
             ...prev,
             [slot]: null,
         }));
+        setActionSlot(null);
+        toast.success('Moved to bench. Remember to save your lineup.');
     };
+
+    // "Swap with Reserve" — open the slot's picker (owned players first)
+    const handleSwapWithReserve = (slot: FantasySlot) => {
+        setActionSlot(null);
+        const def = SLOT_DEFINITIONS.find(d => d.slot === slot);
+        if (def) setActiveModalSlot(def);
+    };
+
+    // "Transfer Out" — sell the player, then open market for replacement
+    const handleTransferOut = (slot: FantasySlot) => {
+        setActionSlot(null);
+        const player = squad[slot];
+        if (!player || !mySquad) return;
+
+        // Find the squad player entry for sell confirmation
+        const squadPlayer = mySquad.players.find(p => p.player_id === player.player_id);
+        if (!squadPlayer) {
+            toast.error('Could not find this player in your squad.');
+            return;
+        }
+
+        // Remove from local lineup state immediately
+        setSquad(prev => ({ ...prev, [slot]: null }));
+
+        // Set the pending transfer out slot so the market opens after sell
+        const def = SLOT_DEFINITIONS.find(d => d.slot === slot);
+        if (def) setPendingTransferOutSlot(def);
+
+        setConfirmSell(squadPlayer);
+    };
+
+    // "Start" — promote a bench reserve into an open matching slot
+    const handleStartReserve = (reservePlayer: SquadPlayer) => {
+        // Find the first empty slot that matches position & gender
+        const matchingSlot = SLOT_DEFINITIONS.find(def => {
+            if (squad[def.slot] !== null) return false; // Already filled
+            if (!def.allowedPositions.includes(reservePlayer.position)) return false;
+            if (def.requiredGender && !reservePlayer.gender.toUpperCase().startsWith(def.requiredGender)) return false;
+            return true;
+        });
+
+        if (!matchingSlot) {
+            toast.error('No open slot matches this player\'s position. Remove a starter first.');
+            return;
+        }
+
+        setSquad(prev => ({
+            ...prev,
+            [matchingSlot.slot]: {
+                player_id: reservePlayer.player_id,
+                player_name: reservePlayer.name,
+                player_image: '',
+                position: reservePlayer.position,
+                gender: reservePlayer.gender,
+                team_id: reservePlayer.club_id,
+                team_name: '',
+                team_short_name: '',
+                team_logo: '',
+                price: reservePlayer.purchase_price,
+                rating: 0,
+                total_points: 0,
+                owned_by: 0,
+                selected_by_pct: 0,
+                transfers_in: 0,
+                transfers_out: 0,
+            },
+        }));
+        toast.success(`${reservePlayer.name} promoted to ${matchingSlot.label}.`);
+    };
+
+    // Market closed detection
+    const marketClosed = mySquad && !mySquad.market_open
+        ? mySquad.market_closed_reason || 'The transfer market is closed while a match day is being played.'
+        : undefined;
 
     if (authLoading || seasonLoading || gwLoading || lineupLoading || enteredLoading) {
         return <Loader />;
@@ -391,12 +533,29 @@ export function FantasySquadBuilder() {
         [marketPlayers, ownedIds],
     );
 
+    // Bench market: anyone not already owned
+    const buyableBenchPlayers = useMemo(
+        () => (benchMarketData?.data ?? []).filter((p) => !ownedIds.has(p.player_id)),
+        [benchMarketData, ownedIds],
+    );
+
     // Signing from the picker puts them in the squad, then straight into the
     // slot the manager opened — one action, not two.
     const buyAndSelect = async (p: FantasyPlayerListItem) => {
         try {
             await buyMutation.mutateAsync(p.player_id);
             handleSelectPlayer(p);
+        } catch {
+            // The mutation already surfaced the reason.
+        }
+    };
+
+    // Signing for the bench (no slot assignment)
+    const buyForBench = async (playerId: string) => {
+        try {
+            await buyMutation.mutateAsync(playerId);
+            setShowBenchMarket(false);
+            setMarketSearch('');
         } catch {
             // The mutation already surfaced the reason.
         }
@@ -416,13 +575,26 @@ export function FantasySquadBuilder() {
                                 Lock Deadline: {new Date(scheduledGW.deadline).toLocaleString()}
                             </span>
                         </div>
-                        <input
-                            type="text"
-                            value={teamName}
-                            onChange={(e) => setTeamName(e.target.value)}
-                            placeholder="Enter Team Name..."
-                            className="mt-2 text-2xl sm:text-3xl font-black italic bg-transparent border-b border-white/20 hover:border-white/40 focus:border-sffl-red focus:outline-none text-white tracking-tight w-full max-w-md"
-                        />
+                        <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase mt-2">
+                            My Team &amp; Transfers
+                        </h1>
+                        <p className="text-gray-300 mt-1 text-xs md:text-sm font-medium">
+                            Manage your starting 14, bench depth, and transfer market signings in one place.
+                        </p>
+                        <div className="mt-3 flex items-center gap-2">
+                            <label htmlFor="team-name-input" className="text-[11px] font-black uppercase text-gray-300 tracking-wider cursor-pointer">
+                                Team:
+                            </label>
+                            <input
+                                id="team-name-input"
+                                type="text"
+                                value={teamName}
+                                onChange={(e) => setTeamName(e.target.value)}
+                                placeholder="Enter Team Name..."
+                                aria-label="Team Name"
+                                className="text-base sm:text-lg font-black italic bg-transparent border-b border-white/20 hover:border-white/40 focus:border-sffl-red focus:outline-none text-white tracking-tight w-full max-w-xs"
+                            />
+                        </div>
                     </div>
 
                     <div className="flex items-center gap-3">
@@ -445,11 +617,54 @@ export function FantasySquadBuilder() {
                     </div>
                 </div>
 
+                {/* Market Closed Alert */}
+                {marketClosed && (
+                    <div className="mt-4 flex items-start gap-2.5 rounded-xl bg-amber-400/15 border border-amber-400/30 p-3">
+                        <LockClosedIcon className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
+                        <div className="min-w-0">
+                            <p className="text-xs font-black uppercase tracking-wider text-amber-300">
+                                Market closed
+                            </p>
+                            <p className="text-[11px] text-amber-100/90 mt-0.5">
+                                {marketClosed} You can still rearrange your lineup, but buys and sells are paused.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 {/* Rollover Alert Strip */}
                 {currentLineup?.is_rollover && (
                     <div className="mt-4 px-3.5 py-2.5 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-200 text-xs flex items-center gap-2">
                         <SparklesIcon className="w-4 h-4 shrink-0 text-amber-300" />
                         <span><strong>Lineup Rollover Active:</strong> Loaded from your previous match day. You can save updates now, or let it accumulate points automatically!</span>
+                    </div>
+                )}
+
+                {/* Financial Strip */}
+                {mySquad && (
+                    <div className="mt-6 pt-6 border-t border-white/10 grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div className="p-4 bg-white/10 rounded-xl">
+                            <span className="text-[10px] uppercase font-black tracking-wider text-gray-300 block">In the bank</span>
+                            <span className="text-2xl md:text-3xl font-black text-yellow-400">{formatFantasyPrice(mySquad.bank)}</span>
+                        </div>
+                        <div className="p-4 bg-white/10 rounded-xl">
+                            <span className="text-[10px] uppercase font-black tracking-wider text-gray-300 block">Squad value</span>
+                            <span className="text-2xl md:text-3xl font-black text-emerald-400">{formatFantasyPrice(mySquad.squad_value)}</span>
+                        </div>
+                        <div className="p-4 bg-white/10 rounded-xl">
+                            <span className="text-[10px] uppercase font-black tracking-wider text-gray-300 block">Starting 14</span>
+                            <span className="text-2xl md:text-3xl font-black text-white">
+                                {calculations.filledCount}
+                                <span className="text-sm text-gray-300 font-bold"> / 14</span>
+                            </span>
+                        </div>
+                        <div className="p-4 bg-white/10 rounded-xl">
+                            <span className="text-[10px] uppercase font-black tracking-wider text-gray-300 block">Bench / Reserves</span>
+                            <span className="text-2xl md:text-3xl font-black text-white">
+                                {benchPlayers.length}
+                                <span className="text-sm text-gray-300 font-bold"> / {(mySquad.squad_max || 19) - 14}</span>
+                            </span>
+                        </div>
                     </div>
                 )}
             </div>
@@ -458,8 +673,8 @@ export function FantasySquadBuilder() {
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 {/* Budget */}
                 <div className={`p-3.5 rounded-xl border shadow-sm flex items-center justify-between ${
-                    calculations.budgetValid 
-                        ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white' 
+                    calculations.budgetValid
+                        ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white'
                         : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400'
                 }`}>
                     <div>
@@ -471,8 +686,8 @@ export function FantasySquadBuilder() {
 
                 {/* Starters */}
                 <div className={`p-3.5 rounded-xl border shadow-sm flex items-center justify-between ${
-                    calculations.slotsFilled 
-                        ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white' 
+                    calculations.slotsFilled
+                        ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white'
                         : 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400'
                 }`}>
                     <div>
@@ -484,8 +699,8 @@ export function FantasySquadBuilder() {
 
                 {/* Offense Females */}
                 <div className={`p-3.5 rounded-xl border shadow-sm flex items-center justify-between ${
-                    calculations.offenseFemalesValid 
-                        ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white' 
+                    calculations.offenseFemalesValid
+                        ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white'
                         : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400'
                 }`}>
                     <div>
@@ -497,8 +712,8 @@ export function FantasySquadBuilder() {
 
                 {/* Defense Females */}
                 <div className={`p-3.5 rounded-xl border shadow-sm flex items-center justify-between ${
-                    calculations.defenseFemalesValid 
-                        ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white' 
+                    calculations.defenseFemalesValid
+                        ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white'
                         : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400'
                 }`}>
                     <div>
@@ -510,8 +725,8 @@ export function FantasySquadBuilder() {
 
                 {/* Club Limit */}
                 <div className={`p-3.5 rounded-xl border shadow-sm col-span-2 sm:col-span-1 flex items-center justify-between ${
-                    calculations.clubLimitValid 
-                        ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white' 
+                    calculations.clubLimitValid
+                        ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white'
                         : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400'
                 }`}>
                     <div>
@@ -522,121 +737,290 @@ export function FantasySquadBuilder() {
                 </div>
             </div>
 
-            {/* Unit Switcher Tabs */}
-            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-md p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm inline-flex gap-1.5">
-                <button
-                    onClick={() => setSelectedUnitTab('ALL')}
-                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
-                        selectedUnitTab === 'ALL' 
-                            ? 'bg-sffl-navy text-white shadow-md' 
-                            : 'text-gray-600 dark:text-gray-300 hover:text-sffl-navy dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }`}
-                >
-                    Full Roster (14)
-                </button>
-                <button
-                    onClick={() => setSelectedUnitTab('OFFENSE')}
-                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
-                        selectedUnitTab === 'OFFENSE' 
-                            ? 'bg-sffl-red text-white shadow-md' 
-                            : 'text-gray-600 dark:text-gray-300 hover:text-sffl-red hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }`}
-                >
-                    Offensive Unit (7)
-                </button>
-                <button
-                    onClick={() => setSelectedUnitTab('DEFENSE')}
-                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
-                        selectedUnitTab === 'DEFENSE' 
-                            ? 'bg-emerald-600 text-white shadow-md' 
-                            : 'text-gray-600 dark:text-gray-300 hover:text-emerald-600 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }`}
-                >
-                    Defensive Unit (7)
-                </button>
+            {/* Starting 14 Section Header & Unit Switcher */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                    <h2 className="text-sm font-black uppercase tracking-wider text-sffl-navy dark:text-white flex items-center gap-2">
+                        <UsersIcon className="w-4 h-4 text-sffl-red" />
+                        Starting 14 Lineup
+                    </h2>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        Tap an empty slot to draft an athlete, or tap a starter to swap, transfer, or bench.
+                    </p>
+                </div>
+
+                {/* Unit Switcher Tabs */}
+                <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-md p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm inline-flex gap-1.5 shrink-0">
+                    <button
+                        onClick={() => setSelectedUnitTab('ALL')}
+                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
+                            selectedUnitTab === 'ALL'
+                                ? 'bg-sffl-navy text-white shadow-md'
+                                : 'text-gray-600 dark:text-gray-300 hover:text-sffl-navy dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
+                        }`}
+                    >
+                        Full Roster (14)
+                    </button>
+                    <button
+                        onClick={() => setSelectedUnitTab('OFFENSE')}
+                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
+                            selectedUnitTab === 'OFFENSE'
+                                ? 'bg-sffl-red text-white shadow-md'
+                                : 'text-gray-600 dark:text-gray-300 hover:text-sffl-red hover:bg-gray-100 dark:hover:bg-gray-700'
+                        }`}
+                    >
+                        Offensive Unit (7)
+                    </button>
+                    <button
+                        onClick={() => setSelectedUnitTab('DEFENSE')}
+                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
+                            selectedUnitTab === 'DEFENSE'
+                                ? 'bg-emerald-600 text-white shadow-md'
+                                : 'text-gray-600 dark:text-gray-300 hover:text-emerald-600 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        }`}
+                    >
+                        Defensive Unit (7)
+                    </button>
+                </div>
             </div>
 
             {/* Slots Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 md:gap-4">
                 {displayedSlots.map(def => {
                     const player = squad[def.slot];
+                    const isActionOpen = actionSlot === def.slot;
                     return (
-                        <div
-                            key={def.slot}
-                            onClick={() => setActiveModalSlot(def)}
-                            className={`p-4 rounded-2xl border transition cursor-pointer flex items-center justify-between ${
-                                player
-                                    ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500 shadow-sm'
-                                    : 'bg-white/60 dark:bg-gray-800/40 border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-sffl-red dark:hover:border-sffl-red hover:bg-white dark:hover:bg-gray-800 shadow-sm'
-                            }`}
-                        >
-                            <div className="flex items-center gap-3.5">
-                                {player ? (
-                                    <PlayerAvatar
-                                        name={player.player_name}
-                                        image={player.player_image}
-                                        gender={player.gender}
-                                        size="lg"
-                                    />
-                                ) : (
-                                    <div className="w-14 h-14 rounded-xl bg-gray-100 dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
-                                        <span className="text-[10px] font-black uppercase tracking-wider">{def.slot}</span>
-                                        <UsersIcon className="w-4 h-4 mt-0.5 text-gray-400" />
-                                    </div>
-                                )}
+                        <div key={def.slot} className="relative">
+                            <div
+                                role="button"
+                                tabIndex={0}
+                                aria-label={player ? `${def.label}: ${player.player_name}` : `Draft athlete for ${def.label}`}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        if (player) {
+                                            setActionSlot(isActionOpen ? null : def.slot);
+                                        } else {
+                                            setActiveModalSlot(def);
+                                        }
+                                    }
+                                }}
+                                onClick={() => {
+                                    if (player) {
+                                        // Toggle action popover on occupied slots
+                                        setActionSlot(isActionOpen ? null : def.slot);
+                                    } else {
+                                        setActiveModalSlot(def);
+                                    }
+                                }}
+                                className={`p-4 rounded-2xl border transition cursor-pointer flex items-center justify-between ${
+                                    player
+                                        ? isActionOpen
+                                            ? 'bg-white dark:bg-gray-800 border-sffl-red shadow-md ring-1 ring-sffl-red/30'
+                                            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500 shadow-sm'
+                                        : 'bg-white/60 dark:bg-gray-800/40 border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-sffl-red dark:hover:border-sffl-red hover:bg-white dark:hover:bg-gray-800 shadow-sm'
+                                }`}
+                            >
+                                <div className="flex items-center gap-3.5">
+                                    {player ? (
+                                        <PlayerAvatar
+                                            name={player.player_name}
+                                            image={player.player_image}
+                                            gender={player.gender}
+                                            size="lg"
+                                        />
+                                    ) : (
+                                        <div className="w-14 h-14 rounded-xl bg-gray-100 dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
+                                            <span className="text-[10px] font-black uppercase tracking-wider">{def.slot}</span>
+                                            <UsersIcon className="w-4 h-4 mt-0.5 text-gray-400" />
+                                        </div>
+                                    )}
 
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
-                                            {def.slot}
-                                        </span>
-                                        <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">{def.label}</span>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                                                {def.slot}
+                                            </span>
+                                            <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">{def.label}</span>
+                                        </div>
+
+                                        {player ? (
+                                            <div className="mt-1">
+                                                <h3 className="text-base font-bold text-gray-900 dark:text-white leading-tight">{player.player_name}</h3>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                                    {player.team_short_name || player.team_name} • {player.position}
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <p className="text-xs text-sffl-red font-bold mt-1">Tap to draft athlete</p>
+                                        )}
                                     </div>
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                    {player && (
+                                        <div className="text-right">
+                                            <span className="text-[10px] text-gray-400 uppercase font-bold block">Price</span>
+                                            <span className="text-sm font-black text-sffl-red">{formatFantasyPrice(player.price)}</span>
+                                        </div>
+                                    )}
 
                                     {player ? (
-                                        <div className="mt-1">
-                                            <h4 className="text-base font-bold text-gray-900 dark:text-white leading-tight">{player.player_name}</h4>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                                {player.team_short_name || player.team_name} • {player.position}
-                                            </p>
+                                        <div className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-500">
+                                            <ArrowsRightLeftIcon className="w-4 h-4" />
                                         </div>
                                     ) : (
-                                        <p className="text-xs text-sffl-red font-bold mt-1">Tap to draft athlete</p>
+                                        <ChevronRightIcon className="w-5 h-5 text-gray-400 dark:text-gray-600" />
                                     )}
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-3">
-                                {player && (
-                                    <div className="text-right">
-                                        <span className="text-[10px] text-gray-400 uppercase font-bold block">Price</span>
-                                        <span className="text-sm font-black text-sffl-red">{formatFantasyPrice(player.price)}</span>
-                                    </div>
-                                )}
-
-                                {player ? (
+                            {/* Action Popover for occupied slot */}
+                            {isActionOpen && player && (
+                                <div className="absolute top-full left-0 right-0 z-30 mt-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl p-2 space-y-1 animate-in fade-in slide-in-from-top-2 duration-150">
                                     <button
-                                        onClick={(e) => handleRemovePlayer(def.slot, e)}
-                                        className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-red-950/40 text-gray-500 hover:text-sffl-red transition"
-                                        title="Remove pick"
+                                        onClick={(e) => { e.stopPropagation(); handleSwapWithReserve(def.slot); }}
+                                        className="w-full min-h-[44px] flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition cursor-pointer"
                                     >
-                                        <XMarkIcon className="w-4 h-4" />
+                                        <ArrowsRightLeftIcon className="w-4.5 h-4.5 text-sffl-navy dark:text-white shrink-0" />
+                                        <div>
+                                            <span className="text-xs font-black text-gray-900 dark:text-white block">Swap with Reserve</span>
+                                            <span className="text-[10px] text-gray-500 dark:text-gray-400">Replace with an eligible bench player</span>
+                                        </div>
                                     </button>
-                                ) : (
-                                    <ChevronRightIcon className="w-5 h-5 text-gray-400 dark:text-gray-600" />
-                                )}
-                            </div>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); handleTransferOut(def.slot); }}
+                                        disabled={!!marketClosed}
+                                        title={marketClosed}
+                                        className="w-full min-h-[44px] flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left hover:bg-red-50 dark:hover:bg-red-950/30 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                    >
+                                        <ArrowUpTrayIcon className="w-4.5 h-4.5 text-sffl-red shrink-0" />
+                                        <div>
+                                            <span className="text-xs font-black text-sffl-red block">Transfer Out</span>
+                                            <span className="text-[10px] text-gray-500 dark:text-gray-400">Sell back to market & sign replacement</span>
+                                        </div>
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); handleMoveToBench(def.slot); }}
+                                        className="w-full min-h-[44px] flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition cursor-pointer"
+                                    >
+                                        <ArrowUturnDownIcon className="w-4.5 h-4.5 text-gray-600 dark:text-gray-300 shrink-0" />
+                                        <div>
+                                            <span className="text-xs font-black text-gray-900 dark:text-white block">Move to Bench</span>
+                                            <span className="text-[10px] text-gray-500 dark:text-gray-400">Remove from starting 14 without selling</span>
+                                        </div>
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     );
                 })}
             </div>
 
-            {/* Player Selection Modal */}
+            {/* ──────────────────────────────────────────────────────────────────
+                BENCH / RESERVES SECTION
+            ────────────────────────────────────────────────────────────────── */}
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl md:rounded-3xl shadow-sm overflow-hidden">
+                <div className="p-4 md:p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                    <div>
+                        <h2 className="text-xs font-black uppercase tracking-wider text-sffl-navy dark:text-white flex items-center gap-2">
+                            <UsersIcon className="w-4 h-4 text-sffl-red" />
+                            Substitutes & Reserves
+                            <span className="text-gray-400 font-bold">({benchPlayers.length})</span>
+                        </h2>
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                            Bench depth. Score nothing until promoted to the starting 14.
+                        </p>
+                    </div>
+                    {mySquad && mySquad.squad_size < mySquad.squad_max && !marketClosed && (
+                        <button
+                            onClick={() => { setShowBenchMarket(true); setMarketSearch(''); }}
+                            className="px-3.5 py-2 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-[10px] uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                        >
+                            <PlusCircleIcon className="w-3.5 h-3.5" /> Add Reserve
+                        </button>
+                    )}
+                </div>
+
+                {benchPlayers.length === 0 ? (
+                    <div className="p-6 text-center text-xs text-gray-500 dark:text-gray-400">
+                        No reserves. Your squad only has the starting 14.
+                        {mySquad && mySquad.squad_size < mySquad.squad_max && !marketClosed && (
+                            <button
+                                onClick={() => { setShowBenchMarket(true); setMarketSearch(''); }}
+                                className="ml-2 text-sffl-red font-bold hover:underline cursor-pointer"
+                            >
+                                Sign bench depth →
+                            </button>
+                        )}
+                    </div>
+                ) : (
+                    <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                        {benchPlayers.map((p) => {
+                            // Can this reserve be promoted into an open matching slot?
+                            const hasOpenSlot = SLOT_DEFINITIONS.some(def => {
+                                if (squad[def.slot] !== null) return false;
+                                if (!def.allowedPositions.includes(p.position)) return false;
+                                if (def.requiredGender && !p.gender.toUpperCase().startsWith(def.requiredGender)) return false;
+                                return true;
+                            });
+
+                            return (
+                                <div key={p.player_id} className="p-4 flex items-center justify-between gap-3">
+                                    <div className="min-w-0 flex-1">
+                                        <h3 className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                                            {p.name}
+                                            {isFemale(p.gender) && (
+                                                <span className="ml-2 text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
+                                                    {unitOf(p.position)} quota
+                                                </span>
+                                            )}
+                                        </h3>
+                                        <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                                            {p.position} · {formatFantasyPrice(p.purchase_price)}
+                                            {(p.current_price ?? 0) !== p.purchase_price && (
+                                                <span className={(p.current_price ?? 0) > p.purchase_price
+                                                    ? ' text-emerald-600 dark:text-emerald-400 font-bold'
+                                                    : ' text-red-600 dark:text-red-400 font-bold'
+                                                }>
+                                                    {' '}· now {formatFantasyPrice(p.current_price)}
+                                                </span>
+                                            )}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        {hasOpenSlot && (
+                                            <button
+                                                onClick={() => handleStartReserve(p)}
+                                                className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-wider transition cursor-pointer shadow-sm"
+                                            >
+                                                Start
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={() => setConfirmSell(p)}
+                                            disabled={!!marketClosed}
+                                            title={marketClosed}
+                                            className="px-3.5 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-red-600 hover:text-white text-gray-700 dark:text-gray-200 font-black text-[10px] uppercase flex items-center gap-1 transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                        >
+                                            <MinusCircleIcon className="w-3.5 h-3.5" /> Sell {formatFantasyPrice(p.sell_price)}
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {/* ──────────────────────────────────────────────────────────────────
+                PLAYER SELECTION MODAL (For starting 14 slots)
+            ────────────────────────────────────────────────────────────────── */}
             {activeModalSlot && (
                 <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 pt-[calc(var(--chrome-h)+1rem)] transition-[padding] duration-300 motion-reduce:transition-none" data-dialog>
-                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 w-full max-w-2xl rounded-t-3xl sm:rounded-3xl max-h-[calc(100dvh-var(--chrome-h)-2rem)] flex flex-col overflow-hidden shadow-2xl">
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white w-full max-w-2xl rounded-t-3xl sm:rounded-3xl max-h-[calc(100dvh-var(--chrome-h)-2rem)] flex flex-col overflow-hidden shadow-2xl">
                         {/* Modal Header */}
-                        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                        <div className="p-5 md:p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
                             <div>
                                 <span className="text-xs font-black text-sffl-red uppercase tracking-wider block">
                                     Selecting for {activeModalSlot.slot}
@@ -647,23 +1031,24 @@ export function FantasySquadBuilder() {
                                         {formatPositions(activeModalSlot.allowedPositions)}
                                     </span>
                                     {activeModalSlot.requiredGender && (
-                                        <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg ${
+                                        <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg border ${
                                             activeModalSlot.requiredGender === 'F'
-                                                ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
-                                                : 'bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300'
+                                                ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+                                                : 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600'
                                         }`}>
                                             {activeModalSlot.requiredGender === 'F' ? 'Women only' : 'Men only'}
                                         </span>
                                     )}
                                     {/* The budget belongs next to the choice it constrains, not on
                                         the page behind the dialog where it cannot be seen. */}
-                                    <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300">
+                                    <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
                                         {formatFantasyPrice(calculations.remainingBudget)} left
                                     </span>
                                 </div>
                             </div>
                             <button
                                 onClick={() => setActiveModalSlot(null)}
+                                aria-label="Close modal"
                                 className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300 transition cursor-pointer"
                             >
                                 <XMarkIcon className="w-5 h-5" />
@@ -673,12 +1058,15 @@ export function FantasySquadBuilder() {
                         {/* Search Bar */}
                         <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40">
                             <div className="relative">
+                                <label htmlFor="slot-player-search" className="sr-only">Search by player name</label>
                                 <MagnifyingGlassIcon className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                                 <input
+                                    id="slot-player-search"
                                     type="text"
                                     value={marketSearch}
                                     onChange={(e) => setMarketSearch(e.target.value)}
                                     placeholder="Search by player name..."
+                                    aria-label="Search by player name"
                                     className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl pl-10 pr-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                                 />
                             </div>
@@ -787,7 +1175,7 @@ export function FantasySquadBuilder() {
                                     const squadFull = !!mySquad && mySquad.squad_size >= mySquad.squad_max;
                                     // Signing spends from the bank, so it obeys the
                                     // same closed window as the transfer market.
-                                    const marketClosed = mySquad && !mySquad.market_open
+                                    const mktClosed = mySquad && !mySquad.market_open
                                         ? mySquad.market_closed_reason ||
                                           'The transfer market is closed while a match day is being played.'
                                         : undefined;
@@ -848,15 +1236,15 @@ export function FantasySquadBuilder() {
                                                     it, not merely in the squad. */}
                                                 <button
                                                     onClick={() => buyAndSelect(p)}
-                                                    disabled={isAlreadyPicked || !affordable || squadFull || !!marketClosed || buyMutation.isPending}
+                                                    disabled={isAlreadyPicked || !affordable || squadFull || !!mktClosed || buyMutation.isPending}
                                                     title={
-                                                        marketClosed ? marketClosed
+                                                        mktClosed ? mktClosed
                                                             : squadFull ? `Your squad is full at ${mySquad?.squad_max}`
                                                             : !affordable ? 'Not enough in the bank'
                                                             : undefined
                                                     }
                                                     className={`mt-1 px-3.5 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition ${
-                                                        isAlreadyPicked || !affordable || squadFull || marketClosed
+                                                        isAlreadyPicked || !affordable || squadFull || mktClosed
                                                             ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                                                             : 'bg-sffl-red hover:bg-[#A52323] text-white cursor-pointer shadow-sm'
                                                     }`}
@@ -879,6 +1267,231 @@ export function FantasySquadBuilder() {
                     </div>
                 </div>
             )}
+
+            {/* ──────────────────────────────────────────────────────────────────
+                BENCH MARKET MODAL (for signing reserve depth)
+            ────────────────────────────────────────────────────────────────── */}
+            {showBenchMarket && (
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 pt-[calc(var(--chrome-h)+1rem)] transition-[padding] duration-300 motion-reduce:transition-none" data-dialog>
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white w-full max-w-2xl rounded-t-3xl sm:rounded-3xl max-h-[calc(100dvh-var(--chrome-h)-2rem)] flex flex-col overflow-hidden shadow-2xl">
+                        <div className="p-5 md:p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                            <div>
+                                <span className="text-xs font-black text-sffl-red uppercase tracking-wider block">Sign for Bench</span>
+                                <h3 className="text-lg font-black text-sffl-navy dark:text-white">Add Reserve Player</h3>
+                                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 mt-1 inline-block">
+                                    {formatFantasyPrice(mySquad?.bank ?? 0)} to spend · {mySquad?.squad_size ?? 0}/{mySquad?.squad_max ?? 19} squad
+                                </span>
+                            </div>
+                            <button
+                                onClick={() => { setShowBenchMarket(false); setMarketSearch(''); }}
+                                aria-label="Close modal"
+                                className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300 transition cursor-pointer"
+                            >
+                                <XMarkIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40">
+                            <div className="relative">
+                                <label htmlFor="bench-player-search" className="sr-only">Search for a player</label>
+                                <MagnifyingGlassIcon className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <input
+                                    id="bench-player-search"
+                                    type="text"
+                                    value={marketSearch}
+                                    onChange={(e) => setMarketSearch(e.target.value)}
+                                    placeholder="Search for a player..."
+                                    aria-label="Search for a player"
+                                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl pl-10 pr-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                            {benchMarketLoading ? (
+                                <div className="py-12 flex justify-center">
+                                    <div className="w-8 h-8 border-2 border-sffl-red border-t-transparent rounded-full animate-spin" />
+                                </div>
+                            ) : buyableBenchPlayers.length === 0 ? (
+                                <div className="py-12 text-center text-gray-500 dark:text-gray-400 text-sm">
+                                    No players found.
+                                </div>
+                            ) : (
+                                buyableBenchPlayers.map((p) => {
+                                    const affordable = p.price <= (mySquad?.bank ?? 0);
+                                    const squadFull = !!mySquad && mySquad.squad_size >= mySquad.squad_max;
+
+                                    return (
+                                        <div
+                                            key={p.player_id}
+                                            className={`px-3 py-2.5 rounded-xl border flex items-center gap-3 transition ${
+                                                affordable
+                                                    ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-sffl-red/60 shadow-sm'
+                                                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                                            }`}
+                                        >
+                                            <PlayerAvatar name={p.player_name} image={p.player_image} gender={p.gender} />
+                                            <div className="min-w-0 flex-1">
+                                                <h4 className="text-sm font-bold text-gray-900 dark:text-white truncate">{p.player_name}</h4>
+                                                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                                    {p.team_logo && <img src={p.team_logo} alt="" className="w-3.5 h-3.5 object-contain" />}
+                                                    <span className="text-[11px] text-gray-500 dark:text-gray-400">{p.team_short_name || p.team_name || '—'}</span>
+                                                    <span className="text-gray-300 dark:text-gray-600">·</span>
+                                                    <span className="text-[11px] font-bold text-gray-600 dark:text-gray-300">{p.position}</span>
+                                                </div>
+                                                {!affordable && (
+                                                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold block mt-0.5">
+                                                        {formatFantasyPrice(p.price - (mySquad?.bank ?? 0))} more than you have
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex flex-col items-end shrink-0">
+                                                <span className={`text-sm font-black tabular-nums ${affordable ? 'text-gray-900 dark:text-white' : 'text-amber-600 dark:text-amber-400'}`}>
+                                                    {formatFantasyPrice(p.price)}
+                                                </span>
+                                                <button
+                                                    onClick={() => buyForBench(p.player_id)}
+                                                    disabled={!affordable || squadFull || buyMutation.isPending}
+                                                    className={`mt-1 px-3.5 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition ${
+                                                        !affordable || squadFull
+                                                            ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                                                            : 'bg-sffl-red hover:bg-[#A52323] text-white cursor-pointer shadow-sm'
+                                                    }`}
+                                                >
+                                                    {buyMutation.isPending ? 'Signing…' : 'Sign'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ──────────────────────────────────────────────────────────────────
+                SELL CONFIRMATION MODAL
+            ────────────────────────────────────────────────────────────────── */}
+            {confirmSell && mySquad && (
+                <SellConfirmation
+                    player={confirmSell}
+                    squad={mySquad}
+                    pending={sellMutation.isPending}
+                    onCancel={() => { setConfirmSell(null); setPendingTransferOutSlot(null); }}
+                    onConfirm={() => sellMutation.mutate(confirmSell.player_id)}
+                />
+            )}
+        </div>
+    );
+}
+
+// ─── Sell Confirmation Dialog ────────────────────────────────────────────────
+
+function SellConfirmation({
+    player,
+    squad,
+    pending,
+    onCancel,
+    onConfirm,
+}: {
+    player: SquadPlayer;
+    squad: Squad;
+    pending: boolean;
+    onCancel: () => void;
+    onConfirm: () => void;
+}) {
+    const female = isFemale(player.gender);
+    const unit = unitOf(player.position);
+    const have = unit === 'offense' ? squad.female_offense : squad.female_defense;
+    const need = unit === 'offense' ? squad.rules.min_female_offense : squad.rules.min_female_defense;
+    const after = have - 1;
+
+    return (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 pt-[calc(var(--chrome-h)+1rem)] transition-[padding] duration-300 motion-reduce:transition-none" data-dialog>
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white w-full max-w-md rounded-2xl md:rounded-3xl p-6 shadow-2xl max-h-[calc(100dvh-var(--chrome-h)-2rem)] overflow-y-auto">
+                <h3 className="text-lg font-black text-sffl-navy dark:text-white uppercase">
+                    Sell {player.name}?
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                    You'll get <span className="font-black text-emerald-600 dark:text-emerald-400">{formatFantasyPrice(player.sell_price)}</span>{' '}
+                    back in your bank, and they leave your squad straight away — including any lineup they're
+                    already in.
+                </p>
+
+                {female && (
+                    <div className="mt-4 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800">
+                        <p className="text-xs font-black uppercase tracking-wider text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
+                            <ExclamationTriangleIcon className="w-4 h-4" /> Mind the female quota
+                        </p>
+                        <p className="text-xs text-amber-700 dark:text-amber-300 mt-1.5">
+                            She counts towards your <span className="font-black">{unit}</span> quota. The two
+                            quotas are separate — extra women on the other unit will not cover this one.
+                        </p>
+
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                            <div className={`p-2.5 rounded-xl border ${unit === 'offense' ? 'bg-white dark:bg-gray-800 border-amber-300 dark:border-amber-700' : 'bg-amber-100/50 dark:bg-amber-900/20 border-transparent'}`}>
+                                <p className="text-[10px] font-black uppercase text-gray-500 dark:text-gray-400">Offense</p>
+                                <p className="font-black text-gray-900 dark:text-white">
+                                    {squad.female_offense} <span className="text-gray-400 font-bold">/ min {squad.rules.min_female_offense}</span>
+                                </p>
+                            </div>
+                            <div className={`p-2.5 rounded-xl border ${unit === 'defense' ? 'bg-white dark:bg-gray-800 border-amber-300 dark:border-amber-700' : 'bg-amber-100/50 dark:bg-amber-900/20 border-transparent'}`}>
+                                <p className="text-[10px] font-black uppercase text-gray-500 dark:text-gray-400">Defense</p>
+                                <p className="font-black text-gray-900 dark:text-white">
+                                    {squad.female_defense} <span className="text-gray-400 font-bold">/ min {squad.rules.min_female_defense}</span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <p className="text-xs text-amber-700 dark:text-amber-300 mt-3">
+                            Selling her leaves you <span className="font-black">{after} on {unit}</span>, against a
+                            minimum of {need}.
+                            {player.quota_critical && (
+                                <span className="font-black">
+                                    {' '}That is exactly the minimum — you won't be able to sell another woman on
+                                    that unit, and you'll need to buy one back before you can.
+                                </span>
+                            )}
+                        </p>
+                    </div>
+                )}
+
+                {/* Selling is never refused, so the consequence has to be stated
+                    here — this is the last point at which it can be. */}
+                {player.breaks_lineup && (
+                    <div className="mt-3 p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800">
+                        <p className="text-xs font-black uppercase tracking-wider text-red-700 dark:text-red-300 flex items-center gap-1.5">
+                            <ExclamationTriangleIcon className="w-4 h-4" /> This breaks your team sheet
+                        </p>
+                        <p className="text-xs text-red-700 dark:text-red-300 mt-1.5">
+                            {squad.squad_size - 1 < squad.squad_min
+                                ? `You would be down to ${squad.squad_size - 1} players. Under ${squad.squad_min} you cannot field a lineup at all, and you forfeit your points for that match day.`
+                                : 'With them gone you could not put out a legal starting fourteen. You can still sell — but buy a replacement before the deadline or you forfeit the match day.'}
+                        </p>
+                    </div>
+                )}
+
+                <div className="flex items-center gap-2 pt-5">
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        disabled={pending}
+                        className="flex-1 py-3 rounded-xl bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 dark:border-gray-600 font-bold text-xs uppercase disabled:opacity-50 transition cursor-pointer shadow-sm"
+                    >
+                        Keep {player.name.split(' ')[0]}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onConfirm}
+                        disabled={pending}
+                        className="flex-1 py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase disabled:opacity-50 transition cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                        <BanknotesIcon className="w-4 h-4" />
+                        {pending ? 'Selling…' : `Sell for ${formatFantasyPrice(player.sell_price)}`}
+                    </button>
+                </div>
+            </div>
         </div>
     );
 }

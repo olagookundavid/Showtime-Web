@@ -62,7 +62,7 @@ export function PlayerAvatar({ name, image, gender, size = 'md', className = '' 
                 <span
                     title={female ? 'Woman' : 'Man'}
                     className={`absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black text-white ring-2 ring-white dark:ring-gray-800 ${
-                        female ? 'bg-purple-500' : 'bg-sky-600'
+                        female ? 'bg-amber-600' : 'bg-sffl-navy'
                     }`}
                 >
                     {female ? '♀' : '♂'}

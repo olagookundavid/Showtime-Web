@@ -424,12 +424,6 @@ export function FantasyDashboard() {
 
                     <div className="flex flex-wrap items-center gap-3">
                         <Link
-                            to="/fantasy/trading"
-                            className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase flex items-center gap-2 transition backdrop-blur-md"
-                        >
-                            <BanknotesIcon className="w-3.5 h-3.5 text-emerald-400" /> Buy / Sell
-                        </Link>
-                        <Link
                             to="/fantasy/wallet"
                             className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase flex items-center gap-2 transition backdrop-blur-md"
                         >
@@ -446,7 +440,7 @@ export function FantasyDashboard() {
                                 to="/fantasy/build"
                                 className="px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase flex items-center gap-2 transition active:scale-95 shadow-lg shadow-sffl-red/30"
                             >
-                                <PencilSquareIcon className="w-3.5 h-3.5" /> Edit Squad
+                                <PencilSquareIcon className="w-3.5 h-3.5" /> My Team & Transfers
                             </Link>
                         )}
                     </div>
