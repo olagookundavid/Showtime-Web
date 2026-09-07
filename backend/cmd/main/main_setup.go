@@ -271,6 +271,14 @@ func cronjobs(app *api.Application, ctx context.Context, cancel context.CancelFu
 		return app.FantasyService.AutoLockGameweeks(ctx)
 	}))
 
+	// Run every 10 minutes to auto-finalize and score gameweeks when all matches are finished and stats populated
+	c.AddFunc("*/10 * * * *", run("Fantasy auto-finalize job", func(ctx context.Context) error {
+		if app.FantasyService == nil {
+			return nil
+		}
+		return app.FantasyService.AutoFinalizeGameweeks(ctx)
+	}))
+
 	app.Logger.Info("Starting scheduler...", nil)
 	c.Start()
 

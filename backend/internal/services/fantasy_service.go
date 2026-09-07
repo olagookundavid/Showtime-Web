@@ -24,6 +24,7 @@ type IFantasyService interface {
 	InitializePlayerPrices(ctx context.Context, seasonID string) error
 	FinalizeGameweek(ctx context.Context, gameweekID string) error
 	AutoLockGameweeks(ctx context.Context) error
+	AutoFinalizeGameweeks(ctx context.Context) error
 
 	// User Operations
 	GetActiveSeason(ctx context.Context) (*dto.FantasySeasonResponse, error)
@@ -436,6 +437,25 @@ func (s *FantasyService) AutoLockGameweeks(ctx context.Context) error {
 		}
 		if err := s.repo.UpdateGameweekStatus(ctx, gw.ID, domain.GameweekLocked); err != nil {
 			failures = append(failures, fmt.Errorf("gameweek %d status: %w", gw.Number, err))
+		}
+	}
+	return errors.Join(failures...)
+}
+
+// AutoFinalizeGameweeks finds gameweeks where all match fixtures on that match
+// day are FINISHED and stats have been populated, then computes scores and
+// updates transfer market prices automatically.
+func (s *FantasyService) AutoFinalizeGameweeks(ctx context.Context) error {
+	dueGWs, err := s.repo.GetGameweeksDueForFinalize(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to query gameweeks due for finalize: %w", err)
+	}
+
+	var failures []error
+	for _, gw := range dueGWs {
+		if err := s.FinalizeGameweek(ctx, gw.ID); err != nil {
+			failures = append(failures, fmt.Errorf("gameweek %d (%s): %w", gw.Number, gw.ID, err))
+			continue
 		}
 	}
 	return errors.Join(failures...)

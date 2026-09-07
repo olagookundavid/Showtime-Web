@@ -36,6 +36,7 @@ type IFantasyRepository interface {
 	UpdateGameweekStatus(ctx context.Context, id string, status domain.GameweekStatus) error
 	UpdateGameweekDeadline(ctx context.Context, id string, deadline time.Time) error
 	GetGameweeksDueForLock(ctx context.Context) ([]domain.FantasyGameweek, error)
+	GetGameweeksDueForFinalize(ctx context.Context) ([]domain.FantasyGameweek, error)
 	GetEventDayFirstKickoff(ctx context.Context, eventDayID string) (*time.Time, error)
 	EnsureEventDayForMatchDate(ctx context.Context, competitionID, matchDate string, gwNumber int) (string, *time.Time, error)
 	GetScheduledMatchDays(ctx context.Context, competitionID string) ([]dto.ScheduledMatchDayDTO, error)
@@ -521,6 +522,62 @@ func (r *FantasyRepository) GetGameweeksDueForLock(ctx context.Context) ([]domai
 	rows, err := r.pool.Query(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query gameweeks due for lock: %w", err)
+	}
+	defer rows.Close()
+
+	list := make([]domain.FantasyGameweek, 0)
+	for rows.Next() {
+		var gw domain.FantasyGameweek
+		if err := rows.Scan(
+			&gw.ID, &gw.SeasonID, &gw.Number, &gw.EventDayID, &gw.Deadline, &gw.Status,
+			&gw.CreatedAt, &gw.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		list = append(list, gw)
+	}
+	return list, nil
+}
+
+// GetGameweeksDueForFinalize returns gameweeks eligible for automatic finalization
+// and scoring. A gameweek is eligible when:
+//  1. It is currently in 'LOCKED' or 'LIVE' status.
+//  2. Its lock deadline has passed.
+//  3. It belongs to an ACTIVE fantasy season.
+//  4. All scheduled matches for its game day are finished (or postponed), with at
+//     least one finished match.
+//  5. Safety guard: player stats have actually been recorded for those matches,
+//     ensuring we do not finalize empty stat sheets prematurely.
+func (r *FantasyRepository) GetGameweeksDueForFinalize(ctx context.Context) ([]domain.FantasyGameweek, error) {
+	query := `
+		SELECT gw.id, gw.season_id, gw.number, gw.event_day_id, gw.deadline, gw.status, gw.created_at, gw.updated_at
+		FROM fantasy_gameweeks gw
+		JOIN fantasy_seasons s ON gw.season_id = s.id
+		JOIN event_days ed ON gw.event_day_id = ed.id
+		WHERE gw.status IN ('LOCKED', 'LIVE')
+		  AND gw.deadline <= NOW()
+		  AND s.status = 'ACTIVE'
+		  AND EXISTS (
+		      SELECT 1
+		      FROM matches m
+		      WHERE (m.event_day_id = gw.event_day_id OR (m.competition_id = s.competition_id AND m.date = ed.date))
+		      HAVING COUNT(m.id) FILTER (WHERE m.status = 'FINISHED') > 0
+		         AND COUNT(m.id) FILTER (WHERE m.status NOT IN ('FINISHED', 'POSTPONED')) = 0
+		  )
+		  AND EXISTS (
+		      SELECT 1
+		      FROM player_stats ps
+		      JOIN matches m ON ps.match_id = m.id
+		      WHERE (m.event_day_id = gw.event_day_id OR (m.competition_id = s.competition_id AND m.date = ed.date))
+		  )
+		ORDER BY gw.deadline ASC
+	`
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	rows, err := r.pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query gameweeks due for finalize: %w", err)
 	}
 	defer rows.Close()
 

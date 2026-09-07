@@ -32,7 +32,8 @@ type fakeFantasyRepo struct {
 	lineups     map[string]*domain.FantasyLineup
 	priorLocked map[string]*domain.FantasyLineup
 
-	dueForLock []domain.FantasyGameweek
+	dueForLock     []domain.FantasyGameweek
+	dueForFinalize []domain.FantasyGameweek
 
 	// currentGW is what GetCurrentGameweek answers — the match day in progress,
 	// or nil when nothing is.
@@ -82,6 +83,18 @@ func (f *fakeFantasyRepo) GetGameweekByID(_ context.Context, id string) (*domain
 	return f.gameweeks[id], nil
 }
 
+func (f *fakeFantasyRepo) GetSeasonPricingLines(_ context.Context, _, _ string) ([]ports.PlayerPricingLine, error) {
+	return nil, nil
+}
+
+func (f *fakeFantasyRepo) GetSeasonRatingLines(_ context.Context, _ string) ([]ports.PlayerRatingLine, error) {
+	return nil, nil
+}
+
+func (f *fakeFantasyRepo) BulkUpsertPlayerPrices(_ context.Context, _ []domain.FantasyPlayerPrice) error {
+	return nil
+}
+
 func (f *fakeFantasyRepo) GetLineupCandidates(_ context.Context, _, _ string, ids []string) (map[string]domain.LineupCandidate, error) {
 	out := map[string]domain.LineupCandidate{}
 	for _, id := range ids {
@@ -117,6 +130,10 @@ func (f *fakeFantasyRepo) SaveLineupDraft(_ context.Context, l *domain.FantasyLi
 
 func (f *fakeFantasyRepo) GetGameweeksDueForLock(_ context.Context) ([]domain.FantasyGameweek, error) {
 	return f.dueForLock, nil
+}
+
+func (f *fakeFantasyRepo) GetGameweeksDueForFinalize(_ context.Context) ([]domain.FantasyGameweek, error) {
+	return f.dueForFinalize, nil
 }
 
 func (f *fakeFantasyRepo) LockLineupsForGameweek(_ context.Context, gwID string) error {
@@ -801,6 +818,46 @@ func TestLineupRollover(t *testing.T) {
 			t.Errorf("expected gw-2 to be LOCKED, got %s", repo.gwStatus["gw-2"])
 		}
 	})
+}
+
+func TestAutoFinalizeGameweeks(t *testing.T) {
+	repo := newFakeRepo()
+	repo.season = testSeason()
+	gw := &domain.FantasyGameweek{
+		ID: "gw-1", SeasonID: "season-1", Number: 1, EventDayID: "ed-1",
+		Deadline: time.Now().Add(-2 * time.Hour), Status: domain.GameweekLocked,
+	}
+	repo.gameweeks[gw.ID] = gw
+	repo.dueForFinalize = []domain.FantasyGameweek{*gw}
+
+	squad := validSquad()
+	lineup := &domain.FantasyLineup{
+		ID: "lineup-1", TeamID: "team-1", GameweekID: "gw-1", Status: domain.LineupLocked,
+	}
+	for _, c := range squad {
+		lineup.Picks = append(lineup.Picks, domain.FantasyLineupPick{PlayerID: c.PlayerID, Slot: c.Slot})
+	}
+	repo.lineups[lineupKey("team-1", "gw-1")] = lineup
+
+	repo.stats = []domain.PlayerStat{{
+		PlayerID: squad[2].PlayerID, MatchID: "match-1",
+		Receptions: 5, ReceivingYards: 80, ReceivingTDs: 1,
+	}}
+
+	svc := NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil, ownsPool(repo))
+
+	if err := svc.AutoFinalizeGameweeks(context.Background()); err != nil {
+		t.Fatalf("auto-finalize failed: %v", err)
+	}
+
+	if repo.gwStatus["gw-1"] != domain.GameweekFinalized {
+		t.Errorf("expected gw-1 to be FINALIZED, got %s", repo.gwStatus["gw-1"])
+	}
+
+	// Verify points were recorded
+	if points := repo.teamTotals["team-1"]; points < 5.24 || points > 5.26 {
+		t.Errorf("expected 5.25 points after auto-finalize, got %.4f", points)
+	}
 }
 
 // ─── Scoring ──────────────────────────────────────────────────────────────────

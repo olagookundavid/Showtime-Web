@@ -1079,8 +1079,12 @@ function SetupTab({ season }: { season: FantasySeason }) {
 
                 {/* Gameweeks List */}
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm">
-                    <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                    <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <h3 className="text-base font-black uppercase text-sffl-navy dark:text-white">Gameweeks</h3>
+                        <span className="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                            Auto-Scoring Active: automatically finalizes when all games finish & stats are submitted
+                        </span>
                     </div>
 
                     {gameweeks.length === 0 ? (
