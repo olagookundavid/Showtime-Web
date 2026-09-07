@@ -769,3 +769,102 @@ func SetupCommentRoutes(r *gin.RouterGroup, app *api.Application) {
 		commentGroup.POST("/:id/like", app.Handlers.CommentHandler.ToggleLike)
 	}
 }
+
+func SetupFantasyRoutes(r *gin.RouterGroup, app *api.Application) {
+	fantasyRoutes := r.Group("/fantasy")
+	{
+		// Public Catalog & Leaderboards
+		fantasyRoutes.GET("/season", app.Handlers.FantasyHandler.GetActiveSeason)
+		fantasyRoutes.GET("/season/:id/gameweeks", app.Handlers.FantasyHandler.GetGameweeks)
+		fantasyRoutes.GET("/season/:id/market", app.Handlers.FantasyHandler.ListPlayerMarket)
+		fantasyRoutes.GET("/players/:id/gameweek/:gwId/breakdown", app.Handlers.FantasyHandler.GetPlayerBreakdown)
+		fantasyRoutes.GET("/leagues/public", app.Handlers.FantasyLeagueHandler.ListPublicLeagues)
+		// Optional auth so a signed-in viewer's own rank comes back with the
+		// table; anonymous visitors still get the public standings.
+		fantasyRoutes.GET("/leagues/:id/leaderboard", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.FantasyLeagueHandler.GetLeaderboard)
+		// The terms of a league, read before committing to it. The by-code form
+		// covers private leagues, which are never listed.
+		fantasyRoutes.GET("/platform-cut", app.Handlers.FantasyPayoutHandler.GetPlatformCut)
+		fantasyRoutes.GET("/leagues/preview", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.FantasyPayoutHandler.GetLeagueJoinPreviewByCode)
+		fantasyRoutes.GET("/leagues/:id/preview", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.FantasyPayoutHandler.GetLeagueJoinPreview)
+		fantasyRoutes.GET("/season/:id/leaderboard", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.FantasyLeagueHandler.GetOverallLeaderboard)
+
+		// Webhook (Unauthenticated, HMAC signature validated)
+		fantasyRoutes.POST("/leagues/webhook", app.Handlers.FantasyLeagueHandler.LeagueWebhook)
+
+		// Authenticated User Operations
+		protected := fantasyRoutes.Group("")
+		protected.Use(commonAuth.TokenMiddleware(app.TokenMaker))
+		{
+			protected.GET("/dashboard", app.Handlers.FantasyHandler.GetDashboard)
+			protected.POST("/seasons/:id/enter", app.Handlers.FantasyHandler.EnterSeason)
+			protected.POST("/lineups", app.Handlers.FantasyHandler.SaveLineup)
+			protected.GET("/lineups/mine", app.Handlers.FantasyHandler.GetMyLineup)
+
+			protected.POST("/leagues", app.Handlers.FantasyLeagueHandler.CreateLeague)
+			protected.GET("/leagues/mine", app.Handlers.FantasyLeagueHandler.ListMyLeagues)
+
+			// Squad & trading: a manager owns players and buys and sells out of
+			// a bank, then fields a lineup from what they own.
+			protected.GET("/squad", app.Handlers.FantasySquadHandler.GetSquad)
+			protected.POST("/squad/buy", app.Handlers.FantasySquadHandler.BuyPlayer)
+			protected.POST("/squad/sell", app.Handlers.FantasySquadHandler.SellPlayer)
+			protected.POST("/leagues/:id/leave", app.Handlers.FantasyLeagueHandler.LeaveLeague)
+
+			// Stricter limiter on the Paystack-initiating endpoints — guards
+			// against runaway clients exhausting Paystack quota or spawning
+			// orphan pending memberships.
+			rls := commonAuth.RateLimitStruct{
+				LimiterEnabled: true,
+				Rps:            5,
+				Burst:          10,
+			}
+			limitedLeagues := protected.Group("", commonAuth.RateLimit(rls))
+			{
+				limitedLeagues.POST("/leagues/join", app.Handlers.FantasyLeagueHandler.JoinLeague)
+				limitedLeagues.POST("/leagues/verify", app.Handlers.FantasyLeagueHandler.VerifyLeaguePayment)
+
+				// Withdrawals move real money out, so they sit behind the same
+				// stricter limiter as the pay-in endpoints.
+				limitedLeagues.POST("/payouts", app.Handlers.FantasyPayoutHandler.RequestPayout)
+			}
+
+			protected.GET("/wallet", app.Handlers.FantasyPayoutHandler.GetWallet)
+			protected.GET("/payouts", app.Handlers.FantasyPayoutHandler.ListMyPayouts)
+			protected.POST("/payouts/:id/cancel", app.Handlers.FantasyPayoutHandler.CancelPayout)
+		}
+	}
+
+	// Admin Fantasy Operations
+	adminFantasy := r.Group("/admin/fantasy")
+	adminFantasy.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.AdminOnlyMiddleware(app.AuthService))
+	{
+		adminFantasy.GET("/seasons", app.Handlers.FantasyHandler.AdminListSeasons)
+		adminFantasy.POST("/seasons", app.Handlers.FantasyHandler.AdminCreateSeason)
+		adminFantasy.POST("/seasons/:id/activate", app.Handlers.FantasyHandler.AdminActivateSeason)
+		adminFantasy.DELETE("/seasons/:id", app.Handlers.FantasyHandler.AdminDeleteSeason)
+		adminFantasy.POST("/seasons/:id/gameweeks", app.Handlers.FantasyHandler.AdminCreateGameweek)
+		adminFantasy.POST("/seasons/:id/prices/initialize", app.Handlers.FantasyHandler.AdminInitializePrices)
+		adminFantasy.POST("/gameweeks/:id/finalize", app.Handlers.FantasyHandler.AdminFinalizeGameweek)
+		adminFantasy.POST("/gameweeks/:id/deadline", app.Handlers.FantasyHandler.AdminUpdateGameweekDeadline)
+
+		// Oversight
+		adminFantasy.GET("/seasons/:id/overview", app.Handlers.FantasyPayoutHandler.AdminGetOverview)
+		adminFantasy.GET("/seasons/:id/managers", app.Handlers.FantasyPayoutHandler.AdminListManagers)
+		adminFantasy.GET("/seasons/:id/leagues", app.Handlers.FantasyPayoutHandler.AdminListLeagues)
+		adminFantasy.POST("/seasons/:id/settle", app.Handlers.FantasyPayoutHandler.AdminSettleSeason)
+		adminFantasy.POST("/seasons/:id/complete", app.Handlers.FantasyPayoutHandler.AdminCompleteSeason)
+
+		// League finance & prize settlement
+		adminFantasy.GET("/leagues/:id/finance", app.Handlers.FantasyPayoutHandler.AdminGetLeagueFinance)
+		adminFantasy.GET("/leagues/:id/members", app.Handlers.FantasyPayoutHandler.AdminListLeagueMembers)
+		adminFantasy.PUT("/leagues/:id/prizes", app.Handlers.FantasyPayoutHandler.AdminSetPrizeStructure)
+		adminFantasy.POST("/leagues/:id/settle", app.Handlers.FantasyPayoutHandler.AdminSettleLeague)
+
+		// Payout queue
+		adminFantasy.GET("/payouts", app.Handlers.FantasyPayoutHandler.AdminListPayouts)
+		adminFantasy.GET("/owed", app.Handlers.FantasyPayoutHandler.AdminGetMoneyOwed)
+		adminFantasy.PUT("/payouts/:id/status", app.Handlers.FantasyPayoutHandler.AdminUpdatePayoutStatus)
+		adminFantasy.GET("/users/:id/wallet", app.Handlers.FantasyPayoutHandler.AdminGetUserWallet)
+	}
+}
