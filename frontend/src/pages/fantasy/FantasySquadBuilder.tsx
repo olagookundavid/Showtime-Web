@@ -16,10 +16,13 @@ import {
     fantasyApi, 
     fantasySeasonApi,
     type FantasySlot, 
-    type FantasyPlayerListItem 
+    type FantasyPlayerListItem,
+    formatFantasyPrice,
+    fantasySquadApi,
 } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { Loader } from '../../components/ui/Loader';
+import { PlayerAvatar } from '../../components/fantasy/PlayerAvatar';
 
 interface SlotDefinition {
     slot: FantasySlot;
@@ -153,15 +156,41 @@ export function FantasySquadBuilder() {
                     team_name: p.team_name || '',
                     team_short_name: p.team_short_name || '',
                     team_logo: p.team_logo || '',
-                    price: p.purchase_price || 10,
+                    price: p.purchase_price || 0,
                     rating: 5,
                     total_points: p.points || 0,
+                    // A lineup pick carries no market context — these are the
+                    // market's fields, and this player was resolved from a
+                    // saved team sheet rather than the listing.
+                    owned_by: 0,
                     selected_by_pct: 0,
+                    transfers_in: 0,
+                    transfers_out: 0,
                 };
             });
             return next;
         });
     }, [currentLineup, scheduledGW?.id, lineupLoading]);
+
+    // The manager's owned squad. A lineup can only name players they own, so
+    // this is the primary source for the picker — the market below it is for
+    // filling gaps when the nineteen isn't complete.
+    const { data: mySquad } = useQuery({
+        queryKey: ['fantasySquad', season?.id],
+        queryFn: () => fantasySquadApi.getSquad(season!.id),
+        enabled: !!season?.id,
+    });
+
+    // Buying from inside the picker, for a squad that has no one for this slot.
+    const buyMutation = useMutation({
+        mutationFn: (playerId: string) => fantasySquadApi.buyPlayer(season!.id, playerId),
+        onSuccess: (next, playerId) => {
+            queryClient.setQueryData(['fantasySquad', season?.id], next);
+            const signed = next.players.find((p) => p.player_id === playerId);
+            if (signed) toast.success(`Signed ${signed.name}.`);
+        },
+        onError: (err: any) => toast.error(err?.response?.data?.error || 'Could not sign this player.'),
+    });
 
     // Player Market Query for Active Modal Slot
     const { data: marketData, isLoading: marketLoading } = useQuery({
@@ -169,7 +198,10 @@ export function FantasySquadBuilder() {
         queryFn: () => {
             if (!season?.id || !activeModalSlot) return Promise.resolve({ data: [], total: 0, total_pages: 0, my_rank: 0 });
             return fantasyApi.listPlayerMarket(season.id, {
-                position: activeModalSlot.allowedPositions[0],
+                // Every eligible position, not just the first: a receiver slot
+                // takes Receivers and Centers, and sending only "Receiver"
+                // silently hid every Center from the market.
+                position: activeModalSlot.allowedPositions.join(','),
                 gender: activeModalSlot.requiredGender,
                 search: marketSearch,
                 limit: 100,
@@ -333,6 +365,43 @@ export function FantasySquadBuilder() {
     // Already filtered by position and gender server-side.
     const marketPlayers = marketData?.data ?? [];
 
+    // Split the picker in two: who the manager already owns and can field right
+    // away, and who they would have to buy first. Owned players come first
+    // because fielding one costs nothing and is almost always the intent.
+    const ownedForSlot = useMemo(() => {
+        if (!activeModalSlot || !mySquad) return [];
+        const allowed = new Set(activeModalSlot.allowedPositions);
+        return mySquad.players
+            .filter((p) => allowed.has(p.position))
+            .filter((p) => !activeModalSlot.requiredGender ||
+                (p.gender || 'M').toUpperCase().startsWith(activeModalSlot.requiredGender))
+            .filter((p) => !marketSearch ||
+                p.name.toLowerCase().includes(marketSearch.toLowerCase()));
+    }, [activeModalSlot, mySquad, marketSearch]);
+
+    const ownedIds = useMemo(
+        () => new Set((mySquad?.players ?? []).map((p) => p.player_id)),
+        [mySquad],
+    );
+
+    // Anyone already owned is shown in the section above, so the market half
+    // lists only players who would need signing.
+    const buyablePlayers = useMemo(
+        () => marketPlayers.filter((p) => !ownedIds.has(p.player_id)),
+        [marketPlayers, ownedIds],
+    );
+
+    // Signing from the picker puts them in the squad, then straight into the
+    // slot the manager opened — one action, not two.
+    const buyAndSelect = async (p: FantasyPlayerListItem) => {
+        try {
+            await buyMutation.mutateAsync(p.player_id);
+            handleSelectPlayer(p);
+        } catch {
+            // The mutation already surfaced the reason.
+        }
+    };
+
     return (
         <div className="space-y-6 md:space-y-8 pb-24">
             {/* Header Showtime Navy Banner */}
@@ -395,7 +464,7 @@ export function FantasySquadBuilder() {
                 }`}>
                     <div>
                         <span className="text-[10px] text-gray-500 dark:text-gray-400 block uppercase font-bold">Remaining Cap</span>
-                        <span className="font-black text-base md:text-lg">{calculations.remainingBudget.toFixed(2)} SC</span>
+                        <span className="font-black text-base md:text-lg">{formatFantasyPrice(calculations.remainingBudget)}</span>
                     </div>
                     {calculations.budgetValid ? <CheckCircleIcon className="w-5 h-5 text-emerald-500" /> : <ExclamationCircleIcon className="w-5 h-5 text-red-500" />}
                 </div>
@@ -503,18 +572,12 @@ export function FantasySquadBuilder() {
                         >
                             <div className="flex items-center gap-3.5">
                                 {player ? (
-                                    <div className="relative">
-                                        <img
-                                            src={player.player_image || '/placeholder-player.png'}
-                                            alt={player.player_name}
-                                            className="w-14 h-14 rounded-xl object-cover bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600"
-                                        />
-                                        <span className={`absolute -top-1.5 -right-1.5 text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase text-white ${
-                                            player.gender === 'F' ? 'bg-pink-500' : 'bg-blue-600'
-                                        }`}>
-                                            {player.gender === 'F' ? '♀' : '♂'}
-                                        </span>
-                                    </div>
+                                    <PlayerAvatar
+                                        name={player.player_name}
+                                        image={player.player_image}
+                                        gender={player.gender}
+                                        size="lg"
+                                    />
                                 ) : (
                                     <div className="w-14 h-14 rounded-xl bg-gray-100 dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
                                         <span className="text-[10px] font-black uppercase tracking-wider">{def.slot}</span>
@@ -547,7 +610,7 @@ export function FantasySquadBuilder() {
                                 {player && (
                                     <div className="text-right">
                                         <span className="text-[10px] text-gray-400 uppercase font-bold block">Price</span>
-                                        <span className="text-sm font-black text-sffl-red">{player.price.toFixed(2)} SC</span>
+                                        <span className="text-sm font-black text-sffl-red">{formatFantasyPrice(player.price)}</span>
                                     </div>
                                 )}
 
@@ -570,8 +633,8 @@ export function FantasySquadBuilder() {
 
             {/* Player Selection Modal */}
             {activeModalSlot && (
-                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 w-full max-w-2xl rounded-t-3xl sm:rounded-3xl max-h-[85vh] flex flex-col overflow-hidden shadow-2xl">
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 pt-[calc(var(--chrome-h)+1rem)] transition-[padding] duration-300 motion-reduce:transition-none" data-dialog>
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 w-full max-w-2xl rounded-t-3xl sm:rounded-3xl max-h-[calc(100dvh-var(--chrome-h)-2rem)] flex flex-col overflow-hidden shadow-2xl">
                         {/* Modal Header */}
                         <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
                             <div>
@@ -579,12 +642,25 @@ export function FantasySquadBuilder() {
                                     Selecting for {activeModalSlot.slot}
                                 </span>
                                 <h3 className="text-lg font-black text-sffl-navy dark:text-white">{activeModalSlot.label}</h3>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                    Eligible positions: <strong>{formatPositions(activeModalSlot.allowedPositions)}</strong>
+                                <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                    <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                                        {formatPositions(activeModalSlot.allowedPositions)}
+                                    </span>
                                     {activeModalSlot.requiredGender && (
-                                        <span> • Gender: <strong>{activeModalSlot.requiredGender === 'F' ? 'Female' : 'Male'}</strong></span>
+                                        <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg ${
+                                            activeModalSlot.requiredGender === 'F'
+                                                ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
+                                                : 'bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300'
+                                        }`}>
+                                            {activeModalSlot.requiredGender === 'F' ? 'Women only' : 'Men only'}
+                                        </span>
                                     )}
-                                </p>
+                                    {/* The budget belongs next to the choice it constrains, not on
+                                        the page behind the dialog where it cannot be seen. */}
+                                    <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300">
+                                        {formatFantasyPrice(calculations.remainingBudget)} left
+                                    </span>
+                                </div>
                             </div>
                             <button
                                 onClick={() => setActiveModalSlot(null)}
@@ -614,72 +690,190 @@ export function FantasySquadBuilder() {
                                 <div className="py-12 flex justify-center">
                                     <div className="w-8 h-8 border-2 border-sffl-red border-t-transparent rounded-full animate-spin" />
                                 </div>
-                            ) : marketPlayers.length === 0 ? (
+                            ) : ownedForSlot.length === 0 && buyablePlayers.length === 0 ? (
                                 <div className="py-12 text-center text-gray-500 dark:text-gray-400 text-sm">
                                     No athletes found matching the position/gender filter.
                                 </div>
                             ) : (
-                                marketPlayers.map((p) => {
+                                <>
+                                {/* Your squad first: fielding someone you already own
+                                    costs nothing and is nearly always the intent. */}
+                                <div className="flex items-center gap-2 pt-1 pb-1.5">
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-sffl-navy dark:text-white">
+                                        In your squad
+                                    </span>
+                                    <span className="text-[10px] font-bold text-gray-400">{ownedForSlot.length}</span>
+                                    <span className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+                                </div>
+
+                                {ownedForSlot.length === 0 ? (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 pb-2">
+                                        Nobody in your squad can play this slot — sign someone below.
+                                    </p>
+                                ) : (
+                                    ownedForSlot.map((p) => {
+                                        const isAlreadyPicked = calculations.chosenPlayerIds.has(p.player_id);
+                                        return (
+                                            <div
+                                                key={p.player_id}
+                                                className={`px-3 py-2.5 rounded-xl border flex items-center gap-3 transition ${
+                                                    isAlreadyPicked
+                                                        ? 'bg-gray-50 dark:bg-gray-800/40 border-gray-200 dark:border-gray-700 opacity-60'
+                                                        : 'bg-white dark:bg-gray-800 border-emerald-200 dark:border-emerald-800 hover:border-emerald-400 shadow-sm'
+                                                }`}
+                                            >
+                                                <PlayerAvatar name={p.name} image={null} gender={p.gender} />
+                                                <div className="min-w-0 flex-1">
+                                                    <h4 className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                                                        {p.name}
+                                                    </h4>
+                                                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                                                        {p.position}
+                                                        {p.starting && <span className="ml-1.5 text-emerald-600 dark:text-emerald-400 font-bold">· already starting</span>}
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleSelectPlayer({
+                                                        player_id: p.player_id,
+                                                        player_name: p.name,
+                                                        player_image: '',
+                                                        position: p.position,
+                                                        gender: p.gender,
+                                                        team_id: p.club_id,
+                                                        team_name: '',
+                                                        team_short_name: '',
+                                                        team_logo: '',
+                                                        price: p.purchase_price,
+                                                        rating: 0,
+                                                        total_points: 0,
+                                                        owned_by: 0,
+                                                        selected_by_pct: 0,
+                                                        transfers_in: 0,
+                                                        transfers_out: 0,
+                                                    })}
+                                                    disabled={isAlreadyPicked}
+                                                    className={`shrink-0 px-3.5 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition ${
+                                                        isAlreadyPicked
+                                                            ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                                                            : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-sm'
+                                                    }`}
+                                                >
+                                                    {isAlreadyPicked ? 'Picked' : 'Field'}
+                                                </button>
+                                            </div>
+                                        );
+                                    })
+                                )}
+
+                                {/* Then the rest of the market, for a squad with a
+                                    gap at this position. Signing here spends money. */}
+                                <div className="flex items-center gap-2 pt-3 pb-1.5">
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-sffl-navy dark:text-white">
+                                        Available to sign
+                                    </span>
+                                    <span className="text-[10px] font-bold text-gray-400">
+                                        {mySquad ? `${mySquad.squad_size}/${mySquad.squad_max} squad · ${formatFantasyPrice(mySquad.bank)} to spend` : ''}
+                                    </span>
+                                    <span className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+                                </div>
+
+                                {buyablePlayers.map((p) => {
                                     const isAlreadyPicked = calculations.chosenPlayerIds.has(p.player_id);
                                     const clubCount = calculations.clubCounts[p.team_id] || 0;
                                     const clubExceeded = clubCount >= (season?.max_per_club || 4);
+                                    // Signing spends real money out of the bank — the
+                                    // lineup no longer has a budget of its own.
+                                    const affordable = p.price <= (mySquad?.bank ?? 0);
+                                    const squadFull = !!mySquad && mySquad.squad_size >= mySquad.squad_max;
+                                    // Signing spends from the bank, so it obeys the
+                                    // same closed window as the transfer market.
+                                    const marketClosed = mySquad && !mySquad.market_open
+                                        ? mySquad.market_closed_reason ||
+                                          'The transfer market is closed while a match day is being played.'
+                                        : undefined;
 
                                     return (
                                         <div
                                             key={p.player_id}
-                                            className={`p-3.5 rounded-xl border flex items-center justify-between transition ${
+                                            className={`px-3 py-2.5 rounded-xl border flex items-center gap-3 transition ${
                                                 isAlreadyPicked
                                                     ? 'bg-gray-50 dark:bg-gray-800/40 border-gray-200 dark:border-gray-700 opacity-60'
-                                                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-sffl-red/60 shadow-sm'
+                                                    : affordable
+                                                      ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-sffl-red/60 shadow-sm'
+                                                      : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
                                             }`}
                                         >
-                                            <div className="flex items-center gap-3">
-                                                <div className="relative">
-                                                    <img
-                                                        src={p.player_image || '/placeholder-player.png'}
-                                                        alt={p.player_name}
-                                                        className="w-12 h-12 rounded-xl object-cover bg-gray-100 dark:bg-gray-700"
-                                                    />
-                                                    <span className={`absolute -top-1 -right-1 text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase text-white ${
-                                                        p.gender === 'F' ? 'bg-pink-500' : 'bg-blue-600'
-                                                    }`}>
-                                                        {p.gender === 'F' ? '♀' : '♂'}
+                                            <PlayerAvatar name={p.player_name} image={p.player_image} gender={p.gender} />
+
+                                            <div className="min-w-0 flex-1">
+                                                <h4 className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                                                    {p.player_name}
+                                                </h4>
+                                                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                                    {p.team_logo && (
+                                                        <img src={p.team_logo} alt="" className="w-3.5 h-3.5 object-contain" />
+                                                    )}
+                                                    <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                                                        {p.team_short_name || p.team_name || '—'}
+                                                    </span>
+                                                    <span className="text-gray-300 dark:text-gray-600">·</span>
+                                                    <span className="text-[11px] font-bold text-gray-600 dark:text-gray-300">
+                                                        {p.position}
+                                                    </span>
+                                                    <span className="text-gray-300 dark:text-gray-600">·</span>
+                                                    <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                                                        rated <strong className="text-gray-700 dark:text-gray-200">{(p.rating ?? 0).toFixed(1)}</strong>
                                                     </span>
                                                 </div>
-                                                <div>
-                                                    <h4 className="text-sm font-bold text-gray-900 dark:text-white">{p.player_name}</h4>
-                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                                        {p.team_short_name || p.team_name} • {p.position}
-                                                    </p>
-                                                    {clubExceeded && !isAlreadyPicked && (
-                                                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold block mt-0.5">
-                                                            Club limit reached (4/4)
-                                                        </span>
-                                                    )}
-                                                </div>
+                                                {clubExceeded && !isAlreadyPicked && (
+                                                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold block mt-0.5">
+                                                        Club limit reached ({clubCount}/{season?.max_per_club || 4})
+                                                    </span>
+                                                )}
+                                                {!affordable && !isAlreadyPicked && (
+                                                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold block mt-0.5">
+                                                        {formatFantasyPrice(p.price - (mySquad?.bank ?? 0))} more than you have in the bank
+                                                    </span>
+                                                )}
                                             </div>
 
-                                            <div className="flex items-center gap-4">
-                                                <div className="text-right">
-                                                    <span className="text-[10px] text-gray-400 uppercase font-bold block">Price</span>
-                                                    <span className="text-sm font-black text-sffl-red">{p.price.toFixed(2)} SC</span>
-                                                </div>
-
+                                            <div className="flex flex-col items-end shrink-0">
+                                                <span className={`text-sm font-black tabular-nums ${
+                                                    affordable ? 'text-gray-900 dark:text-white' : 'text-amber-600 dark:text-amber-400'
+                                                }`}>
+                                                    {formatFantasyPrice(p.price)}
+                                                </span>
+                                                {/* Signing and fielding in one action: a
+                                                    manager opening this slot wants the player in
+                                                    it, not merely in the squad. */}
                                                 <button
-                                                    onClick={() => handleSelectPlayer(p)}
-                                                    disabled={isAlreadyPicked}
-                                                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition ${
-                                                        isAlreadyPicked
+                                                    onClick={() => buyAndSelect(p)}
+                                                    disabled={isAlreadyPicked || !affordable || squadFull || !!marketClosed || buyMutation.isPending}
+                                                    title={
+                                                        marketClosed ? marketClosed
+                                                            : squadFull ? `Your squad is full at ${mySquad?.squad_max}`
+                                                            : !affordable ? 'Not enough in the bank'
+                                                            : undefined
+                                                    }
+                                                    className={`mt-1 px-3.5 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition ${
+                                                        isAlreadyPicked || !affordable || squadFull || marketClosed
                                                             ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                                                            : 'bg-sffl-red hover:bg-[#A52323] text-white cursor-pointer shadow-md'
+                                                            : 'bg-sffl-red hover:bg-[#A52323] text-white cursor-pointer shadow-sm'
                                                     }`}
                                                 >
-                                                    {isAlreadyPicked ? 'Drafted' : 'Select'}
+                                                    {isAlreadyPicked ? 'Picked' : buyMutation.isPending ? 'Signing…' : 'Sign & field'}
                                                 </button>
                                             </div>
                                         </div>
                                     );
-                                })
+                                })}
+
+                                {buyablePlayers.length === 0 && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 py-2">
+                                        Everyone available for this slot is already in your squad.
+                                    </p>
+                                )}
+                                </>
                             )}
                         </div>
                     </div>

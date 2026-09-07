@@ -173,12 +173,13 @@ func (h *TicketHandler) DeleteEventDay(c *gin.Context) {
 }
 
 func (h *TicketHandler) ListAllEventDays(c *gin.Context) {
-	eventDays, err := h.service.ListAllEventDays(c.Request.Context())
+	page, limit := pageParams(c, 25)
+	eventDays, total, err := h.service.ListAllEventDays(c.Request.Context(), c.Query("search"), page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": eventDays})
+	pagedJSON(c, eventDays, total, page, limit)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -410,12 +411,13 @@ func (h *TicketHandler) SearchByEmail(c *gin.Context) {
 		return
 	}
 
-	tickets, err := h.service.SearchByEmail(c.Request.Context(), email)
+	page, limit := pageParams(c, 20)
+	tickets, total, err := h.service.SearchByEmail(c.Request.Context(), email, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": tickets})
+	pagedJSON(c, tickets, total, page, limit)
 }
 
 func (h *TicketHandler) VerifyTicket(c *gin.Context) {

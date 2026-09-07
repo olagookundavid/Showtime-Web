@@ -34,6 +34,10 @@ type fakeFantasyRepo struct {
 
 	dueForLock []domain.FantasyGameweek
 
+	// currentGW is what GetCurrentGameweek answers — the match day in progress,
+	// or nil when nothing is.
+	currentGW *domain.FantasyGameweek
+
 	// observed effects
 	teamTotals   map[string]float64
 	seasonStatus map[string]domain.FantasySeasonStatus
@@ -90,6 +94,10 @@ func (f *fakeFantasyRepo) GetLineupCandidates(_ context.Context, _, _ string, id
 
 func (f *fakeFantasyRepo) GetTeamByUserAndSeason(_ context.Context, _, _ string) (*domain.FantasyTeam, error) {
 	return f.enteredTeam, nil
+}
+
+func (f *fakeFantasyRepo) GetCurrentGameweek(_ context.Context, _ string) (*domain.FantasyGameweek, error) {
+	return f.currentGW, nil
 }
 
 func (f *fakeFantasyRepo) GetTeamOverallRank(_ context.Context, _, _ string) (int, int, error) {
@@ -280,7 +288,58 @@ func newServiceWith(squad []domain.LineupCandidate) (*fakeFantasyRepo, *fakeLeag
 	}
 	repo.enteredTeam = &domain.FantasyTeam{ID: "team-user-1", UserID: "user-1", SeasonID: "season-1", Name: "Test XI"}
 	leagues := &fakeLeagueRepo{overall: &domain.FantasyLeague{ID: "overall-1", Type: domain.LeagueTypeOverall}}
-	return repo, leagues, NewFantasyService(repo, leagues, nil, nil)
+	// The manager owns the squad they are about to field. A lineup may only name
+	// players its owner has bought, so a test that does not say who is owned is
+	// testing a manager with an empty squad.
+	squads := &fakeSquadRepo{owned: squad}
+	return repo, leagues, NewFantasyService(repo, leagues, nil, nil, squads)
+}
+
+// ownsPool builds a squad repo owning every player the fake repo knows about,
+// for tests where ownership is not the subject.
+func ownsPool(repo *fakeFantasyRepo) *fakeSquadRepo {
+	owned := make([]domain.LineupCandidate, 0, len(repo.candidates))
+	for _, c := range repo.candidates {
+		owned = append(owned, c)
+	}
+	return &fakeSquadRepo{owned: owned}
+}
+
+// fakeSquadRepo reports a fixed set of owned players.
+type fakeSquadRepo struct {
+	owned []domain.LineupCandidate
+
+	// bought and sold count the trades that actually reached the database, so a
+	// test can tell "refused" from "went through and was undone".
+	bought, sold int
+}
+
+func (f *fakeSquadRepo) ListSquad(_ context.Context, teamID, _ string) ([]domain.SquadPlayer, error) {
+	out := make([]domain.SquadPlayer, 0, len(f.owned))
+	for _, c := range f.owned {
+		out = append(out, domain.SquadPlayer{
+			TeamID: teamID, PlayerID: c.PlayerID, Name: c.Name,
+			Position: c.Position, Gender: c.Gender, ClubID: c.TeamID,
+			PurchasePrice: c.Price, CurrentPrice: c.Price,
+		})
+	}
+	return out, nil
+}
+
+func (f *fakeSquadRepo) GetBank(context.Context, string) (float64, error) { return 0, nil }
+
+func (f *fakeSquadRepo) GetMarketPlayer(context.Context, string, string) (float64, string, error) {
+	return 0, "", nil
+}
+
+func (f *fakeSquadRepo) BuyPlayer(context.Context, string, string, float64) error {
+	f.bought++
+	return nil
+}
+
+func (f *fakeSquadRepo) SellPlayer(context.Context, string, string, float64) (int, error) {
+	f.sold++
+	return 0, nil
 }
 
 func saveRequest(squad []domain.LineupCandidate) dto.SaveLineupRequest {
@@ -302,7 +361,7 @@ func TestActivateSeason(t *testing.T) {
 		repo := newFakeRepo()
 		repo.season = target
 		repo.liveSeason = live
-		return repo, NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil)
+		return repo, NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil, ownsPool(repo))
 	}
 
 	t.Run("releases a draft when nothing else is live", func(t *testing.T) {
@@ -354,7 +413,7 @@ func TestEnterSeason(t *testing.T) {
 	t.Run("creates the manager's team", func(t *testing.T) {
 		repo := newFakeRepo()
 		repo.season = testSeason()
-		svc := NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil)
+		svc := NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil, ownsPool(repo))
 
 		team, err := svc.EnterSeason(context.Background(), "user-1", "season-1",
 			dto.EnterSeasonRequest{TeamName: "  Lagos Lions  "})
@@ -370,7 +429,7 @@ func TestEnterSeason(t *testing.T) {
 		repo := newFakeRepo()
 		repo.season = testSeason()
 		repo.season.Status = domain.FantasySeasonDraft
-		svc := NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil)
+		svc := NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil, ownsPool(repo))
 
 		_, err := svc.EnterSeason(context.Background(), "user-1", "season-1",
 			dto.EnterSeasonRequest{TeamName: "Lagos Lions"})
@@ -381,7 +440,7 @@ func TestEnterSeason(t *testing.T) {
 		repo := newFakeRepo()
 		repo.season = testSeason()
 		leagues := &fakeLeagueRepo{overall: &domain.FantasyLeague{ID: "overall-1", Type: domain.LeagueTypeOverall}}
-		svc := NewFantasyService(repo, leagues, nil, nil)
+		svc := NewFantasyService(repo, leagues, nil, nil, ownsPool(repo))
 
 		if _, err := svc.EnterSeason(context.Background(), "user-1", "season-1",
 			dto.EnterSeasonRequest{TeamName: "Lagos Lions"}); err != nil {
@@ -511,27 +570,48 @@ func TestLineupValidation(t *testing.T) {
 		assertErrContains(t, err, "no more than 4 players")
 	})
 
-	t.Run("rejects a squad over budget", func(t *testing.T) {
+	// Budget is no longer a lineup rule. The money was spent when these players
+	// were bought; a team sheet only decides which of the squad takes the field,
+	// so an expensive lineup drawn from an owned squad is perfectly legal.
+	t.Run("does not re-charge for players already owned", func(t *testing.T) {
 		squad := validSquad()
 		for i := range squad {
-			squad[i].Price = 20.00 // 14 x 20.00 = 280.00 against a 230.00 budget
-		}
-		_, _, svc := newServiceWith(squad)
-
-		_, err := svc.SaveLineup(context.Background(), "user-1", saveRequest(squad))
-		assertErrContains(t, err, "exceeds budget")
-	})
-
-	// A squad costing exactly the budget must not be rejected by float drift.
-	t.Run("accepts a squad costing exactly the budget", func(t *testing.T) {
-		squad := validSquad()
-		for i := range squad {
-			squad[i].Price = 230.0 / 14.0
+			squad[i].Price = 20.00 // far past any budget, and irrelevant here
 		}
 		_, _, svc := newServiceWith(squad)
 
 		if _, err := svc.SaveLineup(context.Background(), "user-1", saveRequest(squad)); err != nil {
-			t.Fatalf("expected a squad at exactly the budget to be accepted, got: %v", err)
+			t.Fatalf("a lineup of owned players must not be priced again, got: %v", err)
+		}
+	})
+
+	// The rule that replaced it: you may only field what you own.
+	t.Run("rejects a player who is not in the squad", func(t *testing.T) {
+		squad := validSquad()
+		repo, leagues, _ := newServiceWith(squad)
+
+		// The manager owns everyone except the player in the first slot.
+		svc := NewFantasyService(repo, leagues, nil, nil, &fakeSquadRepo{owned: squad[1:]})
+
+		_, err := svc.SaveLineup(context.Background(), "user-1", saveRequest(squad))
+		assertErrContains(t, err, "not in your squad")
+	})
+
+	t.Run("names every unowned player, not just a count", func(t *testing.T) {
+		squad := validSquad()
+		repo, leagues, _ := newServiceWith(squad)
+		svc := NewFantasyService(repo, leagues, nil, nil, &fakeSquadRepo{owned: squad[2:]})
+
+		_, err := svc.SaveLineup(context.Background(), "user-1", saveRequest(squad))
+		if err == nil {
+			t.Fatal("expected two unowned players to be rejected")
+		}
+		// A manager told "2 players you do not own" has to hunt through fourteen
+		// slots to find which two.
+		for _, missing := range squad[:2] {
+			if !strings.Contains(err.Error(), missing.Name) {
+				t.Errorf("expected %q to be named in %q", missing.Name, err.Error())
+			}
 		}
 	})
 
@@ -650,7 +730,7 @@ func TestLineupRollover(t *testing.T) {
 		repo.priorLocked["team-forgot"] = prior
 		repo.lineups[lineupKey("team-forgot", "gw-1")] = prior
 
-		return repo, NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil)
+		return repo, NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil, ownsPool(repo))
 	}
 
 	t.Run("locks a submitted draft without cloning it", func(t *testing.T) {
@@ -751,7 +831,7 @@ func TestGameweekScoringIsIdempotent(t *testing.T) {
 		Receptions: 5, ReceivingYards: 80, ReceivingTDs: 1,
 	}}
 
-	svc := NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil)
+	svc := NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil, ownsPool(repo))
 
 	if err := svc.ComputeGameweekScores(context.Background(), "gw-1"); err != nil {
 		t.Fatalf("first scoring run failed: %v", err)

@@ -33,9 +33,12 @@ type IFantasyPayoutRepository interface {
 	// cannot be requested twice.
 	CreatePayoutRequest(ctx context.Context, req *domain.PayoutRequest) error
 	GetPayoutRequestByID(ctx context.Context, id string) (*domain.PayoutRequest, error)
-	ListPayoutRequestsByUser(ctx context.Context, userID string, limit int) ([]domain.PayoutRequest, error)
+	ListPayoutRequestsByUser(ctx context.Context, userID string, page, limit int) ([]domain.PayoutRequest, int, error)
 	ListPayoutRequests(ctx context.Context, status string, page, limit int) ([]domain.PayoutRequest, int, error)
 	GetLastBankDetails(ctx context.Context, userID string) (*dto.BankDetails, error)
+	// ListOwed returns one page of the people the platform owes money to, with
+	// the account it would be sent to, plus the totals across everyone.
+	ListOwed(ctx context.Context, page, limit int) ([]dto.AdminOwedRow, dto.OwedTotals, error)
 	// UpdatePayoutStatus transitions a request and, when the new status
 	// returns funds, credits them back in the same transaction.
 	UpdatePayoutStatus(ctx context.Context, id string, to domain.PayoutStatus, adminNotes, reference string, actorUserID string) (*domain.PayoutRequest, error)
@@ -57,7 +60,7 @@ type IFantasyPayoutRepository interface {
 	// Admin reporting
 	GetSeasonFinance(ctx context.Context, seasonID string) (*dto.AdminFantasyOverview, error)
 	ListManagers(ctx context.Context, seasonID, search string, page, limit int) ([]dto.AdminManagerRow, int, error)
-	ListLeagueMembers(ctx context.Context, leagueID string) ([]dto.AdminLeagueMemberRow, error)
+	ListLeagueMembers(ctx context.Context, leagueID string, page, limit int) ([]dto.AdminLeagueMemberRow, int, error)
 	// ListAllLeagues includes PRIVATE leagues, which the public browse
 	// endpoint deliberately hides.
 	ListAllLeagues(ctx context.Context, seasonID, search string, page, limit int) ([]dto.AdminLeagueRow, int, error)
@@ -271,16 +274,30 @@ func (r *FantasyPayoutRepository) GetPayoutRequestByID(ctx context.Context, id s
 	return p, nil
 }
 
-func (r *FantasyPayoutRepository) ListPayoutRequestsByUser(ctx context.Context, userID string, limit int) ([]domain.PayoutRequest, error) {
+func (r *FantasyPayoutRepository) ListPayoutRequestsByUser(ctx context.Context, userID string, page, limit int) ([]domain.PayoutRequest, int, error) {
+	if page < 1 {
+		page = 1
+	}
 	if limit < 1 || limit > 100 {
 		limit = 25
 	}
+	offset := (page - 1) * limit
+
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	rows, err := r.pool.Query(ctx, payoutSelect+` WHERE p.user_id = $1 ORDER BY p.created_at DESC LIMIT $2`, userID, limit)
+	var total int
+	if err := r.pool.QueryRow(ctx,
+		`SELECT COUNT(*) FROM fantasy_payout_requests WHERE user_id = $1`, userID,
+	).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to count payout requests: %w", err)
+	}
+
+	rows, err := r.pool.Query(ctx,
+		payoutSelect+` WHERE p.user_id = $1 ORDER BY p.created_at DESC, p.id ASC LIMIT $2 OFFSET $3`,
+		userID, limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list payout requests: %w", err)
+		return nil, 0, fmt.Errorf("failed to list payout requests: %w", err)
 	}
 	defer rows.Close()
 
@@ -288,11 +305,11 @@ func (r *FantasyPayoutRepository) ListPayoutRequestsByUser(ctx context.Context, 
 	for rows.Next() {
 		p, err := scanPayout(rows)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		list = append(list, *p)
 	}
-	return list, rows.Err()
+	return list, total, rows.Err()
 }
 
 func (r *FantasyPayoutRepository) ListPayoutRequests(ctx context.Context, status string, page, limit int) ([]domain.PayoutRequest, int, error) {
@@ -360,6 +377,117 @@ func (r *FantasyPayoutRepository) GetLastBankDetails(ctx context.Context, userID
 		return nil, fmt.Errorf("failed to get last bank details: %w", err)
 	}
 	return &b, nil
+}
+
+// ListOwed is the obligation ledger: every wallet still holding money, plus
+// anything already committed to an open request. Both halves matter — a balance
+// nobody has asked for is still owed — so they are reported side by side rather
+// than summed away.
+//
+// PENDING and PROCESSING are the open states: PAID has left, and REJECTED and
+// CANCELLED have been returned to the balance.
+func (r *FantasyPayoutRepository) ListOwed(ctx context.Context, page, limit int) ([]dto.AdminOwedRow, dto.OwedTotals, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 25
+	}
+	offset := (page - 1) * limit
+
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	// The obligation is defined once, here, and both the page and the totals
+	// read from it. Summing the page instead would report a different figure on
+	// every page — the one number an operator must be able to trust.
+	const owedCTE = `
+		WITH open_requests AS (
+			SELECT user_id,
+			       COALESCE(SUM(amount_kobo), 0) AS pending_kobo,
+			       COUNT(*)                      AS open_count
+			FROM fantasy_payout_requests
+			WHERE status IN ('PENDING', 'PROCESSING')
+			GROUP BY user_id
+		),
+		-- Won and paid are defined exactly as SumUserLifetime defines them, so
+		-- this screen and the user's own wallet never disagree about a person.
+		lifetime AS (
+			SELECT user_id, COALESCE(SUM(amount_kobo), 0) AS won_kobo
+			FROM fantasy_wallet_transactions
+			WHERE type = 'WINNINGS'
+			GROUP BY user_id
+		),
+		paid_out AS (
+			SELECT user_id, COALESCE(SUM(amount_kobo), 0) AS paid_kobo
+			FROM fantasy_payout_requests
+			WHERE status = 'PAID'
+			GROUP BY user_id
+		),
+		last_bank AS (
+			SELECT DISTINCT ON (user_id) user_id, bank_name, account_number, account_name
+			FROM fantasy_payout_requests
+			ORDER BY user_id, created_at DESC
+		),
+		owed AS (
+			SELECT w.user_id, u.full_name, u.email, w.balance_kobo,
+			       COALESCE(o.pending_kobo, 0) AS pending_kobo,
+			       COALESCE(o.open_count, 0)   AS open_count,
+			       COALESCE(l.won_kobo, 0)     AS won_kobo,
+			       COALESCE(po.paid_kobo, 0)   AS paid_kobo,
+			       COALESCE(b.bank_name, '')      AS bank_name,
+			       COALESCE(b.account_number, '') AS account_number,
+			       COALESCE(b.account_name, '')   AS account_name
+			FROM fantasy_wallets w
+			JOIN users u ON u.id = w.user_id
+			LEFT JOIN open_requests o ON o.user_id = w.user_id
+			LEFT JOIN lifetime l ON l.user_id = w.user_id
+			LEFT JOIN paid_out po ON po.user_id = w.user_id
+			LEFT JOIN last_bank b ON b.user_id = w.user_id
+			WHERE w.balance_kobo > 0 OR COALESCE(o.pending_kobo, 0) > 0
+		)`
+
+	var totals dto.OwedTotals
+	if err := r.pool.QueryRow(ctx, owedCTE+`
+		SELECT COUNT(*),
+		       COALESCE(SUM(balance_kobo + pending_kobo), 0),
+		       COALESCE(SUM(pending_kobo), 0),
+		       COALESCE(SUM(balance_kobo), 0),
+		       COUNT(*) FILTER (WHERE account_number = '')
+		FROM owed
+	`).Scan(&totals.People, &totals.TotalOwedKobo, &totals.RequestedKobo,
+		&totals.UnrequestedKobo, &totals.AwaitingDetails); err != nil {
+		return nil, totals, fmt.Errorf("failed to total money owed: %w", err)
+	}
+
+	rows, err := r.pool.Query(ctx, owedCTE+`
+		SELECT user_id::text, full_name, email, balance_kobo, pending_kobo, open_count,
+		       won_kobo, paid_kobo, bank_name, account_number, account_name
+		FROM owed
+		ORDER BY (balance_kobo + pending_kobo) DESC, full_name ASC, user_id ASC
+		LIMIT $1 OFFSET $2
+	`, limit, offset)
+	if err != nil {
+		return nil, totals, fmt.Errorf("failed to list money owed: %w", err)
+	}
+	defer rows.Close()
+
+	list := make([]dto.AdminOwedRow, 0)
+	for rows.Next() {
+		var row dto.AdminOwedRow
+		if err := rows.Scan(
+			&row.UserID, &row.UserName, &row.UserEmail,
+			&row.BalanceKobo, &row.PendingPayoutKobo, &row.OpenRequests,
+			&row.LifetimeWonKobo, &row.LifetimePaidKobo,
+			&row.BankName, &row.AccountNumber, &row.AccountName,
+		); err != nil {
+			return nil, totals, fmt.Errorf("failed to scan money owed: %w", err)
+		}
+		row.TotalOwedKobo = row.BalanceKobo + row.PendingPayoutKobo
+		row.HasRequested = row.OpenRequests > 0
+		list = append(list, row)
+	}
+	return list, totals, rows.Err()
 }
 
 func (r *FantasyPayoutRepository) UpdatePayoutStatus(ctx context.Context, id string, to domain.PayoutStatus, adminNotes, reference, actorUserID string) (*domain.PayoutRequest, error) {
@@ -534,7 +662,7 @@ func (r *FantasyPayoutRepository) GetLeagueStandings(ctx context.Context, league
 		FROM fantasy_league_members m
 		JOIN fantasy_teams t ON m.team_id = t.id
 		LEFT JOIN users u ON m.user_id = u.id
-		WHERE m.league_id = $1 AND m.payment_status IN ('FREE', 'PAID')
+		WHERE m.league_id = $1 AND m.payment_status IN ('FREE', 'PAID') AND m.left_at IS NULL
 		ORDER BY t.total_points DESC
 	`, leagueID)
 	if err != nil {
@@ -553,6 +681,9 @@ func (r *FantasyPayoutRepository) GetLeagueStandings(ctx context.Context, league
 	return list, rows.Err()
 }
 
+// CountPaidMembers sizes the prize pool, and deliberately counts members who
+// have since left. Their entry fee was collected and forfeited to the pool —
+// excluding them would shrink it and quietly cut everyone else's winnings.
 func (r *FantasyPayoutRepository) CountPaidMembers(ctx context.Context, leagueID string) (int, int, error) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
@@ -790,8 +921,11 @@ func (r *FantasyPayoutRepository) ListAllLeagues(ctx context.Context, seasonID, 
 	query := `
 		SELECT l.id, l.name, l.type, COALESCE(l.invite_code, ''), COALESCE(u.full_name, ''),
 		       l.entry_fee, l.max_members,
+		       -- Who is actually playing…
 		       (SELECT COUNT(*) FROM fantasy_league_members m
-		        WHERE m.league_id = l.id AND m.payment_status IN ('FREE','PAID')),
+		        WHERE m.league_id = l.id AND m.payment_status IN ('FREE','PAID') AND m.left_at IS NULL),
+		       -- …versus who paid in. Someone who left after paying is counted
+		       -- here and not above, because their fee is still in the pool.
 		       (SELECT COUNT(*) FROM fantasy_league_members m
 		        WHERE m.league_id = l.id AND m.payment_status = 'PAID'),
 		       (SELECT COUNT(*) FROM fantasy_league_members m
@@ -828,9 +962,26 @@ func (r *FantasyPayoutRepository) ListAllLeagues(ctx context.Context, seasonID, 
 	return list, total, rows.Err()
 }
 
-func (r *FantasyPayoutRepository) ListLeagueMembers(ctx context.Context, leagueID string) ([]dto.AdminLeagueMemberRow, error) {
+func (r *FantasyPayoutRepository) ListLeagueMembers(ctx context.Context, leagueID string, page, limit int) ([]dto.AdminLeagueMemberRow, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 25
+	}
+	offset := (page - 1) * limit
+
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
+
+	// Counted separately so the caller knows how many pages there are without
+	// the query having to return every member.
+	var total int
+	if err := r.pool.QueryRow(ctx,
+		`SELECT COUNT(*) FROM fantasy_league_members WHERE league_id = $1`, leagueID,
+	).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to count league members: %w", err)
+	}
 
 	rows, err := r.pool.Query(ctx, `
 		SELECT m.user_id, COALESCE(u.full_name, ''), COALESCE(u.email, ''), m.team_id,
@@ -840,10 +991,11 @@ func (r *FantasyPayoutRepository) ListLeagueMembers(ctx context.Context, leagueI
 		LEFT JOIN users u ON m.user_id = u.id
 		LEFT JOIN fantasy_teams t ON m.team_id = t.id
 		WHERE m.league_id = $1
-		ORDER BY t.total_points DESC NULLS LAST, m.joined_at ASC
-	`, leagueID)
+		ORDER BY t.total_points DESC NULLS LAST, m.joined_at ASC, m.user_id ASC
+		LIMIT $2 OFFSET $3
+	`, leagueID, limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list league members: %w", err)
+		return nil, 0, fmt.Errorf("failed to list league members: %w", err)
 	}
 	defer rows.Close()
 
@@ -853,10 +1005,10 @@ func (r *FantasyPayoutRepository) ListLeagueMembers(ctx context.Context, leagueI
 		var joined time.Time
 		if err := rows.Scan(&m.UserID, &m.UserName, &m.UserEmail, &m.TeamID, &m.TeamName,
 			&m.TotalPoints, &m.PaymentStatus, &m.PaystackRef, &joined); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		m.JoinedAt = joined.Format(time.RFC3339)
 		list = append(list, m)
 	}
-	return list, rows.Err()
+	return list, total, rows.Err()
 }

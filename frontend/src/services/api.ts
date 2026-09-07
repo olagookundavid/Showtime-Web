@@ -235,10 +235,11 @@ export const getGallery = async (page = 1, limit = 10, competitionId?: string) =
 };
 
 // ─── Hero Slides ──────────────────────────────────────────────────────────────
-// Every slide is backed by a hidden news article (authored inline, from this
-// admin — not the News admin) that opens when the slide is clicked. It's
-// "hidden" in the sense that it's excluded from /news and the News admin list;
-// see backend news.is_hero_only.
+// Legacy: slides created before `destination_url` existed link to a hidden
+// news article (authored inline, from this admin — not the News admin)
+// instead. It's "hidden" in the sense that it's excluded from /news and the
+// News admin list; see backend news.is_hero_only. Kept read-only so those
+// old slides keep rendering/linking correctly.
 export interface HeroSlideNews {
     id: string;
     slug: string;
@@ -254,38 +255,33 @@ export interface HeroSlide {
     id: string;
     image_url: string;
     mobile_image_url?: string;
+    // Where the slide links to — an internal path (e.g. "/stats",
+    // "/news/some-slug") or a full external URL. Empty/absent means
+    // non-clickable.
+    destination_url?: string;
     display_order: number;
     is_active: boolean;
     created_at: string;
     updated_at: string;
-    // Public (active-only) reads only get news_slug — enough to build the
-    // /news/{slug} link. Admin reads also get the full nested `news` object.
+    // Legacy fallback for slides created before destination_url existed.
     news_slug?: string;
     news?: HeroSlideNews;
-}
-
-export interface HeroSlideNewsPayload {
-    title: string;
-    excerpt?: string;
-    content: string;
-    featured_media_type?: 'image' | 'youtube';
-    featured_youtube_url?: string;
 }
 
 export interface CreateHeroSlidePayload {
     image_url: string;
     mobile_image_url?: string;
+    destination_url?: string;
     display_order?: number;
     is_active?: boolean;
-    news: HeroSlideNewsPayload;
 }
 
 export interface UpdateHeroSlidePayload {
     image_url?: string;
     mobile_image_url?: string;
+    destination_url?: string;
     display_order?: number;
     is_active?: boolean;
-    news?: HeroSlideNewsPayload; // omit to leave the linked article untouched
 }
 
 // Public: only active slides — what MainHeroCarousel renders.
@@ -357,18 +353,18 @@ export interface UpdateSeasonMVPPayload {
 
 // Public
 export const getSeasonGraphics = async (): Promise<SeasonGraphic[]> => {
-    const res = await api.get<{ data: SeasonGraphic[] }>('/season/graphics');
+    const res = await api.get<{ data: SeasonGraphic[] }>('/season/graphics', { params: { limit: 200 } });
     return res.data.data || [];
 };
 
 export const getSeasonMVPs = async (): Promise<SeasonMVP[]> => {
-    const res = await api.get<{ data: SeasonMVP[] }>('/season/mvps');
+    const res = await api.get<{ data: SeasonMVP[] }>('/season/mvps', { params: { limit: 200 } });
     return res.data.data || [];
 };
 
 // Admin
 export const getAdminSeasonGraphics = async (): Promise<SeasonGraphic[]> => {
-    const res = await api.get<{ data: SeasonGraphic[] }>('/admin/season/graphics');
+    const res = await api.get<{ data: SeasonGraphic[] }>('/admin/season/graphics', { params: { limit: 200 } });
     return res.data.data || [];
 };
 
@@ -378,7 +374,7 @@ export const upsertSeasonGraphic = async (payload: UpsertSeasonGraphicPayload): 
 };
 
 export const getAdminSeasonMVPs = async (): Promise<SeasonMVP[]> => {
-    const res = await api.get<{ data: SeasonMVP[] }>('/admin/season/mvps');
+    const res = await api.get<{ data: SeasonMVP[] }>('/admin/season/mvps', { params: { limit: 200 } });
     return res.data.data || [];
 };
 
@@ -552,7 +548,9 @@ export const getMatches = async (
 };
 
 export const getStandings = async (competitionId: string): Promise<Standing[]> => {
-    const response = await api.get<{ data: Standing[] }>(`/matches/standings?competition_id=${competitionId}`);
+    const response = await api.get<{ data: Standing[] }>(
+        `/matches/standings?competition_id=${competitionId}&limit=200`
+    );
     return response.data.data;
 };
 
@@ -944,14 +942,31 @@ export const lookupTicketByCode = async (code: string): Promise<TicketResponse> 
 };
 
 export const searchTicketsByEmail = async (email: string): Promise<TicketResponse[]> => {
-    const response = await api.get<{ data: TicketResponse[] }>(`/admin/tickets/search?email=${encodeURIComponent(email)}`);
+    const response = await api.get<{ data: TicketResponse[] }>(
+        `/admin/tickets/search?email=${encodeURIComponent(email)}&limit=200`
+    );
     return response.data.data || [];
 };
 
 // Admin Event Day endpoints
 export const getAllEventDays = async (): Promise<EventDayResponse[]> => {
-    const response = await api.get<{ data: EventDayResponse[] }>('/admin/event-days/all');
+    const response = await api.get<{ data: EventDayResponse[] }>('/admin/event-days/all', {
+        params: { limit: 200 },
+    });
     return response.data.data || [];
+};
+
+/** Paged and server-searched, for the admin screen that manages event days.
+ *  `getAllEventDays` stays for the pickers that want the recent ones. */
+export const listEventDays = async (params?: {
+    search?: string;
+    page?: number;
+    limit?: number;
+}): Promise<Paged<EventDayResponse>> => {
+    const response = await api.get<Paged<EventDayResponse>>('/admin/event-days/all', {
+        params: { ...params, search: params?.search || undefined },
+    });
+    return { ...response.data, data: response.data.data ?? [] };
 };
 
 export const createEventDay = async (payload: { title: string; date: string; venue?: string; is_active?: boolean }): Promise<EventDayResponse> => {
@@ -1331,8 +1346,8 @@ export const upsertPlayerStat = async (payload: UpsertPlayerStatPayload) => {
 };
 
 export const getStatDates = async (compId?: string): Promise<string[]> => {
-    let url = '/stats/dates';
-    if (compId) url += `?competition_id=${compId}`;
+    let url = '/stats/dates?limit=200';
+    if (compId) url += `&competition_id=${compId}`;
     const response = await api.get(url);
     return response.data.data || [];
 };
@@ -1380,7 +1395,7 @@ export const deleteTOTWEntry = async (id: string) => {
 // Returns unique match dates (YYYY-MM-DD) for a competition, sourced from
 // actual matches (not stats) to ensure data integrity for TOTW selection.
 export const getMatchDays = async (competitionId: string): Promise<string[]> => {
-    const response = await api.get(`/matches/days?competition_id=${competitionId}`);
+    const response = await api.get(`/matches/days?competition_id=${competitionId}&limit=200`);
     return response.data.data || [];
 };
 
@@ -1391,7 +1406,7 @@ export const getEligiblePlayersForMatchDay = async (
     date: string
 ): Promise<Player[]> => {
     const response = await api.get(
-        `/matches/eligible-players?competition_id=${competitionId}&date=${date}`
+        `/matches/eligible-players?competition_id=${competitionId}&date=${date}&limit=200`
     );
     return response.data.data || [];
 };
@@ -2712,8 +2727,12 @@ export const discountsApi = {
         const res = await api.get<{ data: DiscountCode[] }>('/admin/discount-codes');
         return res.data.data || [];
     },
-    listTargets: async (): Promise<DiscountTarget[]> => {
-        const res = await api.get<{ data: DiscountTarget[] }>('/admin/discount-codes/targets');
+    listTargets: async (search?: string): Promise<DiscountTarget[]> => {
+        // Filtered on the server: a catalogue outgrows any page, so searching
+        // the loaded page would quietly hide anything past it.
+        const res = await api.get<{ data: DiscountTarget[] }>('/admin/discount-codes/targets', {
+            params: { search: search || undefined, limit: 50 },
+        });
         return res.data.data || [];
     },
     create: async (payload: SaveDiscountCodePayload): Promise<DiscountCode> => {
@@ -2798,8 +2817,25 @@ export interface FantasyPlayerListItem {
     price: number;
     rating: number;
     total_points: number;
+
+    /** Ownership across the season's managers: how many hold them now, as a
+     *  percentage, and how many times they have been signed and sold. */
+    owned_by: number;
     selected_by_pct: number;
+    transfers_in: number;
+    transfers_out: number;
 }
+
+/** How the market list is ordered. Every option is applied by the server. */
+export type MarketSort =
+    | ''
+    | 'rating'
+    | 'price_asc'
+    | 'points'
+    | 'owned'
+    | 'transfers_in'
+    | 'transfers_out'
+    | 'name';
 
 export interface FantasyLineupPick {
     slot: FantasySlot;
@@ -2935,7 +2971,7 @@ export const fantasyApi = {
             gender?: 'M' | 'F';
             team_id?: string;
             search?: string;
-            sort?: string;
+            sort?: MarketSort;
             page?: number;
             limit?: number;
         }
@@ -2967,15 +3003,22 @@ export const fantasyApi = {
         });
         return res.data.data;
     },
-    listPublicLeagues: async (seasonId: string): Promise<FantasyLeague[]> => {
-        const res = await api.get<{ data: FantasyLeague[] }>('/fantasy/leagues/public', {
-            params: { season_id: seasonId },
+    // Paged on the server — the public browse list grows with every league
+    // anyone creates, so it is never fetched whole.
+    listPublicLeagues: async (
+        seasonId: string,
+        params?: { page?: number; limit?: number }
+    ): Promise<Paged<FantasyLeague>> => {
+        const res = await api.get<Paged<FantasyLeague>>('/fantasy/leagues/public', {
+            params: { season_id: seasonId, ...params },
         });
-        return res.data.data || [];
+        return { ...res.data, data: res.data.data ?? [] };
     },
     listMyLeagues: async (seasonId: string): Promise<FantasyLeague[]> => {
+        // Feeds the dashboard tiles and the leaderboard's league filter, both of
+        // which need every league the manager is in, so it asks for the cap.
         const res = await api.get<{ data: FantasyLeague[] }>('/fantasy/leagues/mine', {
-            params: { season_id: seasonId },
+            params: { season_id: seasonId, limit: 200 },
         });
         return res.data.data || [];
     },
@@ -3008,6 +3051,12 @@ export const fantasyApi = {
             { params: { season_id: seasonId } }
         );
         return res.data.data;
+    },
+    // Leaving drops the manager out of the league's table. A free league can be
+    // rejoined; a paid one cannot — the entry fee stays in the prize pool.
+    leaveLeague: async (leagueId: string): Promise<{ message: string }> => {
+        const res = await api.post<{ message: string }>(`/fantasy/leagues/${leagueId}/leave`);
+        return res.data;
     },
     verifyLeaguePayment: async (reference: string): Promise<{ message: string }> => {
         const res = await api.post<{ message: string }>('/fantasy/leagues/verify', { reference });
@@ -3240,7 +3289,7 @@ export interface SettlementResult {
     awards: PrizeAward[];
 }
 
-interface Paged<T> {
+export interface Paged<T> {
     data: T[];
     total: number;
     page: number;
@@ -3310,14 +3359,125 @@ export interface LeagueJoinPreview {
     is_full: boolean;
     already_member: boolean;
     membership_status?: 'FREE' | 'PENDING' | 'PAID' | 'FAILED';
+    // Set when this manager paid into the league and then left. The entry is
+    // gone and the league cannot be rejoined.
+    forfeited: boolean;
+    // Already net of the platform's cut — the figure that will actually be
+    // shared out. The cut itself is only shown to whoever creates a league.
     prize_pool_kobo: number;
-    platform_cut_kobo: number;
-    cut_percent: number;
     prize_structure: PrizeTier[];
     // Entry fees are never returned once paid.
     refundable: boolean;
     settled: boolean;
 }
+
+/** Fantasy prices are in fantasy millions — the unit the pricing model works in.
+ *  Defined once so the label cannot drift between screens. */
+export const formatFantasyPrice = (v: number | null | undefined): string => {
+    const n = typeof v === 'number' && Number.isFinite(v) ? v : 0;
+    return `₦${n.toFixed(1)}m`;
+};
+
+// ─── Squad & trading ─────────────────────────────────────────────────────────
+
+export interface SquadPlayer {
+    id: string;
+    player_id: string;
+    name: string;
+    position: string;
+    gender: string;
+    club_id: string;
+    purchase_price: number;
+    current_price: number;
+    /** In this gameweek's starting fourteen. Subs score nothing until brought in. */
+    starting: boolean;
+    sell_price: number;
+    /** Always true — the squad carries no restrictions. */
+    can_sell: boolean;
+    /** Selling them would leave a squad that cannot field a legal fourteen. The
+     *  sale still goes through; this is what the confirmation warns about. */
+    breaks_lineup: boolean;
+    /** A woman whose sale leaves her unit with no margin on the female minimum. */
+    quota_critical: boolean;
+}
+
+export interface SquadRules {
+    budget: number;
+    min_female_offense: number;
+    min_female_defense: number;
+    max_per_club: number;
+}
+
+export interface Squad {
+    players: SquadPlayer[];
+    bank: number;
+    squad_value: number;
+    female_offense: number;
+    female_defense: number;
+    squad_size: number;
+    squad_min: number;
+    squad_max: number;
+    starting_xi: number;
+    starters: number;
+    subs: number;
+    rules: SquadRules;
+    readiness: SquadReadiness;
+    /** The market shuts while a gameweek is being played and reopens once its
+     *  scores are final. When false, `market_closed_reason` says why. */
+    market_open: boolean;
+    market_closed_reason?: string;
+}
+
+/** One line of the squad checklist. Guidance for the squad screen — the lineup
+ *  selector is what actually enforces these. */
+export interface SquadRequirement {
+    key: string;
+    label: string;
+    have: number;
+    need: number;
+    met: boolean;
+    hint?: string;
+}
+
+export interface SquadReadiness {
+    requirements: SquadRequirement[];
+    /** A legal starting fourteen can be drawn from the squad. */
+    ready: boolean;
+    /** Squad is under fourteen, so the match day would be forfeited. */
+    forfeits: boolean;
+    blocker?: string;
+}
+
+const normaliseSquad = (s: Squad): Squad => ({
+    ...s,
+    players: s?.players ?? [],
+    readiness: { ...s?.readiness, requirements: s?.readiness?.requirements ?? [] } as SquadReadiness,
+});
+
+export const fantasySquadApi = {
+    getSquad: async (seasonId: string): Promise<Squad> => {
+        const res = await api.get<{ data: Squad }>('/fantasy/squad', { params: { season_id: seasonId } });
+        return normaliseSquad(res.data.data);
+    },
+    // Buy and sell both return the whole squad, so the dashboard reflects the
+    // new balance without a second round trip.
+    buyPlayer: async (seasonId: string, playerId: string): Promise<Squad> => {
+        const res = await api.post<{ data: Squad }>(
+            '/fantasy/squad/buy',
+            { player_id: playerId },
+            { params: { season_id: seasonId } }
+        );
+        return normaliseSquad(res.data.data);
+    },
+    sellPlayer: async (seasonId: string, playerId: string): Promise<Squad> => {
+        const res = await api.post<{ data: Squad }>(
+            '/fantasy/squad/sell',
+            { player_id: playerId },
+            { params: { season_id: seasonId } }
+        );
+        return normaliseSquad(res.data.data);
+    },
+};
 
 export const fantasyLeagueApi = {
     // The terms of a league — cost, field size, prize split, refund policy —
@@ -3333,6 +3493,13 @@ export const fantasyLeagueApi = {
             params: { code },
         });
         return res.data.data;
+    },
+    // The platform's share of entry fees, for the league creation form. Only
+    // the creator is shown this — it is what comes off the top before they
+    // price an entry fee.
+    getPlatformCutPercent: async (): Promise<number> => {
+        const res = await api.get<{ data: { cut_percent: number } }>('/fantasy/platform-cut');
+        return res.data.data.cut_percent;
     },
 };
 
@@ -3352,9 +3519,9 @@ export const fantasyWalletApi = {
         const res = await api.post<{ data: PayoutRequest }>('/fantasy/payouts', payload);
         return res.data.data;
     },
-    listMyPayouts: async (): Promise<PayoutRequest[]> => {
-        const res = await api.get<{ data: PayoutRequest[] }>('/fantasy/payouts');
-        return res.data.data || [];
+    listMyPayouts: async (params?: { page?: number; limit?: number }): Promise<Paged<PayoutRequest>> => {
+        const res = await api.get<Paged<PayoutRequest>>('/fantasy/payouts', { params });
+        return { ...res.data, data: res.data.data ?? [] };
     },
     cancelPayout: async (id: string): Promise<PayoutRequest> => {
         const res = await api.post<{ data: PayoutRequest }>(`/fantasy/payouts/${id}/cancel`);
@@ -3362,12 +3529,47 @@ export const fantasyWalletApi = {
     },
 };
 
+// One person the platform owes money to, for the admin's obligation view.
+export interface OwedRow {
+    user_id: string;
+    user_name: string;
+    user_email: string;
+    /** Still in their wallet — they have not asked for it yet. */
+    balance_kobo: number;
+    /** Already committed to an open request, so out of the balance. */
+    pending_payout_kobo: number;
+    total_owed_kobo: number;
+    lifetime_won_kobo: number;
+    lifetime_paid_kobo: number;
+    has_requested: boolean;
+    open_requests: number;
+    /** The account last submitted on a request; blank until they give us one. */
+    bank_name?: string;
+    account_number?: string;
+    account_name?: string;
+}
+
+export interface MoneyOwed {
+    rows: OwedRow[];
+    /** These totals cover everyone owed money, not just the page in `rows`. */
+    total_owed_kobo: number;
+    requested_kobo: number;
+    unrequested_kobo: number;
+    people: number;
+    awaiting_details: number;
+    page: number;
+    limit: number;
+    total_pages: number;
+}
+
 export const fantasyAdminApi = {
     // Returns every season including DRAFT ones. `getActiveSeason` only ever
     // returns an ACTIVE season, so admin screens must use this or they cannot
     // see — let alone activate — a season they just created.
     listSeasons: async (): Promise<FantasySeason[]> => {
-        const res = await api.get<{ data: FantasySeason[] }>('/admin/fantasy/seasons');
+        const res = await api.get<{ data: FantasySeason[] }>('/admin/fantasy/seasons', {
+            params: { limit: 200 },
+        });
         return res.data.data || [];
     },
     // Only a DRAFT season with no squads entered can be deleted; the server
@@ -3396,11 +3598,25 @@ export const fantasyAdminApi = {
     },
     getLeagueFinance: async (leagueId: string): Promise<LeagueFinance> => {
         const res = await api.get<{ data: LeagueFinance }>(`/admin/fantasy/leagues/${leagueId}/finance`);
-        return res.data.data;
+        // An unfunded league projects no awards, and a Go nil slice arrives as
+        // `null`. The page reduces and maps over both of these lists, so they
+        // are normalised here rather than guarded at every use.
+        const finance = res.data.data;
+        return {
+            ...finance,
+            awards: finance?.awards ?? [],
+            prize_structure: finance?.prize_structure ?? [],
+        };
     },
-    listLeagueMembers: async (leagueId: string): Promise<AdminLeagueMemberRow[]> => {
-        const res = await api.get<{ data: AdminLeagueMemberRow[] }>(`/admin/fantasy/leagues/${leagueId}/members`);
-        return res.data.data || [];
+    listLeagueMembers: async (
+        leagueId: string,
+        params?: { page?: number; limit?: number }
+    ): Promise<Paged<AdminLeagueMemberRow>> => {
+        const res = await api.get<Paged<AdminLeagueMemberRow>>(
+            `/admin/fantasy/leagues/${leagueId}/members`,
+            { params }
+        );
+        return { ...res.data, data: res.data.data ?? [] };
     },
     setPrizeStructure: async (
         leagueId: string,
@@ -3422,6 +3638,13 @@ export const fantasyAdminApi = {
     completeSeason: async (seasonId: string): Promise<SettlementResult> => {
         const res = await api.post<{ data: SettlementResult }>(`/admin/fantasy/seasons/${seasonId}/complete`);
         return res.data.data;
+    },
+    // Everyone the platform currently owes prize money to, and the account it
+    // would be sent to. Settling a league credits wallets; this is what those
+    // credits add up to before any transfer is made.
+    getMoneyOwed: async (params?: { page?: number; limit?: number }): Promise<MoneyOwed> => {
+        const res = await api.get<{ data: MoneyOwed }>('/admin/fantasy/owed', { params });
+        return { ...res.data.data, rows: res.data.data?.rows ?? [] };
     },
     listPayouts: async (params?: {
         status?: PayoutStatus | '';

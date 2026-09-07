@@ -87,14 +87,14 @@ func (f *fakePayoutRepo) GetPayoutRequestByID(_ context.Context, id string) (*do
 	return f.payouts[id], nil
 }
 
-func (f *fakePayoutRepo) ListPayoutRequestsByUser(_ context.Context, userID string, _ int) ([]domain.PayoutRequest, error) {
+func (f *fakePayoutRepo) ListPayoutRequestsByUser(_ context.Context, userID string, _, _ int) ([]domain.PayoutRequest, int, error) {
 	var out []domain.PayoutRequest
 	for _, p := range f.payouts {
 		if p.UserID == userID {
 			out = append(out, *p)
 		}
 	}
-	return out, nil
+	return out, len(out), nil
 }
 
 func (f *fakePayoutRepo) UpdatePayoutStatus(_ context.Context, id string, to domain.PayoutStatus, adminNotes, ref, actor string) (*domain.PayoutRequest, error) {

@@ -16,9 +16,11 @@ import {
     ChevronDoubleLeftIcon,
     ChevronDoubleRightIcon,
     MapPinIcon,
+    BanknotesIcon,
 } from '@heroicons/react/24/outline';
 import {
     fantasySeasonApi,
+    fantasyWalletApi,
     formatKobo,
     type FantasyLineupPick,
     type DashboardLeagueRow,
@@ -330,6 +332,15 @@ export function FantasyDashboard() {
         queryFn: () => fantasySeasonApi.getDashboard(),
     });
 
+    // Prize money is the one thing on this page that a manager can actually lose
+    // track of, so the dashboard fetches the wallet and says so outright rather
+    // than leaving it a page away.
+    const { data: wallet } = useQuery({
+        queryKey: ['fantasyWallet'],
+        queryFn: fantasyWalletApi.getWallet,
+        retry: false,
+    });
+
     const gameweek = dashboard?.current_gameweek;
     const countdown = useCountdown(gameweek?.deadline);
 
@@ -411,7 +422,19 @@ export function FantasyDashboard() {
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Link
+                            to="/fantasy/trading"
+                            className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase flex items-center gap-2 transition backdrop-blur-md"
+                        >
+                            <BanknotesIcon className="w-3.5 h-3.5 text-emerald-400" /> Buy / Sell
+                        </Link>
+                        <Link
+                            to="/fantasy/wallet"
+                            className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase flex items-center gap-2 transition backdrop-blur-md"
+                        >
+                            <BanknotesIcon className="w-3.5 h-3.5 text-yellow-400" /> Prize Wallet
+                        </Link>
                         <Link
                             to="/fantasy/my-team"
                             className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase flex items-center gap-2 transition backdrop-blur-md"
@@ -466,6 +489,49 @@ export function FantasyDashboard() {
                     </div>
                 </div>
             </div>
+
+            {/* Winnings. Shown only when there is money involved — an empty wallet
+                is not news, but money sitting unclaimed is. */}
+            {wallet && (num(wallet.balance_kobo) > 0 || num(wallet.pending_payout_kobo) > 0) && (
+                <div className="bg-white dark:bg-gray-800 border border-emerald-200 dark:border-emerald-800 rounded-2xl md:rounded-3xl shadow-sm p-5 md:p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-start gap-3 min-w-0">
+                            <div className="w-11 h-11 shrink-0 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                                <BanknotesIcon className="w-6 h-6" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                                    You've won prize money
+                                </p>
+                                <p className="text-2xl md:text-3xl font-black text-sffl-navy dark:text-white leading-tight tabular-nums">
+                                    {formatKobo(num(wallet.balance_kobo))}
+                                </p>
+                                <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">
+                                    {num(wallet.balance_kobo) > 0
+                                        ? 'Add your bank account and request a withdrawal — we pay it by transfer.'
+                                        : 'Your balance is fully requested.'}
+                                    {num(wallet.pending_payout_kobo) > 0 && (
+                                        <>
+                                            {' '}
+                                            <span className="font-bold text-amber-600 dark:text-amber-400">
+                                                {formatKobo(num(wallet.pending_payout_kobo))} is already being processed.
+                                            </span>
+                                        </>
+                                    )}
+                                </p>
+                            </div>
+                        </div>
+
+                        <Link
+                            to="/fantasy/wallet"
+                            className="shrink-0 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition active:scale-95 shadow-md"
+                        >
+                            {num(wallet.balance_kobo) > 0 ? 'Withdraw' : 'View Wallet'}
+                            <ArrowRightIcon className="w-4 h-4" />
+                        </Link>
+                    </div>
+                </div>
+            )}
 
             {/* Standings — first thing under the hero, by design */}
             <DashboardLeaderboard seasonId={season.id} leagues={leagues} />

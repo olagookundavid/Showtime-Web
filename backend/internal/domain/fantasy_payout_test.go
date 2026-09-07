@@ -1,6 +1,9 @@
 package domain
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+)
 
 func TestSplitPool(t *testing.T) {
 	cases := []struct {
@@ -170,8 +173,19 @@ func TestDistributePrizes(t *testing.T) {
 	})
 
 	t.Run("no pool means no awards", func(t *testing.T) {
-		if awards := DistributePrizes([]PrizeStanding{standing("a", 30)}, 0, DefaultPrizeStructure); awards != nil {
+		awards := DistributePrizes([]PrizeStanding{standing("a", 30)}, 0, DefaultPrizeStructure)
+		if len(awards) != 0 {
 			t.Errorf("expected no awards from an empty pool, got %v", awards)
+		}
+		// Empty, but never nil. A nil slice marshals to `null`, and the admin
+		// league page reduces straight over this list — an unfunded league
+		// took the whole page down with "Cannot read properties of null".
+		encoded, err := json.Marshal(awards)
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+		if string(encoded) != "[]" {
+			t.Errorf("an empty award list must encode as [], got %s", encoded)
 		}
 	})
 

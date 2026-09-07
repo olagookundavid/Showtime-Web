@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import {
     TrophyIcon,
     ArrowLeftIcon,
@@ -10,8 +11,10 @@ import {
     ChevronDoubleRightIcon,
     MapPinIcon,
     UserGroupIcon,
+    ArrowRightStartOnRectangleIcon,
+    ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
-import { fantasyApi } from '../../services/api';
+import { fantasyApi, formatKobo } from '../../services/api';
 import { useFantasyLeaderboard, num, rankBadgeClass, OVERALL } from '../../hooks/useFantasyLeaderboard';
 
 const pts = (v: number | null | undefined): string => num(v).toFixed(2);
@@ -24,6 +27,8 @@ export function FantasyLeaderboard() {
     // 'overall' or a league id. Seeded from the route, then driven by the filter.
     const [scope, setScope] = useState<string>(urlIsOverall || !id ? OVERALL : id);
     const [selectedGWId, setSelectedGWId] = useState<string>('');
+    const [confirmLeave, setConfirmLeave] = useState(false);
+    const queryClient = useQueryClient();
 
     const { data: season } = useQuery({
         queryKey: ['fantasySeason'],
@@ -86,6 +91,29 @@ export function FantasyLeaderboard() {
         resetPaging();
     };
 
+    // Only a mini-league you are actually in can be left; the overall table is
+    // the season itself, and a league you are merely browsing has nothing to leave.
+    const leavableLeague = useMemo(
+        () => (myLeagues ?? []).find((l) => l?.id === scope && l.type !== 'OVERALL'),
+        [myLeagues, scope]
+    );
+    const leaveEntryFeeKobo = num(leavableLeague?.entry_fee);
+
+    const leaveMutation = useMutation({
+        mutationFn: () => fantasyApi.leaveLeague(scope),
+        onSuccess: () => {
+            toast.success(`You have left ${leavableLeague?.name || 'the league'}.`);
+            setConfirmLeave(false);
+            queryClient.invalidateQueries({ queryKey: ['myFantasyLeagues'] });
+            queryClient.invalidateQueries({ queryKey: ['fantasyDashboard'] });
+            queryClient.invalidateQueries({ queryKey: ['fantasyLeaderboard'] });
+            // Their old table is no longer theirs to sit in.
+            selectScope(OVERALL);
+        },
+        onError: (err: any) =>
+            toast.error(err?.response?.data?.error || 'Could not leave this league. Try again.'),
+    });
+
     const activeLeagueName =
         scope === OVERALL ? null : leagueOptions.find((o) => o.id === scope)?.name ?? 'League';
 
@@ -116,7 +144,16 @@ export function FantasyLeaderboard() {
                     </div>
 
                     {/* Gameweek Filter */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                        {leavableLeague && (
+                            <button
+                                type="button"
+                                onClick={() => setConfirmLeave(true)}
+                                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-xs font-black uppercase tracking-wider text-gray-200 hover:bg-red-600 hover:border-red-600 hover:text-white transition cursor-pointer"
+                            >
+                                <ArrowRightStartOnRectangleIcon className="w-3.5 h-3.5" /> Leave League
+                            </button>
+                        )}
                         <span className="text-xs text-gray-300 font-bold uppercase">Filter:</span>
                         <select
                             value={selectedGWId}
@@ -385,6 +422,68 @@ export function FantasyLeaderboard() {
                     </div>
                 )}
             </div>
+
+            {/* Leave confirmation. What leaving costs differs sharply between a
+                free league and a paid one, so each is spelled out rather than
+                hidden behind one generic "are you sure". */}
+            {confirmLeave && leavableLeague && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 pt-[calc(var(--chrome-h)+1rem)] transition-[padding] duration-300 motion-reduce:transition-none" data-dialog>
+                    <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden">
+                        <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+                            <h2 className="text-base font-black uppercase italic tracking-tight text-sffl-navy dark:text-white">
+                                Leave {leavableLeague.name || 'this league'}?
+                            </h2>
+                        </div>
+
+                        <div className="p-5 space-y-4">
+                            <p className="text-sm text-gray-700 dark:text-gray-200">
+                                You'll come out of this league's table straight away. Your squad and your points in the
+                                overall table are untouched.
+                            </p>
+
+                            {leaveEntryFeeKobo > 0 ? (
+                                <div className="p-3 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 flex items-start gap-2">
+                                    <ExclamationTriangleIcon className="w-5 h-5 shrink-0 text-red-600 dark:text-red-400" />
+                                    <div>
+                                        <p className="text-xs font-black uppercase tracking-wider text-red-700 dark:text-red-300">
+                                            You forfeit your {formatKobo(leaveEntryFeeKobo)} entry
+                                        </p>
+                                        <p className="text-xs text-red-700 dark:text-red-300 mt-0.5">
+                                            The money stays in the prize pool for whoever finishes on top, and it cannot be
+                                            refunded. You will not be able to rejoin this league.
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600">
+                                    <p className="text-xs text-gray-700 dark:text-gray-200">
+                                        This league is free, so nothing is lost — you can join it again whenever you like.
+                                    </p>
+                                </div>
+                            )}
+
+                            <div className="flex items-center gap-2 pt-1">
+                                <button
+                                    type="button"
+                                    onClick={() => setConfirmLeave(false)}
+                                    disabled={leaveMutation.isPending}
+                                    className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-black text-xs uppercase disabled:opacity-50 transition cursor-pointer"
+                                >
+                                    Stay In
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => leaveMutation.mutate()}
+                                    disabled={leaveMutation.isPending}
+                                    className="flex-1 py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase disabled:opacity-50 transition cursor-pointer"
+                                >
+                                    {leaveMutation.isPending ? 'Leaving…' : 'Yes, Leave'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

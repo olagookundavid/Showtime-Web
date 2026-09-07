@@ -34,11 +34,13 @@ import {
 import type {
     FantasySeason,
     AdminLeagueRow,
+    OwedRow,
     PayoutRequest,
     PayoutStatus,
     SettlementResult
 } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
+import { useDebounced } from '../../hooks/useDebounced';
 
 /** `datetime-local` gives a local wall-clock string; the API wants RFC3339. */
 const toRFC3339 = (localValue: string): string => new Date(localValue).toISOString();
@@ -52,15 +54,6 @@ const toDateTimeLocalValue = (isoValue: string): string => {
 };
 
 /** Trails a fast-typing search box so we don't fire a request per keystroke. */
-function useDebounced(value: string, ms = 350): string {
-    const [debounced, setDebounced] = useState(value);
-    useEffect(() => {
-        const t = setTimeout(() => setDebounced(value), ms);
-        return () => clearTimeout(t);
-    }, [value, ms]);
-    return debounced;
-}
-
 const ordinal = (n: number): string => {
     const s = ['th', 'st', 'nd', 'rd'];
     const v = n % 100;
@@ -124,15 +117,19 @@ const StatCard = ({ label, value, hint, tone = 'neutral' }: {
     hint?: string;
     tone?: 'neutral' | 'yellow' | 'emerald' | 'red';
 }) => {
+    // These cards sit on a near-white surface in light mode and a dark one in
+    // dark mode, so every tone needs both halves. A single light-only colour
+    // here leaves the figure invisible on one of the two themes.
     const toneCls =
         tone === 'yellow' ? 'text-sffl-red' :
-        tone === 'emerald' ? 'text-emerald-400' :
-        tone === 'red' ? 'text-red-400' : 'text-white';
+        tone === 'emerald' ? 'text-emerald-600 dark:text-emerald-400' :
+        tone === 'red' ? 'text-red-600 dark:text-red-400' :
+        'text-gray-900 dark:text-white';
     return (
         <div className="bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl p-4">
-            <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 block">{label}</span>
+            <span className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 block">{label}</span>
             <span className={`block mt-1.5 text-xl font-black tabular-nums ${toneCls}`}>{value}</span>
-            {hint && <span className="block mt-1 text-[11px] text-gray-400 dark:text-gray-500">{hint}</span>}
+            {hint && <span className="block mt-1 text-[11px] text-gray-500 dark:text-gray-400">{hint}</span>}
         </div>
     );
 };
@@ -273,7 +270,7 @@ const ConfirmDialog = ({ open, title, warning, body, confirmLabel, pending, onCo
 }) => {
     if (!open) return null;
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" data-dialog>
             <div className="w-full max-w-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-3xl shadow-2xl overflow-hidden">
                 <div className="flex items-start justify-between gap-4 p-5 border-b border-gray-200 dark:border-gray-700 bg-red-50/50 dark:bg-red-950/20">
                     <div className="flex items-start gap-3">
@@ -587,7 +584,7 @@ function CreateSeasonCard() {
     const [seasonForm, setSeasonForm] = useState({
         competition_id: '',
         name: 'Showtime Season 2026 Fantasy',
-        budget: 230,
+        budget: 100,
         min_female_offense: 3,
         min_female_defense: 3,
         max_per_club: 4,
@@ -654,7 +651,7 @@ function CreateSeasonCard() {
                     <input
                         type="number"
                         value={seasonForm.budget}
-                        onChange={(e) => setSeasonForm({ ...seasonForm, budget: parseFloat(e.target.value) || 230 })}
+                        onChange={(e) => setSeasonForm({ ...seasonForm, budget: parseFloat(e.target.value) || 100 })}
                         className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                     />
                 </div>
@@ -1121,14 +1118,14 @@ function LeaguesTab({ seasonId }: { seasonId: string }) {
                                                 onClick={() => setOpenLeagueId(isOpen ? null : l.league_id)}
                                                 className={`text-sm cursor-pointer transition ${isOpen ? 'bg-gray-50 dark:bg-gray-700/50' : 'hover:bg-gray-50 dark:bg-gray-700/50/60'}`}
                                             >
-                                                <td className="px-4 py-3 font-bold text-white">{l.name}</td>
+                                                <td className="px-4 py-3 font-bold text-gray-900 dark:text-white">{l.name}</td>
                                                 <td className="px-4 py-3"><TypeBadge type={l.type} /></td>
                                                 <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">{l.owner_name || '—'}</td>
                                                 <td className="px-4 py-3 text-right tabular-nums text-gray-700 dark:text-gray-300">
                                                     {isPaid ? formatKobo(l.entry_fee_kobo) : <span className="text-gray-400 dark:text-gray-500">Free</span>}
                                                 </td>
                                                 <td className="px-4 py-3 text-xs">
-                                                    <span className="text-white font-bold tabular-nums">{l.member_count}</span>
+                                                    <span className="text-gray-900 dark:text-white font-bold tabular-nums">{l.member_count}</span>
                                                     {isPaid && (
                                                         <span className="text-gray-400 dark:text-gray-500 ml-2">
                                                             <span className="text-emerald-400">{l.paid_members} paid</span>
@@ -1307,10 +1304,12 @@ function LeagueDetailPanel({ league, seasonId }: { league: AdminLeagueRow; seaso
         queryFn: () => fantasyAdminApi.getLeagueFinance(leagueId),
     });
 
-    const { data: members = [], isLoading: membersLoading } = useQuery({
-        queryKey: ['adminLeagueMembers', leagueId],
-        queryFn: () => fantasyAdminApi.listLeagueMembers(leagueId),
+    const [membersPage, setMembersPage] = useState(1);
+    const { data: membersPaged, isLoading: membersLoading } = useQuery({
+        queryKey: ['adminLeagueMembers', leagueId, membersPage],
+        queryFn: () => fantasyAdminApi.listLeagueMembers(leagueId, { page: membersPage, limit: 25 }),
     });
+    const members = membersPaged?.data ?? [];
 
     // `null` means "not edited yet" — fall through to the server's structure so a
     // background refetch can't clobber a save the operator hasn't made yet.
@@ -1345,6 +1344,7 @@ function LeagueDetailPanel({ league, seasonId }: { league: AdminLeagueRow; seaso
             queryClient.invalidateQueries({ queryKey: ['adminLeagueFinance', leagueId] });
             queryClient.invalidateQueries({ queryKey: ['adminFantasyLeagues'] });
             queryClient.invalidateQueries({ queryKey: ['adminFantasyOverview', seasonId] });
+            queryClient.invalidateQueries({ queryKey: ['adminFantasyOwed'] });
         },
         onError: (err: any) => {
             // 409 is the "already settled" race, not a failure worth a generic message.
@@ -1375,14 +1375,14 @@ function LeagueDetailPanel({ league, seasonId }: { league: AdminLeagueRow; seaso
                 <div className="space-y-1.5 text-sm max-w-md">
                     <div className="flex items-center justify-between">
                         <span className="text-gray-500 dark:text-gray-400">Gross collected ({finance.paid_members} paid entries)</span>
-                        <span className="font-bold tabular-nums text-white">{formatKobo(finance.gross_entry_kobo)}</span>
+                        <span className="font-bold tabular-nums text-gray-900 dark:text-white">{formatKobo(finance.gross_entry_kobo)}</span>
                     </div>
                     <div className="flex items-center justify-between">
                         <span className="text-gray-500 dark:text-gray-400">Less platform cut ({finance.cut_percent}%)</span>
                         <span className="font-bold tabular-nums text-red-400">−{formatKobo(finance.platform_cut_kobo)}</span>
                     </div>
                     <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
-                        <span className="text-white font-black uppercase text-xs tracking-wider">Prize pool</span>
+                        <span className="text-gray-900 dark:text-white font-black uppercase text-xs tracking-wider">Prize pool</span>
                         <span className="font-black tabular-nums text-sffl-red text-base">{formatKobo(finance.prize_pool_kobo)}</span>
                     </div>
                     {finance.pending_members > 0 && (
@@ -1433,7 +1433,7 @@ function LeagueDetailPanel({ league, seasonId }: { league: AdminLeagueRow; seaso
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                             {finance.awards.map((a, i) => (
                                 <tr key={`${a.user_id}-${a.rank}-${i}`}>
-                                    <td className="px-4 py-2.5 font-black text-white whitespace-nowrap">
+                                    <td className="px-4 py-2.5 font-black text-gray-900 dark:text-white whitespace-nowrap">
                                         {awardPlaceLabel(a.rank, a.shared_with)}
                                     </td>
                                     <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">{a.user_name}</td>
@@ -1488,7 +1488,7 @@ function LeagueDetailPanel({ league, seasonId }: { league: AdminLeagueRow; seaso
                                                 next[i] = { ...next[i], percent: parseFloat(e.target.value) || 0 };
                                                 setTiers(next);
                                             }}
-                                            className="w-full bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl py-2.5 pl-3 pr-8 text-sm text-white tabular-nums focus:outline-none focus:border-yellow-500"
+                                            className="w-full bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl py-2.5 pl-3 pr-8 text-sm text-gray-900 dark:text-white tabular-nums focus:outline-none focus:border-yellow-500"
                                         />
                                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-500">%</span>
                                     </div>
@@ -1540,7 +1540,7 @@ function LeagueDetailPanel({ league, seasonId }: { league: AdminLeagueRow; seaso
             <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow-sm">
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                     <h4 className="text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                        <UsersIcon className="w-4 h-4 text-sffl-red" /> Members ({members.length})
+                        <UsersIcon className="w-4 h-4 text-sffl-red" /> Members ({membersPaged?.total ?? 0})
                     </h4>
                 </div>
                 {membersLoading ? (
@@ -1563,7 +1563,7 @@ function LeagueDetailPanel({ league, seasonId }: { league: AdminLeagueRow; seaso
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                                 {members.map(m => (
                                     <tr key={m.user_id}>
-                                        <td className="px-4 py-2.5 font-bold text-white">{m.user_name}</td>
+                                        <td className="px-4 py-2.5 font-bold text-gray-900 dark:text-white">{m.user_name}</td>
                                         <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 text-xs">{m.user_email}</td>
                                         <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300 text-xs">{m.team_name}</td>
                                         <td className="px-4 py-2.5 text-right tabular-nums text-gray-700 dark:text-gray-300">{m.total_points}</td>
@@ -1576,6 +1576,14 @@ function LeagueDetailPanel({ league, seasonId }: { league: AdminLeagueRow; seaso
                             </tbody>
                         </table>
                     </div>
+                )}
+                {membersPaged && membersPaged.total_pages > 1 && (
+                    <Pager
+                        page={membersPaged.page || membersPage}
+                        totalPages={membersPaged.total_pages}
+                        total={membersPaged.total}
+                        onPage={setMembersPage}
+                    />
                 )}
             </div>
 
@@ -1612,16 +1620,20 @@ function LeagueDetailPanel({ league, seasonId }: { league: AdminLeagueRow; seaso
                     <div className="space-y-2 text-sm">
                         <div className="flex items-center justify-between">
                             <span className="text-gray-500 dark:text-gray-400">League</span>
-                            <span className="font-bold text-white">{finance.league_name}</span>
+                            <span className="font-bold text-gray-900 dark:text-white">{finance.league_name}</span>
                         </div>
                         <div className="flex items-center justify-between">
                             <span className="text-gray-500 dark:text-gray-400">Winners to be credited</span>
-                            <span className="font-bold text-white tabular-nums">{finance.awards.length}</span>
+                            <span className="font-bold text-gray-900 dark:text-white tabular-nums">{finance.awards.length}</span>
                         </div>
                         <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
-                            <span className="text-white font-black uppercase text-xs tracking-wider">Total credited</span>
+                            <span className="text-gray-900 dark:text-white font-black uppercase text-xs tracking-wider">Total credited</span>
                             <span className="font-black text-sffl-red text-lg tabular-nums">{formatKobo(awardTotal)}</span>
                         </div>
+                        <p className="text-[11px] text-gray-400 dark:text-gray-500 pt-1">
+                            No money leaves the business here. Winners are credited in-app and have to request a
+                            withdrawal with their bank details; you then pay it by hand from the Payouts tab.
+                        </p>
                     </div>
                 }
             />
@@ -1675,7 +1687,7 @@ function ManagersTab({ seasonId }: { seasonId: string }) {
                             {managers.map(m => (
                                 <tr key={m.user_id} className="hover:bg-gray-50 dark:bg-gray-700/50/60 transition">
                                     <td className="px-4 py-3 text-right tabular-nums font-black text-gray-400 dark:text-gray-500">{m.rank}</td>
-                                    <td className="px-4 py-3 font-bold text-white">{m.user_name}</td>
+                                    <td className="px-4 py-3 font-bold text-gray-900 dark:text-white">{m.user_name}</td>
                                     <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">{m.user_email}</td>
                                     <td className="px-4 py-3 text-gray-700 dark:text-gray-300 text-xs">{m.team_name}</td>
                                     <td className="px-4 py-3 text-right tabular-nums font-bold text-sffl-red">{m.total_points}</td>
@@ -1714,6 +1726,8 @@ function FinanceTab({ seasonId }: { seasonId: string }) {
         queryClient.invalidateQueries({ queryKey: ['adminFantasyLeagues'] });
         queryClient.invalidateQueries({ queryKey: ['adminLeagueFinance'] });
         queryClient.invalidateQueries({ queryKey: ['adminFantasySeason'] });
+        // Settling is what creates the obligation, so the owed list is stale.
+        queryClient.invalidateQueries({ queryKey: ['adminFantasyOwed'] });
     };
 
     const settleSeasonMutation = useMutation({
@@ -1758,14 +1772,14 @@ function FinanceTab({ seasonId }: { seasonId: string }) {
                     <div className="max-w-xl space-y-2 text-sm">
                         <div className="flex items-center justify-between">
                             <span className="text-gray-500 dark:text-gray-400">Gross entry collected</span>
-                            <span className="font-bold tabular-nums text-white text-base">{formatKobo(overview.gross_entry_kobo)}</span>
+                            <span className="font-bold tabular-nums text-gray-900 dark:text-white text-base">{formatKobo(overview.gross_entry_kobo)}</span>
                         </div>
                         <div className="flex items-center justify-between">
                             <span className="text-gray-500 dark:text-gray-400">Less platform cut ({overview.cut_percent}%)</span>
                             <span className="font-bold tabular-nums text-emerald-400 text-base">{formatKobo(overview.platform_cut_kobo)}</span>
                         </div>
                         <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
-                            <span className="text-white font-black uppercase text-xs tracking-wider">Prize pool owed to managers</span>
+                            <span className="text-gray-900 dark:text-white font-black uppercase text-xs tracking-wider">Prize pool owed to managers</span>
                             <span className="font-black tabular-nums text-sffl-red text-xl">{formatKobo(overview.prize_pool_kobo)}</span>
                         </div>
                     </div>
@@ -1838,7 +1852,7 @@ function FinanceTab({ seasonId }: { seasonId: string }) {
                         <div>
                             <h4 className="text-xs font-black uppercase tracking-wider text-sffl-navy dark:text-white">Complete Season</h4>
                             <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5">
-                                Settles every outstanding paid league <strong className="text-white">and then closes the season</strong>.
+                                Settles every outstanding paid league <strong className="text-gray-900 dark:text-white">and then closes the season</strong>.
                                 Once closed the season is final — do this only when every gameweek has been scored.
                             </p>
                         </div>
@@ -1864,14 +1878,16 @@ function FinanceTab({ seasonId }: { seasonId: string }) {
                     <div className="space-y-2 text-sm">
                         <div className="flex items-center justify-between">
                             <span className="text-gray-500 dark:text-gray-400">Unsettled paid leagues</span>
-                            <span className="font-bold text-white tabular-nums">{overview.unsettled_leagues}</span>
+                            <span className="font-bold text-gray-900 dark:text-white tabular-nums">{overview.unsettled_leagues}</span>
                         </div>
                         <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
-                            <span className="text-white font-black uppercase text-xs tracking-wider">Season prize pool</span>
+                            <span className="text-gray-900 dark:text-white font-black uppercase text-xs tracking-wider">Season prize pool</span>
                             <span className="font-black text-sffl-red text-lg tabular-nums">{formatKobo(overview.prize_pool_kobo)}</span>
                         </div>
                         <p className="text-[11px] text-gray-400 dark:text-gray-500 pt-1">
-                            The season stays open afterwards — use Complete Season to close it.
+                            No money leaves the business here — winners are credited in-app, and each withdrawal is
+                            paid by hand from the Payouts tab. The season stays open afterwards; use Complete Season
+                            to close it.
                         </p>
                     </div>
                 }
@@ -1889,14 +1905,14 @@ function FinanceTab({ seasonId }: { seasonId: string }) {
                     <div className="space-y-2 text-sm">
                         <div className="flex items-center justify-between">
                             <span className="text-gray-500 dark:text-gray-400">Season</span>
-                            <span className="font-bold text-white">{overview.season_name}</span>
+                            <span className="font-bold text-gray-900 dark:text-white">{overview.season_name}</span>
                         </div>
                         <div className="flex items-center justify-between">
                             <span className="text-gray-500 dark:text-gray-400">Leagues still to settle</span>
-                            <span className="font-bold text-white tabular-nums">{overview.unsettled_leagues}</span>
+                            <span className="font-bold text-gray-900 dark:text-white tabular-nums">{overview.unsettled_leagues}</span>
                         </div>
                         <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
-                            <span className="text-white font-black uppercase text-xs tracking-wider">Prize pool to distribute</span>
+                            <span className="text-gray-900 dark:text-white font-black uppercase text-xs tracking-wider">Prize pool to distribute</span>
                             <span className="font-black text-sffl-red text-lg tabular-nums">{formatKobo(overview.prize_pool_kobo)}</span>
                         </div>
                         <p className="text-[11px] text-red-400 pt-1">
@@ -1941,6 +1957,8 @@ function PayoutsTab() {
     );
 
     return (
+        <div className="space-y-4 md:space-y-6">
+        <MoneyOwedPanel />
         <SectionCard
             title="Payout Queue"
             icon={CurrencyDollarIcon}
@@ -1983,6 +2001,146 @@ function PayoutsTab() {
                 <Pager page={data.page || page} totalPages={data.total_pages || 1} total={data.total || 0} onPage={setPage} />
             )}
         </SectionCard>
+        </div>
+    );
+}
+
+/**
+ * What settlement actually created: an obligation. Settling a league credits
+ * winners' in-app wallets — no money leaves the business at that point — so this
+ * is the standing list of who is owed what, and which account it goes to.
+ *
+ * Money nobody has requested yet is still owed, so it is counted here rather
+ * than waiting to appear in the queue below.
+ */
+function MoneyOwedPanel() {
+    const [expanded, setExpanded] = useState(true);
+    const [page, setPage] = useState(1);
+
+    const { data, isLoading } = useQuery({
+        queryKey: ['adminFantasyOwed', page],
+        queryFn: () => fantasyAdminApi.getMoneyOwed({ page, limit: 25 }),
+    });
+
+    const rows = data?.rows ?? [];
+
+    return (
+        <SectionCard
+            title="Money Owed"
+            icon={BanknotesIcon}
+            action={
+                <button
+                    onClick={() => setExpanded(v => !v)}
+                    className="flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 hover:text-sffl-red transition cursor-pointer"
+                >
+                    {expanded ? 'Hide' : 'Show'}
+                    {expanded ? <ChevronUpIcon className="w-3.5 h-3.5" /> : <ChevronDownIcon className="w-3.5 h-3.5" />}
+                </button>
+            }
+        >
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+                <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                    Settling a league credits each winner's wallet — it does not move any money. This is what those
+                    credits add up to. A winner has to send us their account details before anything can be transferred.
+                </p>
+            </div>
+
+            {isLoading ? (
+                <div className="p-10"><Loader /></div>
+            ) : (
+                <>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 p-4">
+                        <StatCard
+                            label="Total owed"
+                            value={formatKobo(data?.total_owed_kobo || 0)}
+                            hint={`${data?.people || 0} ${data?.people === 1 ? 'person' : 'people'}`}
+                            tone={(data?.total_owed_kobo || 0) > 0 ? 'yellow' : 'neutral'}
+                        />
+                        <StatCard
+                            label="Requested"
+                            value={formatKobo(data?.requested_kobo || 0)}
+                            hint="waiting in the queue below"
+                        />
+                        <StatCard
+                            label="Not yet requested"
+                            value={formatKobo(data?.unrequested_kobo || 0)}
+                            hint="sitting in wallets"
+                        />
+                        <StatCard
+                            label="No account yet"
+                            value={data?.awaiting_details || 0}
+                            hint="cannot be paid until they add one"
+                            tone={(data?.awaiting_details || 0) > 0 ? 'red' : 'neutral'}
+                        />
+                    </div>
+
+                    {expanded && (
+                        rows.length === 0 ? (
+                            <div className="px-4 pb-8 pt-2 text-center text-gray-500 dark:text-gray-400 text-xs">
+                                Nobody is owed anything right now. Settle a paid league and its winners appear here.
+                            </div>
+                        ) : (
+                            <div className="border-t border-gray-200 dark:border-gray-700">
+                                <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                                    {rows.map(row => <OwedRowCard key={row.user_id} row={row} />)}
+                                </div>
+                                {(data?.total_pages ?? 0) > 1 && (
+                                    <Pager
+                                        page={data?.page || page}
+                                        totalPages={data?.total_pages || 1}
+                                        total={data?.people || 0}
+                                        onPage={setPage}
+                                    />
+                                )}
+                            </div>
+                        )
+                    )}
+                </>
+            )}
+        </SectionCard>
+    );
+}
+
+function OwedRowCard({ row }: { row: OwedRow }) {
+    const hasAccount = !!row.account_number;
+
+    return (
+        <div className="p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+            <div className="min-w-0">
+                <p className="text-sm font-black text-sffl-navy dark:text-white truncate">{row.user_name || 'Unnamed'}</p>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{row.user_email}</p>
+
+                {hasAccount ? (
+                    <p className="text-[11px] text-gray-600 dark:text-gray-300 mt-1.5">
+                        {row.bank_name} ·{' '}
+                        <span className="font-mono font-bold text-gray-900 dark:text-white">{row.account_number}</span>
+                        {' '}· {row.account_name}
+                    </p>
+                ) : (
+                    <p className="text-[11px] text-amber-600 dark:text-amber-400 font-bold mt-1.5 flex items-center gap-1">
+                        <ExclamationTriangleIcon className="w-3.5 h-3.5" />
+                        No account on file — they need to request a withdrawal first.
+                    </p>
+                )}
+            </div>
+
+            <div className="flex items-center gap-4 sm:gap-6 shrink-0">
+                <div className="text-right">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500">In wallet</p>
+                    <p className="text-sm font-black tabular-nums text-gray-900 dark:text-white">{formatKobo(row.balance_kobo)}</p>
+                </div>
+                <div className="text-right">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500">Requested</p>
+                    <p className={`text-sm font-black tabular-nums ${row.pending_payout_kobo > 0 ? 'text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
+                        {formatKobo(row.pending_payout_kobo)}
+                    </p>
+                </div>
+                <div className="text-right">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500">Owed</p>
+                    <p className="text-sm font-black tabular-nums text-sffl-red">{formatKobo(row.total_owed_kobo)}</p>
+                </div>
+            </div>
+        </div>
     );
 }
 
@@ -2011,6 +2169,7 @@ function PayoutRow({ payout }: { payout: PayoutRequest }) {
             setAdminNotes('');
             queryClient.invalidateQueries({ queryKey: ['adminFantasyPayouts'] });
             queryClient.invalidateQueries({ queryKey: ['adminFantasyOverview'] });
+            queryClient.invalidateQueries({ queryKey: ['adminFantasyOwed'] });
         },
         onError: (err: any) => toast.error(err?.response?.data?.error || err.message),
     });
@@ -2035,7 +2194,7 @@ function PayoutRow({ payout }: { payout: PayoutRequest }) {
                             {new Date(payout.created_at).toLocaleString()}
                         </span>
                     </div>
-                    <p className="text-sm font-black text-white mt-1.5">{payout.user_name || 'Unknown manager'}</p>
+                    <p className="text-sm font-black text-gray-900 dark:text-white mt-1.5">{payout.user_name || 'Unknown manager'}</p>
                     <p className="text-[11px] text-gray-500 dark:text-gray-400">{payout.user_email || '—'}</p>
                     {payout.user_notes && (
                         <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2 italic border-l-2 border-gray-300 dark:border-gray-600 pl-2">
@@ -2062,12 +2221,12 @@ function PayoutRow({ payout }: { payout: PayoutRequest }) {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
                             <span className="text-[10px] font-bold uppercase text-gray-400 dark:text-gray-500 block">Bank</span>
-                            <span className="text-sm font-bold text-white break-words">{payout.bank_name}</span>
+                            <span className="text-sm font-bold text-gray-900 dark:text-white break-words">{payout.bank_name}</span>
                         </div>
                         <div>
                             <span className="text-[10px] font-bold uppercase text-gray-400 dark:text-gray-500 block">Account Number</span>
                             <div className="flex items-center gap-2">
-                                <span className="text-lg font-black text-white font-mono tracking-widest tabular-nums">
+                                <span className="text-lg font-black text-gray-900 dark:text-white font-mono tracking-widest tabular-nums">
                                     {payout.account_number}
                                 </span>
                                 <button
@@ -2082,7 +2241,7 @@ function PayoutRow({ payout }: { payout: PayoutRequest }) {
                         </div>
                         <div>
                             <span className="text-[10px] font-bold uppercase text-gray-400 dark:text-gray-500 block">Account Name</span>
-                            <span className="text-sm font-bold text-white break-words">{payout.account_name}</span>
+                            <span className="text-sm font-bold text-gray-900 dark:text-white break-words">{payout.account_name}</span>
                         </div>
                     </div>
                 </div>
@@ -2141,7 +2300,7 @@ function PayoutRow({ payout }: { payout: PayoutRequest }) {
                             value={paymentReference}
                             onChange={(e) => setPaymentReference(e.target.value)}
                             placeholder="e.g. GTB/TRF/00918273"
-                            className="flex-1 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm text-white placeholder:text-gray-400 dark:text-gray-500 focus:outline-none focus:border-emerald-500"
+                            className="flex-1 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:border-emerald-500"
                         />
                         <button
                             onClick={() => updateMutation.mutate({
@@ -2173,7 +2332,7 @@ function PayoutRow({ payout }: { payout: PayoutRequest }) {
                             value={adminNotes}
                             onChange={(e) => setAdminNotes(e.target.value)}
                             placeholder="e.g. Account name does not match the registered manager"
-                            className="flex-1 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm text-white placeholder:text-gray-400 dark:text-gray-500 focus:outline-none focus:border-red-500"
+                            className="flex-1 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:border-red-500"
                         />
                         <button
                             onClick={() => updateMutation.mutate({ status: 'REJECTED', admin_notes: adminNotes.trim() })}

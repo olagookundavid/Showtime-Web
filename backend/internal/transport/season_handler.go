@@ -31,12 +31,13 @@ func NewSeasonHandler(service services.ISeasonService) ISeasonHandler {
 
 // ListGraphics returns both Team-of-the-Season graphics (public + admin).
 func (h *SeasonHandler) ListGraphics(c *gin.Context) {
-	graphics, err := h.service.ListGraphics(c.Request.Context())
+	page, limit := pageParams(c, 50)
+	graphics, total, err := h.service.ListGraphics(c.Request.Context(), page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch season graphics"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": graphics})
+	pagedJSON(c, graphics, total, page, limit)
 }
 
 // UpsertGraphic sets/replaces the graphic for a category (offense|defense).
@@ -58,22 +59,24 @@ func (h *SeasonHandler) UpsertGraphic(c *gin.Context) {
 
 // ListMVPsPublic returns only ACTIVE MVPs for the homepage.
 func (h *SeasonHandler) ListMVPsPublic(c *gin.Context) {
-	mvps, err := h.service.ListMVPs(c.Request.Context(), true)
+	page, limit := pageParams(c, 50)
+	mvps, total, err := h.service.ListMVPs(c.Request.Context(), true, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch MVPs"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": mvps})
+	pagedJSON(c, mvps, total, page, limit)
 }
 
 // ListMVPsAdmin returns all MVPs (active + hidden) for the admin UI.
 func (h *SeasonHandler) ListMVPsAdmin(c *gin.Context) {
-	mvps, err := h.service.ListMVPs(c.Request.Context(), false)
+	page, limit := pageParams(c, 50)
+	mvps, total, err := h.service.ListMVPs(c.Request.Context(), false, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch MVPs"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": mvps})
+	pagedJSON(c, mvps, total, page, limit)
 }
 
 func (h *SeasonHandler) CreateMVP(c *gin.Context) {

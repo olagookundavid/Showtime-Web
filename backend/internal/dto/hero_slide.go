@@ -2,32 +2,20 @@ package dto
 
 import "time"
 
-// HeroSlideNewsRequest is the inline article authored from the Hero Slides
-// admin. Title/Content are required when creating (a slide's article can't be
-// half-written); on update all fields are provided together since the admin
-// form always submits the full article state (no partial-field PATCH here).
-type HeroSlideNewsRequest struct {
-	Title              string `json:"title" binding:"required"`
-	Excerpt            string `json:"excerpt"`
-	Content            string `json:"content" binding:"required"`
-	FeaturedMediaType  string `json:"featured_media_type" binding:"omitempty,oneof=image youtube"`
-	FeaturedYoutubeURL string `json:"featured_youtube_url"`
-}
-
 type CreateHeroSlideRequest struct {
-	ImageURL       string               `json:"image_url" binding:"required"`
-	MobileImageURL string               `json:"mobile_image_url"` // optional square variant for mobile
-	DisplayOrder   *int                 `json:"display_order"`
-	IsActive       *bool                `json:"is_active"`
-	News           HeroSlideNewsRequest `json:"news" binding:"required"`
+	ImageURL       string `json:"image_url" binding:"required"`
+	MobileImageURL string `json:"mobile_image_url"`  // optional square variant for mobile
+	DestinationURL string `json:"destination_url"`   // optional; internal path or external URL, pasted in by the admin
+	DisplayOrder   *int   `json:"display_order"`
+	IsActive       *bool  `json:"is_active"`
 }
 
 type UpdateHeroSlideRequest struct {
-	ImageURL       *string               `json:"image_url"`
-	MobileImageURL *string               `json:"mobile_image_url"` // nil = unchanged, "" = clear
-	DisplayOrder   *int                  `json:"display_order"`
-	IsActive       *bool                 `json:"is_active"`
-	News           *HeroSlideNewsRequest `json:"news"` // nil = leave the linked article untouched
+	ImageURL       *string `json:"image_url"`
+	MobileImageURL *string `json:"mobile_image_url"`  // nil = unchanged, "" = clear
+	DestinationURL *string `json:"destination_url"`   // nil = unchanged, "" = clear
+	DisplayOrder   *int    `json:"display_order"`
+	IsActive       *bool   `json:"is_active"`
 }
 
 type HeroSlideNewsResponse struct {
@@ -49,9 +37,10 @@ type HeroSlideResponse struct {
 	IsActive       bool      `json:"is_active"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
-	// NewsSlug is the minimal public field — MainHeroCarousel links to
-	// /news/{news_slug} when present. News is the full nested article,
-	// populated for admin reads only (edit-form prefill).
-	NewsSlug string                 `json:"news_slug,omitempty"`
-	News     *HeroSlideNewsResponse `json:"news,omitempty"`
+	// DestinationURL is where the slide links to — preferred over the legacy
+	// NewsSlug/News fields, which are kept only for slides created before
+	// this field existed.
+	DestinationURL string                 `json:"destination_url,omitempty"`
+	NewsSlug       string                 `json:"news_slug,omitempty"`
+	News           *HeroSlideNewsResponse `json:"news,omitempty"`
 }

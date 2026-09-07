@@ -13,13 +13,13 @@ import (
 type SeasonRepository interface {
 	// Team of the Season graphics
 	UpsertGraphic(ctx context.Context, g *domain.SeasonGraphic) error
-	FindAllGraphics(ctx context.Context) ([]*domain.SeasonGraphic, error)
+	FindAllGraphics(ctx context.Context, page, limit int) ([]*domain.SeasonGraphic, int, error)
 
 	// MVPs
 	CreateMVP(ctx context.Context, m *domain.SeasonMVP) error
 	UpdateMVP(ctx context.Context, id string, label *string, displayOrder *int, isActive *bool) error
 	DeleteMVP(ctx context.Context, id string) error
-	FindAllMVPs(ctx context.Context, activeOnly bool) ([]*domain.SeasonMVP, error)
+	FindAllMVPs(ctx context.Context, activeOnly bool, page, limit int) ([]*domain.SeasonMVP, int, error)
 }
 
 type SeasonPGRepository struct {
@@ -53,30 +53,38 @@ func (r *SeasonPGRepository) UpsertGraphic(ctx context.Context, g *domain.Season
 	return nil
 }
 
-func (r *SeasonPGRepository) FindAllGraphics(ctx context.Context) ([]*domain.SeasonGraphic, error) {
+func (r *SeasonPGRepository) FindAllGraphics(ctx context.Context, page, limit int) ([]*domain.SeasonGraphic, int, error) {
+	page, limit, offset := paging(page, limit, 50)
+
 	query := `
 		SELECT id, category, image_url, COALESCE(mobile_image_url, ''), created_at, updated_at
 		FROM season_graphics
-		ORDER BY category ASC
+		ORDER BY category ASC, id ASC
+		LIMIT $1 OFFSET $2
 	`
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	rows, err := r.db.Query(ctx, query)
+	var total int
+	if err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM season_graphics`).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to count season graphics: %w", err)
+	}
+
+	rows, err := r.db.Query(ctx, query, limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch season graphics: %w", err)
+		return nil, 0, fmt.Errorf("failed to fetch season graphics: %w", err)
 	}
 	defer rows.Close()
 
-	var out []*domain.SeasonGraphic
+	out := make([]*domain.SeasonGraphic, 0, limit)
 	for rows.Next() {
 		var g domain.SeasonGraphic
 		if err := rows.Scan(&g.ID, &g.Category, &g.ImageURL, &g.MobileImageURL, &g.CreatedAt, &g.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("failed to scan season graphic: %w", err)
+			return nil, 0, fmt.Errorf("failed to scan season graphic: %w", err)
 		}
 		out = append(out, &g)
 	}
-	return out, nil
+	return out, total, nil
 }
 
 // ── MVPs ─────────────────────────────────────────────────────────────────────
@@ -146,7 +154,14 @@ func (r *SeasonPGRepository) DeleteMVP(ctx context.Context, id string) error {
 	return nil
 }
 
-func (r *SeasonPGRepository) FindAllMVPs(ctx context.Context, activeOnly bool) ([]*domain.SeasonMVP, error) {
+func (r *SeasonPGRepository) FindAllMVPs(ctx context.Context, activeOnly bool, page, limit int) ([]*domain.SeasonMVP, int, error) {
+	page, limit, offset := paging(page, limit, 50)
+
+	countQuery := `SELECT COUNT(*) FROM season_mvps m`
+	if activeOnly {
+		countQuery += ` WHERE m.is_active = TRUE`
+	}
+
 	query := `
 		SELECT
 			m.id, m.player_id, m.label, m.display_order, m.is_active, m.created_at, m.updated_at,
@@ -159,18 +174,23 @@ func (r *SeasonPGRepository) FindAllMVPs(ctx context.Context, activeOnly bool) (
 	if activeOnly {
 		query += ` WHERE m.is_active = TRUE`
 	}
-	query += ` ORDER BY m.display_order ASC, m.created_at ASC`
+	query += ` ORDER BY m.display_order ASC, m.created_at ASC, m.id ASC LIMIT $1 OFFSET $2`
 
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	rows, err := r.db.Query(ctx, query)
+	var total int
+	if err := r.db.QueryRow(ctx, countQuery).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to count MVPs: %w", err)
+	}
+
+	rows, err := r.db.Query(ctx, query, limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch MVPs: %w", err)
+		return nil, 0, fmt.Errorf("failed to fetch MVPs: %w", err)
 	}
 	defer rows.Close()
 
-	var out []*domain.SeasonMVP
+	out := make([]*domain.SeasonMVP, 0, limit)
 	for rows.Next() {
 		var m domain.SeasonMVP
 		var p domain.Player
@@ -180,7 +200,7 @@ func (r *SeasonPGRepository) FindAllMVPs(ctx context.Context, activeOnly bool) (
 			&p.Name, &p.Image, &p.JerseyNumber, &p.Position,
 			&tm.ID, &tm.Name, &tm.Logo,
 		); err != nil {
-			return nil, fmt.Errorf("failed to scan MVP: %w", err)
+			return nil, 0, fmt.Errorf("failed to scan MVP: %w", err)
 		}
 		p.ID = m.PlayerID
 		p.TeamID = tm.ID
@@ -188,5 +208,5 @@ func (r *SeasonPGRepository) FindAllMVPs(ctx context.Context, activeOnly bool) (
 		m.Player = &p
 		out = append(out, &m)
 	}
-	return out, nil
+	return out, total, nil
 }

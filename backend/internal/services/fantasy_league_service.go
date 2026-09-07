@@ -22,10 +22,11 @@ import (
 type IFantasyLeagueService interface {
 	CreateLeague(ctx context.Context, userID string, req dto.CreateLeagueRequest) (*dto.LeagueResponse, error)
 	JoinLeague(ctx context.Context, userID, seasonID, callbackURL string, req dto.JoinLeagueRequest) (*dto.JoinLeagueResponse, error)
+	LeaveLeague(ctx context.Context, userID, leagueID string) error
 	LeagueWebhook(ctx context.Context, payload []byte, signature string) error
 	VerifyLeaguePayment(ctx context.Context, userID, reference string) error
-	ListMyLeagues(ctx context.Context, userID, seasonID string) ([]dto.LeagueResponse, error)
-	ListPublicLeagues(ctx context.Context, seasonID string) ([]dto.LeagueResponse, error)
+	ListMyLeagues(ctx context.Context, userID, seasonID string, page, limit int) ([]dto.LeagueResponse, int, error)
+	ListPublicLeagues(ctx context.Context, seasonID string, page, limit int) ([]dto.LeagueResponse, int, error)
 	GetLeaderboard(ctx context.Context, leagueID string, gameweekID *string, page, limit int) ([]dto.LeaderboardEntry, int, error)
 	GetOverallLeaderboard(ctx context.Context, seasonID string, gameweekID *string, page, limit int) ([]dto.LeaderboardEntry, int, error)
 	// Rank lookups let the leaderboard open on the page the viewer is on
@@ -214,6 +215,13 @@ func (s *FantasyLeagueService) JoinLeague(ctx context.Context, userID, seasonID,
 		}, nil
 	}
 
+	// A forfeited entry cannot be undone by rejoining. The fee stays in the pool
+	// and the membership row is already spent on it, so there is nowhere to
+	// record a second entry — say so plainly instead of taking more money.
+	if forfeited, err := s.repo.HasForfeitedEntry(ctx, league.ID, userID); err == nil && forfeited {
+		return nil, errors.New("you left this paid league and forfeited your entry, so it cannot be rejoined")
+	}
+
 	// 3. Reject a full league before spending a Paystack transaction on it. The
 	// authoritative, race-free check still happens inside AddMember.
 	if league.MaxMembers > 0 && existing == nil {
@@ -296,6 +304,31 @@ func (s *FantasyLeagueService) JoinLeague(ctx context.Context, userID, seasonID,
 	}, nil
 }
 
+// LeaveLeague removes a manager from a league's standings.
+//
+// A paid entry is forfeited, not refunded: the fee was collected and belongs to
+// the prize pool, which is why the membership is stamped rather than deleted.
+// The caller is expected to have made that consequence clear first.
+func (s *FantasyLeagueService) LeaveLeague(ctx context.Context, userID, leagueID string) error {
+	league, err := s.repo.GetLeagueByID(ctx, leagueID)
+	if err != nil {
+		return err
+	}
+	if league == nil {
+		return errors.New("league not found")
+	}
+	// The official league is every manager in the season by definition — there
+	// is nothing to leave without leaving the season itself.
+	if league.Type == domain.LeagueTypeOverall {
+		return errors.New("the official league cannot be left while you are in the season")
+	}
+	if league.SettledAt != nil {
+		return errors.New("this league has already paid out and can no longer be left")
+	}
+
+	return s.repo.LeaveLeague(ctx, leagueID, userID)
+}
+
 func (s *FantasyLeagueService) LeagueWebhook(ctx context.Context, payload []byte, signature string) error {
 	// Verify Paystack HMAC-SHA512 signature
 	secret := s.paystackClient.GetSecretKey()
@@ -362,41 +395,19 @@ func (s *FantasyLeagueService) verifyPayment(ctx context.Context, member *domain
 	return fmt.Errorf("payment not successful: status %s", verifyResp.Data.Status)
 }
 
-func (s *FantasyLeagueService) ListMyLeagues(ctx context.Context, userID, seasonID string) ([]dto.LeagueResponse, error) {
-	leagues, err := s.repo.ListLeaguesByUser(ctx, userID, seasonID)
+func (s *FantasyLeagueService) ListMyLeagues(ctx context.Context, userID, seasonID string, page, limit int) ([]dto.LeagueResponse, int, error) {
+	leagues, total, err := s.repo.ListLeaguesByUser(ctx, userID, seasonID, page, limit)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	res := make([]dto.LeagueResponse, 0)
-	for _, l := range leagues {
-		code := ""
-		if l.InviteCode != nil {
-			code = *l.InviteCode
-		}
-		res = append(res, dto.LeagueResponse{
-			ID:              l.ID,
-			SeasonID:        l.SeasonID,
-			Name:            l.Name,
-			Type:            string(l.Type),
-			InviteCode:      code,
-			CreatedByUserID: ownerID(l.CreatedByUserID),
-			EntryFee:        l.EntryFee,
-			MaxMembers:      l.MaxMembers,
-			MemberCount:     l.MemberCount,
-			CreatedAt:       l.CreatedAt.Format(time.RFC3339),
-		})
-	}
-	return res, nil
+	return leagueResponses(leagues), total, nil
 }
 
-func (s *FantasyLeagueService) ListPublicLeagues(ctx context.Context, seasonID string) ([]dto.LeagueResponse, error) {
-	leagues, err := s.repo.ListPublicLeagues(ctx, seasonID)
-	if err != nil {
-		return nil, err
-	}
-
-	res := make([]dto.LeagueResponse, 0)
+// leagueResponses maps league rows to their wire form. Shared by the public
+// browse list and a manager's own list, which present identical fields.
+func leagueResponses(leagues []domain.FantasyLeague) []dto.LeagueResponse {
+	res := make([]dto.LeagueResponse, 0, len(leagues))
 	for _, l := range leagues {
 		code := ""
 		if l.InviteCode != nil {
@@ -415,7 +426,15 @@ func (s *FantasyLeagueService) ListPublicLeagues(ctx context.Context, seasonID s
 			CreatedAt:       l.CreatedAt.Format(time.RFC3339),
 		})
 	}
-	return res, nil
+	return res
+}
+
+func (s *FantasyLeagueService) ListPublicLeagues(ctx context.Context, seasonID string, page, limit int) ([]dto.LeagueResponse, int, error) {
+	leagues, total, err := s.repo.ListPublicLeagues(ctx, seasonID, page, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+	return leagueResponses(leagues), total, nil
 }
 
 func (s *FantasyLeagueService) GetMyRankInLeague(ctx context.Context, leagueID, userID string) (int, error) {

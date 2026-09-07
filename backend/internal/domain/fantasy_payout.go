@@ -104,9 +104,12 @@ func SplitPool(grossKobo int64, cutPercent float64) (cut, pool int64) {
 // handed out one kobo at a time down the tied group, and if the structure adds
 // up to a full 100% any final rounding remainder goes to the top position, so
 // the awards always sum to exactly the pool.
+// The result is always a non-nil slice. A nil one marshals to JSON `null`
+// rather than `[]`, and every caller of this list reads .length or .reduce off
+// it — an unfunded league would take the admin's league page down.
 func DistributePrizes(standings []PrizeStanding, poolKobo int64, tiers []PrizeTier) []PrizeAward {
 	if poolKobo <= 0 || len(standings) == 0 || len(tiers) == 0 {
-		return nil
+		return []PrizeAward{}
 	}
 
 	byRank := make(map[int]int64, len(tiers))
@@ -135,7 +138,7 @@ func DistributePrizes(standings []PrizeStanding, poolKobo int64, tiers []PrizeTi
 		return ordered[i].UserID < ordered[j].UserID
 	})
 
-	var awards []PrizeAward
+	awards := make([]PrizeAward, 0, len(ordered))
 	for i := 0; i < len(ordered); {
 		// Collect everyone level on points with ordered[i].
 		j := i

@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"errors"
-	"time"
 
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
@@ -14,13 +13,6 @@ import (
 // plenty for a hero carousel — beyond that the auto-rotate cadence makes the
 // later slides effectively invisible.
 const MaxHeroSlides = 5
-
-// heroSlideNewsCategory is the fixed category assigned to every article
-// authored from the Hero Slides admin. It's not exposed as a picker in that
-// form — every hero-linked article is tagged the same way — and it doubles as
-// the "featured" badge shown on the article page via NewsDetail's existing
-// category-badge rendering.
-const heroSlideNewsCategory = "Showtime"
 
 type IHeroSlideService interface {
 	List(ctx context.Context, activeOnly bool) ([]dto.HeroSlideResponse, error)
@@ -43,6 +35,7 @@ func heroSlideToResponse(s *domain.HeroSlide, includeNewsDetail bool) dto.HeroSl
 		ID:             s.ID,
 		ImageURL:       s.ImageURL,
 		MobileImageURL: s.MobileImageURL,
+		DestinationURL: s.DestinationURL,
 		DisplayOrder:   s.DisplayOrder,
 		IsActive:       s.IsActive,
 		CreatedAt:      s.CreatedAt,
@@ -64,44 +57,6 @@ func heroSlideToResponse(s *domain.HeroSlide, includeNewsDetail bool) dto.HeroSl
 		}
 	}
 	return resp
-}
-
-// createLinkedNews inserts the news article for a new hero slide. The slug is
-// generated server-side by generateArticleSlug (shared with regular news
-// creation in news_service.go) — it's never admin-editable and, since it
-// always carries a random unique suffix, it can't collide.
-func (s *HeroSlideService) createLinkedNews(ctx context.Context, req dto.HeroSlideNewsRequest, slideImageURL string) (*domain.News, error) {
-	mediaType := req.FeaturedMediaType
-	if mediaType == "" {
-		mediaType = "image"
-	}
-	if mediaType == "youtube" && req.FeaturedYoutubeURL == "" {
-		return nil, errors.New("featured_youtube_url is required when featured_media_type is 'youtube'")
-	}
-	featuredImage := ""
-	if mediaType == "image" {
-		featuredImage = slideImageURL
-	}
-
-	now := time.Now()
-	news := &domain.News{
-		Title:              req.Title,
-		Slug:               generateArticleSlug(req.Title),
-		Excerpt:            req.Excerpt,
-		Content:            req.Content,
-		FeaturedImage:      featuredImage,
-		FeaturedMediaType:  mediaType,
-		FeaturedYoutubeURL: req.FeaturedYoutubeURL,
-		Category:           heroSlideNewsCategory,
-		PublishedAt:        now,
-		CreatedAt:          now,
-		UpdatedAt:          now,
-		IsHeroOnly:         true,
-	}
-	if err := s.newsRepo.Create(ctx, news); err != nil {
-		return nil, err
-	}
-	return news, nil
 }
 
 func (s *HeroSlideService) List(ctx context.Context, activeOnly bool) ([]dto.HeroSlideResponse, error) {
@@ -139,81 +94,22 @@ func (s *HeroSlideService) Create(ctx context.Context, req dto.CreateHeroSlideRe
 		isActive = *req.IsActive
 	}
 
-	news, err := s.createLinkedNews(ctx, req.News, req.ImageURL)
-	if err != nil {
-		return nil, err
-	}
-
 	slide := &domain.HeroSlide{
 		ImageURL:       req.ImageURL,
 		MobileImageURL: req.MobileImageURL,
+		DestinationURL: req.DestinationURL,
 		DisplayOrder:   displayOrder,
 		IsActive:       isActive,
-		NewsID:         &news.ID,
 	}
 	if err := s.repo.Create(ctx, slide); err != nil {
 		return nil, err
 	}
-	slide.News = news
 	resp := heroSlideToResponse(slide, true)
 	return &resp, nil
 }
 
 func (s *HeroSlideService) Update(ctx context.Context, id string, req dto.UpdateHeroSlideRequest) error {
-	if err := s.repo.Update(ctx, id, req.ImageURL, req.MobileImageURL, req.DisplayOrder, req.IsActive); err != nil {
-		return err
-	}
-	if req.News == nil {
-		return nil
-	}
-
-	slide, err := s.repo.FindByID(ctx, id)
-	if err != nil {
-		return err
-	}
-	if slide == nil {
-		return errors.New("hero slide not found")
-	}
-
-	mediaType := req.News.FeaturedMediaType
-	if mediaType == "" {
-		mediaType = "image"
-	}
-	if mediaType == "youtube" && req.News.FeaturedYoutubeURL == "" {
-		return errors.New("featured_youtube_url is required when featured_media_type is 'youtube'")
-	}
-	featuredImage := ""
-	if mediaType == "image" {
-		featuredImage = slide.ImageURL // the (possibly just-updated) carousel image
-	}
-
-	if slide.NewsID == nil {
-		// Legacy slide (created before this feature) getting its first article.
-		news, err := s.createLinkedNews(ctx, *req.News, slide.ImageURL)
-		if err != nil {
-			return err
-		}
-		return s.repo.LinkNews(ctx, id, &news.ID)
-	}
-
-	// Update the existing linked article in place. Slug is intentionally never
-	// regenerated on edit — changing it would break any link already shared.
-	existing, err := s.newsRepo.FindByID(ctx, *slide.NewsID)
-	if err != nil {
-		return err
-	}
-	if existing == nil {
-		return errors.New("linked news article not found")
-	}
-	existing.Title = req.News.Title
-	existing.Excerpt = req.News.Excerpt
-	existing.Content = req.News.Content
-	existing.FeaturedMediaType = mediaType
-	existing.FeaturedYoutubeURL = req.News.FeaturedYoutubeURL
-	existing.FeaturedImage = featuredImage
-	existing.UpdatedAt = time.Now()
-
-	return s.newsRepo.Update(ctx, existing)
+	return s.repo.Update(ctx, id, req.ImageURL, req.MobileImageURL, req.DestinationURL, req.DisplayOrder, req.IsActive)
 }
 
 func (s *HeroSlideService) Delete(ctx context.Context, id string) error {

@@ -342,7 +342,7 @@ export const TicketsPage = () => {
             {/* Purchase Modal */}
             {selectedTier && selectedEventDay && createPortal(
                 <div
-                    className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden animate-fadeIn"
+                    className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden animate-fadeIn" data-dialog
                     onClick={closePurchaseModal}
                     role="dialog"
                     aria-modal="true"

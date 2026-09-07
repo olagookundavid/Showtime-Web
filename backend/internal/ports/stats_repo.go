@@ -22,7 +22,7 @@ type StatsRepository interface {
 	DeleteOrphanedTeamMatchStats(ctx context.Context, matchID string, keepTeamIDs []string) error
 	GetPlayerStats(ctx context.Context, filter domain.StatsFilter) ([]domain.AggregatedPlayerStat, int, error)
 	GetTeamStats(ctx context.Context, filter domain.StatsFilter) ([]domain.AggregatedTeamStat, int, error)
-	GetStatDates(ctx context.Context, competitionID string) ([]string, error)
+	GetStatDates(ctx context.Context, competitionID string, page, limit int) ([]string, int, error)
 }
 
 func (r *PostgresStatsRepository) UpsertTeamMatchStat(ctx context.Context, s *domain.TeamMatchStat) error {
@@ -547,30 +547,40 @@ func (r *PostgresStatsRepository) GetTeamStats(ctx context.Context, filter domai
 	return stats, total, nil
 }
 
-func (r *PostgresStatsRepository) GetStatDates(ctx context.Context, competitionID string) ([]string, error) {
-	var query string
-	var args []interface{}
+func (r *PostgresStatsRepository) GetStatDates(ctx context.Context, competitionID string, page, limit int) ([]string, int, error) {
+	page, limit, offset := paging(page, limit, 50)
 
+	where := ""
+	args := []interface{}{}
 	if competitionID != "" {
-		query = `SELECT DISTINCT TO_CHAR(match_date, 'YYYY-MM-DD') FROM player_stats WHERE competition_id = $1 ORDER BY 1 DESC`
+		where = ` WHERE competition_id = $1`
 		args = append(args, competitionID)
-	} else {
-		query = `SELECT DISTINCT TO_CHAR(match_date, 'YYYY-MM-DD') FROM player_stats ORDER BY 1 DESC`
 	}
+
+	var total int
+	if err := r.db.QueryRow(ctx,
+		`SELECT COUNT(DISTINCT TO_CHAR(match_date, 'YYYY-MM-DD')) FROM player_stats`+where, args...,
+	).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	query := `SELECT DISTINCT TO_CHAR(match_date, 'YYYY-MM-DD') FROM player_stats` + where +
+		fmt.Sprintf(` ORDER BY 1 DESC LIMIT $%d OFFSET $%d`, len(args)+1, len(args)+2)
+	args = append(args, limit, offset)
 
 	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
-	var dates []string
+	dates := make([]string, 0, limit)
 	for rows.Next() {
 		var d string
 		if err := rows.Scan(&d); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		dates = append(dates, d)
 	}
-	return dates, nil
+	return dates, total, nil
 }

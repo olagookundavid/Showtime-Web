@@ -14,6 +14,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"math/rand"
 	"os"
@@ -28,7 +29,11 @@ import (
 const (
 	dsn      = "postgres://role:password@localhost:5432/showtime?sslmode=disable"
 	password = "Fantasy1234!"
+)
 
+// Names are variables rather than constants so a second, parallel world can be
+// seeded alongside the first — see the -label flag.
+var (
 	competitionName = "Fantasy Test Cup 2026"
 	seasonName      = "Fantasy Test Season 2026"
 )
@@ -98,6 +103,24 @@ var lastNames = []string{
 }
 
 func main() {
+	// Reset wipes every fantasy season before seeding — the default, because a
+	// clean world is usually what is wanted. Turn it off with -reset=false to
+	// stand a second season up beside an existing one, which is how you keep a
+	// season you are mid-way through testing while starting another.
+	reset := flag.Bool("reset", true, "delete existing fantasy seasons, wallets and payouts first")
+	label := flag.String("label", "", "suffix for the competition and season names, for a parallel world")
+	dayShift := flag.Int("day-shift", 0, "shift every match day by this many days, to avoid clashing with an existing season")
+	flag.Parse()
+
+	if *label != "" {
+		competitionName += " " + *label
+		seasonName += " " + *label
+	}
+	if *label == "" && !*reset {
+		fmt.Println("-reset=false needs a -label too, or the new season would collide with the existing one")
+		os.Exit(1)
+	}
+
 	// Prefer the configured DB_URL so this follows the real local setup, and
 	// guard whichever one we end up with.
 	target := dsn
@@ -139,11 +162,15 @@ func main() {
 
 	// 1. Clear previous fantasy state. Seasons cascade to gameweeks, lineups,
 	//    leagues and prices, so this leaves nothing dangling.
-	exec(ctx, pool, `DELETE FROM fantasy_seasons`)
-	exec(ctx, pool, `DELETE FROM fantasy_wallet_transactions`)
-	exec(ctx, pool, `DELETE FROM fantasy_payout_requests`)
-	exec(ctx, pool, `DELETE FROM fantasy_wallets`)
-	fmt.Println("✓ cleared existing fantasy seasons, squads, leagues and wallets")
+	if *reset {
+		exec(ctx, pool, `DELETE FROM fantasy_seasons`)
+		exec(ctx, pool, `DELETE FROM fantasy_wallet_transactions`)
+		exec(ctx, pool, `DELETE FROM fantasy_payout_requests`)
+		exec(ctx, pool, `DELETE FROM fantasy_wallets`)
+		fmt.Println("✓ cleared existing fantasy seasons, squads, leagues and wallets")
+	} else {
+		fmt.Printf("→ keeping existing seasons; adding %q alongside\n", seasonName)
+	}
 
 	// 2. The competition this all hangs off, and its clubs.
 	compID := ensureCompetition(ctx, pool, competitionName)
@@ -178,10 +205,12 @@ func main() {
 		past   bool
 		id     string
 	}
+	// event_days.date is unique across the whole database, so a parallel world
+	// has to sit on its own days.
 	days := []day{
-		{title: "Match Day 1", date: "CURRENT_DATE - 7", kickAt: "15:00", past: true},
-		{title: "Match Day 2", date: "CURRENT_DATE + 3", kickAt: "15:00"},
-		{title: "Match Day 3", date: "CURRENT_DATE + 10", kickAt: "15:00"},
+		{title: dayTitle("Match Day 1", *label), date: shifted(-7, *dayShift), kickAt: "15:00", past: true},
+		{title: dayTitle("Match Day 2", *label), date: shifted(3, *dayShift), kickAt: "15:00"},
+		{title: dayTitle("Match Day 3", *label), date: shifted(10, *dayShift), kickAt: "15:00"},
 	}
 	for i := range days {
 		days[i].id = ensureEventDay(ctx, pool, days[i].title, days[i].date)
@@ -224,9 +253,22 @@ func main() {
 	fmt.Println("✓ opening player prices set")
 
 	// 8. A public mini-league to join, and a paid one to test the Paystack flow.
-	freeLeague := createLeague(ctx, pool, seasonID, "Open Test League", "PUBLIC", 0, "TESTFREE")
-	paidLeague := createLeague(ctx, pool, seasonID, "Cash Test League", "PUBLIC", 200000, "TESTCASH")
-	fmt.Println("✓ two public mini-leagues: Open Test League (free), Cash Test League (₦2,000)")
+	// Invite codes are unique across the whole database, so a parallel world
+	// needs its own. Sharing them made the second seeding produce no
+	// mini-leagues at all, silently.
+	freeCode, paidCode := "TESTFREE", "TESTCASH"
+	freeName, paidName := "Open Test League", "Cash Test League"
+	if *label != "" {
+		freeCode, paidCode = "TSTFRE"+strings.ToUpper(*label), "TSTCSH"+strings.ToUpper(*label)
+		freeName, paidName = freeName+" "+*label, paidName+" "+*label
+	}
+	freeLeague := createLeague(ctx, pool, seasonID, freeName, "PUBLIC", 0, freeCode)
+	paidLeague := createLeague(ctx, pool, seasonID, paidName, "PUBLIC", 200000, paidCode)
+	if freeLeague == "" || paidLeague == "" {
+		fmt.Println("  ! a mini-league could not be created — its invite code is probably taken")
+	} else {
+		fmt.Printf("✓ two public mini-leagues: %s (free), %s (₦2,000)\n", freeName, paidName)
+	}
 
 	// 9. The rival managers, each with a real squad for both the played and the
 	//    open gameweek, so the table has depth and the rollover has history.
@@ -235,6 +277,10 @@ func main() {
 		teamID := enterSeason(ctx, pool, userID, seasonID, m.team)
 
 		squad := pickSquad(playersByClub, rng)
+		// Managers own their squad now, so the ownership rows have to exist
+		// alongside the lineups. Without them a seeded manager has a team sheet
+		// full of players they do not own, and the trading screen shows nothing.
+		ownSquad(ctx, pool, teamID, seasonID, squad)
 		// Match Day 1: locked, and scored below.
 		saveLineup(ctx, pool, teamID, gwIDs[0], squad, "LOCKED")
 		// Match Day 2: a draft they could still change, like a real manager.
@@ -489,10 +535,13 @@ func createGameweek(ctx ctxT, pool *pgxpool.Pool, seasonID string, number int, e
 
 func createLeague(ctx ctxT, pool *pgxpool.Pool, seasonID, name, kind string, entryFee int, code string) string {
 	var id string
-	_ = pool.QueryRow(ctx, `
+	err := pool.QueryRow(ctx, `
 		INSERT INTO fantasy_leagues (season_id, name, type, invite_code, created_by_user_id, entry_fee)
 		VALUES ($1::uuid, $2, $3, $4, NULL, $5) RETURNING id::text`,
 		seasonID, name, kind, code, entryFee).Scan(&id)
+	if err != nil {
+		fmt.Printf("  ! league %q (%s): %v\n", name, code, err)
+	}
 	return id
 }
 
@@ -631,8 +680,28 @@ func summary(ctx ctxT, pool *pgxpool.Pool, seasonID string) {
 	fmt.Println()
 	fmt.Printf(" Open for entry : Match Day %d, deadline %s\n", gwNum, deadline.Format("Mon 2 Jan, 15:04"))
 	fmt.Printf(" Rival managers : %d, all with password %q\n", len(managers), password)
-	fmt.Println(" Mini-leagues   : Open Test League (free, code TESTFREE)")
-	fmt.Println("                  Cash Test League (₦2,000, code TESTCASH)")
+	leagueRows, _ := pool.Query(ctx, `SELECT name, COALESCE(invite_code,'-'), entry_fee
+		FROM fantasy_leagues WHERE season_id=$1::uuid AND type <> 'OVERALL' ORDER BY entry_fee`, seasonID)
+	fmt.Print(" Mini-leagues   : ")
+	first := true
+	for leagueRows.Next() {
+		var n, code string
+		var fee int64
+		leagueRows.Scan(&n, &code, &fee)
+		if !first {
+			fmt.Print("                  ")
+		}
+		first = false
+		if fee == 0 {
+			fmt.Printf("%s (free, code %s)\n", n, code)
+		} else {
+			fmt.Printf("%s (₦%d, code %s)\n", n, fee/100, code)
+		}
+	}
+	leagueRows.Close()
+	if first {
+		fmt.Println("none")
+	}
 	fmt.Println()
 	fmt.Println(" Next: sign in with your own account, open /fantasy and Join This Season.")
 	fmt.Println("──────────────────────────────────────────────")
@@ -642,4 +711,44 @@ func exec(ctx ctxT, pool *pgxpool.Pool, sql string, args ...any) {
 	if _, err := pool.Exec(ctx, sql, args...); err != nil {
 		fmt.Println("  !", strings.SplitN(strings.TrimSpace(sql), "\n", 2)[0], "->", err)
 	}
+}
+
+// shifted builds the SQL date expression for a match day, offset so a second
+// seeded world does not land on the first one's dates.
+func shifted(base, shift int) string {
+	return fmt.Sprintf("CURRENT_DATE + %d", base+shift)
+}
+
+// dayTitle keeps match-day titles distinct between parallel worlds.
+func dayTitle(base, label string) string {
+	if label == "" {
+		return base
+	}
+	return base + " " + label
+}
+
+// ownSquad records the manager as the owner of every player in their squad, at
+// the season's opening price, and sets the bank to whatever is left. Ownership
+// is the source of truth for what a manager may field, so a seeded world is
+// incoherent without it.
+func ownSquad(ctx ctxT, pool *pgxpool.Pool, teamID, seasonID string, squad map[string]string) {
+	for _, playerID := range squad {
+		if playerID == "" {
+			continue
+		}
+		exec(ctx, pool, `
+			INSERT INTO fantasy_squad_players (team_id, player_id, purchase_price)
+			SELECT $1::uuid, $2::uuid, COALESCE((
+			    SELECT pp.price FROM fantasy_player_prices pp
+			    WHERE pp.player_id = $2::uuid AND pp.season_id = $3::uuid
+			    ORDER BY (pp.gameweek_id IS NULL), pp.created_at DESC LIMIT 1
+			), 10.00)
+			ON CONFLICT DO NOTHING`, teamID, playerID, seasonID)
+	}
+	exec(ctx, pool, `
+		UPDATE fantasy_teams ft
+		SET bank = GREATEST(COALESCE((SELECT budget FROM fantasy_seasons WHERE id = ft.season_id), 100)
+		           - COALESCE((SELECT SUM(sp.purchase_price) FROM fantasy_squad_players sp
+		                       WHERE sp.team_id = ft.id AND sp.sold_at IS NULL), 0), 0)
+		WHERE ft.id = $1::uuid`, teamID)
 }

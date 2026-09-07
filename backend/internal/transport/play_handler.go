@@ -55,12 +55,14 @@ func (h *PlayHandler) ListPlays(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Match ID is required"})
 		return
 	}
+	// Deliberately unpaged — see IPlayRepository.ListByMatch. The log is one
+	// unit, and the admin entry form computes the next play's state from it.
 	plays, err := h.service.ListByMatch(c.Request.Context(), matchID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch plays"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": plays})
+	c.JSON(http.StatusOK, gin.H{"data": plays, "total": len(plays)})
 }
 
 func (h *PlayHandler) CreatePlay(c *gin.Context) {

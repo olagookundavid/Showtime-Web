@@ -16,12 +16,15 @@ type IMatchService interface {
 	UpdateCompetition(ctx context.Context, comp *domain.Competition) error
 	DeleteCompetition(ctx context.Context, id string) error
 	GetTeams(ctx context.Context, page, limit int, search string, status string) (dto.PaginatedResult[dto.TeamResponse], error)
-	GetAllTeams(ctx context.Context, status string) ([]dto.TeamResponse, error)
-	GetTeamsByCompetition(ctx context.Context, competitionID string, status string) ([]dto.TeamResponse, error)
+	GetAllTeams(ctx context.Context, status string, page, limit int) ([]dto.TeamResponse, int, error)
+	// GetTeamByID fetches one team directly, so callers that want a single team
+	// don't have to page through the whole list looking for it.
+	GetTeamByID(ctx context.Context, id string) (*dto.TeamResponse, error)
+	GetTeamsByCompetition(ctx context.Context, competitionID string, status string, page, limit int) ([]dto.TeamResponse, int, error)
 	AddTeamToCompetition(ctx context.Context, competitionID, teamID string) error
 	RemoveTeamFromCompetition(ctx context.Context, competitionID, teamID string) error
 	GetMatches(ctx context.Context, competitionID string, teamID string, status string, page, limit int, search string) (dto.PaginatedResult[dto.MatchResponse], error)
-	GetStandings(ctx context.Context, competitionID string) ([]dto.StandingResponse, error)
+	GetStandings(ctx context.Context, competitionID string, page, limit int) ([]dto.StandingResponse, int, error)
 	CreateMatch(ctx context.Context, match *domain.Match) error
 	UpdateMatch(ctx context.Context, match *domain.Match) error
 	DeleteMatch(ctx context.Context, id string) error
@@ -37,8 +40,8 @@ type IMatchService interface {
 	SaveTeamSheet(ctx context.Context, matchID, teamID string, playerIDs []string) error
 	GetTeamSheet(ctx context.Context, matchID string) (*domain.MatchTeamSheet, error)
 	GetMatchDetail(ctx context.Context, matchID string) (*domain.MatchDetail, error)
-	GetMatchDaysByCompetition(ctx context.Context, competitionID string) ([]string, error)
-	GetEligiblePlayersForMatchDay(ctx context.Context, competitionID string, date string) ([]domain.Player, error)
+	GetMatchDaysByCompetition(ctx context.Context, competitionID string, page, limit int) ([]string, int, error)
+	GetEligiblePlayersForMatchDay(ctx context.Context, competitionID string, date string, page, limit int) ([]domain.Player, int, error)
 }
 
 type MatchService struct {
@@ -228,13 +231,30 @@ func (s *MatchService) GetTeams(ctx context.Context, page, limit int, search str
 	}, nil
 }
 
-func (s *MatchService) GetAllTeams(ctx context.Context, status string) ([]dto.TeamResponse, error) {
-	teams, err := s.repo.GetAllTeams(ctx, status)
+func (s *MatchService) GetAllTeams(ctx context.Context, status string, page, limit int) ([]dto.TeamResponse, int, error) {
+	teams, total, err := s.repo.GetAllTeams(ctx, status, page, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+	return teamResponses(teams), total, nil
+}
+
+func (s *MatchService) GetTeamByID(ctx context.Context, id string) (*dto.TeamResponse, error) {
+	t, err := s.repo.GetTeamByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
+	if t == nil {
+		return nil, nil
+	}
+	out := teamResponses([]domain.Team{*t})
+	return &out[0], nil
+}
 
-	var res []dto.TeamResponse
+// teamResponses is the shared team mapping — the all-teams and per-competition
+// listings present identical fields.
+func teamResponses(teams []domain.Team) []dto.TeamResponse {
+	res := make([]dto.TeamResponse, 0, len(teams))
 	for _, t := range teams {
 		statusVal := t.Status
 		if statusVal == "" {
@@ -248,7 +268,7 @@ func (s *MatchService) GetAllTeams(ctx context.Context, status string) ([]dto.Te
 			Status:    statusVal,
 		})
 	}
-	return res, nil
+	return res
 }
 
 func getString(s *string) string {
@@ -656,13 +676,13 @@ func (s *MatchService) RecalculateStandings(ctx context.Context, competitionID s
 	return s.repo.RecalculateStandings(ctx, competitionID)
 }
 
-func (s *MatchService) GetStandings(ctx context.Context, competitionID string) ([]dto.StandingResponse, error) {
+func (s *MatchService) GetStandings(ctx context.Context, competitionID string, page, limit int) ([]dto.StandingResponse, int, error) {
 	standings, err := s.repo.GetStandings(ctx, competitionID)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	var res []dto.StandingResponse
+	res := make([]dto.StandingResponse, 0, len(standings))
 	for _, st := range standings {
 		res = append(res, dto.StandingResponse{
 			ID: st.ID,
@@ -684,7 +704,26 @@ func (s *MatchService) GetStandings(ctx context.Context, competitionID string) (
 			L5:           st.L5,
 		})
 	}
-	return res, nil
+
+	// A league position only means anything relative to the whole table, so the
+	// table is ranked in full and then sliced. Paginating in SQL would restart
+	// the numbering on every page.
+	total := len(res)
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 50
+	}
+	start := (page - 1) * limit
+	if start >= total {
+		return []dto.StandingResponse{}, total, nil
+	}
+	end := start + limit
+	if end > total {
+		end = total
+	}
+	return res[start:end], total, nil
 }
 
 func (s *MatchService) CreateStanding(ctx context.Context, standing *domain.Standing) error {
@@ -726,27 +765,12 @@ func (s *MatchService) DeleteStanding(ctx context.Context, id string) error {
 	return s.repo.DeleteStanding(ctx, id)
 }
 
-func (s *MatchService) GetTeamsByCompetition(ctx context.Context, competitionID string, status string) ([]dto.TeamResponse, error) {
-	teams, err := s.repo.GetTeamsByCompetition(ctx, competitionID, status)
+func (s *MatchService) GetTeamsByCompetition(ctx context.Context, competitionID string, status string, page, limit int) ([]dto.TeamResponse, int, error) {
+	teams, total, err := s.repo.GetTeamsByCompetition(ctx, competitionID, status, page, limit)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-
-	var res []dto.TeamResponse
-	for _, t := range teams {
-		statusVal := t.Status
-		if statusVal == "" {
-			statusVal = "active"
-		}
-		res = append(res, dto.TeamResponse{
-			ID:        t.ID,
-			Name:      t.Name,
-			ShortName: t.ShortName,
-			Logo:      t.Logo,
-			Status:    statusVal,
-		})
-	}
-	return res, nil
+	return teamResponses(teams), total, nil
 }
 
 func (s *MatchService) AddTeamToCompetition(ctx context.Context, competitionID, teamID string) error {
@@ -861,11 +885,11 @@ func (s *MatchService) GetMatchDetail(ctx context.Context, matchID string) (*dom
 	return s.repo.GetMatchDetail(ctx, matchID)
 }
 
-func (s *MatchService) GetMatchDaysByCompetition(ctx context.Context, competitionID string) ([]string, error) {
-	return s.repo.GetMatchDaysByCompetition(ctx, competitionID)
+func (s *MatchService) GetMatchDaysByCompetition(ctx context.Context, competitionID string, page, limit int) ([]string, int, error) {
+	return s.repo.GetMatchDaysByCompetition(ctx, competitionID, page, limit)
 }
 
-func (s *MatchService) GetEligiblePlayersForMatchDay(ctx context.Context, competitionID string, date string) ([]domain.Player, error) {
-	return s.repo.GetEligiblePlayersForMatchDay(ctx, competitionID, date)
+func (s *MatchService) GetEligiblePlayersForMatchDay(ctx context.Context, competitionID string, date string, page, limit int) ([]domain.Player, int, error) {
+	return s.repo.GetEligiblePlayersForMatchDay(ctx, competitionID, date, page, limit)
 }
 

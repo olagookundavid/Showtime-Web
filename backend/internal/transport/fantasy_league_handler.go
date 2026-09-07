@@ -18,6 +18,7 @@ type IFantasyLeagueHandler interface {
 	GetOverallLeaderboard(c *gin.Context)
 	CreateLeague(c *gin.Context)
 	JoinLeague(c *gin.Context)
+	LeaveLeague(c *gin.Context)
 	VerifyLeaguePayment(c *gin.Context)
 	ListMyLeagues(c *gin.Context)
 	LeagueWebhook(c *gin.Context)
@@ -38,12 +39,22 @@ func (h *FantasyLeagueHandler) ListPublicLeagues(c *gin.Context) {
 		return
 	}
 
-	leagues, err := h.service.ListPublicLeagues(c.Request.Context(), seasonID)
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "25"))
+
+	leagues, total, err := h.service.ListPublicLeagues(c.Request.Context(), seasonID, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": leagues})
+
+	totalPages := 0
+	if limit > 0 {
+		totalPages = (total + limit - 1) / limit
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"data": leagues, "total": total, "page": page, "limit": limit, "total_pages": totalPages,
+	})
 }
 
 func (h *FantasyLeagueHandler) GetLeaderboard(c *gin.Context) {
@@ -189,6 +200,20 @@ func (h *FantasyLeagueHandler) JoinLeague(c *gin.Context) {
 	})
 }
 
+func (h *FantasyLeagueHandler) LeaveLeague(c *gin.Context) {
+	payload, err := helpers.GetTokenPayloadFromContext(c)
+	if err != nil || payload == nil {
+		helpers.UnAuthorizedResponse(c, "unauthorized")
+		return
+	}
+
+	if err := h.service.LeaveLeague(c.Request.Context(), payload.UserId, c.Param("id")); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "You have left the league"})
+}
+
 func (h *FantasyLeagueHandler) VerifyLeaguePayment(c *gin.Context) {
 	payload, err := helpers.GetTokenPayloadFromContext(c)
 	if err != nil || payload == nil {
@@ -225,13 +250,14 @@ func (h *FantasyLeagueHandler) ListMyLeagues(c *gin.Context) {
 		return
 	}
 
-	leagues, err := h.service.ListMyLeagues(c.Request.Context(), payload.UserId, seasonID)
+	page, limit := pageParams(c, 50)
+	leagues, total, err := h.service.ListMyLeagues(c.Request.Context(), payload.UserId, seasonID, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": leagues})
+	pagedJSON(c, leagues, total, page, limit)
 }
 
 func (h *FantasyLeagueHandler) LeagueWebhook(c *gin.Context) {

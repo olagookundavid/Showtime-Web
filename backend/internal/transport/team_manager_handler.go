@@ -114,17 +114,12 @@ func (h *TeamManagerHandler) GetMyTeam(c *gin.Context) {
 		teamID = tm.TeamID
 	}
 
-	teams, err := h.matchService.GetAllTeams(c.Request.Context(), "")
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	// Fetched by id rather than scanned out of the full team list, which now
+	// arrives a page at a time.
+	team, err := h.matchService.GetTeamByID(c.Request.Context(), teamID.(string))
+	if err != nil || team == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "team not found"})
 		return
 	}
-
-	for _, t := range teams {
-		if t.ID == teamID.(string) {
-			c.JSON(http.StatusOK, gin.H{"data": t})
-			return
-		}
-	}
-	c.JSON(http.StatusNotFound, gin.H{"error": "team not found"})
+	c.JSON(http.StatusOK, gin.H{"data": team})
 }

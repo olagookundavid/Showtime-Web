@@ -158,7 +158,7 @@ export const ReliveCarousel = () => {
 
             {/* In-App Interactive Video Player Modal */}
             {selectedVideo && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn" onClick={() => setSelectedVideo(null)}>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn" data-dialog onClick={() => setSelectedVideo(null)}>
                     <div className="relative w-full max-w-4xl bg-sffl-navy dark:bg-gray-900 rounded-2xl overflow-hidden shadow-2xl border border-white/10" onClick={e => e.stopPropagation()}>
                         {/* Modal Header */}
                         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 text-white">

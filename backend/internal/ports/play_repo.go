@@ -15,6 +15,11 @@ type PlayRepository interface {
 	Create(ctx context.Context, p *domain.GamePlay) error
 	Update(ctx context.Context, p *domain.GamePlay) error
 	Delete(ctx context.Context, id string) error
+	// ListByMatch returns every play in a match, and deliberately takes no page.
+	// A match's log is one indivisible unit: the scoring engine replays it to
+	// derive state, the admin entry form seeds the next play from the last one,
+	// and Re-derive walks it and writes corrections back. Handing any of those a
+	// prefix would corrupt the result silently. It is bounded by the match.
 	ListByMatch(ctx context.Context, matchID string) ([]*domain.GamePlay, error)
 	MaxSeq(ctx context.Context, matchID string) (int, error)
 	GetSeq(ctx context.Context, id string) (int, error)

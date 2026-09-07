@@ -10,9 +10,13 @@ import {
     SparklesIcon,
     XMarkIcon,
     CheckBadgeIcon,
+    LockClosedIcon,
 } from '@heroicons/react/24/outline';
-import { fantasySeasonApi, type LeaderboardEntry } from '../../services/api';
+import { fantasySeasonApi, type LeaderboardEntry,
+    formatFantasyPrice,
+} from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { AuthRequiredDialog } from '../../components/auth/AuthRequiredDialog';
 import { Loader } from '../../components/ui/Loader';
 
 const num = (v: number | null | undefined): number =>
@@ -26,8 +30,15 @@ export function FantasyHub() {
     const { data: dashboard, isLoading } = useQuery({
         queryKey: ['fantasyDashboard'],
         queryFn: () => fantasySeasonApi.getDashboard(),
+        enabled: isAuthenticated,
+        // A 401 is an answer, not a blip — retrying it just spams the log.
+        retry: false,
     });
 
+    // The gate opens on arrival: a signed-out visitor should be told why the
+    // page is empty, not left to work it out. Dismissing it leaves the same
+    // explanation on the page behind.
+    const [showGate, setShowGate] = useState(true);
     const [showJoinModal, setShowJoinModal] = useState(false);
     const [teamNameInput, setTeamNameInput] = useState('');
 
@@ -55,6 +66,51 @@ export function FantasyHub() {
             toast.error(err?.response?.data?.error || err.message || 'Failed to join the season');
         },
     });
+
+    // Fantasy belongs to a signed-in manager, so say so plainly instead of
+    // rendering a page whose every control is inert.
+    if (!isAuthenticated) {
+        return (
+            <>
+                <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 bg-white dark:bg-gray-800 rounded-2xl md:rounded-3xl border border-gray-200 dark:border-gray-700 shadow-sm p-8 md:p-12">
+                    <div className="w-16 h-16 rounded-2xl bg-sffl-red/10 dark:bg-sffl-red/20 flex items-center justify-center text-sffl-red mb-4">
+                        <LockClosedIcon className="w-10 h-10" />
+                    </div>
+                    <h1 className="text-3xl font-black uppercase tracking-tight text-sffl-navy dark:text-white mb-2">
+                        Fantasy Flag Football
+                    </h1>
+                    <p className="text-gray-600 dark:text-gray-300 max-w-md mb-6 text-sm">
+                        Pick a squad, join leagues with your friends and play for real prize money. You'll need an
+                        account to take part.
+                    </p>
+                    <div className="flex flex-wrap items-center justify-center gap-3">
+                        <Link
+                            to="/login?returnUrl=%2Ffantasy"
+                            state={{ returnUrl: '/fantasy' }}
+                            className="px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-sm shadow-md transition-all active:scale-95"
+                        >
+                            Go to Login
+                        </Link>
+                        <Link
+                            to="/signup?returnUrl=%2Ffantasy"
+                            state={{ returnUrl: '/fantasy' }}
+                            className="px-6 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100 font-bold text-sm transition-all active:scale-95"
+                        >
+                            Create an Account
+                        </Link>
+                    </div>
+                </div>
+
+                <AuthRequiredDialog
+                    open={showGate}
+                    onClose={() => setShowGate(false)}
+                    returnUrl="/fantasy"
+                    actionText="play fantasy"
+                    closeLabel="Go Back"
+                />
+            </>
+        );
+    }
 
     if (isLoading) {
         return <Loader />;
@@ -115,7 +171,7 @@ export function FantasyHub() {
                             <span className="text-[10px] uppercase font-black tracking-wider text-gray-300 block">
                                 Signing Budget
                             </span>
-                            <span className="text-xl font-black text-white">{num(season.budget).toFixed(2)} SC</span>
+                            <span className="text-xl font-black text-white">{formatFantasyPrice(season.budget)}</span>
                         </div>
                         <div className="p-3.5 bg-white/10 rounded-xl border border-white/10">
                             <span className="text-[10px] uppercase font-black tracking-wider text-gray-300 block">
@@ -144,7 +200,8 @@ export function FantasyHub() {
                     <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
                         {!isAuthenticated ? (
                             <Link
-                                to="/login?redirect=/fantasy"
+                                to="/login?returnUrl=%2Ffantasy"
+                                state={{ returnUrl: '/fantasy' }}
                                 className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-sm uppercase tracking-wider shadow-lg shadow-sffl-red/30 transition active:scale-95"
                             >
                                 Sign In To Join <ArrowRightIcon className="w-4 h-4" />
@@ -301,7 +358,7 @@ export function FantasyHub() {
 
             {/* Join Season Modal — the deliberate opt-in */}
             {showJoinModal && (
-                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 pt-[calc(var(--chrome-h)+1rem)] transition-[padding] duration-300 motion-reduce:transition-none" data-dialog>
                     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 w-full max-w-md rounded-3xl p-6 shadow-2xl">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-black text-sffl-navy dark:text-white uppercase">Join {season.name}</h3>

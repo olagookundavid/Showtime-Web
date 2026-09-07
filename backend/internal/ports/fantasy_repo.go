@@ -21,7 +21,7 @@ type IFantasyRepository interface {
 	// ListSeasons returns every season regardless of status. Admin screens need
 	// this: a season is created as DRAFT, so GetActiveSeason cannot see it and
 	// there would be no way to reach the activate action.
-	ListSeasons(ctx context.Context) ([]domain.FantasySeason, error)
+	ListSeasons(ctx context.Context, page, limit int) ([]domain.FantasySeason, int, error)
 	GetSeasonByID(ctx context.Context, id string) (*domain.FantasySeason, error)
 	UpdateSeasonStatus(ctx context.Context, id string, status domain.FantasySeasonStatus) error
 	// DeleteSeason removes a season that was never launched. Refuses anything
@@ -44,6 +44,11 @@ type IFantasyRepository interface {
 	// GetSeasonRatingLines aggregates every rateable player's season-to-date
 	// stat totals for a competition, so prices can be recomputed from ratings.
 	GetSeasonRatingLines(ctx context.Context, competitionID string) ([]PlayerRatingLine, error)
+	// GetSeasonPricingLines aggregates what pricing reads: games played and the
+	// season's scoring totals. Separate from the rating lines because a price
+	// answers a different question from a rating — what a manager is buying,
+	// rather than how well someone played.
+	GetSeasonPricingLines(ctx context.Context, seasonID, competitionID string) ([]PlayerPricingLine, error)
 
 	// Team Management
 	GetOrCreateTeam(ctx context.Context, userID, seasonID, teamName string) (*domain.FantasyTeam, error)
@@ -86,6 +91,18 @@ type PlayerRatingLine struct {
 	PlayerID string
 	Position string
 	Line     domain.RatingStatLine
+}
+
+// PlayerPricingLine is one player's season as the pricing model sees them.
+type PlayerPricingLine struct {
+	PlayerID string
+	Position string
+	Games    int
+	// Totals are the season sums of every stat that scores, so fantasy points
+	// can be computed with the same weights the game itself uses.
+	Totals domain.PlayerStat
+	// PreviousPrice is the last published price, so movement can be capped.
+	PreviousPrice float64
 }
 
 type FantasyRepository struct {
@@ -142,19 +159,27 @@ func (r *FantasyRepository) GetActiveSeason(ctx context.Context) (*domain.Fantas
 	return &s, nil
 }
 
-func (r *FantasyRepository) ListSeasons(ctx context.Context) ([]domain.FantasySeason, error) {
+func (r *FantasyRepository) ListSeasons(ctx context.Context, page, limit int) ([]domain.FantasySeason, int, error) {
+	page, limit, offset := paging(page, limit, 25)
+
 	query := `
 		SELECT id, competition_id, name, squad_size, budget, min_female_offense,
 		       min_female_defense, max_per_club, lock_mins_before, status, created_at, updated_at
 		FROM fantasy_seasons
-		ORDER BY created_at DESC
+		ORDER BY created_at DESC, id ASC
+		LIMIT $1 OFFSET $2
 	`
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	rows, err := r.pool.Query(ctx, query)
+	var total int
+	if err := r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM fantasy_seasons`).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to count fantasy seasons: %w", err)
+	}
+
+	rows, err := r.pool.Query(ctx, query, limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list fantasy seasons: %w", err)
+		return nil, 0, fmt.Errorf("failed to list fantasy seasons: %w", err)
 	}
 	defer rows.Close()
 
@@ -166,11 +191,11 @@ func (r *FantasyRepository) ListSeasons(ctx context.Context) ([]domain.FantasySe
 			&s.MinFemaleOffense, &s.MinFemaleDefense, &s.MaxPerClub,
 			&s.LockMinsBefore, &s.Status, &s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		list = append(list, s)
 	}
-	return list, rows.Err()
+	return list, total, rows.Err()
 }
 
 func (r *FantasyRepository) GetSeasonByID(ctx context.Context, id string) (*domain.FantasySeason, error) {
@@ -510,12 +535,18 @@ func (r *FantasyRepository) ListPlayerMarket(ctx context.Context, seasonID strin
 			GROUP BY fgp.player_id
 		) pts ON pts.player_id = p.id
 		LEFT JOIN (
-			SELECT flp.player_id, COUNT(DISTINCT fl.team_id) AS picked_by
-			FROM fantasy_lineup_picks flp
-			JOIN fantasy_lineups fl ON flp.lineup_id = fl.id
-			JOIN fantasy_gameweeks fgw ON fl.gameweek_id = fgw.id
-			WHERE fgw.season_id = $1
-			GROUP BY flp.player_id
+			-- Ownership reads from the squad ledger rather than from lineups: a
+			-- player is owned the moment they are bought, whether or not they
+			-- have started a match. Sold rows are kept, which is what makes the
+			-- transfer counts possible.
+			SELECT sp.player_id,
+			       COUNT(*) FILTER (WHERE sp.sold_at IS NULL) AS owned_now,
+			       COUNT(*)                                   AS bought_total,
+			       COUNT(*) FILTER (WHERE sp.sold_at IS NOT NULL) AS sold_total
+			FROM fantasy_squad_players sp
+			JOIN fantasy_teams ft ON ft.id = sp.team_id
+			WHERE ft.season_id = $1
+			GROUP BY sp.player_id
 		) sel ON sel.player_id = p.id
 		WHERE 1=1
 	`
@@ -556,21 +587,31 @@ func (r *FantasyRepository) ListPlayerMarket(ctx context.Context, seasonID strin
 		return nil, 0, fmt.Errorf("failed to count fantasy squads: %w", err)
 	}
 
-	orderClause := " ORDER BY COALESCE(fpp.price, 10.00) DESC, p.name ASC"
+	// Every ordering ends on p.id so paging is stable: without a unique tail a
+	// tie can shuffle between requests and a row appears on two pages or none.
+	orderClause := " ORDER BY COALESCE(fpp.price, 0) DESC, p.name ASC, p.id ASC"
 	switch sortBy {
 	case "points":
-		orderClause = " ORDER BY COALESCE(pts.total_pts, 0) DESC, p.name ASC"
+		orderClause = " ORDER BY COALESCE(pts.total_pts, 0) DESC, p.name ASC, p.id ASC"
 	case "name":
-		orderClause = " ORDER BY p.name ASC"
-	case "selected":
-		orderClause = " ORDER BY COALESCE(sel.picked_by, 0) DESC, p.name ASC"
+		orderClause = " ORDER BY p.name ASC, p.id ASC"
+	case "rating":
+		orderClause = " ORDER BY COALESCE(fpp.rating, 0) DESC, p.name ASC, p.id ASC"
+	case "price_asc":
+		orderClause = " ORDER BY COALESCE(fpp.price, 0) ASC, p.name ASC, p.id ASC"
+	case "selected", "owned":
+		orderClause = " ORDER BY COALESCE(sel.owned_now, 0) DESC, p.name ASC, p.id ASC"
+	case "transfers_in":
+		orderClause = " ORDER BY COALESCE(sel.bought_total, 0) DESC, p.name ASC, p.id ASC"
+	case "transfers_out":
+		orderClause = " ORDER BY COALESCE(sel.sold_total, 0) DESC, p.name ASC, p.id ASC"
 	}
 
 	selectQuery := `
 		SELECT p.id, p.name, COALESCE(p.image, ''), p.position, COALESCE(p.gender, 'M'),
 		       COALESCE(t.id::text, ''), COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
-		       COALESCE(fpp.price, 10.00), COALESCE(fpp.rating, 5.00), COALESCE(pts.total_pts, 0.000),
-		       COALESCE(sel.picked_by, 0)
+		       COALESCE(fpp.price, 0), COALESCE(fpp.rating, 5.00), COALESCE(pts.total_pts, 0.000),
+		       COALESCE(sel.owned_now, 0), COALESCE(sel.bought_total, 0), COALESCE(sel.sold_total, 0)
 	` + baseQuery + orderClause + fmt.Sprintf(" LIMIT $%d OFFSET $%d", argIdx, argIdx+1)
 	args = append(args, limit, offset)
 
@@ -583,16 +624,16 @@ func (r *FantasyRepository) ListPlayerMarket(ctx context.Context, seasonID strin
 	list := make([]dto.FantasyPlayerListItem, 0, limit)
 	for rows.Next() {
 		var item dto.FantasyPlayerListItem
-		var pickedBy int
 		if err := rows.Scan(
 			&item.PlayerID, &item.PlayerName, &item.PlayerImage, &item.Position, &item.Gender,
 			&item.TeamID, &item.TeamName, &item.TeamShortName, &item.TeamLogo,
-			&item.Price, &item.Rating, &item.TotalPoints, &pickedBy,
+			&item.Price, &item.Rating, &item.TotalPoints,
+			&item.OwnedBy, &item.TransfersIn, &item.TransfersOut,
 		); err != nil {
 			return nil, 0, err
 		}
 		if squadCount > 0 {
-			item.SelectedByPct = (float64(pickedBy) / float64(squadCount)) * 100
+			item.SelectedByPct = (float64(item.OwnedBy) / float64(squadCount)) * 100
 		}
 		list = append(list, item)
 	}
@@ -660,8 +701,11 @@ func (r *FantasyRepository) GetOrCreateTeam(ctx context.Context, userID, seasonI
 	defer cancel()
 
 	query := `
-		INSERT INTO fantasy_teams (user_id, season_id, name)
-		VALUES ($1, $2, $3)
+		INSERT INTO fantasy_teams (user_id, season_id, name, bank)
+		-- A new manager starts with the whole season budget in the bank; the
+		-- squad is bought out of it. Defaulting to 0 would leave them unable to
+		-- sign anyone.
+		VALUES ($1, $2, $3, COALESCE((SELECT budget FROM fantasy_seasons WHERE id = $2), 230))
 		ON CONFLICT (user_id, season_id) DO UPDATE SET name = EXCLUDED.name, updated_at = NOW()
 		RETURNING id, user_id, season_id, name, total_points, created_at, updated_at
 	`
@@ -1279,4 +1323,63 @@ func (r *FantasyRepository) GetPlayerStatsByEventDay(ctx context.Context, eventD
 		list = append(list, s)
 	}
 	return list, nil
+}
+
+// GetSeasonPricingLines rolls a competition's stats up per player for pricing:
+// how many games they appeared in, the totals of everything that scores, and
+// the price they were last published at.
+//
+// Games is a distinct count of matches with a stat row, which is what both the
+// appearance threshold and the availability weight are measured against.
+func (r *FantasyRepository) GetSeasonPricingLines(ctx context.Context, seasonID, competitionID string) ([]PlayerPricingLine, error) {
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	query := `
+		SELECT p.id::text, COALESCE(p.position, ''),
+		       COUNT(DISTINCT ps.match_id),
+		       COALESCE(SUM(ps.passing_yards), 0), COALESCE(SUM(ps.rushing_yards), 0),
+		       COALESCE(SUM(ps.receiving_yards), 0), COALESCE(SUM(ps.passing_tds), 0),
+		       COALESCE(SUM(ps.rushing_tds), 0), COALESCE(SUM(ps.interceptions_thrown), 0),
+		       COALESCE(SUM(ps.receptions), 0), COALESCE(SUM(ps.receiving_tds), 0),
+		       COALESCE(SUM(ps.extra_points_tds), 0), COALESCE(SUM(ps.xp_good), 0),
+		       COALESCE(SUM(ps.drops), 0), COALESCE(SUM(ps.flag_pulls), 0),
+		       COALESCE(SUM(ps.pass_deflections), 0), COALESCE(SUM(ps.interceptions), 0),
+		       COALESCE(SUM(ps.defensive_tds), 0), COALESCE(SUM(ps.safety), 0),
+		       COALESCE(SUM(ps.qb_sacks), 0), COALESCE(SUM(ps.def_sacks), 0),
+		       COALESCE(SUM(ps.defensive_xp_tds), 0), COALESCE(SUM(ps.bad_snaps), 0),
+		       COALESCE((
+		           SELECT pp.price FROM fantasy_player_prices pp
+		           WHERE pp.player_id = p.id AND pp.season_id = $1
+		           ORDER BY (pp.gameweek_id IS NULL), pp.created_at DESC
+		           LIMIT 1
+		       ), 0)
+		FROM players p
+		LEFT JOIN player_stats ps ON ps.player_id = p.id AND ps.competition_id = $2
+		GROUP BY p.id, p.position
+	`
+	rows, err := r.pool.Query(ctx, query, seasonID, competitionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to aggregate season pricing lines: %w", err)
+	}
+	defer rows.Close()
+
+	list := make([]PlayerPricingLine, 0)
+	for rows.Next() {
+		var l PlayerPricingLine
+		t := &l.Totals
+		if err := rows.Scan(
+			&l.PlayerID, &l.Position, &l.Games,
+			&t.PassingYards, &t.RushingYards, &t.ReceivingYards, &t.PassingTDs,
+			&t.RushingTDs, &t.InterceptionsThrown, &t.Receptions, &t.ReceivingTDs,
+			&t.ExtraPointsTDs, &t.XPGood, &t.Drops, &t.FlagPulls,
+			&t.PassDeflections, &t.Interceptions, &t.DefensiveTDs, &t.Safety,
+			&t.QBSacks, &t.DefSacks, &t.DefensiveXPTDs, &t.BadSnaps,
+			&l.PreviousPrice,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan pricing line: %w", err)
+		}
+		list = append(list, l)
+	}
+	return list, rows.Err()
 }

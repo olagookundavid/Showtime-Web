@@ -22,6 +22,7 @@ type IFantasyPayoutHandler interface {
 
 	GetLeagueJoinPreview(c *gin.Context)
 	GetLeagueJoinPreviewByCode(c *gin.Context)
+	GetPlatformCut(c *gin.Context)
 
 	// Admin
 	AdminGetOverview(c *gin.Context)
@@ -34,6 +35,7 @@ type IFantasyPayoutHandler interface {
 	AdminSettleSeason(c *gin.Context)
 	AdminCompleteSeason(c *gin.Context)
 	AdminListPayouts(c *gin.Context)
+	AdminGetMoneyOwed(c *gin.Context)
 	AdminUpdatePayoutStatus(c *gin.Context)
 	AdminGetUserWallet(c *gin.Context)
 }
@@ -100,12 +102,22 @@ func (h *FantasyPayoutHandler) ListMyPayouts(c *gin.Context) {
 		return
 	}
 
-	list, err := h.service.ListMyPayouts(c.Request.Context(), payload.UserId)
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "25"))
+
+	list, total, err := h.service.ListMyPayouts(c.Request.Context(), payload.UserId, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": list})
+
+	totalPages := 0
+	if limit > 0 {
+		totalPages = (total + limit - 1) / limit
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"data": list, "total": total, "page": page, "limit": limit, "total_pages": totalPages,
+	})
 }
 
 func (h *FantasyPayoutHandler) CancelPayout(c *gin.Context) {
@@ -124,6 +136,12 @@ func (h *FantasyPayoutHandler) CancelPayout(c *gin.Context) {
 }
 
 // GetLeagueJoinPreview backs the dialogue a manager reads before joining.
+func (h *FantasyPayoutHandler) GetPlatformCut(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{
+		"cut_percent": h.service.GetPlatformCutPercent(c.Request.Context()),
+	}})
+}
+
 func (h *FantasyPayoutHandler) GetLeagueJoinPreview(c *gin.Context) {
 	// Signed in or not, the terms are readable; membership details only appear
 	// when we know who is asking.
@@ -193,12 +211,22 @@ func (h *FantasyPayoutHandler) AdminListManagers(c *gin.Context) {
 }
 
 func (h *FantasyPayoutHandler) AdminListLeagueMembers(c *gin.Context) {
-	list, err := h.service.ListLeagueMembers(c.Request.Context(), c.Param("id"))
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "25"))
+
+	list, total, err := h.service.ListLeagueMembers(c.Request.Context(), c.Param("id"), page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": list})
+
+	totalPages := 0
+	if limit > 0 {
+		totalPages = (total + limit - 1) / limit
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"data": list, "total": total, "page": page, "limit": limit, "total_pages": totalPages,
+	})
 }
 
 func (h *FantasyPayoutHandler) AdminListLeagues(c *gin.Context) {
@@ -317,6 +345,18 @@ func (h *FantasyPayoutHandler) AdminListPayouts(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"data": list, "total": total, "page": page, "limit": limit, "total_pages": totalPages,
 	})
+}
+
+func (h *FantasyPayoutHandler) AdminGetMoneyOwed(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "25"))
+
+	owed, err := h.service.GetMoneyOwed(c.Request.Context(), page, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": owed})
 }
 
 func (h *FantasyPayoutHandler) AdminUpdatePayoutStatus(c *gin.Context) {

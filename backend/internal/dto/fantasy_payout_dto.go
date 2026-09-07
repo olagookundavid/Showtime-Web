@@ -131,12 +131,17 @@ type LeagueJoinPreview struct {
 	// rather than offering to join twice.
 	AlreadyMember    bool   `json:"already_member"`
 	MembershipStatus string `json:"membership_status,omitempty"`
+	// Forfeited marks someone who paid into this league and then left. They
+	// cannot come back, and the dialogue should say so rather than offer a
+	// join button that will only fail.
+	Forfeited bool `json:"forfeited"`
 
-	// The pool as it stands today; it grows with every paid entry.
-	PrizePoolKobo   int64               `json:"prize_pool_kobo"`
-	PlatformCutKobo int64               `json:"platform_cut_kobo"`
-	CutPercent      float64             `json:"cut_percent"`
-	PrizeStructure  []PrizeTierResponse `json:"prize_structure"`
+	// The pool as it stands today; it grows with every paid entry. This is the
+	// figure after the platform's cut, so it is what will actually be shared out.
+	// The cut itself is the league creator's concern and is shown to them when
+	// they set the league up — a joiner only needs the number they can win.
+	PrizePoolKobo  int64               `json:"prize_pool_kobo"`
+	PrizeStructure []PrizeTierResponse `json:"prize_structure"`
 
 	// Entry fees are never returned once paid; stated outright rather than
 	// buried, since a manager is about to part with money.
@@ -167,6 +172,57 @@ type AdminFantasyOverview struct {
 	PendingPayoutKobo   int64 `json:"pending_payout_kobo"`
 	PendingPayoutCount  int   `json:"pending_payout_count"`
 	PaidOutKobo         int64 `json:"paid_out_kobo"`
+}
+
+// AdminOwedRow is one person the platform currently owes money to: winnings
+// that have been credited to their in-app wallet but not yet paid out. It
+// carries the bank details their money would go to, so the admin can see the
+// obligation and the destination in one row.
+type AdminOwedRow struct {
+	UserID    string `json:"user_id"`
+	UserName  string `json:"user_name"`
+	UserEmail string `json:"user_email"`
+
+	// BalanceKobo is what they can still withdraw. PendingPayoutKobo is money
+	// already committed to an open request — it has left the balance, and is
+	// shown separately so the admin can see the full obligation.
+	BalanceKobo       int64 `json:"balance_kobo"`
+	PendingPayoutKobo int64 `json:"pending_payout_kobo"`
+	TotalOwedKobo     int64 `json:"total_owed_kobo"`
+	LifetimeWonKobo   int64 `json:"lifetime_won_kobo"`
+	LifetimePaidKobo  int64 `json:"lifetime_paid_kobo"`
+
+	// HasRequested distinguishes money merely sitting in a wallet from money
+	// someone has actually asked for. Only the latter is actionable.
+	HasRequested bool `json:"has_requested"`
+	OpenRequests int  `json:"open_requests"`
+	// The account last submitted on a payout request, when there is one. Blank
+	// means the winner has not told us where to send it yet.
+	BankName      string `json:"bank_name,omitempty"`
+	AccountNumber string `json:"account_number,omitempty"`
+	AccountName   string `json:"account_name,omitempty"`
+}
+
+// OwedTotals is the obligation across everyone, not just the page on screen.
+// The headline figures have to cover the whole book or they are misleading.
+type OwedTotals struct {
+	TotalOwedKobo   int64 `json:"total_owed_kobo"`
+	RequestedKobo   int64 `json:"requested_kobo"`
+	UnrequestedKobo int64 `json:"unrequested_kobo"`
+	People          int   `json:"people"`
+	// AwaitingDetails counts winners holding money who have never given us an
+	// account — nothing can be paid to them until they do.
+	AwaitingDetails int `json:"awaiting_details"`
+}
+
+// AdminOwedSummary is one page of the obligation, with the totals for all of it.
+type AdminOwedSummary struct {
+	OwedTotals
+
+	Rows       []AdminOwedRow `json:"rows"`
+	Page       int            `json:"page"`
+	Limit      int            `json:"limit"`
+	TotalPages int            `json:"total_pages"`
 }
 
 // AdminManagerRow is one manager in the admin's season-wide list.

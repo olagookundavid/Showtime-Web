@@ -210,12 +210,13 @@ func (h *FantasyHandler) GetMyLineup(c *gin.Context) {
 // AdminListSeasons returns every season, including drafts, so the admin can
 // see and activate a season it just created.
 func (h *FantasyHandler) AdminListSeasons(c *gin.Context) {
-	list, err := h.service.ListSeasons(c.Request.Context())
+	page, limit := pageParams(c, 25)
+	list, total, err := h.service.ListSeasons(c.Request.Context(), page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": list})
+	pagedJSON(c, list, total, page, limit)
 }
 
 func (h *FantasyHandler) AdminCreateSeason(c *gin.Context) {

@@ -70,10 +70,14 @@ export function FantasyWallet() {
         queryFn: fantasyWalletApi.getWallet,
     });
 
-    const { data: payouts = [], isLoading: payoutsLoading } = useQuery({
-        queryKey: ['fantasyMyPayouts'],
-        queryFn: fantasyWalletApi.listMyPayouts,
+    // Paged: a long-running manager accumulates withdrawals, and the list was
+    // previously capped at 25 with the rest simply invisible.
+    const [payoutsPage, setPayoutsPage] = useState(1);
+    const { data: payoutsPaged, isLoading: payoutsLoading } = useQuery({
+        queryKey: ['fantasyMyPayouts', payoutsPage],
+        queryFn: () => fantasyWalletApi.listMyPayouts({ page: payoutsPage, limit: 10 }),
     });
+    const payouts = payoutsPaged?.data ?? [];
 
     const [form, setForm] = useState({
         amountNaira: '',
@@ -460,6 +464,35 @@ export function FantasyWallet() {
                                 ))}
                             </div>
                         )}
+
+                        {(payoutsPaged?.total_pages ?? 0) > 1 && (
+                            <div className="mt-4 flex items-center justify-between gap-3">
+                                <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                                    Page {payoutsPaged?.page || payoutsPage} of {payoutsPaged?.total_pages} ·{' '}
+                                    {payoutsPaged?.total ?? 0} requests
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setPayoutsPage((p) => Math.max(1, p - 1))}
+                                        disabled={payoutsPage <= 1}
+                                        className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-[11px] font-black uppercase transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                    >
+                                        Prev
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setPayoutsPage((p) => Math.min(payoutsPaged?.total_pages ?? 1, p + 1))
+                                        }
+                                        disabled={payoutsPage >= (payoutsPaged?.total_pages ?? 1)}
+                                        className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-[11px] font-black uppercase transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -516,7 +549,7 @@ export function FantasyWallet() {
 
             {/* Cancel Confirmation Modal */}
             {cancelTarget && (
-                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 pt-[calc(var(--chrome-h)+1rem)] transition-[padding] duration-300 motion-reduce:transition-none" data-dialog>
                     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 w-full max-w-md rounded-3xl p-6 shadow-2xl">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-black text-sffl-navy dark:text-white uppercase">Cancel Payout Request</h3>

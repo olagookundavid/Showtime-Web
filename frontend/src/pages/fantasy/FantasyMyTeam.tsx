@@ -13,10 +13,12 @@ import {
 import { 
     fantasyApi, 
     fantasySeasonApi,
-    type FantasyLineupPick 
+    type FantasyLineupPick,
+    formatFantasyPrice,
 } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { Loader } from '../../components/ui/Loader';
+import { PlayerAvatar } from '../../components/fantasy/PlayerAvatar';
 
 export function FantasyMyTeam() {
     // Shares the hub/dashboard query key, so this is a cache hit.
@@ -170,11 +172,11 @@ export function FantasyMyTeam() {
                     </div>
                     <div className="p-3 bg-white/10 rounded-xl">
                         <span className="text-[10px] uppercase font-bold text-gray-300 block">Total Spent</span>
-                        <span className="text-2xl font-black text-white">{lineup.total_spent.toFixed(2)} SC</span>
+                        <span className="text-2xl font-black text-white">{formatFantasyPrice(lineup.total_spent)}</span>
                     </div>
                     <div className="p-3 bg-white/10 rounded-xl">
                         <span className="text-[10px] uppercase font-bold text-gray-300 block">Remaining Cap</span>
-                        <span className="text-2xl font-black text-gray-200">{lineup.remaining_budget.toFixed(2)} SC</span>
+                        <span className="text-2xl font-black text-gray-200">{formatFantasyPrice(lineup.remaining_budget)}</span>
                     </div>
                     <div className="p-3 bg-white/10 rounded-xl">
                         <span className="text-[10px] uppercase font-bold text-gray-300 block">Roster Spots</span>
@@ -201,18 +203,11 @@ export function FantasyMyTeam() {
                                 className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-sffl-red/50 rounded-2xl shadow-sm flex items-center justify-between cursor-pointer transition"
                             >
                                 <div className="flex items-center gap-3.5">
-                                    <div className="relative">
-                                        <img
-                                            src={pick.player_image || '/placeholder-player.png'}
-                                            alt={pick.player_name}
-                                            className="w-12 h-12 rounded-xl object-cover bg-gray-100 dark:bg-gray-700"
-                                        />
-                                        <span className={`absolute -top-1 -right-1 text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase text-white ${
-                                            pick.gender === 'F' ? 'bg-pink-500' : 'bg-blue-600'
-                                        }`}>
-                                            {pick.gender === 'F' ? '♀' : '♂'}
-                                        </span>
-                                    </div>
+                                    <PlayerAvatar
+                                        name={pick.player_name || 'Unknown'}
+                                        image={pick.player_image}
+                                        gender={pick.gender}
+                                    />
                                     <div>
                                         <div className="flex items-center gap-2">
                                             <span className="text-[10px] font-black px-1.5 py-0.2 bg-gray-100 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-200">
@@ -255,18 +250,11 @@ export function FantasyMyTeam() {
                                 className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-sffl-red/50 rounded-2xl shadow-sm flex items-center justify-between cursor-pointer transition"
                             >
                                 <div className="flex items-center gap-3.5">
-                                    <div className="relative">
-                                        <img
-                                            src={pick.player_image || '/placeholder-player.png'}
-                                            alt={pick.player_name}
-                                            className="w-12 h-12 rounded-xl object-cover bg-gray-100 dark:bg-gray-700"
-                                        />
-                                        <span className={`absolute -top-1 -right-1 text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase text-white ${
-                                            pick.gender === 'F' ? 'bg-pink-500' : 'bg-blue-600'
-                                        }`}>
-                                            {pick.gender === 'F' ? '♀' : '♂'}
-                                        </span>
-                                    </div>
+                                    <PlayerAvatar
+                                        name={pick.player_name || 'Unknown'}
+                                        image={pick.player_image}
+                                        gender={pick.gender}
+                                    />
                                     <div>
                                         <div className="flex items-center gap-2">
                                             <span className="text-[10px] font-black px-1.5 py-0.2 bg-gray-100 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-200">
@@ -296,8 +284,8 @@ export function FantasyMyTeam() {
 
             {/* Points Breakdown Modal */}
             {selectedPlayerForBreakdown && (
-                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[85vh] flex flex-col overflow-hidden shadow-2xl">
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 pt-[calc(var(--chrome-h)+1rem)] transition-[padding] duration-300 motion-reduce:transition-none" data-dialog>
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[calc(100dvh-var(--chrome-h)-2rem)] flex flex-col overflow-hidden shadow-2xl">
                         <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
                             <div>
                                 <span className="text-xs font-black text-sffl-red uppercase tracking-wider block">
@@ -305,7 +293,7 @@ export function FantasyMyTeam() {
                                 </span>
                                 <h3 className="text-lg font-black text-sffl-navy dark:text-white">{selectedPlayerForBreakdown.player_name}</h3>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                    Slot: <strong>{selectedPlayerForBreakdown.slot}</strong> • Purchase Price: <strong>{selectedPlayerForBreakdown.purchase_price.toFixed(2)} SC</strong>
+                                    Slot: <strong>{selectedPlayerForBreakdown.slot}</strong> • Purchase Price: <strong>{formatFantasyPrice(selectedPlayerForBreakdown.purchase_price)}</strong>
                                 </p>
                             </div>
                             <button

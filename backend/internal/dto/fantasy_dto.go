@@ -162,8 +162,17 @@ type FantasyPlayerListItem struct {
 	TeamLogo      string  `json:"team_logo"`
 	Price         float64 `json:"price"`
 	Rating        float64 `json:"rating"`
-	TotalPoints   float64 `json:"total_points"`
+	TotalPoints float64 `json:"total_points"`
+
+	// Ownership across the season's managers. OwnedBy counts squads holding the
+	// player right now; TransfersIn and TransfersOut are how many times they
+	// have been signed and sold all season. Together they show whether a player
+	// is being loaded up on or dumped, which is the market signal managers
+	// actually trade against.
+	OwnedBy       int     `json:"owned_by"`
 	SelectedByPct float64 `json:"selected_by_pct"`
+	TransfersIn   int     `json:"transfers_in"`
+	TransfersOut  int     `json:"transfers_out"`
 }
 
 // ─── League DTOs ──────────────────────────────────────────────────────────────
@@ -228,4 +237,55 @@ type PlayerGWBreakdownResponse struct {
 	MatchLabel string                        `json:"match_label"`
 	Points     float64                       `json:"points"`
 	Breakdown  domain.FantasyPointsBreakdown `json:"breakdown"`
+}
+
+// ─── Squad & trading ─────────────────────────────────────────────────────────
+
+// SquadRules restates the season's constraints alongside the squad they govern,
+// so the trading dashboard can show a manager what it is holding them to instead
+// of keeping its own copy that drifts from the season's real settings.
+type SquadRules struct {
+	Budget           float64 `json:"budget"`
+	MinFemaleOffense int     `json:"min_female_offense"`
+	MinFemaleDefense int     `json:"min_female_defense"`
+	MaxPerClub       int     `json:"max_per_club"`
+}
+
+// SquadResponse is the trading dashboard in one payload: who is owned, what the
+// squad is worth today, what is left to spend, and why it is not ready if it
+// isn't.
+type SquadResponse struct {
+	Players []domain.SquadPlayer `json:"players"`
+
+	// Bank is unspent money; SquadValue is what the squad would fetch today, so
+	// the two together show whether the manager is up or down on their trading.
+	Bank       float64 `json:"bank"`
+	SquadValue float64 `json:"squad_value"`
+
+	// Female cover on each side of the ball, against the minimums in Rules. The
+	// quotas are per unit, so these are counted separately.
+	FemaleOffense int `json:"female_offense"`
+	FemaleDefense int `json:"female_defense"`
+
+	SquadSize  int `json:"squad_size"`
+	SquadMin   int `json:"squad_min"`
+	SquadMax   int `json:"squad_max"`
+	StartingXI int `json:"starting_xi"`
+	Starters   int `json:"starters"`
+	Subs       int `json:"subs"`
+
+	Rules SquadRules `json:"rules"`
+
+	// MarketOpen says whether trading is allowed right now. The market shuts
+	// while a gameweek is being played and reopens once its scores are final, so
+	// the dashboard can disable Buy and Sell and say why rather than letting a
+	// manager click into a rejection.
+	MarketOpen         bool   `json:"market_open"`
+	MarketClosedReason string `json:"market_closed_reason,omitempty"`
+
+	// Readiness is the checklist the squad screen works down: what a legal
+	// starting fourteen needs, what the squad has, and whether the match day
+	// would be forfeited as things stand. Guidance, not enforcement — the
+	// lineup selector is what actually holds the line.
+	Readiness domain.SquadReadiness `json:"readiness"`
 }

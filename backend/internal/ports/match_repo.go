@@ -22,12 +22,12 @@ type MatchRepository interface {
 
 	// Teams
 	GetTeams(ctx context.Context, page, limit int, search string, status string) ([]domain.Team, int64, error)
-	GetAllTeams(ctx context.Context, status string) ([]domain.Team, error)
+	GetAllTeams(ctx context.Context, status string, page, limit int) ([]domain.Team, int, error)
 	GetTeamByID(ctx context.Context, id string) (*domain.Team, error)
 	CreateTeam(ctx context.Context, team *domain.Team) error
 	UpdateTeam(ctx context.Context, team *domain.Team) error
 	DeleteTeam(ctx context.Context, id string) error
-	GetTeamsByCompetition(ctx context.Context, competitionID string, status string) ([]domain.Team, error)
+	GetTeamsByCompetition(ctx context.Context, competitionID string, status string, page, limit int) ([]domain.Team, int, error)
 	AddTeamToCompetition(ctx context.Context, competitionID, teamID string) error
 	RemoveTeamFromCompetition(ctx context.Context, competitionID, teamID string) error
 	CanRemoveTeamFromCompetition(ctx context.Context, competitionID, teamID string) (bool, string, error)
@@ -56,8 +56,8 @@ type MatchRepository interface {
 	GetTeamSheet(ctx context.Context, matchID string) (*domain.MatchTeamSheet, error)
 	IsPlayerOnTeamSheet(ctx context.Context, matchID, playerID string) (bool, error)
 	GetMatchDetail(ctx context.Context, matchID string) (*domain.MatchDetail, error)
-	GetMatchDaysByCompetition(ctx context.Context, competitionID string) ([]string, error)
-	GetEligiblePlayersForMatchDay(ctx context.Context, competitionID string, date string) ([]domain.Player, error)
+	GetMatchDaysByCompetition(ctx context.Context, competitionID string, page, limit int) ([]string, int, error)
+	GetEligiblePlayersForMatchDay(ctx context.Context, competitionID string, date string, page, limit int) ([]domain.Player, int, error)
 }
 
 type PostgresMatchRepository struct {
@@ -258,31 +258,40 @@ func (r *PostgresMatchRepository) GetTeams(ctx context.Context, page, limit int,
 	return teams, total, nil
 }
 
-func (r *PostgresMatchRepository) GetAllTeams(ctx context.Context, status string) ([]domain.Team, error) {
-	query := `SELECT id, name, COALESCE(short_name, ''), COALESCE(logo, ''), COALESCE(status, 'active') as status, created_at, updated_at FROM teams WHERE 1=1`
-	args := []interface{}{}
+func (r *PostgresMatchRepository) GetAllTeams(ctx context.Context, status string, page, limit int) ([]domain.Team, int, error) {
+	page, limit, offset := paging(page, limit, 50)
 
+	where := ` WHERE 1=1`
+	args := []interface{}{}
 	if status != "" {
-		query += ` AND COALESCE(status, 'active') = $1`
+		where += ` AND COALESCE(status, 'active') = $1`
 		args = append(args, status)
 	}
-	query += ` ORDER BY name ASC`
+
+	var total int
+	if err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM teams`+where, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	query := `SELECT id, name, COALESCE(short_name, ''), COALESCE(logo, ''), COALESCE(status, 'active') as status, created_at, updated_at FROM teams` + where +
+		fmt.Sprintf(` ORDER BY name ASC, id ASC LIMIT $%d OFFSET $%d`, len(args)+1, len(args)+2)
+	args = append(args, limit, offset)
 
 	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
-	var teams []domain.Team
+	teams := make([]domain.Team, 0, limit)
 	for rows.Next() {
 		var t domain.Team
 		if err := rows.Scan(&t.ID, &t.Name, &t.ShortName, &t.Logo, &t.Status, &t.CreatedAt, &t.UpdatedAt); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		teams = append(teams, t)
 	}
-	return teams, nil
+	return teams, total, nil
 }
 
 func (r *PostgresMatchRepository) GetTeamByID(ctx context.Context, id string) (*domain.Team, error) {
@@ -318,34 +327,40 @@ func (r *PostgresMatchRepository) DeleteTeam(ctx context.Context, id string) err
 	return err
 }
 
-func (r *PostgresMatchRepository) GetTeamsByCompetition(ctx context.Context, competitionID string, status string) ([]domain.Team, error) {
-	query := `SELECT DISTINCT t.id, t.name, COALESCE(t.short_name, ''), COALESCE(t.logo, ''), COALESCE(t.status, 'active') as status, t.created_at, t.updated_at
-		FROM teams t
-		INNER JOIN competition_teams ct ON ct.team_id = t.id
-		WHERE ct.competition_id = $1`
-	args := []interface{}{competitionID}
+func (r *PostgresMatchRepository) GetTeamsByCompetition(ctx context.Context, competitionID string, status string, page, limit int) ([]domain.Team, int, error) {
+	page, limit, offset := paging(page, limit, 50)
 
+	from := ` FROM teams t INNER JOIN competition_teams ct ON ct.team_id = t.id WHERE ct.competition_id = $1`
+	args := []interface{}{competitionID}
 	if status != "" {
-		query += ` AND COALESCE(t.status, 'active') = $2`
+		from += ` AND COALESCE(t.status, 'active') = $2`
 		args = append(args, status)
 	}
-	query += ` ORDER BY t.name ASC`
+
+	var total int
+	if err := r.db.QueryRow(ctx, `SELECT COUNT(DISTINCT t.id)`+from, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	query := `SELECT DISTINCT t.id, t.name, COALESCE(t.short_name, ''), COALESCE(t.logo, ''), COALESCE(t.status, 'active') as status, t.created_at, t.updated_at` +
+		from + fmt.Sprintf(` ORDER BY t.name ASC, t.id ASC LIMIT $%d OFFSET $%d`, len(args)+1, len(args)+2)
+	args = append(args, limit, offset)
 
 	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
-	var teams []domain.Team
+	teams := make([]domain.Team, 0, limit)
 	for rows.Next() {
 		var t domain.Team
 		if err := rows.Scan(&t.ID, &t.Name, &t.ShortName, &t.Logo, &t.Status, &t.CreatedAt, &t.UpdatedAt); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		teams = append(teams, t)
 	}
-	return teams, nil
+	return teams, total, nil
 }
 
 func (r *PostgresMatchRepository) AddTeamToCompetition(ctx context.Context, competitionID, teamID string) error {
@@ -1079,31 +1094,53 @@ func (r *PostgresMatchRepository) GetMatchDetail(ctx context.Context, matchID st
 	}, nil
 }
 
-func (r *PostgresMatchRepository) GetMatchDaysByCompetition(ctx context.Context, competitionID string) ([]string, error) {
-	query := `
-		SELECT DISTINCT date::TEXT 
-		FROM matches 
-		WHERE competition_id = $1 
-		ORDER BY date DESC
-	`
-	rows, err := r.db.Query(ctx, query, competitionID)
+func (r *PostgresMatchRepository) GetMatchDaysByCompetition(ctx context.Context, competitionID string, page, limit int) ([]string, int, error) {
+	page, limit, offset := paging(page, limit, 50)
+
+	var total int
+	if err := r.db.QueryRow(ctx,
+		`SELECT COUNT(DISTINCT date) FROM matches WHERE competition_id = $1`, competitionID,
+	).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	rows, err := r.db.Query(ctx, `
+		SELECT DISTINCT date::TEXT
+		FROM matches
+		WHERE competition_id = $1
+		ORDER BY date::TEXT DESC
+		LIMIT $2 OFFSET $3
+	`, competitionID, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
-	var dates []string
+	dates := make([]string, 0, limit)
 	for rows.Next() {
 		var d string
 		if err := rows.Scan(&d); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		dates = append(dates, d)
 	}
-	return dates, nil
+	return dates, total, nil
 }
 
-func (r *PostgresMatchRepository) GetEligiblePlayersForMatchDay(ctx context.Context, competitionID string, date string) ([]domain.Player, error) {
+func (r *PostgresMatchRepository) GetEligiblePlayersForMatchDay(ctx context.Context, competitionID string, date string, page, limit int) ([]domain.Player, int, error) {
+	page, limit, offset := paging(page, limit, 50)
+
+	var total int
+	if err := r.db.QueryRow(ctx, `
+		SELECT COUNT(DISTINCT p.id)
+		FROM players p
+		JOIN match_team_sheets mts ON p.id = mts.player_id
+		JOIN matches m ON mts.match_id = m.id
+		WHERE m.competition_id = $1 AND m.date = $2
+	`, competitionID, date).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
 	query := `
 		SELECT DISTINCT
 			p.id, p.name,
@@ -1121,15 +1158,16 @@ func (r *PostgresMatchRepository) GetEligiblePlayersForMatchDay(ctx context.Cont
 		JOIN matches m ON mts.match_id = m.id
 		JOIN teams t ON p.team_id = t.id
 		WHERE m.competition_id = $1 AND m.date = $2
-		ORDER BY t.name, p.name
+		ORDER BY t.name, p.name, p.id
+		LIMIT $3 OFFSET $4
 	`
-	rows, err := r.db.Query(ctx, query, competitionID, date)
+	rows, err := r.db.Query(ctx, query, competitionID, date, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
-	var players []domain.Player
+	players := make([]domain.Player, 0, limit)
 	for rows.Next() {
 		var p domain.Player
 		var team domain.Team
@@ -1139,10 +1177,10 @@ func (r *PostgresMatchRepository) GetEligiblePlayersForMatchDay(ctx context.Cont
 			&p.CreatedAt, &p.UpdatedAt,
 			&team.ID, &team.Name, &team.ShortName, &team.Logo,
 		); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		p.Team = &team
 		players = append(players, p)
 	}
-	return players, nil
+	return players, total, nil
 }

@@ -24,23 +24,27 @@ type IFantasyPayoutService interface {
 	// User
 	GetWallet(ctx context.Context, userID string) (*dto.WalletResponse, error)
 	RequestPayout(ctx context.Context, userID string, req dto.CreatePayoutRequest) (*dto.PayoutRequestResponse, error)
-	ListMyPayouts(ctx context.Context, userID string) ([]dto.PayoutRequestResponse, error)
+	ListMyPayouts(ctx context.Context, userID string, page, limit int) ([]dto.PayoutRequestResponse, int, error)
 	CancelPayout(ctx context.Context, userID, payoutID string) (*dto.PayoutRequestResponse, error)
 
 	// Admin — payouts
 	ListPayoutRequests(ctx context.Context, status string, page, limit int) ([]dto.PayoutRequestResponse, int, error)
+	// GetMoneyOwed is the obligation view: who is holding prize money and where
+	// it would be sent, one page at a time.
+	GetMoneyOwed(ctx context.Context, page, limit int) (*dto.AdminOwedSummary, error)
 	UpdatePayoutStatus(ctx context.Context, adminUserID, payoutID string, req dto.UpdatePayoutStatusRequest) (*dto.PayoutRequestResponse, error)
 
 	// Admin — oversight
 	GetOverview(ctx context.Context, seasonID string) (*dto.AdminFantasyOverview, error)
 	ListManagers(ctx context.Context, seasonID, search string, page, limit int) ([]dto.AdminManagerRow, int, error)
-	ListLeagueMembers(ctx context.Context, leagueID string) ([]dto.AdminLeagueMemberRow, error)
+	ListLeagueMembers(ctx context.Context, leagueID string, page, limit int) ([]dto.AdminLeagueMemberRow, int, error)
 	ListAllLeagues(ctx context.Context, seasonID, search string, page, limit int) ([]dto.AdminLeagueRow, int, error)
 	GetLeagueFinance(ctx context.Context, leagueID string) (*dto.LeagueFinanceResponse, error)
 	// GetJoinPreview is the manager-facing terms of a league, read before
 	// committing to it.
 	GetJoinPreview(ctx context.Context, userID, leagueID string) (*dto.LeagueJoinPreview, error)
 	GetJoinPreviewByCode(ctx context.Context, userID, code string) (*dto.LeagueJoinPreview, error)
+	GetPlatformCutPercent(ctx context.Context) float64
 
 	// Admin — prizes & settlement
 	SetPrizeStructure(ctx context.Context, leagueID string, req dto.SetPrizeStructureRequest) (*dto.LeagueFinanceResponse, error)
@@ -84,6 +88,39 @@ func (s *FantasyPayoutService) platformCutPercent(ctx context.Context) float64 {
 		return defaultPlatformCutPercent
 	}
 	return v
+}
+
+// GetMoneyOwed answers the question settlement raises: we have credited these
+// winnings, so what do we now owe and to whom?
+//
+// Settling a league moves nothing out of the business — it credits in-app
+// wallets. The money leaves only when an admin makes a bank transfer against a
+// payout request. This is the ledger between those two moments, and it counts
+// balances nobody has asked for yet, because those are owed just the same.
+func (s *FantasyPayoutService) GetMoneyOwed(ctx context.Context, page, limit int) (*dto.AdminOwedSummary, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 25
+	}
+
+	rows, totals, err := s.repo.ListOwed(ctx, page, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	totalPages := 0
+	if limit > 0 {
+		totalPages = (totals.People + limit - 1) / limit
+	}
+	return &dto.AdminOwedSummary{
+		OwedTotals: totals,
+		Rows:       rows,
+		Page:       page,
+		Limit:      limit,
+		TotalPages: totalPages,
+	}, nil
 }
 
 // ─── User wallet ──────────────────────────────────────────────────────────────
@@ -169,10 +206,10 @@ func (s *FantasyPayoutService) RequestPayout(ctx context.Context, userID string,
 	return payoutResponse(payout), nil
 }
 
-func (s *FantasyPayoutService) ListMyPayouts(ctx context.Context, userID string) ([]dto.PayoutRequestResponse, error) {
-	list, err := s.repo.ListPayoutRequestsByUser(ctx, userID, 50)
+func (s *FantasyPayoutService) ListMyPayouts(ctx context.Context, userID string, page, limit int) ([]dto.PayoutRequestResponse, int, error) {
+	list, total, err := s.repo.ListPayoutRequestsByUser(ctx, userID, page, limit)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	out := make([]dto.PayoutRequestResponse, 0, len(list))
 	for i := range list {
@@ -181,7 +218,7 @@ func (s *FantasyPayoutService) ListMyPayouts(ctx context.Context, userID string)
 		r.AdminNotes = ""
 		out = append(out, *r)
 	}
-	return out, nil
+	return out, total, nil
 }
 
 // CancelPayout lets a user withdraw a request that hasn't been actioned yet,
@@ -256,8 +293,8 @@ func (s *FantasyPayoutService) ListManagers(ctx context.Context, seasonID, searc
 	return s.repo.ListManagers(ctx, seasonID, search, page, limit)
 }
 
-func (s *FantasyPayoutService) ListLeagueMembers(ctx context.Context, leagueID string) ([]dto.AdminLeagueMemberRow, error) {
-	return s.repo.ListLeagueMembers(ctx, leagueID)
+func (s *FantasyPayoutService) ListLeagueMembers(ctx context.Context, leagueID string, page, limit int) ([]dto.AdminLeagueMemberRow, int, error) {
+	return s.repo.ListLeagueMembers(ctx, leagueID, page, limit)
 }
 
 func (s *FantasyPayoutService) ListAllLeagues(ctx context.Context, seasonID, search string, page, limit int) ([]dto.AdminLeagueRow, int, error) {
@@ -332,6 +369,13 @@ func (s *FantasyPayoutService) GetLeagueFinance(ctx context.Context, leagueID st
 	return res, nil
 }
 
+// GetPlatformCutPercent exposes the platform's share for the one screen that
+// should state it: the form where a manager sets up a paid league and needs to
+// know what comes off the top before they price the entry fee.
+func (s *FantasyPayoutService) GetPlatformCutPercent(ctx context.Context) float64 {
+	return s.platformCutPercent(ctx)
+}
+
 // GetJoinPreview describes a league on the manager's own terms: what it costs,
 // how many are already in, how the pool is divided, and that an entry fee is
 // not refundable. Deliberately shown before a join is set in motion — a paid
@@ -375,11 +419,14 @@ func (s *FantasyPayoutService) buildJoinPreview(ctx context.Context, userID stri
 		return nil, err
 	}
 
-	cut := s.platformCutPercent(ctx)
+	// Only the pool is carried into the preview. The split that produced it is
+	// the creator's business — they agree to the cut when they open the league —
+	// and quoting it again to every joiner just muddies the one number that
+	// matters to them, which is what is actually on the table.
 	gross := int64(league.EntryFee) * int64(paid)
-	cutKobo, poolKobo := domain.SplitPool(gross, cut)
+	_, poolKobo := domain.SplitPool(gross, s.platformCutPercent(ctx))
 	if league.SettledAt != nil {
-		cutKobo, poolKobo = league.PlatformCutKobo, league.PrizePoolKobo
+		poolKobo = league.PrizePoolKobo
 	}
 
 	tiers, err := s.repo.GetPrizeStructure(ctx, leagueID)
@@ -399,19 +446,21 @@ func (s *FantasyPayoutService) buildJoinPreview(ctx context.Context, userID stri
 	}
 
 	preview := &dto.LeagueJoinPreview{
-		LeagueID:        league.ID,
-		Name:            league.Name,
-		Type:            string(league.Type),
-		EntryFeeKobo:    int64(league.EntryFee),
-		MemberCount:     active,
-		MaxMembers:      league.MaxMembers,
-		IsFull:          league.MaxMembers > 0 && active >= league.MaxMembers,
-		PrizePoolKobo:   poolKobo,
-		PlatformCutKobo: cutKobo,
-		CutPercent:      cut,
-		PrizeStructure:  structure,
-		Refundable:      false,
-		Settled:         league.SettledAt != nil,
+		LeagueID:       league.ID,
+		Name:           league.Name,
+		Type:           string(league.Type),
+		EntryFeeKobo:   int64(league.EntryFee),
+		MemberCount:    active,
+		MaxMembers:     league.MaxMembers,
+		IsFull:         league.MaxMembers > 0 && active >= league.MaxMembers,
+		PrizePoolKobo:  poolKobo,
+		PrizeStructure: structure,
+		Refundable:     false,
+		Settled:        league.SettledAt != nil,
+	}
+
+	if forfeited, err := s.leagueRepo.HasForfeitedEntry(ctx, leagueID, userID); err == nil {
+		preview.Forfeited = forfeited
 	}
 
 	// The invite code is only of use to someone already inside a private league.
@@ -475,7 +524,10 @@ func (s *FantasyPayoutService) SettleSeason(ctx context.Context, adminUserID, se
 		return nil, err
 	}
 
-	combined := &dto.SettlementResultResponse{}
+	// Awards starts as an empty slice, not nil: a season with nothing left to
+	// settle would otherwise report `"awards": null` and break any caller that
+	// reads the list directly.
+	combined := &dto.SettlementResultResponse{Awards: []domain.PrizeAward{}}
 	var failures []error
 	for _, l := range leagues {
 		one, err := s.settleOne(ctx, adminUserID, l)
@@ -544,7 +596,9 @@ func (s *FantasyPayoutService) settleOne(ctx context.Context, adminUserID string
 		if err := s.repo.SettleLeague(ctx, league.ID, gross, cutKobo, poolKobo, nil, adminUserID); err != nil {
 			return nil, err
 		}
-		return &dto.SettlementResultResponse{LeaguesSettled: 1}, nil
+		// Awards is explicitly empty rather than absent, for the same reason
+		// DistributePrizes never returns nil.
+		return &dto.SettlementResultResponse{LeaguesSettled: 1, Awards: []domain.PrizeAward{}}, nil
 	}
 
 	tiers, err := s.repo.GetPrizeStructure(ctx, league.ID)

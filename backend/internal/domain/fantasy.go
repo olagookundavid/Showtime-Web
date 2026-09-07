@@ -148,6 +148,8 @@ type LineupCandidate struct {
 
 // LineupRules are the season's configurable squad constraints.
 type LineupRules struct {
+	// Budget governs the squad, not the lineup. ValidateLineup ignores it; it
+	// is here because the same struct describes a season's rules to both.
 	Budget           float64
 	MinFemaleOffense int
 	MinFemaleDefense int
@@ -236,16 +238,23 @@ func ValidateLineup(picks []LineupCandidate, rules LineupRules) (LineupTotals, e
 			rules.MinFemaleDefense, totals.DefenseFemales)
 	}
 
-	if rules.Budget > 0 && totals.TotalSpent > rules.Budget+budgetEpsilon {
-		return totals, fmt.Errorf("lineup total cost %.2f SC exceeds budget of %.2f SC", totals.TotalSpent, rules.Budget)
-	}
-
+	// Budget is deliberately not checked here. It is a squad rule: the money was
+	// spent when these players were bought, and a lineup only decides which of
+	// the players a manager already owns take the field. Charging for them again
+	// each match day would mean a manager could own a squad they cannot field.
+	// TotalSpent is still returned, because callers display it.
 	return totals, nil
 }
 
-// budgetEpsilon absorbs float drift when summing NUMERIC(10,2) prices, so a
+// BudgetEpsilon absorbs float drift when summing NUMERIC(10,2) prices, so a
 // squad costing exactly the budget can never be rejected by a rounding tail.
-const budgetEpsilon = 0.0001
+// Exported because the same tolerance has to apply where money is moved, not
+// only where it is validated — two different values would disagree at the edge.
+const BudgetEpsilon = 0.0001
+
+// budgetEpsilon is the in-package alias, kept so the existing rule code reads
+// unchanged.
+const budgetEpsilon = BudgetEpsilon
 
 func displayName(p LineupCandidate) string {
 	if p.Name != "" {
@@ -436,17 +445,12 @@ type FantasyPlayerPrice struct {
 	SeasonID   string    `json:"season_id"`
 	PlayerID   string    `json:"player_id"`
 	GameweekID *string   `json:"gameweek_id,omitempty"` // NULL = opening price
-	BasePrice  float64   `json:"base_price"`            // Default 10.00 SC
-	Rating     float64   `json:"rating"`                // Snapshot of official rating (0-10, baseline 5.0)
-	Price      float64   `json:"price"`                 // base_price * (rating / 5.0)
-	CreatedAt  time.Time `json:"created_at"`
-}
-
-func CalculatePlayerPrice(basePrice, rating float64) float64 {
-	if rating <= 0 {
-		rating = 5.0
-	}
-	return basePrice * (rating / 5.0)
+	BasePrice float64 `json:"base_price"` // The price floor this run was built from
+	// Rating is the player's 0-10 rating at the time, published for display.
+	// It no longer decides the price — see PriceSeason for what does.
+	Rating    float64   `json:"rating"`
+	Price     float64   `json:"price"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // ─── Fantasy Team (User Account Squad) ────────────────────────────────────────

@@ -1,18 +1,27 @@
 import { Loader } from '../../components/ui/Loader';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getAllEventDays, createEventDay, createTier, deleteEventDay, updateEventDay, deleteTicketTier, type EventDayResponse, type TicketTierResponse } from '../../services/api';
+import { listEventDays, createEventDay, createTier, deleteEventDay, updateEventDay, deleteTicketTier, type EventDayResponse, type TicketTierResponse } from '../../services/api';
 import { AllocationsManager } from '../../components/admin/AllocationsManager';
+import { useDebounced } from '../../hooks/useDebounced';
 
 export const AdminEventDays = () => {
     const queryClient = useQueryClient();
 
+    // This list grows by a match day forever, so it is paged and searched on
+    // the server rather than fetched whole and filtered here.
+    const [searchInput, setSearchInput] = useState('');
+    const search = useDebounced(searchInput);
+    const [page, setPage] = useState(1);
+    useEffect(() => { setPage(1); }, [search]);
+
     const { data, isLoading: loading } = useQuery({
-        queryKey: ['adminEventDaysList'],
-        queryFn: () => getAllEventDays(),
+        queryKey: ['adminEventDaysList', search, page],
+        queryFn: () => listEventDays({ search, page, limit: 20 }),
+        placeholderData: (prev) => prev,
     });
 
-    const eventDays: EventDayResponse[] = data || [];
+    const eventDays: EventDayResponse[] = data?.data ?? [];
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [addTierFor, setAddTierFor] = useState<string | null>(null);
     const [manageAllocationsFor, setManageAllocationsFor] = useState<string | null>(null);
@@ -164,14 +173,37 @@ export const AdminEventDays = () => {
                 </div>
             )}
 
+            {/* Search — server-side, so it reaches every event day and not just
+                the page on screen. */}
+            <div className="mb-4">
+                <input
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    placeholder="Search event days by title or date..."
+                    className="w-full sm:max-w-md px-4 py-2.5 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:border-sffl-red"
+                />
+                {data && (
+                    <p className="mt-1.5 text-[11px] text-gray-500 dark:text-gray-400">
+                        {data.total} event day{data.total === 1 ? '' : 's'}
+                        {search ? ` matching "${search}"` : ''}
+                    </p>
+                )}
+            </div>
+
             {/* Event Days List */}
             {loading ? (
                 <Loader />
             ) : eventDays.length === 0 ? (
                 <div className="bg-white dark:bg-gray-800 rounded-xl p-12 text-center shadow-lg">
                     <p className="text-6xl mb-4">📅</p>
-                    <p className="text-gray-500 text-lg font-semibold">No event days yet</p>
-                    <p className="text-gray-400 text-sm mt-2">Create your first event day to start selling tickets</p>
+                    <p className="text-gray-500 text-lg font-semibold">
+                        {search ? 'No event days match that search' : 'No event days yet'}
+                    </p>
+                    <p className="text-gray-400 text-sm mt-2">
+                        {search
+                            ? 'Try a different title or date.'
+                            : 'Create your first event day to start selling tickets'}
+                    </p>
                 </div>
             ) : (
                 <div className="space-y-6">
@@ -336,6 +368,32 @@ export const AdminEventDays = () => {
                             </div>
                         );
                     })}
+                </div>
+            )}
+
+            {data && data.total_pages > 1 && (
+                <div className="mt-6 flex items-center justify-between gap-3 bg-white dark:bg-gray-800 rounded-xl px-4 py-3 shadow-sm">
+                    <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                        Page {data.page || page} of {data.total_pages} · {data.total} total
+                    </span>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setPage((p) => Math.max(1, p - 1))}
+                            disabled={page <= 1}
+                            className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-[11px] font-black uppercase transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                            Prev
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setPage((p) => Math.min(data.total_pages, p + 1))}
+                            disabled={page >= data.total_pages}
+                            className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-[11px] font-black uppercase transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                            Next
+                        </button>
+                    </div>
                 </div>
             )}
         </div>

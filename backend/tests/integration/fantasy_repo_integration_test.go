@@ -250,9 +250,12 @@ func TestFantasyRepositoryQueries(t *testing.T) {
 			t.Error("GetActiveSeason must not return a DRAFT season")
 		}
 
-		all, err := repo.ListSeasons(ctx)
+		all, seasonTotal, err := repo.ListSeasons(ctx, 1, 25)
 		if err != nil {
 			t.Fatalf("ListSeasons: %v", err)
+		}
+		if seasonTotal < len(all) {
+			t.Errorf("the total must count every season, not just this page: %d < %d", seasonTotal, len(all))
 		}
 		var foundDraft bool
 		for _, s := range all {
@@ -481,10 +484,10 @@ func TestFantasyLeagueRepositoryQueries(t *testing.T) {
 		if _, err := repo.GetOverallLeague(ctx, f.seasonID); err != nil {
 			t.Errorf("GetOverallLeague: %v", err)
 		}
-		if _, err := repo.ListLeaguesByUser(ctx, f.userID, f.seasonID); err != nil {
+		if _, _, err := repo.ListLeaguesByUser(ctx, f.userID, f.seasonID, 1, 25); err != nil {
 			t.Errorf("ListLeaguesByUser: %v", err)
 		}
-		if _, err := repo.ListPublicLeagues(ctx, f.seasonID); err != nil {
+		if _, _, err := repo.ListPublicLeagues(ctx, f.seasonID, 1, 25); err != nil {
 			t.Errorf("ListPublicLeagues: %v", err)
 		}
 		if _, err := repo.CountActiveMembers(ctx, f.leagueID); err != nil {
@@ -564,6 +567,100 @@ func TestFantasyLeagueRepositoryQueries(t *testing.T) {
 		// An anonymous viewer short-circuits without touching the database.
 		if rank, err = repo.GetMyRankInLeague(ctx, f.leagueID, ""); err != nil || rank != 0 {
 			t.Errorf("expected no rank for an anonymous viewer, got %d (%v)", rank, err)
+		}
+	})
+
+	// Leaving is the one membership change that touches money, so its two
+	// halves are pinned down here: the manager disappears from every table, and
+	// a forfeited entry fee stays where it is.
+	t.Run("leaving and rejoining a league", func(t *testing.T) {
+		if err := repo.LeaveLeague(ctx, f.leagueID, f.userID); err != nil {
+			t.Fatalf("LeaveLeague: %v", err)
+		}
+		t.Cleanup(func() {
+			_, _ = f.pool.Exec(ctx,
+				`UPDATE fantasy_league_members SET left_at = NULL, payment_status = 'FREE'
+				 WHERE league_id = $1 AND user_id = $2`, f.leagueID, f.userID)
+		})
+
+		// Gone from the member count, the standings and their own league list.
+		league, err := repo.GetLeagueByID(ctx, f.leagueID)
+		if err != nil || league == nil {
+			t.Fatalf("GetLeagueByID after leaving: %v", err)
+		}
+		if league.MemberCount != 0 {
+			t.Errorf("expected no members after the only one left, got %d", league.MemberCount)
+		}
+		if rank, err := repo.GetMyRankInLeague(ctx, f.leagueID, f.userID); err != nil || rank != 0 {
+			t.Errorf("a departed member must have no rank, got %d (%v)", rank, err)
+		}
+		if _, total, err := repo.GetLeaderboard(ctx, f.leagueID, nil, 1, 25); err != nil || total != 0 {
+			t.Errorf("expected an empty table after the only member left, got %d (%v)", total, err)
+		}
+		rows, err := repo.ListMyLeaguesWithRank(ctx, f.userID, f.seasonID)
+		if err != nil {
+			t.Fatalf("ListMyLeaguesWithRank: %v", err)
+		}
+		for _, r := range rows {
+			if r.LeagueID == f.leagueID {
+				t.Error("a league the manager left must not appear on their dashboard")
+			}
+		}
+		// GetMember is what the join path consults; a departed row must read as
+		// "not a member", or rejoining silently does nothing.
+		if m, err := repo.GetMember(ctx, f.leagueID, f.userID); err != nil || m != nil {
+			t.Errorf("expected no current membership after leaving, got %+v (%v)", m, err)
+		}
+
+		// Leaving twice is a mistake worth naming rather than a silent no-op.
+		if err := repo.LeaveLeague(ctx, f.leagueID, f.userID); err == nil {
+			t.Error("expected leaving twice to be refused")
+		}
+
+		// The seeded league is a paid one, so the fee is forfeited: it stays in
+		// the pool (CountPaidMembers must still see it) and there is no way back.
+		payoutRepo := ports.NewFantasyPayoutRepository(f.pool)
+		paid, _, err := payoutRepo.CountPaidMembers(ctx, f.leagueID)
+		if err != nil {
+			t.Fatalf("CountPaidMembers: %v", err)
+		}
+		if paid != 1 {
+			t.Errorf("a forfeited entry must stay in the pool, got %d paid members", paid)
+		}
+		if forfeited, err := repo.HasForfeitedEntry(ctx, f.leagueID, f.userID); err != nil || !forfeited {
+			t.Errorf("expected a forfeited paid entry, got %v (%v)", forfeited, err)
+		}
+
+		// A free league has nothing to forfeit, and can be walked back into.
+		freeLeagueID := mustScan(t, f.pool,
+			`INSERT INTO fantasy_leagues (season_id, name, type, created_by_user_id, entry_fee)
+			 VALUES ($1, 'ITest Free League', 'PUBLIC', $2, 0) RETURNING id`,
+			f.seasonID, f.userID)
+		t.Cleanup(func() {
+			_, _ = f.pool.Exec(ctx, `DELETE FROM fantasy_leagues WHERE id = $1`, freeLeagueID)
+		})
+		member := &domain.FantasyLeagueMember{
+			LeagueID:      freeLeagueID,
+			UserID:        f.userID,
+			TeamID:        f.teamID,
+			PaymentStatus: domain.LeaguePaymentFree,
+		}
+		if err := repo.AddMember(ctx, member); err != nil {
+			t.Fatalf("joining the free league: %v", err)
+		}
+		if err := repo.LeaveLeague(ctx, freeLeagueID, f.userID); err != nil {
+			t.Fatalf("leaving the free league: %v", err)
+		}
+		if forfeited, err := repo.HasForfeitedEntry(ctx, freeLeagueID, f.userID); err != nil || forfeited {
+			t.Errorf("a free league has no entry to forfeit, got %v (%v)", forfeited, err)
+		}
+		// Rejoining reuses the same row, so the departure stamp has to clear.
+		if err := repo.AddMember(ctx, member); err != nil {
+			t.Fatalf("rejoining the free league: %v", err)
+		}
+		free, err := repo.GetLeagueByID(ctx, freeLeagueID)
+		if err != nil || free == nil || free.MemberCount != 1 {
+			t.Errorf("expected the rejoined manager back in the count, got %+v (%v)", free, err)
 		}
 	})
 
@@ -667,7 +764,7 @@ func TestFantasyPayoutRepositoryQueries(t *testing.T) {
 		if _, _, err := repo.ListPayoutRequests(ctx, "PENDING", 1, 25); err != nil {
 			t.Errorf("ListPayoutRequests: %v", err)
 		}
-		if _, err := repo.ListPayoutRequestsByUser(ctx, f.userID, 25); err != nil {
+		if _, _, err := repo.ListPayoutRequestsByUser(ctx, f.userID, 1, 25); err != nil {
 			t.Errorf("ListPayoutRequestsByUser: %v", err)
 		}
 	})
@@ -690,9 +787,15 @@ func TestFantasyPayoutRepositoryQueries(t *testing.T) {
 		if len(leagues) == 0 {
 			t.Error("expected the private league to appear in the admin list")
 		}
-		members, err := repo.ListLeagueMembers(ctx, f.leagueID)
+		members, memberTotal, err := repo.ListLeagueMembers(ctx, f.leagueID, 1, 25)
 		if err != nil {
 			t.Fatalf("ListLeagueMembers: %v", err)
+		}
+		// The count is of the whole league, not the page, so the caller can
+		// work out how many pages there are.
+		if memberTotal != len(members) {
+			t.Errorf("one page holds every member here, so the total should match: %d vs %d",
+				memberTotal, len(members))
 		}
 		if len(members) == 0 || members[0].UserEmail == "" {
 			t.Errorf("expected the seeded member with an email, got %+v", members)

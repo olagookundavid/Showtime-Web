@@ -87,12 +87,16 @@ export function FantasyLeagues() {
         enabled: !!season?.id && isAuthenticated,
     });
 
-    // Public Leagues
-    const { data: publicLeagues = [], isLoading: publicLeaguesLoading } = useQuery({
-        queryKey: ['publicFantasyLeagues', season?.id],
-        queryFn: () => (season?.id ? fantasyApi.listPublicLeagues(season.id) : Promise.resolve([])),
+    // Public Leagues — paged on the server, since anyone can create one and the
+    // list only ever grows.
+    const [publicPage, setPublicPage] = useState(1);
+    const { data: publicLeaguesPaged, isLoading: publicLeaguesLoading } = useQuery({
+        queryKey: ['publicFantasyLeagues', season?.id, publicPage],
+        queryFn: () => fantasyApi.listPublicLeagues(season!.id, { page: publicPage, limit: 20 }),
         enabled: !!season?.id,
     });
+    const publicLeagues = publicLeaguesPaged?.data ?? [];
+    const publicTotalPages = publicLeaguesPaged?.total_pages ?? 0;
 
     // Modals
     const [showJoinModal, setShowJoinModal] = useState(false);
@@ -168,21 +172,18 @@ export function FantasyLeagues() {
         return null;
     }, [createIsPaid, prizePercents, prizeTotal]);
 
-    // The platform cut is a server setting. Any existing league's terms carry
-    // it, so we borrow it to make the illustration honest; absent that we fall
-    // back to the documented default and say the figures are estimates.
-    const sampleLeagueId = useMemo(
-        () => (publicLeagues ?? []).find((l) => !!l?.id)?.id ?? (myLeagues ?? []).find((l) => !!l?.id)?.id,
-        [publicLeagues, myLeagues]
-    );
-    const { data: cutSample } = useQuery({
-        queryKey: ['leagueJoinPreview', sampleLeagueId],
-        queryFn: () => fantasyLeagueApi.getJoinPreview(sampleLeagueId as string),
-        enabled: showCreateModal && !!sampleLeagueId,
+    // The platform cut is a server setting, asked for only while this form is
+    // open: it is the creator's business, since it comes off the top of what
+    // they charge. Nobody joining a league is shown it.
+    const { data: serverCutPercent } = useQuery({
+        queryKey: ['fantasyPlatformCut'],
+        queryFn: fantasyLeagueApi.getPlatformCutPercent,
+        enabled: showCreateModal,
         staleTime: 5 * 60 * 1000,
     });
-    const platformCutPercent =
-        cutSample && Number.isFinite(cutSample.cut_percent) ? cutSample.cut_percent : FALLBACK_PLATFORM_CUT_PERCENT;
+    const platformCutPercent = Number.isFinite(serverCutPercent)
+        ? (serverCutPercent as number)
+        : FALLBACK_PLATFORM_CUT_PERCENT;
 
     // A full house, as a concrete illustration. 0 max members means unlimited,
     // in which case there is no field size to multiply by and we show none.
@@ -291,7 +292,8 @@ export function FantasyLeagues() {
     const previewFee = num(preview?.entry_fee_kobo);
     const previewIsPaid = previewFee > 0;
     const previewStructure = (preview?.prize_structure ?? []).filter(Boolean);
-    const previewBlocked = !!preview && (preview.already_member || preview.is_full || preview.settled);
+    const previewBlocked =
+        !!preview && (preview.already_member || preview.is_full || preview.settled || preview.forfeited);
     const previewStandingsId = preview?.league_id || termsTarget?.leagueId || '';
     const previewErrorMessage = apiErrorMessage(previewError, "Could not load this league's terms.");
 
@@ -510,12 +512,39 @@ export function FantasyLeagues() {
                             })}
                         </div>
                     )}
+
+                    {publicTotalPages > 1 && (
+                        <div className="mt-4 flex items-center justify-between gap-3 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm">
+                            <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                                Page {publicLeaguesPaged?.page || publicPage} of {publicTotalPages} ·{' '}
+                                {publicLeaguesPaged?.total ?? 0} leagues
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setPublicPage((p) => Math.max(1, p - 1))}
+                                    disabled={publicPage <= 1}
+                                    className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-[11px] font-black uppercase transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    Prev
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setPublicPage((p) => Math.min(publicTotalPages, p + 1))}
+                                    disabled={publicPage >= publicTotalPages}
+                                    className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-[11px] font-black uppercase transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
             {/* Join League Modal */}
             {showJoinModal && (
-                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 pt-[calc(var(--chrome-h)+1rem)] transition-[padding] duration-300 motion-reduce:transition-none" data-dialog>
                     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 w-full max-w-md rounded-3xl p-6 shadow-2xl">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-black text-sffl-navy dark:text-white uppercase">Join with Invite Code</h3>
@@ -553,8 +582,8 @@ export function FantasyLeagues() {
 
             {/* Create League Modal */}
             {showCreateModal && (
-                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 w-full max-w-md rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 pt-[calc(var(--chrome-h)+1rem)] transition-[padding] duration-300 motion-reduce:transition-none" data-dialog>
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 w-full max-w-md rounded-3xl p-6 shadow-2xl max-h-[calc(100dvh-var(--chrome-h)-2rem)] overflow-y-auto">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-black text-sffl-navy dark:text-white uppercase">Create New League</h3>
                             <button 
@@ -774,8 +803,8 @@ export function FantasyLeagues() {
 
             {/* League Terms Modal — the only route to an actual join */}
             {termsTarget && (
-                <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 w-full max-w-lg rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+                <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 pt-[calc(var(--chrome-h)+1rem)] transition-[padding] duration-300 motion-reduce:transition-none" data-dialog>
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 w-full max-w-lg rounded-3xl p-6 shadow-2xl max-h-[calc(100dvh-var(--chrome-h)-2rem)] overflow-y-auto">
                         <div className="flex items-center justify-between mb-4 gap-3">
                             <div className="min-w-0">
                                 <h3 className="text-lg font-black text-sffl-navy dark:text-white uppercase truncate">
@@ -853,6 +882,17 @@ export function FantasyLeagues() {
                                                 bring others in.
                                             </p>
                                         )}
+                                    </div>
+                                )}
+                                {preview.forfeited && (
+                                    <div className="p-3 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800">
+                                        <p className="text-xs font-bold text-red-700 dark:text-red-300 flex items-center gap-1.5">
+                                            <ExclamationTriangleIcon className="w-4 h-4" /> You left this league and gave up your
+                                            entry fee.
+                                        </p>
+                                        <p className="text-xs text-red-700 dark:text-red-300 mt-1">
+                                            That money stayed in the prize pool, so this league can't be rejoined.
+                                        </p>
                                     </div>
                                 )}
                                 {!preview.already_member && preview.membership_status === 'PENDING' && (
@@ -944,15 +984,6 @@ export function FantasyLeagues() {
                                                 </div>
                                             )}
                                         </div>
-
-                                        <p className="text-[11px] text-gray-600 dark:text-gray-300 flex items-start gap-1.5">
-                                            <InformationCircleIcon className="w-4 h-4 shrink-0 text-gray-400 dark:text-gray-500" />
-                                            <span>
-                                                Showtime keeps {fmtPercent(num(preview.cut_percent))} of entries to run the
-                                                competition — {formatKobo(num(preview.platform_cut_kobo))} so far. The rest is the
-                                                prize pool.
-                                            </span>
-                                        </p>
 
                                         <div className="p-3 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 flex items-start gap-2">
                                             <ExclamationTriangleIcon className="w-5 h-5 shrink-0 text-red-600 dark:text-red-400" />

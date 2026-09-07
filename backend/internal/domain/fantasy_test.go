@@ -76,22 +76,4 @@ func TestFantasyScoring(t *testing.T) {
 		}
 	})
 
-	t.Run("Dynamic pricing formula", func(t *testing.T) {
-		p1 := CalculatePlayerPrice(10.0, 5.0)
-		if math.Abs(p1-10.0) > 0.0001 {
-			t.Errorf("expected 10.0, got %f", p1)
-		}
-		p2 := CalculatePlayerPrice(10.0, 7.5)
-		if math.Abs(p2-15.0) > 0.0001 {
-			t.Errorf("expected 15.0, got %f", p2)
-		}
-		p3 := CalculatePlayerPrice(10.0, 10.0)
-		if math.Abs(p3-20.0) > 0.0001 {
-			t.Errorf("expected 20.0, got %f", p3)
-		}
-		pUnrated := CalculatePlayerPrice(10.0, 0.0)
-		if math.Abs(pUnrated-10.0) > 0.0001 {
-			t.Errorf("expected 10.0 for unrated, got %f", pUnrated)
-		}
-	})
 }

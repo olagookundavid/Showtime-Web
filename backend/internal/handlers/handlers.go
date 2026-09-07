@@ -34,6 +34,7 @@ type Handlers struct {
 	LiveHandler                 transport.ILiveHandler
 	FantasyHandler              transport.IFantasyHandler
 	FantasyLeagueHandler        transport.IFantasyLeagueHandler
+	FantasySquadHandler         transport.IFantasySquadHandler
 	FantasyPayoutHandler        transport.IFantasyPayoutHandler
 }
 
@@ -68,6 +69,7 @@ func NewHandlers(
 	fantasyHandler transport.IFantasyHandler,
 	fantasyLeagueHandler transport.IFantasyLeagueHandler,
 	fantasyPayoutHandler transport.IFantasyPayoutHandler,
+	fantasySquadHandler transport.IFantasySquadHandler,
 ) Handlers {
 	return Handlers{
 		AuthHandler:                 authHandler,
@@ -99,6 +101,7 @@ func NewHandlers(
 		LiveHandler:                 liveHandler,
 		FantasyHandler:              fantasyHandler,
 		FantasyLeagueHandler:        fantasyLeagueHandler,
+		FantasySquadHandler:         fantasySquadHandler,
 		FantasyPayoutHandler:        fantasyPayoutHandler,
 	}
 }

@@ -783,6 +783,7 @@ func SetupFantasyRoutes(r *gin.RouterGroup, app *api.Application) {
 		fantasyRoutes.GET("/leagues/:id/leaderboard", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.FantasyLeagueHandler.GetLeaderboard)
 		// The terms of a league, read before committing to it. The by-code form
 		// covers private leagues, which are never listed.
+		fantasyRoutes.GET("/platform-cut", app.Handlers.FantasyPayoutHandler.GetPlatformCut)
 		fantasyRoutes.GET("/leagues/preview", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.FantasyPayoutHandler.GetLeagueJoinPreviewByCode)
 		fantasyRoutes.GET("/leagues/:id/preview", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.FantasyPayoutHandler.GetLeagueJoinPreview)
 		fantasyRoutes.GET("/season/:id/leaderboard", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.FantasyLeagueHandler.GetOverallLeaderboard)
@@ -801,6 +802,13 @@ func SetupFantasyRoutes(r *gin.RouterGroup, app *api.Application) {
 
 			protected.POST("/leagues", app.Handlers.FantasyLeagueHandler.CreateLeague)
 			protected.GET("/leagues/mine", app.Handlers.FantasyLeagueHandler.ListMyLeagues)
+
+			// Squad & trading: a manager owns players and buys and sells out of
+			// a bank, then fields a lineup from what they own.
+			protected.GET("/squad", app.Handlers.FantasySquadHandler.GetSquad)
+			protected.POST("/squad/buy", app.Handlers.FantasySquadHandler.BuyPlayer)
+			protected.POST("/squad/sell", app.Handlers.FantasySquadHandler.SellPlayer)
+			protected.POST("/leagues/:id/leave", app.Handlers.FantasyLeagueHandler.LeaveLeague)
 
 			// Stricter limiter on the Paystack-initiating endpoints — guards
 			// against runaway clients exhausting Paystack quota or spawning
@@ -854,6 +862,7 @@ func SetupFantasyRoutes(r *gin.RouterGroup, app *api.Application) {
 
 		// Payout queue
 		adminFantasy.GET("/payouts", app.Handlers.FantasyPayoutHandler.AdminListPayouts)
+		adminFantasy.GET("/owed", app.Handlers.FantasyPayoutHandler.AdminGetMoneyOwed)
 		adminFantasy.PUT("/payouts/:id/status", app.Handlers.FantasyPayoutHandler.AdminUpdatePayoutStatus)
 		adminFantasy.GET("/users/:id/wallet", app.Handlers.FantasyPayoutHandler.AdminGetUserWallet)
 	}

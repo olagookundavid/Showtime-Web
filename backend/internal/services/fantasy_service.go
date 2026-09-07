@@ -25,7 +25,7 @@ type IFantasyService interface {
 
 	// User Operations
 	GetActiveSeason(ctx context.Context) (*dto.FantasySeasonResponse, error)
-	ListSeasons(ctx context.Context) ([]dto.FantasySeasonResponse, error)
+	ListSeasons(ctx context.Context, page, limit int) ([]dto.FantasySeasonResponse, int, error)
 	GetGameweeks(ctx context.Context, seasonID string) ([]dto.GameweekResponse, error)
 	ListPlayerMarket(ctx context.Context, seasonID string, positions []string, gender, teamID, search, sortBy string, page, limit int) ([]dto.FantasyPlayerListItem, int, error)
 	EnterSeason(ctx context.Context, userID, seasonID string, req dto.EnterSeasonRequest) (*dto.DashboardTeam, error)
@@ -41,12 +41,15 @@ type IFantasyService interface {
 // Season defaults, applied when the admin omits a field on creation.
 const (
 	defaultSquadSize        = 14
-	defaultBudget           = 230.00
+	// The season budget, in fantasy millions. 100 against a 3.0–12.5 price range
+	// means a manager can afford 57% of a maximum fourteen — tight enough that
+	// every pick costs them somewhere else, which is what makes the league a
+	// contest rather than a formality.
+	defaultBudget = 100.00
 	defaultMinFemaleOffense = 3
 	defaultMinFemaleDefense = 3
 	defaultMaxPerClub       = 4
 	defaultLockMinsBefore   = 15
-	defaultBasePrice        = 10.00
 )
 
 type FantasyService struct {
@@ -54,6 +57,9 @@ type FantasyService struct {
 	leagueRepo ports.IFantasyLeagueRepository
 	playerRepo ports.PlayerRepository
 	matchRepo  ports.MatchRepository
+	// squadRepo answers the one question a team sheet cannot answer for itself:
+	// does this manager actually own the players they have named?
+	squadRepo ports.IFantasySquadRepository
 }
 
 func NewFantasyService(
@@ -61,12 +67,14 @@ func NewFantasyService(
 	leagueRepo ports.IFantasyLeagueRepository,
 	playerRepo ports.PlayerRepository,
 	matchRepo ports.MatchRepository,
+	squadRepo ports.IFantasySquadRepository,
 ) IFantasyService {
 	return &FantasyService{
 		repo:       repo,
 		leagueRepo: leagueRepo,
 		playerRepo: playerRepo,
 		matchRepo:  matchRepo,
+		squadRepo:  squadRepo,
 	}
 }
 
@@ -222,11 +230,12 @@ func (s *FantasyService) InitializePlayerPrices(ctx context.Context, seasonID st
 	return s.repriceSeason(ctx, seasonID, nil)
 }
 
-// repriceSeason recomputes every player's price from their season-to-date
-// rating and stores it against gameweekID (nil writes the season's opening
-// price). Price scales linearly with rating around the 5.0 baseline, so a
-// 10.0-rated player costs double a 5.0-rated one. Players with no rateable
-// activity hold the baseline rather than collapsing to zero.
+// repriceSeason recomputes every player's price and stores it against
+// gameweekID (nil writes the season's opening price).
+//
+// Price is built from fantasy points per game, ranked against the player's own
+// position, blended with availability and put through a curve that keeps the
+// median near the per-player budget allowance. See domain.PriceSeason.
 func (s *FantasyService) repriceSeason(ctx context.Context, seasonID string, gameweekID *string) error {
 	season, err := s.repo.GetSeasonByID(ctx, seasonID)
 	if err != nil {
@@ -236,27 +245,60 @@ func (s *FantasyService) repriceSeason(ctx context.Context, seasonID string, gam
 		return errors.New("season not found")
 	}
 
-	lines, err := s.repo.GetSeasonRatingLines(ctx, season.CompetitionID)
+	lines, err := s.repo.GetSeasonPricingLines(ctx, seasonID, season.CompetitionID)
 	if err != nil {
-		return fmt.Errorf("failed to load player ratings: %w", err)
+		return fmt.Errorf("failed to load pricing lines: %w", err)
 	}
 
-	prices := make([]domain.FantasyPlayerPrice, 0, len(lines))
+	// Points are computed with the same weights the game scores with, so a
+	// price always reflects what the player would actually have earned a
+	// manager. Ratings are deliberately not consulted: a rating judges how well
+	// someone played, a price is what their output is worth.
+	calc := domain.FantasyWeights{}
+	inputs := make([]domain.PricingInput, 0, len(lines))
 	for _, l := range lines {
-		rating := 5.0
-		// RateByPosition returns nil for positions with no formula ("-"), and an
-		// UNRATED result for a player with no qualifying activity. Both hold the
-		// neutral baseline price.
-		if res := domain.RateByPosition(l.Position, l.Line); res != nil && res.Status != domain.RatingStatusUnrated {
-			rating = res.FinalRating
+		in := domain.PricingInput{
+			PlayerID: l.PlayerID,
+			Position: l.Position,
+			Games:    l.Games,
+			Points:   calc.Calculate(l.Totals).NetTotal,
+		}
+		// The movement cap governs how far a price may travel between match
+		// days. An opening price has not travelled from anywhere, so it is set
+		// free — otherwise it anchors to whatever happened to be in the table
+		// and the whole list creeps towards its true value one gameweek at a
+		// time instead of starting there.
+		if gameweekID != nil {
+			in.PreviousPrice = l.PreviousPrice
+		}
+		inputs = append(inputs, in)
+	}
+
+	// Ratings are still published alongside the price for display, but they no
+	// longer decide it.
+	ratingByPlayer := map[string]float64{}
+	if ratingLines, err := s.repo.GetSeasonRatingLines(ctx, season.CompetitionID); err == nil {
+		for _, rl := range ratingLines {
+			if res := domain.RateByPosition(rl.Position, rl.Line); res != nil && res.Status != domain.RatingStatusUnrated {
+				ratingByPlayer[rl.PlayerID] = res.FinalRating
+			}
+		}
+	}
+
+	priced := domain.PriceSeason(inputs)
+	prices := make([]domain.FantasyPlayerPrice, 0, len(priced))
+	for _, p := range priced {
+		rating, ok := ratingByPlayer[p.PlayerID]
+		if !ok {
+			rating = 5.0
 		}
 		prices = append(prices, domain.FantasyPlayerPrice{
 			SeasonID:   seasonID,
-			PlayerID:   l.PlayerID,
+			PlayerID:   p.PlayerID,
 			GameweekID: gameweekID,
-			BasePrice:  defaultBasePrice,
+			BasePrice:  domain.PriceFloor,
 			Rating:     rating,
-			Price:      domain.CalculatePlayerPrice(defaultBasePrice, rating),
+			Price:      p.Price,
 		})
 	}
 
@@ -286,9 +328,17 @@ func (s *FantasyService) FinalizeGameweek(ctx context.Context, gameweekID string
 		return fmt.Errorf("failed to compute gameweek scores: %w", err)
 	}
 
-	// Reprice from post-gameweek ratings so the next match day's market
-	// reflects form. A pricing failure must not undo a successful scoring run.
-	if err := s.repriceSeason(ctx, gw.SeasonID, nil); err != nil {
+	// Reprice so the next match day's market reflects form, stamped against the
+	// gameweek just played.
+	//
+	// This deliberately does NOT write the opening price. Writing nil would
+	// overwrite the season's opening row every match day, losing the price
+	// history — and, because an opening price is exempt from the movement cap by
+	// definition, it would silently exempt every reprice from the ±cap as well.
+	// The cap only means something if there is a previous price to move from.
+	//
+	// A pricing failure must not undo a successful scoring run.
+	if err := s.repriceSeason(ctx, gw.SeasonID, &gameweekID); err != nil {
 		return fmt.Errorf("scores were finalised, but repricing the player market failed: %w", err)
 	}
 
@@ -369,16 +419,16 @@ func (s *FantasyService) GetActiveSeason(ctx context.Context) (*dto.FantasySeaso
 
 // ListSeasons powers the admin season picker. It returns drafts too, which is
 // the only way an admin can reach a newly created season to activate it.
-func (s *FantasyService) ListSeasons(ctx context.Context) ([]dto.FantasySeasonResponse, error) {
-	list, err := s.repo.ListSeasons(ctx)
+func (s *FantasyService) ListSeasons(ctx context.Context, page, limit int) ([]dto.FantasySeasonResponse, int, error) {
+	list, total, err := s.repo.ListSeasons(ctx, page, limit)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	res := make([]dto.FantasySeasonResponse, 0, len(list))
 	for i := range list {
 		res = append(res, *seasonResponse(&list[i]))
 	}
-	return res, nil
+	return res, total, nil
 }
 
 func (s *FantasyService) GetGameweeks(ctx context.Context, seasonID string) ([]dto.GameweekResponse, error) {
@@ -557,7 +607,6 @@ func (s *FantasyService) SaveLineup(ctx context.Context, userID string, req dto.
 	}
 
 	totals, err := domain.ValidateLineup(picks, domain.LineupRules{
-		Budget:           season.Budget,
 		MinFemaleOffense: season.MinFemaleOffense,
 		MinFemaleDefense: season.MinFemaleDefense,
 		MaxPerClub:       season.MaxPerClub,
@@ -576,6 +625,13 @@ func (s *FantasyService) SaveLineup(ctx context.Context, userID string, req dto.
 	}
 	if team == nil {
 		return nil, errors.New("join this season before picking a squad")
+	}
+
+	// You can only field players you own. This is checked here rather than in
+	// ValidateLineup because it is a fact about this manager's squad, not a rule
+	// of the game — the pure rules stay testable without a database.
+	if err := s.assertOwned(ctx, team.ID, picks); err != nil {
+		return nil, err
 	}
 	if req.TeamName != "" && req.TeamName != team.Name {
 		if team, err = s.repo.GetOrCreateTeam(ctx, userID, season.ID, req.TeamName); err != nil {
@@ -885,4 +941,42 @@ func floatOr(v *float64, fallback float64) float64 {
 		return fallback
 	}
 	return *v
+}
+
+// assertOwned refuses a team sheet naming anyone the manager does not own.
+//
+// The squad is what the budget bought; the lineup only chooses which of them
+// play. Without this a manager could field the whole league for free, and a
+// player sold mid-gameweek could quietly reappear on the next team sheet.
+func (s *FantasyService) assertOwned(ctx context.Context, teamID string, picks []domain.LineupCandidate) error {
+	squad, err := s.squadRepo.ListSquad(ctx, teamID, "")
+	if err != nil {
+		return fmt.Errorf("failed to read your squad: %w", err)
+	}
+
+	owned := make(map[string]bool, len(squad))
+	for _, p := range squad {
+		owned[p.PlayerID] = true
+	}
+
+	// Named rather than counted: "3 players you do not own" sends a manager
+	// hunting through fourteen slots to find which.
+	var missing []string
+	for _, p := range picks {
+		if !owned[p.PlayerID] {
+			name := p.Name
+			if name == "" {
+				name = p.PlayerID
+			}
+			missing = append(missing, name)
+		}
+	}
+	if len(missing) == 1 {
+		return fmt.Errorf("%s is not in your squad — buy them before naming them in your lineup", missing[0])
+	}
+	if len(missing) > 1 {
+		return fmt.Errorf("these players are not in your squad: %s — buy them before naming them in your lineup",
+			strings.Join(missing, ", "))
+	}
+	return nil
 }

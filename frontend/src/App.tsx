@@ -28,6 +28,7 @@ const FantasyLeagues = lazy(() => import('./pages/fantasy/FantasyLeagues').then(
 const FantasyLeagueConfirm = lazy(() => import('./pages/fantasy/FantasyLeagueConfirm').then(m => ({ default: m.FantasyLeagueConfirm })));
 const FantasyLeaderboard = lazy(() => import('./pages/fantasy/FantasyLeaderboard').then(m => ({ default: m.FantasyLeaderboard })));
 const FantasyWallet = lazy(() => import('./pages/fantasy/FantasyWallet').then(m => ({ default: m.FantasyWallet })));
+const FantasyTrading = lazy(() => import('./pages/fantasy/FantasyTrading').then(m => ({ default: m.FantasyTrading })));
 
 import { AboutShowtimeFlag } from './pages/about/AboutShowtimeFlag';
 import { MediaGuidelines } from './pages/about/MediaGuidelines';
@@ -195,35 +196,44 @@ function App() {
               <Route path="/store/orders" element={<MyOrdersPage />} />
 
               {/* Fantasy Flag Football */}
+              {/* The hub is public so a signed-out visitor can see what fantasy
+                  is before being asked to sign up. Everything that belongs to a
+                  manager is gated, and each gate names what it is guarding and
+                  falls back to the hub. */}
               <Route path="/fantasy" element={<FantasyHub />} />
               <Route path="/fantasy/dashboard" element={
-                <ProtectedRoute>
+                <ProtectedRoute actionText="see your fantasy dashboard" fallbackPath="/fantasy">
                   <FantasyDashboard />
                 </ProtectedRoute>
               } />
               <Route path="/fantasy/build" element={
-                <ProtectedRoute>
+                <ProtectedRoute actionText="pick your squad" fallbackPath="/fantasy">
                   <FantasySquadBuilder />
                 </ProtectedRoute>
               } />
               <Route path="/fantasy/my-team" element={
-                <ProtectedRoute>
+                <ProtectedRoute actionText="see your squad" fallbackPath="/fantasy">
                   <FantasyMyTeam />
                 </ProtectedRoute>
               } />
               <Route path="/fantasy/leagues" element={
-                <ProtectedRoute>
+                <ProtectedRoute actionText="join and manage fantasy leagues" fallbackPath="/fantasy">
                   <FantasyLeagues />
                 </ProtectedRoute>
               } />
               <Route path="/fantasy/wallet" element={
-                <ProtectedRoute>
+                <ProtectedRoute actionText="open your prize wallet" fallbackPath="/fantasy">
                   <FantasyWallet />
+                </ProtectedRoute>
+              } />
+              <Route path="/fantasy/trading" element={
+                <ProtectedRoute actionText="buy and sell players" fallbackPath="/fantasy">
+                  <FantasyTrading />
                 </ProtectedRoute>
               } />
               <Route path="/fantasy/leaderboard/:id" element={<FantasyLeaderboard />} />
               <Route path="/fantasy/leagues/confirm" element={
-                <ProtectedRoute>
+                <ProtectedRoute actionText="confirm your league payment" fallbackPath="/fantasy">
                   <FantasyLeagueConfirm />
                 </ProtectedRoute>
               } />
