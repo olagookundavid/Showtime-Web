@@ -175,11 +175,36 @@ func main() {
 		rows.Close()
 
 		if len(seasons) == 0 {
-			fmt.Println("No fantasy seasons found in database. Please create a season first.")
-			os.Exit(1)
+			fmt.Println("No fantasy seasons found in database. Auto-creating default competition and active season...")
+			var compID string
+			err := pool.QueryRow(ctx, `SELECT id::text FROM competitions ORDER BY created_at DESC LIMIT 1`).Scan(&compID)
+			if err != nil {
+				err = pool.QueryRow(ctx, `INSERT INTO competitions (name, created_at, updated_at) VALUES ('Showtime Flag Football League', NOW(), NOW()) RETURNING id::text`).Scan(&compID)
+				if err != nil {
+					fmt.Printf("Failed to create default competition: %v\n", err)
+					os.Exit(1)
+				}
+				fmt.Printf("Created default competition: %s\n", compID)
+			}
+			targetSeason = seasonInfo{
+				Name:   "Showtime Fantasy Season 2026",
+				Status: "ACTIVE",
+				Budget: 100.00,
+			}
+			err = pool.QueryRow(ctx, `
+				INSERT INTO fantasy_seasons (competition_id, name, squad_size, budget, min_female_offense, min_female_defense, max_per_club, lock_mins_before, status, created_at, updated_at)
+				VALUES ($1::uuid, $2, 14, 100.00, 3, 3, 4, 15, 'ACTIVE', NOW(), NOW())
+				RETURNING id::text
+			`, compID, targetSeason.Name).Scan(&targetSeason.ID)
+			if err != nil {
+				fmt.Printf("Failed to auto-create fantasy season: %v\n", err)
+				os.Exit(1)
+			}
+			fmt.Printf("Auto-created active fantasy season: %s (%s, Budget: %.2f SC)\n", targetSeason.Name, targetSeason.ID, targetSeason.Budget)
+		} else {
+			targetSeason = seasons[0]
+			fmt.Printf("Auto-selected season: %s (%s, Status: %s, Budget: %.2f SC)\n", targetSeason.Name, targetSeason.ID, targetSeason.Status, targetSeason.Budget)
 		}
-		targetSeason = seasons[0]
-		fmt.Printf("Auto-selected season: %s (%s, Status: %s, Budget: %.2f SC)\n", targetSeason.Name, targetSeason.ID, targetSeason.Status, targetSeason.Budget)
 		if len(seasons) > 1 {
 			fmt.Println("Other available seasons (use --season-id to target one specifically):")
 			for _, s := range seasons[1:] {

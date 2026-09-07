@@ -46,7 +46,8 @@ backend/cmd/seed_demo/
 # Local-only database seed data, run by hand against a developer's own database.
 # Not to be confused with internal/sql/migrations, which IS tracked and is the
 # only thing go:embed picks up (see migrations_embeded.go).
-backend/internal/sql/seeds/
+backend/internal/sql/seeds/*
+!backend/internal/sql/seeds/seed_fantasy_opening_prices.sql
 
 
 
