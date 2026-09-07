@@ -37,6 +37,8 @@ type IFantasyRepository interface {
 	UpdateGameweekDeadline(ctx context.Context, id string, deadline time.Time) error
 	GetGameweeksDueForLock(ctx context.Context) ([]domain.FantasyGameweek, error)
 	GetEventDayFirstKickoff(ctx context.Context, eventDayID string) (*time.Time, error)
+	EnsureEventDayForMatchDate(ctx context.Context, competitionID, matchDate string, gwNumber int) (string, *time.Time, error)
+	GetScheduledMatchDays(ctx context.Context, competitionID string) ([]dto.ScheduledMatchDayDTO, error)
 
 	// Player Prices
 	BulkUpsertPlayerPrices(ctx context.Context, prices []domain.FantasyPlayerPrice) error
@@ -427,6 +429,79 @@ func (r *FantasyRepository) GetEventDayFirstKickoff(ctx context.Context, eventDa
 		return nil, fmt.Errorf("failed to resolve first kickoff for event day: %w", err)
 	}
 	return kickoff, nil
+}
+
+// EnsureEventDayForMatchDate finds or creates an event_days record for a scheduled match date,
+// links all matches on that date to the event day, and returns the event day ID and earliest kickoff.
+func (r *FantasyRepository) EnsureEventDayForMatchDate(ctx context.Context, competitionID, matchDate string, gwNumber int) (string, *time.Time, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	var eventDayID string
+	err := r.pool.QueryRow(ctx, `SELECT id::text FROM event_days WHERE date = $1::date`, matchDate).Scan(&eventDayID)
+	if err != nil {
+		title := fmt.Sprintf("Gameweek %d (%s)", gwNumber, matchDate)
+		err = r.pool.QueryRow(ctx, `
+			INSERT INTO event_days (id, title, date, venue, is_active, created_at, updated_at)
+			VALUES (gen_random_uuid(), $1, $2::date, 'Showtime Arena', true, NOW(), NOW())
+			ON CONFLICT (date) DO UPDATE SET title = EXCLUDED.title
+			RETURNING id::text
+		`, title, matchDate).Scan(&eventDayID)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to ensure event day for match date: %w", err)
+		}
+	}
+
+	// Link matches for this competition and date to the event day
+	_, _ = r.pool.Exec(ctx, `
+		UPDATE matches 
+		SET event_day_id = $1::uuid 
+		WHERE competition_id = $2::uuid AND date = $3::date AND (event_day_id IS NULL OR event_day_id <> $1::uuid)
+	`, eventDayID, competitionID, matchDate)
+
+	// Find earliest kickoff
+	var kickoff *time.Time
+	_ = r.pool.QueryRow(ctx, `
+		SELECT MIN(m.date + COALESCE(m.time, '10:00:00'::time))::timestamptz
+		FROM matches m
+		WHERE m.competition_id = $1::uuid AND m.date = $2::date
+	`, competitionID, matchDate).Scan(&kickoff)
+
+	return eventDayID, kickoff, nil
+}
+
+// GetScheduledMatchDays returns all distinct match dates for a competition with fixture counts.
+func (r *FantasyRepository) GetScheduledMatchDays(ctx context.Context, competitionID string) ([]dto.ScheduledMatchDayDTO, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	query := `
+		SELECT 
+			m.date::text AS match_date,
+			COUNT(*) AS match_count,
+			COALESCE(MIN(m.date + COALESCE(m.time, '10:00:00'::time))::timestamptz, (m.date + TIME '10:00:00')::timestamptz)::text AS earliest_kickoff,
+			COALESCE(ed.id::text, '') AS event_day_id
+		FROM matches m
+		LEFT JOIN event_days ed ON ed.date = m.date
+		WHERE m.competition_id = $1::uuid
+		GROUP BY m.date, ed.id
+		ORDER BY m.date ASC
+	`
+	rows, err := r.pool.Query(ctx, query, competitionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query scheduled match days: %w", err)
+	}
+	defer rows.Close()
+
+	var days []dto.ScheduledMatchDayDTO
+	for rows.Next() {
+		var d dto.ScheduledMatchDayDTO
+		if err := rows.Scan(&d.Date, &d.MatchCount, &d.EarliestKickoff, &d.EventDayID); err != nil {
+			return nil, err
+		}
+		days = append(days, d)
+	}
+	return days, nil
 }
 
 // GetGameweeksDueForLock returns gameweeks past their deadline that still need

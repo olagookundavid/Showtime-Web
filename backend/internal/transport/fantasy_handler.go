@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -28,6 +29,8 @@ type IFantasyHandler interface {
 	AdminActivateSeason(c *gin.Context)
 	AdminDeleteSeason(c *gin.Context)
 	AdminCreateGameweek(c *gin.Context)
+	AdminGetScheduledMatchDays(c *gin.Context)
+	AdminAutoScheduleGameweeks(c *gin.Context)
 	AdminUpdateGameweekDeadline(c *gin.Context)
 	AdminInitializePrices(c *gin.Context)
 	AdminFinalizeGameweek(c *gin.Context)
@@ -274,6 +277,31 @@ func (h *FantasyHandler) AdminCreateGameweek(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Fantasy gameweek created successfully",
 		"data":    res,
+	})
+}
+
+// AdminGetScheduledMatchDays returns all scheduled match dates for the season's competition.
+func (h *FantasyHandler) AdminGetScheduledMatchDays(c *gin.Context) {
+	seasonID := c.Param("id")
+	days, err := h.service.GetScheduledMatchDays(c.Request.Context(), seasonID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": days})
+}
+
+// AdminAutoScheduleGameweeks automatically schedules all gameweeks from the competition's scheduled matches.
+func (h *FantasyHandler) AdminAutoScheduleGameweeks(c *gin.Context) {
+	seasonID := c.Param("id")
+	gws, err := h.service.AutoScheduleGameweeks(c.Request.Context(), seasonID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"message": fmt.Sprintf("Successfully scheduled %d gameweeks from match calendar", len(gws)),
+		"data":    gws,
 	})
 }
 

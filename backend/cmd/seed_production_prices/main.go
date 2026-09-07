@@ -13,7 +13,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"math"
 	"os"
 	"sort"
 	"strings"
@@ -96,7 +95,12 @@ func main() {
 	flag.StringVar(&dbURL, "db-url", "", "Postgres connection string (or set DB_URL/DATABASE_URL)")
 	flag.StringVar(&seasonID, "season-id", "", "Target fantasy season UUID (auto-selects active/draft if omitted)")
 	flag.BoolVar(&dryRun, "dry-run", false, "Test run inside a transaction with automatic ROLLBACK")
-	flag.BoolVar(&createMissing, "create-missing", true, "Create clubs or players if missing from database")
+	flag.BoolVar(&createMissing, "create-missing", false,
+		"Create clubs or players that the workbook names but the database does not have. "+
+			"Off by default: the roster already exists in production with gender, images and "+
+			"jersey numbers, none of which the workbook has. A name that misses its production "+
+			"twin by a character would create a genderless duplicate, attach the price to it, and "+
+			"leave the real player unpriced and invisible in the market. Read the unmatched report first.")
 	flag.BoolVar(&restate, "restate-squads", true, "Restate existing squads and banks against new prices")
 	flag.BoolVar(&verbose, "verbose", false, "Print detailed matching logs per player")
 	flag.Parse()
@@ -364,26 +368,25 @@ func main() {
 			}
 		}
 
-		// Rating clamped between 3.0 and 10.0
-		rating := math.Round(math.Max(3.0, math.Min(10.0, rec.CompositeIndex*10.0))*100) / 100
-		if rec.CompositeIndex == 0 {
-			rating = 5.00
-		}
-
-		// Upsert opening price
+		// rating is deliberately not written here. It used to be set to
+		// CompositeIndex * 10 — a strictly increasing function of the price — which
+		// made the market's "highest rated" sort an exact copy of "most expensive"
+		// and showed an invented number as if it judged how the player had played.
+		// A rating judges performance; a price values output. Real ratings arrive
+		// from the rating engine when the first gameweek is finalised, and leaving
+		// the column alone on conflict means a re-seed cannot wipe them.
 		_, err := tx.Exec(ctx, `
 			INSERT INTO fantasy_player_prices (
-				id, season_id, player_id, gameweek_id, base_price, rating, price, created_at
+				id, season_id, player_id, gameweek_id, base_price, price, created_at
 			) VALUES (
-				gen_random_uuid(), $1::uuid, $2::uuid, NULL, $3, $4, $5, NOW()
+				gen_random_uuid(), $1::uuid, $2::uuid, NULL, $3, $4, NOW()
 			)
 			ON CONFLICT (season_id, player_id) WHERE gameweek_id IS NULL
 			DO UPDATE SET
 				price = EXCLUDED.price,
 				base_price = EXCLUDED.base_price,
-				rating = EXCLUDED.rating,
 				created_at = NOW()
-		`, targetSeason.ID, targetPlayerID, rec.FinalPrice, rating, rec.FinalPrice)
+		`, targetSeason.ID, targetPlayerID, rec.FinalPrice, rec.FinalPrice)
 		if err != nil {
 			fmt.Printf("Failed to upsert price for %s: %v\n", rec.Name, err)
 			os.Exit(1)
@@ -449,6 +452,48 @@ func main() {
 		fmt.Printf("  ₦%4.1fm : %3d players\n", p, priceCounts[p])
 	}
 	fmt.Println("----------------------------------------------------")
+
+	// ── Verification ────────────────────────────────────────────────────────
+	// The workbook has no gender column, so any player this tool had to create
+	// was created without one. Gender is not cosmetic: it decides the female QB
+	// slot and both female quotas, and a missing value reads as male. A pool with
+	// no women cannot produce a single legal lineup, and nothing else in the app
+	// would complain — managers would just find that no team sheet they build can
+	// be saved.
+	var noGender, femQB, femOff, femDef int
+	if err := tx.QueryRow(ctx, `
+		SELECT
+			COUNT(*) FILTER (WHERE NULLIF(TRIM(p.gender), '') IS NULL),
+			COUNT(*) FILTER (WHERE p.position = 'QB' AND UPPER(TRIM(p.gender)) = 'F'),
+			COUNT(*) FILTER (WHERE p.position IN ('QB','Receiver','Center','Rusher') AND UPPER(TRIM(p.gender)) = 'F'),
+			COUNT(*) FILTER (WHERE p.position = 'Defender' AND UPPER(TRIM(p.gender)) = 'F')
+		FROM players p
+		JOIN fantasy_player_prices pp ON pp.player_id = p.id
+		WHERE pp.season_id = $1::uuid AND pp.gameweek_id IS NULL
+	`, targetSeason.ID).Scan(&noGender, &femQB, &femOff, &femDef); err != nil {
+		fmt.Printf("Verification query failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("\nWomen in the priced pool -- QB: %d (need 1)  offense: %d (need 3)  defense: %d (need 3)\n",
+		femQB, femOff, femDef)
+	if noGender > 0 {
+		fmt.Printf("[!] %d priced player(s) have no gender recorded. A missing gender reads as male,\n"+
+			"    so they can never fill the female QB slot or either female quota. List them with:\n"+
+			"    SELECT p.id, p.name, t.name AS club FROM players p\n"+
+			"      LEFT JOIN teams t ON t.id = p.team_id\n"+
+			"      JOIN fantasy_player_prices pp ON pp.player_id = p.id\n"+
+			"     WHERE pp.season_id = '%s' AND pp.gameweek_id IS NULL\n"+
+			"       AND NULLIF(TRIM(p.gender), '') IS NULL ORDER BY 3, 2;\n",
+			noGender, targetSeason.ID)
+	}
+	if femQB < 1 || femOff < 3 || femDef < 3 {
+		fmt.Printf("\n[x] REFUSING TO COMMIT: the priced pool cannot field one legal lineup\n"+
+			"    (needs 1 female QB, 3 women on offense, 3 on defense; has %d, %d, %d).\n"+
+			"    Set gender on these players and run again. Nothing has been written.\n",
+			femQB, femOff, femDef)
+		os.Exit(1)
+	}
 
 	if dryRun {
 		fmt.Println("\n[!] DRY RUN COMPLETED: Transaction rolled back. No database modifications were committed.")

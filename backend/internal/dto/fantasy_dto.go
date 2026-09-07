@@ -35,9 +35,17 @@ type FantasySeasonResponse struct {
 
 // ─── Gameweek DTOs ────────────────────────────────────────────────────────────
 
+type ScheduledMatchDayDTO struct {
+	Date            string `json:"date"`
+	MatchCount      int    `json:"match_count"`
+	EarliestKickoff string `json:"earliest_kickoff"`
+	EventDayID      string `json:"event_day_id,omitempty"`
+}
+
 type CreateGameweekRequest struct {
 	Number     int    `json:"number" binding:"required,min=1"`
-	EventDayID string `json:"event_day_id" binding:"required,uuid"`
+	EventDayID string `json:"event_day_id" binding:"omitempty"`
+	MatchDate  string `json:"match_date" binding:"omitempty"`
 	// Deadline is an optional RFC3339 override. Left empty, the server derives
 	// it from the event day's first kickoff minus the season's lock_mins_before.
 	Deadline string `json:"deadline" binding:"omitempty"`

@@ -28,8 +28,7 @@ import {
     fantasyApi,
     fantasyAdminApi,
     formatKobo,
-    getCompetitions,
-    getEventDays
+    getCompetitions
 } from '../../services/api';
 import type {
     FantasySeason,
@@ -37,7 +36,8 @@ import type {
     OwedRow,
     PayoutRequest,
     PayoutStatus,
-    SettlementResult
+    SettlementResult,
+    ScheduledMatchDay
 } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { useDebounced } from '../../hooks/useDebounced';
@@ -51,6 +51,27 @@ const toDateTimeLocalValue = (isoValue: string): string => {
     if (Number.isNaN(d.getTime())) return '';
     const pad = (n: number) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+/** Formats a YYYY-MM-DD match date into a user-friendly format (e.g., Sun, Sep 13, 2026). */
+const formatMatchDate = (dateStr: string): string => {
+    try {
+        const d = new Date(dateStr + 'T00:00:00');
+        return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    } catch {
+        return dateStr;
+    }
+};
+
+/** Formats an ISO kickoff timestamp into a local 12-hour time string (e.g., 10:00 AM). */
+const formatKickoff = (isoString?: string): string => {
+    if (!isoString) return '';
+    try {
+        const d = new Date(isoString);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+        return '';
+    }
 };
 
 /** Trails a fast-typing search box so we don't fire a request per keystroke. */
@@ -497,7 +518,7 @@ function SeasonsIndex({ seasons, onManage }: {
                                         {SEASON_STATUS_META[s.status].meaning}
                                     </p>
                                     <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">
-                                        Budget <strong className="text-gray-600 dark:text-gray-300">{s.budget} SC</strong>
+                                        Budget <strong className="text-gray-600 dark:text-gray-300">₦{s.budget}m</strong>
                                         {' · '}Squad <strong className="text-gray-600 dark:text-gray-300">{s.squad_size}</strong>
                                         {' · '}Min female <strong className="text-gray-600 dark:text-gray-300">{s.min_female_offense} OFF / {s.min_female_defense} DEF</strong>
                                         {' · '}Max <strong className="text-gray-600 dark:text-gray-300">{s.max_per_club}</strong> per club
@@ -811,17 +832,17 @@ function SetupTab({ season }: { season: FantasySeason }) {
         queryFn: () => fantasyApi.getGameweeks(season.id),
     });
 
-    const { data: eventDays = [] } = useQuery({
-        queryKey: ['adminEventDays'],
-        queryFn: () => getEventDays(),
+    const { data: matchDays = [], isLoading: matchDaysLoading } = useQuery<ScheduledMatchDay[]>({
+        queryKey: ['adminFantasyScheduledMatchDays', season.id],
+        queryFn: () => fantasyApi.adminGetScheduledMatchDays(season.id),
     });
 
     // Create Gameweek Form State. `deadline` is a `datetime-local` value and is
-    // optional: left blank, the server derives it from the event day's first
+    // optional: left blank, the server derives it from the match day's first
     // kickoff minus the season's lock_mins_before.
     const [gwForm, setGwForm] = useState({
         number: 1,
-        event_day_id: '',
+        match_date: '',
         deadline: '',
     });
 
@@ -829,26 +850,65 @@ function SetupTab({ season }: { season: FantasySeason }) {
     const [editingDeadlineGwId, setEditingDeadlineGwId] = useState<string | null>(null);
     const [deadlineDraft, setDeadlineDraft] = useState('');
 
+    useEffect(() => {
+        if (gameweeks.length > 0) {
+            const maxGw = Math.max(...gameweeks.map(g => g.number));
+            setGwForm(prev => ({
+                ...prev,
+                number: maxGw + 1,
+            }));
+        } else {
+            setGwForm(prev => ({ ...prev, number: 1 }));
+        }
+    }, [gameweeks]);
+
+    const handleMatchDateChange = (dateStr: string) => {
+        const md = matchDays.find(m => m.date === dateStr);
+        let suggestedDeadline = '';
+        if (md && md.earliest_kickoff) {
+            const kickoff = new Date(md.earliest_kickoff);
+            const lockMins = season.lock_mins_before || 15;
+            const deadlineDate = new Date(kickoff.getTime() - lockMins * 60 * 1000);
+            suggestedDeadline = toDateTimeLocalValue(deadlineDate.toISOString());
+        }
+        setGwForm(prev => ({
+            ...prev,
+            match_date: dateStr,
+            deadline: suggestedDeadline || prev.deadline,
+        }));
+    };
+
     // Mutations
     const initPricesMutation = useMutation({
         mutationFn: async (seasonId: string) => fantasyApi.adminInitializePrices(seasonId),
-        onSuccess: () => toast.success("Player prices initialized! (Base 10 SC)"),
+        onSuccess: () => toast.success("Player prices initialized!"),
+        onError: (err: any) => toast.error(err?.response?.data?.error || err.message),
+    });
+
+    const autoScheduleMutation = useMutation({
+        mutationFn: async () => fantasyApi.adminAutoScheduleGameweeks(season.id),
+        onSuccess: (gws) => {
+            toast.success(`Successfully auto-scheduled ${gws.length} gameweek(s) from match fixtures!`);
+            queryClient.invalidateQueries({ queryKey: ['adminFantasyGameweeks', season.id] });
+            queryClient.invalidateQueries({ queryKey: ['adminFantasyScheduledMatchDays', season.id] });
+        },
         onError: (err: any) => toast.error(err?.response?.data?.error || err.message),
     });
 
     const createGwMutation = useMutation({
         mutationFn: async () => {
-            if (!gwForm.event_day_id) throw new Error("Select an Event Day");
+            if (!gwForm.match_date) throw new Error("Select a Match Date from the competition schedule");
             return fantasyApi.adminCreateGameweek(season.id, {
                 number: gwForm.number,
-                event_day_id: gwForm.event_day_id,
+                match_date: gwForm.match_date,
                 deadline: gwForm.deadline ? toRFC3339(gwForm.deadline) : undefined,
             });
         },
         onSuccess: () => {
             toast.success("Gameweek scheduled!");
-            setGwForm(prev => ({ number: prev.number + 1, event_day_id: '', deadline: '' }));
-            queryClient.invalidateQueries({ queryKey: ['adminFantasyGameweeks'] });
+            setGwForm(prev => ({ number: prev.number + 1, match_date: '', deadline: '' }));
+            queryClient.invalidateQueries({ queryKey: ['adminFantasyGameweeks', season.id] });
+            queryClient.invalidateQueries({ queryKey: ['adminFantasyScheduledMatchDays', season.id] });
         },
         onError: (err: any) => toast.error(err?.response?.data?.error || err.message),
     });
@@ -862,7 +922,7 @@ function SetupTab({ season }: { season: FantasySeason }) {
             toast.success("Deadline updated!");
             setEditingDeadlineGwId(null);
             setDeadlineDraft('');
-            queryClient.invalidateQueries({ queryKey: ['adminFantasyGameweeks'] });
+            queryClient.invalidateQueries({ queryKey: ['adminFantasyGameweeks', season.id] });
         },
         onError: (err: any) => toast.error(err?.response?.data?.error || err.message),
     });
@@ -871,7 +931,7 @@ function SetupTab({ season }: { season: FantasySeason }) {
         mutationFn: async (gwId: string) => fantasyApi.adminFinalizeGameweek(gwId),
         onSuccess: () => {
             toast.success("Gameweek finalized and official scores computed!");
-            queryClient.invalidateQueries({ queryKey: ['adminFantasyGameweeks'] });
+            queryClient.invalidateQueries({ queryKey: ['adminFantasyGameweeks', season.id] });
         },
         onError: (err: any) => toast.error(err?.response?.data?.error || err.message),
     });
@@ -888,7 +948,7 @@ function SetupTab({ season }: { season: FantasySeason }) {
                     <div>
                         <div className="flex items-center gap-2 flex-wrap">
                             <SeasonStatusBadge status={season.status} />
-                            <span className="text-xs text-gray-500 dark:text-gray-400">Budget: <strong>{season.budget} SC</strong></span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">Budget: <strong>₦{season.budget}m</strong></span>
                             <span className="text-xs text-gray-500 dark:text-gray-400">Squad Size: <strong>{season.squad_size} Starters</strong></span>
                         </div>
                         <h2 className="text-xl font-black uppercase text-sffl-navy dark:text-white mt-1">{season.name}</h2>
@@ -908,10 +968,46 @@ function SetupTab({ season }: { season: FantasySeason }) {
 
             {/* Gameweeks Section */}
             <div className="space-y-6">
+                {/* 1-Click Fast Schedule from Matches */}
+                {matchDays.length > 0 && (
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className="px-2.5 py-0.5 rounded-full bg-sffl-red text-white text-[10px] font-black uppercase tracking-wider">
+                                    Fast Setup
+                                </span>
+                                <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
+                                    {matchDays.length} Match Day{matchDays.length !== 1 ? 's' : ''} Found in Competition Fixtures
+                                </span>
+                            </div>
+                            <h3 className="text-base font-black uppercase text-sffl-navy dark:text-white mt-1">
+                                Auto-Schedule All Gameweeks from Matches
+                            </h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-2xl">
+                                Automatically maps each competition match date to Gameweek 1, 2, ... with lock deadlines set {season.lock_mins_before || 15} minutes before the earliest kickoff.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => autoScheduleMutation.mutate()}
+                            disabled={autoScheduleMutation.isPending}
+                            className="px-5 py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-xs uppercase shadow-md flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 shrink-0"
+                        >
+                            {autoScheduleMutation.isPending ? (
+                                <Spinner dark={false} />
+                            ) : (
+                                <>
+                                    <RocketLaunchIcon className="w-4 h-4" />
+                                    Auto-Schedule {matchDays.length} Gameweeks
+                                </>
+                            )}
+                        </button>
+                    </div>
+                )}
+
                 {/* Create Gameweek Form */}
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm">
                     <h3 className="text-base font-black uppercase text-sffl-navy dark:text-white mb-4 flex items-center gap-2">
-                        <CalendarIcon className="w-4 h-4 text-sffl-red" /> Schedule New Gameweek
+                        <CalendarIcon className="w-4 h-4 text-sffl-red" /> Schedule Individual Gameweek
                     </h3>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -926,19 +1022,33 @@ function SetupTab({ season }: { season: FantasySeason }) {
                         </div>
 
                         <div>
-                            <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">Associated Event Day</label>
+                            <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">Competition Match Date</label>
                             <select
-                                value={gwForm.event_day_id}
-                                onChange={(e) => setGwForm({ ...gwForm, event_day_id: e.target.value })}
+                                value={gwForm.match_date}
+                                onChange={(e) => handleMatchDateChange(e.target.value)}
                                 className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                             >
-                                <option value="">Select Event Day...</option>
-                                {eventDays.map(ed => (
-                                    <option key={ed.id} value={ed.id}>
-                                        {ed.title} ({new Date(ed.date).toLocaleDateString()})
-                                    </option>
-                                ))}
+                                <option value="">
+                                    {matchDaysLoading
+                                        ? 'Loading match fixtures...'
+                                        : matchDays.length === 0
+                                        ? 'No matches scheduled for this competition'
+                                        : 'Select Match Date...'}
+                                </option>
+                                {matchDays.map(md => {
+                                    const kickoffStr = md.earliest_kickoff ? ` · Kickoff: ${formatKickoff(md.earliest_kickoff)}` : '';
+                                    return (
+                                        <option key={md.date} value={md.date}>
+                                            {formatMatchDate(md.date)} ({md.match_count} Match{md.match_count !== 1 ? 'es' : ''}{kickoffStr})
+                                        </option>
+                                    );
+                                })}
                             </select>
+                            {matchDays.length === 0 && !matchDaysLoading && (
+                                <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
+                                    No matches found with dates for this season's competition. Add matches in Match Schedule first.
+                                </p>
+                            )}
                         </div>
 
                         <div className="sm:col-span-2">
@@ -952,18 +1062,18 @@ function SetupTab({ season }: { season: FantasySeason }) {
                                 className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                             />
                             <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1.5">
-                                Leave blank and the server computes it from the event day's first kickoff
-                                minus the season's lock window ({season.lock_mins_before} mins).
+                                Leave blank and the server automatically computes it from the match day's earliest kickoff
+                                minus the lock window ({season.lock_mins_before} mins).
                             </p>
                         </div>
                     </div>
 
                     <button
                         onClick={() => createGwMutation.mutate()}
-                        disabled={createGwMutation.isPending}
-                        className="mt-4 px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold shadow-md text-xs uppercase transition cursor-pointer"
+                        disabled={createGwMutation.isPending || !gwForm.match_date}
+                        className="mt-4 px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold shadow-md text-xs uppercase transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {createGwMutation.isPending ? <Spinner /> : 'Schedule Gameweek'}
+                        {createGwMutation.isPending ? <Spinner dark={false} /> : 'Schedule Gameweek'}
                     </button>
                 </div>
 
@@ -975,13 +1085,14 @@ function SetupTab({ season }: { season: FantasySeason }) {
 
                     {gameweeks.length === 0 ? (
                         <div className="p-8 text-center text-gray-500 dark:text-gray-400 text-xs">
-                            No gameweeks scheduled yet.
+                            No gameweeks scheduled yet. Use the Auto-Schedule button above or select a match date to schedule one.
                         </div>
                     ) : (
                         <div className="divide-y divide-gray-100 dark:divide-gray-700">
                             {gameweeks.map(gw => {
                                 const isFinalized = gw.status === 'FINALIZED';
                                 const isEditingDeadline = editingDeadlineGwId === gw.id;
+                                const matchedDay = matchDays.find(md => md.event_day_id === gw.event_day_id);
 
                                 return (
                                     <div key={gw.id} className="p-4">
@@ -996,9 +1107,14 @@ function SetupTab({ season }: { season: FantasySeason }) {
                                                         {gw.status}
                                                     </span>
                                                 </div>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                                    Lock Deadline: {new Date(gw.deadline).toLocaleString()}
-                                                </p>
+                                                <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mt-1 flex-wrap">
+                                                    {matchedDay && (
+                                                        <span className="font-semibold text-gray-700 dark:text-gray-300">
+                                                            Match Day: {formatMatchDate(matchedDay.date)} ({matchedDay.match_count} Match{matchedDay.match_count !== 1 ? 'es' : ''})
+                                                        </span>
+                                                    )}
+                                                    <span>Lock Deadline: {new Date(gw.deadline).toLocaleString()}</span>
+                                                </div>
                                             </div>
 
                                             <div className="flex items-center gap-2">
@@ -1047,7 +1163,7 @@ function SetupTab({ season }: { season: FantasySeason }) {
                                                     disabled={updateDeadlineMutation.isPending || !deadlineDraft}
                                                     className="px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold shadow-md text-xs uppercase transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                                 >
-                                                    {updateDeadlineMutation.isPending ? <Spinner /> : 'Save Deadline'}
+                                                    {updateDeadlineMutation.isPending ? <Spinner dark={false} /> : 'Save Deadline'}
                                                 </button>
                                             </div>
                                         )}

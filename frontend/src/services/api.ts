@@ -3123,9 +3123,17 @@ export const fantasyApi = {
         // Omit `deadline` and the server computes it from the event day's first
         // kickoff minus the season's lock_mins_before. Supply an RFC3339 string
         // to override that.
-        payload: { number: number; event_day_id: string; deadline?: string }
+        payload: { number: number; event_day_id?: string; match_date?: string; deadline?: string }
     ): Promise<FantasyGameweek> => {
         const res = await api.post<{ data: FantasyGameweek }>(`/admin/fantasy/seasons/${seasonId}/gameweeks`, payload);
+        return res.data.data;
+    },
+    adminGetScheduledMatchDays: async (seasonId: string): Promise<ScheduledMatchDay[]> => {
+        const res = await api.get<{ data: ScheduledMatchDay[] }>(`/admin/fantasy/seasons/${seasonId}/match-days`);
+        return res.data.data;
+    },
+    adminAutoScheduleGameweeks: async (seasonId: string): Promise<FantasyGameweek[]> => {
+        const res = await api.post<{ data: FantasyGameweek[] }>(`/admin/fantasy/seasons/${seasonId}/gameweeks/auto-schedule`);
         return res.data.data;
     },
     /** Corrects a gameweek's lock deadline after creation. `deadline` is RFC3339. */
@@ -3140,6 +3148,13 @@ export const fantasyApi = {
         await api.post(`/admin/fantasy/gameweeks/${gwId}/finalize`);
     },
 };
+
+export interface ScheduledMatchDay {
+    date: string;
+    match_count: number;
+    earliest_kickoff: string;
+    event_day_id?: string;
+}
 
 // ─── Fantasy Wallet, Payouts & Admin Finance ─────────────────────────────────
 

@@ -18,6 +18,8 @@ type IFantasyService interface {
 	ActivateSeason(ctx context.Context, seasonID string) error
 	DeleteSeason(ctx context.Context, seasonID string) error
 	CreateGameweek(ctx context.Context, seasonID string, req dto.CreateGameweekRequest) (*dto.GameweekResponse, error)
+	GetScheduledMatchDays(ctx context.Context, seasonID string) ([]dto.ScheduledMatchDayDTO, error)
+	AutoScheduleGameweeks(ctx context.Context, seasonID string) ([]*dto.GameweekResponse, error)
 	UpdateGameweekDeadline(ctx context.Context, gameweekID string, req dto.UpdateGameweekDeadlineRequest) (*dto.GameweekResponse, error)
 	InitializePlayerPrices(ctx context.Context, seasonID string) error
 	FinalizeGameweek(ctx context.Context, gameweekID string) error
@@ -151,9 +153,10 @@ func (s *FantasyService) DeleteSeason(ctx context.Context, seasonID string) erro
 	return s.repo.DeleteSeason(ctx, seasonID)
 }
 
-// CreateGameweek registers a match day. The submission deadline is the event
-// day's first kickoff minus the season's lock_mins_before, unless the admin
-// supplies an explicit override.
+// CreateGameweek registers a match day. It can be scheduled either by selecting
+// a match date directly from the competition schedule (req.MatchDate) or an
+// existing event_day_id. The submission deadline is the match day's first kickoff
+// minus the season's lock_mins_before, unless the admin supplies an explicit override.
 func (s *FantasyService) CreateGameweek(ctx context.Context, seasonID string, req dto.CreateGameweekRequest) (*dto.GameweekResponse, error) {
 	season, err := s.repo.GetSeasonByID(ctx, seasonID)
 	if err != nil {
@@ -163,9 +166,24 @@ func (s *FantasyService) CreateGameweek(ctx context.Context, seasonID string, re
 		return nil, errors.New("season not found")
 	}
 
-	kickoff, err := s.repo.GetEventDayFirstKickoff(ctx, req.EventDayID)
-	if err != nil {
-		return nil, err
+	var eventDayID = req.EventDayID
+	var kickoff *time.Time
+
+	if req.MatchDate != "" {
+		edID, k, err := s.repo.EnsureEventDayForMatchDate(ctx, season.CompetitionID, req.MatchDate, req.Number)
+		if err != nil {
+			return nil, err
+		}
+		eventDayID = edID
+		kickoff = k
+	} else if eventDayID != "" {
+		k, err := s.repo.GetEventDayFirstKickoff(ctx, eventDayID)
+		if err != nil {
+			return nil, err
+		}
+		kickoff = k
+	} else {
+		return nil, errors.New("either match_date or event_day_id must be provided")
 	}
 
 	deadline, err := resolveDeadline(req.Deadline, kickoff, season.LockMinsBefore)
@@ -176,7 +194,7 @@ func (s *FantasyService) CreateGameweek(ctx context.Context, seasonID string, re
 	gw := &domain.FantasyGameweek{
 		SeasonID:   seasonID,
 		Number:     req.Number,
-		EventDayID: req.EventDayID,
+		EventDayID: eventDayID,
 		Deadline:   deadline,
 		Status:     domain.GameweekScheduled,
 	}
@@ -185,6 +203,65 @@ func (s *FantasyService) CreateGameweek(ctx context.Context, seasonID string, re
 	}
 
 	return gameweekResponse(gw, kickoff), nil
+}
+
+// GetScheduledMatchDays returns all distinct match dates with fixtures for the season's competition.
+func (s *FantasyService) GetScheduledMatchDays(ctx context.Context, seasonID string) ([]dto.ScheduledMatchDayDTO, error) {
+	season, err := s.repo.GetSeasonByID(ctx, seasonID)
+	if err != nil {
+		return nil, err
+	}
+	if season == nil {
+		return nil, errors.New("season not found")
+	}
+	return s.repo.GetScheduledMatchDays(ctx, season.CompetitionID)
+}
+
+// AutoScheduleGameweeks scans all scheduled match dates for the season's competition and creates
+// Gameweek 1..N automatically with deadlines derived from the earliest kickoff of each day.
+func (s *FantasyService) AutoScheduleGameweeks(ctx context.Context, seasonID string) ([]*dto.GameweekResponse, error) {
+	season, err := s.repo.GetSeasonByID(ctx, seasonID)
+	if err != nil {
+		return nil, err
+	}
+	if season == nil {
+		return nil, errors.New("season not found")
+	}
+
+	matchDays, err := s.repo.GetScheduledMatchDays(ctx, season.CompetitionID)
+	if err != nil {
+		return nil, err
+	}
+	if len(matchDays) == 0 {
+		return nil, errors.New("no scheduled matches found for this competition")
+	}
+
+	var responses []*dto.GameweekResponse
+	for i, md := range matchDays {
+		gwNum := i + 1
+		eventDayID, kickoff, err := s.repo.EnsureEventDayForMatchDate(ctx, season.CompetitionID, md.Date, gwNum)
+		if err != nil {
+			return nil, err
+		}
+
+		deadline, err := resolveDeadline("", kickoff, season.LockMinsBefore)
+		if err != nil {
+			return nil, err
+		}
+
+		gw := &domain.FantasyGameweek{
+			SeasonID:   seasonID,
+			Number:     gwNum,
+			EventDayID: eventDayID,
+			Deadline:   deadline,
+			Status:     domain.GameweekScheduled,
+		}
+		if err := s.repo.CreateGameweek(ctx, gw); err != nil {
+			return nil, err
+		}
+		responses = append(responses, gameweekResponse(gw, kickoff))
+	}
+	return responses, nil
 }
 
 func (s *FantasyService) UpdateGameweekDeadline(ctx context.Context, gameweekID string, req dto.UpdateGameweekDeadlineRequest) (*dto.GameweekResponse, error) {

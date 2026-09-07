@@ -844,6 +844,8 @@ func SetupFantasyRoutes(r *gin.RouterGroup, app *api.Application) {
 		adminFantasy.POST("/seasons/:id/activate", app.Handlers.FantasyHandler.AdminActivateSeason)
 		adminFantasy.DELETE("/seasons/:id", app.Handlers.FantasyHandler.AdminDeleteSeason)
 		adminFantasy.POST("/seasons/:id/gameweeks", app.Handlers.FantasyHandler.AdminCreateGameweek)
+		adminFantasy.GET("/seasons/:id/match-days", app.Handlers.FantasyHandler.AdminGetScheduledMatchDays)
+		adminFantasy.POST("/seasons/:id/gameweeks/auto-schedule", app.Handlers.FantasyHandler.AdminAutoScheduleGameweeks)
 		adminFantasy.POST("/seasons/:id/prices/initialize", app.Handlers.FantasyHandler.AdminInitializePrices)
 		adminFantasy.POST("/gameweeks/:id/finalize", app.Handlers.FantasyHandler.AdminFinalizeGameweek)
 		adminFantasy.POST("/gameweeks/:id/deadline", app.Handlers.FantasyHandler.AdminUpdateGameweekDeadline)
