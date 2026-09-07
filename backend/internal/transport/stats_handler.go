@@ -240,7 +240,8 @@ func (h *StatsHandler) UpsertPlayerStat(c *gin.Context) {
 // @Router       /api/v1/stats/dates [get]
 func (h *StatsHandler) GetStatDates(c *gin.Context) {
 	compID := c.Query("competition_id")
-	dates, err := h.service.GetStatDates(c.Request.Context(), compID)
+	page, limit := pageParams(c, 50)
+	dates, total, err := h.service.GetStatDates(c.Request.Context(), compID, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -248,5 +249,5 @@ func (h *StatsHandler) GetStatDates(c *gin.Context) {
 	if dates == nil {
 		dates = []string{}
 	}
-	c.JSON(http.StatusOK, gin.H{"data": dates})
+	pagedJSON(c, dates, total, page, limit)
 }

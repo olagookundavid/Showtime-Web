@@ -137,12 +137,13 @@ func (h *MatchHandler) GetAllTeams(c *gin.Context) {
 	if status == "" {
 		status = "active"
 	}
-	teams, err := h.service.GetAllTeams(c.Request.Context(), status)
+	page, limit := pageParams(c, 50)
+	teams, total, err := h.service.GetAllTeams(c.Request.Context(), status, page, limit)
 	if err != nil {
 		helpers.ServerErrorResponse(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": teams})
+	pagedJSON(c, teams, total, page, limit)
 }
 
 // CreateMatch godoc
@@ -334,12 +335,13 @@ func (h *MatchHandler) GetStandings(c *gin.Context) {
 		return
 	}
 
-	standings, err := h.service.GetStandings(c.Request.Context(), competitionID)
+	page, limit := pageParams(c, 50)
+	standings, total, err := h.service.GetStandings(c.Request.Context(), competitionID, page, limit)
 	if err != nil {
 		helpers.ServerErrorResponse(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": standings})
+	pagedJSON(c, standings, total, page, limit)
 }
 
 // CreateStanding godoc
@@ -469,7 +471,8 @@ func (h *MatchHandler) GetTeamsByCompetition(c *gin.Context) {
 	}
 	status := c.Query("status")
 
-	teams, err := h.service.GetTeamsByCompetition(c.Request.Context(), competitionID, status)
+	page, limit := pageParams(c, 50)
+	teams, total, err := h.service.GetTeamsByCompetition(c.Request.Context(), competitionID, status, page, limit)
 	if err != nil {
 		helpers.ServerErrorResponse(c, err)
 		return
@@ -477,7 +480,7 @@ func (h *MatchHandler) GetTeamsByCompetition(c *gin.Context) {
 	if teams == nil {
 		teams = []dto.TeamResponse{}
 	}
-	c.JSON(http.StatusOK, gin.H{"data": teams})
+	pagedJSON(c, teams, total, page, limit)
 }
 
 type AddTeamToCompetitionRequest struct {
@@ -796,13 +799,14 @@ func (h *MatchHandler) GetMatchDays(c *gin.Context) {
 		return
 	}
 
-	days, err := h.service.GetMatchDaysByCompetition(c.Request.Context(), competitionID)
+	page, limit := pageParams(c, 50)
+	days, total, err := h.service.GetMatchDaysByCompetition(c.Request.Context(), competitionID, page, limit)
 	if err != nil {
 		helpers.ServerErrorResponse(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": days})
+	pagedJSON(c, days, total, page, limit)
 }
 
 func (h *MatchHandler) GetEligiblePlayersForMatchDay(c *gin.Context) {
@@ -814,13 +818,14 @@ func (h *MatchHandler) GetEligiblePlayersForMatchDay(c *gin.Context) {
 		return
 	}
 
-	players, err := h.service.GetEligiblePlayersForMatchDay(c.Request.Context(), competitionID, date)
+	page, limit := pageParams(c, 100)
+	players, total, err := h.service.GetEligiblePlayersForMatchDay(c.Request.Context(), competitionID, date, page, limit)
 	if err != nil {
 		helpers.ServerErrorResponse(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": players})
+	pagedJSON(c, players, total, page, limit)
 }
 
 // SaveTeamSheet godoc

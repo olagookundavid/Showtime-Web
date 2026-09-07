@@ -2,9 +2,10 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { Navbar } from './Navbar';
 import { Footer } from './Footer';
 import { BottomNav } from './BottomNav';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { LatestMatchesCarousel, LatestMatchesInfoStrip } from './LatestMatchesCarousel';
+import { useHideOnScrollDown } from '../../hooks/useHideOnScrollDown';
 import { NewsletterPopup } from '../newsletter/NewsletterPopup';
 import {
     XMarkIcon,
@@ -29,6 +30,28 @@ export const Layout = () => {
     const [activeSubMenu, setActiveSubMenu] = useState<'main' | 'about'>('main');
     const { isAuthenticated, user, logout } = useAuth();
     const location = useLocation();
+    // Folds away while reading down the page. It also folds while a dialog is
+    // open, but that half is done in CSS — see .chrome-carousel in index.css.
+    const hideMatchStrip = useHideOnScrollDown();
+
+    // The sticky chrome's height, published as a CSS variable so dialogs can
+    // open below it instead of being cut off by it. It is measured rather than
+    // hard-coded because the strip collapses on scroll and the navbar changes
+    // height across breakpoints.
+    const chromeRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const el = chromeRef.current;
+        if (!el) return;
+        const publish = () =>
+            document.documentElement.style.setProperty('--chrome-h', `${el.offsetHeight}px`);
+        publish();
+        const observer = new ResizeObserver(publish);
+        observer.observe(el);
+        return () => {
+            observer.disconnect();
+            document.documentElement.style.removeProperty('--chrome-h');
+        };
+    }, []);
 
     // Close menu on route change
     useEffect(() => {
@@ -57,9 +80,25 @@ export const Layout = () => {
                 top of every page. The Navbar already declares its own `sticky
                 top-0` (kept for any layouts that mount it standalone); inside
                 this wrapper the outer sticky is what actually pins. */}
-            <div className="sticky top-0 z-50">
+            <div ref={chromeRef} className="sticky top-0 z-50">
                 <Navbar onMoreClick={() => setIsMoreMenuOpen(true)} />
-                <LatestMatchesCarousel />
+                {/* Reading down the page, the scores roll up out of the way and
+                    give the content back its room; the first flick upward brings
+                    them straight back. The 0fr/1fr grid animates to the row's
+                    own height, so nothing here has to know how tall it is. */}
+                <div
+                    className={`chrome-carousel grid overflow-hidden transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none ${
+                        hideMatchStrip ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'
+                    }`}
+                    // Collapsed, the tiles are still in the DOM: `inert` keeps
+                    // them out of the tab order and off screen readers, so
+                    // nobody tabs into a row they cannot see.
+                    inert={hideMatchStrip}
+                >
+                    <div className="min-h-0">
+                        <LatestMatchesCarousel />
+                    </div>
+                </div>
             </div>
             {/* Home-only info strip sits below the sticky chrome and scrolls
                 away with the rest of the page. */}

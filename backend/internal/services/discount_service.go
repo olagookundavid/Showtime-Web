@@ -27,7 +27,7 @@ type IDiscountService interface {
 	Create(ctx context.Context, createdBy string, req dto.SaveDiscountCodeRequest) (*dto.DiscountCodeResponse, error)
 	Update(ctx context.Context, id string, req dto.SaveDiscountCodeRequest) (*dto.DiscountCodeResponse, error)
 	Delete(ctx context.Context, id string) error
-	ListTargets(ctx context.Context) ([]dto.DiscountTargetOption, error)
+	ListTargets(ctx context.Context, search string, page, limit int) ([]dto.DiscountTargetOption, int, error)
 
 	// ApplyToCart prices a cart against a code. It never mutates anything — the
 	// hold on the code is taken later, by the purchase transaction.
@@ -47,7 +47,7 @@ type IDiscountRepositoryDep interface {
 	Create(ctx context.Context, dc *domain.DiscountCode) error
 	Update(ctx context.Context, dc *domain.DiscountCode) error
 	Delete(ctx context.Context, id string) error
-	ListTargets(ctx context.Context) ([]domain.DiscountCodeItem, error)
+	ListTargets(ctx context.Context, search string, page, limit int) ([]domain.DiscountCodeItem, int, error)
 }
 
 func NewDiscountService(repo IDiscountRepositoryDep) IDiscountService {
@@ -172,10 +172,10 @@ func (s *DiscountService) Delete(ctx context.Context, id string) error {
 	return s.repo.Delete(ctx, id)
 }
 
-func (s *DiscountService) ListTargets(ctx context.Context) ([]dto.DiscountTargetOption, error) {
-	targets, err := s.repo.ListTargets(ctx)
+func (s *DiscountService) ListTargets(ctx context.Context, search string, page, limit int) ([]dto.DiscountTargetOption, int, error) {
+	targets, total, err := s.repo.ListTargets(ctx, search, page, limit)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	out := make([]dto.DiscountTargetOption, 0, len(targets))
 	for _, t := range targets {
@@ -186,7 +186,7 @@ func (s *DiscountService) ListTargets(ctx context.Context) ([]dto.DiscountTarget
 			Price:      t.EntityPrice,
 		})
 	}
-	return out, nil
+	return out, total, nil
 }
 
 // ─── Redemption pricing ───────────────────────────────────────────────────────

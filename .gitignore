@@ -49,3 +49,8 @@ backend/cmd/seed_demo/
 backend/internal/sql/seeds/
 
 
+
+# Living requirements for the fantasy feature — the working state of the build,
+# kept in the repo so it sits next to the code it describes, but untracked at
+# the user's request.
+FANTASY_REQUIREMENTS.md

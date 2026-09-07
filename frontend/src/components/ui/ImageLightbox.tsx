@@ -26,7 +26,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({ src, alt, isOpen, 
 
   return createPortal(
     <div 
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 md:p-10 animate-in fade-in duration-300"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 md:p-10 animate-in fade-in duration-300" data-dialog
       onClick={onClose}
     >
       <button

@@ -83,6 +83,7 @@ func Routes(app *api.Application) *gin.Engine {
 	SetupClaimRoutes(v1_api, app)
 	SetupCommentRoutes(v1_api, app)
 	SetupDiscountRoutes(v1_api, app)
+	SetupFantasyRoutes(v1_api, app)
 	return r
 }
 

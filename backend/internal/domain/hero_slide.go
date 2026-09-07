@@ -11,9 +11,14 @@ type HeroSlide struct {
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 
-	// NewsID links this slide to the article it opens when clicked. Nil for
-	// slides created before this feature (they render non-clickable).
+	// DestinationURL is where the slide links to — an internal path
+	// (e.g. "/stats", "/news/some-slug") or a full external URL, pasted in
+	// by the admin. Empty means non-clickable.
+	DestinationURL string `json:"destination_url"`
+
+	// NewsID/News are legacy: slides created before DestinationURL existed
+	// link to an auto-created hidden article instead. Kept read-only so old
+	// slides keep working; Create/Update never populate NewsID anymore.
 	NewsID *string `json:"news_id,omitempty"`
-	// News is hydrated on admin reads (for edit-form prefill) — nil otherwise.
-	News *News `json:"news,omitempty"`
+	News   *News   `json:"news,omitempty"`
 }

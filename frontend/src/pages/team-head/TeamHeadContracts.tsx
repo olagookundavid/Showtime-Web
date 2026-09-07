@@ -558,7 +558,7 @@ export const TeamHeadContracts: React.FC = () => {
 
             {/* Modal for Offering Contract */}
             {selectedPlayer && (
-                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" onClick={() => setSelectedPlayer(null)}>
+                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={() => setSelectedPlayer(null)}>
                     <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
                             <h3 className="text-xl font-black text-sffl-navy dark:text-white">Offer Contract</h3>

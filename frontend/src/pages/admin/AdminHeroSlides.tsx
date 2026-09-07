@@ -2,12 +2,10 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     getAdminHeroSlides, createHeroSlide, updateHeroSlide, deleteHeroSlide,
-    type HeroSlide, type HeroSlideNewsPayload,
+    type HeroSlide,
 } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { ImageUploadField } from '../../components/ui';
-import { NewsContentEditor } from '../../components/admin/NewsContentEditor';
-import { parseYouTubeId, youTubeThumbnailUrl } from '../../utils/newsContent';
 
 // Mirrors the backend's MaxHeroSlides constant. Keep these in sync — the
 // server is the source of truth (it returns a 400 if exceeded), but matching
@@ -15,24 +13,16 @@ import { parseYouTubeId, youTubeThumbnailUrl } from '../../utils/newsContent';
 // an upload that will be rejected.
 const MAX_SLIDES = 5;
 
-// Every slide opens a hidden news article when clicked — authored right here,
-// not on the News admin page (that page never sees these articles: they're
-// excluded from its list). This form covers both the carousel graphic and the
-// article content in one place.
+// A slide is just an image plus where it links to when clicked. To feature a
+// news article, create it in the News admin first, then paste its link here.
 interface SlideFormState {
     imageUrl: string;
     mobileImageUrl: string;
-    title: string;
-    excerpt: string;
-    content: string;
-    featuredMediaType: 'image' | 'youtube';
-    featuredYoutubeUrl: string;
+    destinationUrl: string;
 }
 
 const emptyForm: SlideFormState = {
-    imageUrl: '', mobileImageUrl: '',
-    title: '', excerpt: '', content: '',
-    featuredMediaType: 'image', featuredYoutubeUrl: '',
+    imageUrl: '', mobileImageUrl: '', destinationUrl: '',
 };
 
 export const AdminHeroSlides = () => {
@@ -63,11 +53,7 @@ export const AdminHeroSlides = () => {
         setForm({
             imageUrl: slide.image_url,
             mobileImageUrl: slide.mobile_image_url || '',
-            title: slide.news?.title || '',
-            excerpt: slide.news?.excerpt || '',
-            content: slide.news?.content || '',
-            featuredMediaType: slide.news?.featured_media_type === 'youtube' ? 'youtube' : 'image',
-            featuredYoutubeUrl: slide.news?.featured_youtube_url || '',
+            destinationUrl: slide.destination_url || '',
         });
         setError('');
         setShowModal(true);
@@ -75,36 +61,23 @@ export const AdminHeroSlides = () => {
 
     const handleSave = async () => {
         if (!form.imageUrl) { setError('Upload a desktop image first'); return; }
-        if (!form.title.trim()) { setError('Give the article a title'); return; }
-        if (!form.content.trim()) { setError('Write some article content'); return; }
-        if (form.featuredMediaType === 'youtube' && !parseYouTubeId(form.featuredYoutubeUrl)) {
-            setError('Enter a valid YouTube link for the featured video.');
-            return;
-        }
 
         setSaving(true);
         setError('');
-        const news: HeroSlideNewsPayload = {
-            title: form.title,
-            excerpt: form.excerpt,
-            content: form.content,
-            featured_media_type: form.featuredMediaType,
-            featured_youtube_url: form.featuredMediaType === 'youtube' ? form.featuredYoutubeUrl : '',
-        };
         try {
             if (editingId) {
                 await updateHeroSlide(editingId, {
                     image_url: form.imageUrl,
                     mobile_image_url: form.mobileImageUrl,
-                    news,
+                    destination_url: form.destinationUrl.trim(),
                 });
             } else {
                 await createHeroSlide({
                     image_url: form.imageUrl,
                     mobile_image_url: form.mobileImageUrl || undefined,
+                    destination_url: form.destinationUrl.trim() || undefined,
                     display_order: sortedSlides.length, // append to end
                     is_active: true,
-                    news,
                 });
             }
             refresh();
@@ -152,7 +125,7 @@ export const AdminHeroSlides = () => {
                     <h1 className="text-3xl font-black text-sffl-navy dark:text-white">Homepage Carousel</h1>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                         Up to {MAX_SLIDES} slides. {sortedSlides.length}/{MAX_SLIDES} used.
-                        Each slide opens its own article when clicked — write it below.
+                        Each slide can link to a page or URL of your choice.
                     </p>
                 </div>
                 <button
@@ -198,20 +171,14 @@ export const AdminHeroSlides = () => {
                                 </div>
                             </div>
                             <div className="p-4 space-y-3 flex-1 flex flex-col">
-                                {slide.news?.title ? (
-                                    <div>
-                                        <p className="font-bold text-sm text-sffl-navy dark:text-white line-clamp-1">{slide.news.title}</p>
-                                        <a
-                                            href={`/news/${slide.news.slug}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-[11px] text-sffl-red hover:underline"
-                                        >
-                                            View article ↗
-                                        </a>
-                                    </div>
+                                {slide.destination_url ? (
+                                    <p className="text-[11px] text-sffl-red truncate">→ {slide.destination_url}</p>
+                                ) : slide.news_slug ? (
+                                    <p className="text-[11px] text-yellow-600 dark:text-yellow-400 italic">
+                                        Legacy article link: /news/{slide.news_slug} (set a destination above to override)
+                                    </p>
                                 ) : (
-                                    <p className="text-xs text-yellow-600 dark:text-yellow-400 italic">No article linked yet — edit to add one.</p>
+                                    <p className="text-xs text-yellow-600 dark:text-yellow-400 italic">No destination set — slide won't be clickable.</p>
                                 )}
                                 <div className="flex items-center gap-2">
                                     <button
@@ -262,7 +229,7 @@ export const AdminHeroSlides = () => {
 
             {/* Add / Edit modal */}
             {showModal && (
-                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" onClick={() => setShowModal(false)}>
+                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={() => setShowModal(false)}>
                     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex items-start justify-between">
                             <div>
@@ -271,7 +238,6 @@ export const AdminHeroSlides = () => {
                                 </h2>
                                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                                     Recommended: <strong>2:1 aspect ratio</strong> — ideally 1920×960 or 2000×1000.
-                                    Clicking the slide opens the article below.
                                 </p>
                             </div>
                             <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-xl font-bold p-1">✕</button>
@@ -301,79 +267,21 @@ export const AdminHeroSlides = () => {
                             <hr className="border-gray-200 dark:border-gray-700" />
 
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Article Title *</label>
+                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
+                                    Destination (optional)
+                                </label>
                                 <input
                                     type="text"
-                                    value={form.title}
-                                    onChange={e => set('title', e.target.value)}
+                                    value={form.destinationUrl}
+                                    onChange={e => set('destinationUrl', e.target.value)}
+                                    placeholder="/stats  or  /news/some-article-slug  or  https://example.com"
                                     className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2"
-                                    placeholder="What's this feature about?"
                                 />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Excerpt</label>
-                                <textarea
-                                    value={form.excerpt}
-                                    onChange={e => set('excerpt', e.target.value)}
-                                    rows={2}
-                                    className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2"
-                                    placeholder="Short summary..."
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Content *</label>
-                                <NewsContentEditor value={form.content} onChange={v => set('content', v)} />
-                            </div>
-
-                            <div className="space-y-3">
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Article Featured Media</label>
-                                <div className="flex gap-2">
-                                    {(['image', 'youtube'] as const).map(t => (
-                                        <button
-                                            key={t}
-                                            type="button"
-                                            onClick={() => set('featuredMediaType', t)}
-                                            className={`px-4 py-1.5 text-xs font-bold rounded-lg border transition ${form.featuredMediaType === t
-                                                ? 'border-sffl-red text-sffl-red bg-sffl-red/10'
-                                                : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'}`}
-                                        >
-                                            {t === 'image' ? '📷 Use Carousel Image' : '▶ YouTube Video'}
-                                        </button>
-                                    ))}
-                                </div>
-                                {form.featuredMediaType === 'image' ? (
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                                        The desktop carousel image above will also be the article's featured image — no separate upload needed.
-                                    </p>
-                                ) : (
-                                    <div className="space-y-2">
-                                        <input
-                                            type="text"
-                                            value={form.featuredYoutubeUrl}
-                                            onChange={e => set('featuredYoutubeUrl', e.target.value)}
-                                            placeholder="https://www.youtube.com/watch?v=..."
-                                            className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2"
-                                        />
-                                        {(() => {
-                                            const videoId = parseYouTubeId(form.featuredYoutubeUrl);
-                                            if (videoId) {
-                                                return (
-                                                    <div className="relative w-48 rounded-lg overflow-hidden">
-                                                        <img src={youTubeThumbnailUrl(videoId)} alt="Video preview" className="w-full" />
-                                                        <div className="absolute inset-0 flex items-center justify-center">
-                                                            <div className="w-8 h-8 bg-sffl-red/90 rounded-full flex items-center justify-center">
-                                                                <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            }
-                                            return form.featuredYoutubeUrl
-                                                ? <p className="text-xs text-red-500">Not a recognizable YouTube link yet.</p>
-                                                : <p className="text-xs text-gray-500 dark:text-gray-400">Paste a YouTube link — the video will be embedded on the article page.</p>;
-                                        })()}
-                                    </div>
-                                )}
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    Where the slide links when clicked. Paste an internal path (e.g. <code>/stats</code>) or
+                                    a full external URL. To link to a news article, create it first in the News admin, then
+                                    paste its link here (e.g. <code>/news/its-slug</code>). Leave blank for a non-clickable slide.
+                                </p>
                             </div>
 
                             {error && (
@@ -403,11 +311,11 @@ export const AdminHeroSlides = () => {
 
             {/* Delete confirm */}
             {deleteConfirm && (
-                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setDeleteConfirm(null)}>
+                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" data-dialog onClick={() => setDeleteConfirm(null)}>
                     <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl max-w-sm w-full border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <h3 className="text-lg font-bold text-sffl-navy dark:text-white mb-2">Delete this slide?</h3>
                         <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">
-                            Removes it from the homepage and deletes its linked article — this can't be undone.
+                            Removes it from the homepage — this can't be undone.
                         </p>
                         <div className="aspect-video bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden mb-5">
                             <img src={deleteConfirm.image_url} alt="" className="w-full h-full object-cover" />

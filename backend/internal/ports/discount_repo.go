@@ -21,7 +21,7 @@ type IDiscountRepository interface {
 	Create(ctx context.Context, dc *domain.DiscountCode) error
 	Update(ctx context.Context, dc *domain.DiscountCode) error
 	Delete(ctx context.Context, id string) error
-	ListTargets(ctx context.Context) ([]domain.DiscountCodeItem, error)
+	ListTargets(ctx context.Context, search string, page, limit int) ([]domain.DiscountCodeItem, int, error)
 
 	// Reserving is not on this interface: a hold must be taken in the same
 	// transaction that claims the seat or the stock, so the storefront and the
@@ -268,26 +268,51 @@ func (r *DiscountRepository) Delete(ctx context.Context, id string) error {
 
 // ListTargets returns every product and ticket tier a code can be pointed at,
 // as one merged list for the admin picker.
-func (r *DiscountRepository) ListTargets(ctx context.Context) ([]domain.DiscountCodeItem, error) {
+func (r *DiscountRepository) ListTargets(ctx context.Context, search string, page, limit int) ([]domain.DiscountCodeItem, int, error) {
+	page, limit, offset := paging(page, limit, 100)
+
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
+
+	// A catalogue outgrows any dropdown, so the filter runs in the database and
+	// the picker only ever holds what was asked for. A tier is searchable by its
+	// own name or by the event it belongs to — "VIP" and "Lagos" both work.
+	search = strings.TrimSpace(search)
+	productWhere := `WHERE p.is_active = TRUE`
+	tierWhere := `WHERE e.is_active = TRUE`
+	args := []interface{}{}
+	if search != "" {
+		args = append(args, "%"+search+"%")
+		productWhere += ` AND p.name ILIKE $1`
+		tierWhere += ` AND (t.name ILIKE $1 OR e.title ILIKE $1)`
+	}
+
+	countQuery := `
+		SELECT (SELECT COUNT(*) FROM store_products p ` + productWhere + `)
+		     + (SELECT COUNT(*) FROM ticket_tiers t JOIN event_days e ON e.id = t.event_day_id ` + tierWhere + `)`
+	var total int
+	if err := r.db.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to count discount targets: %w", err)
+	}
 
 	// Only sellable targets: inactive products and past events can't be bought,
 	// so offering them in the picker would only create dead code lines.
 	query := `
 		SELECT 'product' AS entity_type, p.id, p.name, p.price::numeric, '' AS group_label
 		FROM store_products p
-		WHERE p.is_active = TRUE
+		` + productWhere + `
 		UNION ALL
 		SELECT 'ticket_tier', t.id, t.name, t.price::numeric, e.title
 		FROM ticket_tiers t
 		JOIN event_days e ON e.id = t.event_day_id
-		WHERE e.is_active = TRUE
-		ORDER BY entity_type, group_label, name`
+		` + tierWhere + `
+		ORDER BY entity_type, group_label, name, id` +
+		fmt.Sprintf(` LIMIT $%d OFFSET $%d`, len(args)+1, len(args)+2)
+	args = append(args, limit, offset)
 
-	rows, err := r.db.Query(ctx, query)
+	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list discount targets: %w", err)
+		return nil, 0, fmt.Errorf("failed to list discount targets: %w", err)
 	}
 	defer rows.Close()
 
@@ -296,14 +321,14 @@ func (r *DiscountRepository) ListTargets(ctx context.Context) ([]domain.Discount
 		var it domain.DiscountCodeItem
 		var group string
 		if err := rows.Scan(&it.EntityType, &it.EntityID, &it.EntityName, &it.EntityPrice, &group); err != nil {
-			return nil, fmt.Errorf("failed to scan discount target: %w", err)
+			return nil, 0, fmt.Errorf("failed to scan discount target: %w", err)
 		}
 		if group != "" {
 			it.EntityName = group + " — " + it.EntityName
 		}
 		out = append(out, it)
 	}
-	return out, rows.Err()
+	return out, total, rows.Err()
 }
 
 // ─── Redemption lifecycle ─────────────────────────────────────────────────────

@@ -12,7 +12,7 @@ type IStatsService interface {
 	UpsertPlayerStat(ctx context.Context, stat *domain.PlayerStat) error
 	GetPlayerStats(ctx context.Context, filter domain.StatsFilter) ([]domain.AggregatedPlayerStat, int, error)
 	GetTeamStats(ctx context.Context, filter domain.StatsFilter) ([]domain.AggregatedTeamStat, int, error)
-	GetStatDates(ctx context.Context, competitionID string) ([]string, error)
+	GetStatDates(ctx context.Context, competitionID string, page, limit int) ([]string, int, error)
 }
 
 type StatsService struct {
@@ -57,8 +57,8 @@ func (s *StatsService) GetTeamStats(ctx context.Context, filter domain.StatsFilt
 	return s.repo.GetTeamStats(ctx, filter)
 }
 
-func (s *StatsService) GetStatDates(ctx context.Context, competitionID string) ([]string, error) {
-	return s.repo.GetStatDates(ctx, competitionID)
+func (s *StatsService) GetStatDates(ctx context.Context, competitionID string, page, limit int) ([]string, int, error) {
+	return s.repo.GetStatDates(ctx, competitionID, page, limit)
 }
 
 func ParseMatchDate(dateStr string) (time.Time, error) {

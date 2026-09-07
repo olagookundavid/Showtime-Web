@@ -69,6 +69,19 @@ func openDB(cfg config.Config, ctx context.Context) (*pgxpool.Pool, error) {
 	poolConfig.MinConns = int32(envInt("DB_MIN_CONNS", 2))
 	poolConfig.MaxConnIdleTime = 5 * time.Minute
 
+	// Opening a connection gets its own deadline, well inside the few seconds a
+	// typical query allows itself. Without one, a database that is unreachable
+	// rather than slow — a laptop waking from sleep, a network blip — leaves
+	// every caller blocked until their own deadline expires, and they all report
+	// a query timeout for what is really a connection problem.
+	poolConfig.ConnConfig.ConnectTimeout = 5 * time.Second
+
+	// Recycle connections rather than holding them forever. A connection that
+	// survived a suspend is often dead on the other side, and the health check
+	// is what notices before a caller does.
+	poolConfig.MaxConnLifetime = time.Hour
+	poolConfig.HealthCheckPeriod = 30 * time.Second
+
 	// Pin session timezone to Lagos so CURRENT_DATE / NOW() match the
 	// timezone admins and users expect. Without this, on a UTC-hosted DB
 	// (Koyeb default), events would appear/disappear an hour around
@@ -195,41 +208,68 @@ func flagSetup(dbUrl, env string, tokenDeets map[string]string) *config.Config {
 func cronjobs(app *api.Application, ctx context.Context, cancel context.CancelFunc) {
 	c := cron.New()
 
-	// Run every day at midnight (00:00)
-	c.AddFunc("0 0 * * *", func() {
-		if err := app.TicketService.ExpirePastTickets(ctx); err != nil {
-			app.Logger.Error(fmt.Sprintf("Ticket expiration failed: %v", err), nil)
+	// run wraps a scheduled job so every one behaves the same way about the two
+	// things they all have to get right.
+	//
+	// It skips if the shared context is already done, and — more importantly —
+	// does not report a failure as an error when the cause is that context
+	// going away. Shutdown cancels this context deliberately to free the DB
+	// connection a running job is holding, so the job's query failing is the
+	// intended outcome of stopping the server, not a fault. Logging it at error
+	// with a stack trace made an orderly shutdown look like a crash.
+	run := func(name string, job func(context.Context) error) func() {
+		return func() {
+			if ctx.Err() != nil {
+				return
+			}
+			if err := job(ctx); err != nil {
+				if ctx.Err() != nil {
+					app.Logger.Info(fmt.Sprintf("%s stopped early: server is shutting down", name), nil)
+					return
+				}
+				app.Logger.Error(fmt.Sprintf("%s failed: %v", name, err), nil)
+			}
 		}
-	})
+	}
+
+	// Run every day at midnight (00:00)
+	c.AddFunc("0 0 * * *", run("Ticket expiration", func(ctx context.Context) error {
+		return app.TicketService.ExpirePastTickets(ctx)
+	}))
 
 	// Run daily at 01:00 AM to cleanup OTPs
-	c.AddFunc("0 1 * * *", func() {
-		if err := app.AuthService.CleanupExpiredOTPs(ctx); err != nil {
-			app.Logger.Error(fmt.Sprintf("OTP cleanup failed: %v", err), nil)
-		}
-	})
+	c.AddFunc("0 1 * * *", run("OTP cleanup", func(ctx context.Context) error {
+		return app.AuthService.CleanupExpiredOTPs(ctx)
+	}))
 
 	// Run daily at 02:00 AM to sweep orphaned images from object storage.
 	// No-op unless R2_GC_ENABLED=true; logs candidates only until R2_GC_DRY_RUN=false.
-	c.AddFunc("0 2 * * *", func() {
+	c.AddFunc("0 2 * * *", run("Image GC sweep", func(ctx context.Context) error {
 		if app.ImageGCService == nil || !app.ImageGCService.Enabled {
-			return
+			return nil
 		}
-		if err := app.ImageGCService.SweepOrphans(ctx); err != nil {
-			app.Logger.Error(fmt.Sprintf("Image GC sweep failed: %v", err), nil)
-		}
-	})
+		return app.ImageGCService.SweepOrphans(ctx)
+	}))
 
 	// Run every 10 minutes to auto-expire contracts that reached match length
-	c.AddFunc("*/10 * * * *", func() {
-		if app.ContractService != nil {
-			if count, err := app.ContractService.CheckAndExpireContracts(ctx); err != nil {
-				app.Logger.Error(fmt.Sprintf("Contract expiration check failed: %v", err), nil)
-			} else if count > 0 {
-				app.Logger.Info(fmt.Sprintf("Auto-expired %d contracts", count), nil)
-			}
+	c.AddFunc("*/10 * * * *", run("Contract expiration check", func(ctx context.Context) error {
+		if app.ContractService == nil {
+			return nil
 		}
-	})
+		count, err := app.ContractService.CheckAndExpireContracts(ctx)
+		if err == nil && count > 0 {
+			app.Logger.Info(fmt.Sprintf("Auto-expired %d contracts", count), nil)
+		}
+		return err
+	}))
+
+	// Run every 5 minutes to lock scheduled fantasy gameweeks and roll over unedited lineups
+	c.AddFunc("*/5 * * * *", run("Fantasy auto-lock job", func(ctx context.Context) error {
+		if app.FantasyService == nil {
+			return nil
+		}
+		return app.FantasyService.AutoLockGameweeks(ctx)
+	}))
 
 	app.Logger.Info("Starting scheduler...", nil)
 	c.Start()
@@ -284,7 +324,7 @@ func ExampleQueueProducer(log *logger.Logger) queue.MessagePublisher {
 
 // wireDependencies initializes and injects all dependencies (Repository -> Service -> Handler)
 // returning the fully assembled Handlers struct, the AuditService, and the TicketService.
-func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Logger) (handlers.Handlers, services.IAuditService, services.IAuthService, services.ITeamManagerService, *services.TicketService, ports.StorageService, services.IContractService, services.ITransferService, services.INotificationService, services.ITransferWindowService) {
+func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Logger) (handlers.Handlers, services.IAuditService, services.IAuthService, services.ITeamManagerService, *services.TicketService, ports.StorageService, services.IContractService, services.ITransferService, services.INotificationService, services.ITransferWindowService, services.IFantasyService) {
 	// Infrastructure
 	auditRepo := ports.NewAuditRepository(pool)
 	authRepo := ports.NewAuthRepository(pool)
@@ -316,6 +356,12 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	claimRepo := ports.NewClaimRepository(pool)
 	commentRepo := ports.NewCommentRepository(pool)
 	discountRepo := ports.NewDiscountRepository(pool)
+
+	// Fantasy Repositories
+	fantasyRepo := ports.NewFantasyRepository(pool)
+	fantasySquadRepo := ports.NewFantasySquadRepository(pool)
+	fantasyLeagueRepo := ports.NewFantasyLeagueRepository(pool)
+	fantasyPayoutRepo := ports.NewFantasyPayoutRepository(pool)
 
 	// External Clients
 	paystackClient := services.NewPaystackClient()
@@ -354,6 +400,10 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	playService := services.NewPlayService(playRepo, matchRepo, statsRepo)
 	appSettingService := services.NewAppSettingService(appSettingRepo)
 
+	fantasyService := services.NewFantasyService(fantasyRepo, fantasyLeagueRepo, playerRepo, matchRepo, fantasySquadRepo)
+	fantasyLeagueService := services.NewFantasyLeagueService(fantasyLeagueRepo, fantasyRepo, fantasyPayoutRepo, authRepo, paystackClient)
+	fantasyPayoutService := services.NewFantasyPayoutService(fantasyPayoutRepo, fantasyLeagueRepo, fantasyRepo, appSettingRepo)
+
 	// Transport / Handlers
 	authHandler := transport.NewAuthHandler(authService)
 	newsHandler := transport.NewNewsHandler(newsService)
@@ -387,6 +437,13 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	liveService := services.NewLiveService(appSettingRepo)
 	liveHandler := transport.NewLiveHandler(liveService)
 
+	fantasyHandler := transport.NewFantasyHandler(fantasyService)
+	fantasyLeagueHandler := transport.NewFantasyLeagueHandler(fantasyLeagueService)
+	fantasyPayoutHandler := transport.NewFantasyPayoutHandler(fantasyPayoutService)
+	fantasySquadHandler := transport.NewFantasySquadHandler(
+		services.NewFantasySquadService(fantasySquadRepo, fantasyRepo),
+	)
+
 	h := handlers.NewHandlers(
 		authHandler, newsHandler, galleryHandler, matchHandler, playerHandler,
 		ticketHandler, tmHandler, analyticsHandler, tmAllocHandler, statsHandler,
@@ -394,6 +451,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 		heroSlideHandler, seasonHandler, playHandler, reliveHandler,
 		contractHandler, transferHandler, notifHandler, appSettingHandler,
 		claimHandler, commentHandler, discountHandler, liveHandler,
+		fantasyHandler, fantasyLeagueHandler, fantasyPayoutHandler, fantasySquadHandler,
 	)
-	return h, auditService, authService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService
+	return h, auditService, authService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService, fantasyService
 }

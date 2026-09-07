@@ -9,10 +9,10 @@ import (
 )
 
 type ISeasonService interface {
-	ListGraphics(ctx context.Context) ([]dto.SeasonGraphicResponse, error)
+	ListGraphics(ctx context.Context, page, limit int) ([]dto.SeasonGraphicResponse, int, error)
 	UpsertGraphic(ctx context.Context, req dto.UpsertSeasonGraphicRequest) (*dto.SeasonGraphicResponse, error)
 
-	ListMVPs(ctx context.Context, activeOnly bool) ([]dto.SeasonMVPResponse, error)
+	ListMVPs(ctx context.Context, activeOnly bool, page, limit int) ([]dto.SeasonMVPResponse, int, error)
 	CreateMVP(ctx context.Context, req dto.CreateSeasonMVPRequest) (*dto.SeasonMVPResponse, error)
 	UpdateMVP(ctx context.Context, id string, req dto.UpdateSeasonMVPRequest) error
 	DeleteMVP(ctx context.Context, id string) error
@@ -56,16 +56,16 @@ func mvpToResponse(m *domain.SeasonMVP) dto.SeasonMVPResponse {
 	return resp
 }
 
-func (s *SeasonService) ListGraphics(ctx context.Context) ([]dto.SeasonGraphicResponse, error) {
-	graphics, err := s.repo.FindAllGraphics(ctx)
+func (s *SeasonService) ListGraphics(ctx context.Context, page, limit int) ([]dto.SeasonGraphicResponse, int, error) {
+	graphics, total, err := s.repo.FindAllGraphics(ctx, page, limit)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	out := make([]dto.SeasonGraphicResponse, 0, len(graphics))
 	for _, g := range graphics {
 		out = append(out, graphicToResponse(g))
 	}
-	return out, nil
+	return out, total, nil
 }
 
 func (s *SeasonService) UpsertGraphic(ctx context.Context, req dto.UpsertSeasonGraphicRequest) (*dto.SeasonGraphicResponse, error) {
@@ -81,16 +81,16 @@ func (s *SeasonService) UpsertGraphic(ctx context.Context, req dto.UpsertSeasonG
 	return &resp, nil
 }
 
-func (s *SeasonService) ListMVPs(ctx context.Context, activeOnly bool) ([]dto.SeasonMVPResponse, error) {
-	mvps, err := s.repo.FindAllMVPs(ctx, activeOnly)
+func (s *SeasonService) ListMVPs(ctx context.Context, activeOnly bool, page, limit int) ([]dto.SeasonMVPResponse, int, error) {
+	mvps, total, err := s.repo.FindAllMVPs(ctx, activeOnly, page, limit)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	out := make([]dto.SeasonMVPResponse, 0, len(mvps))
 	for _, m := range mvps {
 		out = append(out, mvpToResponse(m))
 	}
-	return out, nil
+	return out, total, nil
 }
 
 func (s *SeasonService) CreateMVP(ctx context.Context, req dto.CreateSeasonMVPRequest) (*dto.SeasonMVPResponse, error) {

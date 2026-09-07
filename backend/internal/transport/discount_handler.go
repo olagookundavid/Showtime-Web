@@ -108,12 +108,13 @@ func (h *DiscountHandler) Delete(c *gin.Context) {
 }
 
 func (h *DiscountHandler) ListTargets(c *gin.Context) {
-	targets, err := h.service.ListTargets(c.Request.Context())
+	page, limit := pageParams(c, 100)
+	targets, total, err := h.service.ListTargets(c.Request.Context(), c.Query("search"), page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": targets})
+	pagedJSON(c, targets, total, page, limit)
 }
 
 // Preview tells the checkout what a code would do, without committing to it.

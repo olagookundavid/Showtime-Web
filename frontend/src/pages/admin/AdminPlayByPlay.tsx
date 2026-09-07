@@ -922,6 +922,13 @@ export const AdminPlayByPlay = () => {
                         base.target_id = w.targetId || undefined;
                         base.defender_id = w.defenderId || undefined;
                         base.result = w.specialPlayOutcome === 'TD' ? 'TD' : (w.specialDefenderAction === 'OB' ? 'OB' : 'FG');
+                        // The returner (target) is on the RECEIVING team, which is the
+                        // opposite of offense_team_id (the kicking/punting team, per
+                        // ctx.offense at the moment this play is logged). Flagging it
+                        // "returned for TD" routes scoring through the same
+                        // defense-scores branch already used for pick-six returns, so
+                        // the receiving team is credited instead of the kicking team.
+                        if (w.specialPlayOutcome === 'TD') base.returned_for_td = true;
                     } else {
                         base.result = 'DB';
                     }
@@ -1954,7 +1961,7 @@ export const AdminPlayByPlay = () => {
 
             {/* Re-derive situations — preview & confirm */}
             {rederive && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-6" onClick={() => !rederiveBusy && setRederive(null)}>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-6" data-dialog onClick={() => !rederiveBusy && setRederive(null)}>
                     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex items-start justify-between gap-4">
                             <div>

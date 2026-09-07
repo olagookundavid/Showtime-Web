@@ -3,6 +3,7 @@ package ports
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"showtime-backend/internal/domain"
@@ -19,7 +20,7 @@ type EventDayRepository interface {
 	GetByID(ctx context.Context, id string) (*domain.EventDay, error)
 	GetByDate(ctx context.Context, date string) (*domain.EventDay, error)
 	ListActive(ctx context.Context) ([]domain.EventDay, error)
-	ListAll(ctx context.Context) ([]domain.EventDay, error)
+	ListAll(ctx context.Context, search string, page, limit int) ([]domain.EventDay, int, error)
 	Update(ctx context.Context, id string, title *string, venue *string, isActive *bool) error
 	Delete(ctx context.Context, id string) error
 }
@@ -37,7 +38,7 @@ type TicketRepository interface {
 	GetByID(ctx context.Context, id string) (*domain.Ticket, error)
 	GetByReference(ctx context.Context, reference string) (*domain.Ticket, error)
 	GetByCode(ctx context.Context, code string) (*domain.Ticket, error)
-	SearchByEmail(ctx context.Context, email string) ([]domain.Ticket, error)
+	SearchByEmail(ctx context.Context, email string, page, limit int) ([]domain.Ticket, int, error)
 	UpdateStatus(ctx context.Context, id string, status domain.TicketStatus) error
 	Checkin(ctx context.Context, id string, checkedInBy string) error
 	AdminCheckin(ctx context.Context, id string, checkedInBy string) error
@@ -159,29 +160,47 @@ func (r *PostgresEventDayRepository) Update(ctx context.Context, id string, titl
 	return err
 }
 
-func (r *PostgresEventDayRepository) ListAll(ctx context.Context) ([]domain.EventDay, error) {
+func (r *PostgresEventDayRepository) ListAll(ctx context.Context, search string, page, limit int) ([]domain.EventDay, int, error) {
+	page, limit, offset := paging(page, limit, 25)
+
+	// Match the title or the date as typed, so "arena" and "2026-08" both find
+	// something. Filtering here rather than in the browser is the point: the
+	// caller only ever holds one page.
+	where := ""
+	args := []interface{}{}
+	if search = strings.TrimSpace(search); search != "" {
+		where = ` WHERE (title ILIKE $1 OR date::text ILIKE $1)`
+		args = append(args, "%"+search+"%")
+	}
+
+	var total int
+	if err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM event_days`+where, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
 	query := `
 		SELECT id, title, date, venue, is_active, created_at, updated_at
-		FROM event_days
-		ORDER BY date DESC
-	`
-	rows, err := r.db.Query(ctx, query)
+		FROM event_days` + where +
+		fmt.Sprintf(` ORDER BY date DESC, id ASC LIMIT $%d OFFSET $%d`, len(args)+1, len(args)+2)
+	args = append(args, limit, offset)
+
+	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
-	var eventDays []domain.EventDay
+	eventDays := make([]domain.EventDay, 0, limit)
 	for rows.Next() {
 		var ed domain.EventDay
 		if err := rows.Scan(
 			&ed.ID, &ed.Title, &ed.Date, &ed.Venue, &ed.IsActive, &ed.CreatedAt, &ed.UpdatedAt,
 		); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		eventDays = append(eventDays, ed)
 	}
-	return eventDays, nil
+	return eventDays, total, nil
 }
 
 func (r *PostgresEventDayRepository) Delete(ctx context.Context, id string) error {
@@ -477,7 +496,16 @@ func (r *PostgresTicketRepository) scanTicketRow(ctx context.Context, query stri
 	return &t, nil
 }
 
-func (r *PostgresTicketRepository) SearchByEmail(ctx context.Context, email string) ([]domain.Ticket, error) {
+func (r *PostgresTicketRepository) SearchByEmail(ctx context.Context, email string, page, limit int) ([]domain.Ticket, int, error) {
+	page, limit, offset := paging(page, limit, 20)
+
+	var total int
+	if err := r.db.QueryRow(ctx,
+		`SELECT COUNT(*) FROM tickets WHERE LOWER(email) = LOWER($1)`, email,
+	).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
 	query := `
 		SELECT t.id, COALESCE(t.event_day_id::text, ''), COALESCE(t.tier_id::text, ''), t.email, COALESCE(t.phone, ''), COALESCE(t.name, ''), t.user_id, t.quantity, t.unit_price, t.total_amount,
 			t.status, t.paystack_reference, t.paystack_access_code, t.ticket_code, t.team_id,
@@ -488,16 +516,16 @@ func (r *PostgresTicketRepository) SearchByEmail(ctx context.Context, email stri
 		LEFT JOIN event_days ed ON t.event_day_id = ed.id
 		LEFT JOIN ticket_tiers tt ON t.tier_id = tt.id
 		WHERE LOWER(t.email) = LOWER($1)
-		ORDER BY t.created_at DESC
-		LIMIT 20
+		ORDER BY t.created_at DESC, t.id ASC
+		LIMIT $2 OFFSET $3
 	`
-	rows, err := r.db.Query(ctx, query, email)
+	rows, err := r.db.Query(ctx, query, email, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
-	var tickets []domain.Ticket
+	tickets := make([]domain.Ticket, 0, limit)
 	for rows.Next() {
 		var t domain.Ticket
 		var edTitle, tierName string
@@ -509,13 +537,13 @@ func (r *PostgresTicketRepository) SearchByEmail(ctx context.Context, email stri
 			&t.DiscountCode, &t.DiscountAmount,
 			&edTitle, &tierName,
 		); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		t.EventDay = &domain.EventDay{ID: t.EventDayID, Title: edTitle}
 		t.Tier = &domain.TicketTier{ID: t.TierID, Name: tierName}
 		tickets = append(tickets, t)
 	}
-	return tickets, nil
+	return tickets, total, nil
 }
 
 func (r *PostgresTicketRepository) UpdateStatus(ctx context.Context, id string, status domain.TicketStatus) error {

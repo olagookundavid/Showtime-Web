@@ -40,7 +40,7 @@ export const Modal = ({ open, onClose, title, subtitle, children, maxWidth = 'xl
 
     const node = (
         <div
-            className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden animate-fadeIn"
+            className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden animate-fadeIn" data-dialog
             onClick={onClose}
             role="dialog"
             aria-modal="true"

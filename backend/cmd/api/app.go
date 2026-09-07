@@ -31,6 +31,7 @@ type Application struct {
 	TransferService       services.ITransferService
 	NotificationService   services.INotificationService
 	TransferWindowService services.ITransferWindowService
+	FantasyService        services.IFantasyService
 
 	// Cron is the background scheduler. CronCancel cancels the context shared by
 	// all scheduled jobs. Both are stopped during shutdown, before the DB pool is

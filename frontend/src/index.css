@@ -2,6 +2,30 @@
 
 :root {
     --app-font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+    /* Height of the sticky navbar + scores strip, published by Layout as the
+       chrome resizes. Dialogs sit below it rather than under it. The 0px here
+       is only the fallback for anything rendered outside Layout. */
+    --chrome-h: 0px;
+}
+
+/* While any dialog is on screen, the scores carousel folds away.
+ *
+ * A dialog and the sticky chrome compete for the same screen: the chrome is
+ * pinned, so a dialog gets squeezed into what is left and long content ends up
+ * scrolling inside a letterbox. The carousel is also the one piece of chrome
+ * nobody is reading while a dialog has their attention.
+ *
+ * Done in CSS rather than JavaScript because it is a pure consequence of what is
+ * on the page: no observer to miss a mutation, no state to fall out of sync, and
+ * it holds however a dialog got there. Dialogs opt in with `data-dialog` on
+ * their overlay. The layout measures the chrome's height with a ResizeObserver,
+ * so --chrome-h follows this collapse on its own.
+ *
+ * Specificity beats the utility classes on the element (0,2,1 against 0,1,0),
+ * so no !important is needed. */
+body:has([data-dialog]) .chrome-carousel {
+    grid-template-rows: 0fr;
+    opacity: 0;
 }
 
 /* Entrance for the newsletter popup with smooth spring curve */

@@ -96,12 +96,26 @@ func (s *PlayService) RecomputeScore(ctx context.Context, matchID string) (int, 
 		thirdDown := p.Down != nil && *p.Down == 3
 		isRun := pt == "RUN" || pt == "QBR"
 
+		isSpecialTeams := pt == "KO" || pt == "PUNT"
+
 		switch res {
 		case "TD":
 			if p.ReturnedForTD {
-				// Defensive TD (pick-six recorded as a TD): passer = QB who
-				// threw it, receiver = the interceptor.
-				addDef(domain.TouchdownPoints(gq, gd, thirdDown, true, false))
+				if isSpecialTeams {
+					// Throw-off / punt return TD: the returner is stored as
+					// Target (the "Who caught it?" field, on the receiving
+					// team's roster) — Defender is the kicking team's
+					// coverage player, not the scorer. Use the returner's own
+					// gender, same as a rushing TD (isRun=true short-circuits
+					// TouchdownPoints before it ever looks at `defensive`, so
+					// that arg is inert here — passed false to match the
+					// existing run-TD call's convention below).
+					addDef(domain.TouchdownPoints(gt, gt, thirdDown, false, true))
+				} else {
+					// Defensive TD (pick-six recorded as a TD): passer = QB who
+					// threw it, receiver = the interceptor.
+					addDef(domain.TouchdownPoints(gq, gd, thirdDown, true, false))
+				}
 			} else if isRun {
 				// Run TD — scored by the runner's own gender.
 				addOff(domain.TouchdownPoints(gq, gq, thirdDown, false, true))

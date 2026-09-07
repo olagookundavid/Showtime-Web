@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useDebounced } from '../../hooks/useDebounced';
 import {
     PlusIcon,
     PencilSquareIcon,
@@ -77,10 +78,14 @@ export const DiscountCodesPanel = () => {
         queryFn: discountsApi.list,
     });
 
-    const { data: targets = [] } = useQuery({
-        queryKey: ['discountTargets'],
-        queryFn: discountsApi.listTargets,
+    // The search runs on the server, so the picker is never limited to whatever
+    // happened to be in the first page.
+    const debouncedTargetSearch = useDebounced(targetSearch);
+    const { data: targets = [], isFetching: targetsLoading } = useQuery({
+        queryKey: ['discountTargets', debouncedTargetSearch],
+        queryFn: () => discountsApi.listTargets(debouncedTargetSearch),
         enabled: showEditor,
+        placeholderData: (prev) => prev,
     });
 
     const invalidate = () => {
@@ -165,13 +170,12 @@ export const DiscountCodesPanel = () => {
         [form.items],
     );
 
-    const availableTargets = useMemo(() => {
-        const q = targetSearch.trim().toLowerCase();
-        return targets.filter(t => {
-            if (selectedKeys.has(`${t.entity_type}:${t.entity_id}`)) return false;
-            return !q || t.name.toLowerCase().includes(q);
-        });
-    }, [targets, targetSearch, selectedKeys]);
+    // Only the already-picked ones are filtered here: that is form state, not
+    // data volume. The name match is the server's job.
+    const availableTargets = useMemo(
+        () => targets.filter(t => !selectedKeys.has(`${t.entity_type}:${t.entity_id}`)),
+        [targets, selectedKeys],
+    );
 
     const addTarget = (t: DiscountTarget) => {
         setForm(prev => ({
@@ -389,7 +393,7 @@ export const DiscountCodesPanel = () => {
             )}
 
             {showEditor && (
-                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" onClick={closeEditor}>
+                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={closeEditor}>
                     <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-3xl max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
                             <h3 className="text-lg font-black text-sffl-navy dark:text-white">
@@ -578,7 +582,11 @@ export const DiscountCodesPanel = () => {
                                     <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
                                         {availableTargets.length === 0 ? (
                                             <p className="px-3 py-4 text-xs text-gray-400 text-center">
-                                                {targets.length === 0 ? 'Loading items...' : 'Nothing left to add.'}
+                                                {targetsLoading
+                                                    ? 'Searching...'
+                                                    : debouncedTargetSearch
+                                                      ? `Nothing matches "${debouncedTargetSearch}".`
+                                                      : 'Nothing left to add.'}
                                             </p>
                                         ) : (
                                             availableTargets.map(t => (

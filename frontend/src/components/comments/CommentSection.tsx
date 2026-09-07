@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { commentsApi, COMMENTS_PAGE_SIZE, type CommentData } from '../../services/api';
-import { AuthPromptModal } from './AuthPromptModal';
+import { AuthRequiredDialog } from '../auth/AuthRequiredDialog';
 import toast from 'react-hot-toast';
 import {
     HeartIcon as HeartIconOutline,
@@ -264,11 +264,12 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
 
     return (
         <div className="space-y-6 my-8">
-            <AuthPromptModal
-                isOpen={authModalOpen}
+            <AuthRequiredDialog
+                open={authModalOpen}
                 onClose={() => setAuthModalOpen(false)}
                 returnUrl={currentUrl}
                 actionText={authActionText}
+                closeLabel="Cancel"
             />
 
             {/* Header */}

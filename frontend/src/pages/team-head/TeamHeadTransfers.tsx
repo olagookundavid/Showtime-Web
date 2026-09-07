@@ -604,7 +604,7 @@ export const TeamHeadTransfers: React.FC = () => {
 
             {/* Modal for Placing Bid */}
             {selectedListing && (
-                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" onClick={() => setSelectedListing(null)}>
+                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={() => setSelectedListing(null)}>
                     <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
                             <h3 className="text-xl font-black text-sffl-navy dark:text-white">Place Bid</h3>
@@ -658,7 +658,7 @@ export const TeamHeadTransfers: React.FC = () => {
 
             {/* Modal for Listing Player */}
             {showListModal && (
-                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" onClick={() => setShowListModal(false)}>
+                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={() => setShowListModal(false)}>
                     <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
                             <h3 className="text-xl font-black text-sffl-navy dark:text-white">List Player for Sale</h3>
@@ -717,7 +717,7 @@ export const TeamHeadTransfers: React.FC = () => {
 
             {/* Modal for Direct Sale */}
             {showDirectSaleModal && (
-                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" onClick={() => setShowDirectSaleModal(false)}>
+                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={() => setShowDirectSaleModal(false)}>
                     <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
                             <h3 className="text-xl font-black text-sffl-navy dark:text-white">Propose Direct Sale</h3>
@@ -790,7 +790,7 @@ export const TeamHeadTransfers: React.FC = () => {
 
             {/* Modal for Transfer Request */}
             {showRequestModal && (
-                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" onClick={() => setShowRequestModal(false)}>
+                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={() => setShowRequestModal(false)}>
                     <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
                             <h3 className="text-xl font-black text-sffl-navy dark:text-white">Request Player Transfer</h3>

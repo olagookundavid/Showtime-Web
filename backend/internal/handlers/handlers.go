@@ -32,6 +32,10 @@ type Handlers struct {
 	CommentHandler              transport.ICommentHandler
 	DiscountHandler             transport.IDiscountHandler
 	LiveHandler                 transport.ILiveHandler
+	FantasyHandler              transport.IFantasyHandler
+	FantasyLeagueHandler        transport.IFantasyLeagueHandler
+	FantasySquadHandler         transport.IFantasySquadHandler
+	FantasyPayoutHandler        transport.IFantasyPayoutHandler
 }
 
 func NewHandlers(
@@ -62,6 +66,10 @@ func NewHandlers(
 	commentHandler transport.ICommentHandler,
 	discountHandler transport.IDiscountHandler,
 	liveHandler transport.ILiveHandler,
+	fantasyHandler transport.IFantasyHandler,
+	fantasyLeagueHandler transport.IFantasyLeagueHandler,
+	fantasyPayoutHandler transport.IFantasyPayoutHandler,
+	fantasySquadHandler transport.IFantasySquadHandler,
 ) Handlers {
 	return Handlers{
 		AuthHandler:                 authHandler,
@@ -91,5 +99,9 @@ func NewHandlers(
 		CommentHandler:              commentHandler,
 		DiscountHandler:             discountHandler,
 		LiveHandler:                 liveHandler,
+		FantasyHandler:              fantasyHandler,
+		FantasyLeagueHandler:        fantasyLeagueHandler,
+		FantasySquadHandler:         fantasySquadHandler,
+		FantasyPayoutHandler:        fantasyPayoutHandler,
 	}
 }

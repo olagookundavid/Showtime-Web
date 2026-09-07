@@ -15,9 +15,16 @@ export const MainHeroCarousel = () => {
     // Admin-driven. With no slides we render nothing (see the early return
     // below) instead of a placeholder image, so the carousel takes up zero
     // space until an admin adds slides.
-    const slides: { id: string; image_url: string; mobile_image_url?: string; news_slug?: string }[] =
+    const slides: { id: string; image_url: string; mobile_image_url?: string; destination?: string }[] =
         apiSlides && apiSlides.length > 0
-            ? apiSlides.map(s => ({ id: s.id, image_url: s.image_url, mobile_image_url: s.mobile_image_url, news_slug: s.news_slug }))
+            ? apiSlides.map(s => ({
+                id: s.id,
+                image_url: s.image_url,
+                mobile_image_url: s.mobile_image_url,
+                // Prefer the free-text destination; fall back to the legacy
+                // news_slug-derived path for any slide that missed the backfill.
+                destination: s.destination_url || (s.news_slug ? `/news/${s.news_slug}` : undefined),
+            }))
             : [];
 
     const hasMultipleSlides = slides.length > 1;
@@ -46,9 +53,9 @@ export const MainHeroCarousel = () => {
            visibly deformed it. On phones we prefer a square mobile_image_url
            when the admin uploaded one, falling back to the desktop image. */
         <div className="relative aspect-[16/9] md:aspect-auto md:h-[650px] w-full overflow-hidden rounded-xl md:rounded-3xl shadow-2xl bg-sffl-navy/5">
-            {/* Slides — clickable (opens the slide's article) when a news_slug is
-                linked; plain, non-interactive divs otherwise (legacy slides with
-                no article yet). */}
+            {/* Slides — clickable when a destination is set: internal paths use a
+                react-router Link, external URLs (http/https) open in a new tab;
+                plain, non-interactive divs otherwise (no destination set). */}
             {slides.map((slide, index) => {
                 const className = `absolute inset-0 transition-all duration-1000 ease-in-out ${index === currentSlide ? 'opacity-100 scale-100 z-10' : 'opacity-0 scale-105 z-0'}`;
                 const backgrounds = (
@@ -65,14 +72,21 @@ export const MainHeroCarousel = () => {
                         />
                     </>
                 );
-                return slide.news_slug ? (
-                    <Link key={slide.id} to={`/news/${slide.news_slug}`} className={className}>
+                if (!slide.destination) {
+                    return (
+                        <div key={slide.id} className={className}>
+                            {backgrounds}
+                        </div>
+                    );
+                }
+                return /^https?:\/\//i.test(slide.destination) ? (
+                    <a key={slide.id} href={slide.destination} target="_blank" rel="noopener noreferrer" className={className}>
+                        {backgrounds}
+                    </a>
+                ) : (
+                    <Link key={slide.id} to={slide.destination} className={className}>
                         {backgrounds}
                     </Link>
-                ) : (
-                    <div key={slide.id} className={className}>
-                        {backgrounds}
-                    </div>
                 );
             })}
 

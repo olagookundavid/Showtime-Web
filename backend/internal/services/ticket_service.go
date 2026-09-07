@@ -25,7 +25,7 @@ type ITicketService interface {
 	GetEventDayByID(ctx context.Context, id string, code string) (*dto.EventDayResponse, error)
 	GetEventDayByDate(ctx context.Context, date string, code string) (*dto.EventDayResponse, error)
 	ListActiveEventDays(ctx context.Context, code string) ([]dto.EventDayResponse, error)
-	ListAllEventDays(ctx context.Context) ([]dto.EventDayResponse, error)
+	ListAllEventDays(ctx context.Context, search string, page, limit int) ([]dto.EventDayResponse, int, error)
 
 	// Tiers
 	CreateTier(ctx context.Context, eventDayID string, req dto.CreateTicketTierRequest) (*dto.TicketTierResponse, error)
@@ -39,7 +39,7 @@ type ITicketService interface {
 	VerifyAndUpdate(ctx context.Context, reference string) (*dto.TicketResponse, error)
 	GetByReference(ctx context.Context, reference string) (*dto.TicketResponse, error)
 	GetByCode(ctx context.Context, code string) (*dto.TicketResponse, error)
-	SearchByEmail(ctx context.Context, email string) ([]dto.TicketResponse, error)
+	SearchByEmail(ctx context.Context, email string, page, limit int) ([]dto.TicketResponse, int, error)
 	Checkin(ctx context.Context, id string, checkedInBy string) error
 	AdminCheckin(ctx context.Context, id string, checkedInBy string) error
 	List(ctx context.Context, eventDayID string, status string, page int, limit int) ([]dto.TicketResponse, int, error)
@@ -177,35 +177,35 @@ func (s *TicketService) ListActiveEventDays(ctx context.Context, code string) ([
 	return responses, nil
 }
 
-func (s *TicketService) ListAllEventDays(ctx context.Context) ([]dto.EventDayResponse, error) {
-	eventDays, err := s.eventDayRepo.ListAll(ctx)
+func (s *TicketService) ListAllEventDays(ctx context.Context, search string, page, limit int) ([]dto.EventDayResponse, int, error) {
+	eventDays, total, err := s.eventDayRepo.ListAll(ctx, search, page, limit)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	var responses []dto.EventDayResponse
+	responses := make([]dto.EventDayResponse, 0, len(eventDays))
 	for i := range eventDays {
 		tiers, _ := s.tierRepo.ListByEventDay(ctx, eventDays[i].ID)
 		responses = append(responses, *eventDayToResponse(&eventDays[i], tiers, nil))
 	}
-	return responses, nil
+	return responses, total, nil
 }
 
 func (s *TicketService) DeleteEventDay(ctx context.Context, id string) error {
 	return s.eventDayRepo.Delete(ctx, id)
 }
 
-func (s *TicketService) SearchByEmail(ctx context.Context, email string) ([]dto.TicketResponse, error) {
-	tickets, err := s.ticketRepo.SearchByEmail(ctx, email)
+func (s *TicketService) SearchByEmail(ctx context.Context, email string, page, limit int) ([]dto.TicketResponse, int, error) {
+	tickets, total, err := s.ticketRepo.SearchByEmail(ctx, email, page, limit)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	var responses []dto.TicketResponse
+	responses := make([]dto.TicketResponse, 0, len(tickets))
 	for i := range tickets {
 		responses = append(responses, *ticketToResponse(&tickets[i]))
 	}
-	return responses, nil
+	return responses, total, nil
 }
 func (s *TicketService) getMatchesForDate(ctx context.Context, date time.Time) []domain.Match {
 	dateStr := date.Format("2006-01-02")

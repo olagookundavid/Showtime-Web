@@ -1,0 +1,467 @@
+package services
+
+import (
+	"context"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha512"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+
+	"showtime-backend/internal/domain"
+	"showtime-backend/internal/dto"
+	"showtime-backend/internal/ports"
+
+	"github.com/jackc/pgx/v5/pgconn"
+)
+
+type IFantasyLeagueService interface {
+	CreateLeague(ctx context.Context, userID string, req dto.CreateLeagueRequest) (*dto.LeagueResponse, error)
+	JoinLeague(ctx context.Context, userID, seasonID, callbackURL string, req dto.JoinLeagueRequest) (*dto.JoinLeagueResponse, error)
+	LeaveLeague(ctx context.Context, userID, leagueID string) error
+	LeagueWebhook(ctx context.Context, payload []byte, signature string) error
+	VerifyLeaguePayment(ctx context.Context, userID, reference string) error
+	ListMyLeagues(ctx context.Context, userID, seasonID string, page, limit int) ([]dto.LeagueResponse, int, error)
+	ListPublicLeagues(ctx context.Context, seasonID string, page, limit int) ([]dto.LeagueResponse, int, error)
+	GetLeaderboard(ctx context.Context, leagueID string, gameweekID *string, page, limit int) ([]dto.LeaderboardEntry, int, error)
+	GetOverallLeaderboard(ctx context.Context, seasonID string, gameweekID *string, page, limit int) ([]dto.LeaderboardEntry, int, error)
+	// Rank lookups let the leaderboard open on the page the viewer is on
+	// rather than page 1, which is meaningless to a mid-table manager.
+	GetMyRankInLeague(ctx context.Context, leagueID, userID string) (int, error)
+	GetMyOverallRank(ctx context.Context, seasonID, userID string) (int, error)
+}
+
+type FantasyLeagueService struct {
+	repo           ports.IFantasyLeagueRepository
+	fantasyRepo    ports.IFantasyRepository
+	payoutRepo     ports.IFantasyPayoutRepository
+	authRepo       ports.IAuthRepository
+	paystackClient *PaystackClient
+}
+
+func NewFantasyLeagueService(
+	repo ports.IFantasyLeagueRepository,
+	fantasyRepo ports.IFantasyRepository,
+	payoutRepo ports.IFantasyPayoutRepository,
+	authRepo ports.IAuthRepository,
+	paystackClient *PaystackClient,
+) IFantasyLeagueService {
+	return &FantasyLeagueService{
+		repo:           repo,
+		fantasyRepo:    fantasyRepo,
+		payoutRepo:     payoutRepo,
+		authRepo:       authRepo,
+		paystackClient: paystackClient,
+	}
+}
+
+// inviteCodeAttempts bounds how many fresh codes we try before giving up when
+// the generated code collides with an existing one.
+const inviteCodeAttempts = 5
+
+func generateInviteCode() (string, error) {
+	// 32 characters divides 256 evenly, so the modulo below is bias-free.
+	const charset = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+	b := make([]byte, 6)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("failed to generate invite code: %w", err)
+	}
+	for i := range b {
+		b[i] = charset[int(b[i])%len(charset)]
+	}
+	return string(b), nil
+}
+
+func isInviteCodeCollision(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505" && strings.Contains(pgErr.ConstraintName, "invite_code")
+}
+
+// ownerID renders a nullable creator (nil on the system-owned OVERALL league)
+// as the plain string the API contract exposes.
+func ownerID(id *string) string {
+	if id == nil {
+		return ""
+	}
+	return *id
+}
+
+func (s *FantasyLeagueService) CreateLeague(ctx context.Context, userID string, req dto.CreateLeagueRequest) (*dto.LeagueResponse, error) {
+	var league *domain.FantasyLeague
+	var inviteCode string
+
+	for attempt := 0; attempt < inviteCodeAttempts; attempt++ {
+		code, err := generateInviteCode()
+		if err != nil {
+			return nil, err
+		}
+
+		candidate := &domain.FantasyLeague{
+			SeasonID:        req.SeasonID,
+			Name:            req.Name,
+			Type:            domain.FantasyLeagueType(req.Type),
+			InviteCode:      &code,
+			CreatedByUserID: &userID,
+			EntryFee:        req.EntryFee,
+			MaxMembers:      req.MaxMembers,
+		}
+
+		err = s.repo.CreateLeague(ctx, candidate)
+		if err == nil {
+			league, inviteCode = candidate, code
+			break
+		}
+		// A colliding invite code just needs a fresh one; anything else is fatal.
+		if !isInviteCodeCollision(err) {
+			return nil, fmt.Errorf("failed to create league: %w", err)
+		}
+	}
+
+	if league == nil {
+		return nil, errors.New("failed to create league: could not generate a unique invite code")
+	}
+
+	// The creator's own prize split. Saved before anyone can join, so the terms
+	// a manager reads in the join dialogue are the terms they compete under.
+	if len(req.PrizeStructure) > 0 {
+		tiers := make([]domain.PrizeTier, 0, len(req.PrizeStructure))
+		for _, t := range req.PrizeStructure {
+			tiers = append(tiers, domain.PrizeTier{Rank: t.Rank, Percent: t.Percent})
+		}
+		if err := domain.ValidatePrizeStructure(tiers); err != nil {
+			return nil, err
+		}
+		if err := s.payoutRepo.SetPrizeStructure(ctx, league.ID, tiers); err != nil {
+			return nil, fmt.Errorf("league created but its prize split could not be saved: %w", err)
+		}
+	}
+
+	// Creator auto-joins their own league if they have an existing fantasy team
+	team, _ := s.fantasyRepo.GetTeamByUserAndSeason(ctx, userID, req.SeasonID)
+	if team != nil {
+		_ = s.repo.AddMember(ctx, &domain.FantasyLeagueMember{
+			LeagueID:      league.ID,
+			UserID:        userID,
+			TeamID:        team.ID,
+			PaymentStatus: domain.LeaguePaymentFree, // Creator joins free
+		})
+	}
+
+	memberCount, _ := s.repo.CountActiveMembers(ctx, league.ID)
+
+	return &dto.LeagueResponse{
+		ID:              league.ID,
+		SeasonID:        league.SeasonID,
+		Name:            league.Name,
+		Type:            string(league.Type),
+		InviteCode:      inviteCode,
+		CreatedByUserID: ownerID(league.CreatedByUserID),
+		EntryFee:        league.EntryFee,
+		MaxMembers:      league.MaxMembers,
+		MemberCount:     memberCount,
+		CreatedAt:       league.CreatedAt.Format(time.RFC3339),
+	}, nil
+}
+
+func (s *FantasyLeagueService) JoinLeague(ctx context.Context, userID, seasonID, callbackURL string, req dto.JoinLeagueRequest) (*dto.JoinLeagueResponse, error) {
+	code := strings.TrimSpace(req.InviteCode)
+	leagueID := strings.TrimSpace(req.LeagueID)
+
+	var league *domain.FantasyLeague
+	var err error
+	switch {
+	case leagueID != "":
+		// Joining from the browse list. Only PUBLIC leagues are listed there,
+		// and a private league must not be joinable by guessing its id.
+		league, err = s.repo.GetLeagueByID(ctx, leagueID)
+		if err != nil {
+			return nil, err
+		}
+		if league == nil || league.Type != domain.LeagueTypePublic {
+			return nil, errors.New("that league is invite-only — ask its owner for the code")
+		}
+	case code != "":
+		league, err = s.repo.GetLeagueByInviteCode(ctx, code)
+		if err != nil || league == nil {
+			return nil, errors.New("invalid or expired league invite code")
+		}
+	default:
+		return nil, errors.New("choose a league to join, or enter an invite code")
+	}
+
+	if league.SeasonID != seasonID {
+		return nil, errors.New("league is not for the current season")
+	}
+
+	// Entering the season is a separate, earlier step.
+	team, err := s.fantasyRepo.GetTeamByUserAndSeason(ctx, userID, seasonID)
+	if err != nil {
+		return nil, err
+	}
+	if team == nil {
+		return nil, errors.New("join this season before joining a league")
+	}
+
+	// 2. Check if already a member
+	existing, _ := s.repo.GetMember(ctx, league.ID, userID)
+	if existing != nil && (existing.PaymentStatus == domain.LeaguePaymentFree || existing.PaymentStatus == domain.LeaguePaymentPaid) {
+		return &dto.JoinLeagueResponse{
+			LeagueID:   league.ID,
+			LeagueName: league.Name,
+		}, nil
+	}
+
+	// A forfeited entry cannot be undone by rejoining. The fee stays in the pool
+	// and the membership row is already spent on it, so there is nowhere to
+	// record a second entry — say so plainly instead of taking more money.
+	if forfeited, err := s.repo.HasForfeitedEntry(ctx, league.ID, userID); err == nil && forfeited {
+		return nil, errors.New("you left this paid league and forfeited your entry, so it cannot be rejoined")
+	}
+
+	// 3. Reject a full league before spending a Paystack transaction on it. The
+	// authoritative, race-free check still happens inside AddMember.
+	if league.MaxMembers > 0 && existing == nil {
+		active, err := s.repo.CountActiveMembers(ctx, league.ID)
+		if err == nil && active >= league.MaxMembers {
+			return nil, ports.ErrLeagueFull
+		}
+	}
+
+	// 4. Paid league checkout flow (Paystack)
+	if league.EntryFee > 0 {
+		user, err := s.authRepo.GetUserByID(ctx, userID)
+		if err != nil || user == nil {
+			return nil, errors.New("user profile not found")
+		}
+
+		suffix, err := generateInviteCode()
+		if err != nil {
+			return nil, err
+		}
+		ref := fmt.Sprintf("FNT-%d-%s", time.Now().Unix(), suffix)
+
+		// Without a callback Paystack has nowhere to send the payer back to,
+		// so nothing ever confirms the payment and the membership sits on
+		// PENDING for ever. The webhook alone can't be relied on — it can't
+		// reach a local machine at all. The URL is derived from the caller's
+		// own origin, so it follows whatever host the manager is actually on.
+		paystackReq := PaystackInitRequest{
+			Email:       user.Email,
+			Amount:      league.EntryFee, // in kobo
+			Reference:   ref,
+			CallbackURL: callbackURL,
+		}
+		paystackResp, err := s.paystackClient.InitializeTransaction(paystackReq)
+		if err != nil {
+			return nil, fmt.Errorf("paystack initialization failed: %w", err)
+		}
+
+		member := &domain.FantasyLeagueMember{
+			LeagueID:           league.ID,
+			UserID:             userID,
+			TeamID:             team.ID,
+			PaymentStatus:      domain.LeaguePaymentPending,
+			PaystackReference:  &ref,
+			PaystackAccessCode: &paystackResp.Data.AccessCode,
+		}
+		if err := s.repo.AddMember(ctx, member); err != nil {
+			if errors.Is(err, ports.ErrLeagueFull) {
+				return nil, err
+			}
+			return nil, fmt.Errorf("failed to register league membership: %w", err)
+		}
+
+		return &dto.JoinLeagueResponse{
+			LeagueID:           league.ID,
+			LeagueName:         league.Name,
+			PaystackURL:        paystackResp.Data.AuthorizationURL,
+			PaystackRef:        ref,
+			PaystackAccessCode: paystackResp.Data.AccessCode,
+		}, nil
+	}
+
+	// 5. Free league flow
+	member := &domain.FantasyLeagueMember{
+		LeagueID:      league.ID,
+		UserID:        userID,
+		TeamID:        team.ID,
+		PaymentStatus: domain.LeaguePaymentFree,
+	}
+	if err := s.repo.AddMember(ctx, member); err != nil {
+		if errors.Is(err, ports.ErrLeagueFull) {
+			return nil, err
+		}
+		return nil, fmt.Errorf("failed to join league: %w", err)
+	}
+
+	return &dto.JoinLeagueResponse{
+		LeagueID:   league.ID,
+		LeagueName: league.Name,
+	}, nil
+}
+
+// LeaveLeague removes a manager from a league's standings.
+//
+// A paid entry is forfeited, not refunded: the fee was collected and belongs to
+// the prize pool, which is why the membership is stamped rather than deleted.
+// The caller is expected to have made that consequence clear first.
+func (s *FantasyLeagueService) LeaveLeague(ctx context.Context, userID, leagueID string) error {
+	league, err := s.repo.GetLeagueByID(ctx, leagueID)
+	if err != nil {
+		return err
+	}
+	if league == nil {
+		return errors.New("league not found")
+	}
+	// The official league is every manager in the season by definition — there
+	// is nothing to leave without leaving the season itself.
+	if league.Type == domain.LeagueTypeOverall {
+		return errors.New("the official league cannot be left while you are in the season")
+	}
+	if league.SettledAt != nil {
+		return errors.New("this league has already paid out and can no longer be left")
+	}
+
+	return s.repo.LeaveLeague(ctx, leagueID, userID)
+}
+
+func (s *FantasyLeagueService) LeagueWebhook(ctx context.Context, payload []byte, signature string) error {
+	// Verify Paystack HMAC-SHA512 signature
+	secret := s.paystackClient.GetSecretKey()
+	h := hmac.New(sha512.New, []byte(secret))
+	h.Write(payload)
+	expected := hex.EncodeToString(h.Sum(nil))
+
+	if !hmac.Equal([]byte(expected), []byte(signature)) {
+		return errors.New("invalid paystack webhook signature")
+	}
+
+	var event struct {
+		Event string `json:"event"`
+		Data  struct {
+			Reference string `json:"reference"`
+			Status    string `json:"status"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(payload, &event); err != nil {
+		return err
+	}
+
+	if event.Event == "charge.success" && event.Data.Status == "success" {
+		member, err := s.repo.GetMemberByPaystackRef(ctx, event.Data.Reference)
+		if err != nil || member == nil {
+			return errors.New("league membership reference not found")
+		}
+		// The webhook is HMAC-authenticated and carries no user context, so it
+		// goes straight to the unchecked variant.
+		return s.verifyPayment(ctx, member, event.Data.Reference)
+	}
+	return nil
+}
+
+func (s *FantasyLeagueService) VerifyLeaguePayment(ctx context.Context, userID, reference string) error {
+	member, err := s.repo.GetMemberByPaystackRef(ctx, reference)
+	if err != nil || member == nil {
+		return errors.New("league membership reference not found")
+	}
+
+	if member.UserID != userID {
+		return errors.New("league membership reference not found")
+	}
+
+	return s.verifyPayment(ctx, member, reference)
+}
+
+func (s *FantasyLeagueService) verifyPayment(ctx context.Context, member *domain.FantasyLeagueMember, reference string) error {
+	if member.PaymentStatus == domain.LeaguePaymentPaid {
+		return nil // already verified (idempotent)
+	}
+
+	// Verify with Paystack API
+	verifyResp, err := s.paystackClient.VerifyTransaction(reference)
+	if err != nil {
+		return fmt.Errorf("paystack verification call failed: %w", err)
+	}
+
+	if verifyResp.Data.Status == "success" {
+		return s.repo.UpdateMemberPaymentStatus(ctx, member.ID, domain.LeaguePaymentPaid)
+	}
+
+	_ = s.repo.UpdateMemberPaymentStatus(ctx, member.ID, domain.LeaguePaymentFailed)
+	return fmt.Errorf("payment not successful: status %s", verifyResp.Data.Status)
+}
+
+func (s *FantasyLeagueService) ListMyLeagues(ctx context.Context, userID, seasonID string, page, limit int) ([]dto.LeagueResponse, int, error) {
+	leagues, total, err := s.repo.ListLeaguesByUser(ctx, userID, seasonID, page, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return leagueResponses(leagues), total, nil
+}
+
+// leagueResponses maps league rows to their wire form. Shared by the public
+// browse list and a manager's own list, which present identical fields.
+func leagueResponses(leagues []domain.FantasyLeague) []dto.LeagueResponse {
+	res := make([]dto.LeagueResponse, 0, len(leagues))
+	for _, l := range leagues {
+		code := ""
+		if l.InviteCode != nil {
+			code = *l.InviteCode
+		}
+		res = append(res, dto.LeagueResponse{
+			ID:              l.ID,
+			SeasonID:        l.SeasonID,
+			Name:            l.Name,
+			Type:            string(l.Type),
+			InviteCode:      code,
+			CreatedByUserID: ownerID(l.CreatedByUserID),
+			EntryFee:        l.EntryFee,
+			MaxMembers:      l.MaxMembers,
+			MemberCount:     l.MemberCount,
+			CreatedAt:       l.CreatedAt.Format(time.RFC3339),
+		})
+	}
+	return res
+}
+
+func (s *FantasyLeagueService) ListPublicLeagues(ctx context.Context, seasonID string, page, limit int) ([]dto.LeagueResponse, int, error) {
+	leagues, total, err := s.repo.ListPublicLeagues(ctx, seasonID, page, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+	return leagueResponses(leagues), total, nil
+}
+
+func (s *FantasyLeagueService) GetMyRankInLeague(ctx context.Context, leagueID, userID string) (int, error) {
+	if userID == "" {
+		return 0, nil
+	}
+	return s.repo.GetMyRankInLeague(ctx, leagueID, userID)
+}
+
+// GetMyOverallRank is the viewer's position across every manager in a season.
+// An anonymous viewer, or one who hasn't joined, simply has no position.
+func (s *FantasyLeagueService) GetMyOverallRank(ctx context.Context, seasonID, userID string) (int, error) {
+	if userID == "" {
+		return 0, nil
+	}
+	team, err := s.fantasyRepo.GetTeamByUserAndSeason(ctx, userID, seasonID)
+	if err != nil || team == nil {
+		return 0, err
+	}
+	rank, _, err := s.fantasyRepo.GetTeamOverallRank(ctx, seasonID, team.ID)
+	return rank, err
+}
+
+func (s *FantasyLeagueService) GetLeaderboard(ctx context.Context, leagueID string, gameweekID *string, page, limit int) ([]dto.LeaderboardEntry, int, error) {
+	return s.repo.GetLeaderboard(ctx, leagueID, gameweekID, page, limit)
+}
+
+func (s *FantasyLeagueService) GetOverallLeaderboard(ctx context.Context, seasonID string, gameweekID *string, page, limit int) ([]dto.LeaderboardEntry, int, error) {
+	return s.repo.GetOverallLeaderboard(ctx, seasonID, gameweekID, page, limit)
+}

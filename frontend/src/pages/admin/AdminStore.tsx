@@ -660,7 +660,7 @@ export const AdminStore = () => {
 
             {/* Unified Product Editor (create + edit) */}
             {editor && (
-                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" onClick={handleCloseEditor}>
+                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={handleCloseEditor}>
                     <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-3xl w-full shadow-2xl max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
                             <div>
