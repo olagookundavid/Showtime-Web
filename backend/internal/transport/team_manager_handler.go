@@ -14,6 +14,7 @@ type ITeamManagerHandler interface {
 	RemoveManager(c *gin.Context)
 	GetManagersForTeam(c *gin.Context)
 	GetMyTeam(c *gin.Context)
+	ListManagerCandidates(c *gin.Context)
 }
 
 type TeamManagerHandler struct {
@@ -88,6 +89,22 @@ func (h *TeamManagerHandler) GetManagersForTeam(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": managers})
+}
+
+// ListManagerCandidates godoc
+// @Summary      List all team_head users with their current team assignment
+// @Tags         admin
+// @Produce      json
+// @Success      200 {object} map[string]string
+// @Router       /api/v1/admin/teams/manager-candidates [get]
+func (h *TeamManagerHandler) ListManagerCandidates(c *gin.Context) {
+	candidates, err := h.service.ListTeamHeadCandidates(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": candidates})
 }
 
 // GetMyTeam godoc
