@@ -69,7 +69,6 @@ export const AdminLayout = () => {
         { name: 'Transfers', path: '/admin/transfers', icon: UserGroupIcon },
         { name: 'Transfer Windows', path: '/admin/transfer-windows', icon: CalendarIcon },
         { name: 'Stats', path: '/admin/stats', icon: ChartBarIcon },
-        // { name: 'Team of the Week', path: '/admin/totw', icon: TrophyIcon }, // disabled — see App.tsx
         { name: 'Standings', path: '/admin/standings', icon: ChartBarIcon },
         { name: 'Tickets', path: '/admin/tickets', icon: TicketIcon },
         { name: 'Referrals', path: '/admin/referrals', icon: TicketIcon },
@@ -95,8 +94,8 @@ export const AdminLayout = () => {
         if (user.role === 'admin') return allLinks.filter(l => l.name !== 'Administrator');
         if (user.role === 'ticketer') return allLinks.filter(l => ['Tickets', 'Referrals'].includes(l.name));
 
-        if (user.role === 'referee') return allLinks.filter(l => ['Matches', 'Play by Play', 'Standings', 'Stats', 'Players', 'Teams', 'Team of the Week'].includes(l.name));
-        if (user.role === 'stats') return allLinks.filter(l => ['Matches', 'Play by Play', 'Standings', 'Stats', 'Teams', 'Team of the Week'].includes(l.name));
+        if (user.role === 'referee') return allLinks.filter(l => ['Matches', 'Play by Play', 'Standings', 'Stats', 'Players', 'Teams'].includes(l.name));
+        if (user.role === 'stats') return allLinks.filter(l => ['Matches', 'Play by Play', 'Standings', 'Stats', 'Teams'].includes(l.name));
         return [];
     })();
 

@@ -33,7 +33,8 @@ func NewPlayerRepository(db *pgxpool.Pool) *PostgresPlayerRepository {
 }
 
 func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string, search string, page, limit int) ([]domain.Player, int64, error) {
-	whereClause := ` WHERE 1=1`
+	fromClause := ` FROM players p LEFT JOIN teams t ON p.team_id = t.id`
+	whereClause := ` WHERE 1=1 AND (p.team_id IS NULL OR COALESCE(t.status, 'active') = 'active')`
 	args := []any{}
 	argCount := 1
 
@@ -64,7 +65,7 @@ func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string
 	}
 
 	var total int64
-	if err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM players p`+whereClause, args...).Scan(&total); err != nil {
+	if err := r.db.QueryRow(ctx, `SELECT COUNT(*) `+fromClause+whereClause, args...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
@@ -77,9 +78,7 @@ func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string
 			COALESCE(p.gender, ''),
 			p.created_at, p.updated_at,
 			COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, '')
-		FROM players p
-		LEFT JOIN teams t ON p.team_id = t.id` + whereClause +
-		` ORDER BY p.jersey_number ASC`
+	` + fromClause + whereClause + ` ORDER BY p.jersey_number ASC`
 
 	if limit > 0 {
 		offset := (page - 1) * limit

@@ -66,10 +66,12 @@ func (r *FantasySquadRepository) ListSquad(ctx context.Context, teamID, gameweek
 		           WHERE flp.player_id = sp.player_id
 		             AND fl.team_id = sp.team_id
 		             AND ($2 = '' OR fl.gameweek_id::text = $2)
-		       ) AS starting
+		       ) AS starting,
+		       (COALESCE(t.status, 'active') = 'active' AND p.team_id IS NOT NULL) AS team_active
 		FROM fantasy_squad_players sp
 		JOIN fantasy_teams ft ON ft.id = sp.team_id
 		JOIN players p ON p.id = sp.player_id
+		LEFT JOIN teams t ON t.id = p.team_id
 		WHERE sp.team_id = $1 AND sp.sold_at IS NULL
 		ORDER BY p.position, p.name, sp.player_id
 	`, teamID, gameweekID)
@@ -82,7 +84,7 @@ func (r *FantasySquadRepository) ListSquad(ctx context.Context, teamID, gameweek
 	for rows.Next() {
 		var s domain.SquadPlayer
 		if err := rows.Scan(&s.ID, &s.TeamID, &s.PlayerID, &s.PurchasePrice, &s.CurrentPrice,
-			&s.Name, &s.Position, &s.Gender, &s.ClubID, &s.Starting); err != nil {
+			&s.Name, &s.Position, &s.Gender, &s.ClubID, &s.Starting, &s.TeamActive); err != nil {
 			return nil, fmt.Errorf("failed to scan squad player: %w", err)
 		}
 		squad = append(squad, s)
@@ -107,12 +109,15 @@ func (r *FantasySquadRepository) GetBank(ctx context.Context, teamID string) (fl
 
 // GetMarketPlayer reads the live price the same way ListSquad does: the
 // gameweek row when one exists, otherwise the season's opening price.
+// It verifies that the player belongs to an active club participating in this competition.
 func (r *FantasySquadRepository) GetMarketPlayer(ctx context.Context, seasonID, playerID string) (float64, string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	var price float64
 	var clubID string
+	var teamStatus string
+	var compEligible bool
 	err := r.pool.QueryRow(ctx, `
 		SELECT COALESCE((
 		           SELECT pp.price FROM fantasy_player_prices pp
@@ -120,15 +125,32 @@ func (r *FantasySquadRepository) GetMarketPlayer(ctx context.Context, seasonID, 
 		           ORDER BY (pp.gameweek_id IS NULL), pp.created_at DESC
 		           LIMIT 1
 		       ), 0),
-		       COALESCE(p.team_id::text, '')
+		       COALESCE(p.team_id::text, ''),
+		       COALESCE(t.status, 'active'),
+		       EXISTS (
+		           SELECT 1 FROM competition_teams ct
+		           JOIN fantasy_seasons fs ON fs.id = $1
+		           WHERE ct.competition_id = fs.competition_id AND ct.team_id = p.team_id
+		       ) OR NOT EXISTS (
+		           SELECT 1 FROM competition_teams ct
+		           JOIN fantasy_seasons fs ON fs.id = $1
+		           WHERE ct.competition_id = fs.competition_id
+		       )
 		FROM players p
+		LEFT JOIN teams t ON p.team_id = t.id
 		WHERE p.id = $2
-	`, seasonID, playerID).Scan(&price, &clubID)
+	`, seasonID, playerID).Scan(&price, &clubID, &teamStatus, &compEligible)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return 0, "", errors.New("player not found")
 		}
 		return 0, "", fmt.Errorf("failed to read the player's price: %w", err)
+	}
+	if clubID == "" || teamStatus != "active" {
+		return 0, "", errors.New("players from inactive teams cannot be signed to a fantasy squad")
+	}
+	if !compEligible {
+		return 0, "", errors.New("players whose teams are not participating in this competition cannot be signed")
 	}
 	return price, clubID, nil
 }

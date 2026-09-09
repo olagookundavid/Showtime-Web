@@ -304,7 +304,21 @@ export function FantasySquadBuilder() {
         const clubExceeded = Object.entries(clubCounts).find(([_, count]) => count > (season?.max_per_club || 4));
         const clubLimitValid = !clubExceeded;
 
-        const isValid = slotsFilled && budgetValid && offenseFemalesValid && defenseFemalesValid && clubLimitValid;
+        let hasInactiveStartingPlayer = false;
+        if (mySquad?.players) {
+            const inactiveIds = new Set(
+                mySquad.players.filter(p => p.team_active === false).map(p => p.player_id)
+            );
+            for (const pid of chosenPlayerIds) {
+                if (inactiveIds.has(pid)) {
+                    hasInactiveStartingPlayer = true;
+                    break;
+                }
+            }
+        }
+        const clubsActiveValid = !hasInactiveStartingPlayer;
+
+        const isValid = slotsFilled && budgetValid && offenseFemalesValid && defenseFemalesValid && clubLimitValid && clubsActiveValid;
 
         return {
             totalSpent,
@@ -319,15 +333,38 @@ export function FantasySquadBuilder() {
             offenseFemalesValid,
             defenseFemalesValid,
             clubLimitValid,
+            clubsActiveValid,
+            hasInactiveStartingPlayer,
             isValid,
         };
-    }, [squad, season]);
+    }, [squad, season, mySquad]);
 
-    // Bench / reserve players (owned but not in the starting 14)
+    // Who is actually on the pitch right now, in this editing session — not
+    // who the server last had starting. Squad picks and Start promotions only
+    // ever touch local `squad` state until Save Lineup is clicked, so this is
+    // the only source that agrees with what the slots grid is showing.
+    const startingPlayerIds = useMemo(
+        () => new Set(
+            Object.values(squad)
+                .filter((p): p is FantasyPlayerListItem => p !== null)
+                .map((p) => p.player_id)
+        ),
+        [squad],
+    );
+
+    // Bench / reserve players: owned, and not currently placed in a slot.
+    //
+    // This used to filter on `p.starting` — the server's last-saved lineup —
+    // so a player picked into the 14 stayed listed on the bench until Save was
+    // clicked (a visible "duplicate"), and promoting one via Start left their
+    // bench row in place with its Start button still live, since neither
+    // reflected the local draft. Keying off `startingPlayerIds` instead means
+    // the bench row disappears the moment a player is placed, matching what
+    // the slots grid already shows.
     const benchPlayers = useMemo(() => {
         if (!mySquad) return [];
-        return mySquad.players.filter(p => !p.starting);
-    }, [mySquad]);
+        return mySquad.players.filter(p => !startingPlayerIds.has(p.player_id));
+    }, [mySquad, startingPlayerIds]);
 
     // Already filtered by position and gender server-side.
     const marketPlayers = marketData?.data ?? [];
@@ -738,6 +775,16 @@ export function FantasySquadBuilder() {
                 </div>
             </div>
 
+            {/* Inactive Club Warning Banner */}
+            {calculations.hasInactiveStartingPlayer && (
+                <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 flex items-center justify-between gap-3 text-red-700 dark:text-red-300">
+                    <div className="flex items-center gap-2.5 text-xs font-bold">
+                        <ExclamationCircleIcon className="w-5 h-5 shrink-0 text-sffl-red" />
+                        <span>One or more starting players belong to an inactive club. You must transfer them out before saving your lineup.</span>
+                    </div>
+                </div>
+            )}
+
             {/* Starting 14 Section Header & Unit Switcher */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
@@ -790,6 +837,8 @@ export function FantasySquadBuilder() {
                 {displayedSlots.map(def => {
                     const player = squad[def.slot];
                     const isActionOpen = actionSlot === def.slot;
+                    const squadMember = player ? mySquad?.players?.find(sp => sp.player_id === player.player_id) : undefined;
+                    const isInactiveClub = squadMember?.team_active === false;
                     return (
                         <div key={def.slot} className="relative">
                             <div
@@ -843,6 +892,11 @@ export function FantasySquadBuilder() {
                                                 {def.slot}
                                             </span>
                                             <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">{def.label}</span>
+                                            {isInactiveClub && (
+                                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800">
+                                                    Inactive Club
+                                                </span>
+                                            )}
                                         </div>
 
                                         {player ? (
@@ -959,7 +1013,7 @@ export function FantasySquadBuilder() {
                     <div className="divide-y divide-gray-100 dark:divide-gray-700">
                         {benchPlayers.map((p) => {
                             // Can this reserve be promoted into an open matching slot?
-                            const hasOpenSlot = SLOT_DEFINITIONS.some(def => {
+                            const hasOpenSlot = p.team_active !== false && SLOT_DEFINITIONS.some(def => {
                                 if (squad[def.slot] !== null) return false;
                                 if (!def.allowedPositions.includes(p.position)) return false;
                                 if (def.requiredGender && !p.gender.toUpperCase().startsWith(def.requiredGender)) return false;
@@ -974,6 +1028,11 @@ export function FantasySquadBuilder() {
                                             {isFemale(p.gender) && (
                                                 <span className="ml-2 text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
                                                     {unitOf(p.position)} quota
+                                                </span>
+                                            )}
+                                            {p.team_active === false && (
+                                                <span className="ml-2 text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800">
+                                                    Inactive Club
                                                 </span>
                                             )}
                                         </h3>

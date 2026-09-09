@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, Link } from 'react-router-dom';
 import api from '../../services/api';
 import { LightboxImage, ImageUploadField } from '../../components/ui';
 import toast from 'react-hot-toast';
@@ -8,7 +8,6 @@ import {
     MagnifyingGlassIcon,
     ChevronLeftIcon,
     ChevronRightIcon,
-    UserPlusIcon,
     XMarkIcon,
     PencilSquareIcon,
     TrashIcon,
@@ -98,12 +97,6 @@ const TeamHeadPlayers = () => {
     const [form, setForm] = useState(emptyForm);
     const [saving, setSaving] = useState(false);
 
-    const openCreate = () => {
-        setEditing(null);
-        setForm(emptyForm);
-        setShowModal(true);
-    };
-
     const openEdit = (p: Player) => {
         setEditing(p);
         setForm({
@@ -121,6 +114,10 @@ const TeamHeadPlayers = () => {
 
     const handleSave = async () => {
         if (!team) return;
+        if (!editing) {
+            toast.error('Direct player creation is disabled. Please contact league administration.');
+            return;
+        }
         setSaving(true);
         try {
             const payload = {
@@ -134,13 +131,8 @@ const TeamHeadPlayers = () => {
                 team_id: team.id,
                 contract_length: parseInt(form.contract_length) || 13,
             };
-            if (editing) {
-                await api.put(`/team-head/players/${editing.id}`, payload);
-                toast.success('Player updated successfully');
-            } else {
-                await api.post('/team-head/players', payload);
-                toast.success('Player added successfully');
-            }
+            await api.put(`/team-head/players/${editing.id}`, payload);
+            toast.success('Player updated successfully');
             setShowModal(false);
             queryClient.invalidateQueries({ queryKey: ['teamHeadPlayers', team.id] });
         } catch (err: any) {
@@ -177,7 +169,7 @@ const TeamHeadPlayers = () => {
 
     return (
         <div className="space-y-6">
-            {/* Header Title & Add Button */}
+            {/* Header Title & Actions */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white flex items-center gap-3">
@@ -190,13 +182,28 @@ const TeamHeadPlayers = () => {
                         View and manage your team's official player roster.
                     </p>
                 </div>
-                <button
-                    onClick={openCreate}
-                    className="flex items-center justify-center gap-2 bg-sffl-red hover:bg-red-700 text-white font-bold py-2.5 px-5 rounded-xl shadow-md transition-transform active:scale-95 text-sm"
-                >
-                    <UserPlusIcon className="w-5 h-5" />
-                    <span>Add Player</span>
-                </button>
+                <div className="flex items-center gap-2.5 flex-wrap">
+                    <Link
+                        to="/team-head/transfers"
+                        className="flex items-center justify-center gap-1.5 bg-sffl-navy hover:bg-[#001730] text-white font-bold py-2.5 px-4 rounded-xl shadow-sm text-xs sm:text-sm transition-all"
+                    >
+                        <span>🔄 Transfer Market</span>
+                    </Link>
+                    <Link
+                        to="/team-head/contracts"
+                        className="flex items-center justify-center gap-1.5 bg-sffl-red hover:bg-[#A52323] text-white font-bold py-2.5 px-4 rounded-xl shadow-sm text-xs sm:text-sm transition-all"
+                    >
+                        <span>📝 Sign Free Agent</span>
+                    </Link>
+                </div>
+            </div>
+
+            {/* Roster Registration Notice */}
+            <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-3.5 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2.5 shadow-sm">
+                <span className="text-base leading-none">ℹ️</span>
+                <div>
+                    <span className="font-bold">Player Creation Policy:</span> Direct creation of player profiles is managed strictly by League Administration to prevent duplicate player entries. To onboard players, sign eligible athletes via <strong>Free Agency Contracts</strong> or submit an official <strong>Transfer Request</strong>.
+                </div>
             </div>
 
             {/* Error Banner */}

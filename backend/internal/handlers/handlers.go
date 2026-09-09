@@ -17,7 +17,6 @@ type Handlers struct {
 	StatsHandler                transport.IStatsHandler
 	InventoryHandler            transport.IInventoryHandler
 	UploadHandler               transport.IUploadHandler
-	TOTWHandler                 transport.ITOTWHandler
 	StoreHandler                transport.IStoreHandler
 	ImportHandler               transport.IImportHandler
 	HeroSlideHandler            transport.IHeroSlideHandler
@@ -51,7 +50,6 @@ func NewHandlers(
 	statsHandler transport.IStatsHandler,
 	inventoryHandler transport.IInventoryHandler,
 	uploadHandler transport.IUploadHandler,
-	totwHandler transport.ITOTWHandler,
 	storeHandler transport.IStoreHandler,
 	importHandler transport.IImportHandler,
 	heroSlideHandler transport.IHeroSlideHandler,
@@ -84,7 +82,6 @@ func NewHandlers(
 		StatsHandler:                statsHandler,
 		InventoryHandler:            inventoryHandler,
 		UploadHandler:               uploadHandler,
-		TOTWHandler:                 totwHandler,
 		StoreHandler:                storeHandler,
 		ImportHandler:               importHandler,
 		HeroSlideHandler:            heroSlideHandler,

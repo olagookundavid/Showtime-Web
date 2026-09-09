@@ -657,7 +657,7 @@ func (r *FantasyRepository) ListPlayerMarket(ctx context.Context, seasonID strin
 
 	baseQuery := `
 		FROM players p
-		LEFT JOIN teams t ON p.team_id = t.id
+		JOIN teams t ON p.team_id = t.id
 		LEFT JOIN fantasy_player_prices fpp ON fpp.player_id = p.id AND fpp.season_id = $1 AND fpp.gameweek_id IS NULL
 		LEFT JOIN (
 			SELECT fgp.player_id, SUM(fgp.points) AS total_pts
@@ -680,7 +680,20 @@ func (r *FantasyRepository) ListPlayerMarket(ctx context.Context, seasonID strin
 			WHERE ft.season_id = $1
 			GROUP BY sp.player_id
 		) sel ON sel.player_id = p.id
-		WHERE 1=1
+		WHERE p.team_id IS NOT NULL
+		  AND COALESCE(t.status, 'active') = 'active'
+		  AND (
+		      NOT EXISTS (
+		          SELECT 1 FROM competition_teams ct
+		          JOIN fantasy_seasons fs ON fs.id = $1
+		          WHERE ct.competition_id = fs.competition_id
+		      )
+		      OR EXISTS (
+		          SELECT 1 FROM competition_teams ct
+		          JOIN fantasy_seasons fs ON fs.id = $1
+		          WHERE ct.competition_id = fs.competition_id AND ct.team_id = t.id
+		      )
+		  )
 	`
 	args := []interface{}{seasonID}
 	argIdx := 2
@@ -1008,11 +1021,14 @@ func (r *FantasyRepository) GetLineupCandidates(ctx context.Context, seasonID, g
 		SELECT p.id, p.name, p.position, COALESCE(p.gender, 'M'), COALESCE(p.team_id::text, ''),
 		       COALESCE(gwp.price, openp.price, 10.00)
 		FROM players p
+		JOIN teams t ON p.team_id = t.id
 		LEFT JOIN fantasy_player_prices gwp
 		       ON gwp.player_id = p.id AND gwp.season_id = $1 AND gwp.gameweek_id = $2
 		LEFT JOIN fantasy_player_prices openp
 		       ON openp.player_id = p.id AND openp.season_id = $1 AND openp.gameweek_id IS NULL
 		WHERE p.id = ANY($3)
+		  AND p.team_id IS NOT NULL
+		  AND COALESCE(t.status, 'active') = 'active'
 	`
 	rows, err := r.pool.Query(ctx, query, seasonID, gameweekID, playerIDs)
 	if err != nil {

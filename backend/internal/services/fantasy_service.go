@@ -697,7 +697,7 @@ func (s *FantasyService) SaveLineup(ctx context.Context, userID string, req dto.
 	for _, p := range req.Picks {
 		c, ok := candidates[p.PlayerID]
 		if !ok {
-			return nil, fmt.Errorf("player %s not found", p.PlayerID)
+			return nil, fmt.Errorf("player %s not found or belongs to an inactive team", p.PlayerID)
 		}
 		c.Slot = p.Slot
 		picks = append(picks, c)

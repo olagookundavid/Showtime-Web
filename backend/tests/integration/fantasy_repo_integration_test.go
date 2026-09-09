@@ -353,6 +353,45 @@ func TestFantasyRepositoryQueries(t *testing.T) {
 		}
 	})
 
+	t.Run("excludes inactive team players from player market, lineup candidates, and purchase", func(t *testing.T) {
+		inactiveClubID := mustScan(t, f.pool,
+			`INSERT INTO teams (name, short_name, status) VALUES ('Inactive Club', 'INC', 'inactive') RETURNING id`)
+		inactivePlayerID := mustScan(t, f.pool,
+			`INSERT INTO players (name, position, gender, team_id) VALUES ('Inactive Player', 'Receiver', 'F', $1) RETURNING id`,
+			inactiveClubID)
+		mustExec(t, f.pool,
+			`INSERT INTO fantasy_player_prices (season_id, player_id, gameweek_id, price) VALUES ($1, $2, NULL, 10.00)`,
+			f.seasonID, inactivePlayerID)
+		t.Cleanup(func() {
+			_, _ = f.pool.Exec(ctx, `DELETE FROM fantasy_player_prices WHERE player_id = $1`, inactivePlayerID)
+			_, _ = f.pool.Exec(ctx, `DELETE FROM players WHERE id = $1`, inactivePlayerID)
+			_, _ = f.pool.Exec(ctx, `DELETE FROM teams WHERE id = $1`, inactiveClubID)
+		})
+
+		list, _, err := repo.ListPlayerMarket(ctx, f.seasonID, []string{"Receiver"}, "", "", "", "", 1, 100)
+		if err != nil {
+			t.Fatalf("ListPlayerMarket: %v", err)
+		}
+		for _, p := range list {
+			if p.PlayerID == inactivePlayerID {
+				t.Fatalf("inactive team player %s should not appear in player market", inactivePlayerID)
+			}
+		}
+
+		candidates, err := repo.GetLineupCandidates(ctx, f.seasonID, f.gameweekID, []string{inactivePlayerID})
+		if err != nil {
+			t.Fatalf("GetLineupCandidates: %v", err)
+		}
+		if _, exists := candidates[inactivePlayerID]; exists {
+			t.Fatalf("GetLineupCandidates should not return inactive team player %s", inactivePlayerID)
+		}
+
+		squadRepo := ports.NewFantasySquadRepository(f.pool)
+		if _, _, err := squadRepo.GetMarketPlayer(ctx, f.seasonID, inactivePlayerID); err == nil {
+			t.Fatalf("GetMarketPlayer should return error for inactive team player")
+		}
+	})
+
 	t.Run("season rating lines aggregate", func(t *testing.T) {
 		lines, err := repo.GetSeasonRatingLines(ctx, f.compID)
 		if err != nil {

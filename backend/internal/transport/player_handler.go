@@ -130,6 +130,15 @@ func (h *PlayerHandler) ensureOwnsPlayer(c *gin.Context, playerID string) bool {
 }
 
 func (h *PlayerHandler) CreatePlayer(c *gin.Context) {
+	// Security & League Integrity: Player creation is reserved strictly for League Admins.
+	// Team managers must sign existing Free Agents via contracts or submit an official Transfer Request.
+	if _, ok := scopedTeamID(c); ok {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "Player creation is disabled for team managers. New players must be registered by a League Administrator. To add an athlete to your roster, issue a contract to a Free Agent or submit a Transfer Request.",
+		})
+		return
+	}
+
 	var req dto.CreatePlayerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

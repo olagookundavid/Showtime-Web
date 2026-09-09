@@ -1368,65 +1368,6 @@ export const getStatDates = async (compId?: string): Promise<string[]> => {
     return response.data.data || [];
 };
 
-// ─── Team of the Week (TOTW) ────────────────────────────────────────────────
-export interface TOTWEntry {
-    id: string;
-    competition_id: string;
-    event_day_id?: string;
-    event_day_date: string;
-    player_id: string;
-    position_group: 'QB' | 'WR' | 'DEF';
-    created_at: string;
-    player?: Player;
-}
-
-export const getTOTW = async (compId: string, eventDay: string): Promise<TOTWEntry[]> => {
-    const response = await api.get(`/totw?competition_id=${compId}&event_day=${eventDay}`);
-    return response.data.data || [];
-};
-
-export const getLatestTOTW = async (compId?: string): Promise<{ data: TOTWEntry[]; date: string }> => {
-    let url = '/totw/latest';
-    if (compId) url += `?competition_id=${compId}`;
-    const response = await api.get(url);
-    return response.data;
-};
-
-export const createTOTWEntry = async (payload: {
-    competition_id: string;
-    event_day_id?: string;
-    event_day_date: string;
-    player_id: string;
-    position_group: string;
-}) => {
-    const response = await api.post('/admin/totw', payload);
-    return response.data;
-};
-
-export const deleteTOTWEntry = async (id: string) => {
-    await api.delete(`/admin/totw/${id}`);
-};
-
-// ─── Match-Day TOTW Helpers ──────────────────────────────────────────────────
-// Returns unique match dates (YYYY-MM-DD) for a competition, sourced from
-// actual matches (not stats) to ensure data integrity for TOTW selection.
-export const getMatchDays = async (competitionId: string): Promise<string[]> => {
-    const response = await api.get(`/matches/days?competition_id=${competitionId}&limit=200`);
-    return response.data.data || [];
-};
-
-// Returns players who were on official team sheets on a specific match day.
-// This constrains TOTW selection to only players who actually played.
-export const getEligiblePlayersForMatchDay = async (
-    competitionId: string,
-    date: string
-): Promise<Player[]> => {
-    const response = await api.get(
-        `/matches/eligible-players?competition_id=${competitionId}&date=${date}&limit=200`
-    );
-    return response.data.data || [];
-};
-
 // ─── Inventory Management ─────────────────────────────────────────────────────
 
 export interface InventoryProduct {
@@ -3422,6 +3363,8 @@ export interface SquadPlayer {
     current_price: number;
     /** In this gameweek's starting fourteen. Subs score nothing until brought in. */
     starting: boolean;
+    /** False if the player's club has been deactivated or is not participating. */
+    team_active?: boolean;
     sell_price: number;
     /** Always true — the squad carries no restrictions. */
     can_sell: boolean;

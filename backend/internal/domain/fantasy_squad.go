@@ -75,6 +75,8 @@ type SquadPlayer struct {
 
 	// Starting marks the ones in the current gameweek's lineup.
 	Starting bool `json:"starting"`
+	// TeamActive is true when the player's club is active and participating.
+	TeamActive bool `json:"team_active"`
 
 	// SellPrice is what this player would fetch right now.
 	SellPrice float64 `json:"sell_price"`

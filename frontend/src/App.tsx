@@ -83,11 +83,6 @@ const AdminStore = lazy(() => import('./pages/admin/AdminStore').then(m => ({ de
 const AdminReferrals = lazy(() => import('./pages/admin/AdminReferrals').then(m => ({ default: m.AdminReferrals })));
 const AdminGiftTicket = lazy(() => import('./pages/admin/AdminGiftTicket').then(m => ({ default: m.AdminGiftTicket })));
 const AdminOrderDetail = lazy(() => import('./pages/admin/AdminOrderDetail').then(m => ({ default: m.AdminOrderDetail })));
-// Team of the Week disabled for now (likely becoming a static image like
-// Team of the Season) — routes commented out below so no TOTW API calls fire.
-// const AdminTOTW = lazy(() => import('./pages/admin/AdminTOTW').then(m => ({ default: m.AdminTOTW })));
-// const TOTWPage = lazy(() => import('./pages/stats/TOTWPage').then(m => ({ default: m.TOTWPage })));
-
 const AdminPlayerClaims = lazy(() => import('./pages/admin/AdminPlayerClaims'));
 const AdminContracts = lazy(() => import('./pages/admin/AdminContracts'));
 const AdminTransfers = lazy(() => import('./pages/admin/AdminTransfers'));
@@ -170,7 +165,6 @@ function App() {
               <Route path="/matches/:id" element={<MatchDetail />} />
               <Route path="/standings" element={<StandingsPage />} />
               <Route path="/stats" element={<StatsPage />} />
-              {/* <Route path="/team-of-the-week" element={<TOTWPage />} /> */}
               <Route path="/news" element={<NewsList />} />
               <Route path="/news/:slug" element={<NewsDetail />} />
               {/* <Route path="/gallery" element={<GalleryPage />} /> */}
@@ -264,7 +258,6 @@ function App() {
               <Route path="live-stream" element={<AdminLiveStream />} />
               <Route path="players" element={<AdminPlayers />} />
               <Route path="stats" element={<AdminStats />} />
-              {/* <Route path="totw" element={<AdminTOTW />} /> */}
               <Route path="standings" element={<AdminStandings />} />
               <Route path="tickets" element={<AdminTickets />} />
               <Route path="referrals" element={<AdminReferrals />} />

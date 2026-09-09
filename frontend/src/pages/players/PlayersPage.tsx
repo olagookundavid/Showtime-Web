@@ -33,7 +33,9 @@ export const PlayersPage = () => {
         queryKey: ['publicTeams'],
         queryFn: () => getTeams(1, 100),
     });
-    const teams: any[] = Array.isArray(teamsData?.data) ? teamsData.data : Array.isArray(teamsData) ? teamsData : [];
+    const teams: any[] = (Array.isArray(teamsData?.data) ? teamsData.data : Array.isArray(teamsData) ? teamsData : []).filter(
+        (t: any) => t.status !== 'inactive'
+    );
 
     const {
         data: infinitePlayersData,
