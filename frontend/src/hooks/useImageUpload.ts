@@ -29,6 +29,21 @@ export const useImageUpload = () => {
     setProgress(0);
 
     try {
+      // 0. iPhones save photos as HEIC/HEIF, which browser-image-compression
+      // can't decode directly (canvas/Image decoding only works reliably for
+      // JPEG/PNG/WEBP-family formats across browsers, HEIC support is
+      // effectively Safari-only). Convert it to a JPEG first with heic2any
+      // (a pure-JS/WASM decoder, so this works in every browser) — the
+      // compression step below then re-encodes that JPEG to webp as normal.
+      let sourceFile = file;
+      if (/\.hei[cf]$/i.test(file.name) || file.type === 'image/heic' || file.type === 'image/heif') {
+        setProgress(5);
+        const heic2any = (await import('heic2any')).default;
+        const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 });
+        const jpegBlob = Array.isArray(converted) ? converted[0] : converted;
+        sourceFile = new File([jpegBlob], file.name.replace(/\.hei[cf]$/i, '.jpg'), { type: 'image/jpeg' });
+      }
+
       // 1. Compress Image. Defaults keep most images light (~1MB / 1920px);
       // callers can override for full-width surfaces (e.g. hero slides) that
       // need higher-resolution output.
@@ -38,9 +53,9 @@ export const useImageUpload = () => {
         useWebWorker: true,
         fileType: 'image/webp'
       };
-      
+
       setProgress(10);
-      const compressedFile = await imageCompression(file, options);
+      const compressedFile = await imageCompression(sourceFile, options);
       setProgress(30);
 
       // 2. Get Presigned URL

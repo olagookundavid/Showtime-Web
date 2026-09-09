@@ -165,7 +165,7 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
             type="file"
             ref={fileInputRef}
             onChange={handleFileChange}
-            accept="image/*"
+            accept="image/*,.heic,.heif"
             className="hidden"
           />
           <button

@@ -151,7 +151,7 @@ export const NewsContentEditor = ({ value, onChange, rows = 10 }: NewsContentEdi
         <div className="space-y-2">
             {/* Toolbar */}
             <div className="flex flex-wrap items-center gap-2">
-                <input type="file" ref={fileInputRef} onChange={handleImagePick} accept="image/*" className="hidden" />
+                <input type="file" ref={fileInputRef} onChange={handleImagePick} accept="image/*,.heic,.heif" className="hidden" />
                 <button type="button" disabled={isUploading} onClick={() => { setPanel(null); fileInputRef.current?.click(); }} className={`${toolbarBtn} ${inactive}`}>
                     {isUploading ? `Uploading… ${progress}%` : '📷 Insert Image'}
                 </button>

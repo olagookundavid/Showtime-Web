@@ -210,7 +210,7 @@ export const ClaimStatusPage: React.FC = () => {
                                             {isUploading ? 'Uploading…' : claim.claimed_photo ? 'Replace photo' : 'Upload photo'}
                                             <input
                                                 type="file"
-                                                accept="image/*"
+                                                accept="image/*,.heic,.heif"
                                                 onChange={handlePhoto}
                                                 disabled={isUploading}
                                                 className="hidden"
