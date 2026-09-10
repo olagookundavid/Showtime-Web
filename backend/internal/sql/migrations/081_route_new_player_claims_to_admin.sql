@@ -37,14 +37,31 @@ ALTER TABLE player_claims
     ADD COLUMN IF NOT EXISTS endorsement_note TEXT NOT NULL DEFAULT '';
 
 -- +goose StatementBegin
--- Backfill. Correct for every claim still pending, which is the set that matters:
--- those are the ones whose routing changes under this migration. A NEW_PLAYER request
--- that was already approved under the old rules has its player_id filled in and will
--- be labelled ROSTER — historically inaccurate, but it only affects how a settled
--- claim is displayed, and there is no way to recover the distinction after the fact.
-UPDATE player_claims
+-- Backfill.
+--
+-- An unlinked claim is unambiguous. Claims approved under the old rules are harder,
+-- because approving a new-player request filled in player_id and erased the obvious
+-- difference — so two independent traces are used instead:
+--
+--   1. proposed_position / proposed_jersey_number are only ever submitted by the
+--      "my name is not listed" branch; a roster claim sends neither. (proposed_name is
+--      set by both branches and is no help.)
+--   2. The player row was created after the claim was — only possible if the approval
+--      is what created it. A roster claim points at a player from the historical
+--      import, which long predates any claim.
+--
+-- Either trace alone is decent; together they are hard to trip accidentally. Every one
+-- of these rows is already settled, so a misread affects how history is displayed and
+-- nothing a person can still act on.
+UPDATE player_claims pc
 SET claim_kind = 'NEW_PLAYER'
-WHERE player_id IS NULL;
+WHERE pc.player_id IS NULL
+   OR pc.proposed_jersey_number IS NOT NULL
+   OR NULLIF(TRIM(pc.proposed_position), '') IS NOT NULL
+   OR EXISTS (
+        SELECT 1 FROM players p
+        WHERE p.id = pc.player_id AND p.created_at > pc.created_at
+      );
 -- +goose StatementEnd
 
 -- Drives the manager's queue (ROSTER, plus NEW_PLAYER still awaiting endorsement) and
