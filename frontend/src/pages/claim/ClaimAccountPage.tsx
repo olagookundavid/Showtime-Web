@@ -226,7 +226,9 @@ export const ClaimAccountPage: React.FC = () => {
                             {isNotListed && (
                                 <div className="space-y-3 p-4 rounded-lg bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700">
                                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                                        Your manager will create your player record once they confirm who you are.
+                                        Because you are not on the roster, the league office decides this one, not
+                                        your team manager — your manager is asked to confirm they know you, then the
+                                        league office adds you. It usually takes a little longer than a normal claim.
                                     </p>
                                     <div>
                                         <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">

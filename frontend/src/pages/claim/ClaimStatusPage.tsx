@@ -105,6 +105,9 @@ export const ClaimStatusPage: React.FC = () => {
 
     const isPending = claim.status === 'PENDING';
     const isRejected = claim.status === 'REJECTED';
+    // Someone who was not on the roster is reviewed by the league office, not their
+    // manager. Saying "your manager" here would send them chasing the wrong person.
+    const isNewPlayerRequest = claim.claim_kind === 'NEW_PLAYER';
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-10 px-4">
@@ -122,14 +125,18 @@ export const ClaimStatusPage: React.FC = () => {
                         <div className="text-3xl mb-2">{isPending ? '⏳' : isRejected ? '✕' : '✓'}</div>
                         <h1 className="text-lg font-black text-gray-900 dark:text-white">
                             {isPending
-                                ? 'Waiting for your team manager'
+                                ? isNewPlayerRequest
+                                    ? 'Waiting for the league office'
+                                    : 'Waiting for your team manager'
                                 : isRejected
                                 ? 'Your claim was not approved'
                                 : 'Your account is approved'}
                         </h1>
                         <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
                             {isPending
-                                ? `${claim.team_name || 'Your team'}'s manager needs to confirm it is really you.`
+                                ? isNewPlayerRequest
+                                    ? `You are not on ${claim.team_name || 'the team'}'s roster yet, so the league office reviews this. Your manager is being asked to confirm they know you. This takes longer than a normal claim.`
+                                    : `${claim.team_name || 'Your team'}'s manager needs to confirm it is really you.`
                                 : isRejected
                                 ? claim.reject_reason || 'Please speak with your team manager.'
                                 : 'You now have full access to your player portal.'}

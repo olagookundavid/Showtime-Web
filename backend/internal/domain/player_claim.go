@@ -11,6 +11,20 @@ const (
 	ClaimStatusRejected = "REJECTED"
 )
 
+// What the claimant asked for, fixed at submit time. Determines which queue reviews it:
+// ROSTER goes to the team manager, NEW_PLAYER to the league office.
+const (
+	ClaimKindRoster    = "ROSTER"
+	ClaimKindNewPlayer = "NEW_PLAYER"
+)
+
+// A team manager's advisory opinion on a NEW_PLAYER request. Absent is a normal state —
+// the admin can decide without it, so an unresponsive manager cannot strand a request.
+const (
+	EndorsementEndorsed = "ENDORSED"
+	EndorsementDeclined = "DECLINED"
+)
+
 // players.claim_status. Distinct from "has a users row": a pending claimant already has
 // an account (so email uniqueness is caught at submit time) but is not yet claimed.
 const (
@@ -66,13 +80,21 @@ type PlayerClaim struct {
 	ProposedJerseyNumber *int   `json:"proposed_jersey_number,omitempty"`
 	ProposedPosition     string `json:"proposed_position,omitempty"`
 
+	Kind            string     `json:"claim_kind"`
 	Status          string     `json:"status"`
 	EmailVerifiedAt *time.Time `json:"email_verified_at,omitempty"`
 	ReviewedBy      *string    `json:"reviewed_by,omitempty"`
 	ReviewedAt      *time.Time `json:"reviewed_at,omitempty"`
 	RejectReason    string     `json:"reject_reason,omitempty"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+
+	// The team manager's advisory opinion on a NEW_PLAYER request. Never binding.
+	Endorsement     string     `json:"endorsement,omitempty"`
+	EndorsedBy      *string    `json:"endorsed_by,omitempty"`
+	EndorsedAt      *time.Time `json:"endorsed_at,omitempty"`
+	EndorsementNote string     `json:"endorsement_note,omitempty"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 
 	// Relations / joined review context
 	Player *Player `json:"player,omitempty"`
@@ -81,6 +103,54 @@ type PlayerClaim struct {
 
 // IsNewPlayerRequest reports whether this claim asks for a player to be created rather
 // than claiming an existing roster entry.
+//
+// This reads Kind, not PlayerID: approving a NEW_PLAYER request writes the newly
+// created player's id onto the claim, so PlayerID stops distinguishing the two the
+// moment a request is approved.
 func (c *PlayerClaim) IsNewPlayerRequest() bool {
-	return c == nil || c.PlayerID == nil || *c.PlayerID == ""
+	if c == nil {
+		return false
+	}
+	if c.Kind != "" {
+		return c.Kind == ClaimKindNewPlayer
+	}
+	// Defensive: a row read through a query that predates claim_kind.
+	return c.PlayerID == nil || *c.PlayerID == ""
+}
+
+// Reviewer is who is acting on a claim. IsAdmin is explicit rather than inferred from
+// an empty TeamID: "unscoped" and "administrator" happen to coincide today, and
+// routing authority off that coincidence is how privilege checks quietly rot.
+type Reviewer struct {
+	UserID  string
+	TeamID  string // the team a team_head is scoped to; empty for an admin
+	IsAdmin bool
+}
+
+// CanDecide reports whether this reviewer may approve or reject the claim outright.
+//
+// A NEW_PLAYER request is the league office's decision: there is no history to check a
+// brand-new player against, so this is not an identity judgement but a question of who
+// joins the league at all. A manager's knowledge still counts — through CanEndorse.
+func (c *PlayerClaim) CanDecide(r Reviewer) bool {
+	if c == nil {
+		return false
+	}
+	if r.IsAdmin {
+		return true
+	}
+	if c.IsNewPlayerRequest() {
+		return false
+	}
+	return r.TeamID != "" && r.TeamID == c.TeamID
+}
+
+// CanEndorse reports whether this reviewer may record an advisory opinion. Only the
+// managers of the claim's own team, and only on NEW_PLAYER requests — an admin holds
+// the decision itself and has no use for a second, weaker verb.
+func (c *PlayerClaim) CanEndorse(r Reviewer) bool {
+	if c == nil || !c.IsNewPlayerRequest() {
+		return false
+	}
+	return !r.IsAdmin && r.TeamID != "" && r.TeamID == c.TeamID
 }

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"pkg-common/helpers"
+	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/middlewares"
 	"showtime-backend/internal/ports"
@@ -28,6 +29,8 @@ type IClaimHandler interface {
 
 	// Review (team head / admin)
 	ListClaims(c *gin.Context)
+	CountMyPendingClaims(c *gin.Context)
+	EndorseClaim(c *gin.Context)
 	ApproveClaim(c *gin.Context)
 	RejectClaim(c *gin.Context)
 	RevokeClaim(c *gin.Context)
@@ -45,6 +48,25 @@ type ClaimHandler struct {
 
 func NewClaimHandler(service services.IClaimService) IClaimHandler {
 	return &ClaimHandler{service: service}
+}
+
+// claimReviewer describes who is acting on a claim. IsAdmin is read from the resolved
+// role rather than inferred from "no scoped team": those coincide today, but routing
+// authority off a coincidence is how a privilege check quietly stops being one.
+func claimReviewer(c *gin.Context) domain.Reviewer {
+	r := domain.Reviewer{TeamID: claimScopedTeamID(c)}
+	if payload, err := helpers.GetTokenPayloadFromContext(c); err == nil && payload != nil {
+		r.UserID = payload.UserId
+	}
+	if role, ok := c.Get(middlewares.UserRoleContextKey); ok {
+		roleStr, _ := role.(string)
+		r.IsAdmin = roleStr == "admin" || roleStr == "app_admin"
+	} else {
+		// The admin claim routes sit behind AdminOnlyMiddleware, which does not publish
+		// a role; reaching them at all is the proof.
+		r.IsAdmin = r.TeamID == ""
+	}
+	return r
 }
 
 // claimScopedTeamID returns the team a team_head is restricted to. An empty string
@@ -240,7 +262,14 @@ func (h *ClaimHandler) ListClaims(c *gin.Context) {
 		limit = 20
 	}
 
-	res, err := h.service.ListClaims(c.Request.Context(), teamID, status, strings.TrimSpace(c.Query("search")), page, limit)
+	res, err := h.service.ListClaims(c.Request.Context(), ports.ClaimFilter{
+		TeamID: teamID,
+		Status: status,
+		Search: strings.TrimSpace(c.Query("search")),
+		Kind:   strings.ToUpper(strings.TrimSpace(c.Query("kind"))),
+		Page:   page,
+		Limit:  limit,
+	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -266,7 +295,7 @@ func (h *ClaimHandler) ApproveClaim(c *gin.Context) {
 	var req dto.ApproveClaimRequest
 	_ = c.ShouldBindJSON(&req)
 
-	err = h.service.ApproveClaim(c.Request.Context(), c.Param("id"), payload.UserId, claimScopedTeamID(c), req)
+	err = h.service.ApproveClaim(c.Request.Context(), c.Param("id"), claimReviewer(c), req)
 	if err != nil {
 		if strings.Contains(err.Error(), "forbidden") {
 			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
@@ -297,7 +326,7 @@ func (h *ClaimHandler) RejectClaim(c *gin.Context) {
 		return
 	}
 
-	err = h.service.RejectClaim(c.Request.Context(), c.Param("id"), payload.UserId, claimScopedTeamID(c), req.Reason)
+	err = h.service.RejectClaim(c.Request.Context(), c.Param("id"), claimReviewer(c), req.Reason)
 	if err != nil {
 		if strings.Contains(err.Error(), "forbidden") {
 			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
@@ -308,6 +337,49 @@ func (h *ClaimHandler) RejectClaim(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Claim rejected."})
+}
+
+// CountMyPendingClaims godoc
+// @Summary      How many claims are the caller's own to act on
+// @Tags         claims
+// @Produce      json
+// @Router       /api/v1/team-head/claims/pending-count [get]
+func (h *ClaimHandler) CountMyPendingClaims(c *gin.Context) {
+	n, err := h.service.CountActionableForManager(c.Request.Context(), claimScopedTeamID(c))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"pending": n})
+}
+
+// EndorseClaim godoc
+// @Summary      Tell the league office whether you know someone asking to join
+// @Tags         claims
+// @Produce      json
+// @Router       /api/v1/team-head/claims/{id}/endorse [post]
+func (h *ClaimHandler) EndorseClaim(c *gin.Context) {
+	var req dto.EndorseClaimRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "say whether you vouch for this person"})
+		return
+	}
+
+	err := h.service.EndorseClaim(c.Request.Context(), c.Param("id"), claimReviewer(c), req.Endorse, req.Note)
+	if err != nil {
+		if strings.Contains(err.Error(), "forbidden") {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	msg := "Thanks — the league office has been told you vouch for this person."
+	if !req.Endorse {
+		msg = "Thanks — the league office has been told you cannot vouch for this person."
+	}
+	c.JSON(http.StatusOK, gin.H{"message": msg})
 }
 
 // RevokeClaim godoc

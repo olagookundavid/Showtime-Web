@@ -40,8 +40,10 @@ const TeamHeadLayout = () => {
     const { data: pendingClaims } = useQuery({
         queryKey: ['teamHeadPendingClaims'],
         queryFn: async () => {
-            const res = await teamHeadClaimsApi.list({ status: 'PENDING', limit: 1 });
-            return res.total || 0;
+            // Counts only what the manager can actually clear: roster claims, plus
+            // new-player requests still waiting on their endorsement. A request they
+            // have already answered belongs to the league office now.
+            return await teamHeadClaimsApi.pendingCount();
         },
         refetchOnWindowFocus: true,
     });

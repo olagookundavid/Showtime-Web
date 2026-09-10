@@ -85,28 +85,38 @@ export const TeamHeadClaims: React.FC = () => {
         }
         if (!window.confirm(confirmMsg)) return;
 
-        // For a new-player request the manager owns the roster fields, so offer a chance
-        // to correct them before the players row is created.
-        const payload: { name?: string; jersey_number?: number; position?: string } = {};
-        if (claim.is_new_player_request) {
-            const name = window.prompt('Player name (as it should appear on the roster):', claim.proposed_name || '');
-            if (name === null) return;
-            payload.name = name.trim();
-
-            const jersey = window.prompt('Jersey number:', claim.proposed_jersey_number ? String(claim.proposed_jersey_number) : '');
-            if (jersey && Number(jersey) > 0) payload.jersey_number = Number(jersey);
-
-            const position = window.prompt('Position:', claim.proposed_position || '');
-            if (position) payload.position = position.trim();
-        }
-
         setActing(claim.id);
         try {
-            await teamHeadClaimsApi.approve(claim.id, payload);
+            await teamHeadClaimsApi.approve(claim.id, {});
             toast.success(`${who} approved`);
             fetchClaims();
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Failed to approve the claim');
+        } finally {
+            setActing(null);
+        }
+    };
+
+    // A new-player request is not the manager's to decide — the league office is. What
+    // the manager has that nobody else does is knowing whether this person is real, so
+    // their part is to say so. Advisory: the admin can still decide either way.
+    const handleEndorse = async (claim: PlayerClaimData, endorse: boolean) => {
+        const who = claim.proposed_name || claim.claimed_email;
+        const note = window.prompt(
+            endorse
+                ? `Anything the league office should know about ${who}? (optional)`
+                : `Why can you not vouch for ${who}? The league office will see this.`,
+            ''
+        );
+        if (note === null) return;
+
+        setActing(claim.id);
+        try {
+            await teamHeadClaimsApi.endorse(claim.id, endorse, note.trim());
+            toast.success(endorse ? `You vouched for ${who}` : `Recorded — you cannot vouch for ${who}`);
+            fetchClaims();
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Could not record your answer');
         } finally {
             setActing(null);
         }
@@ -267,7 +277,7 @@ export const TeamHeadClaims: React.FC = () => {
                                         {claim.is_new_player_request && (
                                             <div className="mt-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-xs">
                                                 <div className="font-bold text-amber-700 dark:text-amber-400">
-                                                    Not on your roster — asking to be added
+                                                    Not on your roster — decided by the league office
                                                 </div>
                                                 <div className="mt-1 text-gray-600 dark:text-gray-300">
                                                     Proposed: {claim.proposed_name || '—'}
@@ -285,8 +295,9 @@ export const TeamHeadClaims: React.FC = () => {
                                         </div>
                                         {claim.is_new_player_request ? (
                                             <p className="text-sm text-gray-500 dark:text-gray-400">
-                                                No existing record — this player has never been on the platform.
-                                                Approving creates their roster entry and a 10-match contract.
+                                                No existing record — this person has never been on the platform, so
+                                                there is nothing here to check them against. That is why the league
+                                                office decides these, and why your word carries the weight.
                                             </p>
                                         ) : (
                                             <dl className="text-sm space-y-2">
@@ -325,7 +336,62 @@ export const TeamHeadClaims: React.FC = () => {
                                     </div>
                                 </div>
 
-                                {claim.status === 'PENDING' ? (
+                                {claim.status === 'PENDING' && claim.claim_kind === 'NEW_PLAYER' ? (
+                                    <div className="px-5 py-4 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
+                                        {claim.endorsement ? (
+                                            <div className="flex flex-wrap items-center gap-3 justify-between">
+                                                <div className="text-sm">
+                                                    <span
+                                                        className={`font-bold ${
+                                                            claim.endorsement === 'ENDORSED'
+                                                                ? 'text-green-600 dark:text-green-400'
+                                                                : 'text-red-600 dark:text-red-400'
+                                                        }`}
+                                                    >
+                                                        {claim.endorsement === 'ENDORSED'
+                                                            ? 'You vouched for this person'
+                                                            : 'You could not vouch for this person'}
+                                                    </span>
+                                                    <span className="text-gray-400"> · waiting on the league office</span>
+                                                    {claim.endorsement_note && (
+                                                        <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                            “{claim.endorsement_note}”
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <button
+                                                    onClick={() => handleEndorse(claim, claim.endorsement !== 'ENDORSED')}
+                                                    disabled={acting === claim.id}
+                                                    className="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 text-gray-700 dark:text-gray-200 text-xs font-bold rounded-lg"
+                                                >
+                                                    Change my answer
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-wrap items-center gap-3 justify-between">
+                                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                                    Do you know this person?
+                                                </p>
+                                                <div className="flex gap-3">
+                                                    <button
+                                                        onClick={() => handleEndorse(claim, false)}
+                                                        disabled={acting === claim.id}
+                                                        className="px-4 py-2 bg-red-100 hover:bg-red-200 disabled:opacity-50 text-red-600 text-sm font-bold rounded-lg"
+                                                    >
+                                                        I cannot vouch
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleEndorse(claim, true)}
+                                                        disabled={acting === claim.id}
+                                                        className="px-5 py-2 bg-sffl-red hover:bg-red-700 disabled:opacity-50 text-white text-sm font-bold rounded-lg"
+                                                    >
+                                                        {acting === claim.id ? 'Working…' : 'I vouch for them'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : claim.status === 'PENDING' ? (
                                     <div className="px-5 py-4 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 flex flex-wrap gap-3 justify-end">
                                         <button
                                             onClick={() => handleReject(claim)}

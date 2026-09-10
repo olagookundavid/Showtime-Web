@@ -2406,6 +2406,7 @@ export interface SubmitClaimData {
 export interface MyClaimStatusData {
     has_claim: boolean;
     claim_id?: string;
+    claim_kind?: ClaimKind;
     status?: 'PENDING' | 'APPROVED' | 'REJECTED';
     team_name?: string;
     player_name?: string;
@@ -2417,12 +2418,24 @@ export interface MyClaimStatusData {
     created_at?: string;
 }
 
+export type ClaimKind = 'ROSTER' | 'NEW_PLAYER';
+export type ClaimEndorsement = 'ENDORSED' | 'DECLINED';
+
 export interface PlayerClaimData {
     id: string;
     player_id?: string;
     team_id: string;
     team_name?: string;
+    // ROSTER claims are the team manager's to decide. NEW_PLAYER requests — from
+    // people not on the roster — are decided by the league office; a manager's part
+    // is to endorse or decline, which is advisory.
+    claim_kind: ClaimKind;
     status: 'PENDING' | 'APPROVED' | 'REJECTED';
+
+    endorsement?: ClaimEndorsement;
+    endorsed_by_name?: string;
+    endorsed_at?: string;
+    endorsement_note?: string;
 
     claimed_email: string;
     claimed_phone?: string;
@@ -2488,9 +2501,18 @@ export const claimApi = {
 
 // Team manager review + code management
 export const teamHeadClaimsApi = {
-    list: async (params?: { status?: string; search?: string; page?: number; limit?: number }): Promise<PaginatedResponse<PlayerClaimData>> => {
+    list: async (params?: { status?: string; search?: string; kind?: ClaimKind; page?: number; limit?: number }): Promise<PaginatedResponse<PlayerClaimData>> => {
         const res = await api.get<PaginatedResponse<PlayerClaimData>>('/team-head/claims', { params });
         return res.data;
+    },
+    // What is genuinely the manager's to act on — excludes new-player requests they
+    // have already endorsed, which now sit with the league office.
+    pendingCount: async (): Promise<number> => {
+        const res = await api.get<{ pending: number }>('/team-head/claims/pending-count');
+        return res.data.pending || 0;
+    },
+    endorse: async (id: string, endorse: boolean, note?: string): Promise<void> => {
+        await api.post(`/team-head/claims/${id}/endorse`, { endorse, note: note || '' });
     },
     approve: async (id: string, data?: { name?: string; jersey_number?: number; position?: string }): Promise<void> => {
         await api.post(`/team-head/claims/${id}/approve`, data || {});
@@ -2513,7 +2535,7 @@ export const teamHeadClaimsApi = {
 };
 
 export const adminClaimsApi = {
-    list: async (params?: { status?: string; search?: string; team_id?: string; page?: number; limit?: number }): Promise<PaginatedResponse<PlayerClaimData>> => {
+    list: async (params?: { status?: string; search?: string; team_id?: string; kind?: ClaimKind; page?: number; limit?: number }): Promise<PaginatedResponse<PlayerClaimData>> => {
         const res = await api.get<PaginatedResponse<PlayerClaimData>>('/admin/claims', { params });
         return res.data;
     },
@@ -2786,9 +2808,11 @@ export interface FantasyPlayerListItem {
 /** How the market list is ordered. Every option is applied by the server. */
 export type MarketSort =
     | ''
-    | 'rating'
+    | 'price_desc'
     | 'price_asc'
+    | 'rating'
     | 'points'
+    | 'selected'
     | 'owned'
     | 'transfers_in'
     | 'transfers_out'
@@ -3536,6 +3560,22 @@ export interface MoneyOwed {
     total_pages: number;
 }
 
+export interface AdminPlayerPriceRow {
+    player_id: string;
+    player_name: string;
+    player_image: string;
+    position: string;
+    gender: string;
+    team_id: string;
+    team_name: string;
+    team_short_name: string;
+    team_logo: string;
+    price: number;
+    calculated_price: number;
+    is_overridden: boolean;
+    rating: number;
+}
+
 export const fantasyAdminApi = {
     // Returns every season including DRAFT ones. `getActiveSeason` only ever
     // returns an ACTIVE season, so admin screens must use this or they cannot
@@ -3545,6 +3585,31 @@ export const fantasyAdminApi = {
             params: { limit: 200 },
         });
         return res.data.data || [];
+    },
+    listPlayerPrices: async (
+        seasonId: string,
+        params?: {
+            search?: string;
+            position?: string;
+            team_id?: string;
+            override_status?: 'all' | 'overridden' | 'calculated';
+            page?: number;
+            limit?: number;
+        }
+    ): Promise<Paged<AdminPlayerPriceRow>> => {
+        const res = await api.get<Paged<AdminPlayerPriceRow>>(`/admin/fantasy/seasons/${seasonId}/prices`, { params });
+        return res.data;
+    },
+    overridePlayerPrice: async (
+        seasonId: string,
+        playerId: string,
+        payload: { price?: number; reset?: boolean }
+    ): Promise<AdminPlayerPriceRow> => {
+        const res = await api.put<{ data: AdminPlayerPriceRow }>(
+            `/admin/fantasy/seasons/${seasonId}/prices/${playerId}`,
+            payload
+        );
+        return res.data.data;
     },
     // Only a DRAFT season with no squads entered can be deleted; the server
     // refuses anything already launched.

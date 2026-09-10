@@ -23,6 +23,13 @@ import (
 // which team codes exist.
 var ErrInvalidClaimCode = errors.New("that code is not valid. Please check with your team manager")
 
+// errNewPlayerIsAdminsCall is returned when a team manager tries to approve or reject a
+// request from someone who is not on the roster. Managers endorse these; the league
+// office decides them. Phrased so the manager learns what to do instead of just being
+// refused.
+var errNewPlayerIsAdminsCall = errors.New(
+	"requests from players who are not on the roster are decided by the league office — you can endorse this request to tell them you know this person")
+
 const (
 	claimCodeLength      = 8
 	claimCodeDefaultDays = 30
@@ -48,9 +55,11 @@ type IClaimService interface {
 	ResendVerification(ctx context.Context, userID string) error
 
 	// Review
-	ListClaims(ctx context.Context, teamID, status, search string, page, limit int) (dto.PaginatedResult[dto.PlayerClaimResponse], error)
-	ApproveClaim(ctx context.Context, claimID, reviewerUserID, scopedTeamID string, req dto.ApproveClaimRequest) error
-	RejectClaim(ctx context.Context, claimID, reviewerUserID, scopedTeamID, reason string) error
+	ListClaims(ctx context.Context, f ports.ClaimFilter) (dto.PaginatedResult[dto.PlayerClaimResponse], error)
+	CountActionableForManager(ctx context.Context, teamID string) (int, error)
+	ApproveClaim(ctx context.Context, claimID string, r domain.Reviewer, req dto.ApproveClaimRequest) error
+	RejectClaim(ctx context.Context, claimID string, r domain.Reviewer, reason string) error
+	EndorseClaim(ctx context.Context, claimID string, r domain.Reviewer, endorse bool, note string) error
 	RevokeClaim(ctx context.Context, claimID string) error
 }
 
@@ -281,7 +290,12 @@ func (s *ClaimService) SubmitClaim(ctx context.Context, req dto.SubmitClaimReque
 		ProposedJerseyNumber: req.ProposedJerseyNumber,
 		ProposedPosition:     strings.TrimSpace(req.ProposedPosition),
 	}
-	if !isNewPlayerRequest {
+	// Fixed at submit time and never recalculated. Approving a NEW_PLAYER request
+	// fills in PlayerID, after which the two kinds would look identical.
+	claim.Kind = domain.ClaimKindRoster
+	if isNewPlayerRequest {
+		claim.Kind = domain.ClaimKindNewPlayer
+	} else {
 		pid := strings.TrimSpace(req.PlayerID)
 		claim.PlayerID = &pid
 	}
@@ -392,8 +406,17 @@ func (s *ClaimService) notifyManagersOfNewClaim(ctx context.Context, claim *doma
 	if who == "" {
 		who = claim.ClaimedEmail
 	}
+
+	// A new-player request asks the manager for their word, not their decision — the
+	// league office decides those. Saying "approve or reject" here would send them
+	// looking for buttons they do not have.
 	title := "New player account claim"
 	msg := fmt.Sprintf("%s submitted a claim for a player account. Review it to approve or reject.", who)
+	if claim.IsNewPlayerRequest() {
+		title = "Someone is asking to join your squad"
+		msg = fmt.Sprintf("%s is not on your roster and is asking to join. Do you know this person? "+
+			"Your answer goes to the league office, who make the final decision.", who)
+	}
 	refID := claim.ID
 
 	for _, m := range managers {
@@ -432,6 +455,7 @@ func (s *ClaimService) GetMyClaim(ctx context.Context, userID string) (*dto.MyCl
 	res := &dto.MyClaimStatusResponse{
 		HasClaim:      true,
 		ClaimID:       claim.ID,
+		ClaimKind:     claim.Kind,
 		Status:        claim.Status,
 		ClaimedEmail:  claim.ClaimedEmail,
 		ClaimedPhone:  claim.ClaimedPhone,
@@ -475,8 +499,8 @@ func (s *ClaimService) ResendVerification(ctx context.Context, userID string) er
 
 // --- Review ---
 
-func (s *ClaimService) ListClaims(ctx context.Context, teamID, status, search string, page, limit int) (dto.PaginatedResult[dto.PlayerClaimResponse], error) {
-	claims, total, err := s.repo.ListClaims(ctx, teamID, status, search, page, limit)
+func (s *ClaimService) ListClaims(ctx context.Context, f ports.ClaimFilter) (dto.PaginatedResult[dto.PlayerClaimResponse], error) {
+	claims, total, err := s.repo.ListClaims(ctx, f)
 	if err != nil {
 		return dto.PaginatedResult[dto.PlayerClaimResponse]{}, err
 	}
@@ -488,7 +512,10 @@ func (s *ClaimService) ListClaims(ctx context.Context, teamID, status, search st
 			ID:                   c.ID,
 			PlayerID:             c.PlayerID,
 			TeamID:               c.TeamID,
+			ClaimKind:            c.Kind,
 			Status:               c.Status,
+			Endorsement:          c.Endorsement,
+			EndorsementNote:      c.EndorsementNote,
 			ClaimedEmail:         c.ClaimedEmail,
 			ClaimedPhone:         c.ClaimedPhone,
 			ClaimedPhoto:         c.ClaimedPhoto,
@@ -514,6 +541,10 @@ func (s *ClaimService) ListClaims(ctx context.Context, teamID, status, search st
 			t := c.ReviewedAt.Format(time.RFC3339)
 			res.ReviewedAt = &t
 		}
+		if c.EndorsedAt != nil {
+			t := c.EndorsedAt.Format(time.RFC3339)
+			res.EndorsedAt = &t
+		}
 		// The historical record is what makes review possible: a claimant can invent an
 		// email, but not a season of appearances.
 		if c.PlayerID != nil {
@@ -526,22 +557,57 @@ func (s *ClaimService) ListClaims(ctx context.Context, teamID, status, search st
 	}
 
 	totalPages := 0
-	if limit > 0 {
-		totalPages = (int(total) + limit - 1) / limit
+	if f.Limit > 0 {
+		totalPages = (int(total) + f.Limit - 1) / f.Limit
 	}
 
 	return dto.PaginatedResult[dto.PlayerClaimResponse]{
 		Data:       out,
 		Total:      int(total),
-		Page:       page,
-		Limit:      limit,
+		Page:       f.Page,
+		Limit:      f.Limit,
 		TotalPages: totalPages,
 	}, nil
 }
 
-// assertReviewable rejects an attempt by one team's manager to act on another team's
-// claim. scopedTeamID is empty for admins, who may review anything.
-func (s *ClaimService) assertReviewable(ctx context.Context, claimID, scopedTeamID string) (*domain.PlayerClaim, error) {
+// CountActionableForManager is what the manager's nav badge shows: the claims that are
+// genuinely theirs to move. Roster claims awaiting review, plus new-player requests
+// still waiting on their endorsement — not new-player requests they have already
+// answered, which now sit with the league office and would otherwise leave a badge the
+// manager cannot clear.
+func (s *ClaimService) CountActionableForManager(ctx context.Context, teamID string) (int, error) {
+	if teamID == "" {
+		return 0, nil
+	}
+
+	_, roster, err := s.repo.ListClaims(ctx, ports.ClaimFilter{
+		TeamID: teamID,
+		Status: domain.ClaimStatusPending,
+		Kind:   domain.ClaimKindRoster,
+		Page:   1, Limit: 1,
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	_, awaiting, err := s.repo.ListClaims(ctx, ports.ClaimFilter{
+		TeamID:                  teamID,
+		Status:                  domain.ClaimStatusPending,
+		AwaitingEndorsementOnly: true,
+		Page:                    1, Limit: 1,
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	return int(roster + awaiting), nil
+}
+
+// loadForReview fetches a claim and checks the reviewer is entitled to act on it at all
+// — the shared precondition for approving, rejecting and endorsing. What each verb is
+// then allowed to do is decided by the caller through domain.PlayerClaim's CanDecide /
+// CanEndorse, so the routing rule lives in one place rather than being restated here.
+func (s *ClaimService) loadForReview(ctx context.Context, claimID string, r domain.Reviewer) (*domain.PlayerClaim, error) {
 	claim, err := s.repo.GetClaimByID(ctx, claimID)
 	if err != nil {
 		return nil, err
@@ -549,16 +615,90 @@ func (s *ClaimService) assertReviewable(ctx context.Context, claimID, scopedTeam
 	if claim == nil {
 		return nil, errors.New("claim not found")
 	}
-	if scopedTeamID != "" && claim.TeamID != scopedTeamID {
+	if !r.IsAdmin && (r.TeamID == "" || claim.TeamID != r.TeamID) {
 		return nil, errors.New("forbidden: this claim does not belong to your team")
 	}
 	return claim, nil
 }
 
-func (s *ClaimService) ApproveClaim(ctx context.Context, claimID, reviewerUserID, scopedTeamID string, req dto.ApproveClaimRequest) error {
-	claim, err := s.assertReviewable(ctx, claimID, scopedTeamID)
+// EndorseClaim records a manager's advisory opinion on a new-player request.
+//
+// This is deliberately not a decision. The request stays pending and the league office
+// still approves or rejects it — but the admin has no way to recognise a brand-new
+// player, so without the manager's word they would be deciding on a name and a photo
+// alone. A manager may change their endorsement while the request is still pending.
+func (s *ClaimService) EndorseClaim(ctx context.Context, claimID string, r domain.Reviewer, endorse bool, note string) error {
+	claim, err := s.loadForReview(ctx, claimID, r)
 	if err != nil {
 		return err
+	}
+	if !claim.CanEndorse(r) {
+		if !claim.IsNewPlayerRequest() {
+			return errors.New("only new-player requests are endorsed; approve or reject this claim instead")
+		}
+		return errors.New("forbidden: only this team's manager can endorse a new-player request")
+	}
+
+	decision := domain.EndorsementDeclined
+	if endorse {
+		decision = domain.EndorsementEndorsed
+	}
+	note = strings.TrimSpace(note)
+
+	if err := s.repo.EndorseClaim(ctx, claimID, r.UserID, decision, note); err != nil {
+		return err
+	}
+
+	s.notifyAdminsOfEndorsement(ctx, claim, decision, note)
+	return nil
+}
+
+// notifyAdminsOfEndorsement is the "ready for your decision" signal. Admins are not
+// notified when a request is first submitted — that one is addressed to the manager,
+// and pushing it to the league office too would mean two people are prompted for one
+// action. Un-endorsed requests are still visible in the admin queue, so an unresponsive
+// manager delays the nudge but never hides the request.
+func (s *ClaimService) notifyAdminsOfEndorsement(ctx context.Context, claim *domain.PlayerClaim, decision, note string) {
+	if s.notifService == nil {
+		return
+	}
+	admins, err := s.repo.ListAdminUserIDs(ctx)
+	if err != nil {
+		return
+	}
+
+	who := firstNonEmptyString(claim.ProposedName, claim.ClaimedEmail)
+	teamName := ""
+	if claim.Team != nil {
+		teamName = claim.Team.Name
+	} else if t, _ := s.repo.GetTeamByID(ctx, claim.TeamID); t != nil {
+		teamName = t.Name
+	}
+
+	verb := "vouched for"
+	if decision == domain.EndorsementDeclined {
+		verb = "declined to vouch for"
+	}
+	msg := fmt.Sprintf("%s's manager %s %s, who is asking to join the league. Your decision is needed.",
+		teamName, verb, who)
+	if note != "" {
+		msg += fmt.Sprintf(" Manager's note: %s", note)
+	}
+
+	refID := claim.ID
+	for _, adminID := range admins {
+		_ = s.notifService.Send(ctx, adminID, "PLAYER_CLAIM_ENDORSED",
+			"New player request ready for review", msg, "player_claim", &refID)
+	}
+}
+
+func (s *ClaimService) ApproveClaim(ctx context.Context, claimID string, r domain.Reviewer, req dto.ApproveClaimRequest) error {
+	claim, err := s.loadForReview(ctx, claimID, r)
+	if err != nil {
+		return err
+	}
+	if !claim.CanDecide(r) {
+		return errNewPlayerIsAdminsCall
 	}
 
 	override := domain.Player{
@@ -569,7 +709,7 @@ func (s *ClaimService) ApproveClaim(ctx context.Context, claimID, reviewerUserID
 		override.JerseyNumber = *req.JerseyNumber
 	}
 
-	playerID, createdNew, err := s.repo.ApproveClaim(ctx, claimID, reviewerUserID, override)
+	playerID, createdNew, err := s.repo.ApproveClaim(ctx, claimID, r.UserID, override)
 	if err != nil {
 		return err
 	}
@@ -578,51 +718,67 @@ func (s *ClaimService) ApproveClaim(ctx context.Context, claimID, reviewerUserID
 	// invisible to the team-sheet dropdowns, which key off an active contract. Existing
 	// players already hold one from the historical import.
 	if createdNew && s.contractService != nil {
-		if err := s.contractService.ProvisionInitialContract(ctx, playerID, claim.TeamID, reviewerUserID, nil); err != nil {
+		if err := s.contractService.ProvisionInitialContract(ctx, playerID, claim.TeamID, r.UserID, nil); err != nil {
 			fmt.Printf("claim %s: player %s approved but initial contract could not be issued: %v\n", claimID, playerID, err)
 		}
+	}
+
+	// Name the body that actually decided, so the claimant can tell who to ask about it.
+	decider := "Your team manager"
+	if claim.IsNewPlayerRequest() {
+		decider = "The league office"
 	}
 
 	if claim.UserID != nil && s.notifService != nil {
 		refID := claimID
 		_ = s.notifService.Send(ctx, *claim.UserID, "PLAYER_CLAIM_APPROVED", "Your account is approved",
-			"Your team manager approved your claim. You now have full access to your player portal.",
+			fmt.Sprintf("%s approved your claim. You now have full access to your player portal.", decider),
 			"player_claim", &refID)
 	}
 	if s.emailService != nil {
 		_ = s.emailService.SendEmail(claim.ClaimedEmail, "Your Showtime player account is approved",
-			`<p>Good news — your team manager approved your claim.</p>
-			 <p>You can now sign in and access your player portal.</p>`)
+			fmt.Sprintf(`<p>Good news — %s approved your claim.</p>
+			 <p>You can now sign in and access your player portal.</p>`, strings.ToLower(decider)))
 	}
 
 	return nil
 }
 
-func (s *ClaimService) RejectClaim(ctx context.Context, claimID, reviewerUserID, scopedTeamID, reason string) error {
-	claim, err := s.assertReviewable(ctx, claimID, scopedTeamID)
+func (s *ClaimService) RejectClaim(ctx context.Context, claimID string, r domain.Reviewer, reason string) error {
+	claim, err := s.loadForReview(ctx, claimID, r)
 	if err != nil {
 		return err
+	}
+	if !claim.CanDecide(r) {
+		return errNewPlayerIsAdminsCall
 	}
 	reason = strings.TrimSpace(reason)
 	if reason == "" {
 		return errors.New("a reason is required so the claimant knows what to correct")
 	}
 
-	if err := s.repo.RejectClaim(ctx, claimID, reviewerUserID, reason); err != nil {
+	if err := s.repo.RejectClaim(ctx, claimID, r.UserID, reason); err != nil {
 		return err
+	}
+
+	decider := "Your team manager"
+	whoToAsk := "your team manager"
+	if claim.IsNewPlayerRequest() {
+		decider = "The league office"
+		whoToAsk = "your team manager, who can raise it with the league office"
 	}
 
 	if claim.UserID != nil && s.notifService != nil {
 		refID := claimID
 		_ = s.notifService.Send(ctx, *claim.UserID, "PLAYER_CLAIM_REJECTED", "Your claim was not approved",
-			fmt.Sprintf("Your team manager did not approve your claim. Reason: %s", reason),
+			fmt.Sprintf("%s did not approve your claim. Reason: %s", decider, reason),
 			"player_claim", &refID)
 	}
 	if s.emailService != nil {
 		_ = s.emailService.SendEmail(claim.ClaimedEmail, "About your Showtime account claim",
-			fmt.Sprintf(`<p>Your team manager was unable to approve your claim.</p>
+			fmt.Sprintf(`<p>%s was unable to approve your claim.</p>
 			 <p><strong>Reason:</strong> %s</p>
-			 <p>Please speak with your team manager if you believe this was a mistake.</p>`, reason))
+			 <p>Please speak with %s if you believe this was a mistake.</p>`, decider, reason, whoToAsk))
 	}
 
 	return nil

@@ -87,7 +87,10 @@ type PlayerClaimResponse struct {
 	PlayerID *string `json:"player_id,omitempty"`
 	TeamID   string  `json:"team_id"`
 	TeamName string  `json:"team_name,omitempty"`
-	Status   string  `json:"status"`
+	// ROSTER or NEW_PLAYER — which queue owns this claim. The frontend uses it to
+	// decide whether to offer approve/reject or endorse/decline.
+	ClaimKind string `json:"claim_kind"`
+	Status    string `json:"status"`
 
 	// Submitted by the claimant
 	ClaimedEmail  string `json:"claimed_email"`
@@ -109,10 +112,24 @@ type PlayerClaimResponse struct {
 	PastTeams          []string `json:"past_teams,omitempty"`
 	MatchesPlayed      int      `json:"matches_played"`
 
+	// The team manager's advisory opinion on a NEW_PLAYER request. Empty means not yet
+	// given, which is a normal state — the league office can still decide without it.
+	Endorsement     string  `json:"endorsement,omitempty"`
+	EndorsedByName  string  `json:"endorsed_by_name,omitempty"`
+	EndorsedAt      *string `json:"endorsed_at,omitempty"`
+	EndorsementNote string  `json:"endorsement_note,omitempty"`
+
 	RejectReason string  `json:"reject_reason,omitempty"`
 	ReviewedBy   *string `json:"reviewed_by,omitempty"`
 	ReviewedAt   *string `json:"reviewed_at,omitempty"`
 	CreatedAt    string  `json:"created_at"`
+}
+
+// EndorseClaimRequest is a manager telling the league office whether they know the
+// person asking to join. Never a decision on its own.
+type EndorseClaimRequest struct {
+	Endorse bool   `json:"endorse"`
+	Note    string `json:"note"`
 }
 
 // ApproveClaimRequest lets the manager correct the roster fields at approval time. For
@@ -132,6 +149,7 @@ type RejectClaimRequest struct {
 type MyClaimStatusResponse struct {
 	HasClaim      bool   `json:"has_claim"`
 	ClaimID       string `json:"claim_id,omitempty"`
+	ClaimKind     string `json:"claim_kind,omitempty"`
 	Status        string `json:"status,omitempty"`
 	TeamName      string `json:"team_name,omitempty"`
 	PlayerName    string `json:"player_name,omitempty"`

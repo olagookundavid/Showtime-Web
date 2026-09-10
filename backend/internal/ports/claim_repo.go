@@ -18,6 +18,24 @@ import (
 // insert, i.e. somebody else claimed this player first. Callers turn it into a 409.
 var ErrClaimConflict = errors.New("this player has already been claimed")
 
+// ClaimFilter narrows a claim listing. It is a struct rather than a growing parameter
+// list because the two review queues slice the same table differently: a manager wants
+// their own team's roster claims plus new-player requests still awaiting their
+// endorsement, while the league office wants new-player requests across every team.
+type ClaimFilter struct {
+	TeamID string
+	Status string
+	Search string
+	Kind   string // domain.ClaimKind*; empty means both
+
+	// AwaitingEndorsementOnly restricts to NEW_PLAYER requests no manager has yet
+	// given an opinion on.
+	AwaitingEndorsementOnly bool
+
+	Page  int
+	Limit int
+}
+
 type IClaimRepository interface {
 	// Codes
 	CreateClaimCode(ctx context.Context, c *domain.TeamClaimCode) error
@@ -42,9 +60,11 @@ type IClaimRepository interface {
 
 	// Review
 	GetClaimByID(ctx context.Context, id string) (*domain.PlayerClaim, error)
-	ListClaims(ctx context.Context, teamID, status, search string, page, limit int) ([]domain.PlayerClaim, int64, error)
+	ListClaims(ctx context.Context, f ClaimFilter) ([]domain.PlayerClaim, int64, error)
 	GetClaimReviewContext(ctx context.Context, playerID string) (pastTeams []string, matchesPlayed int, err error)
 	ApproveClaim(ctx context.Context, claimID, reviewerID string, override domain.Player) (playerID string, createdNewPlayer bool, err error)
+	EndorseClaim(ctx context.Context, claimID, endorserID, endorsement, note string) error
+	ListAdminUserIDs(ctx context.Context) ([]string, error)
 	RejectClaim(ctx context.Context, claimID, reviewerID, reason string) error
 	RevokeApprovedClaim(ctx context.Context, claimID string) error
 }
@@ -260,17 +280,17 @@ func (r *PostgresClaimRepository) CreateClaimWithAccount(ctx context.Context, cl
 		INSERT INTO player_claims (
 			player_id, team_id, user_id, code_id, claimed_email, claimed_phone,
 			proposed_name, proposed_jersey_number, proposed_position,
-			status, verify_token_hash, verify_token_expires
+			claim_kind, status, verify_token_hash, verify_token_expires
 		) VALUES (
 			NULLIF($1::text, '')::uuid, $2, $3, NULLIF($4::text, '')::uuid, $5, $6,
-			$7, $8, $9, $10, $11, $12
+			$7, $8, $9, $10, $11, $12, $13
 		)
 		RETURNING id, created_at, updated_at
 	`,
 		derefString(claim.PlayerID), claim.TeamID, userID, derefString(claim.CodeID),
 		claim.ClaimedEmail, claim.ClaimedPhone,
 		claim.ProposedName, claim.ProposedJerseyNumber, claim.ProposedPosition,
-		domain.ClaimStatusPending, nil, nil,
+		claim.Kind, domain.ClaimStatusPending, nil, nil,
 	).Scan(&claim.ID, &claim.CreatedAt, &claim.UpdatedAt)
 	if err != nil {
 		if strings.Contains(err.Error(), "idx_player_claims_one_open_per_player") {
@@ -323,15 +343,19 @@ func (r *PostgresClaimRepository) MarkClaimEmailVerified(ctx context.Context, cl
 
 const claimColumns = `
 	id, player_id, team_id, user_id, code_id, claimed_email, claimed_phone, claimed_photo,
-	proposed_name, proposed_jersey_number, proposed_position, status, email_verified_at,
-	reviewed_by, reviewed_at, reject_reason, created_at, updated_at`
+	proposed_name, proposed_jersey_number, proposed_position, claim_kind, status, email_verified_at,
+	reviewed_by, reviewed_at, reject_reason,
+	COALESCE(endorsement, ''), endorsed_by, endorsed_at, endorsement_note,
+	created_at, updated_at`
 
 func scanClaim(row pgx.Row) (*domain.PlayerClaim, error) {
 	var c domain.PlayerClaim
 	err := row.Scan(
 		&c.ID, &c.PlayerID, &c.TeamID, &c.UserID, &c.CodeID, &c.ClaimedEmail, &c.ClaimedPhone, &c.ClaimedPhoto,
-		&c.ProposedName, &c.ProposedJerseyNumber, &c.ProposedPosition, &c.Status, &c.EmailVerifiedAt,
-		&c.ReviewedBy, &c.ReviewedAt, &c.RejectReason, &c.CreatedAt, &c.UpdatedAt,
+		&c.ProposedName, &c.ProposedJerseyNumber, &c.ProposedPosition, &c.Kind, &c.Status, &c.EmailVerifiedAt,
+		&c.ReviewedBy, &c.ReviewedAt, &c.RejectReason,
+		&c.Endorsement, &c.EndorsedBy, &c.EndorsedAt, &c.EndorsementNote,
+		&c.CreatedAt, &c.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -377,7 +401,8 @@ func (r *PostgresClaimRepository) GetClaimByID(ctx context.Context, id string) (
 // ListClaims returns claims with the player and team context the review screen needs.
 // Verified claims sort first: email verification does not prove identity, but it is a
 // useful signal and a cheap spam filter, so the manager sees those at the top.
-func (r *PostgresClaimRepository) ListClaims(ctx context.Context, teamID, status, search string, page, limit int) ([]domain.PlayerClaim, int64, error) {
+func (r *PostgresClaimRepository) ListClaims(ctx context.Context, f ClaimFilter) ([]domain.PlayerClaim, int64, error) {
+	teamID, status, search, page, limit := f.TeamID, f.Status, f.Search, f.Page, f.Limit
 	where := ` WHERE 1=1`
 	args := []any{}
 	n := 1
@@ -397,6 +422,17 @@ func (r *PostgresClaimRepository) ListClaims(ctx context.Context, teamID, status
 			` OR pc.claimed_email ILIKE $` + strconv.Itoa(n) + `)`
 		args = append(args, "%"+search+"%")
 		n++
+	}
+	if f.Kind != "" {
+		where += ` AND pc.claim_kind = $` + strconv.Itoa(n)
+		args = append(args, f.Kind)
+		n++
+	}
+	// Drives the manager's badge: what is actually theirs to act on. A NEW_PLAYER
+	// request they have already endorsed is out of their hands, and counting it would
+	// leave a number they cannot clear.
+	if f.AwaitingEndorsementOnly {
+		where += ` AND pc.claim_kind = '` + domain.ClaimKindNewPlayer + `' AND pc.endorsement IS NULL`
 	}
 
 	var total int64
@@ -437,8 +473,10 @@ func (r *PostgresClaimRepository) ListClaims(ctx context.Context, teamID, status
 		var pJersey int
 		err := rows.Scan(
 			&c.ID, &c.PlayerID, &c.TeamID, &c.UserID, &c.CodeID, &c.ClaimedEmail, &c.ClaimedPhone, &c.ClaimedPhoto,
-			&c.ProposedName, &c.ProposedJerseyNumber, &c.ProposedPosition, &c.Status, &c.EmailVerifiedAt,
-			&c.ReviewedBy, &c.ReviewedAt, &c.RejectReason, &c.CreatedAt, &c.UpdatedAt,
+			&c.ProposedName, &c.ProposedJerseyNumber, &c.ProposedPosition, &c.Kind, &c.Status, &c.EmailVerifiedAt,
+			&c.ReviewedBy, &c.ReviewedAt, &c.RejectReason,
+			&c.Endorsement, &c.EndorsedBy, &c.EndorsedAt, &c.EndorsementNote,
+			&c.CreatedAt, &c.UpdatedAt,
 			&pName, &pJersey, &pPosition, &pImage, &teamName,
 		)
 		if err != nil {
@@ -455,8 +493,10 @@ func (r *PostgresClaimRepository) ListClaims(ctx context.Context, teamID, status
 
 const claimColumnsPrefixed = `
 	pc.id, pc.player_id, pc.team_id, pc.user_id, pc.code_id, pc.claimed_email, pc.claimed_phone, pc.claimed_photo,
-	pc.proposed_name, pc.proposed_jersey_number, pc.proposed_position, pc.status, pc.email_verified_at,
-	pc.reviewed_by, pc.reviewed_at, pc.reject_reason, pc.created_at, pc.updated_at`
+	pc.proposed_name, pc.proposed_jersey_number, pc.proposed_position, pc.claim_kind, pc.status, pc.email_verified_at,
+	pc.reviewed_by, pc.reviewed_at, pc.reject_reason,
+	COALESCE(pc.endorsement, ''), pc.endorsed_by, pc.endorsed_at, pc.endorsement_note,
+	pc.created_at, pc.updated_at`
 
 // GetClaimReviewContext returns the historical facts a manager cross-checks a claim
 // against: which teams this player has appeared for, and how many finished matches they
@@ -620,6 +660,52 @@ func (r *PostgresClaimRepository) ApproveClaim(ctx context.Context, claimID, rev
 // RejectClaim marks the claim rejected and returns the player to the dropdown. The
 // players row itself is never touched: a rejection is a statement about the claimant,
 // not about the player.
+// ListAdminUserIDs returns the accounts that decide NEW_PLAYER requests, so they can be
+// notified when one is ready. app_admin is included because it is the superuser and can
+// act on anything a plain admin can.
+func (r *PostgresClaimRepository) ListAdminUserIDs(ctx context.Context) ([]string, error) {
+	rows, err := r.db.Query(ctx, `SELECT id FROM users WHERE role IN ('admin', 'app_admin')`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+// EndorseClaim records a team manager's advisory opinion on a NEW_PLAYER request.
+//
+// It deliberately does not touch status: endorsing is not deciding. The claim stays
+// PENDING and the league office still has to approve or reject it. An endorsement can
+// be changed while the claim is pending — a manager who vouches for someone and then
+// learns otherwise must be able to say so before the admin acts.
+func (r *PostgresClaimRepository) EndorseClaim(ctx context.Context, claimID, endorserID, endorsement, note string) error {
+	tag, err := r.db.Exec(ctx, `
+		UPDATE player_claims
+		SET endorsement      = $1,
+		    endorsed_by      = NULLIF($2::text, '')::uuid,
+		    endorsed_at      = NOW(),
+		    endorsement_note = $3,
+		    updated_at       = NOW()
+		WHERE id = $4 AND status = $5 AND claim_kind = $6
+	`, endorsement, endorserID, note, claimID, domain.ClaimStatusPending, domain.ClaimKindNewPlayer)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return errors.New("this request is no longer awaiting review")
+	}
+	return nil
+}
+
 func (r *PostgresClaimRepository) RejectClaim(ctx context.Context, claimID, reviewerID, reason string) error {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {

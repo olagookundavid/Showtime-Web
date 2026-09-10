@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { adminClaimsApi, type ClaimCodeData, type PlayerClaimData } from '../../services/api';
+import { adminClaimsApi, type ClaimCodeData, type ClaimKind, type PlayerClaimData } from '../../services/api';
 
 /**
  * Cross-team oversight of the player account claim flow.
@@ -14,6 +14,9 @@ export const AdminPlayerClaims: React.FC = () => {
     const [claims, setClaims] = useState<PlayerClaimData[]>([]);
     const [codes, setCodes] = useState<ClaimCodeData[]>([]);
     const [status, setStatus] = useState<string>('PENDING');
+    // New-player requests are the league office's own queue rather than oversight of
+    // someone else's, so they get their own view instead of being mixed in.
+    const [kind, setKind] = useState<'' | ClaimKind>('NEW_PLAYER');
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(true);
     const [acting, setActing] = useState<string | null>(null);
@@ -25,6 +28,7 @@ export const AdminPlayerClaims: React.FC = () => {
             const res = await adminClaimsApi.list({
                 status: status || 'ALL',
                 search: search || undefined,
+                kind: kind || undefined,
                 limit: 100,
             });
             setClaims(res.data || []);
@@ -45,7 +49,7 @@ export const AdminPlayerClaims: React.FC = () => {
 
     useEffect(() => {
         fetchClaims();
-    }, [status]);
+    }, [status, kind]);
 
     useEffect(() => {
         if (showCodes) fetchCodes();
@@ -179,6 +183,34 @@ export const AdminPlayerClaims: React.FC = () => {
                 </div>
             )}
 
+            <div className="flex border-b border-gray-200 dark:border-gray-700">
+                {([
+                    ['NEW_PLAYER', 'New player requests'],
+                    ['ROSTER', 'Roster claims'],
+                    ['', 'Everything'],
+                ] as const).map(([k, label]) => (
+                    <button
+                        key={k || 'all'}
+                        onClick={() => setKind(k as '' | ClaimKind)}
+                        className={`py-3 px-6 text-sm font-bold border-b-2 transition-colors ${
+                            kind === k
+                                ? 'border-sffl-red text-sffl-red'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                        }`}
+                    >
+                        {label}
+                    </button>
+                ))}
+            </div>
+
+            {kind === 'NEW_PLAYER' && (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                    These are people not on any roster asking to join the league. Nobody else can
+                    approve them. There is no match history to check them against, so the team
+                    manager's endorsement is the only outside evidence you have.
+                </p>
+            )}
+
             <div className="flex flex-wrap gap-3">
                 <select
                     value={status}
@@ -250,10 +282,28 @@ export const AdminPlayerClaims: React.FC = () => {
                                         </td>
                                         <td className="p-4 text-gray-600 dark:text-gray-300">{c.team_name || '—'}</td>
                                         <td className="p-4 text-gray-600 dark:text-gray-300">
-                                            {c.is_new_player_request ? (
-                                                <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
-                                                    New player request
-                                                </span>
+                                            {c.claim_kind === 'NEW_PLAYER' ? (
+                                                <div className="text-xs">
+                                                    {c.endorsement === 'ENDORSED' ? (
+                                                        <span className="font-bold text-green-600 dark:text-green-400">
+                                                            Manager vouches for them
+                                                        </span>
+                                                    ) : c.endorsement === 'DECLINED' ? (
+                                                        <span className="font-bold text-red-600 dark:text-red-400">
+                                                            Manager cannot vouch
+                                                        </span>
+                                                    ) : (
+                                                        <span className="font-bold text-amber-600 dark:text-amber-400">
+                                                            Awaiting manager's word
+                                                        </span>
+                                                    )}
+                                                    {c.endorsement_note && (
+                                                        <div className="mt-0.5 text-gray-500 dark:text-gray-400 max-w-xs truncate"
+                                                             title={c.endorsement_note}>
+                                                            “{c.endorsement_note}”
+                                                        </div>
+                                                    )}
+                                                </div>
                                             ) : (
                                                 <span className="text-xs">
                                                     {c.matches_played} match{c.matches_played === 1 ? '' : 'es'}
