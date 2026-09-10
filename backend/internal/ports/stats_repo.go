@@ -341,14 +341,13 @@ func statsOrderClause(sortBy, nameExpr string, allowApps bool) string {
 func (r *PostgresStatsRepository) GetPlayerStats(ctx context.Context, filter domain.StatsFilter) ([]domain.AggregatedPlayerStat, int, error) {
 	whereClause, args := buildStatsWhereClause(filter)
 
-	// Get total count. Must mirror the result query's GROUP BY
-	// (player_id, team_id): a player whose stats span two teams produces two
-	// result rows, so counting distinct player_id alone would undercount.
+	// When viewing league-wide stats (no specific team filter), each player appears
+	// exactly once with all career/competition stats folded together and attributed
+	// to their latest club. If filtering by a specific team, count players for that team.
 	countQuery := fmt.Sprintf(`
-		SELECT COUNT(DISTINCT (ps.player_id, ps.team_id))
+		SELECT COUNT(DISTINCT ps.player_id)
 		FROM player_stats ps
 		JOIN players p ON ps.player_id = p.id
-		JOIN teams t ON ps.team_id = t.id
 		%s
 	`, whereClause)
 
@@ -364,6 +363,13 @@ func (r *PostgresStatsRepository) GetPlayerStats(ctx context.Context, filter dom
 		limitOffset = fmt.Sprintf(" LIMIT %d OFFSET %d", filter.Limit, (filter.Page-1)*filter.Limit)
 	}
 
+	teamJoinExpr := "COALESCE(p.team_id, (SELECT ps_sub.team_id FROM player_stats ps_sub WHERE ps_sub.player_id = ps.player_id ORDER BY ps_sub.match_date DESC LIMIT 1))"
+	groupByTeam := "t.id, t.name, t.short_name, t.logo"
+	if filter.TeamID != "" {
+		teamJoinExpr = "ps.team_id"
+		groupByTeam = "ps.team_id, t.name, t.short_name, t.logo"
+	}
+
 	query := fmt.Sprintf(`
 		SELECT
 			ps.player_id,
@@ -371,8 +377,8 @@ func (r *PostgresStatsRepository) GetPlayerStats(ctx context.Context, filter dom
 			COALESCE(p.image, '') AS player_image,
 			COALESCE(p.jersey_number, 0) AS player_jersey_number,
 			COALESCE(p.position, '') AS player_position,
-			ps.team_id,
-			t.name AS team_name,
+			COALESCE(t.id::text, '') AS team_id,
+			COALESCE(t.name, '') AS team_name,
 			COALESCE(t.short_name, '') AS team_short_name,
 			COALESCE(t.logo, '') AS team_logo,
 			COUNT(ps.match_date) AS apps,
@@ -408,14 +414,14 @@ func (r *PostgresStatsRepository) GetPlayerStats(ctx context.Context, filter dom
 			SUM(ps.safety_conceded) AS safety_conceded
 		FROM player_stats ps
 		JOIN players p ON ps.player_id = p.id
-		JOIN teams t ON ps.team_id = t.id
+		LEFT JOIN teams t ON t.id = %s
 		%s
 		GROUP BY
 			ps.player_id, p.name, p.image, p.jersey_number, p.position,
-			ps.team_id, t.name, t.short_name, t.logo
+			%s
 		%s
 		%s
-	`, whereClause, statsOrderClause(filter.SortBy, "p.name", true), limitOffset)
+	`, teamJoinExpr, whereClause, groupByTeam, statsOrderClause(filter.SortBy, "p.name", true), limitOffset)
 
 	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
