@@ -22,6 +22,8 @@ type IFantasyService interface {
 	AutoScheduleGameweeks(ctx context.Context, seasonID string) ([]*dto.GameweekResponse, error)
 	UpdateGameweekDeadline(ctx context.Context, gameweekID string, req dto.UpdateGameweekDeadlineRequest) (*dto.GameweekResponse, error)
 	InitializePlayerPrices(ctx context.Context, seasonID string) error
+	ListPlayerPricesForAdmin(ctx context.Context, seasonID string, search, position, teamID, overrideStatus string, page, limit int) ([]dto.AdminPlayerPriceItem, int, error)
+	OverridePlayerPrice(ctx context.Context, seasonID, playerID string, price *float64, reset bool) (*dto.AdminPlayerPriceItem, error)
 	FinalizeGameweek(ctx context.Context, gameweekID string) error
 	AutoLockGameweeks(ctx context.Context) error
 	AutoFinalizeGameweeks(ctx context.Context) error
@@ -308,6 +310,31 @@ func (s *FantasyService) InitializePlayerPrices(ctx context.Context, seasonID st
 	return s.repriceSeason(ctx, seasonID, nil)
 }
 
+func (s *FantasyService) ListPlayerPricesForAdmin(ctx context.Context, seasonID string, search, position, teamID, overrideStatus string, page, limit int) ([]dto.AdminPlayerPriceItem, int, error) {
+	return s.repo.ListPlayerPricesForAdmin(ctx, seasonID, search, position, teamID, overrideStatus, page, limit)
+}
+
+// OverridePlayerPrice sets a manual price, or clears one with reset.
+//
+// An override escapes the pricing model, but not the economy. PriceFloor and
+// PriceCeiling are not model outputs — they are the spread that makes the
+// budget bind (see domain/fantasy_pricing.go), so a price outside them breaks
+// the game rather than just disagreeing with the algorithm: below the floor a
+// squad can be padded for nothing, and above the ceiling one player can eat a
+// share of the 230.00 budget no squad can absorb.
+func (s *FantasyService) OverridePlayerPrice(ctx context.Context, seasonID, playerID string, price *float64, reset bool) (*dto.AdminPlayerPriceItem, error) {
+	if !reset {
+		if price == nil {
+			return nil, errors.New("a price must be specified")
+		}
+		if *price < domain.PriceFloor || *price > domain.PriceCeiling {
+			return nil, fmt.Errorf("price must be between %.1f and %.1f — outside that range the squad budget stops working",
+				domain.PriceFloor, domain.PriceCeiling)
+		}
+	}
+	return s.repo.OverridePlayerPrice(ctx, seasonID, playerID, price, reset)
+}
+
 // repriceSeason recomputes every player's price and stores it against
 // gameweekID (nil writes the season's opening price).
 //
@@ -363,6 +390,14 @@ func (s *FantasyService) repriceSeason(ctx context.Context, seasonID string, gam
 		}
 	}
 
+	// Read the manual overrides before writing anything. If this fails we must
+	// stop: repricing with an empty override map would silently overwrite every
+	// admin-set price, and there is no record afterwards of what was lost.
+	overrides, err := s.repo.GetOverriddenPrices(ctx, seasonID)
+	if err != nil {
+		return fmt.Errorf("failed to load price overrides: %w", err)
+	}
+
 	priced := domain.PriceSeason(inputs)
 	prices := make([]domain.FantasyPlayerPrice, 0, len(priced))
 	for _, p := range priced {
@@ -370,13 +405,22 @@ func (s *FantasyService) repriceSeason(ctx context.Context, seasonID string, gam
 		if !ok {
 			rating = 5.0
 		}
+		calcPrice := p.Price
+		finalPrice := p.Price
+		isOverridden := false
+		if overridePrice, exists := overrides[p.PlayerID]; exists {
+			finalPrice = overridePrice
+			isOverridden = true
+		}
 		prices = append(prices, domain.FantasyPlayerPrice{
-			SeasonID:   seasonID,
-			PlayerID:   p.PlayerID,
-			GameweekID: gameweekID,
-			BasePrice:  domain.PriceFloor,
-			Rating:     rating,
-			Price:      p.Price,
+			SeasonID:        seasonID,
+			PlayerID:        p.PlayerID,
+			GameweekID:      gameweekID,
+			BasePrice:       domain.PriceFloor,
+			Rating:          rating,
+			Price:           finalPrice,
+			CalculatedPrice: &calcPrice,
+			IsOverridden:    isOverridden,
 		})
 	}
 

@@ -43,6 +43,9 @@ type IFantasyRepository interface {
 
 	// Player Prices
 	BulkUpsertPlayerPrices(ctx context.Context, prices []domain.FantasyPlayerPrice) error
+	GetOverriddenPrices(ctx context.Context, seasonID string) (map[string]float64, error)
+	ListPlayerPricesForAdmin(ctx context.Context, seasonID string, search, position, teamID, overrideStatus string, page, limit int) ([]dto.AdminPlayerPriceItem, int, error)
+	OverridePlayerPrice(ctx context.Context, seasonID, playerID string, price *float64, reset bool) (*dto.AdminPlayerPriceItem, error)
 	ListPlayerMarket(ctx context.Context, seasonID string, positions []string, gender, teamID, search, sortBy string, page, limit int) ([]dto.FantasyPlayerListItem, int, error)
 	// GetSeasonRatingLines aggregates every rateable player's season-to-date
 	// stat totals for a competition, so prices can be recomputed from ratings.
@@ -611,24 +614,36 @@ func (r *FantasyRepository) BulkUpsertPlayerPrices(ctx context.Context, prices [
 	defer tx.Rollback(ctx)
 
 	for _, pp := range prices {
+		calcPrice := pp.Price
+		if pp.CalculatedPrice != nil {
+			calcPrice = *pp.CalculatedPrice
+		}
 		if pp.GameweekID == nil {
 			query := `
-				INSERT INTO fantasy_player_prices (season_id, player_id, gameweek_id, base_price, rating, price)
-				VALUES ($1, $2, NULL, $3, $4, $5)
+				INSERT INTO fantasy_player_prices (season_id, player_id, gameweek_id, base_price, rating, price, calculated_price, is_overridden)
+				VALUES ($1, $2, NULL, $3, $4, $5, $6, $7)
 				ON CONFLICT (season_id, player_id) WHERE gameweek_id IS NULL
-				DO UPDATE SET base_price = EXCLUDED.base_price, rating = EXCLUDED.rating, price = EXCLUDED.price
+				DO UPDATE SET
+					base_price = EXCLUDED.base_price,
+					rating = EXCLUDED.rating,
+					calculated_price = EXCLUDED.calculated_price,
+					price = CASE WHEN fantasy_player_prices.is_overridden THEN fantasy_player_prices.price ELSE EXCLUDED.price END
 			`
-			if _, err := tx.Exec(ctx, query, pp.SeasonID, pp.PlayerID, pp.BasePrice, pp.Rating, pp.Price); err != nil {
+			if _, err := tx.Exec(ctx, query, pp.SeasonID, pp.PlayerID, pp.BasePrice, pp.Rating, pp.Price, calcPrice, pp.IsOverridden); err != nil {
 				return err
 			}
 		} else {
 			query := `
-				INSERT INTO fantasy_player_prices (season_id, player_id, gameweek_id, base_price, rating, price)
-				VALUES ($1, $2, $3, $4, $5, $6)
+				INSERT INTO fantasy_player_prices (season_id, player_id, gameweek_id, base_price, rating, price, calculated_price, is_overridden)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 				ON CONFLICT (season_id, player_id, gameweek_id)
-				DO UPDATE SET base_price = EXCLUDED.base_price, rating = EXCLUDED.rating, price = EXCLUDED.price
+				DO UPDATE SET
+					base_price = EXCLUDED.base_price,
+					rating = EXCLUDED.rating,
+					calculated_price = EXCLUDED.calculated_price,
+					price = CASE WHEN fantasy_player_prices.is_overridden THEN fantasy_player_prices.price ELSE EXCLUDED.price END
 			`
-			if _, err := tx.Exec(ctx, query, pp.SeasonID, pp.PlayerID, pp.GameweekID, pp.BasePrice, pp.Rating, pp.Price); err != nil {
+			if _, err := tx.Exec(ctx, query, pp.SeasonID, pp.PlayerID, pp.GameweekID, pp.BasePrice, pp.Rating, pp.Price, calcPrice, pp.IsOverridden); err != nil {
 				return err
 			}
 		}
@@ -736,6 +751,8 @@ func (r *FantasyRepository) ListPlayerMarket(ctx context.Context, seasonID strin
 	// tie can shuffle between requests and a row appears on two pages or none.
 	orderClause := " ORDER BY COALESCE(fpp.price, 0) DESC, p.name ASC, p.id ASC"
 	switch sortBy {
+	case "price_desc":
+		orderClause = " ORDER BY COALESCE(fpp.price, 0) DESC, p.name ASC, p.id ASC"
 	case "points":
 		orderClause = " ORDER BY COALESCE(pts.total_pts, 0) DESC, p.name ASC, p.id ASC"
 	case "name":
@@ -1530,4 +1547,261 @@ func (r *FantasyRepository) GetSeasonPricingLines(ctx context.Context, seasonID,
 		list = append(list, l)
 	}
 	return list, rows.Err()
+}
+
+// GetOverriddenPrices returns a map of player ID to overridden price for a season's opening prices.
+func (r *FantasyRepository) GetOverriddenPrices(ctx context.Context, seasonID string) (map[string]float64, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	rows, err := r.pool.Query(ctx, `
+		SELECT player_id::text, price
+		FROM fantasy_player_prices
+		WHERE season_id = $1 AND gameweek_id IS NULL AND is_overridden = true
+	`, seasonID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query price overrides: %w", err)
+	}
+	defer rows.Close()
+
+	overrides := make(map[string]float64)
+	for rows.Next() {
+		var pID string
+		var pr float64
+		if err := rows.Scan(&pID, &pr); err != nil {
+			return nil, err
+		}
+		overrides[pID] = pr
+	}
+	return overrides, rows.Err()
+}
+
+// ListPlayerPricesForAdmin returns all eligible players for a season's competition with their current and calculated prices.
+func (r *FantasyRepository) ListPlayerPricesForAdmin(ctx context.Context, seasonID string, search, position, teamID, overrideStatus string, page, limit int) ([]dto.AdminPlayerPriceItem, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 50
+	}
+	if limit > 200 {
+		limit = 200
+	}
+	offset := (page - 1) * limit
+
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	baseQuery := `
+		FROM players p
+		JOIN teams t ON p.team_id = t.id
+		LEFT JOIN fantasy_player_prices fpp ON fpp.player_id = p.id AND fpp.season_id = $1 AND fpp.gameweek_id IS NULL
+		WHERE p.team_id IS NOT NULL
+		  AND COALESCE(t.status, 'active') = 'active'
+		  AND (
+		      NOT EXISTS (
+		          SELECT 1 FROM competition_teams ct
+		          JOIN fantasy_seasons fs ON fs.id = $1
+		          WHERE ct.competition_id = fs.competition_id
+		      )
+		      OR EXISTS (
+		          SELECT 1 FROM competition_teams ct
+		          JOIN fantasy_seasons fs ON fs.id = $1
+		          WHERE ct.competition_id = fs.competition_id AND ct.team_id = t.id
+		      )
+		  )
+	`
+	args := []interface{}{seasonID}
+	argIdx := 2
+
+	if search != "" {
+		baseQuery += fmt.Sprintf(" AND p.name ILIKE $%d", argIdx)
+		args = append(args, "%"+search+"%")
+		argIdx++
+	}
+	if position != "" {
+		baseQuery += fmt.Sprintf(" AND p.position = $%d", argIdx)
+		args = append(args, position)
+		argIdx++
+	}
+	if teamID != "" {
+		baseQuery += fmt.Sprintf(" AND p.team_id = $%d", argIdx)
+		args = append(args, teamID)
+		argIdx++
+	}
+	if overrideStatus == "overridden" {
+		baseQuery += " AND fpp.is_overridden = true"
+	} else if overrideStatus == "calculated" {
+		baseQuery += " AND COALESCE(fpp.is_overridden, false) = false"
+	}
+
+	var total int
+	countQuery := "SELECT COUNT(p.id) " + baseQuery
+	if err := r.pool.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to count player prices: %w", err)
+	}
+
+	orderClause := " ORDER BY COALESCE(fpp.is_overridden, false) DESC, p.name ASC, p.id ASC"
+
+	selectQuery := `
+		SELECT p.id, p.name, COALESCE(p.image, ''), p.position, COALESCE(p.gender, 'M'),
+		       COALESCE(t.id::text, ''), COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
+		       -- 0 means "no price row yet", the same signal ListPlayerMarket
+		       -- gives. Defaulting to a number instead would show the admin a
+		       -- price nothing in the system actually holds. 5.00 for rating is
+		       -- different: that is the engine's own default for an unrated
+		       -- player (see repriceSeason), so it is the real value.
+		       COALESCE(fpp.price, 0), fpp.calculated_price, COALESCE(fpp.is_overridden, false),
+		       COALESCE(fpp.rating, 5.00)
+	` + baseQuery + orderClause + fmt.Sprintf(" LIMIT $%d OFFSET $%d", argIdx, argIdx+1)
+	args = append(args, limit, offset)
+
+	rows, err := r.pool.Query(ctx, selectQuery, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to query player prices: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]dto.AdminPlayerPriceItem, 0, limit)
+	for rows.Next() {
+		var item dto.AdminPlayerPriceItem
+		if err := rows.Scan(
+			&item.PlayerID,
+			&item.PlayerName,
+			&item.PlayerImage,
+			&item.Position,
+			&item.Gender,
+			&item.TeamID,
+			&item.TeamName,
+			&item.TeamShortName,
+			&item.TeamLogo,
+			&item.Price,
+			&item.CalculatedPrice,
+			&item.IsOverridden,
+			&item.Rating,
+		); err != nil {
+			return nil, 0, fmt.Errorf("failed to scan player price row: %w", err)
+		}
+		if item.CalculatedPrice == nil {
+			calc := item.Price
+			item.CalculatedPrice = &calc
+		}
+		items = append(items, item)
+	}
+	return items, total, rows.Err()
+}
+
+// OverridePlayerPrice sets or resets a manual price override on a player for a season.
+func (r *FantasyRepository) OverridePlayerPrice(ctx context.Context, seasonID, playerID string, price *float64, reset bool) (*dto.AdminPlayerPriceItem, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	if reset {
+		// Reset: clear is_overridden and revert price to calculated_price.
+		// A FINALIZED gameweek's row is the published record of what a player
+		// was worth while that gameweek was scored, so it is left alone — the
+		// opening row (gameweek_id IS NULL) is never finalized and always resets.
+		_, err = tx.Exec(ctx, `
+			UPDATE fantasy_player_prices fpp
+			SET is_overridden = false,
+			    price = COALESCE(fpp.calculated_price, fpp.price)
+			WHERE fpp.season_id = $1 AND fpp.player_id = $2
+			  AND NOT EXISTS (
+			      SELECT 1 FROM fantasy_gameweeks fgw
+			      WHERE fgw.id = fpp.gameweek_id AND fgw.status = 'FINALIZED'
+			  )
+		`, seasonID, playerID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to reset player price: %w", err)
+		}
+	} else if price != nil {
+		// Upsert opening price row
+		_, err = tx.Exec(ctx, `
+			INSERT INTO fantasy_player_prices (season_id, player_id, gameweek_id, base_price, rating, price, calculated_price, is_overridden)
+			-- base_price is the floor the run was built from, matching what
+			-- repriceSeason writes (domain.PriceFloor). 10.00 was the pre-079
+			-- base and no longer means anything.
+			VALUES ($1, $2, NULL, 3.00, 5.00, $3, $3, true)
+			ON CONFLICT (season_id, player_id) WHERE gameweek_id IS NULL
+			DO UPDATE SET
+				price = EXCLUDED.price,
+				is_overridden = true,
+				calculated_price = COALESCE(fantasy_player_prices.calculated_price, fantasy_player_prices.price, EXCLUDED.price)
+		`, seasonID, playerID, *price)
+		if err != nil {
+			return nil, fmt.Errorf("failed to upsert opening price override: %w", err)
+		}
+
+		// Also update the gameweek snapshot rows that are still in play, so the
+		// new price takes effect immediately (GetSquad and GetLineupCandidates
+		// read the newest gameweek row before falling back to the opening one).
+		// FINALIZED gameweeks are skipped: their prices are published history
+		// and re-pricing them would retroactively restate a scored gameweek.
+		_, err = tx.Exec(ctx, `
+			UPDATE fantasy_player_prices fpp
+			SET price = $3,
+			    is_overridden = true,
+			    calculated_price = COALESCE(fpp.calculated_price, fpp.price)
+			WHERE fpp.season_id = $1 AND fpp.player_id = $2 AND fpp.gameweek_id IS NOT NULL
+			  AND NOT EXISTS (
+			      SELECT 1 FROM fantasy_gameweeks fgw
+			      WHERE fgw.id = fpp.gameweek_id AND fgw.status = 'FINALIZED'
+			  )
+		`, seasonID, playerID, *price)
+		if err != nil {
+			return nil, fmt.Errorf("failed to update gameweek price overrides: %w", err)
+		}
+	} else {
+		return nil, errors.New("either price or reset must be provided")
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+
+	rowQuery := `
+		SELECT p.id, p.name, COALESCE(p.image, ''), p.position, COALESCE(p.gender, 'M'),
+		       COALESCE(t.id::text, ''), COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
+		       -- 0 means "no price row yet", the same signal ListPlayerMarket
+		       -- gives. Defaulting to a number instead would show the admin a
+		       -- price nothing in the system actually holds. 5.00 for rating is
+		       -- different: that is the engine's own default for an unrated
+		       -- player (see repriceSeason), so it is the real value.
+		       COALESCE(fpp.price, 0), fpp.calculated_price, COALESCE(fpp.is_overridden, false),
+		       COALESCE(fpp.rating, 5.00)
+		FROM players p
+		JOIN teams t ON p.team_id = t.id
+		LEFT JOIN fantasy_player_prices fpp ON fpp.player_id = p.id AND fpp.season_id = $1 AND fpp.gameweek_id IS NULL
+		WHERE p.id = $2
+	`
+	var item dto.AdminPlayerPriceItem
+	if err := r.pool.QueryRow(ctx, rowQuery, seasonID, playerID).Scan(
+		&item.PlayerID,
+		&item.PlayerName,
+		&item.PlayerImage,
+		&item.Position,
+		&item.Gender,
+		&item.TeamID,
+		&item.TeamName,
+		&item.TeamShortName,
+		&item.TeamLogo,
+		&item.Price,
+		&item.CalculatedPrice,
+		&item.IsOverridden,
+		&item.Rating,
+	); err != nil {
+		return nil, fmt.Errorf("failed to fetch updated price item: %w", err)
+	}
+	if item.CalculatedPrice == nil {
+		calc := item.Price
+		item.CalculatedPrice = &calc
+	}
+
+	return &item, nil
 }

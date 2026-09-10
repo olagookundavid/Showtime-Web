@@ -47,6 +47,10 @@ type fantasyFixture struct {
 	playerID   string
 	clubID     string
 	inviteCode string
+	// dayOffset is the fixture's own slot in the calendar. event_days.date is
+	// UNIQUE, so a test that needs a second event day must derive it from here
+	// rather than picking a date of its own and colliding with another fixture.
+	dayOffset int
 }
 
 // fixtureSeq namespaces concurrent fixtures.
@@ -109,7 +113,7 @@ func setupFantasyFixture(t *testing.T) *fantasyFixture {
 	// event_days.date is UNIQUE, so each fixture needs its own calendar day.
 	// Spreading by the same per-run seed keeps repeat runs from colliding.
 	dayOffset := 30 + int(seed%4000) + int(n)*11
-	f := &fantasyFixture{pool: pool}
+	f := &fantasyFixture{pool: pool, dayOffset: dayOffset}
 
 	f.compID = mustScan(t, pool,
 		`INSERT INTO competitions (name) VALUES ('ITest Competition') RETURNING id`)
@@ -914,6 +918,118 @@ func TestFantasyPayoutRepositoryQueries(t *testing.T) {
 		`, f.userID, f.leagueID)
 		if err == nil {
 			t.Error("expected the partial unique index to reject a second WINNINGS row for the same league")
+		}
+	})
+}
+
+// TestOverridePlayerPriceRespectsFinalizedGameweeks executes the manual price
+// override against a real schema. Two things can only be checked here: that the
+// hand-written UPDATEs parse and reference real columns at all, and that they
+// leave a FINALIZED gameweek's price alone. That price is the published record
+// of what a player was worth while the gameweek was being scored — restating it
+// afterwards would rewrite a result that has already been paid out on.
+func TestOverridePlayerPriceRespectsFinalizedGameweeks(t *testing.T) {
+	f := setupFantasyFixture(t)
+	ctx := context.Background()
+	repo := ports.NewFantasyRepository(f.pool)
+
+	// A second gameweek, already finalized, holding a published price of 7.00.
+	// It needs its own event day: fantasy_gameweeks is UNIQUE per (season, day).
+	finalDayID := mustScan(t, f.pool,
+		`INSERT INTO event_days (title, date) VALUES ('ITest Finalized Day', CURRENT_DATE + $1::int) RETURNING id`,
+		f.dayOffset+1)
+	finalGWID := mustScan(t, f.pool,
+		`INSERT INTO fantasy_gameweeks (season_id, number, event_day_id, deadline, status)
+		 VALUES ($1, 2, $2, NOW() - INTERVAL '1 day', 'FINALIZED') RETURNING id`,
+		f.seasonID, finalDayID)
+	mustExec(t, f.pool,
+		`INSERT INTO fantasy_player_prices (season_id, player_id, gameweek_id, price, calculated_price)
+		 VALUES ($1, $2, $3, 7.00, 7.00)`,
+		f.seasonID, f.playerID, finalGWID)
+
+	// The fixture's own gameweek 1 is still SCHEDULED — an override must reach
+	// this one, because it is what the live market reads.
+	mustExec(t, f.pool,
+		`INSERT INTO fantasy_player_prices (season_id, player_id, gameweek_id, price, calculated_price)
+		 VALUES ($1, $2, $3, 9.00, 9.00)`,
+		f.seasonID, f.playerID, f.gameweekID)
+
+	// Cleanup runs LIFO, so this fires before the fixture's teardown — the
+	// gameweek must go first or event_days' ON DELETE RESTRICT refuses.
+	t.Cleanup(func() {
+		if _, err := f.pool.Exec(ctx, `DELETE FROM fantasy_gameweeks WHERE id = $1`, finalGWID); err != nil {
+			t.Logf("cleanup: could not remove finalized gameweek: %v", err)
+		}
+		if _, err := f.pool.Exec(ctx, `DELETE FROM event_days WHERE id = $1`, finalDayID); err != nil {
+			t.Logf("cleanup: could not remove finalized event day: %v", err)
+		}
+	})
+
+	priceAt := func(t *testing.T, gameweekID *string) (float64, bool) {
+		t.Helper()
+		var price float64
+		var overridden bool
+		var err error
+		if gameweekID == nil {
+			err = f.pool.QueryRow(ctx,
+				`SELECT price, is_overridden FROM fantasy_player_prices
+				 WHERE season_id = $1 AND player_id = $2 AND gameweek_id IS NULL`,
+				f.seasonID, f.playerID).Scan(&price, &overridden)
+		} else {
+			err = f.pool.QueryRow(ctx,
+				`SELECT price, is_overridden FROM fantasy_player_prices
+				 WHERE season_id = $1 AND player_id = $2 AND gameweek_id = $3`,
+				f.seasonID, f.playerID, *gameweekID).Scan(&price, &overridden)
+		}
+		if err != nil {
+			t.Fatalf("could not read back price: %v", err)
+		}
+		return price, overridden
+	}
+
+	newPrice := 11.50
+	if _, err := repo.OverridePlayerPrice(ctx, f.seasonID, f.playerID, &newPrice, false); err != nil {
+		t.Fatalf("OverridePlayerPrice: %v", err)
+	}
+
+	t.Run("the opening price takes the override", func(t *testing.T) {
+		price, overridden := priceAt(t, nil)
+		if price != 11.50 || !overridden {
+			t.Errorf("opening price: got %.2f overridden=%v, want 11.50 overridden=true", price, overridden)
+		}
+	})
+
+	t.Run("a gameweek still in play takes the override", func(t *testing.T) {
+		price, overridden := priceAt(t, &f.gameweekID)
+		if price != 11.50 || !overridden {
+			t.Errorf("scheduled gameweek price: got %.2f overridden=%v, want 11.50 overridden=true", price, overridden)
+		}
+	})
+
+	t.Run("a finalized gameweek keeps its published price", func(t *testing.T) {
+		price, overridden := priceAt(t, &finalGWID)
+		if price != 7.00 || overridden {
+			t.Errorf("finalized gameweek price: got %.2f overridden=%v, want 7.00 overridden=false — published history was rewritten", price, overridden)
+		}
+	})
+
+	// Resetting must be equally careful: it reverts the live rows to the
+	// model's number without disturbing what a scored gameweek recorded.
+	if _, err := repo.OverridePlayerPrice(ctx, f.seasonID, f.playerID, nil, true); err != nil {
+		t.Fatalf("OverridePlayerPrice reset: %v", err)
+	}
+
+	t.Run("reset reverts the live rows", func(t *testing.T) {
+		price, overridden := priceAt(t, &f.gameweekID)
+		if price != 9.00 || overridden {
+			t.Errorf("after reset: got %.2f overridden=%v, want 9.00 overridden=false", price, overridden)
+		}
+	})
+
+	t.Run("reset leaves a finalized gameweek alone", func(t *testing.T) {
+		price, overridden := priceAt(t, &finalGWID)
+		if price != 7.00 || overridden {
+			t.Errorf("after reset: got %.2f overridden=%v, want 7.00 overridden=false", price, overridden)
 		}
 	})
 }

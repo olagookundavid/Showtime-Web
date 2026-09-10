@@ -33,6 +33,8 @@ type IFantasyHandler interface {
 	AdminAutoScheduleGameweeks(c *gin.Context)
 	AdminUpdateGameweekDeadline(c *gin.Context)
 	AdminInitializePrices(c *gin.Context)
+	AdminListPlayerPrices(c *gin.Context)
+	AdminOverridePlayerPrice(c *gin.Context)
 	AdminFinalizeGameweek(c *gin.Context)
 }
 
@@ -343,4 +345,56 @@ func (h *FantasyHandler) AdminFinalizeGameweek(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Fantasy gameweek finalized and scores computed successfully"})
+}
+
+func (h *FantasyHandler) AdminListPlayerPrices(c *gin.Context) {
+	seasonID := c.Param("id")
+	search := c.Query("search")
+	position := c.Query("position")
+	teamID := c.Query("team_id")
+	overrideStatus := c.Query("override_status")
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+
+	list, total, err := h.service.ListPlayerPricesForAdmin(c.Request.Context(), seasonID, search, position, teamID, overrideStatus, page, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	totalPages := 0
+	if limit > 0 {
+		totalPages = (total + limit - 1) / limit
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":        list,
+		"total":       total,
+		"page":        page,
+		"limit":       limit,
+		"total_pages": totalPages,
+	})
+}
+
+func (h *FantasyHandler) AdminOverridePlayerPrice(c *gin.Context) {
+	seasonID := c.Param("id")
+	playerID := c.Param("playerId")
+
+	var req dto.AdminOverridePriceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	res, err := h.service.OverridePlayerPrice(c.Request.Context(), seasonID, playerID, req.Price, req.Reset)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Player price override updated successfully",
+		"data":    res,
+	})
 }

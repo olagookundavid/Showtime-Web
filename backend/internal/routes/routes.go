@@ -448,8 +448,13 @@ func SetupTeamHeadRoutes(r *gin.RouterGroup, app *api.Application) {
 	// system has, because the historical player import carried no contact details.
 	// Approvals sit inside the AuditLoggerMiddleware group, so each one is attributable.
 	thRoutes.GET("/claims", app.Handlers.ClaimHandler.ListClaims)
+	thRoutes.GET("/claims/pending-count", app.Handlers.ClaimHandler.CountMyPendingClaims)
 	thRoutes.POST("/claims/:id/approve", app.Handlers.ClaimHandler.ApproveClaim)
 	thRoutes.POST("/claims/:id/reject", app.Handlers.ClaimHandler.RejectClaim)
+	// Requests from people not on the roster are decided by the league office. A
+	// manager's part is to say whether they know the person — the service refuses
+	// approve/reject on those, so this is their only verb there.
+	thRoutes.POST("/claims/:id/endorse", app.Handlers.ClaimHandler.EndorseClaim)
 
 	// The code a manager hands to their squad. Generating rotates: the previous code is
 	// revoked so a team only ever has one live code.
@@ -831,6 +836,8 @@ func SetupFantasyRoutes(r *gin.RouterGroup, app *api.Application) {
 		adminFantasy.GET("/seasons/:id/match-days", app.Handlers.FantasyHandler.AdminGetScheduledMatchDays)
 		adminFantasy.POST("/seasons/:id/gameweeks/auto-schedule", app.Handlers.FantasyHandler.AdminAutoScheduleGameweeks)
 		adminFantasy.POST("/seasons/:id/prices/initialize", app.Handlers.FantasyHandler.AdminInitializePrices)
+		adminFantasy.GET("/seasons/:id/prices", app.Handlers.FantasyHandler.AdminListPlayerPrices)
+		adminFantasy.PUT("/seasons/:id/prices/:playerId", app.Handlers.FantasyHandler.AdminOverridePlayerPrice)
 		adminFantasy.POST("/gameweeks/:id/finalize", app.Handlers.FantasyHandler.AdminFinalizeGameweek)
 		adminFantasy.POST("/gameweeks/:id/deadline", app.Handlers.FantasyHandler.AdminUpdateGameweekDeadline)
 

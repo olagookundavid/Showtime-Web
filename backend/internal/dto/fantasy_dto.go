@@ -297,3 +297,29 @@ type SquadResponse struct {
 	// lineup selector is what actually holds the line.
 	Readiness domain.SquadReadiness `json:"readiness"`
 }
+
+// ─── Admin Player Pricing DTOs ───────────────────────────────────────────────
+
+type AdminPlayerPriceItem struct {
+	PlayerID        string   `json:"player_id"`
+	PlayerName      string   `json:"player_name"`
+	PlayerImage     string   `json:"player_image"`
+	Position        string   `json:"position"`
+	Gender          string   `json:"gender"`
+	TeamID          string   `json:"team_id"`
+	TeamName        string   `json:"team_name"`
+	TeamShortName   string   `json:"team_short_name"`
+	TeamLogo        string   `json:"team_logo"`
+	Price           float64  `json:"price"`
+	CalculatedPrice *float64 `json:"calculated_price"`
+	IsOverridden    bool     `json:"is_overridden"`
+	Rating          float64  `json:"rating"`
+}
+
+// AdminOverridePriceRequest carries a manual price, or Reset to clear one.
+// The bounds mirror domain.PriceFloor and domain.PriceCeiling; the service
+// re-checks them against those constants, so this is only a fast rejection.
+type AdminOverridePriceRequest struct {
+	Price *float64 `json:"price" binding:"omitempty,min=3,max=12.5"`
+	Reset bool     `json:"reset"`
+}

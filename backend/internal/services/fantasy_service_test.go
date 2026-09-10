@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -47,20 +48,26 @@ type fakeFantasyRepo struct {
 	lockedGWs    []string
 	savedLineup  *domain.FantasyLineup
 	savedPicks   []domain.FantasyLineupPick
-	pickPoints   map[string]map[string]float64
-	pointsLogLen int
+	pickPoints     map[string]map[string]float64
+	pointsLogLen   int
+	overrides      map[string]float64
+	overridesErr   error
+	upsertedPrices []domain.FantasyPlayerPrice
+	pricingLines   []ports.PlayerPricingLine
 }
 
 func newFakeRepo() *fakeFantasyRepo {
 	return &fakeFantasyRepo{
-		gameweeks:    map[string]*domain.FantasyGameweek{},
-		candidates:   map[string]domain.LineupCandidate{},
-		lineups:      map[string]*domain.FantasyLineup{},
-		priorLocked:  map[string]*domain.FantasyLineup{},
-		teamTotals:   map[string]float64{},
-		seasonStatus: map[string]domain.FantasySeasonStatus{},
-		gwStatus:     map[string]domain.GameweekStatus{},
-		pickPoints:   map[string]map[string]float64{},
+		gameweeks:      map[string]*domain.FantasyGameweek{},
+		candidates:     map[string]domain.LineupCandidate{},
+		lineups:        map[string]*domain.FantasyLineup{},
+		priorLocked:    map[string]*domain.FantasyLineup{},
+		teamTotals:     map[string]float64{},
+		seasonStatus:   map[string]domain.FantasySeasonStatus{},
+		gwStatus:       map[string]domain.GameweekStatus{},
+		pickPoints:     map[string]map[string]float64{},
+		overrides:      map[string]float64{},
+		upsertedPrices: []domain.FantasyPlayerPrice{},
 	}
 }
 
@@ -84,6 +91,9 @@ func (f *fakeFantasyRepo) GetGameweekByID(_ context.Context, id string) (*domain
 }
 
 func (f *fakeFantasyRepo) GetSeasonPricingLines(_ context.Context, _, _ string) ([]ports.PlayerPricingLine, error) {
+	if f.pricingLines != nil {
+		return f.pricingLines, nil
+	}
 	return nil, nil
 }
 
@@ -91,8 +101,35 @@ func (f *fakeFantasyRepo) GetSeasonRatingLines(_ context.Context, _ string) ([]p
 	return nil, nil
 }
 
-func (f *fakeFantasyRepo) BulkUpsertPlayerPrices(_ context.Context, _ []domain.FantasyPlayerPrice) error {
+func (f *fakeFantasyRepo) BulkUpsertPlayerPrices(_ context.Context, p []domain.FantasyPlayerPrice) error {
+	f.upsertedPrices = append(f.upsertedPrices, p...)
 	return nil
+}
+
+func (f *fakeFantasyRepo) GetOverriddenPrices(_ context.Context, _ string) (map[string]float64, error) {
+	if f.overridesErr != nil {
+		return nil, f.overridesErr
+	}
+	if f.overrides == nil {
+		return map[string]float64{}, nil
+	}
+	return f.overrides, nil
+}
+
+func (f *fakeFantasyRepo) ListPlayerPricesForAdmin(_ context.Context, _ string, _, _, _, _ string, _, _ int) ([]dto.AdminPlayerPriceItem, int, error) {
+	return nil, 0, nil
+}
+
+func (f *fakeFantasyRepo) OverridePlayerPrice(_ context.Context, _, playerID string, price *float64, reset bool) (*dto.AdminPlayerPriceItem, error) {
+	if reset {
+		delete(f.overrides, playerID)
+		return &dto.AdminPlayerPriceItem{PlayerID: playerID, IsOverridden: false}, nil
+	}
+	if price != nil {
+		f.overrides[playerID] = *price
+		return &dto.AdminPlayerPriceItem{PlayerID: playerID, Price: *price, IsOverridden: true}, nil
+	}
+	return nil, nil
 }
 
 func (f *fakeFantasyRepo) GetLineupCandidates(_ context.Context, _, _ string, ids []string) (map[string]domain.LineupCandidate, error) {
@@ -959,5 +996,116 @@ func assertErrContains(t *testing.T, err error, want string) {
 	}
 	if !strings.Contains(err.Error(), want) {
 		t.Errorf("expected an error containing %q, got: %v", want, err)
+	}
+}
+
+func TestOverridePlayerPrice_Validation(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil, ownsPool(repo))
+
+	ctx := context.Background()
+
+	t.Run("rejects a missing price", func(t *testing.T) {
+		_, err := svc.OverridePlayerPrice(ctx, "s1", "p1", nil, false)
+		assertErrContains(t, err, "a price must be specified")
+	})
+
+	// The band is an economy rule, not a model preference: below the floor a
+	// squad can be padded with near-free players, above the ceiling one player
+	// eats more of the 230.00 budget than a squad can carry.
+	t.Run("rejects a price outside the floor-to-ceiling band", func(t *testing.T) {
+		for _, bad := range []float64{-5.0, 0.0, domain.PriceFloor - 0.1, domain.PriceCeiling + 0.1, 50.0} {
+			price := bad
+			if _, err := svc.OverridePlayerPrice(ctx, "s1", "p1", &price, false); err == nil {
+				t.Errorf("expected %.2f to be rejected as outside [%.1f, %.1f]", bad, domain.PriceFloor, domain.PriceCeiling)
+			}
+		}
+	})
+
+	t.Run("accepts a price anywhere inside the band, edges included", func(t *testing.T) {
+		for _, ok := range []float64{domain.PriceFloor, 11.50, domain.PriceCeiling} {
+			price := ok
+			res, err := svc.OverridePlayerPrice(ctx, "s1", "p1", &price, false)
+			if err != nil {
+				t.Fatalf("unexpected error for %.2f: %v", ok, err)
+			}
+			if res.Price != ok || !res.IsOverridden {
+				t.Errorf("expected price %.2f and is_overridden true, got %+v", ok, res)
+			}
+		}
+	})
+
+	t.Run("accepts reset without price", func(t *testing.T) {
+		res, err := svc.OverridePlayerPrice(ctx, "s1", "p1", nil, true)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res.IsOverridden {
+			t.Errorf("expected is_overridden false, got %+v", res)
+		}
+	})
+}
+
+func TestRepriceSeason_PreservesOverrides(t *testing.T) {
+	repo := newFakeRepo()
+	repo.season = testSeason()
+	repo.pricingLines = []ports.PlayerPricingLine{
+		{PlayerID: "p-normal", Position: "QB", Games: 1},
+		{PlayerID: "p-overridden", Position: "QB", Games: 1},
+	}
+	repo.overrides["p-overridden"] = 12.50
+
+	svc := NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil, ownsPool(repo))
+	ctx := context.Background()
+
+	err := svc.InitializePlayerPrices(ctx, repo.season.ID)
+	if err != nil {
+		t.Fatalf("unexpected error initializing prices: %v", err)
+	}
+
+	var foundOverridden, foundNormal bool
+	for _, p := range repo.upsertedPrices {
+		if p.PlayerID == "p-overridden" {
+			foundOverridden = true
+			if p.Price != 12.50 {
+				t.Errorf("expected overridden price 12.50, got %f", p.Price)
+			}
+			if !p.IsOverridden {
+				t.Errorf("expected is_overridden true")
+			}
+			if p.CalculatedPrice == nil {
+				t.Errorf("expected calculated_price to be populated")
+			}
+		}
+		if p.PlayerID == "p-normal" {
+			foundNormal = true
+			if p.IsOverridden {
+				t.Errorf("expected normal player is_overridden false")
+			}
+		}
+	}
+	if !foundOverridden || !foundNormal {
+		t.Errorf("expected both players in upsertedPrices, found overridden=%v normal=%v", foundOverridden, foundNormal)
+	}
+}
+
+// A failure to read the overrides must abort the run. If it were swallowed the
+// reprice would continue with an empty override map and quietly overwrite every
+// admin-set price, leaving no record of what they were.
+func TestRepriceSeason_AbortsWhenOverridesUnreadable(t *testing.T) {
+	repo := newFakeRepo()
+	repo.season = testSeason()
+	repo.pricingLines = []ports.PlayerPricingLine{
+		{PlayerID: "p-normal", Position: "QB", Games: 1},
+	}
+	repo.overridesErr = errors.New("connection reset by peer")
+
+	svc := NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil, ownsPool(repo))
+
+	err := svc.InitializePlayerPrices(context.Background(), repo.season.ID)
+	assertErrContains(t, err, "connection reset by peer")
+
+	if len(repo.upsertedPrices) != 0 {
+		t.Errorf("expected no prices written when overrides could not be read, got %d", len(repo.upsertedPrices))
 	}
 }

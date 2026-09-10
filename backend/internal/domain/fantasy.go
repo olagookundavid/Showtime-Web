@@ -441,16 +441,18 @@ type FantasyGameweek struct {
 // ─── Dynamic Player Pricing ───────────────────────────────────────────────────
 
 type FantasyPlayerPrice struct {
-	ID         string    `json:"id"`
-	SeasonID   string    `json:"season_id"`
-	PlayerID   string    `json:"player_id"`
-	GameweekID *string   `json:"gameweek_id,omitempty"` // NULL = opening price
-	BasePrice float64 `json:"base_price"` // The price floor this run was built from
+	ID              string    `json:"id"`
+	SeasonID        string    `json:"season_id"`
+	PlayerID        string    `json:"player_id"`
+	GameweekID      *string   `json:"gameweek_id,omitempty"` // NULL = opening price
+	BasePrice       float64   `json:"base_price"`            // The price floor this run was built from
 	// Rating is the player's 0-10 rating at the time, published for display.
 	// It no longer decides the price — see PriceSeason for what does.
-	Rating    float64   `json:"rating"`
-	Price     float64   `json:"price"`
-	CreatedAt time.Time `json:"created_at"`
+	Rating          float64   `json:"rating"`
+	Price           float64   `json:"price"`
+	CalculatedPrice *float64  `json:"calculated_price,omitempty"`
+	IsOverridden    bool      `json:"is_overridden"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 // ─── Fantasy Team (User Account Squad) ────────────────────────────────────────

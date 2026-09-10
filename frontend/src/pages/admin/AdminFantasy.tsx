@@ -22,17 +22,20 @@ import {
     Cog6ToothIcon,
     ArrowLeftIcon,
     RocketLaunchIcon,
-    ChevronRightIcon
+    ChevronRightIcon,
+    PencilSquareIcon
 } from '@heroicons/react/24/outline';
 import {
     fantasyApi,
     fantasyAdminApi,
     formatKobo,
+    formatFantasyPrice,
     getCompetitions
 } from '../../services/api';
 import type {
     FantasySeason,
     AdminLeagueRow,
+    AdminPlayerPriceRow,
     OwedRow,
     PayoutRequest,
     PayoutStatus,
@@ -100,6 +103,7 @@ type TopTabKey = typeof TOP_TABS[number]['key'];
 /** Sub-tabs, only reachable once a specific season has been drilled into. */
 const SEASON_TABS = [
     { key: 'setup', label: 'Setup', icon: Cog6ToothIcon },
+    { key: 'pricing', label: 'Player Pricing', icon: CurrencyDollarIcon },
     { key: 'leagues', label: 'Leagues', icon: TrophyIcon },
     { key: 'managers', label: 'Managers', icon: UsersIcon },
     { key: 'finance', label: 'Finance', icon: BanknotesIcon },
@@ -807,6 +811,7 @@ function SeasonDetail({ season, onBack }: { season: FantasySeason; onBack: () =>
             </div>
 
             {tab === 'setup' && <SetupTab season={season} />}
+            {tab === 'pricing' && <PricingTab seasonId={season.id} />}
             {tab === 'leagues' && <LeaguesTab seasonId={season.id} />}
             {tab === 'managers' && <ManagersTab seasonId={season.id} />}
             {tab === 'finance' && <FinanceTab seasonId={season.id} />}
@@ -2041,6 +2046,348 @@ function FinanceTab({ seasonId }: { seasonId: string }) {
                     </div>
                 }
             />
+        </div>
+    );
+}
+
+// ─── Player Pricing tab ──────────────────────────────────────────────────────
+
+// The band an override has to stay inside. These mirror PriceFloor and
+// PriceCeiling in backend/internal/domain/fantasy_pricing.go, where the spread
+// between them is what makes the 230.00 squad budget bind. The server enforces
+// the same bounds — these only save a round trip.
+const PRICE_FLOOR = 3.0;
+const PRICE_CEILING = 12.5;
+
+// Must match the position values stored on players verbatim — the server
+// filters on `p.position = $n`, so anything not in this list matches nothing.
+// Same vocabulary as AdminPlayers, TeamHeadPlayers and AdminTeamSheetModal.
+const POSITION_OPTIONS = [
+    { value: '', label: 'All Positions' },
+    { value: 'QB', label: 'Quarterback (QB)' },
+    { value: 'Receiver', label: 'Receiver' },
+    { value: 'Center', label: 'Center' },
+    { value: 'Rusher', label: 'Rusher' },
+    { value: 'Defender', label: 'Defender' },
+];
+
+function PricingTab({ seasonId }: { seasonId: string }) {
+    const queryClient = useQueryClient();
+    const [searchInput, setSearchInput] = useState('');
+    const search = useDebounced(searchInput);
+    const [position, setPosition] = useState('');
+    const [overrideStatus, setOverrideStatus] = useState<'all' | 'overridden' | 'calculated'>('all');
+    const [page, setPage] = useState(1);
+    const limit = 25;
+
+    const [editingPlayer, setEditingPlayer] = useState<AdminPlayerPriceRow | null>(null);
+    const [overridePriceInput, setOverridePriceInput] = useState('');
+
+    useEffect(() => { setPage(1); }, [search, position, overrideStatus]);
+
+    const { data, isLoading, isFetching } = useQuery({
+        queryKey: ['adminPlayerPrices', seasonId, search, position, overrideStatus, page],
+        queryFn: () => fantasyAdminApi.listPlayerPrices(seasonId, {
+            search: search.trim() || undefined,
+            position: position || undefined,
+            override_status: overrideStatus,
+            page,
+            limit,
+        }),
+    });
+
+    const overrideMutation = useMutation({
+        mutationFn: ({ playerId, price }: { playerId: string; price: number }) =>
+            fantasyAdminApi.overridePlayerPrice(seasonId, playerId, { price }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['adminPlayerPrices', seasonId] });
+            toast.success('Player price override saved');
+            setEditingPlayer(null);
+            setOverridePriceInput('');
+        },
+        onError: (err: any) => {
+            toast.error(err?.response?.data?.error || err.message || 'Failed to override price');
+        },
+    });
+
+    const resetMutation = useMutation({
+        mutationFn: (playerId: string) =>
+            fantasyAdminApi.overridePlayerPrice(seasonId, playerId, { reset: true }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['adminPlayerPrices', seasonId] });
+            toast.success('Player price reset to calculated value');
+        },
+        onError: (err: any) => {
+            toast.error(err?.response?.data?.error || err.message || 'Failed to reset price');
+        },
+    });
+
+    const players = data?.data || [];
+
+    const handleOpenEdit = (p: AdminPlayerPriceRow) => {
+        setEditingPlayer(p);
+        setOverridePriceInput(p.price.toString());
+    };
+
+    const handleSaveOverride = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingPlayer) return;
+        const val = parseFloat(overridePriceInput);
+        if (isNaN(val) || val < PRICE_FLOOR || val > PRICE_CEILING) {
+            toast.error(`Price must be between ₦${PRICE_FLOOR.toFixed(1)}m and ₦${PRICE_CEILING.toFixed(1)}m`);
+            return;
+        }
+        overrideMutation.mutate({ playerId: editingPlayer.player_id, price: val });
+    };
+
+    return (
+        <div className="space-y-6">
+            <SectionCard
+                title="Player Pricing & Manual Overrides"
+                icon={CurrencyDollarIcon}
+                action={
+                    <div className="flex items-center gap-2">
+                        {isFetching && <Spinner dark={false} />}
+                    </div>
+                }
+            >
+                {/* Filter and Search Bar */}
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+                    <div className="flex-1 max-w-md">
+                        <SearchBox value={searchInput} onChange={setSearchInput} placeholder="Search player by name..." />
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                        <select
+                            value={position}
+                            onChange={(e) => setPosition(e.target.value)}
+                            aria-label="Filter by position"
+                            className="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red cursor-pointer"
+                        >
+                            {POSITION_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                        </select>
+
+                        {/* Status Filter Chips */}
+                        <div className="flex items-center bg-gray-100 dark:bg-gray-700/60 p-1 rounded-xl border border-gray-200 dark:border-gray-600 gap-1">
+                            {(['all', 'overridden', 'calculated'] as const).map((st) => (
+                                <button
+                                    key={st}
+                                    type="button"
+                                    onClick={() => setOverrideStatus(st)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition cursor-pointer ${
+                                        overrideStatus === st
+                                            ? 'bg-sffl-red text-white shadow-sm'
+                                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                                    }`}
+                                >
+                                    {st === 'all' ? 'All' : st === 'overridden' ? 'Overridden' : 'Calculated'}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Table */}
+                {isLoading ? (
+                    <div className="p-12"><Loader /></div>
+                ) : players.length === 0 ? (
+                    <div className="p-12 text-center text-gray-500 dark:text-gray-400 text-xs">
+                        No players found matching your filters.
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm">
+                            <thead>
+                                <tr className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+                                    <th className="px-4 py-3">Player</th>
+                                    <th className="px-4 py-3">Position</th>
+                                    <th className="px-4 py-3">Team</th>
+                                    <th className="px-4 py-3 text-right">Calculated</th>
+                                    <th className="px-4 py-3 text-right">Active Price</th>
+                                    <th className="px-4 py-3 text-center">Status</th>
+                                    <th className="px-4 py-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
+                                {players.map((p) => {
+                                    const isOver = p.is_overridden;
+                                    return (
+                                        <tr key={p.player_id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                            <td className="px-4 py-3">
+                                                <div className="flex items-center gap-3">
+                                                    {p.player_image ? (
+                                                        <img
+                                                            src={p.player_image}
+                                                            alt=""
+                                                            className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-gray-700 shrink-0"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-8 h-8 rounded-full bg-sffl-navy/10 dark:bg-gray-700 text-sffl-navy dark:text-gray-300 font-black text-xs flex items-center justify-center shrink-0">
+                                                            {p.player_name.slice(0, 2).toUpperCase()}
+                                                        </div>
+                                                    )}
+                                                    <div className="min-w-0">
+                                                        <span className="font-bold text-gray-900 dark:text-white block truncate">
+                                                            {p.player_name}
+                                                        </span>
+                                                        <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                                                            Rating: {p.rating ? p.rating.toFixed(1) : '5.0'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600">
+                                                    {p.position}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-300">
+                                                <div className="flex items-center gap-1.5">
+                                                    {p.team_logo && (
+                                                        <img src={p.team_logo} alt="" className="w-4 h-4 object-contain shrink-0" />
+                                                    )}
+                                                    <span className="truncate">{p.team_short_name || p.team_name || '—'}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 text-right tabular-nums text-xs text-gray-500 dark:text-gray-400">
+                                                {formatFantasyPrice(p.calculated_price ?? p.price)}
+                                            </td>
+                                            <td className="px-4 py-3 text-right tabular-nums font-black">
+                                                <span className={isOver ? 'text-amber-600 dark:text-amber-400' : 'text-gray-900 dark:text-white'}>
+                                                    {formatFantasyPrice(p.price)}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                {isOver ? (
+                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
+                                                        Overridden
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gray-100 text-gray-600 border border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600">
+                                                        Calculated
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 text-right">
+                                                <div className="flex items-center justify-end gap-1.5">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleOpenEdit(p)}
+                                                        className="px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                                                        title="Override price"
+                                                    >
+                                                        <PencilSquareIcon className="w-3.5 h-3.5" />
+                                                        <span>Edit</span>
+                                                    </button>
+                                                    {isOver && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => resetMutation.mutate(p.player_id)}
+                                                            disabled={resetMutation.isPending}
+                                                            className="px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/50 text-sffl-red dark:text-red-300 text-xs font-bold border border-red-200 dark:border-red-800 transition cursor-pointer"
+                                                            title="Reset to calculated price"
+                                                        >
+                                                            Reset
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+
+                {data && (
+                    <Pager page={data.page || page} totalPages={data.total_pages || 1} total={data.total || 0} onPage={setPage} />
+                )}
+            </SectionCard>
+
+            {/* Price Edit Modal Dialog */}
+            {editingPlayer && (
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
+                        <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                            <div>
+                                <span className="text-xs font-black text-sffl-red uppercase tracking-wider block">Manual Price Override</span>
+                                <h3 className="text-lg font-black text-sffl-navy dark:text-white">{editingPlayer.player_name}</h3>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                    {editingPlayer.position} · {editingPlayer.team_short_name || editingPlayer.team_name}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setEditingPlayer(null)}
+                                className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300 transition cursor-pointer"
+                            >
+                                <XMarkIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSaveOverride} className="p-6 space-y-4">
+                            <div className="bg-gray-50 dark:bg-gray-700/40 p-3 rounded-xl border border-gray-200 dark:border-gray-600 space-y-1">
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-gray-500 dark:text-gray-400">Model Calculated:</span>
+                                    <span className="font-bold tabular-nums text-gray-700 dark:text-gray-200">
+                                        {formatFantasyPrice(editingPlayer.calculated_price ?? editingPlayer.price)}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-gray-500 dark:text-gray-400">Current Active Price:</span>
+                                    <span className="font-bold tabular-nums text-gray-900 dark:text-white">
+                                        {formatFantasyPrice(editingPlayer.price)}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5">
+                                    New Override Price (₦{PRICE_FLOOR.toFixed(1)}m – ₦{PRICE_CEILING.toFixed(1)}m)
+                                </label>
+                                <div className="relative">
+                                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-black text-gray-400">₦</span>
+                                    <input
+                                        type="number"
+                                        step="0.1"
+                                        min={PRICE_FLOOR}
+                                        max={PRICE_CEILING}
+                                        required
+                                        value={overridePriceInput}
+                                        onChange={(e) => setOverridePriceInput(e.target.value)}
+                                        placeholder="e.g. 10.5"
+                                        className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl pl-8 pr-12 py-2.5 text-sm font-bold text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
+                                    />
+                                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">m</span>
+                                </div>
+                                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5">
+                                    Preview: <strong>{formatFantasyPrice(parseFloat(overridePriceInput) || 0)}</strong>. Overriding protects this price from being overwritten by future gameweek calculations.
+                                </p>
+                            </div>
+
+                            <div className="pt-3 flex items-center justify-end gap-3 border-t border-gray-100 dark:border-gray-700">
+                                <button
+                                    type="button"
+                                    onClick={() => setEditingPlayer(null)}
+                                    className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 dark:border-gray-600 transition cursor-pointer"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={overrideMutation.isPending}
+                                    className="px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-sffl-red hover:bg-[#A52323] text-white transition shadow-md cursor-pointer disabled:opacity-50"
+                                >
+                                    {overrideMutation.isPending ? 'Saving…' : 'Save Override'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

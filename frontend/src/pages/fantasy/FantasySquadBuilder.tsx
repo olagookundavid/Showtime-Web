@@ -96,6 +96,14 @@ const isFemale = (g?: string): boolean => (g || '').toUpperCase().startsWith('F'
 const unitOf = (position: string): 'offense' | 'defense' =>
     position === 'Rusher' || position === 'Defender' ? 'defense' : 'offense';
 
+const MARKET_SORT_OPTIONS: { key: 'selected' | 'price_asc' | 'price_desc' | 'rating' | 'points'; label: string; icon: string }[] = [
+    { key: 'selected', label: 'Most Owned', icon: '🔥' },
+    { key: 'price_asc', label: 'Lowest Price', icon: '💰' },
+    { key: 'price_desc', label: 'Highest Price', icon: '💎' },
+    { key: 'rating', label: 'Top Rated', icon: '⭐' },
+    { key: 'points', label: 'Most Points', icon: '⚡' },
+];
+
 export function FantasySquadBuilder() {
     // Shares the hub/dashboard query key, so this is a cache hit rather than
     // an extra request.
@@ -137,6 +145,10 @@ export function FantasySquadBuilder() {
     const [selectedUnitTab, setSelectedUnitTab] = useState<'ALL' | 'OFFENSE' | 'DEFENSE'>('ALL');
     const [activeModalSlot, setActiveModalSlot] = useState<SlotDefinition | null>(null);
     const [marketSearch, setMarketSearch] = useState('');
+    // Opens on price, not ownership. Ownership only separates players once
+    // squads exist — before that every player ties on 0 owned and the list
+    // falls through to alphabetical, which buries the players worth picking.
+    const [marketSort, setMarketSort] = useState<'selected' | 'price_asc' | 'price_desc' | 'rating' | 'points'>('price_desc');
     // Player action popover: which slot's player is showing actions
     const [actionSlot, setActionSlot] = useState<FantasySlot | null>(null);
     // Sell confirmation dialog
@@ -240,7 +252,7 @@ export function FantasySquadBuilder() {
 
     // Player Market Query for Active Modal Slot
     const { data: marketData, isLoading: marketLoading } = useQuery({
-        queryKey: ['playerMarket', season?.id, activeModalSlot?.allowedPositions, activeModalSlot?.requiredGender, marketSearch],
+        queryKey: ['playerMarket', season?.id, activeModalSlot?.allowedPositions, activeModalSlot?.requiredGender, marketSearch, marketSort],
         queryFn: () => {
             if (!season?.id || !activeModalSlot) return Promise.resolve({ data: [], total: 0, total_pages: 0, my_rank: 0 });
             return fantasyApi.listPlayerMarket(season.id, {
@@ -250,6 +262,7 @@ export function FantasySquadBuilder() {
                 position: activeModalSlot.allowedPositions.join(','),
                 gender: activeModalSlot.requiredGender,
                 search: marketSearch,
+                sort: marketSort,
                 limit: 100,
             });
         },
@@ -258,11 +271,12 @@ export function FantasySquadBuilder() {
 
     // Market for bench signings — all positions, no slot filter
     const { data: benchMarketData, isLoading: benchMarketLoading } = useQuery({
-        queryKey: ['benchMarket', season?.id, marketSearch],
+        queryKey: ['benchMarket', season?.id, marketSearch, marketSort],
         queryFn: () => {
             if (!season?.id) return Promise.resolve({ data: [], total: 0, total_pages: 0, my_rank: 0 });
             return fantasyApi.listPlayerMarket(season.id, {
                 search: marketSearch,
+                sort: marketSort,
                 limit: 100,
             });
         },
@@ -1115,8 +1129,8 @@ export function FantasySquadBuilder() {
                             </button>
                         </div>
 
-                        {/* Search Bar */}
-                        <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40">
+                        {/* Search Bar & Sort Filters */}
+                        <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 space-y-2.5">
                             <div className="relative">
                                 <label htmlFor="slot-player-search" className="sr-only">Search by player name</label>
                                 <MagnifyingGlassIcon className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -1129,6 +1143,28 @@ export function FantasySquadBuilder() {
                                     aria-label="Search by player name"
                                     className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl pl-10 pr-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                                 />
+                            </div>
+
+                            {/* Sort Chips */}
+                            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 shrink-0 mr-1">
+                                    Sort:
+                                </span>
+                                {MARKET_SORT_OPTIONS.map((opt) => (
+                                    <button
+                                        key={opt.key}
+                                        type="button"
+                                        onClick={() => setMarketSort(opt.key)}
+                                        className={`px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 transition flex items-center gap-1 cursor-pointer ${
+                                            marketSort === opt.key
+                                                ? 'bg-sffl-navy text-white dark:bg-sffl-red dark:text-white shadow-sm'
+                                                : 'bg-white dark:bg-gray-700/70 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+                                        }`}
+                                    >
+                                        <span>{opt.icon}</span>
+                                        <span>{opt.label}</span>
+                                    </button>
+                                ))}
                             </div>
                         </div>
 
@@ -1269,9 +1305,21 @@ export function FantasySquadBuilder() {
                                                         {p.position}
                                                     </span>
                                                     <span className="text-gray-300 dark:text-gray-600">·</span>
-                                                    <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                                                        rated <strong className="text-gray-700 dark:text-gray-200">{(p.rating ?? 0).toFixed(1)}</strong>
+                                                    <span className={`text-[11px] ${marketSort === 'rating' ? 'font-black text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                                                        ★ {(p.rating ?? 0).toFixed(1)}
                                                     </span>
+                                                    <span className="text-gray-300 dark:text-gray-600">·</span>
+                                                    <span className={`text-[11px] ${marketSort === 'selected' ? 'font-black text-sffl-red dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                                                        {(p.selected_by_pct ?? 0).toFixed(0)}% owned
+                                                    </span>
+                                                    {p.total_points > 0 && (
+                                                        <>
+                                                            <span className="text-gray-300 dark:text-gray-600">·</span>
+                                                            <span className={`text-[11px] ${marketSort === 'points' ? 'font-black text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                                                                {p.total_points.toFixed(0)} pts
+                                                            </span>
+                                                        </>
+                                                    )}
                                                 </div>
                                                 {clubExceeded && !isAlreadyPicked && (
                                                     <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold block mt-0.5">
@@ -1351,7 +1399,7 @@ export function FantasySquadBuilder() {
                             </button>
                         </div>
 
-                        <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40">
+                        <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 space-y-2.5">
                             <div className="relative">
                                 <label htmlFor="bench-player-search" className="sr-only">Search for a player</label>
                                 <MagnifyingGlassIcon className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -1364,6 +1412,28 @@ export function FantasySquadBuilder() {
                                     aria-label="Search for a player"
                                     className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl pl-10 pr-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                                 />
+                            </div>
+
+                            {/* Sort Chips */}
+                            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 shrink-0 mr-1">
+                                    Sort:
+                                </span>
+                                {MARKET_SORT_OPTIONS.map((opt) => (
+                                    <button
+                                        key={opt.key}
+                                        type="button"
+                                        onClick={() => setMarketSort(opt.key)}
+                                        className={`px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 transition flex items-center gap-1 cursor-pointer ${
+                                            marketSort === opt.key
+                                                ? 'bg-sffl-navy text-white dark:bg-sffl-red dark:text-white shadow-sm'
+                                                : 'bg-white dark:bg-gray-700/70 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
+                                        }`}
+                                    >
+                                        <span>{opt.icon}</span>
+                                        <span>{opt.label}</span>
+                                    </button>
+                                ))}
                             </div>
                         </div>
 
@@ -1398,6 +1468,22 @@ export function FantasySquadBuilder() {
                                                     <span className="text-[11px] text-gray-500 dark:text-gray-400">{p.team_short_name || p.team_name || '—'}</span>
                                                     <span className="text-gray-300 dark:text-gray-600">·</span>
                                                     <span className="text-[11px] font-bold text-gray-600 dark:text-gray-300">{p.position}</span>
+                                                    <span className="text-gray-300 dark:text-gray-600">·</span>
+                                                    <span className={`text-[11px] ${marketSort === 'rating' ? 'font-black text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                                                        ★ {(p.rating ?? 0).toFixed(1)}
+                                                    </span>
+                                                    <span className="text-gray-300 dark:text-gray-600">·</span>
+                                                    <span className={`text-[11px] ${marketSort === 'selected' ? 'font-black text-sffl-red dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                                                        {(p.selected_by_pct ?? 0).toFixed(0)}% owned
+                                                    </span>
+                                                    {p.total_points > 0 && (
+                                                        <>
+                                                            <span className="text-gray-300 dark:text-gray-600">·</span>
+                                                            <span className={`text-[11px] ${marketSort === 'points' ? 'font-black text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                                                                {p.total_points.toFixed(0)} pts
+                                                            </span>
+                                                        </>
+                                                    )}
                                                 </div>
                                                 {!affordable && (
                                                     <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold block mt-0.5">
