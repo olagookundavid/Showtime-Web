@@ -17,7 +17,7 @@ set -uo pipefail
 SUBJECT="${1:-Showtime alert}"
 BODY="${2:-}"
 TO="david@fusewall.africa"
-FROM="Showtime Alerts <showtime@sffl.football>"
+FROM="Showtime Alerts <showtime@showtimeflag.football>"
 RESEND_API_KEY="$(grep -E '^RESEND_API_KEY=' "$HOME/apps/showtime/.env" | cut -d= -f2-)"
 
 if [ -z "$RESEND_API_KEY" ]; then
