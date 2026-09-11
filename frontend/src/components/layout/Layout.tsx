@@ -22,7 +22,8 @@ import {
     ScaleIcon,
     MapPinIcon,
     VideoCameraIcon,
-    TicketIcon
+    TicketIcon,
+    CalendarIcon
 } from '@heroicons/react/24/outline';
 
 export const Layout = () => {
@@ -176,6 +177,10 @@ export const Layout = () => {
                                     </Link>
                                 )}
 
+                                <Link to="/matches" onClick={() => setIsMoreMenuOpen(false)} className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl active:scale-95 transition-all">
+                                    <CalendarIcon className="w-5 h-5 text-sffl-red" />
+                                    <span className="font-black text-xs text-gray-900 dark:text-white uppercase tracking-tight">Matches</span>
+                                </Link>
                                 <Link to="/news" onClick={() => setIsMoreMenuOpen(false)} className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl active:scale-95 transition-all">
                                     <NewspaperIcon className="w-5 h-5 text-sffl-red" />
                                     <span className="font-black text-xs text-gray-900 dark:text-white uppercase tracking-tight">News</span>
