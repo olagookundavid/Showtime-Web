@@ -30,6 +30,7 @@ type ITicketService interface {
 	// Tiers
 	CreateTier(ctx context.Context, eventDayID string, req dto.CreateTicketTierRequest) (*dto.TicketTierResponse, error)
 	ListTiers(ctx context.Context, eventDayID string) ([]dto.TicketTierResponse, error)
+	UpdateTier(ctx context.Context, eventDayID string, tierID string, req dto.UpdateTicketTierRequest) (*dto.TicketTierResponse, error)
 	DeleteTier(ctx context.Context, id string) error
 
 	// Tickets
@@ -113,7 +114,15 @@ func (s *TicketService) CreateEventDay(ctx context.Context, req dto.CreateEventD
 }
 
 func (s *TicketService) UpdateEventDay(ctx context.Context, id string, req dto.UpdateEventDayRequest) error {
-	return s.eventDayRepo.Update(ctx, id, req.Title, req.Venue, req.IsActive)
+	var parsedDate *time.Time
+	if req.Date != nil && strings.TrimSpace(*req.Date) != "" {
+		d, err := time.Parse("2006-01-02", *req.Date)
+		if err != nil {
+			return fmt.Errorf("invalid date format, use YYYY-MM-DD: %w", err)
+		}
+		parsedDate = &d
+	}
+	return s.eventDayRepo.Update(ctx, id, req.Title, parsedDate, req.Venue, req.IsActive)
 }
 
 func (s *TicketService) GetEventDayByID(ctx context.Context, id string, code string) (*dto.EventDayResponse, error) {
@@ -258,6 +267,68 @@ func (s *TicketService) ListTiers(ctx context.Context, eventDayID string) ([]dto
 		responses = append(responses, *tierToResponse(&tiers[i]))
 	}
 	return responses, nil
+}
+
+func (s *TicketService) UpdateTier(ctx context.Context, eventDayID string, tierID string, req dto.UpdateTicketTierRequest) (*dto.TicketTierResponse, error) {
+	tier, err := s.tierRepo.GetByID(ctx, tierID)
+	if err != nil {
+		return nil, fmt.Errorf("tier not found: %w", err)
+	}
+
+	if tier.EventDayID != eventDayID {
+		return nil, fmt.Errorf("tier does not belong to the specified event day")
+	}
+
+	if req.Name != nil {
+		name := strings.TrimSpace(*req.Name)
+		if name == "" {
+			return nil, fmt.Errorf("tier name cannot be empty")
+		}
+		tier.Name = name
+	}
+
+	if req.Price != nil {
+		if *req.Price < 0 {
+			return nil, fmt.Errorf("tier price cannot be negative")
+		}
+		tier.Price = *req.Price
+	}
+
+	if req.Capacity != nil {
+		capVal := *req.Capacity
+		if capVal < 0 {
+			return nil, fmt.Errorf("tier capacity cannot be negative")
+		}
+		if capVal > 0 && capVal < tier.SoldCount {
+			return nil, fmt.Errorf("tier capacity (%d) cannot be less than tickets already sold (%d)", capVal, tier.SoldCount)
+		}
+		tier.Capacity = capVal
+	}
+
+	if req.Description != nil {
+		tier.Description = *req.Description
+	}
+
+	if req.IsHidden != nil {
+		tier.IsHidden = *req.IsHidden
+	}
+
+	if req.AccessCode != nil {
+		code := strings.ToUpper(strings.TrimSpace(*req.AccessCode))
+		if code == "" || !tier.IsHidden {
+			tier.AccessCode = nil
+		} else {
+			tier.AccessCode = &code
+		}
+	} else if !tier.IsHidden {
+		tier.AccessCode = nil
+	}
+
+	if err := s.tierRepo.Update(ctx, tier); err != nil {
+		return nil, fmt.Errorf("failed to update tier: %w", err)
+	}
+
+	return tierToResponse(tier), nil
 }
 
 func (s *TicketService) DeleteTier(ctx context.Context, id string) error {

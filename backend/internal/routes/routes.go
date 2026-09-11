@@ -326,6 +326,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		eventDaysGroup.PUT("/:id", app.Handlers.TicketHandler.UpdateEventDay)
 		eventDaysGroup.DELETE("/:id", app.Handlers.TicketHandler.DeleteEventDay)
 		eventDaysGroup.POST("/:id/tiers", app.Handlers.TicketHandler.CreateTier)
+		eventDaysGroup.PUT("/:id/tiers/:tierId", app.Handlers.TicketHandler.UpdateTier)
 		eventDaysGroup.DELETE("/:id/tiers/:tierId", app.Handlers.TicketHandler.DeleteTier)
 	}
 

@@ -169,10 +169,40 @@ type LineupTotals struct {
 // exercised directly in tests and so the identical logic backs both the API and
 // (mirrored) the squad builder.
 func ValidateLineup(picks []LineupCandidate, rules LineupRules) (LineupTotals, error) {
+	return validateLineup(picks, rules, true)
+}
+
+// ValidatePartialLineup checks a half-finished team sheet — the state a builder
+// is in between the first pick and the fourteenth.
+//
+// It enforces every rule that can only be broken, never merely unfinished: a
+// player must fit the slot they were put in, no slot may be filled twice, the
+// same player may not appear in two slots, and no club may be over-represented.
+// It does not enforce the rules that an incomplete sheet is *expected* to fail
+// — all fourteen slots present, and the female minimums per unit — because a
+// manager three picks in has not done anything wrong yet.
+//
+// The distinction matters because a partial sheet is saved but never scored:
+// see LineupPartial.
+func ValidatePartialLineup(picks []LineupCandidate, rules LineupRules) (LineupTotals, error) {
+	return validateLineup(picks, rules, false)
+}
+
+// IsLineupComplete reports whether a sheet has every slot filled. Combined with
+// ValidateLineup returning no error, this is the bar a lineup must clear before
+// it is allowed to score.
+func IsLineupComplete(picks []LineupCandidate) bool {
+	return len(picks) == len(AllValidSlots)
+}
+
+func validateLineup(picks []LineupCandidate, rules LineupRules, requireComplete bool) (LineupTotals, error) {
 	var totals LineupTotals
 
-	if len(picks) != len(AllValidSlots) {
+	if requireComplete && len(picks) != len(AllValidSlots) {
 		return totals, fmt.Errorf("lineup must contain exactly %d slots, received %d", len(AllValidSlots), len(picks))
+	}
+	if len(picks) > len(AllValidSlots) {
+		return totals, fmt.Errorf("lineup cannot contain more than %d slots, received %d", len(AllValidSlots), len(picks))
 	}
 
 	bySlot := make(map[FantasySlot]LineupCandidate, len(picks))
@@ -215,18 +245,29 @@ func ValidateLineup(picks []LineupCandidate, rules LineupRules) (LineupTotals, e
 		totals.TotalSpent += p.Price
 	}
 
-	for _, required := range AllValidSlots {
-		if _, ok := bySlot[required]; !ok {
-			return totals, fmt.Errorf("missing required slot: %s", required)
+	if requireComplete {
+		for _, required := range AllValidSlots {
+			if _, ok := bySlot[required]; !ok {
+				return totals, fmt.Errorf("missing required slot: %s", required)
+			}
 		}
 	}
 
+	// A club ceiling can be breached by a partial sheet, so it is checked either
+	// way — unlike the minimums below, going over is never "not finished yet".
 	if rules.MaxPerClub > 0 {
 		for _, count := range clubCounts {
 			if count > rules.MaxPerClub {
 				return totals, fmt.Errorf("no more than %d players may come from the same team", rules.MaxPerClub)
 			}
 		}
+	}
+
+	// The female minimums are floors, and a sheet still being filled in is
+	// legitimately below them. Enforcing them mid-build would refuse to save a
+	// manager's first pick.
+	if !requireComplete {
+		return totals, nil
 	}
 
 	if totals.OffenseFemales < rules.MinFemaleOffense {
@@ -474,7 +515,17 @@ type FantasyTeam struct {
 type LineupStatus string
 
 const (
-	LineupDraft  LineupStatus = "DRAFT"
+	// LineupPartial is a team sheet still being filled in. It is saved so a
+	// manager can pick over several sittings and not lose their work, but it is
+	// deliberately never locked and therefore never scored — only a lineup that
+	// is complete and passes ValidateLineup earns points. LockLineupsForGameweek
+	// promotes DRAFT only, which is what keeps a half-finished sheet out of the
+	// scoring run.
+	LineupPartial LineupStatus = "PARTIAL"
+	// LineupDraft is a complete, fully-validated sheet awaiting the deadline.
+	LineupDraft LineupStatus = "DRAFT"
+	// LineupLocked is a sheet the deadline has closed: it scores, and it is the
+	// only status a rollover will carry forward.
 	LineupLocked LineupStatus = "LOCKED"
 )
 

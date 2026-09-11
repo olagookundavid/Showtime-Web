@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"expvar"
 	"flag"
 	"fmt"
@@ -31,6 +32,7 @@ import (
 	sqlembed "showtime-backend/internal/sql"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
@@ -208,15 +210,35 @@ func flagSetup(dbUrl, env string, tokenDeets map[string]string) *config.Config {
 func cronjobs(app *api.Application, ctx context.Context, cancel context.CancelFunc) {
 	c := cron.New()
 
-	// run wraps a scheduled job so every one behaves the same way about the two
-	// things they all have to get right.
+	// unreachableDB reports whether err means the job never got to talk to the
+	// database, as opposed to the database answering with a problem.
 	//
-	// It skips if the shared context is already done, and — more importantly —
-	// does not report a failure as an error when the cause is that context
-	// going away. Shutdown cancels this context deliberately to free the DB
-	// connection a running job is holding, so the job's query failing is the
-	// intended outcome of stopping the server, not a fault. Logging it at error
-	// with a stack trace made an orderly shutdown look like a crash.
+	// A *pgconn.ConnectError is unambiguous: the dial or startup handshake did
+	// not complete. A bare DeadlineExceeded is the same class of failure seen
+	// one layer up — with the shared context still live, the only deadline left
+	// is the per-query one, so the database took too long to answer rather than
+	// answering wrongly. Neither says anything about the job's own logic.
+	unreachableDB := func(err error) bool {
+		var connErr *pgconn.ConnectError
+		return errors.As(err, &connErr) || errors.Is(err, context.DeadlineExceeded)
+	}
+
+	// run wraps a scheduled job so every one behaves the same way about the
+	// three things they all have to get right.
+	//
+	// It skips if the shared context is already done, and does not report a
+	// failure as an error when the cause is that context going away. Shutdown
+	// cancels this context deliberately to free the DB connection a running job
+	// is holding, so the job's query failing is the intended outcome of
+	// stopping the server, not a fault. Logging it at error with a stack trace
+	// made an orderly shutdown look like a crash.
+	//
+	// It also logs an unreachable database at warn rather than error. The
+	// logger attaches a stack trace from error upwards, and a stack trace
+	// through cron's internals says nothing useful about a database that was
+	// briefly not there — a dev laptop in a Power Nap wake window, or a blip in
+	// front of a pooler. The job is scheduled, so the next tick retries anyway.
+	// A query that genuinely fails still logs at error.
 	run := func(name string, job func(context.Context) error) func() {
 		return func() {
 			if ctx.Err() != nil {
@@ -227,32 +249,57 @@ func cronjobs(app *api.Application, ctx context.Context, cancel context.CancelFu
 					app.Logger.Info(fmt.Sprintf("%s stopped early: server is shutting down", name), nil)
 					return
 				}
+				if unreachableDB(err) {
+					app.Logger.Warn(fmt.Sprintf("%s skipped: database unreachable, retrying on next tick: %v", name, err), nil)
+					return
+				}
 				app.Logger.Error(fmt.Sprintf("%s failed: %v", name, err), nil)
 			}
 		}
 	}
 
+	// add registers a job using standard 5-field crontab semantics.
+	//
+	// It exists because cron v1's AddFunc parses with a leading seconds field
+	// and an optional day-of-week, so a 5-field spec is accepted but shifted
+	// one place: "*/5 * * * *" schedules every 5 *seconds*, and "0 0 * * *"
+	// runs hourly rather than at midnight. That turned three DB-backed jobs
+	// into a tight loop that exhausted the connection pool and then reported
+	// itself as a connect timeout. ParseStandard reads these specs the way
+	// crontab(5) does.
+	//
+	// A spec that fails to parse is fatal at boot on purpose: AddFunc's error
+	// was previously discarded, which let a bad spec disable a job silently.
+	add := func(spec, name string, job func(context.Context) error) {
+		sched, err := cron.ParseStandard(spec)
+		if err != nil {
+			app.Logger.Fatal(fmt.Sprintf("invalid cron spec %q for %s: %v", spec, name, err), nil)
+			return
+		}
+		c.Schedule(sched, cron.FuncJob(run(name, job)))
+	}
+
 	// Run every day at midnight (00:00)
-	c.AddFunc("0 0 * * *", run("Ticket expiration", func(ctx context.Context) error {
+	add("0 0 * * *", "Ticket expiration", func(ctx context.Context) error {
 		return app.TicketService.ExpirePastTickets(ctx)
-	}))
+	})
 
 	// Run daily at 01:00 AM to cleanup OTPs
-	c.AddFunc("0 1 * * *", run("OTP cleanup", func(ctx context.Context) error {
+	add("0 1 * * *", "OTP cleanup", func(ctx context.Context) error {
 		return app.AuthService.CleanupExpiredOTPs(ctx)
-	}))
+	})
 
 	// Run daily at 02:00 AM to sweep orphaned images from object storage.
 	// No-op unless R2_GC_ENABLED=true; logs candidates only until R2_GC_DRY_RUN=false.
-	c.AddFunc("0 2 * * *", run("Image GC sweep", func(ctx context.Context) error {
+	add("0 2 * * *", "Image GC sweep", func(ctx context.Context) error {
 		if app.ImageGCService == nil || !app.ImageGCService.Enabled {
 			return nil
 		}
 		return app.ImageGCService.SweepOrphans(ctx)
-	}))
+	})
 
 	// Run every 10 minutes to auto-expire contracts that reached match length
-	c.AddFunc("*/10 * * * *", run("Contract expiration check", func(ctx context.Context) error {
+	add("*/10 * * * *", "Contract expiration check", func(ctx context.Context) error {
 		if app.ContractService == nil {
 			return nil
 		}
@@ -261,23 +308,23 @@ func cronjobs(app *api.Application, ctx context.Context, cancel context.CancelFu
 			app.Logger.Info(fmt.Sprintf("Auto-expired %d contracts", count), nil)
 		}
 		return err
-	}))
+	})
 
 	// Run every 5 minutes to lock scheduled fantasy gameweeks and roll over unedited lineups
-	c.AddFunc("*/5 * * * *", run("Fantasy auto-lock job", func(ctx context.Context) error {
+	add("*/5 * * * *", "Fantasy auto-lock job", func(ctx context.Context) error {
 		if app.FantasyService == nil {
 			return nil
 		}
 		return app.FantasyService.AutoLockGameweeks(ctx)
-	}))
+	})
 
 	// Run every 10 minutes to auto-finalize and score gameweeks when all matches are finished and stats populated
-	c.AddFunc("*/10 * * * *", run("Fantasy auto-finalize job", func(ctx context.Context) error {
+	add("*/10 * * * *", "Fantasy auto-finalize job", func(ctx context.Context) error {
 		if app.FantasyService == nil {
 			return nil
 		}
 		return app.FantasyService.AutoFinalizeGameweeks(ctx)
-	}))
+	})
 
 	app.Logger.Info("Starting scheduler...", nil)
 	c.Start()

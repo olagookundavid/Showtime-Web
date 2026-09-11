@@ -525,7 +525,13 @@ func (s *FantasyService) lockAndRollOver(ctx context.Context, gw domain.FantasyG
 			failures = append(failures, fmt.Errorf("team %s: %w", tm.ID, err))
 			continue
 		}
-		if existing != nil {
+		// Only a lineup that actually locked counts as "they submitted one".
+		// A PARTIAL sheet was never scoreable, so treating it as a submission
+		// would silently cost a set-and-forget manager their whole gameweek:
+		// they would lose the rollover of last week's squad and score nothing,
+		// because they opened the builder and picked a single player. The clone
+		// below overwrites the PARTIAL row (ON CONFLICT) and clears its picks.
+		if existing != nil && existing.Status == domain.LineupLocked {
 			continue
 		}
 
@@ -747,13 +753,31 @@ func (s *FantasyService) SaveLineup(ctx context.Context, userID string, req dto.
 		picks = append(picks, c)
 	}
 
-	totals, err := domain.ValidateLineup(picks, domain.LineupRules{
+	// A sheet is saved as soon as it holds a legal pick, so a manager can build
+	// over several sittings without losing their work. What it is saved *as*
+	// depends on whether it is finished: only a complete, fully-validated sheet
+	// becomes a DRAFT, and only a DRAFT is ever locked and scored. An unfinished
+	// one is stored as PARTIAL and sits out the gameweek.
+	//
+	// The partial pass still rejects anything actually illegal — a player in a
+	// slot they cannot fill, the same player twice, too many from one club — so
+	// "saved" never means "unchecked".
+	rules := domain.LineupRules{
 		MinFemaleOffense: season.MinFemaleOffense,
 		MinFemaleDefense: season.MinFemaleDefense,
 		MaxPerClub:       season.MaxPerClub,
-	})
+	}
+	totals, err := domain.ValidatePartialLineup(picks, rules)
 	if err != nil {
 		return nil, err
+	}
+
+	// Whether the sheet is finished and legal. Being finished is not the same as
+	// being live — see the status decision below, after the team is resolved.
+	var completionErr error
+	complete := domain.IsLineupComplete(picks)
+	if complete {
+		_, completionErr = domain.ValidateLineup(picks, rules)
 	}
 
 	// Entering a season is a deliberate act (EnterSeason), never a side effect
@@ -773,6 +797,26 @@ func (s *FantasyService) SaveLineup(ctx context.Context, userID string, req dto.
 	// of the game — the pure rules stay testable without a database.
 	if err := s.assertOwned(ctx, team.ID, picks); err != nil {
 		return nil, err
+	}
+
+	// Scoring starts when a manager publishes, not the moment their fourteenth
+	// pick happens to be legal — finishing a squad while browsing should not
+	// enter them into the gameweek by accident.
+	//
+	// The one case that stays published without being asked again is a sheet
+	// that already is: editing a live lineup must not quietly pull it out of the
+	// scoring run. It stays published for as long as it stays complete and
+	// legal, and drops back to PARTIAL only when an edit leaves it neither —
+	// which is the honest outcome, since an incomplete sheet cannot be scored.
+	existing, err := s.repo.GetLineup(ctx, team.ID, gw.ID)
+	if err != nil {
+		return nil, err
+	}
+	alreadyPublished := existing != nil && existing.Status != domain.LineupPartial
+
+	status := domain.LineupPartial
+	if complete && completionErr == nil && (req.Publish || alreadyPublished) {
+		status = domain.LineupDraft
 	}
 	if req.TeamName != "" && req.TeamName != team.Name {
 		if team, err = s.repo.GetOrCreateTeam(ctx, userID, season.ID, req.TeamName); err != nil {
@@ -804,21 +848,35 @@ func (s *FantasyService) SaveLineup(ctx context.Context, userID string, req dto.
 		TeamID:     team.ID,
 		GameweekID: gw.ID,
 		TotalSpent: totals.TotalSpent,
-		Status:     domain.LineupDraft,
+		Status:     status,
 	}
 	if err := s.repo.SaveLineupDraft(ctx, lineup, lineupPicks); err != nil {
 		return nil, fmt.Errorf("failed to save lineup: %w", err)
 	}
 
+	// A full fourteen that misses a quota is still saved — throwing away
+	// thirteen good picks because the fourteenth broke the female minimum would
+	// be a worse outcome than storing it and saying why it cannot go live.
+	// BlockingReason is that "why", and it is advice, not an error.
+	var blocking string
+	if completionErr != nil {
+		blocking = completionErr.Error()
+	} else if !complete {
+		blocking = fmt.Sprintf("%d of %d slots filled", len(picks), len(domain.AllValidSlots))
+	}
+
 	return &dto.FantasyLineupResponse{
-		ID:         lineup.ID,
-		TeamID:     team.ID,
-		TeamName:   team.Name,
-		GameweekID: gw.ID,
-		TotalSpent: totals.TotalSpent,
-		Remaining:  season.Budget - totals.TotalSpent,
-		Status:     string(lineup.Status),
-		Picks:      responsePicks,
+		ID:             lineup.ID,
+		TeamID:         team.ID,
+		TeamName:       team.Name,
+		GameweekID:     gw.ID,
+		TotalSpent:     totals.TotalSpent,
+		Remaining:      season.Budget - totals.TotalSpent,
+		Status:         string(lineup.Status),
+		Complete:       complete && completionErr == nil,
+		Published:      status != domain.LineupPartial,
+		BlockingReason: blocking,
+		Picks:          responsePicks,
 	}, nil
 }
 
@@ -892,17 +950,33 @@ func (s *FantasyService) GetMyLineup(ctx context.Context, userID, seasonID, game
 		picks = append(picks, item)
 	}
 
+	// A PARTIAL sheet is the manager's own unsaved-to-live work, so it is
+	// returned as it stands — hiding it behind a rollover would lose the picks
+	// they made. What it does not get is a claim to score: that is Published.
+	//
+	// A stored PARTIAL can still be a finished fourteen the manager simply has
+	// not published yet, so completeness is read from the picks, not the status.
+	published := lineup.Status != domain.LineupPartial
+	complete := len(lineup.Picks) == len(domain.AllValidSlots)
+	blocking := ""
+	if !complete {
+		blocking = fmt.Sprintf("%d of %d slots filled", len(lineup.Picks), len(domain.AllValidSlots))
+	}
+
 	return &dto.FantasyLineupResponse{
-		ID:         lineup.ID,
-		TeamID:     team.ID,
-		TeamName:   team.Name,
-		GameweekID: gameweekID,
-		TotalSpent: lineup.TotalSpent,
-		Remaining:  budget - lineup.TotalSpent,
-		Points:     lineup.Points,
-		Status:     string(lineup.Status),
-		IsRollover: isRollover,
-		Picks:      picks,
+		ID:             lineup.ID,
+		TeamID:         team.ID,
+		TeamName:       team.Name,
+		GameweekID:     gameweekID,
+		TotalSpent:     lineup.TotalSpent,
+		Remaining:      budget - lineup.TotalSpent,
+		Points:         lineup.Points,
+		Status:         string(lineup.Status),
+		IsRollover:     isRollover,
+		Complete:       complete,
+		Published:      published,
+		BlockingReason: blocking,
+		Picks:          picks,
 	}, nil
 }
 

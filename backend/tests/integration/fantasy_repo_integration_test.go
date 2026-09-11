@@ -1033,3 +1033,91 @@ func TestOverridePlayerPriceRespectsFinalizedGameweeks(t *testing.T) {
 		}
 	})
 }
+
+// TestPartialLineupsAreNeverLocked is the guard on the whole partial-save
+// feature. Saving a sheet after every pick means half-finished lineups now sit
+// in the table alongside real ones, and the only thing keeping them out of the
+// scoring run is that LockLineupsForGameweek promotes DRAFT and nothing else.
+// If that ever widens to include PARTIAL, managers get scored on squads of
+// three players — so it is pinned here against the real schema.
+func TestPartialLineupsAreNeverLocked(t *testing.T) {
+	f := setupFantasyFixture(t)
+	ctx := context.Background()
+	repo := ports.NewFantasyRepository(f.pool)
+
+	// The fixture's own lineup is LOCKED. Add a second team holding a PARTIAL
+	// sheet and a third holding a complete DRAFT, so one lock run covers all
+	// three states at once.
+	// fantasy_teams is UNIQUE per (user, season), so each extra team needs its
+	// own manager rather than reusing the fixture's.
+	newManager := func(label string) string {
+		t.Helper()
+		return mustScan(t, f.pool,
+			`INSERT INTO users (full_name, email, password_hash, role)
+			 VALUES ($1, $2, ''::bytea, 'user') RETURNING id`,
+			"ITest "+label, fmt.Sprintf("itest-%s-%d@example.invalid", label, time.Now().UnixNano()))
+	}
+	partialUserID := newManager("partial")
+	draftUserID := newManager("draft")
+
+	partialTeamID := mustScan(t, f.pool,
+		`INSERT INTO fantasy_teams (user_id, season_id, name) VALUES ($1, $2, 'ITest Partial XI') RETURNING id`,
+		partialUserID, f.seasonID)
+	draftTeamID := mustScan(t, f.pool,
+		`INSERT INTO fantasy_teams (user_id, season_id, name) VALUES ($1, $2, 'ITest Draft XI') RETURNING id`,
+		draftUserID, f.seasonID)
+
+	partialLineupID := mustScan(t, f.pool,
+		`INSERT INTO fantasy_lineups (team_id, gameweek_id, total_spent, status)
+		 VALUES ($1, $2, 10.00, 'PARTIAL') RETURNING id`,
+		partialTeamID, f.gameweekID)
+	draftLineupID := mustScan(t, f.pool,
+		`INSERT INTO fantasy_lineups (team_id, gameweek_id, total_spent, status)
+		 VALUES ($1, $2, 140.00, 'DRAFT') RETURNING id`,
+		draftTeamID, f.gameweekID)
+
+	t.Cleanup(func() {
+		// Teams first, then the managers they belong to.
+		for _, id := range []string{partialTeamID, draftTeamID} {
+			if _, err := f.pool.Exec(ctx, `DELETE FROM fantasy_teams WHERE id = $1`, id); err != nil {
+				t.Logf("cleanup: could not remove team %s: %v", id, err)
+			}
+		}
+		for _, id := range []string{partialUserID, draftUserID} {
+			if _, err := f.pool.Exec(ctx, `DELETE FROM users WHERE id = $1`, id); err != nil {
+				t.Logf("cleanup: could not remove manager %s: %v", id, err)
+			}
+		}
+	})
+
+	statusOf := func(t *testing.T, lineupID string) string {
+		t.Helper()
+		var status string
+		if err := f.pool.QueryRow(ctx,
+			`SELECT status FROM fantasy_lineups WHERE id = $1`, lineupID).Scan(&status); err != nil {
+			t.Fatalf("could not read lineup status: %v", err)
+		}
+		return status
+	}
+
+	if err := repo.LockLineupsForGameweek(ctx, f.gameweekID); err != nil {
+		t.Fatalf("LockLineupsForGameweek: %v", err)
+	}
+
+	if got := statusOf(t, draftLineupID); got != "LOCKED" {
+		t.Errorf("a complete DRAFT must lock and score: got %s, want LOCKED", got)
+	}
+	if got := statusOf(t, partialLineupID); got != "PARTIAL" {
+		t.Errorf("an unfinished sheet must not enter the scoring run: got %s, want PARTIAL", got)
+	}
+
+	// The schema itself must reject an unknown status, so a typo in a future
+	// migration or query cannot invent a fourth state that locks by accident.
+	t.Run("the database refuses an unknown lineup status", func(t *testing.T) {
+		_, err := f.pool.Exec(ctx,
+			`UPDATE fantasy_lineups SET status = 'SUBMITTED' WHERE id = $1`, partialLineupID)
+		if err == nil {
+			t.Error("expected the status CHECK constraint to reject 'SUBMITTED'")
+		}
+	})
+}

@@ -55,3 +55,7 @@ backend/internal/sql/seeds/*
 # kept in the repo so it sits next to the code it describes, but untracked at
 # the user's request.
 FANTASY_REQUIREMENTS.md
+
+# Spreadsheet backups — the *.xlsx rule above misses the .backup suffix.
+*.xlsx.backup
+*.xls.backup

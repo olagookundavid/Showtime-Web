@@ -21,7 +21,7 @@ type EventDayRepository interface {
 	GetByDate(ctx context.Context, date string) (*domain.EventDay, error)
 	ListActive(ctx context.Context) ([]domain.EventDay, error)
 	ListAll(ctx context.Context, search string, page, limit int) ([]domain.EventDay, int, error)
-	Update(ctx context.Context, id string, title *string, venue *string, isActive *bool) error
+	Update(ctx context.Context, id string, title *string, date *time.Time, venue *string, isActive *bool) error
 	Delete(ctx context.Context, id string) error
 }
 
@@ -30,6 +30,7 @@ type TicketTierRepository interface {
 	ListByEventDay(ctx context.Context, eventDayID string) ([]domain.TicketTier, error)
 	GetByID(ctx context.Context, id string) (*domain.TicketTier, error)
 	IncrementSoldCount(ctx context.Context, id string, qty int) error
+	Update(ctx context.Context, tier *domain.TicketTier) error
 	Delete(ctx context.Context, id string) error
 }
 
@@ -132,7 +133,7 @@ func (r *PostgresEventDayRepository) ListActive(ctx context.Context) ([]domain.E
 	return eventDays, nil
 }
 
-func (r *PostgresEventDayRepository) Update(ctx context.Context, id string, title *string, venue *string, isActive *bool) error {
+func (r *PostgresEventDayRepository) Update(ctx context.Context, id string, title *string, date *time.Time, venue *string, isActive *bool) error {
 	query := `UPDATE event_days SET updated_at = NOW()`
 	args := []interface{}{}
 	argIdx := 1
@@ -140,6 +141,11 @@ func (r *PostgresEventDayRepository) Update(ctx context.Context, id string, titl
 	if title != nil {
 		query += fmt.Sprintf(", title = $%d", argIdx)
 		args = append(args, *title)
+		argIdx++
+	}
+	if date != nil {
+		query += fmt.Sprintf(", date = $%d", argIdx)
+		args = append(args, *date)
 		argIdx++
 	}
 	if venue != nil {
@@ -301,6 +307,18 @@ func (r *PostgresTicketTierRepository) IncrementSoldCount(ctx context.Context, i
 	          WHERE id = $2 AND (capacity = 0 OR sold_count + $1 <= capacity)`
 	_, err := r.db.Exec(ctx, query, qty, id)
 	return err
+}
+
+func (r *PostgresTicketTierRepository) Update(ctx context.Context, tier *domain.TicketTier) error {
+	query := `
+		UPDATE ticket_tiers
+		SET name = $1, price = $2, capacity = $3, description = $4, is_hidden = $5, access_code = $6, updated_at = NOW()
+		WHERE id = $7
+		RETURNING updated_at
+	`
+	return r.db.QueryRow(ctx, query,
+		tier.Name, tier.Price, tier.Capacity, tier.Description, tier.IsHidden, tier.AccessCode, tier.ID,
+	).Scan(&tier.UpdatedAt)
 }
 
 func (r *PostgresTicketTierRepository) Delete(ctx context.Context, id string) error {

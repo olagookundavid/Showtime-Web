@@ -162,6 +162,12 @@ func (f *fakeFantasyRepo) SaveLineupDraft(_ context.Context, l *domain.FantasyLi
 	l.ID = "lineup-1"
 	f.savedLineup = l
 	f.savedPicks = picks
+	// The real repo upserts on (team_id, gameweek_id), so what was just saved
+	// must be visible to the next GetLineup. SaveLineup relies on that to tell
+	// an already-published lineup from a fresh one.
+	stored := *l
+	stored.Picks = picks
+	f.lineups[lineupKey(l.TeamID, l.GameweekID)] = &stored
 	return nil
 }
 
@@ -587,30 +593,56 @@ func TestLineupValidation(t *testing.T) {
 		assertErrContains(t, err, "must be a Male QB")
 	})
 
-	t.Run("rejects fewer than three females on offense", func(t *testing.T) {
+	// Missing a quota no longer throws the sheet away. Thirteen good picks are
+	// worth keeping, so the save succeeds as PARTIAL and the response carries
+	// the reason it will not score. What must never happen is it becoming a
+	// DRAFT, because DRAFT is what the deadline promotes into the scoring run.
+	t.Run("keeps a sheet short of the offensive female quota, but never scores it", func(t *testing.T) {
 		squad := validSquad()
 		for i := range squad {
 			if squad[i].Slot == domain.SlotRec1 {
 				squad[i].Gender = "M" // leaves only the female QB + REC_2
 			}
 		}
-		_, _, svc := newServiceWith(squad)
+		repo, _, svc := newServiceWith(squad)
 
-		_, err := svc.SaveLineup(context.Background(), "user-1", saveRequest(squad))
-		assertErrContains(t, err, "offensive unit requires at least 3 female athletes")
+		res, err := svc.SaveLineup(context.Background(), "user-1", saveRequest(squad))
+		if err != nil {
+			t.Fatalf("expected the sheet to be saved, got: %v", err)
+		}
+		if res.Complete {
+			t.Error("a sheet missing the offensive quota must not be marked complete")
+		}
+		if repo.savedLineup.Status != domain.LineupPartial {
+			t.Errorf("stored status: got %s, want PARTIAL", repo.savedLineup.Status)
+		}
+		if !strings.Contains(res.BlockingReason, "offensive unit requires at least 3 female athletes") {
+			t.Errorf("expected the reason to name the offensive quota, got %q", res.BlockingReason)
+		}
 	})
 
-	t.Run("rejects fewer than three females on defense", func(t *testing.T) {
+	t.Run("keeps a sheet short of the defensive female quota, but never scores it", func(t *testing.T) {
 		squad := validSquad()
 		for i := range squad {
 			if squad[i].Slot == domain.SlotDef1 {
 				squad[i].Gender = "M"
 			}
 		}
-		_, _, svc := newServiceWith(squad)
+		repo, _, svc := newServiceWith(squad)
 
-		_, err := svc.SaveLineup(context.Background(), "user-1", saveRequest(squad))
-		assertErrContains(t, err, "defensive unit requires at least 3 female athletes")
+		res, err := svc.SaveLineup(context.Background(), "user-1", saveRequest(squad))
+		if err != nil {
+			t.Fatalf("expected the sheet to be saved, got: %v", err)
+		}
+		if res.Complete {
+			t.Error("a sheet missing the defensive quota must not be marked complete")
+		}
+		if repo.savedLineup.Status != domain.LineupPartial {
+			t.Errorf("stored status: got %s, want PARTIAL", repo.savedLineup.Status)
+		}
+		if !strings.Contains(res.BlockingReason, "defensive unit requires at least 3 female athletes") {
+			t.Errorf("expected the reason to name the defensive quota, got %q", res.BlockingReason)
+		}
 	})
 
 	t.Run("rejects too many players from one club", func(t *testing.T) {
@@ -689,14 +721,154 @@ func TestLineupValidation(t *testing.T) {
 		assertErrContains(t, err, "duplicate slot")
 	})
 
-	t.Run("rejects a short squad", func(t *testing.T) {
+	// The squad builder saves after every pick, so a short squad is the normal
+	// state of a sheet being built — it is stored, not refused, and it sits the
+	// gameweek out until it is finished.
+	t.Run("saves a short squad as PARTIAL rather than refusing it", func(t *testing.T) {
 		squad := validSquad()
 		req := saveRequest(squad)
 		req.Picks = req.Picks[:13]
-		_, _, svc := newServiceWith(squad)
+		repo, _, svc := newServiceWith(squad)
 
-		_, err := svc.SaveLineup(context.Background(), "user-1", req)
-		assertErrContains(t, err, "exactly 14 slots")
+		res, err := svc.SaveLineup(context.Background(), "user-1", req)
+		if err != nil {
+			t.Fatalf("expected 13 picks to be saved, got: %v", err)
+		}
+		if res.Complete {
+			t.Error("13 of 14 must not be marked complete")
+		}
+		if repo.savedLineup.Status != domain.LineupPartial {
+			t.Errorf("stored status: got %s, want PARTIAL", repo.savedLineup.Status)
+		}
+		if !strings.Contains(res.BlockingReason, "13 of 14") {
+			t.Errorf("expected the reason to say how many slots are filled, got %q", res.BlockingReason)
+		}
+	})
+
+	t.Run("saves a single pick", func(t *testing.T) {
+		squad := validSquad()
+		req := saveRequest(squad)
+		req.Picks = req.Picks[:1]
+		repo, _, svc := newServiceWith(squad)
+
+		if _, err := svc.SaveLineup(context.Background(), "user-1", req); err != nil {
+			t.Fatalf("the very first pick must persist, got: %v", err)
+		}
+		if repo.savedLineup.Status != domain.LineupPartial {
+			t.Errorf("stored status: got %s, want PARTIAL", repo.savedLineup.Status)
+		}
+	})
+
+	// Finishing a squad is not the same as entering it. A manager who fills all
+	// fourteen while browsing has a sheet ready to publish, not a live one —
+	// scoring only begins when they say so.
+	t.Run("a complete valid squad is ready to publish but not yet live", func(t *testing.T) {
+		squad := validSquad()
+		repo, _, svc := newServiceWith(squad)
+
+		res, err := svc.SaveLineup(context.Background(), "user-1", saveRequest(squad))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !res.Complete {
+			t.Error("a full valid sheet must be marked complete")
+		}
+		if res.Published {
+			t.Error("completing a squad must not publish it on its own")
+		}
+		if res.BlockingReason != "" {
+			t.Errorf("expected no blocking reason, got %q", res.BlockingReason)
+		}
+		if repo.savedLineup.Status != domain.LineupPartial {
+			t.Errorf("stored status: got %s, want PARTIAL until published", repo.savedLineup.Status)
+		}
+	})
+
+	// The other half of the contract: publishing must actually make it score.
+	t.Run("publishing a complete valid squad makes it a scoreable DRAFT", func(t *testing.T) {
+		squad := validSquad()
+		repo, _, svc := newServiceWith(squad)
+
+		req := saveRequest(squad)
+		req.Publish = true
+		res, err := svc.SaveLineup(context.Background(), "user-1", req)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !res.Published {
+			t.Error("expected the lineup to be published")
+		}
+		if repo.savedLineup.Status != domain.LineupDraft {
+			t.Errorf("stored status: got %s, want DRAFT", repo.savedLineup.Status)
+		}
+	})
+
+	t.Run("publishing an unfinished squad does not make it score", func(t *testing.T) {
+		squad := validSquad()
+		req := saveRequest(squad)
+		req.Picks = req.Picks[:10]
+		req.Publish = true
+		repo, _, svc := newServiceWith(squad)
+
+		res, err := svc.SaveLineup(context.Background(), "user-1", req)
+		if err != nil {
+			t.Fatalf("expected the sheet to be saved, got: %v", err)
+		}
+		if res.Published {
+			t.Error("an unfinished sheet must never publish, even when asked")
+		}
+		if repo.savedLineup.Status != domain.LineupPartial {
+			t.Errorf("stored status: got %s, want PARTIAL", repo.savedLineup.Status)
+		}
+	})
+
+	// Once live, a lineup stays live through ordinary edits — swapping a player
+	// must not silently drop the manager out of the gameweek.
+	t.Run("editing a published lineup keeps it published", func(t *testing.T) {
+		squad := validSquad()
+		repo, _, svc := newServiceWith(squad)
+
+		req := saveRequest(squad)
+		req.Publish = true
+		if _, err := svc.SaveLineup(context.Background(), "user-1", req); err != nil {
+			t.Fatalf("publish failed: %v", err)
+		}
+		// A later save with no publish flag — an autosave from the builder.
+		res, err := svc.SaveLineup(context.Background(), "user-1", saveRequest(squad))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !res.Published {
+			t.Error("an edit to a live lineup must not unpublish it")
+		}
+		if repo.savedLineup.Status != domain.LineupDraft {
+			t.Errorf("stored status: got %s, want DRAFT", repo.savedLineup.Status)
+		}
+	})
+
+	// The exception: an edit that leaves the sheet unfinished cannot stay live,
+	// because there is nothing complete left to score.
+	t.Run("editing a published lineup into an incomplete one drops it back", func(t *testing.T) {
+		squad := validSquad()
+		repo, _, svc := newServiceWith(squad)
+
+		req := saveRequest(squad)
+		req.Publish = true
+		if _, err := svc.SaveLineup(context.Background(), "user-1", req); err != nil {
+			t.Fatalf("publish failed: %v", err)
+		}
+		short := saveRequest(squad)
+		short.Picks = short.Picks[:13]
+		res, err := svc.SaveLineup(context.Background(), "user-1", short)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res.Published {
+			t.Error("a sheet with an empty slot cannot remain live")
+		}
+		if repo.savedLineup.Status != domain.LineupPartial {
+			t.Errorf("stored status: got %s, want PARTIAL", repo.savedLineup.Status)
+		}
 	})
 
 	t.Run("rejects an unknown player", func(t *testing.T) {
@@ -801,6 +973,33 @@ func TestLineupRollover(t *testing.T) {
 			if strings.HasPrefix(c, "team-active->") {
 				t.Errorf("a team that submitted its own lineup must not be cloned into: %v", repo.clonedInto)
 			}
+		}
+	})
+
+	// The trap the partial-save feature introduces. Opening the builder and
+	// picking one player now leaves a PARTIAL sheet behind. If that counted as
+	// "they submitted a lineup", it would suppress the rollover of last week's
+	// locked squad and the manager would score nothing — punished for browsing.
+	t.Run("an unfinished sheet does not suppress the rollover", func(t *testing.T) {
+		repo, svc := setup()
+		repo.lineups[lineupKey("team-forgot", "gw-2")] = &domain.FantasyLineup{
+			ID: "forgot-gw2-partial", TeamID: "team-forgot", GameweekID: "gw-2",
+			Status: domain.LineupPartial, TotalSpent: 10,
+			Picks: []domain.FantasyLineupPick{{PlayerID: "p1", Slot: domain.SlotQBMale, PurchasePrice: 10}},
+		}
+
+		if err := svc.AutoLockGameweeks(context.Background()); err != nil {
+			t.Fatalf("auto-lock failed: %v", err)
+		}
+
+		var cloned bool
+		for _, c := range repo.clonedInto {
+			if strings.HasPrefix(c, "team-forgot->") {
+				cloned = true
+			}
+		}
+		if !cloned {
+			t.Errorf("expected last week's squad to still roll over, cloned: %v", repo.clonedInto)
 		}
 	})
 

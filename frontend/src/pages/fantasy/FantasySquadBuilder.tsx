@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import {
     UsersIcon,
@@ -9,7 +9,7 @@ import {
     ChevronRightIcon,
     XMarkIcon,
     MagnifyingGlassIcon,
-    BookmarkSquareIcon,
+    RocketLaunchIcon,
     SparklesIcon,
     BanknotesIcon,
     ArrowsRightLeftIcon,
@@ -19,6 +19,7 @@ import {
     PlusCircleIcon,
     ExclamationTriangleIcon,
     LockClosedIcon,
+    ClockIcon,
 } from '@heroicons/react/24/outline';
 import {
     fantasyApi,
@@ -113,7 +114,6 @@ export function FantasySquadBuilder() {
     });
     const hasJoined = dashboard ? dashboard.entered : undefined;
 
-    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { isLoading: authLoading } = useAuth();
 
@@ -309,13 +309,20 @@ export function FantasySquadBuilder() {
             }
         });
 
+        // The thresholds are season configuration, so they are read out here
+        // rather than written into the copy — a season with different minimums
+        // must not be described by hardcoded numbers.
         const budget = season?.budget || 230;
+        const minFemaleOffense = season?.min_female_offense || 3;
+        const minFemaleDefense = season?.min_female_defense || 3;
+        const maxPerClub = season?.max_per_club || 4;
+
         const budgetValid = totalSpent <= budget;
         const slotsFilled = filledCount === 14;
-        const offenseFemalesValid = offenseFemales >= (season?.min_female_offense || 3);
-        const defenseFemalesValid = defenseFemales >= (season?.min_female_defense || 3);
+        const offenseFemalesValid = offenseFemales >= minFemaleOffense;
+        const defenseFemalesValid = defenseFemales >= minFemaleDefense;
 
-        const clubExceeded = Object.entries(clubCounts).find(([_, count]) => count > (season?.max_per_club || 4));
+        const clubExceeded = Object.entries(clubCounts).find(([_, count]) => count > maxPerClub);
         const clubLimitValid = !clubExceeded;
 
         let hasInactiveStartingPlayer = false;
@@ -332,7 +339,34 @@ export function FantasySquadBuilder() {
         }
         const clubsActiveValid = !hasInactiveStartingPlayer;
 
-        const isValid = slotsFilled && budgetValid && offenseFemalesValid && defenseFemalesValid && clubLimitValid && clubsActiveValid;
+        // The two rules the server enforces that nothing here was mirroring. The
+        // picker should make both unreachable — it only offers eligible players
+        // and clears a player from their old slot on re-pick — but "should" is
+        // doing real work in that sentence. A stale client, or a player's
+        // position or gender edited between picking and publishing, lands here.
+        // Without these the checklist would read all-green while the save was
+        // rejected, which is worse than either failing alone.
+        //
+        // Duplicate *slot* needs no check: `squad` is keyed by slot, so a slot
+        // physically cannot hold two players.
+        const duplicatePlayerValid = chosenPlayerIds.size === filledCount;
+
+        let ineligibleSlot: string | null = null;
+        for (const def of SLOT_DEFINITIONS) {
+            const player = squad[def.slot];
+            if (!player) continue;
+            const positionOK = def.allowedPositions.includes(player.position);
+            const genderOK = !def.requiredGender
+                || (player.gender || '').toUpperCase() === def.requiredGender;
+            if (!positionOK || !genderOK) {
+                ineligibleSlot = def.label;
+                break;
+            }
+        }
+        const slotEligibilityValid = ineligibleSlot === null;
+
+        const isValid = slotsFilled && budgetValid && offenseFemalesValid && defenseFemalesValid
+            && clubLimitValid && clubsActiveValid && duplicatePlayerValid && slotEligibilityValid;
 
         return {
             totalSpent,
@@ -342,6 +376,10 @@ export function FantasySquadBuilder() {
             defenseFemales,
             clubCounts,
             chosenPlayerIds,
+            budget,
+            minFemaleOffense,
+            minFemaleDefense,
+            maxPerClub,
             budgetValid,
             slotsFilled,
             offenseFemalesValid,
@@ -349,9 +387,68 @@ export function FantasySquadBuilder() {
             clubLimitValid,
             clubsActiveValid,
             hasInactiveStartingPlayer,
+            duplicatePlayerValid,
+            slotEligibilityValid,
+            ineligibleSlot,
             isValid,
         };
     }, [squad, season, mySquad]);
+
+    // Every rule standing between this sheet and the scoring run, pass or fail,
+    // recomputed on each pick. Shown in full rather than failures-only: while
+    // building a squad, knowing which rules you have already satisfied is as
+    // useful as knowing which you have not.
+    //
+    // Derived from the same `calculations` the Publish button is disabled by,
+    // so the list can never disagree with the button beside it.
+    const publishChecks = useMemo(() => [
+        {
+            ok: calculations.slotsFilled,
+            label: 'All 14 slots filled',
+            detail: `${calculations.filledCount} of 14`,
+        },
+        {
+            ok: calculations.offenseFemalesValid,
+            label: `Offence has ${calculations.minFemaleOffense} women`,
+            detail: `${calculations.offenseFemales} of ${calculations.minFemaleOffense}`,
+        },
+        {
+            ok: calculations.defenseFemalesValid,
+            label: `Defence has ${calculations.minFemaleDefense} women`,
+            detail: `${calculations.defenseFemales} of ${calculations.minFemaleDefense}`,
+        },
+        {
+            ok: calculations.budgetValid,
+            label: 'Within the salary cap',
+            detail: calculations.budgetValid
+                ? `${formatFantasyPrice(calculations.remainingBudget)} left`
+                : `${formatFantasyPrice(Math.abs(calculations.remainingBudget))} over`,
+        },
+        {
+            ok: calculations.clubLimitValid,
+            label: `No more than ${calculations.maxPerClub} from one club`,
+            detail: calculations.clubLimitValid ? 'OK' : 'Exceeded',
+        },
+        {
+            ok: calculations.clubsActiveValid,
+            label: 'Every starter is at an active club',
+            detail: calculations.clubsActiveValid ? 'OK' : 'Transfer them out',
+        },
+        {
+            ok: calculations.duplicatePlayerValid,
+            label: 'No player in two slots',
+            detail: calculations.duplicatePlayerValid ? 'OK' : 'Someone is doubled up',
+        },
+        {
+            ok: calculations.slotEligibilityValid,
+            label: 'Every player suits their slot',
+            detail: calculations.slotEligibilityValid
+                ? 'OK'
+                : `${calculations.ineligibleSlot} is mismatched`,
+        },
+    ], [calculations]);
+
+    const passedChecks = publishChecks.filter(c => c.ok).length;
 
     // Who is actually on the pitch right now, in this editing session — not
     // who the server last had starting. Squad picks and Start promotions only
@@ -415,35 +512,65 @@ export function FantasySquadBuilder() {
         [benchMarketData, ownedIds],
     );
 
-    // Save Lineup Mutation
     const saveMutation = useMutation({
-        mutationFn: () => {
+        mutationFn: ({ picks, publish }: { picks: { player_id: string; slot: FantasySlot }[]; publish: boolean }) => {
             if (!season || !scheduledGW) throw new Error("No active season or scheduled gameweek");
-            const picks = SLOT_DEFINITIONS.map(def => {
-                const p = squad[def.slot];
-                if (!p) throw new Error(`Slot ${def.label} is empty`);
-                return {
-                    player_id: p.player_id,
-                    slot: def.slot,
-                };
-            });
             return fantasyApi.saveLineup({
                 season_id: season.id,
                 gameweek_id: scheduledGW.id,
                 team_name: teamName.trim() || DEFAULT_TEAM_NAME,
                 picks,
+                publish,
             });
         },
-        onSuccess: () => {
-            toast.success("Lineup saved successfully!");
-            queryClient.invalidateQueries({ queryKey: ['myFantasyLineup'] });
+        onSuccess: (res, vars) => {
+            // The server is the authority on what was stored, so its response
+            // seeds the cache directly rather than being re-fetched.
+            queryClient.setQueryData(['myFantasyLineup', season?.id, scheduledGW?.id], res);
             queryClient.invalidateQueries({ queryKey: ['fantasyDashboard'] });
-            navigate('/fantasy/my-team');
+            if (vars.publish && res.published) {
+                toast.success('Lineup published — it starts earning points this match day.');
+            }
         },
         onError: (err: any) => {
-            toast.error(err?.response?.data?.error || err.message || "Failed to save lineup");
+            // An autosave failure has to be loud: the manager would otherwise
+            // carry on picking against a sheet the server never received.
+            toast.error(err?.response?.data?.error || err.message || "Couldn't save that pick — check your connection.");
+            queryClient.invalidateQueries({ queryKey: ['myFantasyLineup'] });
         }
     });
+
+    // Persisting the sheet. Whatever slots are filled are stored, so this is
+    // safe to call after every pick — but it never starts scoring on its own.
+    // Only `publish` does that, and only the manager sets it.
+    const persistSquad = (
+        next: Record<FantasySlot, FantasyPlayerListItem | null>,
+        opts?: { publish?: boolean },
+    ) => {
+        if (!season || !scheduledGW) return;
+        const picks = SLOT_DEFINITIONS
+            .filter(def => next[def.slot])
+            .map(def => ({ player_id: next[def.slot]!.player_id, slot: def.slot }));
+        saveMutation.mutate({ picks, publish: opts?.publish ?? false });
+    };
+
+    // Whether the sheet on the server is live. Held by the server rather than
+    // inferred locally, so a published lineup still reads as published after a
+    // reload, and an edit that breaks it reads as unpublished straight away.
+    const isPublished = currentLineup?.published ?? false;
+
+    // Applies a change to the sheet and saves it in the same step, so the two
+    // can never drift apart — every path that edits the fourteen goes through
+    // here rather than calling setSquad directly.
+    // The save runs outside the state updater on purpose: React invokes an
+    // updater twice under StrictMode, which would fire two saves per pick.
+    const commitSquad = (
+        update: (prev: Record<FantasySlot, FantasyPlayerListItem | null>) => Record<FantasySlot, FantasyPlayerListItem | null>,
+    ) => {
+        const next = update(squad);
+        setSquad(next);
+        persistSquad(next);
+    };
 
     const handleSelectPlayer = (player: FantasyPlayerListItem) => {
         if (!activeModalSlot) return;
@@ -454,7 +581,9 @@ export function FantasySquadBuilder() {
             return;
         }
 
-        setSquad(prev => ({
+        // The pick is saved the moment it is made, and it stays in the slot it
+        // was put in — it is not parked on the bench waiting for a later save.
+        commitSquad(prev => ({
             ...prev,
             [activeModalSlot.slot]: player,
         }));
@@ -464,12 +593,12 @@ export function FantasySquadBuilder() {
 
     // "Move to Bench" — remove from starting slot
     const handleMoveToBench = (slot: FantasySlot) => {
-        setSquad(prev => ({
+        commitSquad(prev => ({
             ...prev,
             [slot]: null,
         }));
         setActionSlot(null);
-        toast.success('Moved to bench. Remember to save your lineup.');
+        toast.success('Moved to bench.');
     };
 
     // "Swap with Reserve" — open the slot's picker (owned players first)
@@ -492,8 +621,9 @@ export function FantasySquadBuilder() {
             return;
         }
 
-        // Remove from local lineup state immediately
-        setSquad(prev => ({ ...prev, [slot]: null }));
+        // Clear the slot and save that, so the sheet on the server never names
+        // a player who is about to be sold out of the squad.
+        commitSquad(prev => ({ ...prev, [slot]: null }));
 
         // Set the pending transfer out slot so the market opens after sell
         const def = SLOT_DEFINITIONS.find(d => d.slot === slot);
@@ -517,7 +647,7 @@ export function FantasySquadBuilder() {
             return;
         }
 
-        setSquad(prev => ({
+        commitSquad(prev => ({
             ...prev,
             [matchingSlot.slot]: {
                 player_id: reservePlayer.player_id,
@@ -649,23 +779,26 @@ export function FantasySquadBuilder() {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => saveMutation.mutate()}
-                            disabled={!calculations.isValid || saveMutation.isPending}
-                            className={`px-6 py-3.5 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition active:scale-95 shadow-lg ${
-                                calculations.isValid
-                                    ? 'bg-sffl-red hover:bg-[#A52323] text-white shadow-sffl-red/30 cursor-pointer'
-                                    : 'bg-gray-700 text-gray-400 cursor-not-allowed border border-gray-600'
-                            }`}
-                        >
-                            {saveMutation.isPending ? (
-                                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                                <BookmarkSquareIcon className="w-4 h-4" />
-                            )}
-                            Save Lineup ({calculations.filledCount}/14)
-                        </button>
+                    {/* Live/draft state at a glance. The action that changes it
+                        lives at the foot of the fourteen, where the lineup it
+                        publishes actually is. */}
+                    <div className="flex items-center gap-2 shrink-0" aria-live="polite">
+                        {saveMutation.isPending ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 text-white/70 text-[11px] font-bold">
+                                <span className="w-3 h-3 border-2 border-white/50 border-t-transparent rounded-full animate-spin" />
+                                Saving…
+                            </span>
+                        ) : isPublished ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-[11px] font-black uppercase tracking-wider">
+                                <CheckCircleIcon className="w-3.5 h-3.5" />
+                                Published
+                            </span>
+                        ) : (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-200 text-[11px] font-black uppercase tracking-wider">
+                                <ClockIcon className="w-3.5 h-3.5" />
+                                Draft — not scoring
+                            </span>
+                        )}
                     </div>
                 </div>
 
@@ -984,6 +1117,132 @@ export function FantasySquadBuilder() {
                         </div>
                     );
                 })}
+            </div>
+
+            {/* ──────────────────────────────────────────────────────────────────
+                PUBLISH PANEL
+
+                Sits at the foot of the fourteen because that is the lineup it
+                publishes — and it is where a manager arrives once the last slot
+                is filled. Picks are already saved by the time they get here, so
+                this is not a save button: it is the deliberate act that puts the
+                squad into the scoring run, and the one place the rules blocking
+                that are spelled out.
+            ────────────────────────────────────────────────────────────────── */}
+            <div className={`rounded-2xl md:rounded-3xl border shadow-sm overflow-hidden ${
+                isPublished
+                    ? 'bg-emerald-50 dark:bg-emerald-950/25 border-emerald-200 dark:border-emerald-800'
+                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+            }`}>
+                <div className="p-5 md:p-6 flex flex-col lg:flex-row lg:items-center gap-5 justify-between">
+                    <div className="min-w-0">
+                        {isPublished ? (
+                            <>
+                                <h2 className="text-sm font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+                                    <CheckCircleIcon className="w-4.5 h-4.5" />
+                                    Lineup published
+                                </h2>
+                                <p className="text-xs text-emerald-800/80 dark:text-emerald-200/70 mt-1 max-w-prose">
+                                    This squad is live and earning points. It stays that way — you only need to
+                                    publish again if you change it.
+                                </p>
+                            </>
+                        ) : (
+                            <>
+                                <h2 className="text-sm font-black uppercase tracking-wider text-sffl-navy dark:text-white flex items-center gap-2">
+                                    <RocketLaunchIcon className="w-4.5 h-4.5 text-sffl-red" />
+                                    Publish your lineup
+                                </h2>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-prose">
+                                    Your picks are saved as you make them, but they don't score until you publish.
+                                    Publish once and it stays live until you change it.
+                                </p>
+                            </>
+                        )}
+
+                    </div>
+
+                    <button
+                        onClick={() => persistSquad(squad, { publish: true })}
+                        disabled={!calculations.isValid || saveMutation.isPending}
+                        className={`w-full lg:w-auto shrink-0 px-7 py-4 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition active:scale-95 ${
+                            !calculations.isValid
+                                ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed border border-gray-200 dark:border-gray-600'
+                                : isPublished
+                                    ? 'bg-white dark:bg-gray-800 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 cursor-pointer'
+                                    : 'bg-sffl-red hover:bg-[#A52323] text-white shadow-lg shadow-sffl-red/30 cursor-pointer'
+                        }`}
+                    >
+                        {saveMutation.isPending ? (
+                            <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <RocketLaunchIcon className="w-4 h-4" />
+                        )}
+                        {isPublished ? 'Republish changes' : `Publish Lineup (${calculations.filledCount}/14)`}
+                    </button>
+                </div>
+
+                {/* The requirements, live, directly under the button that is
+                    gated on them — so a manager can watch each one turn as they
+                    pick rather than guessing why Publish is still greyed out. */}
+                <div className={`border-t px-5 md:px-6 py-4 ${
+                    isPublished
+                        ? 'border-emerald-200/70 dark:border-emerald-800/70 bg-emerald-100/30 dark:bg-emerald-900/10'
+                        : 'border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/30'
+                }`}>
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                            Publishing requirements
+                        </span>
+                        <span className={`text-[10px] font-black uppercase tracking-wider tabular-nums ${
+                            calculations.isValid ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'
+                        }`}>
+                            {passedChecks} / {publishChecks.length} met
+                        </span>
+                    </div>
+
+                    {/* aria-live so the state change is announced, not just seen. */}
+                    <ul className="grid sm:grid-cols-2 gap-x-6 gap-y-2" aria-live="polite">
+                        {publishChecks.map((check) => (
+                            <li
+                                key={check.label}
+                                className={`flex items-center gap-2 text-xs rounded-lg px-2 py-1.5 transition-colors ${
+                                    check.ok
+                                        ? 'text-gray-600 dark:text-gray-300'
+                                        : 'text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/30'
+                                }`}
+                            >
+                                {check.ok ? (
+                                    <CheckCircleIcon className="w-4 h-4 shrink-0 text-emerald-500" />
+                                ) : (
+                                    <ExclamationCircleIcon className="w-4 h-4 shrink-0 text-amber-500" />
+                                )}
+                                <span className={`min-w-0 flex-1 ${check.ok ? '' : 'font-bold'}`}>
+                                    {check.label}
+                                </span>
+                                <span className={`shrink-0 tabular-nums text-[11px] font-black ${
+                                    check.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-300'
+                                }`}>
+                                    {check.detail}
+                                </span>
+                                <span className="sr-only">{check.ok ? ' — met' : ' — not yet met'}</span>
+                            </li>
+                        ))}
+                    </ul>
+
+                    {/* The server decides what is publishable, not this list. The
+                        checks above are a local preview that exists so feedback is
+                        instant; they mirror the rules rather than being them. When
+                        the two disagree the server is right, so its own words are
+                        shown instead of leaving a manager staring at a full set of
+                        ticks and a sheet that will not publish. */}
+                    {calculations.isValid && currentLineup?.blocking_reason && (
+                        <p className="mt-3 flex items-start gap-2 text-xs font-bold text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/30 rounded-lg px-2.5 py-2">
+                            <ExclamationCircleIcon className="w-4 h-4 shrink-0 text-amber-500 mt-px" />
+                            <span>{currentLineup.blocking_reason}</span>
+                        </p>
+                    )}
+                </div>
             </div>
 
             {/* ──────────────────────────────────────────────────────────────────

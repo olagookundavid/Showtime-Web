@@ -974,7 +974,7 @@ export const createEventDay = async (payload: { title: string; date: string; ven
     return response.data;
 };
 
-export const updateEventDay = async (id: string, payload: { title?: string; venue?: string; is_active?: boolean }) => {
+export const updateEventDay = async (id: string, payload: { title?: string; date?: string; venue?: string; is_active?: boolean }) => {
     const response = await api.put(`/admin/event-days/${id}`, payload);
     return response.data;
 };
@@ -986,6 +986,22 @@ export const deleteEventDay = async (id: string) => {
 
 export const createTier = async (eventDayId: string, payload: { name: string; price: number; capacity?: number; description?: string; is_hidden?: boolean; access_code?: string; }): Promise<TicketTierResponse> => {
     const response = await api.post<TicketTierResponse>(`/admin/event-days/${eventDayId}/tiers`, payload);
+    return response.data;
+};
+
+export const updateTicketTier = async (
+    eventDayId: string,
+    tierId: string,
+    payload: {
+        name?: string;
+        price?: number;
+        capacity?: number;
+        description?: string;
+        is_hidden?: boolean;
+        access_code?: string;
+    }
+): Promise<TicketTierResponse> => {
+    const response = await api.put<TicketTierResponse>(`/admin/event-days/${eventDayId}/tiers/${tierId}`, payload);
     return response.data;
 };
 
@@ -2842,8 +2858,15 @@ export interface FantasyLineupResponse {
     total_spent: number;
     remaining_budget: number;
     points: number;
-    status: 'DRAFT' | 'LOCKED';
+    /** PARTIAL is a sheet still being filled in: saved, but never scored. */
+    status: 'PARTIAL' | 'DRAFT' | 'LOCKED';
     is_rollover: boolean;
+    /** True when the sheet is finished and passes every rule — ready to publish. */
+    complete: boolean;
+    /** True when the lineup is live and earning points. Publishing is always the manager's own action. */
+    published: boolean;
+    /** What stands between this sheet and being publishable. Empty once complete. */
+    blocking_reason?: string;
     picks: FantasyLineupPick[];
 }
 
@@ -2974,6 +2997,8 @@ export const fantasyApi = {
         gameweek_id: string;
         team_name: string;
         picks: { player_id: string; slot: FantasySlot }[];
+        /** Send true only for the manager's explicit "Publish Lineup" action. */
+        publish?: boolean;
     }): Promise<FantasyLineupResponse> => {
         const res = await api.post<{ data: FantasyLineupResponse }>('/fantasy/lineups', payload);
         return res.data.data;

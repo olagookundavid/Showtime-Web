@@ -25,6 +25,7 @@ type ITicketHandler interface {
 	DeleteEventDay(c *gin.Context)
 	ListAllEventDays(c *gin.Context)
 	CreateTier(c *gin.Context)
+	UpdateTier(c *gin.Context)
 	DeleteTier(c *gin.Context)
 	Purchase(c *gin.Context)
 	GiftTicket(c *gin.Context)
@@ -210,6 +211,34 @@ func (h *TicketHandler) CreateTier(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, result)
+}
+
+// UpdateTier godoc
+// @Summary Update a ticket tier for an event day (admin)
+// @Tags event-days
+// @Accept json
+// @Produce json
+// @Param id path string true "Event Day ID"
+// @Param tierId path string true "Tier ID"
+// @Param body body dto.UpdateTicketTierRequest true "Tier update fields"
+// @Success 200 {object} dto.TicketTierResponse
+// @Router /api/v1/event-days/{id}/tiers/{tierId} [put]
+func (h *TicketHandler) UpdateTier(c *gin.Context) {
+	eventDayID := c.Param("id")
+	tierID := c.Param("tierId")
+	var req dto.UpdateTicketTierRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	result, err := h.service.UpdateTier(c.Request.Context(), eventDayID, tierID, req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
 }
 
 func (h *TicketHandler) DeleteTier(c *gin.Context) {

@@ -11,6 +11,7 @@ type CreateEventDayRequest struct {
 
 type UpdateEventDayRequest struct {
 	Title    *string `json:"title"`
+	Date     *string `json:"date"` // YYYY-MM-DD
 	Venue    *string `json:"venue"`
 	IsActive *bool   `json:"is_active"`
 }
@@ -44,6 +45,15 @@ type CreateTicketTierRequest struct {
 	Description string  `json:"description"`
 	IsHidden    bool    `json:"is_hidden"`
 	AccessCode  *string `json:"access_code,omitempty"`
+}
+
+type UpdateTicketTierRequest struct {
+	Name        *string `json:"name"`
+	Price       *int    `json:"price" binding:"omitempty,min=0"`
+	Capacity    *int    `json:"capacity" binding:"omitempty,min=0"`
+	Description *string `json:"description"`
+	IsHidden    *bool   `json:"is_hidden"`
+	AccessCode  *string `json:"access_code"`
 }
 
 type TicketTierResponse struct {

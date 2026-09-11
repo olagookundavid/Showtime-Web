@@ -121,10 +121,22 @@ type LineupSlotItem struct {
 }
 
 type SaveLineupRequest struct {
-	SeasonID   string           `json:"season_id" binding:"required,uuid"`
-	GameweekID string           `json:"gameweek_id" binding:"required,uuid"`
-	TeamName   string           `json:"team_name" binding:"required,min=3,max=40"`
-	Picks      []LineupSlotItem `json:"picks" binding:"required,len=14,dive"`
+	SeasonID   string `json:"season_id" binding:"required,uuid"`
+	GameweekID string `json:"gameweek_id" binding:"required,uuid"`
+	TeamName   string `json:"team_name" binding:"required,min=3,max=40"`
+	// Up to fourteen picks. It is deliberately not len=14: the squad builder
+	// saves the sheet after every pick, so most requests carry a partial team.
+	// Completeness is decided in the service, which can tell the manager what
+	// is still missing — a binding rejection could only say "invalid input".
+	//
+	// Empty is allowed on purpose: benching the last remaining starter leaves a
+	// sheet with no picks, and that has to save like any other edit.
+	Picks []LineupSlotItem `json:"picks" binding:"max=14,dive"`
+	// Publish is the manager pressing "Publish Lineup": the deliberate act that
+	// puts a finished sheet into the scoring run. Saving without it keeps the
+	// work safe but earns nothing, so completing a squad never starts scoring
+	// by accident.
+	Publish bool `json:"publish"`
 }
 
 type FantasyLineupPickResponse struct {
@@ -153,7 +165,17 @@ type FantasyLineupResponse struct {
 	Points     float64                     `json:"points"`
 	Status     string                      `json:"status"`
 	IsRollover bool                        `json:"is_rollover"` // true if carried forward from previous GW
-	Picks      []FantasyLineupPickResponse `json:"picks"`
+	// Complete is true when the sheet is finished and passes every rule — that
+	// is, it is ready to publish. It says nothing about whether it has been.
+	Complete bool `json:"complete"`
+	// Published is true when the lineup is in the scoring run. Only a published
+	// lineup earns points, and publishing is always the manager's own action.
+	Published bool `json:"published"`
+	// BlockingReason says, in the manager's words, what stands between this
+	// sheet and being publishable — "9 of 14 slots filled", or the rule it
+	// misses. Empty once Complete is true.
+	BlockingReason string                      `json:"blocking_reason,omitempty"`
+	Picks          []FantasyLineupPickResponse `json:"picks"`
 }
 
 // ─── Player Market DTO ────────────────────────────────────────────────────────
