@@ -51,7 +51,10 @@ interface SlotDefinition {
 const SLOT_DEFINITIONS: SlotDefinition[] = [
     // Offense (7)
     { slot: 'QB_M', label: 'Male Starting QB', unit: 'OFFENSE', allowedPositions: ['QB'], requiredGender: 'M' },
-    { slot: 'QB_F', label: 'Female Starting QB', unit: 'OFFENSE', allowedPositions: ['QB'], requiredGender: 'F' },
+    // Takes a QB or a receiver, not a QB alone — mirrors femaleStarterPositions
+    // in backend/internal/domain/fantasy.go. The rule exists to put three women
+    // on offence, and it does not care which of them throws.
+    { slot: 'QB_F', label: 'Female QB or Receiver', unit: 'OFFENSE', allowedPositions: ['QB', 'Receiver', 'Center'], requiredGender: 'F' },
     { slot: 'REC_1', label: 'Wide Receiver 1', unit: 'OFFENSE', allowedPositions: ['Receiver', 'Center'] },
     { slot: 'REC_2', label: 'Wide Receiver 2', unit: 'OFFENSE', allowedPositions: ['Receiver', 'Center'] },
     { slot: 'REC_3', label: 'Wide Receiver 3', unit: 'OFFENSE', allowedPositions: ['Receiver', 'Center'] },

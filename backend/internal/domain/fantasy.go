@@ -63,10 +63,20 @@ type SlotSpec struct {
 // fantasy asset and a Center left unpickable would be off the board entirely.
 var receiverPositions = []string{"Receiver", "Center"}
 
+// The women's starting slot takes a QB or a receiver, not a QB alone. Requiring
+// a female QB specifically made the slot unfillable for any squad whose club
+// had no woman playing that position, and the offensive quota of three women is
+// what the rule is actually for — it does not care which of them throws.
+//
+// Centers are included for the same reason receiver slots include them: the
+// rating engine scores a Center with the Receiver formula verbatim, so the two
+// are one fantasy asset.
+var femaleStarterPositions = append([]string{"QB"}, receiverPositions...)
+
 // SlotSpecs describes all 14 slots in roster order.
 var SlotSpecs = []SlotSpec{
 	{SlotQBMale, UnitOffense, "Male Starting QB", []string{"QB"}, "M"},
-	{SlotQBFemale, UnitOffense, "Female Starting QB", []string{"QB"}, "F"},
+	{SlotQBFemale, UnitOffense, "Female QB or Receiver", femaleStarterPositions, "F"},
 	{SlotRec1, UnitOffense, "Wide Receiver 1", receiverPositions, ""},
 	{SlotRec2, UnitOffense, "Wide Receiver 2", receiverPositions, ""},
 	{SlotRec3, UnitOffense, "Wide Receiver 3", receiverPositions, ""},

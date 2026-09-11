@@ -282,7 +282,7 @@ export function FantasyHub() {
                             </div>
                             <h3 className="text-lg font-black text-sffl-navy dark:text-white mb-2">Strict 7/7 Coed Split</h3>
                             <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-                                7 Offense (1 Male QB, 1 Female QB, 5 Receivers) and 7 Defense (1 Rusher, 6 Defenders). Minimum{' '}
+                                7 Offense (1 Male QB, 1 Female QB or Receiver, 5 Receivers) and 7 Defense (1 Rusher, 6 Defenders). Minimum{' '}
                                 {num(season.min_female_offense)} female athletes on offense and {num(season.min_female_defense)} on defense.
                             </p>
                         </div>

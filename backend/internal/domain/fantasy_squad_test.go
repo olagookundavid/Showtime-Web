@@ -185,17 +185,82 @@ func TestReadiness(t *testing.T) {
 	// The point of the redesign: an unplayable squad is allowed to exist, and
 	// the checklist is what tells the manager about it.
 	t.Run("an unplayable squad is reported, not rejected", func(t *testing.T) {
-		squad := withoutPlayer(legalSquad(), "qbf")
+		// No women on offence at all: neither a female QB nor a female receiver,
+		// so nothing can fill the women's starting slot.
+		squad := withoutPlayer(withoutPlayer(legalSquad(), "qbf"), "rec1")
+		squad = append(squad,
+			SquadPlayer{PlayerID: "recM", Name: "recM", Position: "Receiver", Gender: "M", ClubID: "c7"},
+			SquadPlayer{PlayerID: "recM2", Name: "recM2", Position: "Receiver", Gender: "M", ClubID: "c7"},
+		)
 		r := Readiness(squad, squadRules)
 		if r.Ready {
-			t.Fatal("a squad with no female QB cannot field a lineup")
+			t.Fatal("a squad with no woman for the starting slot cannot field a lineup")
 		}
-		req, ok := requirement(r, "qb_f")
+		req, ok := requirement(r, "female_starter")
 		if !ok {
-			t.Fatal("expected a female QB line on the checklist")
+			t.Fatal("expected a women's starting-slot line on the checklist")
 		}
 		if req.Met || req.Have != 0 || req.Need != 1 {
-			t.Errorf("expected the female QB line to be unmet at 0/1, got %d/%d met=%v", req.Have, req.Need, req.Met)
+			t.Errorf("expected the women's starting-slot line to be unmet at 0/1, got %d/%d met=%v", req.Have, req.Need, req.Met)
+		}
+	})
+
+	// The women's slot family overlaps with the receivers, so one player can be
+	// cover for both and start in only one. The checklist must not count her
+	// twice: a squad of five receivers where one is needed for the women's slot
+	// has four for REC_1–5, and has to say so rather than ticking both lines and
+	// leaving Ready to contradict them.
+	t.Run("a player who covers two families is only counted once", func(t *testing.T) {
+		squad := withoutPlayer(legalSquad(), "qbf")
+		squad = append(squad,
+			SquadPlayer{PlayerID: "extra", Name: "extra", Position: "Defender", Gender: "M", ClubID: "c7"})
+
+		r := Readiness(squad, squadRules)
+		if r.Ready {
+			t.Fatal("the squad cannot field a fourteen: she cannot be in two slots")
+		}
+
+		starter, _ := requirement(r, "female_starter")
+		if !starter.Met {
+			t.Error("the female receiver can start in the women's slot, so that line is met")
+		}
+
+		rec, ok := requirement(r, "rec")
+		if !ok {
+			t.Fatal("expected a receiver line")
+		}
+		if rec.Met {
+			t.Error("only four receivers are left once she takes the women's slot")
+		}
+		if rec.Have != 4 || rec.Need != 5 {
+			t.Errorf("expected the receiver line to read 4/5, got %d/%d", rec.Have, rec.Need)
+		}
+	})
+
+	// Every line agreeing with Ready is the property that matters: a checklist
+	// where each line is ticked must never sit next to "you cannot field a
+	// lineup", because that leaves the manager nothing to act on.
+	t.Run("all lines met implies the squad can field a lineup", func(t *testing.T) {
+		for name, squad := range map[string][]SquadPlayer{
+			"legal": legalSquad(),
+			"one short of a receiver": withoutPlayer(legalSquad(), "qbf"),
+			"no women on offence": append(
+				withoutPlayer(withoutPlayer(legalSquad(), "qbf"), "rec1"),
+				SquadPlayer{PlayerID: "recM", Position: "Receiver", Gender: "M", ClubID: "c7"},
+				SquadPlayer{PlayerID: "recM2", Position: "Receiver", Gender: "M", ClubID: "c7"},
+			),
+		} {
+			r := Readiness(squad, squadRules)
+			allMet := true
+			for _, req := range r.Requirements {
+				if !req.Met {
+					allMet = false
+					break
+				}
+			}
+			if allMet && !r.Ready {
+				t.Errorf("%s: every checklist line is met but the squad is not ready (%s)", name, r.Blocker)
+			}
 		}
 	})
 
@@ -253,4 +318,139 @@ func TestReadiness(t *testing.T) {
 			t.Errorf("a short squad should lead with its size, got %q", r.Blocker)
 		}
 	})
+}
+
+// The women's starting slot takes a QB or a receiver. A squad with no woman at
+// quarterback is playable as long as it has a woman who can catch — that is the
+// whole point of the rule, and the squad below has no female QB at all.
+func TestFemaleStarterSlotAcceptsAReceiver(t *testing.T) {
+	mk := func(id, pos, gender, club string) SquadPlayer {
+		return SquadPlayer{
+			PlayerID: id, Name: id, Position: pos, Gender: gender,
+			ClubID: club, PurchasePrice: 10, CurrentPrice: 10,
+		}
+	}
+	squad := []SquadPlayer{
+		mk("qbm", "QB", "M", "c1"),
+		// Six receivers, two of them women: one covers the women's starting
+		// slot and five fill REC_1–5.
+		mk("recF1", "Receiver", "F", "c2"),
+		mk("recF2", "Receiver", "F", "c3"),
+		mk("rec3", "Receiver", "M", "c3"),
+		mk("rec4", "Receiver", "M", "c4"),
+		mk("rec5", "Center", "M", "c5"),
+		mk("rec6", "Receiver", "M", "c6"),
+		mk("rush", "Rusher", "M", "c1"),
+		mk("def1", "Defender", "F", "c2"),
+		mk("def2", "Defender", "M", "c3"),
+		mk("def3", "Defender", "M", "c4"),
+		mk("def4", "Defender", "M", "c5"),
+		mk("def5", "Defender", "M", "c6"),
+		mk("def6", "Defender", "M", "c7"),
+	}
+
+	if err := CanFieldLineup(squad, squadRules); err != nil {
+		t.Fatalf("a squad with a female receiver but no female QB must be playable: %v", err)
+	}
+
+	assignment, err := assignSlots(squad)
+	if err != nil {
+		t.Fatalf("assignSlots: %v", err)
+	}
+	starter, ok := assignment[SlotQBFemale]
+	if !ok {
+		t.Fatal("the women's starting slot was left empty")
+	}
+	if NormalizeGender(starter.Gender) != "F" {
+		t.Errorf("the women's starting slot must hold a woman, got %s", starter.Gender)
+	}
+	if starter.Position == "QB" {
+		t.Error("this squad has no female QB, so the slot must have been filled by a receiver")
+	}
+}
+
+// The slot spec drives every check — validation, the picker, the assignment —
+// so what it accepts is worth pinning directly.
+func TestFemaleStarterSlotSpec(t *testing.T) {
+	spec, ok := SlotSpecFor(SlotQBFemale)
+	if !ok {
+		t.Fatal("the women's starting slot has no spec")
+	}
+
+	for _, tc := range []struct {
+		position string
+		gender   string
+		want     bool
+	}{
+		{"QB", "F", true},
+		{"Receiver", "F", true},
+		{"Center", "F", true},
+		{"QB", "M", false},
+		{"Receiver", "M", false},
+		{"Center", "M", false},
+		{"Defender", "F", false},
+		{"Rusher", "F", false},
+	} {
+		if got := spec.Accepts(tc.position, tc.gender); got != tc.want {
+			t.Errorf("Accepts(%q, %q) = %v, want %v", tc.position, tc.gender, got, tc.want)
+		}
+	}
+
+	// A male receiver rejected here must still be fine in a receiver slot —
+	// widening the women's slot must not have widened anything else.
+	rec, _ := SlotSpecFor(SlotRec1)
+	if !rec.Accepts("Receiver", "M") {
+		t.Error("REC_1 must still accept a male receiver")
+	}
+	if rec.Accepts("QB", "M") {
+		t.Error("REC_1 must not have started accepting quarterbacks")
+	}
+}
+
+// A greedy fill would spend the female receiver on the women's slot and then
+// run out of receivers, rejecting a squad that can field a legal fourteen by
+// starting the female QB instead. The assignment has to be able to back out of
+// that choice.
+func TestAssignSlotsBacksOutOfADeadEnd(t *testing.T) {
+	mk := func(id, pos, gender, club string) SquadPlayer {
+		return SquadPlayer{PlayerID: id, Name: id, Position: pos, Gender: gender, ClubID: club}
+	}
+	squad := []SquadPlayer{
+		// The female receiver is first, so a naive pass takes her for QB_F.
+		mk("recF", "Receiver", "F", "c1"),
+		mk("qbF", "QB", "F", "c2"),
+		mk("qbM", "QB", "M", "c3"),
+		mk("rec2", "Receiver", "F", "c4"),
+		mk("rec3", "Receiver", "F", "c5"),
+		mk("rec4", "Receiver", "M", "c6"),
+		mk("rec5", "Center", "M", "c7"),
+		mk("rush", "Rusher", "M", "c8"),
+		mk("d1", "Defender", "F", "c9"),
+		mk("d2", "Defender", "F", "c10"),
+		mk("d3", "Defender", "F", "c11"),
+		mk("d4", "Defender", "M", "c12"),
+		mk("d5", "Defender", "M", "c13"),
+		mk("d6", "Defender", "M", "c14"),
+	}
+
+	assignment, err := assignSlots(squad)
+	if err != nil {
+		t.Fatalf("a squad that can field a fourteen was rejected: %v", err)
+	}
+	if len(assignment) != len(AllValidSlots) {
+		t.Fatalf("expected all %d slots filled, got %d", len(AllValidSlots), len(assignment))
+	}
+
+	// Every slot holds someone it actually accepts, and nobody is in two slots.
+	seen := map[string]FantasySlot{}
+	for slot, p := range assignment {
+		spec, _ := SlotSpecFor(slot)
+		if !spec.Accepts(p.Position, p.Gender) {
+			t.Errorf("%s holds %s (%s %s), which it does not accept", slot, p.PlayerID, p.Gender, p.Position)
+		}
+		if other, dup := seen[p.PlayerID]; dup {
+			t.Errorf("%s is in both %s and %s", p.PlayerID, other, slot)
+		}
+		seen[p.PlayerID] = slot
+	}
 }

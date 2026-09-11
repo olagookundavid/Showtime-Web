@@ -194,16 +194,24 @@ func CanFieldLineup(squad []SquadPlayer, rules LineupRules) error {
 	return nil
 }
 
-// assignSlots fills every slot from the squad, scarcest slot first.
+// maxAssignment seats as many slots as the squad can simultaneously fill, and
+// returns the ones it could not. A squad that can field a lineup comes back with
+// no unfilled slots; anything left over is precisely what the manager is short
+// of, which is what the readiness checklist reports.
 //
-// As the slots stand today no player can fill two of them — the positions are
-// disjoint (QB / Receiver+Center / Rusher / Defender) and gender only splits the
-// QB pair — so a greedy pass in any order is correct and the ordering changes
-// nothing. It is here for the day that stops being true: let a rusher also cover
-// defender, and filling in declaration order would spend the versatile player on
-// an easy slot and then fail on the one only they could have taken. Sorting by
-// scarcity costs nothing and removes that trap in advance.
-func assignSlots(squad []SquadPlayer) (map[FantasySlot]SquadPlayer, error) {
+// This is a bipartite matching rather than a greedy pass, because slots overlap:
+// the women's starting slot takes a QB *or* a receiver, so a female receiver is
+// eligible for both it and REC_1–5. Filling greedily can spend her on the
+// women's slot and then run out of receivers, reporting "no one left who can
+// play Wide Receiver 5" for a squad that could field a perfectly legal fourteen
+// by starting the female QB instead. Ordering by scarcity narrows that window
+// but does not close it — only a matching that can revisit earlier choices does.
+//
+// Kuhn's algorithm: try to place each slot in turn, and when every player it
+// accepts is taken, ask each of those players to move to another slot they fit.
+// With 14 slots and a squad of that order it is instant, and unlike the greedy
+// it never reports a failure that a different arrangement would have avoided.
+func maxAssignment(squad []SquadPlayer) (map[FantasySlot]SquadPlayer, []FantasySlot) {
 	eligible := make(map[FantasySlot][]int, len(AllValidSlots))
 	for _, slot := range AllValidSlots {
 		spec, ok := SlotSpecFor(slot)
@@ -215,30 +223,82 @@ func assignSlots(squad []SquadPlayer) (map[FantasySlot]SquadPlayer, error) {
 				eligible[slot] = append(eligible[slot], i)
 			}
 		}
+		// Women first among equally eligible players. Matching decides whether a
+		// lineup exists at all; this decides which of several it finds, and the
+		// caller then checks the female minimums against it. Offering women for
+		// the flexible slots first means a squad that can meet the quota usually
+		// produces an assignment that does.
+		ids := eligible[slot]
+		sort.SliceStable(ids, func(a, b int) bool {
+			return NormalizeGender(squad[ids[a]].Gender) == "F" &&
+				NormalizeGender(squad[ids[b]].Gender) != "F"
+		})
 	}
 
+	// Scarcest slot first. Not needed for correctness now that the matching can
+	// back out of a choice, but it reaches a full assignment in fewer augmenting
+	// passes and keeps the failure message pointing at the genuinely stuck slot.
 	order := append([]FantasySlot(nil), AllValidSlots...)
 	sort.SliceStable(order, func(a, b int) bool {
 		return len(eligible[order[a]]) < len(eligible[order[b]])
 	})
 
-	used := make(map[int]bool, len(squad))
-	assignment := make(map[FantasySlot]SquadPlayer, len(AllValidSlots))
-	for _, slot := range order {
-		filled := false
+	// playerToSlot is the matching so far, keyed by index into squad.
+	playerToSlot := make(map[int]FantasySlot, len(AllValidSlots))
+
+	// tryAssign seats one slot, displacing earlier choices where they have
+	// somewhere else to go. seen stops a displacement chain revisiting a player.
+	var tryAssign func(slot FantasySlot, seen map[int]bool) bool
+	tryAssign = func(slot FantasySlot, seen map[int]bool) bool {
 		for _, idx := range eligible[slot] {
-			if used[idx] {
+			if seen[idx] {
 				continue
 			}
-			used[idx] = true
-			assignment[slot] = squad[idx]
-			filled = true
-			break
+			seen[idx] = true
+			holder, taken := playerToSlot[idx]
+			if !taken || tryAssign(holder, seen) {
+				playerToSlot[idx] = slot
+				return true
+			}
 		}
-		if !filled {
-			spec, _ := SlotSpecFor(slot)
-			return nil, fmt.Errorf("no one left who can play %s", spec.Label)
+		return false
+	}
+
+	var unfilled []FantasySlot
+	for _, slot := range order {
+		if !tryAssign(slot, make(map[int]bool, len(squad))) {
+			unfilled = append(unfilled, slot)
 		}
+	}
+
+	assignment := make(map[FantasySlot]SquadPlayer, len(AllValidSlots))
+	for idx, slot := range playerToSlot {
+		assignment[slot] = squad[idx]
+	}
+
+	// Report unfilled slots in roster order rather than the scarcity order they
+	// were attempted in, so the same squad always names the same slot first.
+	sort.SliceStable(unfilled, func(a, b int) bool {
+		return slotRosterIndex(unfilled[a]) < slotRosterIndex(unfilled[b])
+	})
+	return assignment, unfilled
+}
+
+func slotRosterIndex(slot FantasySlot) int {
+	for i, s := range AllValidSlots {
+		if s == slot {
+			return i
+		}
+	}
+	return len(AllValidSlots)
+}
+
+// assignSlots fills every slot or fails, naming one that could not be filled.
+func assignSlots(squad []SquadPlayer) (map[FantasySlot]SquadPlayer, error) {
+	assignment, unfilled := maxAssignment(squad)
+	if len(unfilled) > 0 {
+		spec, _ := SlotSpecFor(unfilled[0])
+		return nil, fmt.Errorf("no one left who can play %s", spec.Label)
 	}
 	return assignment, nil
 }
@@ -266,21 +326,64 @@ func SellQuote(p SquadPlayer) float64 {
 func Readiness(squad []SquadPlayer, rules LineupRules) SquadReadiness {
 	var out SquadReadiness
 
-	// How many the squad holds for each slot family. The families are disjoint,
-	// so a straight count answers "can these slots be filled".
-	counts := map[string]int{}
+	// How many of each slot family the squad can fill *at the same time*.
+	//
+	// Counting players per family would be wrong now that the families overlap:
+	// the women's starting slot takes a QB or a receiver, so a female receiver
+	// is cover for that slot and one of the five receivers, but never both at
+	// once. Counting her twice reads as "5 receivers" and "1 for the women's
+	// slot" — both ticked, on a squad that cannot field a fourteen.
+	//
+	// So the checklist is built from the same assignment that decides whether a
+	// lineup exists. A slot the matching could not seat is a slot the manager is
+	// genuinely short of, which makes every line here agree with Ready below.
+	assignment, _ := maxAssignment(squad)
+
+	// slotFamily groups the fourteen slots into the lines the checklist shows.
+	slotFamily := func(slot FantasySlot) string {
+		switch slot {
+		case SlotQBMale:
+			return "qb_m"
+		case SlotQBFemale:
+			return "female_starter"
+		case SlotRusher:
+			return "rush"
+		default:
+			if spec, ok := SlotSpecFor(slot); ok && spec.Unit == UnitDefense {
+				return "def"
+			}
+			return "rec"
+		}
+	}
+
+	filled := map[string]int{}
+	needed := map[string]int{}
+	for _, slot := range AllValidSlots {
+		fam := slotFamily(slot)
+		needed[fam]++
+		if _, ok := assignment[slot]; ok {
+			filled[fam]++
+		}
+	}
+
+	// Squad depth, for the hints. Unlike the counts above this may exceed what
+	// can be started, which is the point: it tells a manager they have cover.
+	depth := map[string]int{}
 	for _, p := range squad {
+		isFemale := NormalizeGender(p.Gender) == "F"
+		isReceiver := p.Position == "Receiver" || p.Position == "Center"
 		switch {
-		case p.Position == "QB" && NormalizeGender(p.Gender) == "M":
-			counts["qb_m"]++
-		case p.Position == "QB" && NormalizeGender(p.Gender) == "F":
-			counts["qb_f"]++
-		case p.Position == "Receiver" || p.Position == "Center":
-			counts["rec"]++
+		case p.Position == "QB" && !isFemale:
+			depth["qb_m"]++
+		case isReceiver:
+			depth["rec"]++
 		case p.Position == "Rusher":
-			counts["rush"]++
+			depth["rush"]++
 		case p.Position == "Defender":
-			counts["def"]++
+			depth["def"]++
+		}
+		if isFemale && (p.Position == "QB" || isReceiver) {
+			depth["female_starter"]++
 		}
 	}
 	femaleOffense, femaleDefense := FemaleCount(squad)
@@ -291,13 +394,28 @@ func Readiness(squad []SquadPlayer, rules LineupRules) SquadReadiness {
 		})
 	}
 
+	// cover appends "(n in the squad)" when a family holds more players than it
+	// can start, so depth still shows even though Have counts startable slots.
+	cover := func(fam, base string) string {
+		if depth[fam] > needed[fam] {
+			extra := fmt.Sprintf("%d in your squad, so you have cover.", depth[fam])
+			if base == "" {
+				return extra
+			}
+			return base + " " + extra
+		}
+		return base
+	}
+
 	add("squad_size", "Players in your squad", len(squad), SquadMin,
 		"Fewer than 14 and you cannot field a team sheet — you would score nothing that match day.")
-	add("qb_m", "Male QB", counts["qb_m"], 1, "")
-	add("qb_f", "Female QB", counts["qb_f"], 1, "")
-	add("rec", "Receivers or centers", counts["rec"], 5, "Centers fill receiver slots.")
-	add("rush", "Pass rusher", counts["rush"], 1, "")
-	add("def", "Defenders", counts["def"], 6, "")
+	add("qb_m", "Male QB", filled["qb_m"], needed["qb_m"], cover("qb_m", ""))
+	add("female_starter", "Woman for the starting slot", filled["female_starter"], needed["female_starter"],
+		cover("female_starter", "A female QB, receiver or center — it does not have to be a quarterback."))
+	add("rec", "Receivers or centers", filled["rec"], needed["rec"],
+		cover("rec", "Centers fill receiver slots."))
+	add("rush", "Pass rusher", filled["rush"], needed["rush"], cover("rush", ""))
+	add("def", "Defenders", filled["def"], needed["def"], cover("def", ""))
 	add("female_offense", "Women on offense", femaleOffense, rules.MinFemaleOffense,
 		"QBs, receivers and centers. Counted separately from defense — women on one unit do not cover the other.")
 	add("female_defense", "Women on defense", femaleDefense, rules.MinFemaleDefense,
