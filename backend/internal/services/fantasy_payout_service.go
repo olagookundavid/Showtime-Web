@@ -18,7 +18,8 @@ import (
 const SettingPlatformCutPercent = "fantasy_platform_cut_percent"
 
 // defaultPlatformCutPercent applies when the setting is unset or unparseable.
-const defaultPlatformCutPercent = 10.0
+// 2.5% of the gross entry fees; the remaining 97.5% goes to the prize pool.
+const defaultPlatformCutPercent = 2.5
 
 type IFantasyPayoutService interface {
 	// User

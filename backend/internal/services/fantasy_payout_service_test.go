@@ -328,8 +328,9 @@ func TestSettleLeague(t *testing.T) {
 		if err != nil {
 			t.Fatalf("settlement failed: %v", err)
 		}
-		if res.PlatformCutKobo != 40000 {
-			t.Errorf("expected the 10%% default cut, got %d kobo", res.PlatformCutKobo)
+		// 2.5% of the ₦4,000.00 gross.
+		if res.PlatformCutKobo != 10000 {
+			t.Errorf("expected the 2.5%% default cut, got %d kobo", res.PlatformCutKobo)
 		}
 		_ = repo
 	})
