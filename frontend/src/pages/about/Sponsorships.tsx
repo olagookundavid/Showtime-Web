@@ -41,7 +41,7 @@ export const Sponsorships = () => {
                         Showtime is where brands align with competition, culture, and credibility.
                     </p>
                     <div className="flex justify-center mt-6">
-                        <CopyableEmail email="showtime@sffl.football" label="Request Deck at:" className="bg-gray-100 dark:bg-gray-800 text-sffl-navy dark:text-white px-6 py-3 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm" />
+                        <CopyableEmail email="showtime@showtimeflag.football" label="Request Deck at:" className="bg-gray-100 dark:bg-gray-800 text-sffl-navy dark:text-white px-6 py-3 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm" />
                     </div>
                 </div>
             </section>

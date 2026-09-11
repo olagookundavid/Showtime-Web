@@ -44,7 +44,7 @@ export const Whistleblower = () => {
                         All reports will be handled with the utmost confidentiality and urgency.
                     </p>
                     <div className="mt-2 pb-2">
-                        <CopyableEmail email="whistleblowers@sffl.football" label="✉️" className="text-sffl-red font-bold text-lg" />
+                        <CopyableEmail email="whistleblowers@showtimeflag.football" label="✉️" className="text-sffl-red font-bold text-lg" />
                     </div>
                 </div>
 

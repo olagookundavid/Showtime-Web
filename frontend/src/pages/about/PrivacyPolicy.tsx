@@ -128,7 +128,7 @@ export const PrivacyPolicy = () => {
                         If you have any questions about this Privacy Policy or how we handle your information,
                         please reach out:
                     </p>
-                    <CopyableEmail email="showtime@sffl.football" label="✉️" className="text-sffl-red font-bold text-lg" />
+                    <CopyableEmail email="showtime@showtimeflag.football" label="✉️" className="text-sffl-red font-bold text-lg" />
                 </div>
             </section>
         </div>
