@@ -153,13 +153,15 @@ export const LatestMatchesCarousel = () => {
                                                         {match.home_team?.logo ? (
                                                             <img
                                                                 src={match.home_team.logo}
-                                                                alt={match.home_team.name}
+                                                                alt={match.home_team.short_name || match.home_team.name}
                                                                 className="w-5 h-5 object-contain"
                                                             />
                                                         ) : (
                                                             <span className="w-5 h-5 bg-white/10 rounded flex items-center justify-center text-[10px] text-gray-400">T1</span>
                                                         )}
-                                                        <span className="font-bold text-[11px] md:text-xs text-white truncate">{match.home_team?.name}</span>
+                                                        <span className="font-bold text-[11px] md:text-xs text-white truncate" title={match.home_team?.name}>
+                                                            {match.home_team?.short_name || match.home_team?.name}
+                                                        </span>
                                                     </>
                                                 )}
                                             </div>
@@ -177,13 +179,15 @@ export const LatestMatchesCarousel = () => {
                                                         {match.away_team?.logo ? (
                                                             <img
                                                                 src={match.away_team.logo}
-                                                                alt={match.away_team.name}
+                                                                alt={match.away_team.short_name || match.away_team.name}
                                                                 className="w-5 h-5 object-contain"
                                                             />
                                                         ) : (
                                                             <span className="w-5 h-5 bg-white/10 rounded flex items-center justify-center text-[10px] text-gray-400">T2</span>
                                                         )}
-                                                        <span className="font-bold text-[11px] md:text-xs text-white truncate">{match.away_team?.name}</span>
+                                                        <span className="font-bold text-[11px] md:text-xs text-white truncate" title={match.away_team?.name}>
+                                                            {match.away_team?.short_name || match.away_team?.name}
+                                                        </span>
                                                     </>
                                                 )}
                                             </div>
