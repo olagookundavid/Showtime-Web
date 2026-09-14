@@ -8,8 +8,9 @@ export const LiveHero = ({ videoId, title }: { videoId: string; title?: string }
 
     // Browsers block autoplay with sound, so a stream that starts unmuted just
     // doesn't start at all. Muted autoplay always works; the badge below tells
-    // the viewer where the sound is.
-    const src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&playsinline=1&rel=0`;
+    // the viewer where the sound is. Standard youtube.com embed is used rather
+    // than youtube-nocookie because nocookie frequently blocks or fails live playback.
+    const src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&playsinline=1&rel=0&enablejsapi=1`;
 
     return (
         <div className="relative aspect-[16/9] md:aspect-auto md:h-[650px] w-full overflow-hidden rounded-xl md:rounded-3xl shadow-2xl bg-black">

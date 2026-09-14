@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { isDeletedPlayer, DELETED_TITLE } from '../../components/common/DeletedPlayer';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
@@ -308,11 +309,13 @@ const PlayerField = ({ label, value, onChange, roster, favoriteIds = [] }: Playe
                                     key={`fav-${p.player_id}`}
                                     type="button"
                                     onMouseDown={() => { onChange(p.player_id); setIsOpen(false); setQuery(''); }}
-                                    className={`w-full px-3 py-2 text-left text-sm font-semibold hover:bg-sffl-red/10 dark:hover:bg-sffl-red/20 ${p.player_id === value ? 'bg-sffl-red/10 text-sffl-red font-bold' : 'text-gray-900 dark:text-white'}`}
+                                    title={isDeletedPlayer(p) ? DELETED_TITLE : undefined}
+                                    className={`w-full px-3 py-2 text-left text-sm font-semibold hover:bg-sffl-red/10 dark:hover:bg-sffl-red/20 ${p.player_id === value ? 'bg-sffl-red/10 text-sffl-red font-bold' : 'text-gray-900 dark:text-white'} ${isDeletedPlayer(p) ? 'opacity-60' : ''}`}
                                 >
                                     {p.jersey_number ? <span className="inline-block w-8 text-sffl-red font-bold">#{p.jersey_number}</span> : null}
-                                    <span>{p.name}</span>
+                                    <span className={isDeletedPlayer(p) ? 'line-through decoration-1' : ''}>{p.name}</span>
                                     {p.position ? <span className="ml-2 text-xs font-normal text-gray-400">({p.position})</span> : null}
+                                    {isDeletedPlayer(p) && <span className="ml-2 text-[9px] font-black uppercase text-gray-400">deleted</span>}
                                 </button>
                             ))}
                         </div>
@@ -332,11 +335,13 @@ const PlayerField = ({ label, value, onChange, roster, favoriteIds = [] }: Playe
                                     key={p.player_id}
                                     type="button"
                                     onMouseDown={() => { onChange(p.player_id); setIsOpen(false); setQuery(''); }}
-                                    className={`w-full px-3 py-2 text-left text-sm font-semibold hover:bg-sffl-red/10 dark:hover:bg-sffl-red/20 ${p.player_id === value ? 'bg-sffl-red/10 text-sffl-red font-bold' : 'text-gray-900 dark:text-white'}`}
+                                    title={isDeletedPlayer(p) ? DELETED_TITLE : undefined}
+                                    className={`w-full px-3 py-2 text-left text-sm font-semibold hover:bg-sffl-red/10 dark:hover:bg-sffl-red/20 ${p.player_id === value ? 'bg-sffl-red/10 text-sffl-red font-bold' : 'text-gray-900 dark:text-white'} ${isDeletedPlayer(p) ? 'opacity-60' : ''}`}
                                 >
                                     {p.jersey_number ? <span className="inline-block w-8 text-sffl-red font-bold">#{p.jersey_number}</span> : null}
-                                    <span>{p.name}</span>
+                                    <span className={isDeletedPlayer(p) ? 'line-through decoration-1' : ''}>{p.name}</span>
                                     {p.position ? <span className="ml-2 text-xs font-normal text-gray-400">({p.position})</span> : null}
+                                    {isDeletedPlayer(p) && <span className="ml-2 text-[9px] font-black uppercase text-gray-400">deleted</span>}
                                 </button>
                             ))
                         )}

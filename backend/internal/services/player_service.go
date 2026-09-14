@@ -10,12 +10,16 @@ import (
 )
 
 type IPlayerService interface {
-	GetPlayers(ctx context.Context, teamID string, search string, page, limit int) (dto.PaginatedResult[dto.PlayerResponse], error)
+	GetPlayers(ctx context.Context, teamID string, search string, page, limit int, rosterStatus string) (dto.PaginatedResult[dto.PlayerResponse], error)
 	GetPlayerByID(ctx context.Context, id string) (*dto.PlayerResponse, error)
 	CreatePlayer(ctx context.Context, player *domain.Player) error
 	UpdatePlayer(ctx context.Context, player *domain.Player) error
 	DeletePlayer(ctx context.Context, id string) error
+	RestorePlayer(ctx context.Context, id string) error
 	AssignRandomJerseyNumbers(ctx context.Context, teamID string) (int, error)
+	MovePlayerToReserve(ctx context.Context, teamID, playerID string) error
+	GraduatePlayerFromReserve(ctx context.Context, teamID, playerID string) error
+	GetTeamRosterSummary(ctx context.Context, teamID string) (*dto.RosterSummaryResponse, error)
 }
 
 type PlayerService struct {
@@ -27,8 +31,8 @@ func NewPlayerService(repo ports.PlayerRepository, storage ports.StorageService)
 	return &PlayerService{repo: repo, storage: storage}
 }
 
-func (s *PlayerService) GetPlayers(ctx context.Context, teamID string, search string, page, limit int) (dto.PaginatedResult[dto.PlayerResponse], error) {
-	players, total, err := s.repo.GetPlayers(ctx, teamID, search, page, limit)
+func (s *PlayerService) GetPlayers(ctx context.Context, teamID string, search string, page, limit int, rosterStatus string) (dto.PaginatedResult[dto.PlayerResponse], error) {
+	players, total, err := s.repo.GetPlayers(ctx, teamID, search, page, limit, rosterStatus)
 	if err != nil {
 		return dto.PaginatedResult[dto.PlayerResponse]{}, err
 	}
@@ -44,6 +48,8 @@ func (s *PlayerService) GetPlayers(ctx context.Context, teamID string, search st
 			Bio:          p.Bio,
 			Image:        p.Image,
 			Email:        p.Email,
+			Status:       p.Status,
+			IsReserve:    p.IsReserve,
 		}
 		if p.Team != nil {
 			pr.Team = &dto.TeamResponse{
@@ -85,6 +91,8 @@ func (s *PlayerService) GetPlayerByID(ctx context.Context, id string) (*dto.Play
 		Bio:          p.Bio,
 		Image:        p.Image,
 		Email:        p.Email,
+		Status:       p.Status,
+		IsReserve:    p.IsReserve,
 	}
 	if p.Team != nil {
 		pr.Team = &dto.TeamResponse{
@@ -98,7 +106,25 @@ func (s *PlayerService) GetPlayerByID(ctx context.Context, id string) (*dto.Play
 }
 
 func (s *PlayerService) CreatePlayer(ctx context.Context, player *domain.Player) error {
+	if player.TeamID != "" {
+		mainCount, err := s.repo.GetMainPlayerCount(ctx, player.TeamID)
+		if err == nil && mainCount >= 25 {
+			return fmt.Errorf("cannot add player: team already has %d main players (max 25). Team must move active players to reserves or release players first", mainCount)
+		}
+	}
 	return s.repo.CreatePlayer(ctx, player)
+}
+
+func (s *PlayerService) MovePlayerToReserve(ctx context.Context, teamID, playerID string) error {
+	return s.repo.MovePlayerToReserve(ctx, teamID, playerID)
+}
+
+func (s *PlayerService) GraduatePlayerFromReserve(ctx context.Context, teamID, playerID string) error {
+	return s.repo.GraduatePlayerFromReserve(ctx, teamID, playerID)
+}
+
+func (s *PlayerService) GetTeamRosterSummary(ctx context.Context, teamID string) (*dto.RosterSummaryResponse, error) {
+	return s.repo.GetTeamRosterSummary(ctx, teamID)
 }
 
 func (s *PlayerService) UpdatePlayer(ctx context.Context, player *domain.Player) error {
@@ -122,25 +148,22 @@ func (s *PlayerService) UpdatePlayer(ctx context.Context, player *domain.Player)
 	return s.repo.UpdatePlayer(ctx, player)
 }
 
+// DeletePlayer deactivates a player. The row, its id and its whole history stay
+// put; the player simply stops appearing anywhere current.
+//
+// The image is deliberately left in R2. It used to be scheduled for deletion
+// here, which made sense when the record was going away, but a deactivated
+// player still shows up in last season's results and on their own profile page,
+// and a broken portrait on a historical page is worse than an unused object in
+// a bucket. Reactivating cannot un-delete an image either, so removing it made
+// the operation quietly irreversible.
 func (s *PlayerService) DeletePlayer(ctx context.Context, id string) error {
-	if s.storage != nil {
-		existing, err := s.repo.GetPlayerByID(ctx, id)
-		if err == nil && existing != nil && existing.Image != "" {
-			oldImage := existing.Image
-			log := logger.GetSingletonLogger()
-			log.Info("Scheduling background delete of player image on record delete", map[string]any{"url": oldImage})
-			if jobErr := SubmitJob(func() {
-				if delErr := s.storage.DeleteObject(context.Background(), oldImage); delErr != nil {
-					logger.GetSingletonLogger().Error("Failed to delete player image on record delete", map[string]any{"url": oldImage, "error": delErr.Error()})
-				} else {
-					logger.GetSingletonLogger().Info("Deleted player image from R2", map[string]any{"url": oldImage})
-				}
-			}); jobErr != nil {
-				log.Error(fmt.Sprintf("Failed to submit delete job for player image: %v", jobErr), nil)
-			}
-		}
-	}
 	return s.repo.DeletePlayer(ctx, id)
+}
+
+// RestorePlayer reactivates a player deactivated by DeletePlayer.
+func (s *PlayerService) RestorePlayer(ctx context.Context, id string) error {
+	return s.repo.RestorePlayer(ctx, id)
 }
 
 func (s *PlayerService) AssignRandomJerseyNumbers(ctx context.Context, teamID string) (int, error) {

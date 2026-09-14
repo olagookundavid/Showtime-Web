@@ -114,7 +114,7 @@ const TeamMemberCard = ({ member }: { member: TeamMember }) => (
 
 export const OurTeam = () => {
     return (
-        <div className="space-y-8 md:space-y-12 pb-16">
+        <div className="space-y-8 md:space-y-12 pb-36 md:pb-12">
             {/* Header */}
             <div className="bg-sffl-navy text-white p-10 rounded-3xl shadow-2xl relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-r from-sffl-red/20 to-blue-900/30" />

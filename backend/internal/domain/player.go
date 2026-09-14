@@ -14,6 +14,12 @@ type Player struct {
 	Gender       string    `json:"gender,omitempty"`
 	UserID       *string   `json:"user_id,omitempty"`
 	ClaimStatus  string    `json:"claim_status,omitempty"`
+	// Status is "active" or "inactive". Deleting a player deactivates them
+	// (migration 088) rather than removing the row, so their stats survive and
+	// they still appear in historical views -- greyed out rather than gone.
+	Status         string     `json:"status,omitempty"`
+	DeactivatedAt  *time.Time `json:"deactivated_at,omitempty"`
+	IsReserve      bool       `json:"is_reserve"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 

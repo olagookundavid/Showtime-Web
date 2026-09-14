@@ -193,7 +193,7 @@ export const TicketsPage = () => {
     };
 
     return (
-        <div className="space-y-4 md:space-y-8">
+        <div className="space-y-4 md:space-y-8 pb-36 md:pb-12">
             {/* Header - Compact for Mobile */}
             <div className="bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-center gap-4">
                 <div className="text-center md:text-left">
@@ -348,7 +348,7 @@ export const TicketsPage = () => {
                     aria-modal="true"
                 >
                     <div
-                        className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in border border-gray-100 dark:border-gray-700 my-auto"
+                        className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full max-h-[calc(100dvh-5rem)] sm:max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in border border-gray-100 dark:border-gray-700 my-auto"
                         onClick={e => e.stopPropagation()}
                     >
                         <div className="p-4 sm:p-6 pb-3 sm:pb-4 border-b border-gray-100 dark:border-gray-700 flex-shrink-0 flex items-center justify-between">
@@ -364,7 +364,7 @@ export const TicketsPage = () => {
                             </button>
                         </div>
 
-                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
+                        <div className="p-4 sm:p-6 pb-10 sm:pb-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
                             {/* Event Info */}
                             <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                                 <div className="font-bold text-sffl-navy dark:text-white">

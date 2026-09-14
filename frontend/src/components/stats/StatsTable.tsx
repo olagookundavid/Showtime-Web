@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { isDeletedPlayer, DeletedPlayerName, DELETED_TITLE } from '../common/DeletedPlayer';
 import type { PlayerStat, TeamStat } from '../../services/api';
 import { Link } from 'react-router-dom';
 import { LightboxImage, Spinner } from '../ui';
@@ -154,10 +155,14 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                     {theadEl}
                     <tbody>
                     {sortedData.map((row: any, index: number) => {
+                        // A deleted player keeps their stats and stays in these
+                        // tables; the row is dimmed so it reads as history.
+                        const deleted = isPlayer && isDeletedPlayer({ status: row.player_status });
                         return (
                             <tr
                                 key={isPlayer ? row.player_id : row.team_id}
-                                className="group border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-center"
+                                title={deleted ? DELETED_TITLE : undefined}
+                                className={`group border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-center ${deleted ? 'opacity-50' : ''}`}
                             >
                                 <td className={`sticky left-0 z-10 ${STICKY_BODY_BG} px-2 py-2 md:px-4 md:py-4 text-center font-bold text-gray-400 dark:text-gray-500 border-r border-gray-50 dark:border-gray-800`}>
                                     {index + 1}
@@ -169,7 +174,7 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                                                 <LightboxImage
                                                     src={row.player_image}
                                                     alt={row.player_name}
-                                                    thumbnailClassName="w-6 h-6 md:w-8 md:h-8 rounded-full object-cover shadow-sm border border-gray-100 dark:border-gray-700"
+                                                    thumbnailClassName={`w-6 h-6 md:w-8 md:h-8 rounded-full object-cover shadow-sm border border-gray-100 dark:border-gray-700 ${deleted ? 'grayscale' : ''}`}
                                                 />
                                             ) : (
                                                 <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-[10px] md:text-xs shrink-0">
@@ -177,7 +182,15 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                                                 </div>
                                             )}
                                             <div className="flex flex-col min-w-0">
-                                                <span className="leading-tight text-xs md:text-sm uppercase tracking-tight truncate">{row.player_name}</span>
+                                                {deleted ? (
+                                                    <DeletedPlayerName
+                                                        name={row.player_name}
+                                                        deleted
+                                                        className="leading-tight text-xs md:text-sm uppercase tracking-tight truncate"
+                                                    />
+                                                ) : (
+                                                    <span className="leading-tight text-xs md:text-sm uppercase tracking-tight truncate">{row.player_name}</span>
+                                                )}
                                                 <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium truncate">{row.player_position}</span>
                                             </div>
                                         </Link>

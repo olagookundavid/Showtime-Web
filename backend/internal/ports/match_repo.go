@@ -949,6 +949,9 @@ func (r *PostgresMatchRepository) SaveTeamSheet(ctx context.Context, matchID, te
 			INSERT INTO match_team_sheets (match_id, team_id, player_id)
 			SELECT $1, $2, p.id FROM players p
 			WHERE p.id = ANY($3) AND p.team_id = $2
+			  -- A deactivated player cannot be named on a new team sheet. Their
+			  -- existing sheets stay, which is how their history survives.
+			  AND COALESCE(p.status, 'active') = 'active'
 		`
 		if _, err := tx.Exec(ctx, insertQuery, matchID, teamID, playerIDs); err != nil {
 			return err
@@ -974,6 +977,7 @@ func (r *PostgresMatchRepository) GetTeamSheet(ctx context.Context, matchID stri
 	// not be credited with the starter's whole-game totals.
 	query := `
 		SELECT mts.team_id, p.id, p.name, p.jersey_number, p.position, COALESCE(p.gender, ''), p.image,
+			COALESCE(p.status, 'active'),
 			COALESCE(ps.receptions, 0), COALESCE(ps.receiving_tds, 0),
 			COALESCE(ps.extra_points_tds, 0), COALESCE(ps.drops, 0),
 			COALESCE(ps.flag_pulls, 0), COALESCE(ps.pass_deflections, 0),
@@ -1009,6 +1013,7 @@ func (r *PostgresMatchRepository) GetTeamSheet(ctx context.Context, matchID stri
 		var img *string
 		var line domain.RatingStatLine
 		if err := rows.Scan(&teamID, &p.PlayerID, &p.Name, &p.JerseyNumber, &p.Position, &p.Gender, &img,
+			&p.Status,
 			&line.Receptions, &line.ReceivingTDs, &line.ExtraPointTDs, &line.Drops,
 			&line.FlagPulls, &line.PassDeflections, &line.Interceptions, &line.DefensiveTDs,
 			&line.Safeties, &line.DefensiveXPTDs, &line.DefensiveSacks,

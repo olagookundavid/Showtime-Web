@@ -34,4 +34,15 @@ type PlayerResponse struct {
 	Bio          string        `json:"bio"`
 	Image        string        `json:"image"`
 	Email        string        `json:"email,omitempty"`
+	// "active" or "inactive". Clients render an inactive player greyed out --
+	// they are still searchable and still carry their history.
+	Status    string `json:"status,omitempty"`
+	IsReserve bool   `json:"is_reserve"`
+}
+
+type RosterSummaryResponse struct {
+	MainCount       int  `json:"main_count"`
+	ReserveCount    int  `json:"reserve_count"`
+	MaxMainLimit    int  `json:"max_main_limit"`
+	CanAddOrPromote bool `json:"can_add_or_promote"`
 }

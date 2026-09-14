@@ -19,7 +19,7 @@ type IAuthRepository interface {
 	GetUserByEmail(ctx context.Context, email string) (*domain.User, error)
 	GetUserByID(ctx context.Context, id string) (*domain.User, error)
 	ResetPassword(ctx context.Context, user domain.User) error
-	ListUsers(ctx context.Context, page, limit int, searchFilter string) ([]domain.User, int, error)
+	ListUsers(ctx context.Context, page, limit int, searchFilter string, roleFilter string) ([]domain.User, int, error)
 	UpdateUserRole(ctx context.Context, userID, newRole string) error
 	UpdateUserInfo(ctx context.Context, userID, fullName, phone string) error
 	CountTotalUsers(ctx context.Context) (int, error)
@@ -146,7 +146,7 @@ func (m AuthRepository) ResetPassword(ctx context.Context, user domain.User) err
 	return m.updatePassword(ctx, user)
 }
 
-func (m AuthRepository) ListUsers(ctx context.Context, page, limit int, searchFilter string) ([]domain.User, int, error) {
+func (m AuthRepository) ListUsers(ctx context.Context, page, limit int, searchFilter string, roleFilter string) ([]domain.User, int, error) {
 	offset := (page - 1) * limit
 	var users []domain.User
 
@@ -161,6 +161,13 @@ func (m AuthRepository) ListUsers(ctx context.Context, page, limit int, searchFi
 		countQuery += ` AND (email ILIKE $` + fmt.Sprint(argIndex) + ` OR full_name ILIKE $` + fmt.Sprint(argIndex) + `)`
 		query += ` AND (email ILIKE $` + fmt.Sprint(argIndex) + ` OR full_name ILIKE $` + fmt.Sprint(argIndex) + `)`
 		args = append(args, filter)
+		argIndex++
+	}
+
+	if roleFilter != "" {
+		countQuery += ` AND role = $` + fmt.Sprint(argIndex)
+		query += ` AND role = $` + fmt.Sprint(argIndex)
+		args = append(args, roleFilter)
 		argIndex++
 	}
 

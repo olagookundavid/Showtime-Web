@@ -15,6 +15,7 @@ func TestExtractYouTubeVideoID(t *testing.T) {
 		"https://www.youtube.com/live/" + id,
 		"https://www.youtube-nocookie.com/embed/" + id,
 		"https://www.youtube.com/shorts/" + id,
+		"https://youtube.com/?v=" + id,
 	}
 	for _, in := range valid {
 		got, ok := ExtractYouTubeVideoID(in)

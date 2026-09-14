@@ -183,10 +183,11 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 // @Router       /api/v1/admin/users [get]
 func (h *AuthHandler) GetUsers(c *gin.Context) {
 	search := c.Query("search")
+	role := c.Query("role")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 
-	users, total, err := h.AuthService.ListUsers(c.Request.Context(), page, limit, search)
+	users, total, err := h.AuthService.ListUsers(c.Request.Context(), page, limit, search, role)
 	if err != nil {
 		helpers.ServerErrorResponse(c, err)
 		return
@@ -222,19 +223,6 @@ func (h *AuthHandler) UpdateUserRole(c *gin.Context) {
 	var req dto.UpdateUserRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		helpers.BadResponse(c, err.Error())
-		return
-	}
-
-	// 'player' is not assignable here. Granting it by hand produces an account
-	// that can reach the player portal but has no players row behind it —
-	// players.user_id is only ever set by ClaimService.ApproveClaim — so the
-	// portal loads empty forever and the person can never accept a contract.
-	// The claim flow promotes the role and links the record in one transaction,
-	// which is why it is the only way in.
-	if req.Role == "player" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "The player role cannot be assigned here. Ask the player to claim their profile at /claim using their team's claim code — approving that claim under Admin → Account Claims promotes the account and links it to their player record. Assigning the role by hand leaves the player portal permanently empty.",
-		})
 		return
 	}
 

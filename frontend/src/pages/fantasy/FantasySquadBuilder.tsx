@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { isDeletedPlayer } from '../../components/common/DeletedPlayer';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -330,8 +331,12 @@ export function FantasySquadBuilder() {
 
         let hasInactiveStartingPlayer = false;
         if (mySquad?.players) {
+            // A deleted player is as unfieldable as one whose club went inactive,
+            // so both block a lineup in exactly the same way.
             const inactiveIds = new Set(
-                mySquad.players.filter(p => p.team_active === false).map(p => p.player_id)
+                mySquad.players
+                    .filter(p => p.team_active === false || isDeletedPlayer({ status: p.player_status }))
+                    .map(p => p.player_id)
             );
             for (const pid of chosenPlayerIds) {
                 if (inactiveIds.has(pid)) {
@@ -747,7 +752,7 @@ export function FantasySquadBuilder() {
     };
 
     return (
-        <div className="space-y-6 md:space-y-8 pb-24">
+        <div className="space-y-6 md:space-y-8 pb-36 md:pb-24">
             {/* Header Showtime Navy Banner */}
             <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-6 md:p-8">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -989,6 +994,7 @@ export function FantasySquadBuilder() {
                     const isActionOpen = actionSlot === def.slot;
                     const squadMember = player ? mySquad?.players?.find(sp => sp.player_id === player.player_id) : undefined;
                     const isInactiveClub = squadMember?.team_active === false;
+                    const isDeleted = isDeletedPlayer({ status: squadMember?.player_status });
                     return (
                         <div key={def.slot} className="relative">
                             <div
@@ -1047,11 +1053,24 @@ export function FantasySquadBuilder() {
                                                     Inactive Club
                                                 </span>
                                             )}
+                                            {isDeleted && (
+                                                <span
+                                                    title="This player has been deleted"
+                                                    className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-300 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600"
+                                                >
+                                                    Deleted
+                                                </span>
+                                            )}
                                         </div>
 
                                         {player ? (
-                                            <div className="mt-1">
-                                                <h3 className="text-base font-bold text-gray-900 dark:text-white leading-tight">{player.player_name}</h3>
+                                            <div className={`mt-1 ${isDeleted ? 'opacity-50' : ''}`}>
+                                                <h3
+                                                    className={`text-base font-bold leading-tight ${isDeleted
+                                                        ? 'text-gray-400 dark:text-gray-500 line-through decoration-1'
+                                                        : 'text-gray-900 dark:text-white'}`}
+                                                    title={isDeleted ? 'This player has been deleted' : undefined}
+                                                >{player.player_name}</h3>
                                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                                                     {player.team_short_name || player.team_name} • {player.position}
                                                 </p>
@@ -1289,7 +1308,9 @@ export function FantasySquadBuilder() {
                     <div className="divide-y divide-gray-100 dark:divide-gray-700">
                         {benchPlayers.map((p) => {
                             // Can this reserve be promoted into an open matching slot?
-                            const hasOpenSlot = p.team_active !== false && SLOT_DEFINITIONS.some(def => {
+                            const hasOpenSlot = p.team_active !== false
+                                && !isDeletedPlayer({ status: p.player_status })
+                                && SLOT_DEFINITIONS.some(def => {
                                 if (squad[def.slot] !== null) return false;
                                 if (!def.allowedPositions.includes(p.position)) return false;
                                 if (def.requiredGender && !p.gender.toUpperCase().startsWith(def.requiredGender)) return false;
@@ -1309,6 +1330,14 @@ export function FantasySquadBuilder() {
                                             {p.team_active === false && (
                                                 <span className="ml-2 text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800">
                                                     Inactive Club
+                                                </span>
+                                            )}
+                                            {isDeletedPlayer({ status: p.player_status }) && (
+                                                <span
+                                                    title="This player has been deleted"
+                                                    className="ml-2 text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-300 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600"
+                                                >
+                                                    Deleted
                                                 </span>
                                             )}
                                         </h3>

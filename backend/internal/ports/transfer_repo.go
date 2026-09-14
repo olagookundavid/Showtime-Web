@@ -64,7 +64,7 @@ func (r *PostgresTransferRepository) GetTransferByID(ctx context.Context, id str
 			tr.asking_price, COALESCE(tr.notes, ''), COALESCE(tr.review_notes, ''),
 			tr.completed_at, tr.from_team_approved, tr.to_team_approved,
 			tr.created_at, tr.updated_at,
-			p.name, COALESCE(p.position, ''), COALESCE(p.jersey_number, 0), COALESCE(p.image, ''),
+			p.name, COALESCE(p.position, ''), COALESCE(p.jersey_number, 0), COALESCE(p.image, ''), COALESCE(p.status, 'active'),
 			ft.name, COALESCE(ft.short_name, ''), COALESCE(ft.logo, ''),
 			COALESCE(tt.name, ''), COALESCE(tt.short_name, ''), COALESCE(tt.logo, '')
 		FROM transfers tr
@@ -83,7 +83,7 @@ func (r *PostgresTransferRepository) GetTransferByID(ctx context.Context, id str
 		&toTeamID, &t.InitiatedBy, &t.AskingPrice, &t.Notes, &t.ReviewNotes,
 		&t.CompletedAt, &t.FromTeamApproved, &t.ToTeamApproved,
 		&t.CreatedAt, &t.UpdatedAt,
-		&t.Player.Name, &t.Player.Position, &t.Player.JerseyNumber, &t.Player.Image,
+		&t.Player.Name, &t.Player.Position, &t.Player.JerseyNumber, &t.Player.Image, &t.Player.Status,
 		&t.FromTeam.Name, &t.FromTeam.ShortName, &t.FromTeam.Logo,
 		&t.ToTeam.Name, &t.ToTeam.ShortName, &t.ToTeam.Logo,
 	)
@@ -136,7 +136,7 @@ func (r *PostgresTransferRepository) GetTransfersByTeamID(ctx context.Context, t
 			tr.asking_price, COALESCE(tr.notes, ''), COALESCE(tr.review_notes, ''),
 			tr.completed_at, tr.from_team_approved, tr.to_team_approved,
 			tr.created_at, tr.updated_at,
-			p.name, COALESCE(p.position, ''), COALESCE(p.jersey_number, 0), COALESCE(p.image, ''),
+			p.name, COALESCE(p.position, ''), COALESCE(p.jersey_number, 0), COALESCE(p.image, ''), COALESCE(p.status, 'active'),
 			ft.name, COALESCE(ft.short_name, ''), COALESCE(ft.logo, ''),
 			COALESCE(tt.name, ''), COALESCE(tt.short_name, ''), COALESCE(tt.logo, '')
 		FROM transfers tr
@@ -172,7 +172,7 @@ func (r *PostgresTransferRepository) GetTransfersByTeamID(ctx context.Context, t
 			&toTeamID, &t.InitiatedBy, &t.AskingPrice, &t.Notes, &t.ReviewNotes,
 			&t.CompletedAt, &t.FromTeamApproved, &t.ToTeamApproved,
 			&t.CreatedAt, &t.UpdatedAt,
-			&t.Player.Name, &t.Player.Position, &t.Player.JerseyNumber, &t.Player.Image,
+			&t.Player.Name, &t.Player.Position, &t.Player.JerseyNumber, &t.Player.Image, &t.Player.Status,
 			&t.FromTeam.Name, &t.FromTeam.ShortName, &t.FromTeam.Logo,
 			&t.ToTeam.Name, &t.ToTeam.ShortName, &t.ToTeam.Logo,
 		)
@@ -278,7 +278,7 @@ func (r *PostgresTransferRepository) GetActiveListings(ctx context.Context, sear
 			tr.asking_price, COALESCE(tr.notes, ''), COALESCE(tr.review_notes, ''),
 			tr.completed_at, tr.from_team_approved, tr.to_team_approved,
 			tr.created_at, tr.updated_at,
-			p.name, COALESCE(p.position, ''), COALESCE(p.jersey_number, 0), COALESCE(p.image, ''),
+			p.name, COALESCE(p.position, ''), COALESCE(p.jersey_number, 0), COALESCE(p.image, ''), COALESCE(p.status, 'active'),
 			ft.name, COALESCE(ft.short_name, ''), COALESCE(ft.logo, '')
 		FROM transfers tr
 		JOIN players p ON tr.player_id = p.id
@@ -311,7 +311,7 @@ func (r *PostgresTransferRepository) GetActiveListings(ctx context.Context, sear
 			&toTeamID, &t.InitiatedBy, &t.AskingPrice, &t.Notes, &t.ReviewNotes,
 			&t.CompletedAt, &t.FromTeamApproved, &t.ToTeamApproved,
 			&t.CreatedAt, &t.UpdatedAt,
-			&t.Player.Name, &t.Player.Position, &t.Player.JerseyNumber, &t.Player.Image,
+			&t.Player.Name, &t.Player.Position, &t.Player.JerseyNumber, &t.Player.Image, &t.Player.Status,
 			&t.FromTeam.Name, &t.FromTeam.ShortName, &t.FromTeam.Logo,
 		)
 		if err != nil {
@@ -538,7 +538,7 @@ func (r *PostgresTransferRepository) GetTransfersByPlayerID(ctx context.Context,
 			tr.asking_price, COALESCE(tr.notes, ''), COALESCE(tr.review_notes, ''),
 			tr.completed_at, tr.from_team_approved, tr.to_team_approved,
 			tr.created_at, tr.updated_at,
-			p.name, COALESCE(p.position, ''), COALESCE(p.jersey_number, 0), COALESCE(p.image, ''),
+			p.name, COALESCE(p.position, ''), COALESCE(p.jersey_number, 0), COALESCE(p.image, ''), COALESCE(p.status, 'active'),
 			ft.name, COALESCE(ft.short_name, ''), COALESCE(ft.logo, ''),
 			COALESCE(tt.name, ''), COALESCE(tt.short_name, ''), COALESCE(tt.logo, '')
 		FROM transfers tr
@@ -574,7 +574,7 @@ func (r *PostgresTransferRepository) GetTransfersByPlayerID(ctx context.Context,
 			&toTeamID, &t.InitiatedBy, &t.AskingPrice, &t.Notes, &t.ReviewNotes,
 			&t.CompletedAt, &t.FromTeamApproved, &t.ToTeamApproved,
 			&t.CreatedAt, &t.UpdatedAt,
-			&t.Player.Name, &t.Player.Position, &t.Player.JerseyNumber, &t.Player.Image,
+			&t.Player.Name, &t.Player.Position, &t.Player.JerseyNumber, &t.Player.Image, &t.Player.Status,
 			&t.FromTeam.Name, &t.FromTeam.ShortName, &t.FromTeam.Logo,
 			&t.ToTeam.Name, &t.ToTeam.ShortName, &t.ToTeam.Logo,
 		)

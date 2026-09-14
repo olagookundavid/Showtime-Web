@@ -191,7 +191,7 @@ export function FantasyWallet() {
     const transactions = wallet.transactions || [];
 
     return (
-        <div className="space-y-6 md:space-y-8 pb-24">
+        <div className="space-y-6 md:space-y-8 pb-36 md:pb-24">
             {/* Header Showtime Navy Banner */}
             <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-6 md:p-8">
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-yellow-400 text-xs font-bold uppercase mb-2">

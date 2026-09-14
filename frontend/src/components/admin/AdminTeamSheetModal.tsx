@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { isDeletedPlayer, DELETED_TITLE } from '../common/DeletedPlayer';
 import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -183,7 +184,7 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
 
     return createPortal(
         <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={onClose}>
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[calc(100dvh-5rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
 
                 {/* Header */}
                 <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-between items-start">
@@ -211,7 +212,7 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
                     ))}
                 </div>
 
-                <div className="p-4 sm:p-5 overflow-y-auto overscroll-contain flex-1 min-h-0 space-y-5">
+                <div className="p-4 sm:p-5 pb-10 sm:pb-5 overflow-y-auto overscroll-contain flex-1 min-h-0 space-y-5">
                     {loadingSheet ? <div className="py-8"><Loader /></div> : (
                         <>
                             {/* ── Search / Add Player ── */}
@@ -240,10 +241,16 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
                                                         <li key={p.id}>
                                                             <button
                                                                 onClick={() => handleSelectFromSearch(p)}
-                                                                className="w-full text-left px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700/60 transition-colors"
+                                                                disabled={isDeletedPlayer(p)}
+                                                                title={isDeletedPlayer(p) ? DELETED_TITLE : undefined}
+                                                                className={`w-full text-left px-4 py-2.5 transition-colors ${
+                                                                    isDeletedPlayer(p)
+                                                                        ? 'opacity-50 cursor-not-allowed'
+                                                                        : 'hover:bg-gray-50 dark:hover:bg-gray-700/60'
+                                                                }`}
                                                             >
                                                                 <div className="font-semibold text-sm text-gray-900 dark:text-white flex justify-between items-center">
-                                                                    <span>{p.name} <span className="text-gray-400 font-normal">#{p.jersey_number}</span></span>
+                                                                    <span className={isDeletedPlayer(p) ? 'line-through decoration-1' : ''}>{p.name} <span className="text-gray-400 font-normal">#{p.jersey_number}</span></span>
                                                                     <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${p.team?.id === activeTeamId ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'}`}>
                                                                         {p.team?.name || 'No Team'}
                                                                     </span>
@@ -352,14 +359,27 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
                                 ) : (
                                     <div className="space-y-1.5">
                                         {activeTeamPlayers.map(player => (
-                                            <label key={player.id} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer transition-colors">
+                                            <label
+                                                key={player.id}
+                                                title={isDeletedPlayer(player) ? DELETED_TITLE : undefined}
+                                                className={`flex items-center gap-3 p-3 rounded-xl border border-gray-100 dark:border-gray-700 transition-colors ${
+                                                    isDeletedPlayer(player)
+                                                        ? 'opacity-50 cursor-not-allowed'
+                                                        : 'hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer'
+                                                }`}
+                                            >
                                                 <input
                                                     type="checkbox"
                                                     checked={activeSelected.includes(player.id)}
                                                     onChange={() => togglePlayer(player.id)}
-                                                    className="w-4 h-4 text-sffl-red rounded border-gray-300 focus:ring-sffl-red dark:border-gray-600"
+                                                    disabled={isDeletedPlayer(player)}
+                                                    className="w-4 h-4 text-sffl-red rounded border-gray-300 focus:ring-sffl-red dark:border-gray-600 disabled:cursor-not-allowed"
                                                 />
-                                                <div className="flex-1 font-semibold text-sm text-gray-800 dark:text-gray-200">
+                                                <div className={`flex-1 font-semibold text-sm ${
+                                                    isDeletedPlayer(player)
+                                                        ? 'text-gray-400 dark:text-gray-500 line-through decoration-1'
+                                                        : 'text-gray-800 dark:text-gray-200'
+                                                }`}>
                                                     {player.name}
                                                 </div>
                                                 <span className="text-xs text-gray-400 font-semibold">#{player.jersey_number} · {player.position}</span>

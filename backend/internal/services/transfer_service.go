@@ -553,6 +553,14 @@ func (s *TransferService) executeTransferCompletion(ctx context.Context, t *doma
 	}
 	previousTeamID := player.TeamID
 
+	// Verify buyer team has space on main squad (< 25 main players)
+	if buyerTeamID != "" {
+		mainCount, err := s.playerRepo.GetMainPlayerCount(ctx, buyerTeamID)
+		if err == nil && mainCount >= 25 {
+			return fmt.Errorf("cannot complete transfer: acquiring team has %d main players (max 25). They must move players to reserves or release players first", mainCount)
+		}
+	}
+
 	// Atomic buyer budget check & debit — this doubles as the affordability gate.
 	buyerDebited := false
 	if buyerTeamID != "" && price > 0 {
@@ -607,6 +615,7 @@ func (s *TransferService) executeTransferCompletion(ctx context.Context, t *doma
 		unwind()
 		return fmt.Errorf("failed to update player team assignment: %w", err)
 	}
+	_ = s.playerRepo.RemovePlayerFromReserves(ctx, t.PlayerID)
 	playerMoved = true
 
 	// Offer the player a fresh contract at the buying club (13 games, value = fee).

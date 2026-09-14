@@ -128,6 +128,10 @@ type TeamSheetPlayer struct {
 	// has no qualifying activity (UNRATED); the client renders those cases itself.
 	Rating       *float64 `json:"rating,omitempty"`
 	RatingStatus string   `json:"rating_status,omitempty"`
+	// Status is "active" or "inactive". A player deleted after this sheet was
+	// named stays on it -- the appearance happened. Stat entry must still be
+	// possible for them, so this only marks them visually.
+	Status string `json:"status,omitempty"`
 }
 
 type MatchTeamSheet struct {

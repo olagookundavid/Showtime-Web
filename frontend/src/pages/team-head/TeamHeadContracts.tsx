@@ -559,13 +559,13 @@ export const TeamHeadContracts: React.FC = () => {
             {/* Modal for Offering Contract */}
             {selectedPlayer && (
                 <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={() => setSelectedPlayer(null)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-5rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
                             <h3 className="text-xl font-black text-sffl-navy dark:text-white">Offer Contract</h3>
                             <button onClick={() => setSelectedPlayer(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-lg p-1">✕</button>
                         </div>
 
-                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
+                        <div className="p-4 sm:p-6 pb-10 sm:pb-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
                             <div>
                                 <p className="text-xs uppercase font-bold text-gray-500 dark:text-gray-400 tracking-wider">Player</p>
                                 <p className="text-lg font-black text-gray-900 dark:text-white mt-0.5">{selectedPlayer.name} <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">({selectedPlayer.position || 'No Position'})</span></p>

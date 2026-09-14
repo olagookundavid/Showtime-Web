@@ -377,6 +377,7 @@ func (r *PostgresStatsRepository) GetPlayerStats(ctx context.Context, filter dom
 			COALESCE(p.image, '') AS player_image,
 			COALESCE(p.jersey_number, 0) AS player_jersey_number,
 			COALESCE(p.position, '') AS player_position,
+			COALESCE(p.status, 'active') AS player_status,
 			COALESCE(t.id::text, '') AS team_id,
 			COALESCE(t.name, '') AS team_name,
 			COALESCE(t.short_name, '') AS team_short_name,
@@ -417,7 +418,7 @@ func (r *PostgresStatsRepository) GetPlayerStats(ctx context.Context, filter dom
 		LEFT JOIN teams t ON t.id = %s
 		%s
 		GROUP BY
-			ps.player_id, p.name, p.image, p.jersey_number, p.position,
+			ps.player_id, p.name, p.image, p.jersey_number, p.position, p.status,
 			%s
 		%s
 		%s
@@ -434,6 +435,7 @@ func (r *PostgresStatsRepository) GetPlayerStats(ctx context.Context, filter dom
 		var s domain.AggregatedPlayerStat
 		err := rows.Scan(
 			&s.PlayerID, &s.PlayerName, &s.PlayerImage, &s.PlayerJerseyNumber, &s.PlayerPosition,
+			&s.PlayerStatus,
 			&s.TeamID, &s.TeamName, &s.TeamShortName, &s.TeamLogo,
 			&s.Apps, &s.PassingAttempts, &s.RushingAttempts, &s.CompletedPasses,
 			&s.PassingYards, &s.RushingYards, &s.ReceivingYards,

@@ -483,6 +483,12 @@ export interface TeamSheetPlayer {
     // undetermined "-" positions, and for rateable players with no activity.
     rating?: number | null;
     rating_status?: string;
+    /**
+     * 'active' | 'inactive'. A player deleted after this sheet was named stays
+     * on it — the appearance happened. Stat entry must still work for them, so
+     * this only marks them visually.
+     */
+    status?: string;
 }
 
 export interface MatchTeamSheet {
@@ -576,15 +582,55 @@ export interface Player {
     bio: string;
     image: string;
     email?: string;
+    // 'active' | 'inactive'. Deleting a player only deactivates them, so their
+    // stats and history survive; anything listing them renders an inactive
+    // player greyed out rather than hiding them. Absent on older responses,
+    // which are treated as active.
+    status?: string;
+    is_reserve?: boolean;
 }
 
-export const getPlayers = async (teamId?: string, page: number = 1, limit: number = 20, search?: string): Promise<PaginatedResponse<Player>> => {
+export interface RosterSummary {
+    main_count: number;
+    reserve_count: number;
+    max_main_limit: number;
+    can_add_or_promote: boolean;
+}
+
+export const getTeamRosterSummary = async (teamId?: string): Promise<RosterSummary> => {
+    const url = teamId ? `/team-head/roster-summary?team_id=${teamId}` : `/team-head/roster-summary`;
+    const response = await api.get<RosterSummary>(url);
+    return response.data;
+};
+
+export const moveToReserve = async (playerId: string, teamId?: string): Promise<{ message: string }> => {
+    const url = teamId ? `/admin/teams/${teamId}/players/${playerId}/move-to-reserve` : `/team-head/players/${playerId}/move-to-reserve`;
+    const response = await api.post<{ message: string }>(url);
+    return response.data;
+};
+
+export const graduatePlayer = async (playerId: string, teamId?: string): Promise<{ message: string }> => {
+    const url = teamId ? `/admin/teams/${teamId}/players/${playerId}/graduate` : `/team-head/players/${playerId}/graduate`;
+    const response = await api.post<{ message: string }>(url);
+    return response.data;
+};
+
+export const getPlayers = async (
+    teamId?: string,
+    page: number = 1,
+    limit: number = 20,
+    search?: string,
+    rosterStatus?: 'main' | 'reserve' | 'all'
+): Promise<PaginatedResponse<Player>> => {
     let url = `/players?page=${page}&limit=${limit}`;
     if (teamId) {
         url += `&team_id=${teamId}`;
     }
     if (search) {
         url += `&search=${encodeURIComponent(search)}`;
+    }
+    if (rosterStatus) {
+        url += `&roster_status=${rosterStatus}`;
     }
     const response = await api.get<PaginatedResponse<Player>>(url);
     return response.data;
@@ -767,6 +813,13 @@ export const updatePlayer = async (id: string, payload: Partial<CreatePlayerPayl
 
 export const deletePlayer = async (id: string) => {
     const response = await api.delete(`/admin/players/${id}`);
+    return response.data;
+};
+
+// Reverses deletePlayer. Deleting sets status to inactive rather than removing
+// the row, so nothing has to be recreated.
+export const restorePlayer = async (id: string) => {
+    const response = await api.post(`/admin/players/${id}/restore`);
     return response.data;
 };
 
@@ -1011,7 +1064,7 @@ export const deleteTicketTier = async (eventDayId: string, tierId: string) => {
 };
 
 // -------- ADMIN USER MANAGEMENT API -------- //
-export const getAdminUsers = async (params?: { page?: number; limit?: number; search?: string }) => {
+export const getAdminUsers = async (params?: { page?: number; limit?: number; search?: string; role?: string }) => {
     const response = await api.get('/admin/users', { params });
     return response.data;
 };
@@ -3414,6 +3467,13 @@ export interface SquadPlayer {
     starting: boolean;
     /** False if the player's club has been deactivated or is not participating. */
     team_active?: boolean;
+    /**
+     * 'active' | 'inactive'. A squad can hold someone deleted after they were
+     * signed: the row survives (migration 088), so the manager still sees what
+     * they paid for, greyed out, instead of finding a gap in their squad. Like
+     * an inactive club, they cannot be fielded.
+     */
+    player_status?: string;
     sell_price: number;
     /** Always true — the squad carries no restrictions. */
     can_sell: boolean;

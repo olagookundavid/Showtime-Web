@@ -41,7 +41,7 @@ export const AdminLiveStream = () => {
     if (isLoading || !status) return <Loader />;
 
     return (
-        <div className="space-y-8 max-w-5xl mx-auto pb-12">
+        <div className="space-y-8 max-w-5xl mx-auto pb-36 md:pb-12">
             <Header />
             <StatusCards status={status} />
             {/* Keying on the saved values makes the form re-seed itself whenever

@@ -21,7 +21,7 @@ type IAuthService interface {
 	Login(ctx context.Context, req dto.LoginRequest) (*dto.LoginResponse, error)
 	ResetPassword(ctx context.Context, req dto.ResetPasswordRequest) error
 	ReturnUserProfile(ctx context.Context, id string) (*dto.LoginResponse, error)
-	ListUsers(ctx context.Context, page, limit int, searchFilter string) ([]dto.UserResponse, int, error)
+	ListUsers(ctx context.Context, page, limit int, searchFilter string, roleFilter string) ([]dto.UserResponse, int, error)
 	UpdateUserRole(ctx context.Context, userID, newRole string) error
 	UpdateUserInfo(ctx context.Context, userID, fullName, phone string) error
 	SendPasswordResetOTP(ctx context.Context, email string) error
@@ -271,8 +271,8 @@ func (s *AuthService) getTokenPair(userId string) (string, error) {
 	return accessToken, nil
 }
 
-func (s *AuthService) ListUsers(ctx context.Context, page, limit int, searchFilter string) ([]dto.UserResponse, int, error) {
-	users, total, err := s.AuthRepository.ListUsers(ctx, page, limit, searchFilter)
+func (s *AuthService) ListUsers(ctx context.Context, page, limit int, searchFilter string, roleFilter string) ([]dto.UserResponse, int, error) {
+	users, total, err := s.AuthRepository.ListUsers(ctx, page, limit, searchFilter, roleFilter)
 	if err != nil {
 		return nil, 0, err
 	}

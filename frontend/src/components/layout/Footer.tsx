@@ -7,7 +7,7 @@ export const Footer = () => {
     // still on screen and 2rem of padding leaves it covering the copyright line
     // (iPad portrait is exactly 768px).
     return (
-        <footer className="bg-sffl-navy dark:bg-gray-950 text-white p-4 md:p-8 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] lg:pb-8 mt-auto border-t border-gray-800 dark:border-gray-700">
+        <footer className="bg-sffl-navy dark:bg-gray-950 text-white p-4 md:p-8 pb-[calc(9rem+2*env(safe-area-inset-bottom,0px))] lg:pb-8 mt-auto border-t border-gray-800 dark:border-gray-700">
             {/* Mobile: 1-col stack. Tablet: 2-col grid. Desktop: flex row with
                 space evenly distributed between columns regardless of their
                 content width, so the Branding column's wider wordmark doesn't

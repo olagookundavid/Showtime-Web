@@ -118,7 +118,7 @@ export function FantasyLeaderboard() {
         scope === OVERALL ? null : leagueOptions.find((o) => o.id === scope)?.name ?? 'League';
 
     return (
-        <div className="space-y-6 md:space-y-8 pb-24">
+        <div className="space-y-6 md:space-y-8 pb-36 md:pb-24">
             {/* Header Showtime Navy Banner */}
             <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-6 md:p-8">
                 <Link

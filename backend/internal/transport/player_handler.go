@@ -20,7 +20,11 @@ type IPlayerHandler interface {
 	CreatePlayer(c *gin.Context)
 	UpdatePlayer(c *gin.Context)
 	DeletePlayer(c *gin.Context)
+	RestorePlayer(c *gin.Context)
 	AssignRandomJerseyNumbers(c *gin.Context)
+	MoveToReserve(c *gin.Context)
+	GraduatePlayer(c *gin.Context)
+	GetRosterSummary(c *gin.Context)
 }
 
 type PlayerHandler struct {
@@ -53,6 +57,7 @@ func (h *PlayerHandler) GetPlayers(c *gin.Context) {
 	}
 
 	searchTerm := c.Query("search")
+	rosterStatus := c.Query("roster_status")
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	if page < 1 {
@@ -64,7 +69,7 @@ func (h *PlayerHandler) GetPlayers(c *gin.Context) {
 		limit = 20
 	}
 
-	result, err := h.service.GetPlayers(c.Request.Context(), teamID, searchTerm, page, limit)
+	result, err := h.service.GetPlayers(c.Request.Context(), teamID, searchTerm, page, limit, rosterStatus)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -289,6 +294,28 @@ func (h *PlayerHandler) DeletePlayer(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Player deleted"})
 }
 
+// RestorePlayer godoc
+// @Summary      Restore a deleted player
+// @Description  Reactivates a player deactivated by DELETE. Deleting a player
+// @Description  only sets status to inactive (migration 088), so nothing was
+// @Description  lost and this simply puts them back on the active roster.
+// @Tags         players
+// @Produce      json
+// @Param        id path string true "Player ID"
+// @Success      200  {object}  map[string]string
+// @Router       /api/v1/players/{id}/restore [post]
+func (h *PlayerHandler) RestorePlayer(c *gin.Context) {
+	id := c.Param("id")
+	if !h.ensureOwnsPlayer(c, id) {
+		return
+	}
+	if err := h.service.RestorePlayer(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Player restored"})
+}
+
 func (h *PlayerHandler) AssignRandomJerseyNumbers(c *gin.Context) {
 	teamID := c.Query("team_id")
 	if scopedTeam, ok := scopedTeamID(c); ok {
@@ -302,3 +329,77 @@ func (h *PlayerHandler) AssignRandomJerseyNumbers(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Random jersey numbers assigned", "assigned_count": count})
 }
+
+// MoveToReserve moves a player into the team's reserves
+func (h *PlayerHandler) MoveToReserve(c *gin.Context) {
+	playerID := c.Param("id")
+	if !h.ensureOwnsPlayer(c, playerID) {
+		return
+	}
+
+	scopedTeam, ok := scopedTeamID(c)
+	teamID := scopedTeam
+	if !ok {
+		// Admin: lookup player to find team
+		p, err := h.service.GetPlayerByID(c.Request.Context(), playerID)
+		if err != nil || p == nil || p.Team == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "player or team not found"})
+			return
+		}
+		teamID = p.Team.ID
+	}
+
+	if err := h.service.MovePlayerToReserve(c.Request.Context(), teamID, playerID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Player moved to reserves successfully"})
+}
+
+// GraduatePlayer promotes a player from reserves to the main squad, subject to the 25-cap
+func (h *PlayerHandler) GraduatePlayer(c *gin.Context) {
+	playerID := c.Param("id")
+	if !h.ensureOwnsPlayer(c, playerID) {
+		return
+	}
+
+	scopedTeam, ok := scopedTeamID(c)
+	teamID := scopedTeam
+	if !ok {
+		p, err := h.service.GetPlayerByID(c.Request.Context(), playerID)
+		if err != nil || p == nil || p.Team == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "player or team not found"})
+			return
+		}
+		teamID = p.Team.ID
+	}
+
+	if err := h.service.GraduatePlayerFromReserve(c.Request.Context(), teamID, playerID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Player graduated to main team successfully"})
+}
+
+// GetRosterSummary returns the team's main squad count, reserve count, cap, and promotion status
+func (h *PlayerHandler) GetRosterSummary(c *gin.Context) {
+	teamID := c.Query("team_id")
+	if scopedTeam, ok := scopedTeamID(c); ok {
+		teamID = scopedTeam
+	}
+	if teamID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "team_id is required"})
+		return
+	}
+
+	summary, err := h.service.GetTeamRosterSummary(c.Request.Context(), teamID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, summary)
+}
+

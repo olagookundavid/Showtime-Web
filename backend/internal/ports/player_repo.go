@@ -8,20 +8,28 @@ import (
 	"time"
 
 	"showtime-backend/internal/domain"
+	"showtime-backend/internal/dto"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type PlayerRepository interface {
-	GetPlayers(ctx context.Context, teamID string, search string, page, limit int) ([]domain.Player, int64, error)
+	GetPlayers(ctx context.Context, teamID string, search string, page, limit int, rosterStatus string) ([]domain.Player, int64, error)
 	GetPlayerByID(ctx context.Context, id string) (*domain.Player, error)
 	CreatePlayer(ctx context.Context, player *domain.Player) error
 	UpdatePlayer(ctx context.Context, player *domain.Player) error
 	DeletePlayer(ctx context.Context, id string) error
+	RestorePlayer(ctx context.Context, id string) error
 	AssignRandomJerseyNumbers(ctx context.Context, teamID string) (int, error)
 	GetPlayerByUserID(ctx context.Context, userID string) (*domain.Player, error)
 	UpdatePlayerUserID(ctx context.Context, playerID string, userID *string) error
 	HasPlayerWithEmail(ctx context.Context, email string) (bool, error)
+	MovePlayerToReserve(ctx context.Context, teamID, playerID string) error
+	GraduatePlayerFromReserve(ctx context.Context, teamID, playerID string) error
+	GetMainPlayerCount(ctx context.Context, teamID string) (int, error)
+	GetReservePlayerCount(ctx context.Context, teamID string) (int, error)
+	GetTeamRosterSummary(ctx context.Context, teamID string) (*dto.RosterSummaryResponse, error)
+	RemovePlayerFromReserves(ctx context.Context, playerID string) error
 }
 
 type PostgresPlayerRepository struct {
@@ -32,8 +40,8 @@ func NewPlayerRepository(db *pgxpool.Pool) *PostgresPlayerRepository {
 	return &PostgresPlayerRepository{db: db}
 }
 
-func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string, search string, page, limit int) ([]domain.Player, int64, error) {
-	fromClause := ` FROM players p LEFT JOIN teams t ON p.team_id = t.id`
+func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string, search string, page, limit int, rosterStatus string) ([]domain.Player, int64, error) {
+	fromClause := ` FROM players p LEFT JOIN teams t ON p.team_id = t.id LEFT JOIN team_reserves tr ON tr.player_id = p.id`
 	whereClause := ` WHERE 1=1 AND (p.team_id IS NULL OR COALESCE(t.status, 'active') = 'active')`
 	args := []any{}
 	argCount := 1
@@ -64,6 +72,15 @@ func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string
 		argCount++
 	}
 
+	if rosterStatus == "reserve" {
+		whereClause += ` AND tr.id IS NOT NULL`
+	} else if rosterStatus == "all" {
+		// no reserve filter
+	} else {
+		// Default is "main": only main squad players, reserves excluded!
+		whereClause += ` AND tr.id IS NULL`
+	}
+
 	var total int64
 	if err := r.db.QueryRow(ctx, `SELECT COUNT(*) `+fromClause+whereClause, args...).Scan(&total); err != nil {
 		return nil, 0, err
@@ -77,8 +94,13 @@ func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string
 			COALESCE(p.bio, ''), COALESCE(p.image, ''), p.email,
 			COALESCE(p.gender, ''),
 			p.created_at, p.updated_at,
-			COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, '')
-	` + fromClause + whereClause + ` ORDER BY p.jersey_number ASC`
+			COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
+			COALESCE(p.status, 'active'),
+			(tr.id IS NOT NULL) AS is_reserve
+	` + fromClause + whereClause +
+		// Deactivated players sort last but are still returned: they stay
+		// searchable and the client greys them rather than hiding them.
+		` ORDER BY (COALESCE(p.status, 'active') = 'inactive'), p.jersey_number ASC`
 
 	if limit > 0 {
 		offset := (page - 1) * limit
@@ -104,6 +126,8 @@ func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string
 			&p.Gender,
 			&p.CreatedAt, &p.UpdatedAt,
 			&p.Team.Name, &p.Team.ShortName, &p.Team.Logo,
+			&p.Status,
+			&p.IsReserve,
 		)
 		if err != nil {
 			return nil, 0, err
@@ -123,9 +147,12 @@ func (r *PostgresPlayerRepository) GetPlayerByID(ctx context.Context, id string)
 			COALESCE(p.bio, ''), COALESCE(p.image, ''), p.email,
 			COALESCE(p.gender, ''),
 			p.user_id, p.created_at, p.updated_at,
-			COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, '')
+			COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
+			COALESCE(p.status, 'active'), p.deactivated_at,
+			(tr.id IS NOT NULL) AS is_reserve
 		FROM players p
 		LEFT JOIN teams t ON p.team_id = t.id
+		LEFT JOIN team_reserves tr ON tr.player_id = p.id
 		WHERE p.id = $1
 	`
 	var p domain.Player
@@ -136,6 +163,8 @@ func (r *PostgresPlayerRepository) GetPlayerByID(ctx context.Context, id string)
 		&p.Gender,
 		&uid, &p.CreatedAt, &p.UpdatedAt,
 		&p.Team.Name, &p.Team.ShortName, &p.Team.Logo,
+		&p.Status, &p.DeactivatedAt,
+		&p.IsReserve,
 	)
 	if err != nil {
 		return nil, err
@@ -195,8 +224,37 @@ func (r *PostgresPlayerRepository) UpdatePlayer(ctx context.Context, player *dom
 	return err
 }
 
+// DeletePlayer deactivates a player rather than removing the row.
+//
+// A hard delete used to take the player's history with it: player_stats,
+// match_team_sheets, player_team_history and the fantasy ledgers all cascaded
+// off players(id), so tidying a roster silently erased seasons of stats.
+// Migration 087 turned those foreign keys into RESTRICT, which means a real
+// DELETE here would now fail against any player who has ever played -- the
+// constraint is the backstop, and this is the intended path.
+//
+// The row stays, keeps its id, and keeps everything pointing at it. Callers
+// that list current players filter on status; history reads do not, so a
+// deactivated player still appears in past results and remains searchable.
 func (r *PostgresPlayerRepository) DeletePlayer(ctx context.Context, id string) error {
-	query := `DELETE FROM players WHERE id = $1`
+	query := `
+		UPDATE players
+		   SET status = 'inactive',
+		       deactivated_at = COALESCE(deactivated_at, NOW()),
+		       updated_at = NOW()
+		 WHERE id = $1`
+	_, err := r.db.Exec(ctx, query, id)
+	return err
+}
+
+// RestorePlayer reverses DeletePlayer.
+func (r *PostgresPlayerRepository) RestorePlayer(ctx context.Context, id string) error {
+	query := `
+		UPDATE players
+		   SET status = 'active',
+		       deactivated_at = NULL,
+		       updated_at = NOW()
+		 WHERE id = $1`
 	_, err := r.db.Exec(ctx, query, id)
 	return err
 }
@@ -206,7 +264,9 @@ func (r *PostgresPlayerRepository) AssignRandomJerseyNumbers(ctx context.Context
 	if teamID != "" {
 		teamIDs = []string{teamID}
 	} else {
-		rows, err := r.db.Query(ctx, `SELECT DISTINCT team_id FROM players WHERE team_id IS NOT NULL AND COALESCE(jersey_number, 0) = 0`)
+		rows, err := r.db.Query(ctx, `SELECT DISTINCT team_id FROM players
+			  WHERE team_id IS NOT NULL AND COALESCE(jersey_number, 0) = 0
+			    AND COALESCE(status, 'active') = 'active'`)
 		if err != nil {
 			return 0, err
 		}
@@ -239,7 +299,10 @@ func (r *PostgresPlayerRepository) AssignRandomJerseyNumbers(ctx context.Context
 		}
 		rows.Close()
 
-		pRows, err := r.db.Query(ctx, `SELECT id FROM players WHERE team_id = $1 AND COALESCE(jersey_number, 0) = 0 ORDER BY name ASC`, tid)
+		pRows, err := r.db.Query(ctx, // A deactivated player keeps the shirt they had; handing them a new one
+		// would be assigning a number to someone who no longer plays.
+		`SELECT id FROM players WHERE team_id = $1 AND COALESCE(jersey_number, 0) = 0
+		   AND COALESCE(status, 'active') = 'active' ORDER BY name ASC`, tid)
 		if err != nil {
 			continue
 		}
@@ -352,3 +415,96 @@ func (r *PostgresPlayerRepository) HasPlayerWithEmail(ctx context.Context, email
 	err := r.db.QueryRow(ctx, query, email).Scan(&exists)
 	return exists, err
 }
+
+func (r *PostgresPlayerRepository) MovePlayerToReserve(ctx context.Context, teamID, playerID string) error {
+	// Verify player belongs to team
+	var currentTeamID string
+	err := r.db.QueryRow(ctx, `SELECT COALESCE(team_id::text, '') FROM players WHERE id = $1`, playerID).Scan(&currentTeamID)
+	if err != nil {
+		return fmt.Errorf("player not found: %w", err)
+	}
+	if currentTeamID != teamID {
+		return fmt.Errorf("forbidden: player does not belong to this team")
+	}
+
+	query := `
+		INSERT INTO team_reserves (team_id, player_id)
+		VALUES ($1, $2)
+		ON CONFLICT (player_id) DO UPDATE SET team_id = EXCLUDED.team_id, created_at = CURRENT_TIMESTAMP
+	`
+	_, err = r.db.Exec(ctx, query, teamID, playerID)
+	return err
+}
+
+func (r *PostgresPlayerRepository) GraduatePlayerFromReserve(ctx context.Context, teamID, playerID string) error {
+	// 1. Verify player is currently in reserve for this team
+	var exists bool
+	err := r.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM team_reserves WHERE team_id = $1 AND player_id = $2)`, teamID, playerID).Scan(&exists)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("player is not in this team's reserves")
+	}
+
+	// 2. Enforce 25-player cap on main squad
+	mainCount, err := r.GetMainPlayerCount(ctx, teamID)
+	if err != nil {
+		return fmt.Errorf("failed to check main squad count: %w", err)
+	}
+	if mainCount >= 25 {
+		return fmt.Errorf("cannot graduate player: main squad is at maximum capacity (%d/25 players). Move an active player to reserves or release a player first", mainCount)
+	}
+
+	// 3. Remove from reserves
+	_, err = r.db.Exec(ctx, `DELETE FROM team_reserves WHERE team_id = $1 AND player_id = $2`, teamID, playerID)
+	return err
+}
+
+func (r *PostgresPlayerRepository) GetMainPlayerCount(ctx context.Context, teamID string) (int, error) {
+	query := `
+		SELECT COUNT(*) FROM players p
+		WHERE p.team_id = $1
+		  AND COALESCE(p.status, 'active') = 'active'
+		  AND p.id NOT IN (SELECT player_id FROM team_reserves WHERE team_id = $1)
+	`
+	var count int
+	err := r.db.QueryRow(ctx, query, teamID).Scan(&count)
+	return count, err
+}
+
+func (r *PostgresPlayerRepository) GetReservePlayerCount(ctx context.Context, teamID string) (int, error) {
+	query := `
+		SELECT COUNT(*) FROM team_reserves tr
+		JOIN players p ON p.id = tr.player_id
+		WHERE tr.team_id = $1
+		  AND COALESCE(p.status, 'active') = 'active'
+	`
+	var count int
+	err := r.db.QueryRow(ctx, query, teamID).Scan(&count)
+	return count, err
+}
+
+func (r *PostgresPlayerRepository) GetTeamRosterSummary(ctx context.Context, teamID string) (*dto.RosterSummaryResponse, error) {
+	mainCount, err := r.GetMainPlayerCount(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	reserveCount, err := r.GetReservePlayerCount(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.RosterSummaryResponse{
+		MainCount:       mainCount,
+		ReserveCount:    reserveCount,
+		MaxMainLimit:    25,
+		CanAddOrPromote: mainCount < 25,
+	}, nil
+}
+
+func (r *PostgresPlayerRepository) RemovePlayerFromReserves(ctx context.Context, playerID string) error {
+	_, err := r.db.Exec(ctx, `DELETE FROM team_reserves WHERE player_id = $1`, playerID)
+	return err
+}
+

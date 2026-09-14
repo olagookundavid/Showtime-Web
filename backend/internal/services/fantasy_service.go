@@ -54,7 +54,7 @@ const (
 	defaultMinFemaleOffense = 3
 	defaultMinFemaleDefense = 3
 	defaultMaxPerClub       = 4
-	defaultLockMinsBefore   = 15
+	defaultLockMinsBefore   = 720 // 12 hours
 )
 
 type FantasyService struct {

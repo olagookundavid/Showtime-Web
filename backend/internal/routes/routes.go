@@ -26,6 +26,10 @@ func Routes(app *api.Application) *gin.Engine {
 
 	r.Use(gin.Recovery(), cors.New(helpers.BuildCORSConfig()), gin.LoggerWithConfig(gin.LoggerConfig{
 		SkipPaths: []string{"/healthcheck", "/api/v1/healthcheck"},
+		Skip: func(c *gin.Context) bool {
+			// Suppress successful responses (< 400, including 200 OK). Only log proper errors (status >= 400).
+			return c.Writer.Status() < 400
+		},
 	}))
 
 	r.NoRoute(helpers.NotFoundResponse)
@@ -302,7 +306,12 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		playersGroup.POST("", app.Handlers.PlayerHandler.CreatePlayer)
 		playersGroup.PUT("/:id", app.Handlers.PlayerHandler.UpdatePlayer)
 		playersGroup.DELETE("/:id", app.Handlers.PlayerHandler.DeletePlayer)
+		// Deleting only deactivates (migration 088), so it is reversible.
+		playersGroup.POST("/:id/restore", app.Handlers.PlayerHandler.RestorePlayer)
 		playersGroup.POST("/assign-jersey-numbers", app.Handlers.PlayerHandler.AssignRandomJerseyNumbers)
+		playersGroup.POST("/:id/move-to-reserve", app.Handlers.PlayerHandler.MoveToReserve)
+		playersGroup.POST("/:id/graduate", app.Handlers.PlayerHandler.GraduatePlayer)
+		playersGroup.GET("/roster-summary", app.Handlers.PlayerHandler.GetRosterSummary)
 	}
 
 	// Manual stat editing is reserved for App Admins (play-by-play is the primary
@@ -438,7 +447,11 @@ func SetupTeamHeadRoutes(r *gin.RouterGroup, app *api.Application) {
 	thRoutes.POST("/players", app.Handlers.PlayerHandler.CreatePlayer)
 	thRoutes.PUT("/players/:id", app.Handlers.PlayerHandler.UpdatePlayer)
 	thRoutes.DELETE("/players/:id", app.Handlers.PlayerHandler.DeletePlayer)
+	thRoutes.POST("/players/:id/restore", app.Handlers.PlayerHandler.RestorePlayer)
 	thRoutes.POST("/players/assign-jersey-numbers", app.Handlers.PlayerHandler.AssignRandomJerseyNumbers)
+	thRoutes.POST("/players/:id/move-to-reserve", app.Handlers.PlayerHandler.MoveToReserve)
+	thRoutes.POST("/players/:id/graduate", app.Handlers.PlayerHandler.GraduatePlayer)
+	thRoutes.GET("/roster-summary", app.Handlers.PlayerHandler.GetRosterSummary)
 
 	// Allocations
 	thRoutes.GET("/allocations", app.Handlers.TeamTicketAllocationHandler.GetTeamAllocations)

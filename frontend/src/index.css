@@ -28,6 +28,18 @@ body:has([data-dialog]) .chrome-carousel {
     opacity: 0;
 }
 
+/* While any dialog or modal is open, completely hide any fixed bottom navigation bar
+ * so it never overlaps modal controls, buttons, or scrollable dialog bodies. */
+body:has([data-dialog]) nav.fixed.bottom-0,
+body:has([role="dialog"]) nav.fixed.bottom-0 {
+    display: none !important;
+}
+
+/* Utility for double-height bottom clearance on mobile screens with fixed bottom nav */
+.pb-mobile-nav-2x {
+    padding-bottom: calc(9rem + 2 * env(safe-area-inset-bottom, 0px));
+}
+
 /* Entrance for the newsletter popup with smooth spring curve */
 @keyframes newsletter-pop-in {
     0% {

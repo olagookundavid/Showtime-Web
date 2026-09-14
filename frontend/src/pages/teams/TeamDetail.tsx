@@ -92,10 +92,12 @@ export const TeamDetail = () => {
 
     const { data: playersData, isLoading: loadingPlayers } = useQuery({
         queryKey: ['publicTeamPlayers', id],
-        queryFn: () => getPlayers(id, 1, 100),
+        queryFn: () => getPlayers(id, 1, 100, undefined, 'all'),
         enabled: !!id,
     });
     const players = playersData?.data || [];
+    const mainSquad = players.filter(p => !p.is_reserve);
+    const reserveSquad = players.filter(p => p.is_reserve);
 
     if (loadingTeam) return <Loader />;
 
@@ -121,7 +123,7 @@ export const TeamDetail = () => {
         : `/standings?team=${team.id}`;
 
     return (
-        <div className="space-y-6 md:space-y-8 pb-16">
+        <div className="space-y-6 md:space-y-8 pb-36 md:pb-16">
             {/* ── Header ─────────────────────────────────────────────────── */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6 bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
                 <div className="flex items-center gap-4 md:gap-6">
@@ -225,10 +227,30 @@ export const TeamDetail = () => {
             </div>
 
             {/* ── Team Roster ─────────────────────────────────────────────── */}
-            <div className="space-y-4 pt-4">
-                <h2 className="text-xl md:text-2xl font-black text-sffl-navy dark:text-white flex items-center gap-2">
-                    <span className="text-sffl-red">●</span> TEAM ROSTER
-                </h2>
+            <div className="space-y-6 pt-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-200 dark:border-gray-700 pb-3">
+                    <div>
+                        <h2 className="text-xl md:text-2xl font-black text-sffl-navy dark:text-white flex items-center gap-2">
+                            <span className="text-sffl-red">●</span> TEAM ROSTER
+                        </h2>
+                        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                            Official team roster with 25-player main squad and active reserves.
+                        </p>
+                    </div>
+                    {players.length > 0 && (
+                        <div className="flex items-center gap-3 text-xs font-bold text-gray-600 dark:text-gray-400">
+                            <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                Main: {mainSquad.length}/25
+                            </span>
+                            {reserveSquad.length > 0 && (
+                                <span className="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                    Reserves: {reserveSquad.length}
+                                </span>
+                            )}
+                        </div>
+                    )}
+                </div>
+
                 {loadingPlayers ? (
                     <div className="flex justify-center py-8">
                         <div className="w-6 h-6 border-2 border-sffl-red border-t-transparent rounded-full animate-spin"></div>
@@ -238,44 +260,178 @@ export const TeamDetail = () => {
                         No players listed for this team yet.
                     </div>
                 ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
-                        {players.map((player) => (
-                            <Link
-                                key={player.id}
-                                to={`/players/${player.id}?team=${team.id}`}
-                                className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md hover:scale-[1.01] active:scale-99 transition-all overflow-hidden border border-gray-100 dark:border-gray-700 flex flex-col group"
-                            >
-                                {/* Player Image */}
-                                <div className="relative h-32 sm:h-48 overflow-hidden bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-                                    {player.image ? (
-                                        <img
-                                            src={player.image}
-                                            alt={player.name}
-                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                        />
-                                    ) : (
-                                        <div className="text-sffl-navy/40 dark:text-white/30 text-xl md:text-3xl font-black">
-                                            #{player.jersey_number}
-                                        </div>
-                                    )}
-                                    <div className="absolute top-2 right-2 bg-sffl-red text-white font-black text-[9px] md:text-xs px-2 py-0.5 rounded-full shadow">
-                                        #{player.jersey_number}
-                                    </div>
+                    <div className="space-y-6">
+                        {/* Main Squad Section */}
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-sm font-black uppercase tracking-wider text-sffl-navy dark:text-white flex items-center gap-2">
+                                    <span>⭐ Main Squad</span>
+                                    <span className="text-xs text-gray-400 font-normal">({mainSquad.length}/25)</span>
+                                </h3>
+                            </div>
+                            {mainSquad.length === 0 ? (
+                                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 text-center text-gray-400 text-sm border border-gray-100 dark:border-gray-700">
+                                    No players assigned to main squad.
                                 </div>
-                                {/* Player Info */}
-                                <div className="p-3 border-t border-gray-100 dark:border-gray-700 flex-1 flex flex-col justify-between">
-                                    <div>
-                                        <h3 className="text-xs md:text-base font-black text-sffl-navy dark:text-white truncate uppercase">{player.name}</h3>
-                                        <div className="text-[10px] md:text-xs text-sffl-red font-bold truncate mt-0.5 uppercase">
-                                            {player.position}
+                            ) : (
+                                <div className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden divide-y divide-gray-100 dark:divide-gray-700/60">
+                                    {mainSquad.map((player) => (
+                                        <div
+                                            key={player.id}
+                                            className="p-4 sm:p-5 hover:bg-gray-50/80 dark:hover:bg-gray-700/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                                        >
+                                            <div className="flex items-start sm:items-center gap-4 min-w-0">
+                                                {/* Player Picture Thumbnail (Left-most) */}
+                                                {player.image ? (
+                                                    <img
+                                                        src={player.image}
+                                                        alt={player.name}
+                                                        className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl object-cover border border-gray-200 dark:border-gray-700 shadow-sm flex-shrink-0"
+                                                    />
+                                                ) : (
+                                                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-sffl-navy/10 dark:bg-sffl-navy/50 border border-sffl-navy/20 dark:border-gray-700 flex items-center justify-center text-lg font-black text-sffl-navy dark:text-gray-200 flex-shrink-0">
+                                                        #{player.jersey_number || '?'}
+                                                    </div>
+                                                )}
+
+                                                {/* Player Info */}
+                                                <div className="min-w-0 flex-1 space-y-1">
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <Link
+                                                            to={`/players/${player.id}?team=${team.id}`}
+                                                            className="text-base sm:text-lg font-black text-sffl-navy dark:text-white hover:text-sffl-red dark:hover:text-sffl-red transition-colors truncate uppercase"
+                                                        >
+                                                            {player.name}
+                                                        </Link>
+                                                        {player.jersey_number > 0 && (
+                                                            <span className="bg-sffl-red/10 text-sffl-red px-2 py-0.5 rounded-md text-xs font-black">
+                                                                #{player.jersey_number}
+                                                            </span>
+                                                        )}
+                                                        <span className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-md text-xs font-extrabold uppercase">
+                                                            {player.position}
+                                                        </span>
+                                                        {player.gender && (
+                                                            <span className={`px-2 py-0.5 rounded-md text-[11px] font-extrabold ${
+                                                                player.gender === 'F'
+                                                                    ? 'bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-300'
+                                                                    : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                                                            }`}>
+                                                                {player.gender === 'F' ? 'Female (F)' : 'Male (M)'}
+                                                            </span>
+                                                        )}
+                                                        <span className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[11px] font-black px-2 py-0.5 rounded-full">
+                                                            ⭐ Main
+                                                        </span>
+                                                    </div>
+
+                                                    {player.bio && (
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 italic">
+                                                            "{player.bio}"
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Action Link */}
+                                            <div className="flex items-center self-start sm:self-auto flex-shrink-0">
+                                                <Link
+                                                    to={`/players/${player.id}?team=${team.id}`}
+                                                    className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-sffl-red hover:text-[#A52323] px-3.5 py-2 rounded-xl bg-sffl-red/5 hover:bg-sffl-red/10 dark:bg-sffl-red/10 dark:hover:bg-sffl-red/20 border border-sffl-red/20 transition-all group"
+                                                >
+                                                    <span>Profile</span>
+                                                    <span className="group-hover:translate-x-1 transition-transform">→</span>
+                                                </Link>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="mt-2 text-sffl-red font-bold text-[9px] md:text-xs uppercase tracking-wider flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                                        Profile <span>→</span>
-                                    </div>
+                                    ))}
                                 </div>
-                            </Link>
-                        ))}
+                            )}
+                        </div>
+
+                        {/* Reserves Section (if any) */}
+                        {reserveSquad.length > 0 && (
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-sm font-black uppercase tracking-wider text-sffl-navy dark:text-white flex items-center gap-2">
+                                        <span>🛡️ Reserve Squad</span>
+                                        <span className="text-xs text-amber-600 dark:text-amber-400 font-bold">({reserveSquad.length})</span>
+                                    </h3>
+                                </div>
+                                <div className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden divide-y divide-gray-100 dark:divide-gray-700/60">
+                                    {reserveSquad.map((player) => (
+                                        <div
+                                            key={player.id}
+                                            className="p-4 sm:p-5 hover:bg-gray-50/80 dark:hover:bg-gray-700/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                                        >
+                                            <div className="flex items-start sm:items-center gap-4 min-w-0">
+                                                {/* Player Picture Thumbnail (Left-most) */}
+                                                {player.image ? (
+                                                    <img
+                                                        src={player.image}
+                                                        alt={player.name}
+                                                        className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl object-cover border border-gray-200 dark:border-gray-700 shadow-sm flex-shrink-0"
+                                                    />
+                                                ) : (
+                                                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/20 dark:border-amber-500/30 flex items-center justify-center text-lg font-black text-amber-600 dark:text-amber-400 flex-shrink-0">
+                                                        #{player.jersey_number || '?'}
+                                                    </div>
+                                                )}
+
+                                                {/* Player Info */}
+                                                <div className="min-w-0 flex-1 space-y-1">
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <Link
+                                                            to={`/players/${player.id}?team=${team.id}`}
+                                                            className="text-base sm:text-lg font-black text-sffl-navy dark:text-white hover:text-sffl-red dark:hover:text-sffl-red transition-colors truncate uppercase"
+                                                        >
+                                                            {player.name}
+                                                        </Link>
+                                                        {player.jersey_number > 0 && (
+                                                            <span className="bg-sffl-red/10 text-sffl-red px-2 py-0.5 rounded-md text-xs font-black">
+                                                                #{player.jersey_number}
+                                                            </span>
+                                                        )}
+                                                        <span className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-md text-xs font-extrabold uppercase">
+                                                            {player.position}
+                                                        </span>
+                                                        {player.gender && (
+                                                            <span className={`px-2 py-0.5 rounded-md text-[11px] font-extrabold ${
+                                                                player.gender === 'F'
+                                                                    ? 'bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-300'
+                                                                    : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                                                            }`}>
+                                                                {player.gender === 'F' ? 'Female (F)' : 'Male (M)'}
+                                                            </span>
+                                                        )}
+                                                        <span className="bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-[11px] font-black px-2.5 py-0.5 rounded-full">
+                                                            🛡️ Reserve
+                                                        </span>
+                                                    </div>
+
+                                                    {player.bio && (
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 italic">
+                                                            "{player.bio}"
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Action Link */}
+                                            <div className="flex items-center self-start sm:self-auto flex-shrink-0">
+                                                <Link
+                                                    to={`/players/${player.id}?team=${team.id}`}
+                                                    className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-sffl-red hover:text-[#A52323] px-3.5 py-2 rounded-xl bg-sffl-red/5 hover:bg-sffl-red/10 dark:bg-sffl-red/10 dark:hover:bg-sffl-red/20 border border-sffl-red/20 transition-all group"
+                                                >
+                                                    <span>Profile</span>
+                                                    <span className="group-hover:translate-x-1 transition-transform">→</span>
+                                                </Link>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

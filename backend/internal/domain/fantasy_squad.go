@@ -73,6 +73,12 @@ type SquadPlayer struct {
 	Gender   string `json:"gender"`
 	ClubID   string `json:"club_id"`
 
+	// PlayerStatus is "active" or "inactive". A squad can be holding someone who
+	// was deleted after being signed: the row survives (migration 088), so the
+	// manager keeps seeing what they paid for, greyed out, rather than finding a
+	// gap in their squad.
+	PlayerStatus string `json:"player_status"`
+
 	// Starting marks the ones in the current gameweek's lineup.
 	Starting bool `json:"starting"`
 	// TeamActive is true when the player's club is active and participating.

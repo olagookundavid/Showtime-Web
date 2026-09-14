@@ -5,9 +5,11 @@ import toast from 'react-hot-toast';
 import { DataTable, type Column } from '../../components/ui/DataTable';
 import { ImageUploadField, LightboxImage } from '../../components/ui';
 import {
-    getPlayers, getTeams, createPlayer, updatePlayer, deletePlayer, assignRandomJerseyNumbers,
+    getPlayers, getTeams, createPlayer, updatePlayer, deletePlayer, restorePlayer,
+    moveToReserve, graduatePlayer,
     type Player, type Team, type CreatePlayerPayload,
 } from '../../services/api';
+import { isDeletedPlayer, DeletedPlayerName, deletedRowClass } from '../../components/common/DeletedPlayer';
 
 interface FormData {
     name: string;
@@ -31,14 +33,16 @@ const POSITIONS = ['Defender', 'Receiver', 'Center', '-', 'QB', 'Rusher'];
 export const AdminPlayers = () => {
     const queryClient = useQueryClient();
     const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(20);
     const [searchTerm, setSearchTerm] = useState('');
+    const [rosterStatus, setRosterStatus] = useState<'main' | 'reserve' | 'all'>('all');
 
     // Filters
     const [filterTeam, setFilterTeam] = useState('');
 
     const { data: allPlayersData, isLoading: loadingPlayers } = useQuery({
-        queryKey: ['adminPlayers', { page, search: searchTerm, team: filterTeam }],
-        queryFn: () => getPlayers(filterTeam || undefined, page, 20, searchTerm),
+        queryKey: ['adminPlayers', { page, limit, search: searchTerm, team: filterTeam, rosterStatus }],
+        queryFn: () => getPlayers(filterTeam || undefined, page, limit, searchTerm, rosterStatus),
     });
 
     const { data: teamsData, isLoading: loadingTeams } = useQuery({
@@ -131,49 +135,59 @@ export const AdminPlayers = () => {
             await deletePlayer(id);
             setDeleteConfirm(null);
             queryClient.invalidateQueries({ queryKey: ['adminPlayers'] });
-            toast.success('Player deleted successfully');
+            toast.success('Player deleted. Their stats and history are kept, and they can be restored.');
         } catch (err: any) {
             console.error(err);
             toast.error(err.response?.data?.message || err.response?.data?.error || 'Failed to delete player');
         }
     };
 
-    const set = (field: keyof FormData, value: string) => setForm(p => ({ ...p, [field]: value }));
-
-    const [assigningNumbers, setAssigningNumbers] = useState(false);
-
-    const handleAssignRandomNumbers = async () => {
-        setAssigningNumbers(true);
+    const handleRestore = async (id: string) => {
         try {
-            const res = await assignRandomJerseyNumbers(filterTeam || undefined);
-            toast.success(res.assigned_count > 0 ? `Assigned numbers to ${res.assigned_count} players` : 'All players already have jersey numbers');
+            await restorePlayer(id);
             queryClient.invalidateQueries({ queryKey: ['adminPlayers'] });
+            toast.success('Player restored');
         } catch (err: any) {
             console.error(err);
-            toast.error(err.response?.data?.error || 'Failed to assign jersey numbers');
+            toast.error(err.response?.data?.message || err.response?.data?.error || 'Failed to restore player');
         }
-        setAssigningNumbers(false);
     };
 
+    const set = (field: keyof FormData, value: string) => setForm(p => ({ ...p, [field]: value }));
+
     const columns: Column<Player>[] = [
-        { header: '#', accessor: 'jersey_number', sortable: true, className: "px-4 py-3 font-bold text-sm dark:text-gray-300 w-16" },
         {
             header: 'Player',
             sortable: true,
             sortValue: (p) => p.name,
-            cell: (p) => (
-                <div className="flex items-center gap-3">
-                    {p.image && (
-                        <LightboxImage 
-                            src={p.image} 
-                            alt={p.name} 
-                            thumbnailClassName="w-8 h-8 rounded-full object-cover" 
-                        />
-                    )}
-                    <span className="font-semibold text-sm text-gray-900 dark:text-white">{p.name}</span>
-                </div>
-            )
+            cell: (p) => {
+                const deleted = isDeletedPlayer(p);
+                return (
+                    <div className={`flex items-center gap-3 ${deletedRowClass(deleted)}`}>
+                        {p.image ? (
+                            <LightboxImage
+                                src={p.image}
+                                alt={p.name}
+                                thumbnailClassName="w-10 h-10 rounded-xl object-cover border border-gray-200 dark:border-gray-700 shadow-sm flex-shrink-0"
+                            />
+                        ) : (
+                            <div className="w-10 h-10 rounded-xl bg-sffl-navy/10 dark:bg-sffl-navy/50 border border-sffl-navy/20 dark:border-gray-700 flex items-center justify-center text-xs font-black text-sffl-navy dark:text-gray-200 flex-shrink-0">
+                                #{p.jersey_number || '?'}
+                            </div>
+                        )}
+                        <div className="flex flex-col">
+                            {deleted
+                                ? <DeletedPlayerName name={p.name} deleted showLabel className="font-semibold text-sm" />
+                                : <span className="font-semibold text-sm text-gray-900 dark:text-white">{p.name}</span>}
+                            {p.email && (
+                                <span className="text-xs text-gray-400 truncate max-w-[180px]">{p.email}</span>
+                            )}
+                        </div>
+                    </div>
+                );
+            }
         },
+        { header: '#', accessor: 'jersey_number', sortable: true, className: "px-4 py-3 font-bold text-sm dark:text-gray-300 w-16" },
         {
             header: 'Position',
             accessor: 'position',
@@ -203,12 +217,69 @@ export const AdminPlayers = () => {
             cell: (p) => <span className="text-sm dark:text-gray-300">{p.team?.name || '—'}</span>
         },
         {
+            header: 'Squad',
+            sortable: true,
+            sortValue: (p) => p.is_reserve ? 'Reserve' : 'Main',
+            cell: (p) => p.is_reserve ? (
+                <span className="px-2 py-0.5 rounded text-xs font-black bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                    Reserve
+                </span>
+            ) : (
+                <span className="px-2 py-0.5 rounded text-xs font-black bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    Main
+                </span>
+            )
+        },
+        {
             header: 'Actions',
-            className: "px-4 py-3 text-right space-x-2 w-48",
+            className: "px-4 py-3 text-right space-x-2 w-56",
             cell: (p) => (
-                <div className="flex justify-end gap-2">
+                <div className="flex justify-end gap-1.5 flex-wrap">
+                    {p.team?.id && !isDeletedPlayer(p) && (
+                        p.is_reserve ? (
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        await graduatePlayer(p.id, p.team.id);
+                                        toast.success(`${p.name} graduated to main squad`);
+                                        queryClient.invalidateQueries({ queryKey: ['adminPlayers'] });
+                                    } catch (err: any) {
+                                        toast.error(err.response?.data?.error || 'Failed to graduate player');
+                                    }
+                                }}
+                                title="Promote from reserves to main squad"
+                                className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 font-bold text-xs rounded-md transition-colors"
+                            >
+                                Graduate
+                            </button>
+                        ) : (
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        await moveToReserve(p.id, p.team.id);
+                                        toast.success(`${p.name} moved to reserves`);
+                                        queryClient.invalidateQueries({ queryKey: ['adminPlayers'] });
+                                    } catch (err: any) {
+                                        toast.error(err.response?.data?.error || 'Failed to move player to reserves');
+                                    }
+                                }}
+                                title="Move player to reserve squad"
+                                className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-bold text-xs rounded-md transition-colors"
+                            >
+                                To Reserve
+                            </button>
+                        )
+                    )}
                     <button onClick={() => openEdit(p)} className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 font-bold text-xs rounded-md transition-colors">Edit</button>
-                    <button onClick={() => setDeleteConfirm(p.id)} className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-400 font-bold text-xs rounded-md transition-colors">Delete</button>
+                    {isDeletedPlayer(p) ? (
+                        <button
+                            onClick={() => handleRestore(p.id)}
+                            title="Put this player back on the active roster"
+                            className="px-2.5 py-1 bg-green-50 hover:bg-green-100 text-green-700 dark:bg-green-900/30 dark:hover:bg-green-900/50 dark:text-green-400 font-bold text-xs rounded-md transition-colors"
+                        >Restore</button>
+                    ) : (
+                        <button onClick={() => setDeleteConfirm(p.id)} className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-400 font-bold text-xs rounded-md transition-colors">Delete</button>
+                    )}
                 </div>
             )
         },
@@ -228,14 +299,39 @@ export const AdminPlayers = () => {
                         <option value="FREE_AGENT" className="truncate">Free Agents (no active contract)</option>
                         {teams.map(t => <option key={t.id} value={t.id} className="truncate">{t.name}</option>)}
                     </select>
-                    <button
-                        onClick={handleAssignRandomNumbers}
-                        disabled={assigningNumbers}
-                        className="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-indigo-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 min-h-[44px] whitespace-nowrap disabled:opacity-50"
-                        title="Generate unique random jersey numbers (1-99) for unassigned players"
+                    <select
+                        value={rosterStatus}
+                        onChange={e => {
+                            setRosterStatus(e.target.value as any);
+                            setPage(1);
+                        }}
+                        className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 min-h-[44px] z-50 font-semibold text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
-                        {assigningNumbers ? 'Assigning…' : '🎲 Assign Random #s'}
-                    </button>
+                        <option value="all">All Squads</option>
+                        <option value="main">Main Squad Only</option>
+                        <option value="reserve">Reserves Only</option>
+                    </select>
+                    <div className="flex items-center gap-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-1.5 min-h-[44px]">
+                        <label htmlFor="limitSelectInput" className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Limit:</label>
+                        <select
+                            id="limitSelectInput"
+                            value={limit}
+                            onChange={e => {
+                                setLimit(Number(e.target.value));
+                                setPage(1);
+                            }}
+                            className="bg-transparent font-bold text-sm text-gray-900 dark:text-white focus:outline-none cursor-pointer"
+                        >
+                            <option value={10}>10</option>
+                            <option value={20}>20</option>
+                            <option value={50}>50</option>
+                            <option value={100}>100</option>
+                            <option value={200}>200</option>
+                            <option value={500}>500</option>
+                            <option value={800}>800</option>
+                            <option value={1000}>1000</option>
+                        </select>
+                    </div>
                     <button onClick={openCreate} className="px-4 py-2 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 min-h-[44px] whitespace-nowrap">+ Add Player</button>
                 </div>
             </div>
@@ -248,7 +344,7 @@ export const AdminPlayers = () => {
                     columns={columns}
                     searchable={true}
                     searchPlaceholder="Search players..."
-                    itemsPerPage={20}
+                    itemsPerPage={limit}
                     serverPage={page}
                     totalServerPages={totalPages}
                     onPageChange={setPage}
@@ -296,10 +392,16 @@ export const AdminPlayers = () => {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Team *</label>
-                                    <select value={form.team_id} onChange={e => set('team_id', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-[44px] z-50">
-                                        <option value="" className="truncate">Select...</option>
-                                        {teams.map(t => <option key={t.id} value={t.id} className="truncate">{t.name}</option>)}
-                                    </select>
+                                    {editingId ? (
+                                        <div className="w-full border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-700/60 text-gray-700 dark:text-gray-300 rounded-lg px-3 py-2 min-h-[44px] flex items-center font-semibold text-sm cursor-not-allowed select-none">
+                                            {teams.find(t => t.id === form.team_id)?.name || 'Unassigned / Free Agent'}
+                                        </div>
+                                    ) : (
+                                        <select value={form.team_id} onChange={e => set('team_id', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-[44px] z-50">
+                                            <option value="" className="truncate">Select...</option>
+                                            {teams.map(t => <option key={t.id} value={t.id} className="truncate">{t.name}</option>)}
+                                        </select>
+                                    )}
                                 </div>
                             </div>
                             <div>
@@ -337,7 +439,14 @@ export const AdminPlayers = () => {
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4" data-dialog onClick={() => setDeleteConfirm(null)}>
                     <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl max-w-sm w-full border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <h3 className="text-lg font-bold text-sffl-navy dark:text-white mb-2">Delete Player?</h3>
-                        <p className="text-gray-600 dark:text-gray-400 mb-6">This action cannot be undone.</p>
+                        {/* It genuinely is reversible now — saying otherwise made
+                            admins avoid a safe action, or delete believing the
+                            history was going with it. */}
+                        <p className="text-gray-600 dark:text-gray-400 mb-6">
+                            They come off the active roster and stop appearing in the fantasy market
+                            and new team sheets. Their stats and match history are kept, they stay
+                            searchable, and you can restore them at any time.
+                        </p>
                         <div className="flex justify-end gap-2">
                             <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 min-h-[44px]">Cancel</button>
                             <button onClick={() => handleDelete(deleteConfirm)} className="px-4 py-2 bg-red-600 text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 min-h-[44px]">Delete</button>

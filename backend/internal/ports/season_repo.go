@@ -166,6 +166,7 @@ func (r *SeasonPGRepository) FindAllMVPs(ctx context.Context, activeOnly bool, p
 		SELECT
 			m.id, m.player_id, m.label, m.display_order, m.is_active, m.created_at, m.updated_at,
 			p.name, COALESCE(p.image, ''), p.jersey_number, COALESCE(p.position, ''),
+			COALESCE(p.status, 'active'),
 			COALESCE(t.id::text, ''), COALESCE(t.name, ''), COALESCE(t.logo, '')
 		FROM season_mvps m
 		JOIN players p ON m.player_id = p.id
@@ -198,6 +199,7 @@ func (r *SeasonPGRepository) FindAllMVPs(ctx context.Context, activeOnly bool, p
 		if err := rows.Scan(
 			&m.ID, &m.PlayerID, &m.Label, &m.DisplayOrder, &m.IsActive, &m.CreatedAt, &m.UpdatedAt,
 			&p.Name, &p.Image, &p.JerseyNumber, &p.Position,
+			&p.Status,
 			&tm.ID, &tm.Name, &tm.Logo,
 		); err != nil {
 			return nil, 0, fmt.Errorf("failed to scan MVP: %w", err)

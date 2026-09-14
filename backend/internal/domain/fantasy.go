@@ -461,7 +461,7 @@ type FantasySeason struct {
 	MinFemaleOffense int                 `json:"min_female_offense"` // Default 3
 	MinFemaleDefense int                 `json:"min_female_defense"` // Default 3
 	MaxPerClub       int                 `json:"max_per_club"`       // Default 4
-	LockMinsBefore   int                 `json:"lock_mins_before"`   // Default 15
+	LockMinsBefore   int                 `json:"lock_mins_before"`   // Default 720 (12 hours)
 	Status           FantasySeasonStatus `json:"status"`
 	CreatedAt        time.Time           `json:"created_at"`
 	UpdatedAt        time.Time           `json:"updated_at"`

@@ -406,7 +406,7 @@ export function FantasyDashboard() {
     const totalManagers = num(team?.total_managers);
 
     return (
-        <div className="space-y-6 md:space-y-8 pb-24">
+        <div className="space-y-6 md:space-y-8 pb-36 md:pb-24">
             {/* Hero: personal progress first */}
             <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-6 md:p-8">
                 <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
@@ -569,7 +569,7 @@ export function FantasyDashboard() {
                                             </span>
                                         </>
                                     ) : null}
-                                    . Squads lock {num(season.lock_mins_before)} minutes before kickoff.
+                                    . Squads lock {season.lock_mins_before >= 60 ? `${season.lock_mins_before / 60} hours` : `${num(season.lock_mins_before)} minutes`} before kickoff.
                                 </p>
                             )}
                         </div>

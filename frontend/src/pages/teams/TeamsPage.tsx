@@ -46,7 +46,7 @@ export const TeamsPage = () => {
     if (initialTeamsLoading) return <Loader />;
 
     return (
-        <div className="space-y-8 pb-16">
+        <div className="space-y-8 pb-36 md:pb-16">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-center bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
                 <div>

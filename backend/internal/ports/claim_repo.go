@@ -205,7 +205,11 @@ func (r *PostgresClaimRepository) GetClaimablePlayersByTeam(ctx context.Context,
 	rows, err := r.db.Query(ctx, `
 		SELECT id, name, COALESCE(jersey_number, 0), COALESCE(position, '')
 		FROM players
+		-- A deactivated player is not claimable. Without this they stayed in the
+		-- picker, and approving that claim would link an account to a switched-off
+		-- player and issue them a contract — quietly undoing the deactivation.
 		WHERE team_id = $1 AND claim_status = 'UNCLAIMED'
+		  AND COALESCE(status, 'active') = 'active'
 		ORDER BY name ASC
 	`, teamID)
 	if err != nil {

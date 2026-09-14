@@ -59,3 +59,10 @@ FANTASY_REQUIREMENTS.md
 # Spreadsheet backups — the *.xlsx rule above misses the .backup suffix.
 *.xlsx.backup
 *.xls.backup
+
+# One-off Bowl Series XIV data tooling and ad-hoc analysis SQL. Run by hand
+# against a local database; not part of the app or its migrations.
+scripts/sql/
+scripts/csv_to_xlsx.py
+scripts/seed_bowl14_prices.py
+scripts/split_player_stats_by_role.py

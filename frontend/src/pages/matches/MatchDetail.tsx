@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { isDeletedPlayer, DELETED_TITLE } from '../../components/common/DeletedPlayer';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { getMatchDetail, type TeamSheetPlayer } from '../../services/api';
@@ -146,7 +147,17 @@ function TeamSheetRosterList({
                     </div>
                 )}
                 <div className="flex-1 min-w-0">
-                    <div className={`font-bold text-sm truncate group-hover:text-sffl-red transition-colors ${isGreyedOut ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'}`}>
+                    {/* Distinct from isGreyedOut, which means "unrated this match".
+                        A deleted player is struck through and explains itself on
+                        hover, so the two are not mistaken for each other. */}
+                    <div
+                        title={isDeletedPlayer(player) ? DELETED_TITLE : undefined}
+                        className={`font-bold text-sm truncate group-hover:text-sffl-red transition-colors ${
+                            isDeletedPlayer(player)
+                                ? 'text-gray-400 dark:text-gray-500 line-through decoration-1'
+                                : isGreyedOut ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'
+                        }`}
+                    >
                         {player.name}
                     </div>
                     <div className="text-xs text-gray-400 font-semibold">{jerseyLabel(player.jersey_number)} · {player.position}</div>
@@ -273,7 +284,7 @@ export const MatchDetail = () => {
     const statusInfo = isBye ? { label: 'PLAYOFF BYE', cls: 'bg-emerald-600' } : (statusConfig[match.status as keyof typeof statusConfig] ?? { label: match.status, cls: 'bg-gray-500' });
 
     return (
-        <div className="space-y-4 md:space-y-8 pb-16">
+        <div className="space-y-4 md:space-y-8 pb-36 md:pb-16">
 
             {/* Back nav */}
             <Link to={backLink} className="inline-flex items-center gap-1.5 text-sffl-red hover:underline font-bold text-xs uppercase tracking-wider">

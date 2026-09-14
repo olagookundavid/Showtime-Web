@@ -697,6 +697,9 @@ func (r *FantasyRepository) ListPlayerMarket(ctx context.Context, seasonID strin
 		) sel ON sel.player_id = p.id
 		WHERE p.team_id IS NOT NULL
 		  AND COALESCE(t.status, 'active') = 'active'
+		  -- Deactivated players (migration 088) keep their history but cannot be
+		  -- signed, picked or fielded again.
+		  AND COALESCE(p.status, 'active') = 'active'
 		  AND (
 		      NOT EXISTS (
 		          SELECT 1 FROM competition_teams ct
@@ -1046,6 +1049,9 @@ func (r *FantasyRepository) GetLineupCandidates(ctx context.Context, seasonID, g
 		WHERE p.id = ANY($3)
 		  AND p.team_id IS NOT NULL
 		  AND COALESCE(t.status, 'active') = 'active'
+		  -- Deactivated players (migration 088) keep their history but cannot be
+		  -- signed, picked or fielded again.
+		  AND COALESCE(p.status, 'active') = 'active'
 	`
 	rows, err := r.pool.Query(ctx, query, seasonID, gameweekID, playerIDs)
 	if err != nil {
@@ -1138,6 +1144,7 @@ func (r *FantasyRepository) GetLineup(ctx context.Context, teamID, gameweekID st
 	picksQuery := `
 		SELECT flp.id, flp.lineup_id, flp.player_id, flp.slot, flp.purchase_price, flp.points, flp.created_at,
 		       p.id, p.name, COALESCE(p.image, ''), p.position, COALESCE(p.gender, 'M'),
+		       COALESCE(p.status, 'active'),
 		       COALESCE(t.id::text, ''), COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, '')
 		FROM fantasy_lineup_picks flp
 		JOIN players p ON flp.player_id = p.id
@@ -1158,6 +1165,7 @@ func (r *FantasyRepository) GetLineup(ctx context.Context, teamID, gameweekID st
 		if err := rows.Scan(
 			&pick.ID, &pick.LineupID, &pick.PlayerID, &pick.Slot, &pick.PurchasePrice, &pick.Points, &pick.CreatedAt,
 			&pl.ID, &pl.Name, &pl.Image, &pl.Position, &pl.Gender,
+			&pl.Status,
 			&tm.ID, &tm.Name, &tm.ShortName, &tm.Logo,
 		); err != nil {
 			return nil, err
@@ -1598,6 +1606,9 @@ func (r *FantasyRepository) ListPlayerPricesForAdmin(ctx context.Context, season
 		LEFT JOIN fantasy_player_prices fpp ON fpp.player_id = p.id AND fpp.season_id = $1 AND fpp.gameweek_id IS NULL
 		WHERE p.team_id IS NOT NULL
 		  AND COALESCE(t.status, 'active') = 'active'
+		  -- Deactivated players (migration 088) keep their history but cannot be
+		  -- signed, picked or fielded again.
+		  AND COALESCE(p.status, 'active') = 'active'
 		  AND (
 		      NOT EXISTS (
 		          SELECT 1 FROM competition_teams ct

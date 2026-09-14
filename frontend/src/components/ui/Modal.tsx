@@ -48,7 +48,7 @@ export const Modal = ({ open, onClose, title, subtitle, children, maxWidth = 'xl
         >
             <div
                 onClick={(e) => e.stopPropagation()}
-                className={`bg-white dark:bg-gray-800 rounded-2xl ${widthClass[maxWidth]} w-full shadow-2xl max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-100 dark:border-gray-700`}
+                className={`bg-white dark:bg-gray-800 rounded-2xl ${widthClass[maxWidth]} w-full shadow-2xl max-h-[calc(100dvh-5rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-100 dark:border-gray-700`}
             >
                 {(title || subtitle) && (
                     <div className="flex justify-between items-start gap-4 p-4 sm:p-6 pb-3 sm:pb-4 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
@@ -69,7 +69,7 @@ export const Modal = ({ open, onClose, title, subtitle, children, maxWidth = 'xl
                         </button>
                     </div>
                 )}
-                <div className="overflow-y-auto overscroll-contain p-4 sm:p-6 flex-1 min-h-0">
+                <div className="overflow-y-auto overscroll-contain p-4 sm:p-6 pb-10 sm:pb-6 flex-1 min-h-0">
                     {children}
                 </div>
             </div>

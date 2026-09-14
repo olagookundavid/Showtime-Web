@@ -105,7 +105,7 @@ export function FantasyTrading() {
     }
 
     return (
-        <div className="space-y-6 pb-24">
+        <div className="space-y-6 pb-36 md:pb-24">
             {/* Header + the money */}
             <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-6 md:p-8">
                 <Link

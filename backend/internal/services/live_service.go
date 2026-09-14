@@ -40,13 +40,13 @@ const (
 	liveCacheTTL = 45 * time.Second
 )
 
-// canonicalRe pulls the video id out of the watch page YouTube serves when the
-// channel is live. On a non-live channel the /live URL renders the channel page
-// instead, whose canonical link is a /channel/... or /@handle URL — no match.
-var canonicalRe = regexp.MustCompile(`<link rel="canonical" href="https://www\.youtube\.com/watch\?v=([\w-]{11})"`)
+// canonicalRe pulls the video id out of the watch or live page YouTube serves
+// when the channel is live. On a non-live channel the /live URL renders the channel
+// page instead, whose canonical link is a /channel/... or /@handle URL — no match.
+var canonicalRe = regexp.MustCompile(`(?:<link rel=["']canonical["'] href=|<meta property=["']og:url["'] content=|<meta property=["']og:video:url["'] content=)["']https://(?:www\.)?youtube\.com/(?:watch\?v=|live/|embed/)([\w-]{11})["']`)
 
 // titleRe reads the broadcast title from the page's meta tag.
-var titleRe = regexp.MustCompile(`<meta name="title" content="([^"]*)"`)
+var titleRe = regexp.MustCompile(`(?:<meta name=["']title["'] content=|<meta property=["']og:title["'] content=)["']([^"']*)["']`)
 
 type ILiveService interface {
 	// GetStatus reports whether the hero should show a live stream right now.
@@ -266,9 +266,16 @@ func (s *LiveService) fetchLive(ctx context.Context, handle string) *dto.LiveSta
 	// A canonical watch URL alone isn't enough — YouTube also lands /live on the
 	// most recent *finished* stream once the broadcast ends. Only a page still
 	// carrying live playback markers counts.
-	if !strings.Contains(page, `"isLiveNow":true`) &&
-		!strings.Contains(page, `"isLive":true`) &&
-		!strings.Contains(page, "hlsManifestUrl") {
+	isLiveMarker := strings.Contains(page, `"isLiveNow":true`) ||
+		strings.Contains(page, `"isLive":true`) ||
+		strings.Contains(page, `"isLiveContent":true`) ||
+		strings.Contains(page, `"status":"LIVE"`) ||
+		strings.Contains(page, `"style":"LIVE"`) ||
+		strings.Contains(page, "liveBroadcastDetails") ||
+		strings.Contains(page, "hlsManifestUrl") ||
+		strings.Contains(page, `itemprop="isLiveBroadcast"`)
+
+	if !isLiveMarker {
 		return &dto.LiveStatusResponse{IsLive: false, Source: LiveSourceAuto}
 	}
 
@@ -307,7 +314,7 @@ func ExtractYouTubeVideoID(input string) (string, bool) {
 	}
 
 	// Everything after these markers starts with the id.
-	for _, marker := range []string{"watch?v=", "youtu.be/", "/live/", "/embed/", "/shorts/", "&v="} {
+	for _, marker := range []string{"watch?v=", "youtu.be/", "/live/", "/embed/", "/shorts/", "&v=", "?v="} {
 		if i := strings.Index(input, marker); i >= 0 {
 			rest := input[i+len(marker):]
 			if len(rest) >= 11 && videoIDRe.MatchString(rest[:11]) {

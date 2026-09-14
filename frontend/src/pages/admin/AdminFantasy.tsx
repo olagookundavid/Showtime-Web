@@ -526,7 +526,7 @@ function SeasonsIndex({ seasons, onManage }: {
                                         {' · '}Squad <strong className="text-gray-600 dark:text-gray-300">{s.squad_size}</strong>
                                         {' · '}Min female <strong className="text-gray-600 dark:text-gray-300">{s.min_female_offense} OFF / {s.min_female_defense} DEF</strong>
                                         {' · '}Max <strong className="text-gray-600 dark:text-gray-300">{s.max_per_club}</strong> per club
-                                        {' · '}Lock <strong className="text-gray-600 dark:text-gray-300">{s.lock_mins_before} mins</strong> before kickoff
+                                        {' · '}Lock <strong className="text-gray-600 dark:text-gray-300">{s.lock_mins_before >= 60 ? `${s.lock_mins_before / 60} hours` : `${s.lock_mins_before} mins`}</strong> before kickoff
                                         {' · '}Created {new Date(s.created_at).toLocaleDateString()}
                                     </p>
                                 </div>
@@ -613,7 +613,7 @@ function CreateSeasonCard() {
         min_female_offense: 3,
         min_female_defense: 3,
         max_per_club: 4,
-        lock_mins_before: 15,
+        lock_mins_before: 720,
     });
 
     const createSeasonMutation = useMutation({
@@ -682,11 +682,13 @@ function CreateSeasonCard() {
                 </div>
 
                 <div>
-                    <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">Lock Minutes Before Kickoff</label>
+                    <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">
+                        Lock Minutes Before Kickoff <span className="normal-case text-gray-400 font-normal">(720 = 12 hours)</span>
+                    </label>
                     <input
                         type="number"
                         value={seasonForm.lock_mins_before}
-                        onChange={(e) => setSeasonForm({ ...seasonForm, lock_mins_before: parseInt(e.target.value) || 15 })}
+                        onChange={(e) => setSeasonForm({ ...seasonForm, lock_mins_before: parseInt(e.target.value) || 720 })}
                         className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                     />
                 </div>
@@ -872,7 +874,7 @@ function SetupTab({ season }: { season: FantasySeason }) {
         let suggestedDeadline = '';
         if (md && md.earliest_kickoff) {
             const kickoff = new Date(md.earliest_kickoff);
-            const lockMins = season.lock_mins_before || 15;
+            const lockMins = season.lock_mins_before || 720;
             const deadlineDate = new Date(kickoff.getTime() - lockMins * 60 * 1000);
             suggestedDeadline = toDateTimeLocalValue(deadlineDate.toISOString());
         }
@@ -989,7 +991,7 @@ function SetupTab({ season }: { season: FantasySeason }) {
                                 Auto-Schedule All Gameweeks from Matches
                             </h3>
                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-2xl">
-                                Automatically maps each competition match date to Gameweek 1, 2, ... with lock deadlines set {season.lock_mins_before || 15} minutes before the earliest kickoff.
+                                Automatically maps each competition match date to Gameweek 1, 2, ... with lock deadlines set {season.lock_mins_before >= 60 ? `${season.lock_mins_before / 60} hours` : `${season.lock_mins_before || 720} minutes`} before the earliest kickoff.
                             </p>
                         </div>
                         <button
@@ -1068,7 +1070,7 @@ function SetupTab({ season }: { season: FantasySeason }) {
                             />
                             <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1.5">
                                 Leave blank and the server automatically computes it from the match day's earliest kickoff
-                                minus the lock window ({season.lock_mins_before} mins).
+                                minus the lock window ({season.lock_mins_before >= 60 ? `${season.lock_mins_before / 60} hours` : `${season.lock_mins_before} mins`}).
                             </p>
                         </div>
                     </div>

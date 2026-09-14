@@ -32,7 +32,7 @@ export const AdminSettings = () => {
     };
 
     return (
-        <div className="space-y-8 max-w-7xl mx-auto pb-12">
+        <div className="space-y-8 max-w-7xl mx-auto pb-36 md:pb-12">
             {/* Page Header */}
             <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl p-6 md:p-8 rounded-3xl shadow-xl border border-gray-200/80 dark:border-gray-700/80 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                 <div>

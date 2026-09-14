@@ -117,6 +117,12 @@ func (s *ContractService) IssueContract(ctx context.Context, managerUserID strin
 		return nil, fmt.Errorf("player already has an active contract with team %s", active.TeamID)
 	}
 
+	// Enforce 25 main player cap for the signing team
+	mainCount, err := s.playerRepo.GetMainPlayerCount(ctx, teamID)
+	if err == nil && mainCount >= 25 {
+		return nil, fmt.Errorf("cannot issue contract: team already has %d main players (maximum 25). Move players to reserve or release players before signing new players", mainCount)
+	}
+
 	contractLength := 13
 	if req.ContractLength != nil && *req.ContractLength > 0 {
 		contractLength = *req.ContractLength
@@ -184,6 +190,12 @@ func (s *ContractService) RespondToContract(ctx context.Context, contractID stri
 			}
 			// Same-team renewal/extension: terminate previous active contract
 			_ = s.repo.UpdateContractStatus(ctx, active.ID, "TERMINATED", "RENEWED", nil, nil, &now)
+		} else {
+			// Joining team as new player: check 25 main player cap
+			mainCount, err := s.playerRepo.GetMainPlayerCount(ctx, contract.TeamID)
+			if err == nil && mainCount >= 25 {
+				return fmt.Errorf("cannot accept contract: team main squad is at capacity (%d/25 players)", mainCount)
+			}
 		}
 
 		// Snapshot team match count at activation time
@@ -304,6 +316,7 @@ func (s *ContractService) ReleasePlayer(ctx context.Context, contractID string, 
 		oldTeamID := player.TeamID
 		player.TeamID = ""
 		_ = s.playerRepo.UpdatePlayer(ctx, player)
+		_ = s.playerRepo.RemovePlayerFromReserves(ctx, c.PlayerID)
 
 		if oldTeamID != "" {
 			_ = s.repo.RemovePlayerFromScheduledTeamSheets(ctx, player.ID, oldTeamID)
@@ -604,6 +617,12 @@ func (s *ContractService) AdminForceAcceptContract(ctx context.Context, contract
 		}
 		// Same-team renewal/extension: terminate previous active contract
 		_ = s.repo.UpdateContractStatus(ctx, active.ID, "TERMINATED", "RENEWED", nil, nil, &now)
+	} else {
+		// New team assignment: check 25 main player cap
+		mainCount, err := s.playerRepo.GetMainPlayerCount(ctx, contract.TeamID)
+		if err == nil && mainCount >= 25 {
+			return fmt.Errorf("cannot force-accept contract: team main squad is at capacity (%d/25 players)", mainCount)
+		}
 	}
 
 	// Snapshot team match count at activation time

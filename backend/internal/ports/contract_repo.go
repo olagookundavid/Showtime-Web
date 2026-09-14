@@ -318,7 +318,10 @@ func (r *PostgresContractRepository) ReactivateContract(ctx context.Context, id 
 }
 
 func (r *PostgresContractRepository) GetFreeAgents(ctx context.Context, search string, page, limit int) ([]domain.Player, int64, error) {
-	whereClause := ` WHERE NOT EXISTS (SELECT 1 FROM contracts c WHERE c.player_id = p.id AND c.status = 'ACTIVE') AND (p.team_id IS NULL OR TRIM(COALESCE(p.team_id::text, '')) = '')`
+	// COALESCE'd so rows written before migration 088 added the column still read
+	// as active. A deactivated player is not signable — leaving them here would
+	// let a club re-sign someone an admin had just switched off.
+	whereClause := ` WHERE NOT EXISTS (SELECT 1 FROM contracts c WHERE c.player_id = p.id AND c.status = 'ACTIVE') AND (p.team_id IS NULL OR TRIM(COALESCE(p.team_id::text, '')) = '') AND COALESCE(p.status, 'active') = 'active'`
 	args := []any{}
 	argCount := 1
 

@@ -67,7 +67,8 @@ func (r *FantasySquadRepository) ListSquad(ctx context.Context, teamID, gameweek
 		             AND fl.team_id = sp.team_id
 		             AND ($2 = '' OR fl.gameweek_id::text = $2)
 		       ) AS starting,
-		       (COALESCE(t.status, 'active') = 'active' AND p.team_id IS NOT NULL) AS team_active
+		       (COALESCE(t.status, 'active') = 'active' AND p.team_id IS NOT NULL) AS team_active,
+		       COALESCE(p.status, 'active') AS player_status
 		FROM fantasy_squad_players sp
 		JOIN fantasy_teams ft ON ft.id = sp.team_id
 		JOIN players p ON p.id = sp.player_id
@@ -84,7 +85,8 @@ func (r *FantasySquadRepository) ListSquad(ctx context.Context, teamID, gameweek
 	for rows.Next() {
 		var s domain.SquadPlayer
 		if err := rows.Scan(&s.ID, &s.TeamID, &s.PlayerID, &s.PurchasePrice, &s.CurrentPrice,
-			&s.Name, &s.Position, &s.Gender, &s.ClubID, &s.Starting, &s.TeamActive); err != nil {
+			&s.Name, &s.Position, &s.Gender, &s.ClubID, &s.Starting, &s.TeamActive,
+			&s.PlayerStatus); err != nil {
 			return nil, fmt.Errorf("failed to scan squad player: %w", err)
 		}
 		squad = append(squad, s)
@@ -118,6 +120,7 @@ func (r *FantasySquadRepository) GetMarketPlayer(ctx context.Context, seasonID, 
 	var clubID string
 	var teamStatus string
 	var compEligible bool
+	var playerStatus string
 	err := r.pool.QueryRow(ctx, `
 		SELECT COALESCE((
 		           SELECT pp.price FROM fantasy_player_prices pp
@@ -127,6 +130,7 @@ func (r *FantasySquadRepository) GetMarketPlayer(ctx context.Context, seasonID, 
 		       ), 0),
 		       COALESCE(p.team_id::text, ''),
 		       COALESCE(t.status, 'active'),
+		       COALESCE(p.status, 'active'),
 		       EXISTS (
 		           SELECT 1 FROM competition_teams ct
 		           JOIN fantasy_seasons fs ON fs.id = $1
@@ -139,12 +143,17 @@ func (r *FantasySquadRepository) GetMarketPlayer(ctx context.Context, seasonID, 
 		FROM players p
 		LEFT JOIN teams t ON p.team_id = t.id
 		WHERE p.id = $2
-	`, seasonID, playerID).Scan(&price, &clubID, &teamStatus, &compEligible)
+	`, seasonID, playerID).Scan(&price, &clubID, &teamStatus, &playerStatus, &compEligible)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return 0, "", errors.New("player not found")
 		}
 		return 0, "", fmt.Errorf("failed to read the player's price: %w", err)
+	}
+	// A deleted player keeps their price row, so without this check they could
+	// still be signed by id even though they no longer appear in the market.
+	if playerStatus != "active" {
+		return 0, "", errors.New("this player has been deleted and cannot be signed")
 	}
 	if clubID == "" || teamStatus != "active" {
 		return 0, "", errors.New("players from inactive teams cannot be signed to a fantasy squad")

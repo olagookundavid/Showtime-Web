@@ -143,7 +143,7 @@ export function FantasyHub() {
     const totalManagers = num(dashboard.team?.total_managers);
 
     return (
-        <div className="space-y-6 md:space-y-10 pb-20">
+        <div className="space-y-6 md:space-y-10 pb-36 md:pb-20">
             {/* Season card — a season you choose to enter, never one you're placed in */}
             <div className="relative overflow-hidden bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-6 sm:p-10 md:p-12">
                 <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 rounded-full bg-sffl-red/20 blur-3xl pointer-events-none" />
@@ -192,7 +192,7 @@ export function FantasyHub() {
                                 Lock Window
                             </span>
                             <span className="text-xl font-black text-white">
-                                {num(season.lock_mins_before)}m Pre-Kickoff
+                                {season.lock_mins_before >= 60 ? `${season.lock_mins_before / 60}h` : `${num(season.lock_mins_before)}m`} Pre-Kickoff
                             </span>
                         </div>
                     </div>

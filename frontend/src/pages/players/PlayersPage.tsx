@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { isDeletedPlayer, DELETED_TITLE } from '../../components/common/DeletedPlayer';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import { getPlayers, getTeams, type PaginatedResponse, type Player } from '../../services/api';
@@ -76,7 +77,7 @@ export const PlayersPage = () => {
     if (loadingTeams) return <Loader />;
 
     return (
-        <div className="space-y-8 pb-16">
+        <div className="space-y-8 pb-36 md:pb-16">
             {/* Header - High Density */}
             <div className="flex flex-col md:flex-row justify-between items-center bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
                 <div>
@@ -119,64 +120,106 @@ export const PlayersPage = () => {
                 </div>
             )}
 
-            {/* Players Grid */}
+            {/* Players List View (Universal List View starting with photo) */}
             {!initialPlayersLoading && players.length === 0 ? (
                 <div className="bg-gray-100 dark:bg-gray-800 p-8 md:p-16 rounded-xl text-center">
                     <div className="text-3xl md:text-5xl mb-4">🏈</div>
                     <p className="text-gray-500 text-base md:text-lg font-semibold">No players found.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 md:gap-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden divide-y divide-gray-100 dark:divide-gray-700/60">
                     {players.map((player: Player, idx: number) => {
                         const isLast = idx === players.length - 1;
+                        const profileUrl = `/players/${player.id}${selectedTeamId ? `?team=${selectedTeamId}` : ''}`;
                         return (
                             <div
                                 key={player.id}
                                 ref={isLast ? lastCardRef : null}
-                                className="bg-white dark:bg-gray-800 rounded-lg md:rounded-xl shadow-sm hover:shadow-xl transition overflow-hidden group border border-gray-100 dark:border-gray-700 flex flex-col"
+                                title={isDeletedPlayer(player) ? DELETED_TITLE : undefined}
+                                className={`p-4 sm:p-5 hover:bg-gray-50/80 dark:hover:bg-gray-700/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                                    isDeletedPlayer(player) ? 'opacity-50 grayscale' : ''
+                                }`}
                             >
-                                {/* Player Image - Lightbox only click */}
-                                <div className="relative h-48 md:h-80 overflow-hidden bg-gray-100 dark:bg-gray-900 group-image cursor-zoom-in">
+                                <div className="flex items-start sm:items-center gap-4 min-w-0">
+                                    {/* Player Picture Thumbnail (Left-most) */}
                                     {player.image ? (
                                         <LightboxImage
                                             src={player.image}
                                             alt={player.name}
-                                            thumbnailClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                                            thumbnailClassName="w-14 h-14 sm:w-16 sm:h-16 rounded-xl object-cover border border-gray-200 dark:border-gray-700 shadow-sm flex-shrink-0"
                                         />
                                     ) : (
-                                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-sffl-navy to-sffl-navy/80 text-white text-3xl md:text-6xl font-black opacity-40">
-                                            #{player.jersey_number}
+                                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-sffl-navy/10 dark:bg-sffl-navy/50 border border-sffl-navy/20 dark:border-gray-700 flex items-center justify-center text-lg font-black text-sffl-navy dark:text-gray-200 flex-shrink-0">
+                                            #{player.jersey_number || '?'}
                                         </div>
                                     )}
-                                    <div className="absolute top-2 right-2 md:top-4 md:right-4 bg-sffl-red text-white font-black text-[10px] md:text-base px-2 py-0.5 md:px-4 md:py-2 rounded-full shadow-lg z-20">
-                                        #{player.jersey_number}
-                                    </div>
-                                </div>
 
-                                {/* Player Info - Link to profile */}
-                                <Link to={`/players/${player.id}${selectedTeamId ? `?team=${selectedTeamId}` : ''}`} className="p-2 md:p-6 flex-1 flex flex-col justify-between hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                                    <div>
-                                        <h3 className="text-xs md:text-2xl font-black text-sffl-navy dark:text-white truncate">{player.name}</h3>
-                                        <div className="flex items-center gap-1.5 mt-0.5">
-                                            <span className="text-[10px] md:text-sm text-sffl-red font-bold truncate">
+                                    {/* Player Info */}
+                                    <div className="min-w-0 flex-1 space-y-1">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <Link
+                                                to={profileUrl}
+                                                className={`text-base sm:text-lg font-black transition-colors truncate ${
+                                                    isDeletedPlayer(player)
+                                                        ? 'text-gray-400 dark:text-gray-500 line-through decoration-1'
+                                                        : 'text-sffl-navy dark:text-white hover:text-sffl-red dark:hover:text-sffl-red'
+                                                }`}
+                                            >
+                                                {player.name}
+                                            </Link>
+                                            {isDeletedPlayer(player) && (
+                                                <span
+                                                    title={DELETED_TITLE}
+                                                    className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-gray-100 text-gray-500 border border-gray-300 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600"
+                                                >
+                                                    Deleted
+                                                </span>
+                                            )}
+                                            {player.jersey_number > 0 && (
+                                                <span className="bg-sffl-red/10 text-sffl-red px-2 py-0.5 rounded-md text-xs font-black">
+                                                    #{player.jersey_number}
+                                                </span>
+                                            )}
+                                            <span className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-md text-xs font-extrabold uppercase">
                                                 {player.position}
                                             </span>
                                             {player.gender && (
-                                                <span className={`text-[9px] md:text-xs font-bold px-1.5 py-0.5 rounded ${
+                                                <span className={`px-2 py-0.5 rounded-md text-[11px] font-extrabold ${
                                                     player.gender === 'F'
                                                         ? 'bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-300'
                                                         : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
                                                 }`}>
-                                                    {player.gender === 'F' ? 'F' : 'M'}
+                                                    {player.gender === 'F' ? 'Female (F)' : 'Male (M)'}
+                                                </span>
+                                            )}
+                                            {player.team?.name && (
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-gray-50 dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 rounded-md text-xs font-bold text-gray-700 dark:text-gray-200">
+                                                    {player.team.logo && (
+                                                        <img src={player.team.logo} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
+                                                    )}
+                                                    <span>{player.team.name}</span>
                                                 </span>
                                             )}
                                         </div>
-                                    </div>
 
-                                    <div className="mt-2 md:mt-4 text-sffl-red font-semibold text-[10px] md:text-sm uppercase tracking-wider flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                                        View Profile <span>→</span>
+                                        {player.bio && (
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 italic">
+                                                "{player.bio}"
+                                            </p>
+                                        )}
                                     </div>
-                                </Link>
+                                </div>
+
+                                {/* Link Action */}
+                                <div className="flex items-center self-start sm:self-auto flex-shrink-0">
+                                    <Link
+                                        to={profileUrl}
+                                        className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-sffl-red hover:text-[#A52323] px-3.5 py-2 rounded-xl bg-sffl-red/5 hover:bg-sffl-red/10 dark:bg-sffl-red/10 dark:hover:bg-sffl-red/20 border border-sffl-red/20 transition-all group"
+                                    >
+                                        <span>View Profile</span>
+                                        <span className="group-hover:translate-x-1 transition-transform">→</span>
+                                    </Link>
+                                </div>
                             </div>
                         );
                     })}

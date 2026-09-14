@@ -605,13 +605,13 @@ export const TeamHeadTransfers: React.FC = () => {
             {/* Modal for Placing Bid */}
             {selectedListing && (
                 <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={() => setSelectedListing(null)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-5rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
                             <h3 className="text-xl font-black text-sffl-navy dark:text-white">Place Bid</h3>
                             <button onClick={() => setSelectedListing(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-lg p-1">✕</button>
                         </div>
 
-                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
+                        <div className="p-4 sm:p-6 pb-10 sm:pb-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
                             <div>
                                 <p className="text-xs uppercase font-bold text-gray-500 dark:text-gray-400 tracking-wider">Target Player</p>
                                 <p className="text-lg font-black text-gray-900 dark:text-white mt-0.5">{selectedListing.player?.name} <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">({selectedListing.from_team?.name})</span></p>
@@ -659,13 +659,13 @@ export const TeamHeadTransfers: React.FC = () => {
             {/* Modal for Listing Player */}
             {showListModal && (
                 <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={() => setShowListModal(false)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-5rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
                             <h3 className="text-xl font-black text-sffl-navy dark:text-white">List Player for Sale</h3>
                             <button onClick={() => setShowListModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-lg p-1">✕</button>
                         </div>
 
-                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
+                        <div className="p-4 sm:p-6 pb-10 sm:pb-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Select Player</label>
                                 <select
@@ -718,13 +718,13 @@ export const TeamHeadTransfers: React.FC = () => {
             {/* Modal for Direct Sale */}
             {showDirectSaleModal && (
                 <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={() => setShowDirectSaleModal(false)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-5rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
                             <h3 className="text-xl font-black text-sffl-navy dark:text-white">Propose Direct Sale</h3>
                             <button onClick={() => setShowDirectSaleModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-lg p-1">✕</button>
                         </div>
 
-                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
+                        <div className="p-4 sm:p-6 pb-10 sm:pb-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Select Player to Sell</label>
                                 <select
@@ -791,13 +791,13 @@ export const TeamHeadTransfers: React.FC = () => {
             {/* Modal for Transfer Request */}
             {showRequestModal && (
                 <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={() => setShowRequestModal(false)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-5rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
                             <h3 className="text-xl font-black text-sffl-navy dark:text-white">Request Player Transfer</h3>
                             <button onClick={() => setShowRequestModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-lg p-1">✕</button>
                         </div>
 
-                        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
+                        <div className="p-4 sm:p-6 pb-10 sm:pb-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Target Team</label>
                                 <select

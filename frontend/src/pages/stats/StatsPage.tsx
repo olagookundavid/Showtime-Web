@@ -199,7 +199,7 @@ export const StatsPage = () => {
     };
 
     return (
-        <div className="space-y-4 md:space-y-8 pb-20">
+        <div className="space-y-4 md:space-y-8 pb-36 md:pb-20">
             {/* Header */}
             <div className="flex flex-col lg:flex-row items-start lg:items-center bg-sffl-navy text-white p-6 md:p-8 rounded-xl md:rounded-2xl shadow-xl gap-8 lg:gap-12">
                 <div className="shrink-0">

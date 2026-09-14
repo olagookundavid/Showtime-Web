@@ -318,7 +318,7 @@ export function FantasyLeagues() {
     }
 
     return (
-        <div className="space-y-6 md:space-y-8 pb-24">
+        <div className="space-y-6 md:space-y-8 pb-36 md:pb-24">
             {/* Header Showtime Navy Banner */}
             <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-6 md:p-8">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
