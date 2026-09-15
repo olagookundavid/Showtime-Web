@@ -288,6 +288,7 @@ const POSITIONS: { key: string; label: string }[] = [
     { key: 'Receiver,Center', label: 'Receiver' },
     { key: 'Rusher', label: 'Rusher' },
     { key: 'Defender', label: 'Defender' },
+    { key: 'Allrounder', label: 'All-Rounder' },
 ];
 
 /**

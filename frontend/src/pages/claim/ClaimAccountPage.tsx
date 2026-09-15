@@ -21,7 +21,7 @@ const NOT_LISTED = '__NOT_LISTED__';
 // identically to Receiver — see backend/internal/domain/player_rating.go
 // RateByPosition. No "-" option here (that's an admin-only "unrated" sentinel,
 // not something a self-service claimant should pick).
-const CLAIM_POSITIONS = ['QB', 'Receiver', 'Center', 'Defender', 'Rusher'];
+const CLAIM_POSITIONS = ['QB', 'Receiver', 'Center', 'Defender', 'Rusher', 'Allrounder'];
 
 export const ClaimAccountPage: React.FC = () => {
     const [step, setStep] = useState<Step>('code');

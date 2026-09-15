@@ -71,7 +71,11 @@ func TestPlayerAllrounderAndSecondaryRole(t *testing.T) {
 		}
 	})
 
-	t.Run("Creating 7th Allrounder as secondary role is also rejected by 6-cap", func(t *testing.T) {
+	// This case used to assert the 6-cap caught an All-Rounder arriving as a
+	// secondary role. All-Rounder is now a main role only, so the request is
+	// refused before the cap is ever consulted — a narrower rule rejecting it
+	// sooner, not a weaker one.
+	t.Run("Allrounder is refused as a secondary role", func(t *testing.T) {
 		p := &domain.Player{
 			ID:                "ar-7-sec",
 			Name:              "AR Seven Sec",
@@ -81,10 +85,27 @@ func TestPlayerAllrounderAndSecondaryRole(t *testing.T) {
 		}
 		err := svc.CreatePlayer(ctx, p)
 		if err == nil {
-			t.Fatalf("expected error creating 7th Allrounder via secondary role, got nil")
+			t.Fatalf("expected error setting Allrounder as a secondary role, got nil")
 		}
-		if !strings.Contains(err.Error(), "max 6") {
-			t.Errorf("expected 'max 6' error, got %v", err)
+		if !strings.Contains(err.Error(), "main role only") {
+			t.Errorf("expected 'main role only' error, got %v", err)
+		}
+	})
+
+	t.Run("Allrounder is refused as a secondary role on update too", func(t *testing.T) {
+		p := &domain.Player{
+			ID:                "ar-1",
+			Name:              "AR One",
+			TeamID:            "team-all",
+			Position:          "Receiver",
+			SecondaryPosition: strPtr("All-Rounder"),
+		}
+		err := svc.UpdatePlayer(ctx, p)
+		if err == nil {
+			t.Fatalf("expected error setting Allrounder as a secondary role on update, got nil")
+		}
+		if !strings.Contains(err.Error(), "main role only") {
+			t.Errorf("expected 'main role only' error, got %v", err)
 		}
 	})
 

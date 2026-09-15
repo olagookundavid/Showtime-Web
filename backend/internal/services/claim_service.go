@@ -715,6 +715,10 @@ func (s *ClaimService) ApproveClaim(ctx context.Context, claimID string, r domai
 		if trimmed != "" && strings.EqualFold(trimmed, strings.TrimSpace(req.Position)) {
 			return fmt.Errorf("secondary role cannot be identical to main role")
 		}
+		// Same rule the player forms enforce: All-Rounder is a main role only.
+		if domain.IsAllrounderRole(trimmed) {
+			return fmt.Errorf("All-Rounder is a main role only — it cannot be a secondary role")
+		}
 		override.SecondaryPosition = &trimmed
 	}
 

@@ -49,6 +49,22 @@ interface SlotDefinition {
     requiredGender?: 'M' | 'F';
 }
 
+// An All-Rounder plays anywhere their gender is eligible to play. Mirrors
+// domain.SlotSpec.Accepts on the server: the position requirement is waived, the
+// gender requirement never is — the female-only slots exist to guarantee women on
+// the field, so a male All-Rounder filling one would defeat the rule.
+const ALLROUNDER_SPELLINGS = ['ALLROUNDER', 'ALL-ROUNDER', 'ALL ROUNDER', 'AR'];
+
+function isAllrounderPosition(position?: string | null): boolean {
+    return ALLROUNDER_SPELLINGS.includes((position || '').trim().toUpperCase());
+}
+
+/** Whether a player may occupy a slot, position-wise. Gender is checked separately. */
+function positionFitsSlot(def: SlotDefinition, position?: string | null): boolean {
+    if (isAllrounderPosition(position)) return true;
+    return def.allowedPositions.includes(position || '');
+}
+
 const SLOT_DEFINITIONS: SlotDefinition[] = [
     // Offense (7)
     { slot: 'QB_M', label: 'Male Starting QB', unit: 'OFFENSE', allowedPositions: ['QB'], requiredGender: 'M' },
@@ -363,7 +379,7 @@ export function FantasySquadBuilder() {
         for (const def of SLOT_DEFINITIONS) {
             const player = squad[def.slot];
             if (!player) continue;
-            const positionOK = def.allowedPositions.includes(player.position);
+            const positionOK = positionFitsSlot(def, player.position);
             const genderOK = !def.requiredGender
                 || (player.gender || '').toUpperCase() === def.requiredGender;
             if (!positionOK || !genderOK) {
@@ -493,9 +509,8 @@ export function FantasySquadBuilder() {
     // because fielding one costs nothing and is almost always the intent.
     const ownedForSlot = useMemo(() => {
         if (!activeModalSlot || !mySquad) return [];
-        const allowed = new Set(activeModalSlot.allowedPositions);
         return mySquad.players
-            .filter((p) => allowed.has(p.position))
+            .filter((p) => positionFitsSlot(activeModalSlot, p.position))
             .filter((p) => !activeModalSlot.requiredGender ||
                 (p.gender || 'M').toUpperCase().startsWith(activeModalSlot.requiredGender))
             .filter((p) => !marketSearch ||
@@ -645,7 +660,7 @@ export function FantasySquadBuilder() {
         // Find the first empty slot that matches position & gender
         const matchingSlot = SLOT_DEFINITIONS.find(def => {
             if (squad[def.slot] !== null) return false; // Already filled
-            if (!def.allowedPositions.includes(reservePlayer.position)) return false;
+            if (!positionFitsSlot(def, reservePlayer.position)) return false;
             if (def.requiredGender && !reservePlayer.gender.toUpperCase().startsWith(def.requiredGender)) return false;
             return true;
         });
@@ -1312,7 +1327,7 @@ export function FantasySquadBuilder() {
                                 && !isDeletedPlayer({ status: p.player_status })
                                 && SLOT_DEFINITIONS.some(def => {
                                 if (squad[def.slot] !== null) return false;
-                                if (!def.allowedPositions.includes(p.position)) return false;
+                                if (!positionFitsSlot(def, p.position)) return false;
                                 if (def.requiredGender && !p.gender.toUpperCase().startsWith(def.requiredGender)) return false;
                                 return true;
                             });

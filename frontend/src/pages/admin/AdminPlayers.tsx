@@ -30,6 +30,9 @@ const emptyForm: FormData = {
 // Center is rated identically to Receiver (same formula) — see
 // backend/internal/domain/player_rating.go RateByPosition.
 const POSITIONS = ['Defender', 'Receiver', 'Center', 'QB', 'Rusher', 'Allrounder'];
+// All-Rounder already means "plays anywhere", so it says nothing as a second
+// role — it is a main role only, and the server refuses it as a secondary.
+const SECONDARY_POSITIONS = POSITIONS.filter(p => p !== 'Allrounder');
 
 export const AdminPlayers = () => {
     const queryClient = useQueryClient();
@@ -420,7 +423,7 @@ export const AdminPlayers = () => {
                                         className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-[44px] z-50"
                                     >
                                         <option value="" className="truncate">None (No Secondary Role)</option>
-                                        {POSITIONS.filter(p => p !== form.position).map(p => (
+                                        {SECONDARY_POSITIONS.filter(p => p !== form.position).map(p => (
                                             <option key={p} value={p} className="truncate">{p}</option>
                                         ))}
                                     </select>

@@ -717,7 +717,14 @@ func (r *FantasyRepository) ListPlayerMarket(ctx context.Context, seasonID strin
 	argIdx := 2
 
 	if len(positions) > 0 {
-		baseQuery += fmt.Sprintf(" AND p.position = ANY($%d)", argIdx)
+		// An All-Rounder is eligible for every slot, so they belong in the pool
+		// whichever positions were asked for. Without this the market for, say, a
+		// receiver slot excluded them, while the validator that runs on save
+		// accepts them — the picker would hide the very players it would let you
+		// submit. Gender is filtered separately below and still applies.
+		baseQuery += fmt.Sprintf(
+			" AND (p.position = ANY($%d) OR UPPER(TRIM(COALESCE(p.position, ''))) IN ('ALLROUNDER','ALL-ROUNDER','ALL ROUNDER','AR'))",
+			argIdx)
 		args = append(args, positions)
 		argIdx++
 	}

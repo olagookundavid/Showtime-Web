@@ -108,15 +108,20 @@ func (s *PlayerService) GetPlayerByID(ctx context.Context, id string) (*dto.Play
 	return pr, nil
 }
 
-func IsAllrounderRole(pos string) bool {
-	clean := strings.ToUpper(strings.TrimSpace(pos))
-	return clean == "ALLROUNDER" || clean == "ALL-ROUNDER" || clean == "ALL ROUNDER" || clean == "AR"
-}
+// IsAllrounderRole delegates to the domain so the roster caps and the fantasy
+// slot rules can never disagree about what counts as an All-Rounder.
+func IsAllrounderRole(pos string) bool { return domain.IsAllrounderRole(pos) }
 
 func (s *PlayerService) CreatePlayer(ctx context.Context, player *domain.Player) error {
 	if player.SecondaryPosition != nil && *player.SecondaryPosition != "" {
 		if strings.EqualFold(strings.TrimSpace(player.Position), strings.TrimSpace(*player.SecondaryPosition)) {
 			return fmt.Errorf("secondary role cannot be identical to main role")
+		}
+		// All-Rounder already means "plays anywhere", so it says nothing as a
+		// second role and would quietly widen every slot rule while looking like
+		// a specialism. It is a main role only.
+		if IsAllrounderRole(*player.SecondaryPosition) {
+			return fmt.Errorf("All-Rounder is a main role only — it cannot be a secondary role")
 		}
 	}
 
@@ -172,6 +177,9 @@ func (s *PlayerService) UpdatePlayer(ctx context.Context, player *domain.Player)
 	if targetSecPos != nil && *targetSecPos != "" {
 		if strings.EqualFold(strings.TrimSpace(targetPos), strings.TrimSpace(*targetSecPos)) {
 			return fmt.Errorf("secondary role cannot be identical to main role")
+		}
+		if IsAllrounderRole(*targetSecPos) {
+			return fmt.Errorf("All-Rounder is a main role only — it cannot be a secondary role")
 		}
 	}
 

@@ -2071,6 +2071,7 @@ const POSITION_OPTIONS = [
     { value: 'Center', label: 'Center' },
     { value: 'Rusher', label: 'Rusher' },
     { value: 'Defender', label: 'Defender' },
+    { value: 'Allrounder', label: 'All-Rounder' },
 ];
 
 function PricingTab({ seasonId }: { seasonId: string }) {

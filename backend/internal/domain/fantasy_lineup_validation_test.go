@@ -172,3 +172,45 @@ func TestCompleteLineupAlsoPassesThePartialCheck(t *testing.T) {
 		t.Errorf("a complete valid lineup must also pass the partial check, got: %v", err)
 	}
 }
+
+// An All-Rounder plays anywhere their gender is eligible to play. The two halves
+// of that sentence are tested together deliberately: the point of the role is to
+// waive the position requirement, and the point of the female-only slots is that
+// nothing waives them. A change that made All-Rounder bypass the gender gate
+// would still satisfy the first half of this test on its own.
+func TestAllrounderSlotEligibility(t *testing.T) {
+	specFor := func(slot FantasySlot) SlotSpec {
+		s, ok := SlotSpecFor(slot)
+		if !ok {
+			t.Fatalf("unknown slot %s", slot)
+		}
+		return s
+	}
+
+	t.Run("fills a slot their listed position could not", func(t *testing.T) {
+		// A Receiver is not eligible for the rusher slot; an All-Rounder is.
+		if specFor(SlotRusher).Accepts("Receiver", "M") {
+			t.Fatalf("fixture wrong: a Receiver should not fill the rusher slot")
+		}
+		if !specFor(SlotRusher).Accepts("Allrounder", "M") {
+			t.Errorf("an All-Rounder should fill the rusher slot")
+		}
+	})
+
+	t.Run("every spelling is recognised", func(t *testing.T) {
+		for _, spelling := range []string{"Allrounder", "All-Rounder", "all rounder", "AR"} {
+			if !specFor(SlotRusher).Accepts(spelling, "M") {
+				t.Errorf("%q should be recognised as an All-Rounder", spelling)
+			}
+		}
+	})
+
+	t.Run("does not waive a female-only slot for a man", func(t *testing.T) {
+		if specFor(SlotQBFemale).Accepts("Allrounder", "M") {
+			t.Errorf("a male All-Rounder must not fill a female-only slot")
+		}
+		if !specFor(SlotQBFemale).Accepts("Allrounder", "F") {
+			t.Errorf("a female All-Rounder should fill a female-only slot")
+		}
+	})
+}

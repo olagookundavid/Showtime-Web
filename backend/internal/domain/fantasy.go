@@ -116,9 +116,30 @@ func NormalizeGender(g string) string {
 }
 
 // Accepts reports whether a player of this position/gender may fill the slot.
+// IsAllrounderRole reports whether a position string names the All-Rounder role,
+// across the spellings the roster has accumulated.
+//
+// It lives in domain rather than beside the roster caps because the fantasy slot
+// rules need it too, and a second copy would be free to drift from this one.
+func IsAllrounderRole(pos string) bool {
+	switch strings.ToUpper(strings.TrimSpace(pos)) {
+	case "ALLROUNDER", "ALL-ROUNDER", "ALL ROUNDER", "AR":
+		return true
+	}
+	return false
+}
+
 func (s SlotSpec) Accepts(position, gender string) bool {
+	// Gender is checked first and is never waived. An All-Rounder plays anywhere
+	// their gender is eligible to play — the female-only slots exist to guarantee
+	// women on the field, so a male All-Rounder filling one would defeat the rule
+	// the slot is there to enforce.
 	if s.RequiredGender != "" && NormalizeGender(gender) != s.RequiredGender {
 		return false
+	}
+	// Past the gender gate, an All-Rounder satisfies any position requirement.
+	if IsAllrounderRole(position) {
+		return true
 	}
 	for _, allowed := range s.AllowedPositions {
 		if strings.EqualFold(strings.TrimSpace(position), allowed) {
