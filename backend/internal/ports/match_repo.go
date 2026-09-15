@@ -976,7 +976,7 @@ func (r *PostgresMatchRepository) GetTeamSheet(ctx context.Context, matchID stri
 	// come from player_stats (per player), not team_match_stats — a backup QB must
 	// not be credited with the starter's whole-game totals.
 	query := `
-		SELECT mts.team_id, p.id, p.name, p.jersey_number, p.position, COALESCE(p.gender, ''), p.image,
+		SELECT mts.team_id, p.id, p.name, p.jersey_number, p.position, p.secondary_position, COALESCE(p.gender, ''), p.image,
 			COALESCE(p.status, 'active'),
 			COALESCE(ps.receptions, 0), COALESCE(ps.receiving_tds, 0),
 			COALESCE(ps.extra_points_tds, 0), COALESCE(ps.drops, 0),
@@ -1012,7 +1012,7 @@ func (r *PostgresMatchRepository) GetTeamSheet(ctx context.Context, matchID stri
 		// image might be null
 		var img *string
 		var line domain.RatingStatLine
-		if err := rows.Scan(&teamID, &p.PlayerID, &p.Name, &p.JerseyNumber, &p.Position, &p.Gender, &img,
+		if err := rows.Scan(&teamID, &p.PlayerID, &p.Name, &p.JerseyNumber, &p.Position, &p.SecondaryPosition, &p.Gender, &img,
 			&p.Status,
 			&line.Receptions, &line.ReceivingTDs, &line.ExtraPointTDs, &line.Drops,
 			&line.FlagPulls, &line.PassDeflections, &line.Interceptions, &line.DefensiveTDs,

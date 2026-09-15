@@ -314,7 +314,7 @@ export const AdminStats = () => {
                             </div>
 
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                {getStatsForPosition(activePlayer.position).filter(s => !s.teamOnly).map(field => (
+                                {getStatsForPosition(activePlayer.position, activePlayer.secondary_position).filter(s => !s.teamOnly).map(field => (
                                     <div key={field.key} className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl border border-gray-200 dark:border-gray-600">
                                         <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-2 uppercase tracking-wider">{field.label}</label>
                                         <input

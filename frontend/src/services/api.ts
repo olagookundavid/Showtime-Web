@@ -477,6 +477,8 @@ export interface TeamSheetPlayer {
     name: string;
     jersey_number: number;
     position: string;
+    /** Second role, when the player has one. Stat entry offers both roles' fields. */
+    secondary_position?: string | null;
     gender?: string;
     image: string;
     // Per-match rating (Receiver/Defender/Rusher only). Null/absent for QB and
