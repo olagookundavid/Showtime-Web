@@ -1,21 +1,22 @@
 import { useQuery } from '@tanstack/react-query';
-import { useRef, useEffect } from 'react';
+import { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { getMatches, type Match } from '../../services/api';
 import { Loader } from '../ui/Loader';
+import { formatMatchTime } from '../../utils/dateUtils';
 
 // Shared query — React Query dedupes by key so the carousel and info strip
 // don't double-fetch when both are on the page.
 const useLatestFinishedMatches = () => useQuery({
-    queryKey: ['publicMatches', 'FINISHED', 12],
-    queryFn: () => getMatches(undefined, 1, 12, 'FINISHED'),
+    queryKey: ['publicMatches', 'FINISHED', 10],
+    queryFn: () => getMatches(undefined, 1, 10, 'FINISHED'),
     staleTime: 60_000,
 });
 
 // Fetch upcoming matches so we can sort soonest-first ourselves
 const useUpcomingMatches = () => useQuery({
-    queryKey: ['publicMatches', 'SCHEDULED', 12],
-    queryFn: () => getMatches(undefined, 1, 12, 'SCHEDULED'),
+    queryKey: ['publicMatches', 'SCHEDULED', 10],
+    queryFn: () => getMatches(undefined, 1, 10, 'SCHEDULED'),
     staleTime: 60_000,
 });
 
@@ -34,49 +35,39 @@ const latestFirst = (matches: Match[]) =>
     });
 
 /**
- * Builds the header match strip's content: when there are upcoming matches,
- * show upcoming matches (soonest first) + latest results;
- * when there are no upcoming matches, fall back to finished results.
+ * Builds the header match strip's content:
+ * 5 forward (upcoming, soonest first) and 5 played (finished, latest first).
  */
 const useHeaderMatches = () => {
     const { data: finishedMatchesData, isLoading: loadingFinished } = useLatestFinishedMatches();
     const { data: upcomingMatchesData, isLoading: loadingUpcoming } = useUpcomingMatches();
 
     const finished = finishedMatchesData?.data || [];
-    const upcoming = soonestFirst(upcomingMatchesData?.data || []).slice(0, 8);
+    const upcoming = soonestFirst(upcomingMatchesData?.data || []);
+    const recentFinished = latestFirst(finished);
 
-    const recentFinished = latestFirst(finished.slice(0, 8));
+    const forwardMatches = upcoming.slice(0, 5);
+    const playedMatches = recentFinished.slice(0, 5);
 
-    const matches = upcoming.length > 0
-        ? [...upcoming, ...recentFinished]
-        : latestFirst(finished.slice(0, 14));
+    let matches: Match[] = [];
+    if (forwardMatches.length === 0) {
+        matches = recentFinished.slice(0, 10);
+    } else if (playedMatches.length === 0) {
+        matches = upcoming.slice(0, 10);
+    } else {
+        matches = [...forwardMatches, ...playedMatches];
+    }
 
-    const nextMatchId = upcoming.length > 0 ? upcoming[0].id : null;
-
-    return { matches, nextMatchId, isLoading: loadingFinished || loadingUpcoming };
+    return { matches, isLoading: loadingFinished || loadingUpcoming };
 };
 
 /**
- * The scrolling tile row of upcoming + latest finished matches. Used on every
- * page as part of the sticky chrome below the navbar. Does NOT include the
- * info strip — see LatestMatchesInfoStrip.
+ * The scrolling tile row of 5 upcoming (forward) + 5 played finished matches.
+ * Uniform styling across all match cards.
  */
 export const LatestMatchesCarousel = () => {
-    const { matches, nextMatchId, isLoading } = useHeaderMatches();
+    const { matches, isLoading } = useHeaderMatches();
     const scrollContainerRef = useRef<HTMLDivElement>(null);
-    const nextMatchRef = useRef<HTMLAnchorElement>(null);
-
-    useEffect(() => {
-        if (nextMatchRef.current && scrollContainerRef.current) {
-            const container = scrollContainerRef.current;
-            const tile = nextMatchRef.current;
-            const containerRect = container.getBoundingClientRect();
-            const tileRect = tile.getBoundingClientRect();
-            const currentScroll = container.scrollLeft;
-            const targetScroll = currentScroll + (tileRect.left - containerRect.left) - (container.clientWidth / 2) + (tile.clientWidth / 2);
-            container.scrollTo({ left: Math.max(0, targetScroll), behavior: 'smooth' });
-        }
-    }, [nextMatchId]);
 
     const scrollLeft = () => {
         scrollContainerRef.current?.scrollBy({ left: -260, behavior: 'smooth' });
@@ -123,7 +114,6 @@ export const LatestMatchesCarousel = () => {
                     >
                         {matches.map(match => {
                             const isLive = match.status === 'LIVE';
-                            const isNextMatch = match.id === nextMatchId;
                             // A knockout match with exactly one team is a bye — show "BYE"
                             // on the empty side instead of the raw T1/T2 placeholder.
                             const isBye = match.competition?.format === 'KNOCKOUT' &&
@@ -132,13 +122,8 @@ export const LatestMatchesCarousel = () => {
                             return (
                                 <Link
                                     key={match.id}
-                                    ref={isNextMatch ? nextMatchRef : null}
                                     to={`/matches/${match.id}`}
-                                    className={`flex-none w-[114px] sm:w-[120px] rounded-lg px-2 py-1 flex items-center justify-between gap-1.5 transition-all duration-300 snap-center cursor-pointer group h-[38px] sm:h-[40px] ${
-                                        isNextMatch
-                                            ? 'bg-sffl-red/20 hover:bg-sffl-red/30 border border-sffl-red/60 hover:border-sffl-red shadow-sm ring-1 ring-sffl-red/30'
-                                            : 'bg-white/5 dark:bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20'
-                                    }`}
+                                    className="flex-none w-[114px] sm:w-[120px] rounded-lg px-2 py-1 flex items-center justify-between gap-1.5 transition-all duration-300 snap-center cursor-pointer group h-[38px] sm:h-[40px] bg-white/5 dark:bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20"
                                 >
                                     <div className="flex flex-col justify-center gap-0.5 flex-1 min-w-0">
                                         {/* Home Team */}
@@ -195,11 +180,9 @@ export const LatestMatchesCarousel = () => {
                                         </div>
                                     </div>
                                     {/* Action / Status Column */}
-                                    <div className="flex flex-col items-center justify-center shrink-0 border-l border-white/10 pl-1.5 text-center min-w-[30px] sm:min-w-[32px]">
+                                    <div className="flex flex-col items-center justify-center shrink-0 border-l border-white/10 pl-1.5 text-center min-w-[28px] sm:min-w-[32px]">
                                         {isLive ? (
                                             <span className="bg-sffl-red text-white text-[6.5px] sm:text-[7px] font-black uppercase px-1 py-0.5 rounded animate-pulse">LIVE</span>
-                                        ) : match.status === 'FINISHED' ? (
-                                            <span className="text-[8px] sm:text-[8.5px] font-black text-gray-400 uppercase tracking-wider">FT</span>
                                         ) : isBye ? (
                                             <span className="text-[7px] font-black text-emerald-400 uppercase">BYE</span>
                                         ) : (
@@ -207,9 +190,11 @@ export const LatestMatchesCarousel = () => {
                                                 <span className="text-[7.5px] sm:text-[8px] font-bold text-gray-300 whitespace-nowrap">
                                                     {match.date ? new Date(match.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}
                                                 </span>
-                                                <span className={`text-[6.5px] font-black uppercase tracking-tight ${isNextMatch ? 'text-sffl-red' : 'text-gray-400'}`}>
-                                                    {isNextMatch ? 'NEXT' : 'UPCOMING'}
-                                                </span>
+                                                {match.status !== 'FINISHED' && match.start_time && formatMatchTime(match.start_time) !== 'TBD' && (
+                                                    <span className="text-[6.5px] sm:text-[7px] font-medium text-gray-400 whitespace-nowrap">
+                                                        {formatMatchTime(match.start_time)}
+                                                    </span>
+                                                )}
                                             </div>
                                         )}
                                     </div>
