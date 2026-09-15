@@ -25,6 +25,7 @@ interface Player {
     id: string;
     name: string;
     position: string;
+    secondary_position?: string;
     gender?: string;
     jersey_number: number;
     email?: string;
@@ -46,10 +47,10 @@ interface PaginatedPlayerResponse {
 
 // Center is rated identically to Receiver (same formula) — see
 // backend/internal/domain/player_rating.go RateByPosition.
-const POSITIONS = ['Defender', 'Receiver', 'Center', '-', 'QB', 'Rusher'];
+const POSITIONS = ['Defender', 'Receiver', 'Center', 'QB', 'Rusher', 'Allrounder'];
 
 const emptyForm = {
-    name: '', position: '', gender: '', jersey_number: '', email: '', image: '', bio: '', contract_length: '13',
+    name: '', position: '', secondary_position: '', gender: '', jersey_number: '', email: '', image: '', bio: '', contract_length: '13',
 };
 
 const TeamHeadPlayers = () => {
@@ -115,6 +116,7 @@ const TeamHeadPlayers = () => {
         setForm({
             name: p.name || '',
             position: p.position || '',
+            secondary_position: p.secondary_position || '',
             gender: p.gender || '',
             jersey_number: p.jersey_number?.toString() || '0',
             email: p.email || '',
@@ -131,11 +133,16 @@ const TeamHeadPlayers = () => {
             toast.error('Direct player creation is disabled. Please contact league administration.');
             return;
         }
+        if (form.secondary_position && form.secondary_position === form.position) {
+            toast.error('Secondary position cannot be the same as primary position.');
+            return;
+        }
         setSaving(true);
         try {
             const payload = {
                 name: form.name,
                 position: form.position,
+                secondary_position: form.secondary_position || undefined,
                 gender: form.gender,
                 jersey_number: parseInt(form.jersey_number) || 0,
                 email: form.email,
@@ -148,6 +155,7 @@ const TeamHeadPlayers = () => {
             toast.success('Player updated successfully');
             setShowModal(false);
             queryClient.invalidateQueries({ queryKey: ['teamHeadPlayers', team.id] });
+            queryClient.invalidateQueries({ queryKey: ['teamRosterSummary', team.id] });
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Failed to save player.');
         } finally {
@@ -276,6 +284,13 @@ const TeamHeadPlayers = () => {
                                 <span className="text-gray-400 block text-[10px] uppercase">Reserves</span>
                                 <span className="text-base font-black text-amber-600 dark:text-amber-400">
                                     {rosterSummary.reserve_count} <span className="text-xs text-gray-400 font-normal">(unlimited)</span>
+                                </span>
+                            </div>
+                            <div className="h-6 w-px bg-gray-200 dark:border-gray-700" />
+                            <div className="text-center">
+                                <span className="text-gray-400 block text-[10px] uppercase">All-Rounders</span>
+                                <span className={`text-base font-black ${(rosterSummary.allrounder_count || 0) >= 6 ? 'text-amber-600 dark:text-amber-400' : 'text-sffl-navy dark:text-white'}`}>
+                                    {rosterSummary.allrounder_count || 0} <span className="text-xs text-gray-400 font-normal">/ 6</span>
                                 </span>
                             </div>
                         </div>
@@ -496,6 +511,11 @@ const TeamHeadPlayers = () => {
                                             <span className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-md text-xs font-extrabold uppercase">
                                                 {player.position || 'N/A'}
                                             </span>
+                                            {player.secondary_position && (
+                                                <span className="bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-md text-xs font-extrabold uppercase">
+                                                    Sec: {player.secondary_position}
+                                                </span>
+                                            )}
                                             {player.gender && (
                                                 <span className={`px-2 py-0.5 rounded-md text-[11px] font-extrabold ${
                                                     player.gender === 'F'
@@ -665,12 +685,39 @@ const TeamHeadPlayers = () => {
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Position</label>
-                                    <select value={form.position} onChange={e => setField('position', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-3.5 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-sffl-red text-sm font-semibold">
-                                        <option value="" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">Select...</option>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Primary Role</label>
+                                    <select
+                                        value={form.position}
+                                        onChange={e => {
+                                            const newPos = e.target.value;
+                                            setField('position', newPos);
+                                            if (form.secondary_position === newPos) {
+                                                setField('secondary_position', '');
+                                            }
+                                        }}
+                                        className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-3.5 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-sffl-red text-sm font-semibold"
+                                    >
+                                        <option value="" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">Select Primary Role...</option>
                                         {POSITIONS.map(p => <option key={p} value={p} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">{p}</option>)}
                                     </select>
                                 </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
+                                        Secondary Role <span className="text-xs font-normal text-gray-400">(Optional)</span>
+                                    </label>
+                                    <select
+                                        value={form.secondary_position}
+                                        onChange={e => setField('secondary_position', e.target.value)}
+                                        className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-3.5 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-sffl-red text-sm font-semibold"
+                                    >
+                                        <option value="" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">None (No Secondary Role)</option>
+                                        {POSITIONS.filter(p => p !== form.position).map(p => (
+                                            <option key={p} value={p} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">{p}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Gender</label>
                                     <select value={form.gender} onChange={e => setField('gender', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-3.5 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-sffl-red text-sm font-semibold">
@@ -678,6 +725,9 @@ const TeamHeadPlayers = () => {
                                         <option value="M" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">Male (M)</option>
                                         <option value="F" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">Female (F)</option>
                                     </select>
+                                </div>
+                                <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 p-2">
+                                    <span>⚡ <strong>Allrounders Rule:</strong> Teams are limited to a maximum of 6 Allrounders (combined main & secondary roles).</span>
                                 </div>
                             </div>
                             <div>

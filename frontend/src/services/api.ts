@@ -577,6 +577,7 @@ export interface Player {
     name: string;
     jersey_number: number;
     position: string;
+    secondary_position?: string;
     gender?: string;
     team: Team;
     bio: string;
@@ -595,6 +596,8 @@ export interface RosterSummary {
     reserve_count: number;
     max_main_limit: number;
     can_add_or_promote: boolean;
+    allrounder_count: number;
+    max_allrounder_limit: number;
 }
 
 export const getTeamRosterSummary = async (teamId?: string): Promise<RosterSummary> => {
@@ -686,6 +689,7 @@ export interface CreatePlayerPayload {
     name: string;
     jersey_number?: number;
     position?: string;
+    secondary_position?: string;
     gender?: string;
     team_id: string;
     bio?: string;
@@ -1274,6 +1278,7 @@ export interface PlayerStat {
     player_image: string;
     player_jersey_number: number;
     player_position: string;
+    player_secondary_position?: string;
     team_id: string;
     team_name: string;
     team_short_name: string;

@@ -708,6 +708,15 @@ func (s *ClaimService) ApproveClaim(ctx context.Context, claimID string, r domai
 	if req.JerseyNumber != nil {
 		override.JerseyNumber = *req.JerseyNumber
 	}
+	if req.SecondaryPosition != nil {
+		trimmed := strings.TrimSpace(*req.SecondaryPosition)
+		// Same rule the player forms enforce: a secondary role that repeats the
+		// primary says nothing, so it is refused rather than silently stored.
+		if trimmed != "" && strings.EqualFold(trimmed, strings.TrimSpace(req.Position)) {
+			return fmt.Errorf("secondary role cannot be identical to main role")
+		}
+		override.SecondaryPosition = &trimmed
+	}
 
 	playerID, createdNew, err := s.repo.ApproveClaim(ctx, claimID, r.UserID, override)
 	if err != nil {

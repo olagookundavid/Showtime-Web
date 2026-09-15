@@ -134,6 +134,23 @@ func (m *mockPlayerRepo) RemovePlayerFromReserves(ctx context.Context, playerID 
 	return nil
 }
 
+func (m *mockPlayerRepo) GetTeamAllrounderCount(ctx context.Context, teamID string, excludePlayerID string) (int, error) {
+	count := 0
+	for id, p := range m.players {
+		if id == excludePlayerID || p.TeamID != teamID {
+			continue
+		}
+		sec := ""
+		if p.SecondaryPosition != nil {
+			sec = *p.SecondaryPosition
+		}
+		if IsAllrounderRole(p.Position) || IsAllrounderRole(sec) {
+			count++
+		}
+	}
+	return count, nil
+}
+
 func TestPlayerReserveAnd25Cap(t *testing.T) {
 	ctx := context.Background()
 	repo := &mockPlayerRepo{

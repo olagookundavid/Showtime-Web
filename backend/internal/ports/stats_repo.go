@@ -266,15 +266,17 @@ func buildStatsWhereClause(filter domain.StatsFilter) (string, []interface{}) {
 		pos := strings.ToUpper(strings.TrimSpace(filter.Position))
 		switch pos {
 		case "QB", "QUARTERBACK":
-			conditions = append(conditions, "(UPPER(COALESCE(p.position, '')) = 'QB' OR UPPER(COALESCE(p.position, '')) = 'QUARTERBACK')")
+			conditions = append(conditions, "(UPPER(COALESCE(p.position, '')) IN ('QB', 'QUARTERBACK') OR UPPER(COALESCE(p.secondary_position, '')) IN ('QB', 'QUARTERBACK'))")
 		case "REC", "RECEIVER", "CENTER", "C":
-			conditions = append(conditions, "(UPPER(COALESCE(p.position, '')) IN ('REC', 'RECEIVER', 'WR', 'WIDE RECEIVER', 'CENTER', 'C'))")
+			conditions = append(conditions, "(UPPER(COALESCE(p.position, '')) IN ('REC', 'RECEIVER', 'WR', 'WIDE RECEIVER', 'CENTER', 'C') OR UPPER(COALESCE(p.secondary_position, '')) IN ('REC', 'RECEIVER', 'WR', 'WIDE RECEIVER', 'CENTER', 'C'))")
 		case "RUSH", "RUSHER":
-			conditions = append(conditions, "(UPPER(COALESCE(p.position, '')) IN ('RUSH', 'RUSHER', 'DE', 'DT', 'EDGE', 'BLITZER'))")
+			conditions = append(conditions, "(UPPER(COALESCE(p.position, '')) IN ('RUSH', 'RUSHER', 'DE', 'DT', 'EDGE', 'BLITZER') OR UPPER(COALESCE(p.secondary_position, '')) IN ('RUSH', 'RUSHER', 'DE', 'DT', 'EDGE', 'BLITZER'))")
 		case "DEF", "DEFENDER":
-			conditions = append(conditions, "(UPPER(COALESCE(p.position, '')) IN ('DEF', 'DEFENDER', 'DB', 'CB', 'SAFETY', 'FS', 'SS', 'LB'))")
+			conditions = append(conditions, "(UPPER(COALESCE(p.position, '')) IN ('DEF', 'DEFENDER', 'DB', 'CB', 'SAFETY', 'FS', 'SS', 'LB') OR UPPER(COALESCE(p.secondary_position, '')) IN ('DEF', 'DEFENDER', 'DB', 'CB', 'SAFETY', 'FS', 'SS', 'LB'))")
+		case "ALLROUNDER", "ALL-ROUNDER", "ALL ROUNDER", "AR":
+			conditions = append(conditions, "(UPPER(COALESCE(p.position, '')) IN ('ALLROUNDER', 'ALL-ROUNDER', 'ALL ROUNDER', 'AR') OR UPPER(COALESCE(p.secondary_position, '')) IN ('ALLROUNDER', 'ALL-ROUNDER', 'ALL ROUNDER', 'AR'))")
 		default:
-			conditions = append(conditions, fmt.Sprintf("UPPER(COALESCE(p.position, '')) = $%d", argCount))
+			conditions = append(conditions, fmt.Sprintf("(UPPER(COALESCE(p.position, '')) = $%d OR UPPER(COALESCE(p.secondary_position, '')) = $%d)", argCount, argCount))
 			args = append(args, pos)
 			argCount++
 		}
@@ -377,6 +379,7 @@ func (r *PostgresStatsRepository) GetPlayerStats(ctx context.Context, filter dom
 			COALESCE(p.image, '') AS player_image,
 			COALESCE(p.jersey_number, 0) AS player_jersey_number,
 			COALESCE(p.position, '') AS player_position,
+			COALESCE(p.secondary_position, '') AS player_secondary_position,
 			COALESCE(p.status, 'active') AS player_status,
 			COALESCE(t.id::text, '') AS team_id,
 			COALESCE(t.name, '') AS team_name,
@@ -418,7 +421,7 @@ func (r *PostgresStatsRepository) GetPlayerStats(ctx context.Context, filter dom
 		LEFT JOIN teams t ON t.id = %s
 		%s
 		GROUP BY
-			ps.player_id, p.name, p.image, p.jersey_number, p.position, p.status,
+			ps.player_id, p.name, p.image, p.jersey_number, p.position, p.secondary_position, p.status,
 			%s
 		%s
 		%s
@@ -435,6 +438,7 @@ func (r *PostgresStatsRepository) GetPlayerStats(ctx context.Context, filter dom
 		var s domain.AggregatedPlayerStat
 		err := rows.Scan(
 			&s.PlayerID, &s.PlayerName, &s.PlayerImage, &s.PlayerJerseyNumber, &s.PlayerPosition,
+			&s.PlayerSecondaryPosition,
 			&s.PlayerStatus,
 			&s.TeamID, &s.TeamName, &s.TeamShortName, &s.TeamLogo,
 			&s.Apps, &s.PassingAttempts, &s.RushingAttempts, &s.CompletedPasses,

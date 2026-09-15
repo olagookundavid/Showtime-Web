@@ -66,3 +66,6 @@ scripts/sql/
 scripts/csv_to_xlsx.py
 scripts/seed_bowl14_prices.py
 scripts/split_player_stats_by_role.py
+
+# One-off season price injection (hardcoded competition id) — run by hand.
+inject_opening_player_prices.sql

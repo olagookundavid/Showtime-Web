@@ -183,6 +183,11 @@ export const PlayersPage = () => {
                                             <span className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-md text-xs font-extrabold uppercase">
                                                 {player.position}
                                             </span>
+                                            {player.secondary_position && (
+                                                <span className="bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-md text-xs font-extrabold uppercase">
+                                                    Sec: {player.secondary_position}
+                                                </span>
+                                            )}
                                             {player.gender && (
                                                 <span className={`px-2 py-0.5 rounded-md text-[11px] font-extrabold ${
                                                     player.gender === 'F'

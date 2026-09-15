@@ -53,7 +53,8 @@ type AggregatedPlayerStat struct {
 	PlayerName          string `json:"player_name"`
 	PlayerImage         string `json:"player_image"`
 	PlayerJerseyNumber  int    `json:"player_jersey_number"`
-	PlayerPosition      string `json:"player_position"`
+	PlayerPosition          string `json:"player_position"`
+	PlayerSecondaryPosition string `json:"player_secondary_position,omitempty"`
 	// "active" or "inactive". A deleted player keeps their stats (migration
 	// 087), so they still appear in these tables -- greyed out, not removed.
 	PlayerStatus        string `json:"player_status"`

@@ -139,6 +139,10 @@ type ApproveClaimRequest struct {
 	Name         string `json:"name"`
 	JerseyNumber *int   `json:"jersey_number"`
 	Position     string `json:"position"`
+	// Optional. A pointer so "not supplied" and "cleared" stay distinguishable:
+	// omitting it leaves whatever is on record alone, sending an empty string
+	// clears it. Most players have no secondary role and this stays nil.
+	SecondaryPosition *string `json:"secondary_position"`
 }
 
 type RejectClaimRequest struct {

@@ -151,14 +151,15 @@ func (h *PlayerHandler) CreatePlayer(c *gin.Context) {
 	}
 
 	player := &domain.Player{
-		Name:         req.Name,
-		JerseyNumber: req.JerseyNumber,
-		Position:     req.Position,
-		Gender:       strings.ToUpper(strings.TrimSpace(req.Gender)),
-		TeamID:       req.TeamID,
-		Bio:          req.Bio,
-		Image:        req.Image,
-		Email:        req.Email,
+		Name:              req.Name,
+		JerseyNumber:      req.JerseyNumber,
+		Position:          req.Position,
+		SecondaryPosition: req.SecondaryPosition,
+		Gender:            strings.ToUpper(strings.TrimSpace(req.Gender)),
+		TeamID:            req.TeamID,
+		Bio:               req.Bio,
+		Image:             req.Image,
+		Email:             req.Email,
 	}
 
 	// A team_head may only create players on their own team — force the team_id
@@ -177,7 +178,7 @@ func (h *PlayerHandler) CreatePlayer(c *gin.Context) {
 	// and only path to role = 'player' and to players.user_id.
 
 	if err := h.service.CreatePlayer(c.Request.Context(), player); err != nil {
-		if strings.Contains(err.Error(), "already exists") {
+		if strings.Contains(err.Error(), "already exists") || strings.Contains(err.Error(), "cannot") || strings.Contains(err.Error(), "Allrounder") || strings.Contains(err.Error(), "max") {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
@@ -250,14 +251,15 @@ func (h *PlayerHandler) UpdatePlayer(c *gin.Context) {
 	}
 
 	player := &domain.Player{
-		ID:       id,
-		Name:     req.Name,
-		Position: req.Position,
-		Gender:   strings.ToUpper(strings.TrimSpace(req.Gender)),
-		TeamID:   req.TeamID,
-		Bio:      req.Bio,
-		Image:    req.Image,
-		Email:    req.Email,
+		ID:                id,
+		Name:              req.Name,
+		Position:          req.Position,
+		SecondaryPosition: req.SecondaryPosition,
+		Gender:            strings.ToUpper(strings.TrimSpace(req.Gender)),
+		TeamID:            req.TeamID,
+		Bio:               req.Bio,
+		Image:             req.Image,
+		Email:             req.Email,
 	}
 
 	if req.JerseyNumber != nil {
@@ -265,7 +267,7 @@ func (h *PlayerHandler) UpdatePlayer(c *gin.Context) {
 	}
 
 	if err := h.service.UpdatePlayer(c.Request.Context(), player); err != nil {
-		if strings.Contains(err.Error(), "already exists") {
+		if strings.Contains(err.Error(), "already exists") || strings.Contains(err.Error(), "cannot") || strings.Contains(err.Error(), "Allrounder") || strings.Contains(err.Error(), "max") {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}

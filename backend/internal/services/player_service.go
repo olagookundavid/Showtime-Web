@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"strings"
 	"pkg-common/logger"
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
@@ -40,16 +41,17 @@ func (s *PlayerService) GetPlayers(ctx context.Context, teamID string, search st
 	res := make([]dto.PlayerResponse, 0, len(players))
 	for _, p := range players {
 		pr := dto.PlayerResponse{
-			ID:           p.ID,
-			Name:         p.Name,
-			JerseyNumber: p.JerseyNumber,
-			Position:     p.Position,
-			Gender:       p.Gender,
-			Bio:          p.Bio,
-			Image:        p.Image,
-			Email:        p.Email,
-			Status:       p.Status,
-			IsReserve:    p.IsReserve,
+			ID:                p.ID,
+			Name:              p.Name,
+			JerseyNumber:      p.JerseyNumber,
+			Position:          p.Position,
+			SecondaryPosition: p.SecondaryPosition,
+			Gender:            p.Gender,
+			Bio:               p.Bio,
+			Image:             p.Image,
+			Email:             p.Email,
+			Status:            p.Status,
+			IsReserve:         p.IsReserve,
 		}
 		if p.Team != nil {
 			pr.Team = &dto.TeamResponse{
@@ -83,16 +85,17 @@ func (s *PlayerService) GetPlayerByID(ctx context.Context, id string) (*dto.Play
 	}
 
 	pr := &dto.PlayerResponse{
-		ID:           p.ID,
-		Name:         p.Name,
-		JerseyNumber: p.JerseyNumber,
-		Position:     p.Position,
-		Gender:       p.Gender,
-		Bio:          p.Bio,
-		Image:        p.Image,
-		Email:        p.Email,
-		Status:       p.Status,
-		IsReserve:    p.IsReserve,
+		ID:                p.ID,
+		Name:              p.Name,
+		JerseyNumber:      p.JerseyNumber,
+		Position:          p.Position,
+		SecondaryPosition: p.SecondaryPosition,
+		Gender:            p.Gender,
+		Bio:               p.Bio,
+		Image:             p.Image,
+		Email:             p.Email,
+		Status:            p.Status,
+		IsReserve:         p.IsReserve,
 	}
 	if p.Team != nil {
 		pr.Team = &dto.TeamResponse{
@@ -105,11 +108,39 @@ func (s *PlayerService) GetPlayerByID(ctx context.Context, id string) (*dto.Play
 	return pr, nil
 }
 
+func IsAllrounderRole(pos string) bool {
+	clean := strings.ToUpper(strings.TrimSpace(pos))
+	return clean == "ALLROUNDER" || clean == "ALL-ROUNDER" || clean == "ALL ROUNDER" || clean == "AR"
+}
+
 func (s *PlayerService) CreatePlayer(ctx context.Context, player *domain.Player) error {
+	if player.SecondaryPosition != nil && *player.SecondaryPosition != "" {
+		if strings.EqualFold(strings.TrimSpace(player.Position), strings.TrimSpace(*player.SecondaryPosition)) {
+			return fmt.Errorf("secondary role cannot be identical to main role")
+		}
+	}
+
 	if player.TeamID != "" {
+		// A cap that silently lifts when its own count fails is not a cap. These
+		// return the error rather than falling through, so a database hiccup
+		// refuses the write instead of admitting a 26th player.
 		mainCount, err := s.repo.GetMainPlayerCount(ctx, player.TeamID)
-		if err == nil && mainCount >= 25 {
+		if err != nil {
+			return fmt.Errorf("could not check the team's squad size: %w", err)
+		}
+		if mainCount >= 25 {
 			return fmt.Errorf("cannot add player: team already has %d main players (max 25). Team must move active players to reserves or release players first", mainCount)
+		}
+
+		isAllrounder := IsAllrounderRole(player.Position) || (player.SecondaryPosition != nil && IsAllrounderRole(*player.SecondaryPosition))
+		if isAllrounder {
+			allrounderCount, err := s.repo.GetTeamAllrounderCount(ctx, player.TeamID, "")
+			if err != nil {
+				return fmt.Errorf("could not check the team's All-Rounder count: %w", err)
+			}
+			if allrounderCount >= 6 {
+				return fmt.Errorf("cannot assign Allrounder role: team already has %d All-Rounders (max 6 allowed per team)", allrounderCount)
+			}
 		}
 	}
 	return s.repo.CreatePlayer(ctx, player)
@@ -128,9 +159,45 @@ func (s *PlayerService) GetTeamRosterSummary(ctx context.Context, teamID string)
 }
 
 func (s *PlayerService) UpdatePlayer(ctx context.Context, player *domain.Player) error {
+	existing, err := s.repo.GetPlayerByID(ctx, player.ID)
+	if err != nil {
+		return fmt.Errorf("player not found: %w", err)
+	}
+
+	targetPos := player.Position
+	if targetPos == "" {
+		targetPos = existing.Position
+	}
+	targetSecPos := player.SecondaryPosition
+	if targetSecPos != nil && *targetSecPos != "" {
+		if strings.EqualFold(strings.TrimSpace(targetPos), strings.TrimSpace(*targetSecPos)) {
+			return fmt.Errorf("secondary role cannot be identical to main role")
+		}
+	}
+
+	targetTeamID := player.TeamID
+	if targetTeamID == "" {
+		targetTeamID = existing.TeamID
+	}
+	if targetTeamID != "" {
+		secPosStr := ""
+		if targetSecPos != nil {
+			secPosStr = *targetSecPos
+		}
+		newIsAllrounder := IsAllrounderRole(targetPos) || IsAllrounderRole(secPosStr)
+		if newIsAllrounder {
+			allrounderCount, err := s.repo.GetTeamAllrounderCount(ctx, targetTeamID, player.ID)
+			if err != nil {
+				return fmt.Errorf("could not check the team's All-Rounder count: %w", err)
+			}
+			if allrounderCount >= 6 {
+				return fmt.Errorf("cannot assign Allrounder role: team already has %d All-Rounders (max 6 allowed per team)", allrounderCount)
+			}
+		}
+	}
+
 	if s.storage != nil {
-		existing, err := s.repo.GetPlayerByID(ctx, player.ID)
-		if err == nil && existing != nil && existing.Image != "" && existing.Image != player.Image {
+		if existing.Image != "" && existing.Image != player.Image {
 			oldImage := existing.Image
 			log := logger.GetSingletonLogger()
 			log.Info("Scheduling background delete of old player image", map[string]any{"old_url": oldImage})

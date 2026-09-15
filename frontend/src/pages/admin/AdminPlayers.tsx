@@ -15,6 +15,7 @@ interface FormData {
     name: string;
     jersey_number: string;
     position: string;
+    secondary_position: string;
     gender: string;
     team_id: string;
     bio: string;
@@ -22,13 +23,13 @@ interface FormData {
     email: string;
 }
 const emptyForm: FormData = {
-    name: '', jersey_number: '', position: '', gender: '', team_id: '',
+    name: '', jersey_number: '', position: '', secondary_position: '', gender: '', team_id: '',
     bio: '', image: '', email: ''
 };
 
 // Center is rated identically to Receiver (same formula) — see
 // backend/internal/domain/player_rating.go RateByPosition.
-const POSITIONS = ['Defender', 'Receiver', 'Center', '-', 'QB', 'Rusher'];
+const POSITIONS = ['Defender', 'Receiver', 'Center', 'QB', 'Rusher', 'Allrounder'];
 
 export const AdminPlayers = () => {
     const queryClient = useQueryClient();
@@ -73,6 +74,7 @@ export const AdminPlayers = () => {
             name: p.name,
             jersey_number: p.jersey_number?.toString() || '',
             position: p.position || '',
+            secondary_position: p.secondary_position || '',
             gender: p.gender || '',
             team_id: p.team?.id || '',
             bio: p.bio || '',
@@ -100,6 +102,10 @@ export const AdminPlayers = () => {
             toast.error('Team selection is required');
             return;
         }
+        if (form.secondary_position && form.secondary_position === form.position) {
+            toast.error('Secondary position cannot be the same as primary position');
+            return;
+        }
 
         setSaving(true);
         try {
@@ -107,6 +113,7 @@ export const AdminPlayers = () => {
                 name: form.name.trim(),
                 jersey_number: jerseyNum,
                 position: form.position,
+                secondary_position: form.secondary_position || undefined,
                 gender: form.gender,
                 team_id: form.team_id,
                 bio: form.bio,
@@ -192,7 +199,18 @@ export const AdminPlayers = () => {
             header: 'Position',
             accessor: 'position',
             sortable: true,
-            cell: (p) => <span className="px-2 py-1 bg-gray-100 dark:bg-gray-600 rounded-full text-xs font-bold dark:text-gray-300">{p.position}</span>
+            cell: (p) => (
+                <div className="flex flex-col gap-1 items-start">
+                    <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-600 rounded-md text-xs font-bold dark:text-gray-300">
+                        {p.position}
+                    </span>
+                    {p.secondary_position && (
+                        <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800 rounded text-[10px] font-extrabold whitespace-nowrap">
+                            Sec: {p.secondary_position}
+                        </span>
+                    )}
+                </div>
+            )
         },
         {
             header: 'Gender',
@@ -374,14 +392,41 @@ export const AdminPlayers = () => {
                                     <input type="number" value={form.jersey_number} onChange={e => set('jersey_number', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" min="1" max="99" placeholder="e.g. 10" required />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Position</label>
-                                    <select value={form.position} onChange={e => set('position', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-[44px] z-50">
-                                        <option value="" className="truncate">Select...</option>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Primary Role</label>
+                                    <select
+                                        value={form.position}
+                                        onChange={e => {
+                                            const newPos = e.target.value;
+                                            set('position', newPos);
+                                            if (form.secondary_position === newPos) {
+                                                set('secondary_position', '');
+                                            }
+                                        }}
+                                        className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-[44px] z-50"
+                                    >
+                                        <option value="" className="truncate">Select Primary Role...</option>
                                         {POSITIONS.map(p => <option key={p} value={p} className="truncate">{p}</option>)}
                                     </select>
                                 </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
+                                        Secondary Role <span className="text-xs font-normal text-gray-400">(Optional)</span>
+                                    </label>
+                                    <select
+                                        value={form.secondary_position}
+                                        onChange={e => set('secondary_position', e.target.value)}
+                                        className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-[44px] z-50"
+                                    >
+                                        <option value="" className="truncate">None (No Secondary Role)</option>
+                                        {POSITIONS.filter(p => p !== form.position).map(p => (
+                                            <option key={p} value={p} className="truncate">{p}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Gender</label>
                                     <select value={form.gender} onChange={e => set('gender', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-[44px] z-50">

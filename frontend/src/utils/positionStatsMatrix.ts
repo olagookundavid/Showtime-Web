@@ -8,7 +8,7 @@
  * 3. If a player has no position (unassigned / '-'), all stats are shown.
  */
 
-export type NormalizedPosition = 'QB' | 'REC' | 'RUSH' | 'DEF' | 'ALL';
+export type NormalizedPosition = 'QB' | 'REC' | 'RUSH' | 'DEF' | 'ALLROUNDER' | 'ALL';
 
 export interface StatDefinition {
     key: string;
@@ -25,7 +25,7 @@ export interface StatDefinition {
 }
 
 /**
- * Normalizes any position string to one of the 4 canonical positions or ALL.
+ * Normalizes any position string to one of the 5 canonical positions or ALL.
  * Rule: Center is treated as Receiver at all times.
  */
 export function normalizePosition(position?: string | null): NormalizedPosition {
@@ -35,6 +35,7 @@ export function normalizePosition(position?: string | null): NormalizedPosition 
     if (['REC', 'RECEIVER', 'WR', 'WIDE RECEIVER', 'CENTER', 'C'].includes(clean)) return 'REC';
     if (['RUSH', 'RUSHER', 'DE', 'DT', 'EDGE', 'BLITZER'].includes(clean)) return 'RUSH';
     if (['DEF', 'DEFENDER', 'DB', 'CB', 'SAFETY', 'FS', 'SS', 'LB'].includes(clean)) return 'DEF';
+    if (['ALLROUNDER', 'ALL-ROUNDER', 'ALL ROUNDER', 'AR'].includes(clean)) return 'ALLROUNDER';
     return 'ALL';
 }
 
@@ -155,14 +156,22 @@ export const POSITION_STAT_KEYS: Record<NormalizedPosition, string[]> = {
         'defensive_xp_tds',
         'safety'
     ],
+    ALLROUNDER: ALL_STAT_DEFINITIONS.filter(s => !s.teamOnly).map(s => s.key),
     ALL: ALL_STAT_DEFINITIONS.filter(s => !s.teamOnly).map(s => s.key)
 };
 
 /**
- * Get all visible stat definitions for a specific position (or all if unassigned).
+ * Get all visible stat definitions for a specific position (or all if unassigned),
+ * merging in any secondary position stats if present.
  */
-export function getStatsForPosition(position?: string | null): StatDefinition[] {
+export function getStatsForPosition(position?: string | null, secondaryPosition?: string | null): StatDefinition[] {
     const normalized = normalizePosition(position);
     const allowedKeys = new Set(POSITION_STAT_KEYS[normalized]);
+    if (secondaryPosition) {
+        const secNorm = normalizePosition(secondaryPosition);
+        for (const key of POSITION_STAT_KEYS[secNorm]) {
+            allowedKeys.add(key);
+        }
+    }
     return ALL_STAT_DEFINITIONS.filter(def => allowedKeys.has(def.key));
 }

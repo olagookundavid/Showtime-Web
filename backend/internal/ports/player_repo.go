@@ -29,6 +29,7 @@ type PlayerRepository interface {
 	GetMainPlayerCount(ctx context.Context, teamID string) (int, error)
 	GetReservePlayerCount(ctx context.Context, teamID string) (int, error)
 	GetTeamRosterSummary(ctx context.Context, teamID string) (*dto.RosterSummaryResponse, error)
+	GetTeamAllrounderCount(ctx context.Context, teamID string, excludePlayerID string) (int, error)
 	RemovePlayerFromReserves(ctx context.Context, playerID string) error
 }
 
@@ -67,7 +68,7 @@ func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string
 	}
 
 	if search != "" {
-		whereClause += ` AND (p.name ILIKE $` + strconv.Itoa(argCount) + ` OR p.position ILIKE $` + strconv.Itoa(argCount) + `)`
+		whereClause += ` AND (p.name ILIKE $` + strconv.Itoa(argCount) + ` OR p.position ILIKE $` + strconv.Itoa(argCount) + ` OR COALESCE(p.secondary_position, '') ILIKE $` + strconv.Itoa(argCount) + `)`
 		args = append(args, "%"+search+"%")
 		argCount++
 	}
@@ -90,6 +91,7 @@ func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string
 		SELECT
 			p.id, p.name,
 			COALESCE(p.jersey_number, 0), COALESCE(p.position, ''),
+			p.secondary_position,
 			COALESCE(p.team_id::text, ''),
 			COALESCE(p.bio, ''), COALESCE(p.image, ''), p.email,
 			COALESCE(p.gender, ''),
@@ -122,7 +124,7 @@ func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string
 		var p domain.Player
 		p.Team = &domain.Team{}
 		err := rows.Scan(
-			&p.ID, &p.Name, &p.JerseyNumber, &p.Position, &p.TeamID, &p.Bio, &p.Image, &p.Email,
+			&p.ID, &p.Name, &p.JerseyNumber, &p.Position, &p.SecondaryPosition, &p.TeamID, &p.Bio, &p.Image, &p.Email,
 			&p.Gender,
 			&p.CreatedAt, &p.UpdatedAt,
 			&p.Team.Name, &p.Team.ShortName, &p.Team.Logo,
@@ -143,6 +145,7 @@ func (r *PostgresPlayerRepository) GetPlayerByID(ctx context.Context, id string)
 		SELECT
 			p.id, p.name,
 			COALESCE(p.jersey_number, 0), COALESCE(p.position, ''),
+			p.secondary_position,
 			COALESCE(p.team_id::text, ''),
 			COALESCE(p.bio, ''), COALESCE(p.image, ''), p.email,
 			COALESCE(p.gender, ''),
@@ -159,7 +162,7 @@ func (r *PostgresPlayerRepository) GetPlayerByID(ctx context.Context, id string)
 	p.Team = &domain.Team{}
 	var uid *string
 	err := r.db.QueryRow(ctx, query, id).Scan(
-		&p.ID, &p.Name, &p.JerseyNumber, &p.Position, &p.TeamID, &p.Bio, &p.Image, &p.Email,
+		&p.ID, &p.Name, &p.JerseyNumber, &p.Position, &p.SecondaryPosition, &p.TeamID, &p.Bio, &p.Image, &p.Email,
 		&p.Gender,
 		&uid, &p.CreatedAt, &p.UpdatedAt,
 		&p.Team.Name, &p.Team.ShortName, &p.Team.Logo,
@@ -184,13 +187,18 @@ func (r *PostgresPlayerRepository) CreatePlayer(ctx context.Context, player *dom
 		}
 	}
 
+	var secPosVal any = nil
+	if player.SecondaryPosition != nil && *player.SecondaryPosition != "" {
+		secPosVal = *player.SecondaryPosition
+	}
+
 	query := `
-		INSERT INTO players (name, jersey_number, position, team_id, bio, image, email, user_id, gender)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9, ''))
+		INSERT INTO players (name, jersey_number, position, secondary_position, team_id, bio, image, email, user_id, gender)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULLIF($10, ''))
 		RETURNING id, created_at, updated_at
 	`
 	return r.db.QueryRow(ctx, query,
-		player.Name, player.JerseyNumber, player.Position, player.TeamID, player.Bio, player.Image, player.Email, player.UserID, player.Gender,
+		player.Name, player.JerseyNumber, player.Position, secPosVal, player.TeamID, player.Bio, player.Image, player.Email, player.UserID, player.Gender,
 	).Scan(&player.ID, &player.CreatedAt, &player.UpdatedAt)
 }
 
@@ -211,14 +219,19 @@ func (r *PostgresPlayerRepository) UpdatePlayer(ctx context.Context, player *dom
 		}
 	}
 
+	var secPosVal any = nil
+	if player.SecondaryPosition != nil && *player.SecondaryPosition != "" {
+		secPosVal = *player.SecondaryPosition
+	}
+
 	query := `
 		UPDATE players SET
-			name=$1, jersey_number=$2, position=$3, team_id=NULLIF($4::text, '')::uuid, bio=$5, image=$6, email=$7, user_id=COALESCE($8, user_id), gender=NULLIF($9, ''),
+			name=$1, jersey_number=$2, position=$3, secondary_position=$4, team_id=NULLIF($5::text, '')::uuid, bio=$6, image=$7, email=$8, user_id=COALESCE($9, user_id), gender=NULLIF($10, ''),
 			updated_at=NOW()
-		WHERE id=$10
+		WHERE id=$11
 	`
 	_, err := r.db.Exec(ctx, query,
-		player.Name, player.JerseyNumber, player.Position, player.TeamID, player.Bio, player.Image, player.Email, player.UserID, player.Gender,
+		player.Name, player.JerseyNumber, player.Position, secPosVal, player.TeamID, player.Bio, player.Image, player.Email, player.UserID, player.Gender,
 		player.ID,
 	)
 	return err
@@ -485,6 +498,22 @@ func (r *PostgresPlayerRepository) GetReservePlayerCount(ctx context.Context, te
 	return count, err
 }
 
+func (r *PostgresPlayerRepository) GetTeamAllrounderCount(ctx context.Context, teamID string, excludePlayerID string) (int, error) {
+	query := `
+		SELECT COUNT(*) FROM players p
+		WHERE p.team_id::text = $1
+		  AND COALESCE(p.status, 'active') = 'active'
+		  AND ($2 = '' OR p.id::text != $2)
+		  AND (
+		      UPPER(TRIM(COALESCE(p.position, ''))) IN ('ALLROUNDER', 'ALL-ROUNDER', 'ALL ROUNDER', 'AR')
+		      OR UPPER(TRIM(COALESCE(p.secondary_position, ''))) IN ('ALLROUNDER', 'ALL-ROUNDER', 'ALL ROUNDER', 'AR')
+		  )
+	`
+	var count int
+	err := r.db.QueryRow(ctx, query, teamID, excludePlayerID).Scan(&count)
+	return count, err
+}
+
 func (r *PostgresPlayerRepository) GetTeamRosterSummary(ctx context.Context, teamID string) (*dto.RosterSummaryResponse, error) {
 	mainCount, err := r.GetMainPlayerCount(ctx, teamID)
 	if err != nil {
@@ -494,12 +523,18 @@ func (r *PostgresPlayerRepository) GetTeamRosterSummary(ctx context.Context, tea
 	if err != nil {
 		return nil, err
 	}
+	allrounderCount, err := r.GetTeamAllrounderCount(ctx, teamID, "")
+	if err != nil {
+		return nil, err
+	}
 
 	return &dto.RosterSummaryResponse{
-		MainCount:       mainCount,
-		ReserveCount:    reserveCount,
-		MaxMainLimit:    25,
-		CanAddOrPromote: mainCount < 25,
+		MainCount:          mainCount,
+		ReserveCount:       reserveCount,
+		MaxMainLimit:       25,
+		CanAddOrPromote:    mainCount < 25,
+		AllrounderCount:    allrounderCount,
+		MaxAllrounderLimit: 6,
 	}, nil
 }
 

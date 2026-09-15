@@ -453,6 +453,7 @@ export const StatsPage = () => {
                                 { id: 'REC', label: 'Receivers / Centers (REC)' },
                                 { id: 'RUSH', label: 'Rushers (RUSH)' },
                                 { id: 'DEF', label: 'Defenders (DEF)' },
+                                { id: 'ALLROUNDER', label: 'All-Rounders (AR)' },
                             ].map((pos) => {
                                 const isActive = (positionFilter || 'QB') === pos.id;
                                 return (

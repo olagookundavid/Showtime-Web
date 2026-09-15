@@ -122,8 +122,13 @@ export const PlayerDetail = () => {
                     {/* Player Info */}
                     <div className="text-white flex flex-col justify-center gap-1 md:gap-4">
                         <h1 className="text-3xl md:text-6xl font-black uppercase tracking-tighter leading-none">{player.name}</h1>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 flex-wrap">
                             <div className="text-lg md:text-2xl font-black text-sffl-red italic">{player.position}</div>
+                            {player.secondary_position && (
+                                <span className="px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wide bg-amber-500/20 text-amber-200 border border-amber-500/40">
+                                    ⭐ Sec: {player.secondary_position}
+                                </span>
+                            )}
                             {player.gender && (
                                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-black uppercase border ${
                                     player.gender === 'F' 
@@ -224,7 +229,7 @@ export const PlayerDetail = () => {
                             </span>
                         </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
-                        {getStatsForPosition(player.position).map((statDef) => (
+                        {getStatsForPosition(player.position, player.secondary_position).map((statDef) => (
                             <StatCard
                                 key={statDef.key}
                                 label={statDef.shortLabel}

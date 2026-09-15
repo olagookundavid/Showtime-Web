@@ -39,10 +39,14 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
     const isPlayer = type === 'players';
     const normalizedPos = normalizePosition(positionFilter);
 
-    // If a position filter is active, filter player rows by normalized position (Center is treated as Receiver)
+    // If a position filter is active, filter player rows by normalized position (matching main or secondary role)
     const filteredPlayerStats = useMemo(() => {
         if (!isPlayer || normalizedPos === 'ALL') return playerStats;
-        return playerStats.filter(p => normalizePosition(p.player_position) === normalizedPos);
+        return playerStats.filter(p => {
+            const mainMatch = normalizePosition(p.player_position) === normalizedPos;
+            const secMatch = p.player_secondary_position ? normalizePosition(p.player_secondary_position) === normalizedPos : false;
+            return mainMatch || secMatch;
+        });
     }, [isPlayer, playerStats, normalizedPos]);
 
     const rawData = isPlayer ? filteredPlayerStats : teamStats;
@@ -84,7 +88,7 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
     const colgroupEl = (
         <colgroup>
             <col className="w-10 md:w-12" />
-            <col className="w-[160px] md:w-[210px]" />
+            <col className="w-[175px] md:w-[230px]" />
             {isPlayer && <col className="w-[72px] md:w-[90px]" />}
             {visibleStatCols.map(col => (
                 <col key={col.key} className="w-[60px] md:w-[72px]" />
@@ -158,6 +162,13 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                         // A deleted player keeps their stats and stays in these
                         // tables; the row is dimmed so it reads as history.
                         const deleted = isPlayer && isDeletedPlayer({ status: row.player_status });
+                        const isSecondaryMatch = Boolean(
+                            isPlayer &&
+                            normalizedPos !== 'ALL' &&
+                            row.player_secondary_position &&
+                            normalizePosition(row.player_secondary_position) === normalizedPos &&
+                            normalizePosition(row.player_position) !== normalizedPos
+                        );
                         return (
                             <tr
                                 key={isPlayer ? row.player_id : row.team_id}
@@ -191,7 +202,20 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                                                 ) : (
                                                     <span className="leading-tight text-xs md:text-sm uppercase tracking-tight truncate">{row.player_name}</span>
                                                 )}
-                                                <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium truncate">{row.player_position}</span>
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium truncate">
+                                                        {row.player_position}
+                                                        {row.player_secondary_position ? ` • Sec: ${row.player_secondary_position}` : ''}
+                                                    </span>
+                                                    {isSecondaryMatch && (
+                                                        <span
+                                                            className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 shrink-0"
+                                                            title={`Appearing via secondary role: ${row.player_secondary_position}`}
+                                                        >
+                                                            <span>⭐</span> Sec Role
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </Link>
                                     ) : (

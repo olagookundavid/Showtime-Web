@@ -594,11 +594,20 @@ func (r *PostgresClaimRepository) ApproveClaim(ctx context.Context, claimID, rev
 			jersey = *claim.ProposedJerseyNumber
 		}
 
+		// Optional, and nil for almost everyone. Passed as `any` so an unset or
+		// blank value lands as NULL rather than an empty string, matching how
+		// CreatePlayer stores it — one representation for "no secondary role"
+		// keeps the position filters, which COALESCE on it, honest.
+		var secondaryPos any
+		if override.SecondaryPosition != nil && strings.TrimSpace(*override.SecondaryPosition) != "" {
+			secondaryPos = strings.TrimSpace(*override.SecondaryPosition)
+		}
+
 		err = tx.QueryRow(ctx, `
-			INSERT INTO players (name, jersey_number, position, team_id, email, user_id, claim_status)
-			VALUES ($1, NULLIF($2, 0), $3, $4, $5, $6, $7)
+			INSERT INTO players (name, jersey_number, position, secondary_position, team_id, email, user_id, claim_status)
+			VALUES ($1, NULLIF($2, 0), $3, $4, $5, $6, $7, $8)
 			RETURNING id
-		`, name, jersey, position, claim.TeamID, claim.ClaimedEmail, *claim.UserID,
+		`, name, jersey, position, secondaryPos, claim.TeamID, claim.ClaimedEmail, *claim.UserID,
 			domain.PlayerClaimStatusClaimed).Scan(&playerID)
 		if err != nil {
 			return "", false, fmt.Errorf("failed to create player: %w", err)
@@ -621,6 +630,16 @@ func (r *PostgresClaimRepository) ApproveClaim(ctx context.Context, claimID, rev
 			return "", false, errors.New("this player has already been claimed")
 		}
 
+		// secondary_position is the one field here that can be deliberately
+		// cleared, so it cannot use the COALESCE-keeps-the-old-value pattern the
+		// others rely on. $6 carries a three-way signal: NULL means the approver
+		// said nothing and whatever is on record stays, '' means clear it, and
+		// any other value sets it.
+		var secondaryPos any
+		if override.SecondaryPosition != nil {
+			secondaryPos = strings.TrimSpace(*override.SecondaryPosition)
+		}
+
 		_, err = tx.Exec(ctx, `
 			UPDATE players
 			SET user_id      = $1,
@@ -628,11 +647,16 @@ func (r *PostgresClaimRepository) ApproveClaim(ctx context.Context, claimID, rev
 			    name         = COALESCE(NULLIF($3, ''), name),
 			    position     = COALESCE(NULLIF($4, ''), position),
 			    jersey_number = COALESCE(NULLIF($5, 0), jersey_number),
-			    claim_status = $6,
+			    secondary_position = CASE
+			        WHEN $6::text IS NULL THEN secondary_position
+			        WHEN $6::text = ''    THEN NULL
+			        ELSE $6::text
+			    END,
+			    claim_status = $7,
 			    updated_at   = NOW()
-			WHERE id = $7
+			WHERE id = $8
 		`, *claim.UserID, claim.ClaimedEmail, override.Name, override.Position,
-			override.JerseyNumber, domain.PlayerClaimStatusClaimed, playerID)
+			override.JerseyNumber, secondaryPos, domain.PlayerClaimStatusClaimed, playerID)
 		if err != nil {
 			return "", false, fmt.Errorf("failed to link player: %w", err)
 		}

@@ -6,7 +6,8 @@ type Player struct {
 	ID           string    `json:"id"`
 	Name         string    `json:"name"`
 	JerseyNumber int       `json:"jersey_number"`
-	Position     string    `json:"position"`
+	Position          string    `json:"position"`
+	SecondaryPosition *string   `json:"secondary_position,omitempty"`
 	TeamID       string    `json:"team_id"`
 	Bio          string    `json:"bio"`
 	Image        string    `json:"image"`

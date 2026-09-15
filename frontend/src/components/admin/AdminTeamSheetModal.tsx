@@ -23,7 +23,7 @@ interface QuickAddForm {
 
 // Center is rated identically to Receiver (same formula) — see
 // backend/internal/domain/player_rating.go RateByPosition.
-const POSITIONS = ['Defender', 'Receiver', 'Center', '-', 'QB', 'Rusher'];
+const POSITIONS = ['Defender', 'Receiver', 'Center', 'QB', 'Rusher', 'Allrounder'];
 
 const emptyQuickAdd: QuickAddForm = { name: '', position: '', jersey_number: '' };
 
