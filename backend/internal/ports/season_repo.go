@@ -165,7 +165,7 @@ func (r *SeasonPGRepository) FindAllMVPs(ctx context.Context, activeOnly bool, p
 	query := `
 		SELECT
 			m.id, m.player_id, m.label, m.display_order, m.is_active, m.created_at, m.updated_at,
-			p.name, COALESCE(p.image, ''), p.jersey_number, COALESCE(p.position, ''),
+			p.name, COALESCE(p.image, ''), p.jersey_number, COALESCE(p.position, '-'),
 			COALESCE(p.status, 'active'),
 			COALESCE(t.id::text, ''), COALESCE(t.name, ''), COALESCE(t.logo, '')
 		FROM season_mvps m

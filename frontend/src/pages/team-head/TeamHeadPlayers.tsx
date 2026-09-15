@@ -47,13 +47,13 @@ interface PaginatedPlayerResponse {
 
 // Center is rated identically to Receiver (same formula) — see
 // backend/internal/domain/player_rating.go RateByPosition.
-const POSITIONS = ['Defender', 'Receiver', 'Center', 'QB', 'Rusher', 'Allrounder'];
+const POSITIONS = ['Defender', 'Receiver', 'Center', 'QB', 'Rusher', 'Allrounder', '-'];
 // All-Rounder already means "plays anywhere", so it says nothing as a second
 // role — it is a main role only, and the server refuses it as a secondary.
-const SECONDARY_POSITIONS = POSITIONS.filter(p => p !== 'Allrounder');
+const SECONDARY_POSITIONS = POSITIONS.filter(p => p !== 'Allrounder' && p !== '-');
 
 const emptyForm = {
-    name: '', position: '', secondary_position: '', gender: '', jersey_number: '', email: '', image: '', bio: '', contract_length: '13',
+    name: '', position: '-', secondary_position: '', gender: '', jersey_number: '', email: '', image: '', bio: '', contract_length: '13',
 };
 
 const TeamHeadPlayers = () => {
@@ -118,7 +118,7 @@ const TeamHeadPlayers = () => {
         setEditing(p);
         setForm({
             name: p.name || '',
-            position: p.position || '',
+            position: p.position || '-',
             secondary_position: p.secondary_position || '',
             gender: p.gender || '',
             jersey_number: p.jersey_number?.toString() || '0',
@@ -144,7 +144,7 @@ const TeamHeadPlayers = () => {
         try {
             const payload = {
                 name: form.name,
-                position: form.position,
+                position: form.position && form.position.trim() ? form.position.trim() : '-',
                 secondary_position: form.secondary_position || undefined,
                 gender: form.gender,
                 jersey_number: parseInt(form.jersey_number) || 0,
@@ -690,7 +690,7 @@ const TeamHeadPlayers = () => {
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Primary Role</label>
                                     <select
-                                        value={form.position}
+                                        value={form.position || '-'}
                                         onChange={e => {
                                             const newPos = e.target.value;
                                             setField('position', newPos);
@@ -700,8 +700,8 @@ const TeamHeadPlayers = () => {
                                         }}
                                         className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-3.5 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-sffl-red text-sm font-semibold"
                                     >
-                                        <option value="" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">Select Primary Role...</option>
-                                        {POSITIONS.map(p => <option key={p} value={p} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">{p}</option>)}
+                                        <option value="-" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">- (No Role / Unassigned)</option>
+                                        {POSITIONS.filter(p => p !== '-').map(p => <option key={p} value={p} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">{p}</option>)}
                                     </select>
                                 </div>
                                 <div>

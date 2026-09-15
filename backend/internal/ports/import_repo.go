@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"showtime-backend/internal/domain"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -112,11 +114,12 @@ func (r *PostgresImportRepository) ImportMatchData(ctx context.Context, params I
 
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
+			pos := domain.NormalizePosition(row.Position)
 			err = tx.QueryRow(ctx,
 				`INSERT INTO players (name, jersey_number, position, team_id, email)
 				 VALUES ($1, $2, $3, $4, '')
 				 RETURNING id`,
-				strings.TrimSpace(row.PlayerName), row.JerseyNumber, row.Position, row.TeamID,
+				strings.TrimSpace(row.PlayerName), row.JerseyNumber, pos, row.TeamID,
 			).Scan(&playerID)
 			if err != nil {
 				return result, fmt.Errorf("row %d: failed to create player %q: %w", i+1, row.PlayerName, err)
@@ -127,7 +130,7 @@ func (r *PostgresImportRepository) ImportMatchData(ctx context.Context, params I
 				Name:         strings.TrimSpace(row.PlayerName),
 				TeamID:       row.TeamID,
 				JerseyNumber: row.JerseyNumber,
-				Position:     row.Position,
+				Position:     pos,
 			})
 		case err != nil:
 			return result, fmt.Errorf("row %d: lookup failed for %q: %w", i+1, row.PlayerName, err)

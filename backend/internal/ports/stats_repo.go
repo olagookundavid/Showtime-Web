@@ -378,7 +378,7 @@ func (r *PostgresStatsRepository) GetPlayerStats(ctx context.Context, filter dom
 			p.name AS player_name,
 			COALESCE(p.image, '') AS player_image,
 			COALESCE(p.jersey_number, 0) AS player_jersey_number,
-			COALESCE(p.position, '') AS player_position,
+			COALESCE(p.position, '-') AS player_position,
 			COALESCE(p.secondary_position, '') AS player_secondary_position,
 			COALESCE(p.status, 'active') AS player_status,
 			COALESCE(t.id::text, '') AS team_id,

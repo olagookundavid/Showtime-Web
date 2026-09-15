@@ -23,7 +23,7 @@ interface QuickAddForm {
 
 // Center is rated identically to Receiver (same formula) — see
 // backend/internal/domain/player_rating.go RateByPosition.
-const POSITIONS = ['Defender', 'Receiver', 'Center', 'QB', 'Rusher', 'Allrounder'];
+const POSITIONS = ['Defender', 'Receiver', 'Center', 'QB', 'Rusher', 'Allrounder', '-'];
 
 const emptyQuickAdd: QuickAddForm = { name: '', position: '', jersey_number: '' };
 
@@ -293,7 +293,7 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
                                                 className="col-span-2 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none"
                                             >
                                                 <option value="">Position *</option>
-                                                {POSITIONS.map(pos => <option key={pos} value={pos}>{pos}</option>)}
+                                                {POSITIONS.map(pos => <option key={pos} value={pos}>{pos === '-' ? '- (No Role / Unassigned)' : pos}</option>)}
                                             </select>
                                             <input
                                                 type="number"

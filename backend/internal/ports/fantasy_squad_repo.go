@@ -58,7 +58,7 @@ func (r *FantasySquadRepository) ListSquad(ctx context.Context, teamID, gameweek
 		           ORDER BY (pp.gameweek_id IS NULL), pp.created_at DESC
 		           LIMIT 1
 		       ), sp.purchase_price) AS current_price,
-		       p.name, COALESCE(p.position, ''), COALESCE(p.gender, ''),
+		       p.name, COALESCE(p.position, '-'), COALESCE(p.gender, ''),
 		       COALESCE(p.team_id::text, ''),
 		       EXISTS (
 		           SELECT 1 FROM fantasy_lineup_picks flp

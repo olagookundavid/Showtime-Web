@@ -203,7 +203,7 @@ func (r *PostgresClaimRepository) GetTeamByID(ctx context.Context, teamID string
 // claimed or has a claim pending disappears from the dropdown.
 func (r *PostgresClaimRepository) GetClaimablePlayersByTeam(ctx context.Context, teamID string) ([]domain.Player, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT id, name, COALESCE(jersey_number, 0), COALESCE(position, '')
+		SELECT id, name, COALESCE(jersey_number, 0), COALESCE(position, '-')
 		FROM players
 		-- A deactivated player is not claimable. Without this they stayed in the
 		-- picker, and approving that claim would link an account to a switched-off
@@ -449,7 +449,7 @@ func (r *PostgresClaimRepository) ListClaims(ctx context.Context, f ClaimFilter)
 
 	query := `
 		SELECT ` + claimColumnsPrefixed + `,
-		       COALESCE(p.name, ''), COALESCE(p.jersey_number, 0), COALESCE(p.position, ''), COALESCE(p.image, ''),
+		       COALESCE(p.name, ''), COALESCE(p.jersey_number, 0), COALESCE(p.position, '-'), COALESCE(p.image, ''),
 		       t.name
 		FROM player_claims pc
 		LEFT JOIN players p ON p.id = pc.player_id
@@ -588,7 +588,7 @@ func (r *PostgresClaimRepository) ApproveClaim(ctx context.Context, claimID, rev
 		if name == "" {
 			return "", false, errors.New("a name is required to create this player")
 		}
-		position := firstNonEmpty(override.Position, claim.ProposedPosition)
+		position := domain.NormalizePosition(firstNonEmpty(override.Position, claim.ProposedPosition))
 		jersey := override.JerseyNumber
 		if jersey == 0 && claim.ProposedJerseyNumber != nil {
 			jersey = *claim.ProposedJerseyNumber

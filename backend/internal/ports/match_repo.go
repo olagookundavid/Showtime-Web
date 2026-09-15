@@ -420,7 +420,7 @@ func (r *PostgresMatchRepository) GetMatches(ctx context.Context, competitionID 
 	// until a feeder match finishes, and the domain scans them as strings.
 	query := `
 		SELECT
-			m.id, m.competition_id, COALESCE(m.home_team_id::text, ''), COALESCE(m.away_team_id::text, ''), m.date, m.time, m.venue, m.status, m.home_score, m.away_score, m.highlights_url, m.ticket_url, m.created_at, m.updated_at,
+			m.id, m.competition_id, COALESCE(m.home_team_id::text, ''), COALESCE(m.away_team_id::text, ''), m.date, m.time, COALESCE(m.venue, ''), COALESCE(m.status, 'SCHEDULED'), m.home_score, m.away_score, m.highlights_url, m.ticket_url, m.created_at, m.updated_at,
 			COALESCE(m.round, ''), m.bracket_pos, m.feeds_match_id::text, COALESCE(m.feeds_slot, ''), m.second_leg_match_id::text, m.pbp_locked,
 			COALESCE(c.id::text, ''), COALESCE(c.name, ''), COALESCE(c.logo, ''), COALESCE(c.format, 'LEAGUE'),
 			COALESCE(ht.id::text, ''), COALESCE(ht.name, ''), COALESCE(ht.short_name, ''), COALESCE(ht.logo, ''),
@@ -976,7 +976,7 @@ func (r *PostgresMatchRepository) GetTeamSheet(ctx context.Context, matchID stri
 	// come from player_stats (per player), not team_match_stats — a backup QB must
 	// not be credited with the starter's whole-game totals.
 	query := `
-		SELECT mts.team_id, p.id, p.name, p.jersey_number, p.position, p.secondary_position, COALESCE(p.gender, ''), p.image,
+		SELECT mts.team_id, p.id, COALESCE(p.name, ''), COALESCE(p.jersey_number, 0), COALESCE(p.position, '-'), p.secondary_position, COALESCE(p.gender, ''), p.image,
 			COALESCE(p.status, 'active'),
 			COALESCE(ps.receptions, 0), COALESCE(ps.receiving_tds, 0),
 			COALESCE(ps.extra_points_tds, 0), COALESCE(ps.drops, 0),
@@ -993,7 +993,7 @@ func (r *PostgresMatchRepository) GetTeamSheet(ctx context.Context, matchID stri
 		JOIN players p ON mts.player_id = p.id
 		LEFT JOIN player_stats ps ON ps.player_id = p.id AND ps.match_id = mts.match_id
 		WHERE mts.match_id = $1
-		ORDER BY p.jersey_number ASC
+		ORDER BY COALESCE(p.jersey_number, 999) ASC, p.name ASC
 	`
 	rows, err := r.db.Query(ctx, query, matchID)
 	if err != nil {
@@ -1059,7 +1059,7 @@ func (r *PostgresMatchRepository) GetMatchDetail(ctx context.Context, matchID st
 	// Full fetch with joined competition and team data
 	query := `
 		SELECT
-			m.id, m.competition_id, COALESCE(m.home_team_id::text, ''), COALESCE(m.away_team_id::text, ''), m.date, m.time, m.venue, m.status, m.home_score, m.away_score, m.highlights_url, m.ticket_url, m.created_at, m.updated_at,
+			m.id, m.competition_id, COALESCE(m.home_team_id::text, ''), COALESCE(m.away_team_id::text, ''), m.date, m.time, COALESCE(m.venue, ''), COALESCE(m.status, 'SCHEDULED'), m.home_score, m.away_score, m.highlights_url, m.ticket_url, m.created_at, m.updated_at,
 			COALESCE(m.round, ''), m.bracket_pos, m.feeds_match_id::text, COALESCE(m.feeds_slot, ''), m.pbp_locked,
 			COALESCE(c.id::text, ''), COALESCE(c.name, ''), COALESCE(c.logo, ''), COALESCE(c.format, 'LEAGUE'),
 			COALESCE(ht.id::text, ''), COALESCE(ht.name, ''), COALESCE(ht.short_name, ''), COALESCE(ht.logo, ''),
@@ -1150,7 +1150,7 @@ func (r *PostgresMatchRepository) GetEligiblePlayersForMatchDay(ctx context.Cont
 		SELECT DISTINCT
 			p.id, p.name,
 			COALESCE(p.jersey_number, 0) AS jersey_number,
-			COALESCE(p.position, '') AS position,
+			COALESCE(p.position, '-') AS position,
 			COALESCE(p.gender, '') AS gender,
 			p.team_id,
 			COALESCE(p.bio, '') AS bio,

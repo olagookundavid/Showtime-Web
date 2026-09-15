@@ -90,7 +90,7 @@ func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string
 	query := `
 		SELECT
 			p.id, p.name,
-			COALESCE(p.jersey_number, 0), COALESCE(p.position, ''),
+			COALESCE(p.jersey_number, 0), COALESCE(p.position, '-'),
 			p.secondary_position,
 			COALESCE(p.team_id::text, ''),
 			COALESCE(p.bio, ''), COALESCE(p.image, ''), p.email,
@@ -144,7 +144,7 @@ func (r *PostgresPlayerRepository) GetPlayerByID(ctx context.Context, id string)
 	query := `
 		SELECT
 			p.id, p.name,
-			COALESCE(p.jersey_number, 0), COALESCE(p.position, ''),
+			COALESCE(p.jersey_number, 0), COALESCE(p.position, '-'),
 			p.secondary_position,
 			COALESCE(p.team_id::text, ''),
 			COALESCE(p.bio, ''), COALESCE(p.image, ''), p.email,
@@ -179,6 +179,8 @@ func (r *PostgresPlayerRepository) GetPlayerByID(ctx context.Context, id string)
 }
 
 func (r *PostgresPlayerRepository) CreatePlayer(ctx context.Context, player *domain.Player) error {
+	player.Position = domain.NormalizePosition(player.Position)
+
 	if player.JerseyNumber > 0 {
 		var existingCount int
 		err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM players WHERE COALESCE(team_id::text, '') = $1 AND jersey_number = $2`, player.TeamID, player.JerseyNumber).Scan(&existingCount)
@@ -203,6 +205,8 @@ func (r *PostgresPlayerRepository) CreatePlayer(ctx context.Context, player *dom
 }
 
 func (r *PostgresPlayerRepository) UpdatePlayer(ctx context.Context, player *domain.Player) error {
+	player.Position = domain.NormalizePosition(player.Position)
+
 	if player.JerseyNumber > 0 {
 		var currentJersey int
 		if err := r.db.QueryRow(ctx,
@@ -358,7 +362,7 @@ func (r *PostgresPlayerRepository) GetPlayerByUserID(ctx context.Context, userID
 	query := `
 		SELECT
 			p.id, p.name,
-			COALESCE(p.jersey_number, 0), COALESCE(p.position, ''),
+			COALESCE(p.jersey_number, 0), COALESCE(p.position, '-'),
 			COALESCE(p.team_id::text, ''),
 			COALESCE(p.bio, ''), COALESCE(p.image, ''), p.email,
 			COALESCE(p.gender, ''),
@@ -387,7 +391,7 @@ func (r *PostgresPlayerRepository) GetPlayerByUserID(ctx context.Context, userID
 	fallbackQuery := `
 		SELECT
 			p.id, p.name,
-			COALESCE(p.jersey_number, 0), COALESCE(p.position, ''),
+			COALESCE(p.jersey_number, 0), COALESCE(p.position, '-'),
 			COALESCE(p.team_id::text, ''),
 			COALESCE(p.bio, ''), COALESCE(p.image, ''), p.email,
 			COALESCE(p.gender, ''),

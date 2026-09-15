@@ -72,7 +72,7 @@ func (r *PostgresContractRepository) GetContractByID(ctx context.Context, id str
 			c.player_value, COALESCE(c.offered_by::text, ''), c.offered_at,
 			c.accepted_at, c.expired_at, c.terminated_at, COALESCE(c.termination_reason, ''),
 			COALESCE(c.notes, ''), c.created_at, c.updated_at,
-			p.name, COALESCE(p.position, ''), COALESCE(p.jersey_number, 0), COALESCE(p.image, ''),
+			p.name, COALESCE(p.position, '-'), COALESCE(p.jersey_number, 0), COALESCE(p.image, ''),
 			t.name, COALESCE(t.short_name, ''), COALESCE(t.logo, '')
 		FROM contracts c
 		JOIN players p ON c.player_id = p.id
@@ -162,7 +162,7 @@ func (r *PostgresContractRepository) GetContractsByTeamID(ctx context.Context, t
 			c.player_value, COALESCE(c.offered_by::text, ''), c.offered_at,
 			c.accepted_at, c.expired_at, c.terminated_at, COALESCE(c.termination_reason, ''),
 			COALESCE(c.notes, ''), c.created_at, c.updated_at,
-			p.name, COALESCE(p.position, ''), COALESCE(p.jersey_number, 0), COALESCE(p.image, ''),
+			p.name, COALESCE(p.position, '-'), COALESCE(p.jersey_number, 0), COALESCE(p.image, ''),
 			t.name, COALESCE(t.short_name, ''), COALESCE(t.logo, '')
 		FROM contracts c
 		JOIN players p ON c.player_id = p.id
@@ -338,7 +338,7 @@ func (r *PostgresContractRepository) GetFreeAgents(ctx context.Context, search s
 
 	query := `
 		SELECT
-			p.id, p.name, COALESCE(p.jersey_number, 0), COALESCE(p.position, ''),
+			p.id, p.name, COALESCE(p.jersey_number, 0), COALESCE(p.position, '-'),
 			COALESCE(p.gender, ''),
 			COALESCE(p.team_id::text, ''), COALESCE(p.bio, ''), COALESCE(p.image, ''),
 			p.email, p.user_id, p.created_at, p.updated_at

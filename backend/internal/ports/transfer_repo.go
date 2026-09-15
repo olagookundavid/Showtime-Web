@@ -64,7 +64,7 @@ func (r *PostgresTransferRepository) GetTransferByID(ctx context.Context, id str
 			tr.asking_price, COALESCE(tr.notes, ''), COALESCE(tr.review_notes, ''),
 			tr.completed_at, tr.from_team_approved, tr.to_team_approved,
 			tr.created_at, tr.updated_at,
-			p.name, COALESCE(p.position, ''), COALESCE(p.jersey_number, 0), COALESCE(p.image, ''), COALESCE(p.status, 'active'),
+			p.name, COALESCE(p.position, '-'), COALESCE(p.jersey_number, 0), COALESCE(p.image, ''), COALESCE(p.status, 'active'),
 			ft.name, COALESCE(ft.short_name, ''), COALESCE(ft.logo, ''),
 			COALESCE(tt.name, ''), COALESCE(tt.short_name, ''), COALESCE(tt.logo, '')
 		FROM transfers tr
@@ -136,7 +136,7 @@ func (r *PostgresTransferRepository) GetTransfersByTeamID(ctx context.Context, t
 			tr.asking_price, COALESCE(tr.notes, ''), COALESCE(tr.review_notes, ''),
 			tr.completed_at, tr.from_team_approved, tr.to_team_approved,
 			tr.created_at, tr.updated_at,
-			p.name, COALESCE(p.position, ''), COALESCE(p.jersey_number, 0), COALESCE(p.image, ''), COALESCE(p.status, 'active'),
+			p.name, COALESCE(p.position, '-'), COALESCE(p.jersey_number, 0), COALESCE(p.image, ''), COALESCE(p.status, 'active'),
 			ft.name, COALESCE(ft.short_name, ''), COALESCE(ft.logo, ''),
 			COALESCE(tt.name, ''), COALESCE(tt.short_name, ''), COALESCE(tt.logo, '')
 		FROM transfers tr
@@ -278,7 +278,7 @@ func (r *PostgresTransferRepository) GetActiveListings(ctx context.Context, sear
 			tr.asking_price, COALESCE(tr.notes, ''), COALESCE(tr.review_notes, ''),
 			tr.completed_at, tr.from_team_approved, tr.to_team_approved,
 			tr.created_at, tr.updated_at,
-			p.name, COALESCE(p.position, ''), COALESCE(p.jersey_number, 0), COALESCE(p.image, ''), COALESCE(p.status, 'active'),
+			p.name, COALESCE(p.position, '-'), COALESCE(p.jersey_number, 0), COALESCE(p.image, ''), COALESCE(p.status, 'active'),
 			ft.name, COALESCE(ft.short_name, ''), COALESCE(ft.logo, '')
 		FROM transfers tr
 		JOIN players p ON tr.player_id = p.id
@@ -538,7 +538,7 @@ func (r *PostgresTransferRepository) GetTransfersByPlayerID(ctx context.Context,
 			tr.asking_price, COALESCE(tr.notes, ''), COALESCE(tr.review_notes, ''),
 			tr.completed_at, tr.from_team_approved, tr.to_team_approved,
 			tr.created_at, tr.updated_at,
-			p.name, COALESCE(p.position, ''), COALESCE(p.jersey_number, 0), COALESCE(p.image, ''), COALESCE(p.status, 'active'),
+			p.name, COALESCE(p.position, '-'), COALESCE(p.jersey_number, 0), COALESCE(p.image, ''), COALESCE(p.status, 'active'),
 			ft.name, COALESCE(ft.short_name, ''), COALESCE(ft.logo, ''),
 			COALESCE(tt.name, ''), COALESCE(tt.short_name, ''), COALESCE(tt.logo, '')
 		FROM transfers tr

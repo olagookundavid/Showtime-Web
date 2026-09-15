@@ -780,7 +780,7 @@ func (r *FantasyRepository) ListPlayerMarket(ctx context.Context, seasonID strin
 	}
 
 	selectQuery := `
-		SELECT p.id, p.name, COALESCE(p.image, ''), p.position, COALESCE(p.gender, 'M'),
+		SELECT p.id, p.name, COALESCE(p.image, ''), COALESCE(p.position, '-'), COALESCE(p.gender, 'M'),
 		       COALESCE(t.id::text, ''), COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
 		       COALESCE(fpp.price, 0), COALESCE(fpp.rating, 5.00), COALESCE(pts.total_pts, 0.000),
 		       COALESCE(sel.owned_now, 0), COALESCE(sel.bought_total, 0), COALESCE(sel.sold_total, 0)
@@ -820,7 +820,7 @@ func (r *FantasyRepository) GetSeasonRatingLines(ctx context.Context, competitio
 	defer cancel()
 
 	query := `
-		SELECT p.id, p.position,
+		SELECT p.id, COALESCE(p.position, '-'),
 		       COALESCE(SUM(ps.receptions), 0), COALESCE(SUM(ps.receiving_tds), 0),
 		       COALESCE(SUM(ps.extra_points_tds), 0), COALESCE(SUM(ps.drops), 0),
 		       COALESCE(SUM(ps.flag_pulls), 0), COALESCE(SUM(ps.pass_deflections), 0),
@@ -837,7 +837,7 @@ func (r *FantasyRepository) GetSeasonRatingLines(ctx context.Context, competitio
 		       COALESCE(SUM(ps.batted_down_passes), 0)
 		FROM players p
 		LEFT JOIN player_stats ps ON ps.player_id = p.id AND ps.competition_id = $1
-		GROUP BY p.id, p.position
+		GROUP BY p.id, COALESCE(p.position, '-')
 	`
 	rows, err := r.pool.Query(ctx, query, competitionID)
 	if err != nil {
@@ -1045,7 +1045,7 @@ func (r *FantasyRepository) GetLineupCandidates(ctx context.Context, seasonID, g
 	defer cancel()
 
 	query := `
-		SELECT p.id, p.name, p.position, COALESCE(p.gender, 'M'), COALESCE(p.team_id::text, ''),
+		SELECT p.id, p.name, COALESCE(p.position, '-'), COALESCE(p.gender, 'M'), COALESCE(p.team_id::text, ''),
 		       COALESCE(gwp.price, openp.price, 10.00)
 		FROM players p
 		JOIN teams t ON p.team_id = t.id
@@ -1150,7 +1150,7 @@ func (r *FantasyRepository) GetLineup(ctx context.Context, teamID, gameweekID st
 	// Hydrate picks
 	picksQuery := `
 		SELECT flp.id, flp.lineup_id, flp.player_id, flp.slot, flp.purchase_price, flp.points, flp.created_at,
-		       p.id, p.name, COALESCE(p.image, ''), p.position, COALESCE(p.gender, 'M'),
+		       p.id, p.name, COALESCE(p.image, ''), COALESCE(p.position, '-'), COALESCE(p.gender, 'M'),
 		       COALESCE(p.status, 'active'),
 		       COALESCE(t.id::text, ''), COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, '')
 		FROM fantasy_lineup_picks flp
@@ -1516,7 +1516,7 @@ func (r *FantasyRepository) GetSeasonPricingLines(ctx context.Context, seasonID,
 	defer cancel()
 
 	query := `
-		SELECT p.id::text, COALESCE(p.position, ''),
+		SELECT p.id::text, COALESCE(p.position, '-'),
 		       COUNT(DISTINCT ps.match_id),
 		       COALESCE(SUM(ps.passing_yards), 0), COALESCE(SUM(ps.rushing_yards), 0),
 		       COALESCE(SUM(ps.receiving_yards), 0), COALESCE(SUM(ps.passing_tds), 0),
@@ -1536,7 +1536,7 @@ func (r *FantasyRepository) GetSeasonPricingLines(ctx context.Context, seasonID,
 		       ), 0)
 		FROM players p
 		LEFT JOIN player_stats ps ON ps.player_id = p.id AND ps.competition_id = $2
-		GROUP BY p.id, p.position
+		GROUP BY p.id, COALESCE(p.position, '-')
 	`
 	rows, err := r.pool.Query(ctx, query, seasonID, competitionID)
 	if err != nil {
@@ -1662,7 +1662,7 @@ func (r *FantasyRepository) ListPlayerPricesForAdmin(ctx context.Context, season
 	orderClause := " ORDER BY COALESCE(fpp.is_overridden, false) DESC, p.name ASC, p.id ASC"
 
 	selectQuery := `
-		SELECT p.id, p.name, COALESCE(p.image, ''), p.position, COALESCE(p.gender, 'M'),
+		SELECT p.id, p.name, COALESCE(p.image, ''), COALESCE(p.position, '-'), COALESCE(p.gender, 'M'),
 		       COALESCE(t.id::text, ''), COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
 		       -- 0 means "no price row yet", the same signal ListPlayerMarket
 		       -- gives. Defaulting to a number instead would show the admin a
@@ -1784,7 +1784,7 @@ func (r *FantasyRepository) OverridePlayerPrice(ctx context.Context, seasonID, p
 	}
 
 	rowQuery := `
-		SELECT p.id, p.name, COALESCE(p.image, ''), p.position, COALESCE(p.gender, 'M'),
+		SELECT p.id, p.name, COALESCE(p.image, ''), COALESCE(p.position, '-'), COALESCE(p.gender, 'M'),
 		       COALESCE(t.id::text, ''), COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
 		       -- 0 means "no price row yet", the same signal ListPlayerMarket
 		       -- gives. Defaulting to a number instead would show the admin a

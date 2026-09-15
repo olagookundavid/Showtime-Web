@@ -23,16 +23,16 @@ interface FormData {
     email: string;
 }
 const emptyForm: FormData = {
-    name: '', jersey_number: '', position: '', secondary_position: '', gender: '', team_id: '',
+    name: '', jersey_number: '', position: '-', secondary_position: '', gender: '', team_id: '',
     bio: '', image: '', email: ''
 };
 
 // Center is rated identically to Receiver (same formula) — see
 // backend/internal/domain/player_rating.go RateByPosition.
-const POSITIONS = ['Defender', 'Receiver', 'Center', 'QB', 'Rusher', 'Allrounder'];
+const POSITIONS = ['Defender', 'Receiver', 'Center', 'QB', 'Rusher', 'Allrounder', '-'];
 // All-Rounder already means "plays anywhere", so it says nothing as a second
 // role — it is a main role only, and the server refuses it as a secondary.
-const SECONDARY_POSITIONS = POSITIONS.filter(p => p !== 'Allrounder');
+const SECONDARY_POSITIONS = POSITIONS.filter(p => p !== 'Allrounder' && p !== '-');
 
 export const AdminPlayers = () => {
     const queryClient = useQueryClient();
@@ -76,7 +76,7 @@ export const AdminPlayers = () => {
         setForm({
             name: p.name,
             jersey_number: p.jersey_number?.toString() || '',
-            position: p.position || '',
+            position: p.position || '-',
             secondary_position: p.secondary_position || '',
             gender: p.gender || '',
             team_id: p.team?.id || '',
@@ -115,7 +115,7 @@ export const AdminPlayers = () => {
             const payload: CreatePlayerPayload = {
                 name: form.name.trim(),
                 jersey_number: jerseyNum,
-                position: form.position,
+                position: form.position && form.position.trim() ? form.position.trim() : '-',
                 secondary_position: form.secondary_position || undefined,
                 gender: form.gender,
                 team_id: form.team_id,
@@ -399,7 +399,7 @@ export const AdminPlayers = () => {
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Primary Role</label>
                                     <select
-                                        value={form.position}
+                                        value={form.position || '-'}
                                         onChange={e => {
                                             const newPos = e.target.value;
                                             set('position', newPos);
@@ -409,8 +409,8 @@ export const AdminPlayers = () => {
                                         }}
                                         className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-[44px] z-50"
                                     >
-                                        <option value="" className="truncate">Select Primary Role...</option>
-                                        {POSITIONS.map(p => <option key={p} value={p} className="truncate">{p}</option>)}
+                                        <option value="-" className="truncate">- (No Role / Unassigned)</option>
+                                        {POSITIONS.filter(p => p !== '-').map(p => <option key={p} value={p} className="truncate">{p}</option>)}
                                     </select>
                                 </div>
                                 <div>
