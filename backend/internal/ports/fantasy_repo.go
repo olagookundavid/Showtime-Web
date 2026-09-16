@@ -501,7 +501,10 @@ func (r *FantasyRepository) GetScheduledMatchDays(ctx context.Context, competiti
 		SELECT
 			m.date::text AS match_date,
 			COUNT(*) AS match_count,
-			COALESCE(MIN(m.date + COALESCE(m.time, '10:00:00'::time))::timestamptz, (m.date + TIME '10:00:00')::timestamptz)::text AS earliest_kickoff,
+			-- Returned as a timestamptz, not ::text. pgx scans it straight into a
+			-- time.Time; rendering it to a string here produced Postgres's own
+			-- format, which is not RFC3339 and silently failed to parse back.
+			COALESCE(MIN(m.date + COALESCE(m.time, '10:00:00'::time))::timestamptz, (m.date + TIME '10:00:00')::timestamptz) AS earliest_kickoff,
 			COALESCE(ed.id::text, '') AS event_day_id
 		FROM matches m
 		LEFT JOIN event_days ed ON ed.date = m.date
@@ -519,12 +522,17 @@ func (r *FantasyRepository) GetScheduledMatchDays(ctx context.Context, competiti
 	var days []dto.ScheduledMatchDayDTO
 	for rows.Next() {
 		var d dto.ScheduledMatchDayDTO
-		if err := rows.Scan(&d.Date, &d.MatchCount, &d.EarliestKickoff, &d.EventDayID); err != nil {
+		var kickoff *time.Time
+		if err := rows.Scan(&d.Date, &d.MatchCount, &kickoff, &d.EventDayID); err != nil {
 			return nil, err
+		}
+		if kickoff != nil {
+			d.KickoffAt = kickoff
+			d.EarliestKickoff = kickoff.Format(time.RFC3339)
 		}
 		days = append(days, d)
 	}
-	return days, nil
+	return days, rows.Err()
 }
 
 // GetGameweeksDueForLock returns gameweeks past their deadline that still need

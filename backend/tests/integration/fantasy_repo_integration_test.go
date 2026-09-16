@@ -1496,11 +1496,11 @@ func TestEmptyLockedGameweekIsClearedButPlayedOnesSurvive(t *testing.T) {
 	}
 	mds := make([]domain.MatchDay, 0, len(days))
 	for _, d := range days {
-		md := domain.MatchDay{Date: d.Date, MatchCount: d.MatchCount}
-		if k, err := time.Parse(time.RFC3339, d.EarliestKickoff); err == nil {
-			md.EarliestKickoff = &k
-		}
-		mds = append(mds, md)
+		mds = append(mds, domain.MatchDay{
+			Date:            d.Date,
+			MatchCount:      d.MatchCount,
+			EarliestKickoff: d.KickoffAt,
+		})
 	}
 
 	plan, err := domain.PlanGameweeks(existing, mds, 720)
@@ -1609,4 +1609,163 @@ func TestEmptyGameweeksNeverLock(t *testing.T) {
 	if !found {
 		t.Error("once the day has a fixture the gameweek must lock normally")
 	}
+}
+
+// TestSyncRepairsALiveSeasonWithEmptyGameweeks reproduces the shape a live
+// season was actually in: nine weekly gameweeks, but fixtures on only six of
+// those dates. The three empties were real match days once — their deadlines
+// were derived from a real kickoff — and the fixtures were removed afterwards,
+// leaving the gameweeks and their now-meaningless deadlines behind because
+// nothing re-synced.
+//
+// One of the empties had locked itself on its stale deadline, which is what made
+// it permanent. This is the end-to-end proof that a sync clears all three.
+func TestSyncRepairsALiveSeasonWithEmptyGameweeks(t *testing.T) {
+	f := setupFantasyFixture(t)
+	ctx := context.Background()
+	repo := ports.NewFantasyRepository(f.pool)
+
+	// Clear the fixture's own gameweek and match so the season starts bare.
+	mustExec(t, f.pool, `DELETE FROM fantasy_lineups WHERE gameweek_id = $1`, f.gameweekID)
+	mustExec(t, f.pool, `DELETE FROM fantasy_gameweeks WHERE season_id = $1`, f.seasonID)
+	mustExec(t, f.pool, `DELETE FROM matches WHERE competition_id = $1`, f.compID)
+
+	base := f.dayOffset + 100
+	// Nine weekly dates. Fixtures on all but the 1st, 5th and 9th — exactly the
+	// gaps from the screenshot.
+	empties := map[int]bool{0: true, 4: true, 8: true}
+
+	var createdDays []int
+	for week := 0; week < 9; week++ {
+		offset := base + week*7
+		createdDays = append(createdDays, offset)
+
+		edID := mustScan(t, f.pool,
+			`INSERT INTO event_days (title, date) VALUES ($1, CURRENT_DATE + $2::int) RETURNING id`,
+			fmt.Sprintf("ITest Week %d", week+1), offset)
+
+		// Every gameweek gets a deadline derived from a 13:20 kickoff, because
+		// every one of these dates had fixtures when it was created.
+		status := "SCHEDULED"
+		if week == 0 {
+			status = "LOCKED" // the stuck one
+		}
+		mustScan(t, f.pool,
+			`INSERT INTO fantasy_gameweeks (season_id, number, event_day_id, deadline, status)
+			 VALUES ($1, $2, $3, (CURRENT_DATE + $4::int) + TIME '13:05', $5) RETURNING id`,
+			f.seasonID, week+1, edID, offset, status)
+
+		// Only the six live dates keep their fixtures.
+		if !empties[week] {
+			for i := 0; i < 5; i++ {
+				mustExec(t, f.pool,
+					`INSERT INTO matches (competition_id, home_team_id, away_team_id, date, time, event_day_id)
+					 VALUES ($1, $2, $2, CURRENT_DATE + $3::int, '13:20', $4)`,
+					f.compID, f.clubID, offset, edID)
+			}
+		}
+	}
+
+	t.Cleanup(func() {
+		for _, off := range createdDays {
+			f.pool.Exec(ctx, `DELETE FROM fantasy_gameweeks WHERE event_day_id IN
+			  (SELECT id FROM event_days WHERE date = CURRENT_DATE + $1::int)`, off)
+			f.pool.Exec(ctx, `DELETE FROM matches WHERE competition_id = $1 AND date = CURRENT_DATE + $2::int`,
+				f.compID, off)
+			f.pool.Exec(ctx, `DELETE FROM event_days WHERE date = CURRENT_DATE + $1::int`, off)
+		}
+	})
+
+	before, err := repo.ListScheduledGameweeks(ctx, f.seasonID)
+	if err != nil {
+		t.Fatalf("ListScheduledGameweeks: %v", err)
+	}
+	if len(before) != 9 {
+		t.Fatalf("expected the broken season to have 9 gameweeks, got %d", len(before))
+	}
+
+	// Sync, exactly as the admin button does.
+	days, err := repo.GetScheduledMatchDays(ctx, f.compID)
+	if err != nil {
+		t.Fatalf("GetScheduledMatchDays: %v", err)
+	}
+	mds := make([]domain.MatchDay, 0, len(days))
+	for _, d := range days {
+		mds = append(mds, domain.MatchDay{
+			Date:            d.Date,
+			MatchCount:      d.MatchCount,
+			EarliestKickoff: d.KickoffAt,
+		})
+	}
+	plan, err := domain.PlanGameweeks(before, mds, 720)
+	if err != nil {
+		t.Fatalf("PlanGameweeks: %v", err)
+	}
+	if err := repo.ApplyGameweekPlan(ctx, f.seasonID, f.compID, plan); err != nil {
+		t.Fatalf("ApplyGameweekPlan: %v", err)
+	}
+
+	after, err := repo.ListScheduledGameweeks(ctx, f.seasonID)
+	if err != nil {
+		t.Fatalf("ListScheduledGameweeks: %v", err)
+	}
+
+	t.Run("only the six real match days survive", func(t *testing.T) {
+		if len(after) != 6 {
+			t.Fatalf("expected 6 gameweeks, got %d: %+v", len(after), after)
+		}
+	})
+
+	t.Run("every remaining gameweek has fixtures", func(t *testing.T) {
+		for _, gw := range after {
+			var n int
+			if err := f.pool.QueryRow(ctx,
+				`SELECT COUNT(*) FROM matches WHERE competition_id = $1::uuid AND date = $2::date`,
+				f.compID, gw.Date).Scan(&n); err != nil {
+				t.Fatalf("fixture count: %v", err)
+			}
+			if n == 0 {
+				t.Errorf("Gameweek %d (%s) has no fixtures", gw.Number, gw.Date)
+			}
+		}
+	})
+
+	t.Run("they are numbered 1..6 in calendar order", func(t *testing.T) {
+		for i, gw := range after {
+			if gw.Number != i+1 {
+				t.Errorf("position %d is Gameweek %d, expected %d", i, gw.Number, i+1)
+			}
+			if i > 0 && after[i-1].Date >= gw.Date {
+				t.Errorf("gameweeks out of calendar order: %s then %s", after[i-1].Date, gw.Date)
+			}
+		}
+	})
+
+	t.Run("the first real match day becomes Gameweek 1", func(t *testing.T) {
+		var firstFixture string
+		if err := f.pool.QueryRow(ctx,
+			`SELECT MIN(date)::text FROM matches WHERE competition_id = $1::uuid`, f.compID).Scan(&firstFixture); err != nil {
+			t.Fatalf("first fixture: %v", err)
+		}
+		if after[0].Date != firstFixture {
+			t.Errorf("Gameweek 1 is %s but the season's first fixture is %s", after[0].Date, firstFixture)
+		}
+	})
+
+	t.Run("deadlines are derived from each day's real kickoff", func(t *testing.T) {
+		for _, gw := range after {
+			var kickoff time.Time
+			if err := f.pool.QueryRow(ctx,
+				`SELECT MIN(date + time)::timestamptz FROM matches
+				 WHERE competition_id = $1::uuid AND date = $2::date`,
+				f.compID, gw.Date).Scan(&kickoff); err != nil {
+				t.Fatalf("kickoff: %v", err)
+			}
+			want := kickoff.Add(-720 * time.Minute)
+			if !gw.Deadline.Equal(want) {
+				t.Errorf("Gameweek %d deadline %s, want %s (12h before the %s kickoff)",
+					gw.Number, gw.Deadline, want, kickoff)
+			}
+		}
+	})
 }

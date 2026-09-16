@@ -259,13 +259,14 @@ func (s *FantasyService) AutoScheduleGameweeks(ctx context.Context, seasonID str
 
 	days := make([]domain.MatchDay, 0, len(matchDays))
 	for _, md := range matchDays {
-		day := domain.MatchDay{Date: md.Date, MatchCount: md.MatchCount}
-		if md.EarliestKickoff != "" {
-			if k, err := time.Parse(time.RFC3339, md.EarliestKickoff); err == nil {
-				day.EarliestKickoff = &k
-			}
-		}
-		days = append(days, day)
+		// KickoffAt comes straight off the row. Re-parsing the formatted string
+		// is what previously dropped every kickoff on the floor and left each
+		// deadline sitting at midnight.
+		days = append(days, domain.MatchDay{
+			Date:            md.Date,
+			MatchCount:      md.MatchCount,
+			EarliestKickoff: md.KickoffAt,
+		})
 	}
 
 	plan, err := domain.PlanGameweeks(existing, days, season.LockMinsBefore)

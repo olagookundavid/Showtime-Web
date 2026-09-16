@@ -1,6 +1,10 @@
 package dto
 
-import "showtime-backend/internal/domain"
+import (
+	"time"
+
+	"showtime-backend/internal/domain"
+)
 
 // ─── Season DTOs ──────────────────────────────────────────────────────────────
 
@@ -36,10 +40,18 @@ type FantasySeasonResponse struct {
 // ─── Gameweek DTOs ────────────────────────────────────────────────────────────
 
 type ScheduledMatchDayDTO struct {
-	Date            string `json:"date"`
-	MatchCount      int    `json:"match_count"`
+	Date       string `json:"date"`
+	MatchCount int    `json:"match_count"`
+	// EarliestKickoff is RFC3339, so it round-trips through JSON and through
+	// time.Parse. It used to be Postgres's own ::text rendering of a timestamptz
+	// ("2026-09-20 13:20:00+01"), which is close enough to look right and does
+	// not parse — every gameweek deadline was silently falling back to midnight.
 	EarliestKickoff string `json:"earliest_kickoff"`
-	EventDayID      string `json:"event_day_id,omitempty"`
+	// KickoffAt is the same instant as a real time, for callers in this process.
+	// Scheduling reads this rather than re-parsing the string, so the formatting
+	// can never come between a kickoff and the deadline derived from it.
+	KickoffAt  *time.Time `json:"-"`
+	EventDayID string     `json:"event_day_id,omitempty"`
 }
 
 type CreateGameweekRequest struct {
