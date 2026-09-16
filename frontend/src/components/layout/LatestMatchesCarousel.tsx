@@ -104,9 +104,6 @@ export const LatestMatchesCarousel = () => {
                         </svg>
                     </button>
 
-                    {/* Left Blur/Fade Overlay */}
-                    <div className="hidden sm:block absolute left-0 top-0 bottom-0 w-6 sm:w-8 bg-gradient-to-r from-sffl-navy dark:from-black to-transparent pointer-events-none z-10" />
-
                     {/* Scroll Container */}
                     <div
                         ref={scrollContainerRef}
@@ -123,7 +120,7 @@ export const LatestMatchesCarousel = () => {
                                 <Link
                                     key={match.id}
                                     to={`/matches/${match.id}`}
-                                    className="flex-none w-[92px] sm:w-[98px] rounded-lg px-1.5 py-1 flex items-center justify-between gap-1 transition-all duration-300 snap-center cursor-pointer group h-[38px] sm:h-[40px] bg-white/5 dark:bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20"
+                                    className="flex-none w-[114px] sm:w-[120px] rounded-lg px-2 py-1 flex items-center justify-between gap-1.5 transition-all duration-300 snap-center cursor-pointer group h-[38px] sm:h-[40px] bg-white/5 dark:bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20"
                                 >
                                     <div className="flex flex-col justify-center gap-0.5 flex-1 min-w-0">
                                         {/* Home Team */}
@@ -203,9 +200,6 @@ export const LatestMatchesCarousel = () => {
                             );
                         })}
                     </div>
-
-                    {/* Right Blur/Fade Overlay */}
-                    <div className="hidden sm:block absolute right-0 top-0 bottom-0 w-6 sm:w-8 bg-gradient-to-l from-sffl-navy dark:from-black to-transparent pointer-events-none z-10" />
 
                     {/* Right Arrow */}
                     <button
