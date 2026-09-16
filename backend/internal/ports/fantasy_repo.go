@@ -40,6 +40,19 @@ type IFantasyRepository interface {
 	GetEventDayFirstKickoff(ctx context.Context, eventDayID string) (*time.Time, error)
 	EnsureEventDayForMatchDate(ctx context.Context, competitionID, matchDate string, gwNumber int) (string, *time.Time, error)
 	GetScheduledMatchDays(ctx context.Context, competitionID string) ([]dto.ScheduledMatchDayDTO, error)
+	// ListScheduledGameweeks returns a season's gameweeks with the date of the
+	// event day each is bound to, which is what the scheduler plans against.
+	ListScheduledGameweeks(ctx context.Context, seasonID string) ([]domain.ScheduledGameweek, error)
+	// ApplyGameweekPlan writes a whole plan in one transaction, so a season is
+	// never left half-rescheduled. It also links every fixture on each day to
+	// that day's event day.
+	ApplyGameweekPlan(ctx context.Context, seasonID, competitionID string, plan domain.SchedulePlan) error
+	// SeasonIDsForCompetition lists the fantasy seasons that follow a
+	// competition's fixtures, so a fixture change knows what to resync.
+	SeasonIDsForCompetition(ctx context.Context, competitionID string) ([]string, error)
+	// LinkFixturesToEventDays points every fixture at the event day for its own
+	// date. Runs whether or not the gameweeks themselves changed.
+	LinkFixturesToEventDays(ctx context.Context, competitionID string) error
 
 	// Player Prices
 	BulkUpsertPlayerPrices(ctx context.Context, prices []domain.FantasyPlayerPrice) error
@@ -479,8 +492,13 @@ func (r *FantasyRepository) GetScheduledMatchDays(ctx context.Context, competiti
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
+	// POSTPONED fixtures are excluded: a match that is not going to be played on
+	// the day cannot be scored on it, and counting it would keep a gameweek
+	// alive on a date with nothing left to happen. A day where *every* fixture
+	// is postponed therefore drops out entirely, which is what lets the sync
+	// remove its gameweek.
 	query := `
-		SELECT 
+		SELECT
 			m.date::text AS match_date,
 			COUNT(*) AS match_count,
 			COALESCE(MIN(m.date + COALESCE(m.time, '10:00:00'::time))::timestamptz, (m.date + TIME '10:00:00')::timestamptz)::text AS earliest_kickoff,
@@ -488,6 +506,7 @@ func (r *FantasyRepository) GetScheduledMatchDays(ctx context.Context, competiti
 		FROM matches m
 		LEFT JOIN event_days ed ON ed.date = m.date
 		WHERE m.competition_id = $1::uuid
+		  AND COALESCE(m.status, 'SCHEDULED') <> 'POSTPONED'
 		GROUP BY m.date, ed.id
 		ORDER BY m.date ASC
 	`
@@ -1822,4 +1841,234 @@ func (r *FantasyRepository) OverridePlayerPrice(ctx context.Context, seasonID, p
 	}
 
 	return &item, nil
+}
+
+// ─── Gameweek scheduling ──────────────────────────────────────────────────────
+
+// ListScheduledGameweeks returns the season's gameweeks alongside the calendar
+// date of the event day each is bound to. The scheduler plans by date, so the
+// join is done here rather than making it fetch event days one at a time.
+func (r *FantasyRepository) ListScheduledGameweeks(ctx context.Context, seasonID string) ([]domain.ScheduledGameweek, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	rows, err := r.pool.Query(ctx, `
+		SELECT g.id::text, g.number, ed.date::text, g.status, g.deadline
+		FROM fantasy_gameweeks g
+		JOIN event_days ed ON ed.id = g.event_day_id
+		WHERE g.season_id = $1::uuid
+		ORDER BY g.number ASC
+	`, seasonID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list gameweeks for scheduling: %w", err)
+	}
+	defer rows.Close()
+
+	var out []domain.ScheduledGameweek
+	for rows.Next() {
+		var gw domain.ScheduledGameweek
+		if err := rows.Scan(&gw.ID, &gw.Number, &gw.Date, &gw.Status, &gw.Deadline); err != nil {
+			return nil, err
+		}
+		out = append(out, gw)
+	}
+	return out, rows.Err()
+}
+
+// SeasonIDsForCompetition lists the fantasy seasons whose fixtures come from a
+// competition. COMPLETED seasons are left out: their schedule is history, and a
+// fixture edited long afterwards must not disturb it.
+func (r *FantasyRepository) SeasonIDsForCompetition(ctx context.Context, competitionID string) ([]string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	rows, err := r.pool.Query(ctx, `
+		SELECT id::text FROM fantasy_seasons
+		WHERE competition_id = $1::uuid AND status IN ('DRAFT', 'ACTIVE')
+	`, competitionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list seasons for competition: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+// ApplyGameweekPlan writes a plan in a single transaction.
+//
+// All of it or none of it: a partially-applied plan would leave a season with
+// duplicate numbers or a gap, and the unique index on (season_id, number) means
+// the failure would land midway through rather than cleanly at the start.
+//
+// Numbers are shuffled out of the way before being reassigned. Renumbering in
+// place trips uix on (season_id, number) the moment two gameweeks swap, so every
+// row being touched is first parked on a negative number — which no real
+// gameweek ever holds — and then written to its final value.
+func (r *FantasyRepository) ApplyGameweekPlan(ctx context.Context, seasonID, competitionID string, plan domain.SchedulePlan) error {
+	if plan.Empty() {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	for _, id := range plan.Delete {
+		// Only ever a gameweek the planner judged unplayed, but the status is
+		// re-checked here so a stale plan can never delete scored history.
+		if _, err := tx.Exec(ctx, `
+			DELETE FROM fantasy_gameweeks
+			WHERE id = $1::uuid AND season_id = $2::uuid AND status = 'SCHEDULED'
+		`, id, seasonID); err != nil {
+			return fmt.Errorf("failed to remove gameweek %s: %w", id, err)
+		}
+	}
+
+	// Park every number being changed, so reassignment cannot collide.
+	for i, u := range plan.Update {
+		if _, err := tx.Exec(ctx, `
+			UPDATE fantasy_gameweeks SET number = $1 WHERE id = $2::uuid AND season_id = $3::uuid
+		`, -(i + 1), u.ID, seasonID); err != nil {
+			return fmt.Errorf("failed to stage gameweek %s: %w", u.ID, err)
+		}
+	}
+
+	for _, u := range plan.Update {
+		eventDayID, err := ensureEventDayTx(ctx, tx, competitionID, u.Date, u.Number)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `
+			UPDATE fantasy_gameweeks
+			SET number = $1, event_day_id = $2::uuid, deadline = $3, updated_at = NOW()
+			WHERE id = $4::uuid AND season_id = $5::uuid AND status = 'SCHEDULED'
+		`, u.Number, eventDayID, u.Deadline, u.ID, seasonID); err != nil {
+			return fmt.Errorf("failed to update gameweek %s: %w", u.ID, err)
+		}
+	}
+
+	for _, c := range plan.Create {
+		eventDayID, err := ensureEventDayTx(ctx, tx, competitionID, c.Date, c.Number)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO fantasy_gameweeks (season_id, number, event_day_id, deadline, status)
+			VALUES ($1::uuid, $2, $3::uuid, $4, 'SCHEDULED')
+			ON CONFLICT (season_id, event_day_id) DO UPDATE
+			SET number = EXCLUDED.number, deadline = EXCLUDED.deadline, updated_at = NOW()
+		`, seasonID, c.Number, eventDayID, c.Deadline); err != nil {
+			return fmt.Errorf("failed to create gameweek %d (%s): %w", c.Number, c.Date, err)
+		}
+	}
+
+	return tx.Commit(ctx)
+}
+
+// ensureEventDayTx finds or creates the event day for a match date and links
+// every one of that competition's fixtures on the day to it.
+//
+// The linking is the half that used to be missed: the original only ran when a
+// gameweek was first created, so fixtures added to a day afterwards kept a NULL
+// event_day_id forever. Anything keyed on event_day_id — tickets especially —
+// then could not see them.
+func ensureEventDayTx(ctx context.Context, tx pgx.Tx, competitionID, matchDate string, gwNumber int) (string, error) {
+	var eventDayID string
+	err := tx.QueryRow(ctx, `SELECT id::text FROM event_days WHERE date = $1::date`, matchDate).Scan(&eventDayID)
+	if err != nil {
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return "", fmt.Errorf("failed to look up event day for %s: %w", matchDate, err)
+		}
+		// event_days.date is globally unique, so a day shared with another
+		// competition is found above and reused rather than duplicated.
+		title := fmt.Sprintf("Gameweek %d (%s)", gwNumber, matchDate)
+		if err := tx.QueryRow(ctx, `
+			INSERT INTO event_days (title, date, venue, is_active)
+			VALUES ($1, $2::date, 'Showtime Arena', true)
+			ON CONFLICT (date) DO UPDATE SET updated_at = NOW()
+			RETURNING id::text
+		`, title, matchDate).Scan(&eventDayID); err != nil {
+			return "", fmt.Errorf("failed to create event day for %s: %w", matchDate, err)
+		}
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE matches
+		SET event_day_id = $1::uuid, updated_at = NOW()
+		WHERE competition_id = $2::uuid AND date = $3::date
+		  AND event_day_id IS DISTINCT FROM $1::uuid
+	`, eventDayID, competitionID, matchDate); err != nil {
+		return "", fmt.Errorf("failed to link fixtures on %s to their event day: %w", matchDate, err)
+	}
+
+	return eventDayID, nil
+}
+
+// LinkFixturesToEventDays gives every fixture in a competition the event day for
+// its own date, creating the event day when it does not exist yet.
+//
+// Deliberately independent of the gameweek plan. Linking used to happen only
+// while a gameweek was being written, so a season whose schedule was already
+// correct never relinked — and fixtures added to an existing match day kept a
+// NULL event_day_id indefinitely. Anything reading by event day, tickets above
+// all, could not see them.
+func (r *FantasyRepository) LinkFixturesToEventDays(ctx context.Context, competitionID string) error {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	// Only days that are actually short of a link, so a competition already in
+	// order costs one scan and no writes.
+	rows, err := tx.Query(ctx, `
+		SELECT DISTINCT m.date::text
+		FROM matches m
+		LEFT JOIN event_days ed ON ed.date = m.date
+		WHERE m.competition_id = $1::uuid
+		  AND (ed.id IS NULL OR m.event_day_id IS DISTINCT FROM ed.id)
+		ORDER BY 1
+	`, competitionID)
+	if err != nil {
+		return fmt.Errorf("failed to find fixtures needing an event day: %w", err)
+	}
+	var dates []string
+	for rows.Next() {
+		var d string
+		if err := rows.Scan(&d); err != nil {
+			rows.Close()
+			return err
+		}
+		dates = append(dates, d)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if len(dates) == 0 {
+		return nil
+	}
+
+	for i, d := range dates {
+		if _, err := ensureEventDayTx(ctx, tx, competitionID, d, i+1); err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
 }

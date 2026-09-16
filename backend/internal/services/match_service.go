@@ -48,10 +48,24 @@ type MatchService struct {
 	repo            ports.MatchRepository
 	storage         ports.StorageService
 	contractService IContractService
+	// fantasyService is optional: fixtures are edited in environments where
+	// fantasy is not wired up, and a nil one simply means no resync.
+	fantasyService IFantasyService
+	logger         *logger.Logger
 }
 
 func NewMatchService(repo ports.MatchRepository, storage ports.StorageService, contractService IContractService) IMatchService {
 	return &MatchService{repo: repo, storage: storage, contractService: contractService}
+}
+
+// WithFantasyResync wires the fantasy scheduler in after construction, so a
+// fixture change can bring the fantasy season's match days along with it.
+// Separate from the constructor because the two services are built in the same
+// pass and would otherwise be a cycle.
+func (s *MatchService) WithFantasyResync(fantasy IFantasyService, log *logger.Logger) *MatchService {
+	s.fantasyService = fantasy
+	s.logger = log
+	return s
 }
 
 func (s *MatchService) triggerContractCheck(teamIDs ...string) {
@@ -59,6 +73,32 @@ func (s *MatchService) triggerContractCheck(teamIDs ...string) {
 		_ = SubmitJob(func() {
 			_, _ = s.contractService.CheckAndExpireContracts(context.Background(), teamIDs...)
 		})
+	}
+}
+
+// triggerFantasyResync keeps a fantasy season's match days in step with the
+// fixtures they are built from. A gameweek is one date the competition plays on,
+// so adding, moving, postponing or deleting a fixture can change the shape of
+// the season — and before this it did not, leaving the two schedules to drift
+// apart until someone noticed.
+//
+// Fire-and-forget on a worker: the admin saving a fixture should not wait on it,
+// and a resync failure must not fail their save. The sync is idempotent, so the
+// next fixture change repairs anything a failed run left behind.
+func (s *MatchService) triggerFantasyResync(competitionID string) {
+	if s.fantasyService == nil || competitionID == "" {
+		return
+	}
+	_ = SubmitJob(func() {
+		if err := s.fantasyService.SyncGameweeksForCompetition(context.Background(), competitionID); err != nil {
+			s.log("fantasy gameweek resync failed for competition " + competitionID + ": " + err.Error())
+		}
+	})
+}
+
+func (s *MatchService) log(msg string) {
+	if s.logger != nil {
+		s.logger.Error(msg, nil)
 	}
 }
 
@@ -540,6 +580,7 @@ func (s *MatchService) CreateMatch(ctx context.Context, match *domain.Match) err
 	if err := s.repo.CreateMatch(ctx, match); err != nil {
 		return err
 	}
+	s.triggerFantasyResync(match.CompetitionID)
 	if knockout {
 		// Knockout competitions never touch standings; winners flow down the
 		// bracket instead (relevant when importing already-finished matches).
@@ -629,6 +670,9 @@ func (s *MatchService) UpdateMatch(ctx context.Context, match *domain.Match) err
 	if err := s.repo.UpdateMatch(ctx, match); err != nil {
 		return err
 	}
+	// Covers a moved date, a changed kickoff and a postponement alike — all
+	// three change what the fantasy season's match days should be.
+	s.triggerFantasyResync(match.CompetitionID)
 	if match.Status == domain.MatchStatusFinished {
 		s.triggerContractCheck(match.HomeTeamID, match.AwayTeamID)
 	}
@@ -656,6 +700,7 @@ func (s *MatchService) DeleteMatch(ctx context.Context, id string) error {
 	if err := s.repo.DeleteMatch(ctx, id); err != nil {
 		return err
 	}
+	s.triggerFantasyResync(competitionID)
 	if knockout {
 		return nil
 	}

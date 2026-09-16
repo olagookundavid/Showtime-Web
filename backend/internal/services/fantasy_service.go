@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"showtime-backend/internal/domain"
@@ -20,6 +21,12 @@ type IFantasyService interface {
 	CreateGameweek(ctx context.Context, seasonID string, req dto.CreateGameweekRequest) (*dto.GameweekResponse, error)
 	GetScheduledMatchDays(ctx context.Context, seasonID string) ([]dto.ScheduledMatchDayDTO, error)
 	AutoScheduleGameweeks(ctx context.Context, seasonID string) ([]*dto.GameweekResponse, error)
+	// SyncGameweeksForCompetition re-plans every season following a competition.
+	// Safe to call on any fixture change: it is idempotent.
+	SyncGameweeksForCompetition(ctx context.Context, competitionID string) error
+	// GameweekSyncNotices reports anything the last sync of a season could not
+	// resolve tidily, for the admin to see.
+	GameweekSyncNotices(seasonID string) []string
 	UpdateGameweekDeadline(ctx context.Context, gameweekID string, req dto.UpdateGameweekDeadlineRequest) (*dto.GameweekResponse, error)
 	InitializePlayerPrices(ctx context.Context, seasonID string) error
 	ListPlayerPricesForAdmin(ctx context.Context, seasonID string, search, position, teamID, overrideStatus string, page, limit int) ([]dto.AdminPlayerPriceItem, int, error)
@@ -65,6 +72,12 @@ type FantasyService struct {
 	// squadRepo answers the one question a team sheet cannot answer for itself:
 	// does this manager actually own the players they have named?
 	squadRepo ports.IFantasySquadRepository
+	// lastSyncNotices holds what the most recent gameweek sync wanted an admin
+	// to know, keyed by season. It is advisory and deliberately not persisted:
+	// the sync runs automatically on every fixture change, so a notice is only
+	// meaningful until the next one supersedes it. sync.Map because the
+	// automatic path runs on a background worker while an admin may be reading.
+	lastSyncNotices sync.Map
 }
 
 func NewFantasyService(
@@ -239,32 +252,85 @@ func (s *FantasyService) AutoScheduleGameweeks(ctx context.Context, seasonID str
 		return nil, errors.New("no scheduled matches found for this competition")
 	}
 
-	var responses []*dto.GameweekResponse
-	for i, md := range matchDays {
-		gwNum := i + 1
-		eventDayID, kickoff, err := s.repo.EnsureEventDayForMatchDate(ctx, season.CompetitionID, md.Date, gwNum)
-		if err != nil {
-			return nil, err
-		}
+	existing, err := s.repo.ListScheduledGameweeks(ctx, seasonID)
+	if err != nil {
+		return nil, err
+	}
 
-		deadline, err := resolveDeadline("", kickoff, season.LockMinsBefore)
-		if err != nil {
-			return nil, err
+	days := make([]domain.MatchDay, 0, len(matchDays))
+	for _, md := range matchDays {
+		day := domain.MatchDay{Date: md.Date, MatchCount: md.MatchCount}
+		if md.EarliestKickoff != "" {
+			if k, err := time.Parse(time.RFC3339, md.EarliestKickoff); err == nil {
+				day.EarliestKickoff = &k
+			}
 		}
+		days = append(days, day)
+	}
 
-		gw := &domain.FantasyGameweek{
-			SeasonID:   seasonID,
-			Number:     gwNum,
-			EventDayID: eventDayID,
-			Deadline:   deadline,
-			Status:     domain.GameweekScheduled,
-		}
-		if err := s.repo.CreateGameweek(ctx, gw); err != nil {
-			return nil, err
-		}
-		responses = append(responses, gameweekResponse(gw, kickoff))
+	plan, err := domain.PlanGameweeks(existing, days, season.LockMinsBefore)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.repo.ApplyGameweekPlan(ctx, seasonID, season.CompetitionID, plan); err != nil {
+		return nil, err
+	}
+
+	// Independent of the plan: a season whose gameweeks are already right can
+	// still hold fixtures that were added to an existing match day and never
+	// linked to its event day.
+	if err := s.repo.LinkFixturesToEventDays(ctx, season.CompetitionID); err != nil {
+		return nil, err
+	}
+
+	s.lastSyncNotices.Store(seasonID, plan.Notices)
+
+	gws, err := s.repo.ListGameweeks(ctx, seasonID)
+	if err != nil {
+		return nil, err
+	}
+	responses := make([]*dto.GameweekResponse, 0, len(gws))
+	for i := range gws {
+		kickoff, _ := s.repo.GetEventDayFirstKickoff(ctx, gws[i].EventDayID)
+		responses = append(responses, gameweekResponse(&gws[i], kickoff))
 	}
 	return responses, nil
+}
+
+// SyncGameweeksForCompetition brings every fantasy season that follows a
+// competition back in step with its fixtures.
+//
+// Called after a fixture is created, moved or removed, so the two schedules stay
+// tied together without an admin remembering to press anything. It is the same
+// idempotent path as the button, so running it on every save costs nothing when
+// nothing has changed.
+func (s *FantasyService) SyncGameweeksForCompetition(ctx context.Context, competitionID string) error {
+	if competitionID == "" {
+		return nil
+	}
+	seasonIDs, err := s.repo.SeasonIDsForCompetition(ctx, competitionID)
+	if err != nil {
+		return err
+	}
+	var failures []error
+	for _, id := range seasonIDs {
+		if _, err := s.AutoScheduleGameweeks(ctx, id); err != nil {
+			failures = append(failures, fmt.Errorf("season %s: %w", id, err))
+		}
+	}
+	return errors.Join(failures...)
+}
+
+// GameweekSyncNotices returns what the last sync of this season wanted the admin
+// to know — chiefly a match day that could not be numbered in calendar order
+// because an already-played gameweek holds the number it wanted.
+func (s *FantasyService) GameweekSyncNotices(seasonID string) []string {
+	v, ok := s.lastSyncNotices.Load(seasonID)
+	if !ok {
+		return nil
+	}
+	notices, _ := v.([]string)
+	return notices
 }
 
 func (s *FantasyService) UpdateGameweekDeadline(ctx context.Context, gameweekID string, req dto.UpdateGameweekDeadlineRequest) (*dto.GameweekResponse, error) {

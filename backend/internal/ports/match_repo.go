@@ -483,13 +483,24 @@ func (r *PostgresMatchRepository) GetMatches(ctx context.Context, competitionID 
 
 	// Add Ordering and Pagination.
 	//
-	// Time is always ASC, even when the days run newest-first. The UI groups
-	// matches under a date heading, and within one day a reader expects the
-	// card order to follow the schedule — the 16:00 kickoff above the 18:00 —
-	// which time DESC inverted.
-	orderBy := "m.date DESC, m.time ASC"
-	if status == "SCHEDULED" {
-		orderBy = "m.date ASC, m.time ASC"
+	// A fixture list reads forwards and a results list reads backwards, so the
+	// direction follows what is being shown rather than whether a filter happens
+	// to be set. Keying it off `status == "SCHEDULED"` meant the unfiltered
+	// views — the admin match list, and the match centre's default "All" tab —
+	// both fell through to newest-first and showed a season's fixtures in
+	// reverse.
+	//
+	// Time is always ASC. The UI groups matches under a date heading, and within
+	// one day a reader expects the schedule order — the 13:20 kickoff above the
+	// 14:40 — which time DESC inverted.
+	//
+	// Every ordering ends on m.id so paging is stable: two matches sharing a
+	// date and kickoff have no other tiebreak, and the match centre pages
+	// through this with an infinite scroll where an unstable sort shows a row
+	// twice or not at all.
+	orderBy := "m.date ASC, m.time ASC, m.id ASC"
+	if status == string(domain.MatchStatusFinished) {
+		orderBy = "m.date DESC, m.time ASC, m.id ASC"
 	}
 	query += whereClause + ` ORDER BY ` + orderBy + ` LIMIT $` + fmt.Sprintf("%d", len(args)+1) + ` OFFSET $` + fmt.Sprintf("%d", len(args)+2)
 	args = append(args, limit, offset)

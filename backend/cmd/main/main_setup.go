@@ -454,6 +454,14 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	appSettingService := services.NewAppSettingService(appSettingRepo)
 
 	fantasyService := services.NewFantasyService(fantasyRepo, fantasyLeagueRepo, playerRepo, matchRepo, fantasySquadRepo)
+
+	// A fantasy gameweek is one date the competition plays on, so editing a
+	// fixture can change the season's shape. Wired after both exist because the
+	// dependency runs the other way during construction.
+	if ms, ok := matchService.(*services.MatchService); ok {
+		ms.WithFantasyResync(fantasyService, log)
+	}
+
 	fantasyLeagueService := services.NewFantasyLeagueService(fantasyLeagueRepo, fantasyRepo, fantasyPayoutRepo, authRepo, paystackClient)
 	fantasyPayoutService := services.NewFantasyPayoutService(fantasyPayoutRepo, fantasyLeagueRepo, fantasyRepo, appSettingRepo)
 

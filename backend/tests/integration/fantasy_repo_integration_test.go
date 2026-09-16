@@ -1121,3 +1121,315 @@ func TestPartialLineupsAreNeverLocked(t *testing.T) {
 		}
 	})
 }
+
+// TestGameweekSyncFollowsTheFixtureCalendar drives the whole scheduler against a
+// real schema.
+//
+// Everything it exercises is hand-written SQL that the compiler and the
+// fake-repo unit tests cannot check: the transactional apply, the negative-number
+// shuffle that lets two gameweeks swap without tripping the unique index on
+// (season_id, number), and the event-day linking that keeps fixtures and
+// gameweeks pointing at the same day.
+func TestGameweekSyncFollowsTheFixtureCalendar(t *testing.T) {
+	f := setupFantasyFixture(t)
+	ctx := context.Background()
+	repo := ports.NewFantasyRepository(f.pool)
+
+	// Two more match days for this competition, each needing its own event day
+	// (event_days.date is globally unique).
+	addMatchDay := func(t *testing.T, offset int, kickoff string) string {
+		t.Helper()
+		id := mustScan(t, f.pool,
+			`INSERT INTO matches (competition_id, home_team_id, away_team_id, date, time)
+			 VALUES ($1, $2, $2, CURRENT_DATE + $3::int, $4::time) RETURNING id`,
+			f.compID, f.clubID, offset, kickoff)
+		return id
+	}
+	addMatchDay(t, f.dayOffset+10, "15:00")
+	dayC := addMatchDay(t, f.dayOffset+20, "15:00")
+
+	t.Cleanup(func() {
+		// Event days created by the sync outlive the fixture's own teardown,
+		// and event_days.date is unique, so a leak breaks the next run.
+		for _, off := range []int{f.dayOffset + 10, f.dayOffset + 20} {
+			if _, err := f.pool.Exec(ctx,
+				`DELETE FROM fantasy_gameweeks WHERE event_day_id IN
+				   (SELECT id FROM event_days WHERE date = CURRENT_DATE + $1::int)`, off); err != nil {
+				t.Logf("cleanup gameweeks: %v", err)
+			}
+			if _, err := f.pool.Exec(ctx,
+				`DELETE FROM event_days WHERE date = CURRENT_DATE + $1::int`, off); err != nil {
+				t.Logf("cleanup event day: %v", err)
+			}
+		}
+	})
+
+	sync := func(t *testing.T) domain.SchedulePlan {
+		t.Helper()
+		days, err := repo.GetScheduledMatchDays(ctx, f.compID)
+		if err != nil {
+			t.Fatalf("GetScheduledMatchDays: %v", err)
+		}
+		mds := make([]domain.MatchDay, 0, len(days))
+		for _, d := range days {
+			md := domain.MatchDay{Date: d.Date, MatchCount: d.MatchCount}
+			if k, err := time.Parse(time.RFC3339, d.EarliestKickoff); err == nil {
+				md.EarliestKickoff = &k
+			}
+			mds = append(mds, md)
+		}
+		existing, err := repo.ListScheduledGameweeks(ctx, f.seasonID)
+		if err != nil {
+			t.Fatalf("ListScheduledGameweeks: %v", err)
+		}
+		plan, err := domain.PlanGameweeks(existing, mds, 720)
+		if err != nil {
+			t.Fatalf("PlanGameweeks: %v", err)
+		}
+		if err := repo.ApplyGameweekPlan(ctx, f.seasonID, f.compID, plan); err != nil {
+			t.Fatalf("ApplyGameweekPlan: %v", err)
+		}
+		if err := repo.LinkFixturesToEventDays(ctx, f.compID); err != nil {
+			t.Fatalf("LinkFixturesToEventDays: %v", err)
+		}
+		return plan
+	}
+
+	gameweekDates := func(t *testing.T) map[int]string {
+		t.Helper()
+		gws, err := repo.ListScheduledGameweeks(ctx, f.seasonID)
+		if err != nil {
+			t.Fatalf("ListScheduledGameweeks: %v", err)
+		}
+		out := map[int]string{}
+		for _, gw := range gws {
+			out[gw.Number] = gw.Date
+		}
+		return out
+	}
+
+	sync(t)
+
+	t.Run("every match day has a gameweek, in calendar order", func(t *testing.T) {
+		got := gameweekDates(t)
+		if len(got) != 3 {
+			t.Fatalf("expected 3 gameweeks for 3 match days, got %d: %v", len(got), got)
+		}
+		if !(got[1] < got[2] && got[2] < got[3]) {
+			t.Errorf("gameweeks are not in calendar order: %v", got)
+		}
+	})
+
+	// The bug that started this: fixtures added after the first schedule kept a
+	// NULL event_day_id forever, so anything keyed on the event day lost them.
+	t.Run("every fixture is linked to its day's event day", func(t *testing.T) {
+		var unlinked int
+		if err := f.pool.QueryRow(ctx, `
+			SELECT COUNT(*) FROM matches m
+			WHERE m.competition_id = $1::uuid
+			  AND (m.event_day_id IS NULL
+			       OR m.event_day_id <> (SELECT id FROM event_days WHERE date = m.date))
+		`, f.compID).Scan(&unlinked); err != nil {
+			t.Fatalf("link check: %v", err)
+		}
+		if unlinked != 0 {
+			t.Errorf("%d fixtures are not linked to their event day", unlinked)
+		}
+	})
+
+	// The gap this closed: linking used to ride along with a gameweek write, so
+	// a season already in order never relinked and fixtures added to an existing
+	// match day stayed orphaned.
+	t.Run("fixtures added to an existing match day still get linked", func(t *testing.T) {
+		extra := mustScan(t, f.pool,
+			`INSERT INTO matches (competition_id, home_team_id, away_team_id, date, time)
+			 VALUES ($1, $2, $2, CURRENT_DATE + $3::int, '17:00') RETURNING id`,
+			f.compID, f.clubID, f.dayOffset+10)
+		t.Cleanup(func() { f.pool.Exec(ctx, `DELETE FROM matches WHERE id = $1`, extra) })
+
+		// The schedule itself does not change: the day already has a gameweek.
+		plan := sync(t)
+		if !plan.Empty() {
+			t.Errorf("adding a fixture to an existing day should not reshape the schedule, got %+v", plan)
+		}
+
+		var linked string
+		if err := f.pool.QueryRow(ctx,
+			`SELECT COALESCE(event_day_id::text, '') FROM matches WHERE id = $1`, extra).Scan(&linked); err != nil {
+			t.Fatalf("read back: %v", err)
+		}
+		if linked == "" {
+			t.Error("a fixture added to an existing match day was left without an event day")
+		}
+	})
+
+	t.Run("running it again changes nothing", func(t *testing.T) {
+		before := gameweekDates(t)
+		plan := sync(t)
+		if !plan.Empty() {
+			t.Errorf("a second sync must be a no-op, got %+v", plan)
+		}
+		if got := gameweekDates(t); len(got) != len(before) {
+			t.Errorf("the schedule changed on a no-op sync: %v -> %v", before, got)
+		}
+	})
+
+	t.Run("postponing every fixture on a day removes its gameweek", func(t *testing.T) {
+		mustExec(t, f.pool, `UPDATE matches SET status = 'POSTPONED' WHERE id = $1`, dayC)
+		sync(t)
+		got := gameweekDates(t)
+		if len(got) != 2 {
+			t.Errorf("expected the postponed day's gameweek to go, got %v", got)
+		}
+	})
+
+	t.Run("un-postponing brings it back", func(t *testing.T) {
+		mustExec(t, f.pool, `UPDATE matches SET status = 'SCHEDULED' WHERE id = $1`, dayC)
+		sync(t)
+		if got := gameweekDates(t); len(got) != 3 {
+			t.Errorf("expected the day's gameweek to return, got %v", got)
+		}
+	})
+
+	// Renumbering makes two gameweeks swap numbers, which trips the unique
+	// index on (season_id, number) unless the apply parks them out of the way
+	// first. This is the case that proves it does.
+	t.Run("a day inserted in the middle renumbers without collision", func(t *testing.T) {
+		mid := addMatchDay(t, f.dayOffset+5, "15:00")
+		t.Cleanup(func() {
+			f.pool.Exec(ctx, `DELETE FROM matches WHERE id = $1`, mid)
+			f.pool.Exec(ctx, `DELETE FROM fantasy_gameweeks WHERE event_day_id IN
+			   (SELECT id FROM event_days WHERE date = CURRENT_DATE + $1::int)`, f.dayOffset+5)
+			f.pool.Exec(ctx, `DELETE FROM event_days WHERE date = CURRENT_DATE + $1::int`, f.dayOffset+5)
+		})
+
+		sync(t)
+
+		got := gameweekDates(t)
+		if len(got) != 4 {
+			t.Fatalf("expected 4 gameweeks, got %v", got)
+		}
+		if !(got[1] < got[2] && got[2] < got[3] && got[3] < got[4]) {
+			t.Errorf("gameweeks are not in calendar order after the insert: %v", got)
+		}
+	})
+
+	// A played gameweek is history. It keeps its number and its day whatever the
+	// fixtures do, because points have already been awarded against it.
+	t.Run("a finalized gameweek survives losing its fixtures", func(t *testing.T) {
+		before := gameweekDates(t)
+		mustExec(t, f.pool,
+			`UPDATE fantasy_gameweeks SET status = 'FINALIZED' WHERE season_id = $1::uuid AND number = 1`,
+			f.seasonID)
+		// Delete every fixture on gameweek 1's day.
+		mustExec(t, f.pool, `
+			DELETE FROM matches WHERE competition_id = $1::uuid AND date = (
+				SELECT ed.date FROM fantasy_gameweeks g
+				JOIN event_days ed ON ed.id = g.event_day_id
+				WHERE g.season_id = $2::uuid AND g.number = 1)
+		`, f.compID, f.seasonID)
+
+		plan := sync(t)
+
+		after := gameweekDates(t)
+		if after[1] != before[1] {
+			t.Errorf("a finalized gameweek moved: was %s, now %s", before[1], after[1])
+		}
+		var stillThere bool
+		for n, d := range after {
+			if n == 1 && d == before[1] {
+				stillThere = true
+			}
+		}
+		if !stillThere {
+			t.Error("a finalized gameweek was deleted when its fixtures went away")
+		}
+		if len(plan.Notices) == 0 {
+			t.Error("expected a notice that a played gameweek lost its fixtures")
+		}
+	})
+}
+
+// TestMatchListingOrder pins the direction a match list comes back in.
+//
+// The direction used to be chosen by whether a status filter was set rather than
+// by what was being shown, so the two screens that pass no filter — the admin
+// match list and the match centre's default "All" tab — displayed a season's
+// fixtures newest-first, with the last match day at the top.
+func TestMatchListingOrder(t *testing.T) {
+	f := setupFantasyFixture(t)
+	ctx := context.Background()
+	repo := ports.NewMatchRepository(f.pool)
+
+	// Three match days, inserted out of order so a missing ORDER BY cannot pass
+	// by accident.
+	for _, spec := range []struct {
+		offset int
+		status string
+	}{
+		{f.dayOffset + 20, "FINISHED"},
+		{f.dayOffset + 5, "FINISHED"},
+		{f.dayOffset + 12, "FINISHED"},
+	} {
+		mustExec(t, f.pool,
+			`INSERT INTO matches (competition_id, home_team_id, away_team_id, date, time, status, home_score, away_score)
+			 VALUES ($1, $2, $2, CURRENT_DATE + $3::int, '15:00', $4, 1, 0)`,
+			f.compID, f.clubID, spec.offset, spec.status)
+	}
+	t.Cleanup(func() {
+		f.pool.Exec(ctx, `DELETE FROM matches WHERE competition_id = $1 AND status = 'FINISHED'`, f.compID)
+	})
+
+	dates := func(t *testing.T, status string) []string {
+		t.Helper()
+		ms, _, err := repo.GetMatches(ctx, f.compID, "", status, 1, 50, "")
+		if err != nil {
+			t.Fatalf("GetMatches(%q): %v", status, err)
+		}
+		out := make([]string, 0, len(ms))
+		for _, m := range ms {
+			out = append(out, m.Date.Format("2006-01-02"))
+		}
+		return out
+	}
+
+	isSorted := func(v []string, ascending bool) bool {
+		for i := 1; i < len(v); i++ {
+			if ascending && v[i-1] > v[i] {
+				return false
+			}
+			if !ascending && v[i-1] < v[i] {
+				return false
+			}
+		}
+		return true
+	}
+
+	// The case from the screenshots: no filter, and the list came back backwards.
+	t.Run("with no status filter, fixtures read forwards", func(t *testing.T) {
+		got := dates(t, "")
+		if len(got) < 3 {
+			t.Fatalf("expected at least 3 matches, got %d", len(got))
+		}
+		if !isSorted(got, true) {
+			t.Errorf("an unfiltered match list must run oldest-first, got %v", got)
+		}
+	})
+
+	t.Run("scheduled fixtures read forwards", func(t *testing.T) {
+		if got := dates(t, "SCHEDULED"); !isSorted(got, true) {
+			t.Errorf("fixtures must run soonest-first, got %v", got)
+		}
+	})
+
+	// Results are the one list that genuinely reads backwards.
+	t.Run("results read backwards, newest first", func(t *testing.T) {
+		got := dates(t, "FINISHED")
+		if len(got) < 3 {
+			t.Fatalf("expected the 3 finished matches, got %d", len(got))
+		}
+		if !isSorted(got, false) {
+			t.Errorf("results must run newest-first, got %v", got)
+		}
+	})
+}

@@ -293,7 +293,13 @@ func (h *FantasyHandler) AdminGetScheduledMatchDays(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": days})
 }
 
-// AdminAutoScheduleGameweeks automatically schedules all gameweeks from the competition's scheduled matches.
+// AdminAutoScheduleGameweeks re-syncs a season's gameweeks against its
+// competition's fixtures. Idempotent and safe to press repeatedly: it adds days
+// that appeared, drops scheduled gameweeks whose fixtures went away, follows
+// kickoff changes, and never touches a gameweek that has already been played.
+//
+// The same sync runs automatically whenever a fixture changes; this endpoint is
+// the manual trigger for when an admin wants to be sure.
 func (h *FantasyHandler) AdminAutoScheduleGameweeks(c *gin.Context) {
 	seasonID := c.Param("id")
 	gws, err := h.service.AutoScheduleGameweeks(c.Request.Context(), seasonID)
@@ -301,9 +307,12 @@ func (h *FantasyHandler) AdminAutoScheduleGameweeks(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	notices := h.service.GameweekSyncNotices(seasonID)
 	c.JSON(http.StatusOK, gin.H{
-		"message": fmt.Sprintf("Successfully scheduled %d gameweeks from match calendar", len(gws)),
+		"message": fmt.Sprintf("Match days synced with the fixture calendar — %d gameweeks", len(gws)),
 		"data":    gws,
+		// Anything the sync could not resolve tidily, for the admin to see.
+		"notices": notices,
 	})
 }
 
