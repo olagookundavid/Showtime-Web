@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
     getMatches,
+    getCompetitions,
     getAdminTeamSheet,
     getAdminMatchPlays,
     createPlay,
@@ -18,6 +19,7 @@ import {
     rederiveSituations,
     type SituationUpdate,
     type Match,
+    type Competition,
     type TeamSheetPlayer,
     type GamePlay,
     type PlayPayload,
@@ -506,6 +508,7 @@ export const AdminPlayByPlay = () => {
     // Only admins may unlock/lock a match; referees/stats can log plays once open.
     const canToggleLock = user?.role === 'admin' || user?.role === 'app_admin';
     const [matchId, setMatchId] = useState('');
+    const [selectedCompId, setSelectedCompId] = useState('');
     const [lockBusy, setLockBusy] = useState(false);
     const [ctx, setCtx] = useState<Ctx>({
         quarter: 1, driveNo: 1, offense: '', down: '1', toGo: '10', ballOn: '', clock: '', homeScore: '0', awayScore: '0',
@@ -515,6 +518,12 @@ export const AdminPlayByPlay = () => {
 
     const [visibleCount, setVisibleCount] = useState(10);
 
+    const { data: compData } = useQuery({
+        queryKey: ['pbpCompetitions'],
+        queryFn: () => getCompetitions(1, 100),
+    });
+    const competitions: Competition[] = (compData?.data || []).filter(c => c.status !== 'inactive');
+
     // Fetched by status rather than one plain "page 1" call: the backend sorts
     // the unfiltered list by date DESC, so any competition with upcoming
     // fixtures buries every already-played match below a full page of future
@@ -522,15 +531,19 @@ export const AdminPlayByPlay = () => {
     // and LIVE directly guarantees they're actually fetched regardless of how
     // many SCHEDULED matches exist; SCHEDULED is fetched too (ascending, so
     // the nearest dates lead) to catch today's not-yet-kicked-off games.
+    // The backend returns `data: null` (not `[]`) when a status filter has no
+    // rows, so every leg is defaulted before spreading — otherwise a
+    // competition with zero LIVE matches (the common case) throws on `[...null]`
+    // and silently empties the whole dropdown.
     const { data: matchesData } = useQuery({
-        queryKey: ['pbpMatches'],
+        queryKey: ['pbpMatches', selectedCompId],
         queryFn: async () => {
             const [finished, live, scheduled] = await Promise.all([
-                getMatches(undefined, 1, 100, 'FINISHED'),
-                getMatches(undefined, 1, 50, 'LIVE'),
-                getMatches(undefined, 1, 50, 'SCHEDULED'),
+                getMatches(selectedCompId || undefined, 1, 100, 'FINISHED'),
+                getMatches(selectedCompId || undefined, 1, 50, 'LIVE'),
+                getMatches(selectedCompId || undefined, 1, 50, 'SCHEDULED'),
             ]);
-            return { data: [...finished.data, ...live.data, ...scheduled.data] };
+            return { data: [...(finished.data || []), ...(live.data || []), ...(scheduled.data || [])] };
         },
     });
     // Latest matches first — makes the most likely picks (today's/this week's
@@ -607,6 +620,14 @@ export const AdminPlayByPlay = () => {
     const match = matches.find(m => m.id === matchId);
     // Play-by-play is locked per match by default; treat unknown as locked.
     const locked = !!matchId && match?.pbp_locked !== false;
+
+    // A match picked under one competition means nothing once the filter
+    // switches to another, so drop the selection rather than leave a stale
+    // match (and its wizard state) pointed at a game no longer in the list.
+    useEffect(() => {
+        setMatchId('');
+        setW(emptyWizard);
+    }, [selectedCompId]);
 
     const toggleLock = async () => {
         if (!matchId || lockBusy) return;
@@ -1269,8 +1290,19 @@ export const AdminPlayByPlay = () => {
                 <p className="text-sm text-gray-500 dark:text-gray-400">Log each play by picking players from the team sheet. The stats engine and scoring come in a later step — for now this records the game story.</p>
             </div>
 
-            {/* Match picker */}
+            {/* Competition + match picker */}
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                <div className="mb-4">
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Competition</label>
+                    <select
+                        value={selectedCompId}
+                        onChange={e => setSelectedCompId(e.target.value)}
+                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2.5 text-sm font-semibold dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red focus:outline-none"
+                    >
+                        <option value="">All competitions</option>
+                        {competitions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                </div>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-2">
                     <label className="block text-xs font-bold text-gray-600 dark:text-gray-300">Select Match</label>
                     <span className="text-xs text-gray-500 dark:text-gray-400">
