@@ -621,6 +621,22 @@ func (h *MatchHandler) DeleteTeam(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Team deleted"})
 }
 
+// normalizeCompetitionFormat upper-cases the requested format, defaults an
+// empty one to SEASON, and reports whether the result is one of the four
+// valid formats. Shared by CreateCompetition and UpdateCompetition.
+func normalizeCompetitionFormat(format string) (string, bool) {
+	f := strings.ToUpper(format)
+	if f == "" {
+		f = string(domain.CompetitionFormatSeason)
+	}
+	for _, valid := range domain.ValidCompetitionFormats {
+		if f == valid {
+			return f, true
+		}
+	}
+	return f, false
+}
+
 // CreateCompetition godoc
 // @Summary      Create a competition
 // @Tags         admin
@@ -641,12 +657,9 @@ func (h *MatchHandler) CreateCompetition(c *gin.Context) {
 		status = "active"
 	}
 
-	format := strings.ToUpper(req.Format)
-	if format == "" {
-		format = string(domain.CompetitionFormatLeague)
-	}
-	if format != string(domain.CompetitionFormatLeague) && format != string(domain.CompetitionFormatKnockout) {
-		helpers.BadResponse(c, "format must be LEAGUE or KNOCKOUT")
+	format, ok := normalizeCompetitionFormat(req.Format)
+	if !ok {
+		helpers.BadResponse(c, "format must be one of "+strings.Join(domain.ValidCompetitionFormats, ", "))
 		return
 	}
 
@@ -656,13 +669,13 @@ func (h *MatchHandler) CreateCompetition(c *gin.Context) {
 	}
 
 	comp := &domain.Competition{
-		Name:                 req.Name,
-		Logo:                 req.Logo,
-		Status:               status,
-		Format:               format,
-		PlayoffCompetitionID: req.PlayoffCompetitionID,
-		TieBreakerRule:       tieBreakerRule,
-		TeamIDs:              req.TeamIDs,
+		Name:           req.Name,
+		Logo:           req.Logo,
+		Status:         status,
+		Format:         format,
+		SeasonID:       req.SeasonID,
+		TieBreakerRule: tieBreakerRule,
+		TeamIDs:        req.TeamIDs,
 	}
 
 	if err := h.service.CreateCompetition(c.Request.Context(), comp); err != nil {
@@ -689,12 +702,9 @@ func (h *MatchHandler) UpdateCompetition(c *gin.Context) {
 		return
 	}
 
-	format := strings.ToUpper(req.Format)
-	if format == "" {
-		format = string(domain.CompetitionFormatLeague)
-	}
-	if format != string(domain.CompetitionFormatLeague) && format != string(domain.CompetitionFormatKnockout) {
-		helpers.BadResponse(c, "format must be LEAGUE or KNOCKOUT")
+	format, ok := normalizeCompetitionFormat(req.Format)
+	if !ok {
+		helpers.BadResponse(c, "format must be one of "+strings.Join(domain.ValidCompetitionFormats, ", "))
 		return
 	}
 
@@ -704,14 +714,14 @@ func (h *MatchHandler) UpdateCompetition(c *gin.Context) {
 	}
 
 	comp := &domain.Competition{
-		ID:                   id,
-		Name:                 req.Name,
-		Logo:                 req.Logo,
-		Status:               req.Status,
-		Format:               format,
-		PlayoffCompetitionID: req.PlayoffCompetitionID,
-		TieBreakerRule:       tieBreakerRule,
-		TeamIDs:              req.TeamIDs,
+		ID:             id,
+		Name:           req.Name,
+		Logo:           req.Logo,
+		Status:         req.Status,
+		Format:         format,
+		SeasonID:       req.SeasonID,
+		TieBreakerRule: tieBreakerRule,
+		TeamIDs:        req.TeamIDs,
 	}
 
 	if err := h.service.UpdateCompetition(c.Request.Context(), comp); err != nil {

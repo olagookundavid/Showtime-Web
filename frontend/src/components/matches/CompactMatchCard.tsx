@@ -13,7 +13,7 @@ interface CompactMatchCardProps {
 export const CompactMatchCard: React.FC<CompactMatchCardProps> = ({ match, onClick, hideHeaderAndVenue = false }) => {
     const isFinished = match.status === 'FINISHED';
     const isLive = match.status === 'LIVE';
-    const isBye = match.competition?.format === 'KNOCKOUT' &&
+    const isBye = match.competition?.format === 'PLAYOFFS' &&
         ((match.home_team?.id && !match.away_team?.id && match.status === 'FINISHED') ||
          (!match.home_team?.id && match.away_team?.id && match.status === 'FINISHED'));
 

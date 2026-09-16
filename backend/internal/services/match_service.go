@@ -114,20 +114,22 @@ func (s *MatchService) isCompleted(ctx context.Context, competitionID string) (b
 	return comp != nil && comp.Status == "completed", nil
 }
 
-// competitionState fetches a competition once and reports the two flags the
-// match flows care about: locked-for-editing and knockout (bracket) format.
-func (s *MatchService) competitionState(ctx context.Context, competitionID string) (completed bool, knockout bool, err error) {
+// competitionState fetches a competition once and reports the two things the
+// match flows care about: locked-for-editing, and the format itself (callers
+// derive hasBracket/hasStandings from it — Preseason and Cup share Season's
+// "no bracket" match rules but Playoffs' "no standings" behavior).
+func (s *MatchService) competitionState(ctx context.Context, competitionID string) (completed bool, format string, err error) {
 	if competitionID == "" {
-		return false, false, nil
+		return false, "", nil
 	}
 	comp, err := s.repo.GetCompetitionByID(ctx, competitionID)
 	if err != nil {
-		return false, false, err
+		return false, "", err
 	}
 	if comp == nil {
-		return false, false, nil
+		return false, "", nil
 	}
-	return comp.Status == "completed", comp.Format == string(domain.CompetitionFormatKnockout), nil
+	return comp.Status == "completed", comp.Format, nil
 }
 
 // validateBracketLink ensures a feeds_match pointer is sane: HOME/AWAY slot,
@@ -212,13 +214,13 @@ func (s *MatchService) GetCompetitions(ctx context.Context, page, limit int, sea
 	var res []dto.CompetitionResponse
 	for _, c := range competitions {
 		res = append(res, dto.CompetitionResponse{
-			ID:                   c.ID,
-			Name:                 c.Name,
-			Logo:                 c.Logo,
-			Status:               c.Status,
-			Format:               c.Format,
-			PlayoffCompetitionID: c.PlayoffCompetitionID,
-			TieBreakerRule:       c.TieBreakerRule,
+			ID:             c.ID,
+			Name:           c.Name,
+			Logo:           c.Logo,
+			Status:         c.Status,
+			Format:         c.Format,
+			SeasonID:       c.SeasonID,
+			TieBreakerRule: c.TieBreakerRule,
 		})
 	}
 
@@ -398,15 +400,15 @@ func bracketRoundLabels(rounds int) []string {
 // entries pair up (slots 1&2 meet next round, 3&4 meet, ...), which is what
 // keeps the bracket ordered.
 func (s *MatchService) GenerateBracket(ctx context.Context, competitionID string, req dto.GenerateBracketRequest) error {
-	completed, knockout, err := s.competitionState(ctx, competitionID)
+	completed, format, err := s.competitionState(ctx, competitionID)
 	if err != nil {
 		return err
 	}
 	if completed {
 		return fmt.Errorf("competition is completed and cannot be modified")
 	}
-	if !knockout {
-		return fmt.Errorf("brackets can only be generated for knockout competitions")
+	if format != string(domain.CompetitionFormatPlayoffs) {
+		return fmt.Errorf("brackets can only be generated for playoffs competitions")
 	}
 
 	existing, err := s.repo.CountMatchesByCompetition(ctx, competitionID)
@@ -530,27 +532,28 @@ func (s *MatchService) GenerateBracket(ctx context.Context, competitionID string
 // ResetBracket wipes all matches of a knockout competition so the bracket can
 // be set up again. Destructive: any recorded stats for those matches go too.
 func (s *MatchService) ResetBracket(ctx context.Context, competitionID string) error {
-	completed, knockout, err := s.competitionState(ctx, competitionID)
+	completed, format, err := s.competitionState(ctx, competitionID)
 	if err != nil {
 		return err
 	}
 	if completed {
 		return fmt.Errorf("competition is completed and cannot be modified")
 	}
-	if !knockout {
-		return fmt.Errorf("only knockout competitions have a bracket to reset")
+	if format != string(domain.CompetitionFormatPlayoffs) {
+		return fmt.Errorf("only playoffs competitions have a bracket to reset")
 	}
 	return s.repo.DeleteMatchesByCompetition(ctx, competitionID)
 }
 
 // validateKnockoutMatch applies the rules specific to bracket matches, while
-// league matches keep their original requirements.
-func (s *MatchService) validateKnockoutMatch(ctx context.Context, match *domain.Match, knockout bool) error {
-	if !knockout {
+// every other format (Season, Preseason, Cup) keeps the original
+// both-teams-required requirements and carries no bracket linkage.
+func (s *MatchService) validateKnockoutMatch(ctx context.Context, match *domain.Match, hasBracket bool) error {
+	if !hasBracket {
 		if match.HomeTeamID == "" || match.AwayTeamID == "" {
-			return fmt.Errorf("home and away teams are required for league matches")
+			return fmt.Errorf("home and away teams are required for non-bracket matches")
 		}
-		// League matches don't carry bracket linkage.
+		// Non-bracket matches don't carry bracket linkage.
 		match.FeedsMatchID = nil
 		match.FeedsSlot = ""
 		match.Round = ""
@@ -561,19 +564,21 @@ func (s *MatchService) validateKnockoutMatch(ctx context.Context, match *domain.
 }
 
 func (s *MatchService) CreateMatch(ctx context.Context, match *domain.Match) error {
-	completed, knockout, err := s.competitionState(ctx, match.CompetitionID)
+	completed, format, err := s.competitionState(ctx, match.CompetitionID)
 	if err != nil {
 		return err
 	}
 	if completed {
 		return fmt.Errorf("competition is completed and cannot be modified")
 	}
+	hasBracket := format == string(domain.CompetitionFormatPlayoffs)
+	hasStandings := format == string(domain.CompetitionFormatSeason)
 
-	isBye := knockout && ((match.HomeTeamID != "" && match.AwayTeamID == "") || (match.HomeTeamID == "" && match.AwayTeamID != ""))
+	isBye := hasBracket && ((match.HomeTeamID != "" && match.AwayTeamID == "") || (match.HomeTeamID == "" && match.AwayTeamID != ""))
 	if match.Status == domain.MatchStatusFinished && !isBye && (match.HomeScore == nil || match.AwayScore == nil) {
 		return fmt.Errorf("home and away scores are required for finished matches")
 	}
-	if err := s.validateKnockoutMatch(ctx, match, knockout); err != nil {
+	if err := s.validateKnockoutMatch(ctx, match, hasBracket); err != nil {
 		return err
 	}
 
@@ -581,10 +586,14 @@ func (s *MatchService) CreateMatch(ctx context.Context, match *domain.Match) err
 		return err
 	}
 	s.triggerFantasyResync(match.CompetitionID)
-	if knockout {
-		// Knockout competitions never touch standings; winners flow down the
+	if hasBracket {
+		// Playoffs competitions never touch standings; winners flow down the
 		// bracket instead (relevant when importing already-finished matches).
 		return s.advanceWinner(ctx, match.ID)
+	}
+	if !hasStandings {
+		// Preseason/Cup: plain matches, no standings to update.
+		return nil
 	}
 	if match.Status == domain.MatchStatusFinished {
 		s.triggerContractCheck(match.HomeTeamID, match.AwayTeamID)
@@ -651,19 +660,21 @@ func (s *MatchService) UpdateMatch(ctx context.Context, match *domain.Match) err
 		match.SecondLegMatchID = existing.SecondLegMatchID
 	}
 
-	completed, knockout, err := s.competitionState(ctx, match.CompetitionID)
+	completed, format, err := s.competitionState(ctx, match.CompetitionID)
 	if err != nil {
 		return err
 	}
 	if completed {
 		return fmt.Errorf("competition is completed and cannot be modified")
 	}
+	hasBracket := format == string(domain.CompetitionFormatPlayoffs)
+	hasStandings := format == string(domain.CompetitionFormatSeason)
 
-	isBye := knockout && ((match.HomeTeamID != "" && match.AwayTeamID == "") || (match.HomeTeamID == "" && match.AwayTeamID != ""))
+	isBye := hasBracket && ((match.HomeTeamID != "" && match.AwayTeamID == "") || (match.HomeTeamID == "" && match.AwayTeamID != ""))
 	if match.Status == domain.MatchStatusFinished && !isBye && (match.HomeScore == nil || match.AwayScore == nil) {
 		return fmt.Errorf("home and away scores are required for finished matches")
 	}
-	if err := s.validateKnockoutMatch(ctx, match, knockout); err != nil {
+	if err := s.validateKnockoutMatch(ctx, match, hasBracket); err != nil {
 		return err
 	}
 
@@ -676,8 +687,12 @@ func (s *MatchService) UpdateMatch(ctx context.Context, match *domain.Match) err
 	if match.Status == domain.MatchStatusFinished {
 		s.triggerContractCheck(match.HomeTeamID, match.AwayTeamID)
 	}
-	if knockout {
+	if hasBracket {
 		return s.advanceWinner(ctx, match.ID)
+	}
+	if !hasStandings {
+		// Preseason/Cup: plain matches, no standings to recalculate.
+		return nil
 	}
 	return s.repo.RecalculateStandings(ctx, match.CompetitionID)
 }
@@ -689,7 +704,7 @@ func (s *MatchService) DeleteMatch(ctx context.Context, id string) error {
 	}
 	competitionID := existing.CompetitionID
 
-	completed, knockout, err := s.competitionState(ctx, competitionID)
+	completed, format, err := s.competitionState(ctx, competitionID)
 	if err != nil {
 		return err
 	}
@@ -701,22 +716,22 @@ func (s *MatchService) DeleteMatch(ctx context.Context, id string) error {
 		return err
 	}
 	s.triggerFantasyResync(competitionID)
-	if knockout {
+	if format != string(domain.CompetitionFormatSeason) {
 		return nil
 	}
 	return s.repo.RecalculateStandings(ctx, competitionID)
 }
 
 func (s *MatchService) RecalculateStandings(ctx context.Context, competitionID string) error {
-	completed, knockout, err := s.competitionState(ctx, competitionID)
+	completed, format, err := s.competitionState(ctx, competitionID)
 	if err != nil {
 		return err
 	}
 	if completed {
 		return fmt.Errorf("competition is completed and cannot be modified")
 	}
-	if knockout {
-		return fmt.Errorf("knockout competitions do not have standings")
+	if format != string(domain.CompetitionFormatSeason) {
+		return fmt.Errorf("only season competitions have standings")
 	}
 	return s.repo.RecalculateStandings(ctx, competitionID)
 }

@@ -399,8 +399,8 @@ export interface Competition {
     name: string;
     logo: string;
     status: string;
-    format?: string; // LEAGUE | KNOCKOUT
-    playoff_competition_id?: string | null;
+    format?: string; // PRESEASON | SEASON | PLAYOFFS | CUP
+    season_id?: string | null;
     tie_breaker_rule?: string;
 }
 
@@ -428,19 +428,40 @@ const seasonNumberFromName = (name: string): number => {
     const match = name.match(/\b([IVXL]+)\s*$/i);
     return match ? romanToInt(match[1].toUpperCase()) : 0;
 };
-const stageOrder = (name: string): number => {
-    const n = name.toLowerCase();
+// Preseason → Season → Playoffs → Cup. The `format` field is authoritative
+// now that it carries all four stages; the name-substring check only covers
+// rows that somehow have no format.
+const stageOrder = (c: { name: string; format?: string }): number => {
+    switch (c.format) {
+        case 'PRESEASON': return 0;
+        case 'SEASON': return 1;
+        case 'PLAYOFFS': return 2;
+        case 'CUP': return 3;
+    }
+    const n = c.name.toLowerCase();
     if (n.includes('regular')) return 1;
     if (n.includes('playoff')) return 2;
     if (n.includes('bowl')) return 3;
     return 4;
 };
-export const sortCompetitionsBySeason = <C extends { name: string }>(comps: C[]): C[] => {
+export const sortCompetitionsBySeason = <C extends { name: string; format?: string }>(comps: C[]): C[] => {
     return [...comps].sort((a, b) => {
         const seasonDiff = seasonNumberFromName(b.name) - seasonNumberFromName(a.name);
         if (seasonDiff !== 0) return seasonDiff;
-        return stageOrder(a.name) - stageOrder(b.name);
+        return stageOrder(a) - stageOrder(b);
     });
+};
+
+// The competition-picker dropdown on public pages lists only competitions of
+// the same format as whatever's currently selected (default: SEASON) — e.g.
+// viewing a Cup shows other Cups across seasons, viewing a Season shows other
+// Seasons. Always keeps the current selection in the list even if it'd
+// otherwise be filtered out.
+export const dropdownCompetitionsFor = (competitions: Competition[], selected?: Competition): Competition[] => {
+    const targetFormat = selected?.format || 'SEASON';
+    const list = competitions.filter(c => (c.format || 'SEASON') === targetFormat);
+    if (selected && !list.some(c => c.id === selected.id)) list.push(selected);
+    return list;
 };
 
 export interface Team {
@@ -1172,12 +1193,12 @@ export const getAdminCompetitions = async (page: number = 1, limit: number = 100
     return response.data;
 };
 
-export const createCompetition = async (payload: { name: string; logo: string; status?: string; format?: string; playoff_competition_id?: string | null; tie_breaker_rule?: string }) => {
+export const createCompetition = async (payload: { name: string; logo: string; status?: string; format?: string; season_id?: string | null; tie_breaker_rule?: string }) => {
     const response = await api.post('/admin/competitions', payload);
     return response.data;
 };
 
-export const updateCompetition = async (id: string, payload: { name: string; logo: string; status?: string; format?: string; playoff_competition_id?: string | null; tie_breaker_rule?: string }) => {
+export const updateCompetition = async (id: string, payload: { name: string; logo: string; status?: string; format?: string; season_id?: string | null; tie_breaker_rule?: string }) => {
     const response = await api.put(`/admin/competitions/${id}`, payload);
     return response.data;
 };

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getCompetitions, getPlayerStats, getTeamStats, getStatDates, getTeams, sortCompetitionsBySeason, type Competition } from '../../services/api';
+import { getCompetitions, getPlayerStats, getTeamStats, getStatDates, getTeams, sortCompetitionsBySeason, dropdownCompetitionsFor, type Competition } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { StatsTable } from '../../components/stats/StatsTable';
-import { SeasonPlayoffTabs } from '../../components/common/SeasonPlayoffTabs';
+import { SeasonStageTabs } from '../../components/common/SeasonStageTabs';
 import { useSearchParams } from 'react-router-dom';
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
@@ -122,13 +122,9 @@ export const StatsPage = () => {
     const competitions = sortCompetitionsBySeason(
         (competitionsData?.data || []).filter(c => c.status !== 'inactive')
     );
-    const leagueComps = competitions.filter(c => c.format !== 'KNOCKOUT');
     const selectedComp = competitions.find(c => c.id === selectedCompetitionId);
 
-    const isCurrentPlayoff = selectedComp?.format === 'KNOCKOUT';
-    const dropdownComps = isCurrentPlayoff
-        ? competitions.filter(c => c.format === 'KNOCKOUT')
-        : leagueComps;
+    const dropdownComps = dropdownCompetitionsFor(competitions, selectedComp);
 
     const handleCompChange = (compId: string) => {
         setSelectedCompetitionId(compId);
@@ -322,7 +318,7 @@ export const StatsPage = () => {
             )}
 
             {/* Season | Playoffs toggle for the selected competition */}
-            <SeasonPlayoffTabs competitions={competitions} currentId={selectedCompetitionId} onChange={handleCompChange} />
+            <SeasonStageTabs competitions={competitions} currentId={selectedCompetitionId} onChange={handleCompChange} />
 
             {/* Tabs */}
             <div className="flex space-x-2 border-b border-gray-200 dark:border-gray-700 overflow-x-auto scrollbar-hide">

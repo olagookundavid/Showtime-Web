@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getGallery, getCompetitions, getMatches, sortCompetitionsBySeason, type Competition } from '../../services/api';
+import { getGallery, getCompetitions, getMatches, sortCompetitionsBySeason, dropdownCompetitionsFor, type Competition } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { Spinner } from '../../components/ui';
 import { Pagination } from '../../components/ui/Pagination';
-import { SeasonPlayoffTabs } from '../../components/common/SeasonPlayoffTabs';
+import { SeasonStageTabs } from '../../components/common/SeasonStageTabs';
 
 const ALL = 'ALL';
 
@@ -20,13 +20,10 @@ export const GalleryPage = () => {
     const competitions: Competition[] = sortCompetitionsBySeason(
         (competitionsData?.data || []).filter(c => c.status !== 'inactive')
     );
-    const leagueComps = competitions.filter(c => c.format !== 'KNOCKOUT');
+    const leagueComps = competitions.filter(c => (c.format || 'SEASON') === 'SEASON');
     const selectedComp = competitions.find(c => c.id === selectedCompetitionId);
 
-    const isCurrentPlayoff = selectedComp?.format === 'KNOCKOUT';
-    const dropdownComps = isCurrentPlayoff
-        ? competitions.filter(c => c.format === 'KNOCKOUT')
-        : leagueComps;
+    const dropdownComps = dropdownCompetitionsFor(competitions, selectedComp);
 
     // Default to the competition of the most recent match so the gallery lands
     // on the currently-active stage instead of just the newest competition row.
@@ -117,7 +114,7 @@ export const GalleryPage = () => {
             </div>
 
             {/* Season | Playoffs toggle for the selected competition */}
-            <SeasonPlayoffTabs competitions={competitions} currentId={selectedCompetitionId} onChange={handleCompetitionChange} />
+            <SeasonStageTabs competitions={competitions} currentId={selectedCompetitionId} onChange={handleCompetitionChange} />
 
             {/* Description */}
             <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">

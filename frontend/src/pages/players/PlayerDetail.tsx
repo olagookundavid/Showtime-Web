@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
-import { getPlayerById, getPlayerStatById, getCompetitions, getStatDates, sortCompetitionsBySeason } from '../../services/api';
+import { getPlayerById, getPlayerStatById, getCompetitions, getStatDates, sortCompetitionsBySeason, dropdownCompetitionsFor } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { Spinner } from '../../components/ui';
 import { useSearchParams } from 'react-router-dom';
-import { SeasonPlayoffTabs } from '../../components/common/SeasonPlayoffTabs';
+import { SeasonStageTabs } from '../../components/common/SeasonStageTabs';
 import { getStatsForPosition } from '../../utils/positionStatsMatrix';
 
 const StatCard = ({ label, value }: { label: string, value: number }) => {
@@ -41,15 +41,8 @@ export const PlayerDetail = () => {
     const competitions = sortCompetitionsBySeason(
         (competitionsData?.data || []).filter(c => c.status !== 'inactive')
     );
-    const leagueComps = competitions.filter(c => c.format !== 'KNOCKOUT');
     const selectedComp = competitions.find(c => c.id === compId);
-
-    const dropdownComps = leagueComps.slice();
-    if (selectedComp && selectedComp.format === 'KNOCKOUT') {
-        if (!dropdownComps.some(c => c.id === selectedComp.id)) {
-            dropdownComps.push(selectedComp);
-        }
-    }
+    const dropdownComps = dropdownCompetitionsFor(competitions, selectedComp);
 
     const handleCompChange = (newCompId: string) => {
         const params = new URLSearchParams(searchParams);
@@ -215,7 +208,7 @@ export const PlayerDetail = () => {
                 </div>
 
                 <div className="px-4 md:px-6 pt-4">
-                    <SeasonPlayoffTabs competitions={competitions} currentId={compId} onChange={handleCompChange} />
+                    <SeasonStageTabs competitions={competitions} currentId={compId} onChange={handleCompChange} />
                 </div>
 
                 {loadingStats ? (

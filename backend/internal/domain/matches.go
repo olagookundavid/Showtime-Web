@@ -7,9 +7,21 @@ import (
 type CompetitionFormat string
 
 const (
-	CompetitionFormatLeague   CompetitionFormat = "LEAGUE"
-	CompetitionFormatKnockout CompetitionFormat = "KNOCKOUT"
+	CompetitionFormatPreseason CompetitionFormat = "PRESEASON"
+	CompetitionFormatSeason    CompetitionFormat = "SEASON"
+	CompetitionFormatPlayoffs CompetitionFormat = "PLAYOFFS"
+	CompetitionFormatCup       CompetitionFormat = "CUP"
 )
+
+// ValidCompetitionFormats is the full set of formats a competition may carry.
+// Preseason and Cup are plain match lists (no standings, no bracket) today;
+// Cup is expected to grow bracket support later.
+var ValidCompetitionFormats = []string{
+	string(CompetitionFormatPreseason),
+	string(CompetitionFormatSeason),
+	string(CompetitionFormatPlayoffs),
+	string(CompetitionFormatCup),
+}
 
 const (
 	TieBreakerRulePCT_PD_PF_PA_NAME = "PCT_PD_PF_PA_NAME"     // Rule 1: Win % -> Point Diff -> Points For -> Points Against -> Name
@@ -21,8 +33,8 @@ type Competition struct {
 	Name                 string    `json:"name"`
 	Logo                 string    `json:"logo"`
 	Status               string    `json:"status"`
-	Format               string    `json:"format"` // LEAGUE | KNOCKOUT
-	PlayoffCompetitionID *string   `json:"playoff_competition_id,omitempty"`
+	Format               string    `json:"format"` // PRESEASON | SEASON | PLAYOFFS | CUP
+	SeasonID             *string   `json:"season_id,omitempty"`
 	TieBreakerRule       string    `json:"tie_breaker_rule"`
 	TeamIDs              []string  `json:"team_ids,omitempty"`
 	CreatedAt            time.Time `json:"created_at"`

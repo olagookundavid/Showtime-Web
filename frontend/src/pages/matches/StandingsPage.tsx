@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getCompetitions, getStandings, getMatches, sortCompetitionsBySeason } from '../../services/api';
+import { getCompetitions, getStandings, getMatches, sortCompetitionsBySeason, dropdownCompetitionsFor } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { StandingsTable } from '../../components/matches/StandingsTable';
 import { BracketView } from '../../components/matches/BracketView';
-import { SeasonPlayoffTabs } from '../../components/common/SeasonPlayoffTabs';
+import { SeasonStageTabs } from '../../components/common/SeasonStageTabs';
 
 export const StandingsPage = () => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -29,13 +29,10 @@ export const StandingsPage = () => {
     const competitions = sortCompetitionsBySeason(
         (competitionsData?.data || []).filter(c => c.status !== 'inactive')
     );
-    const leagueComps = competitions.filter(c => c.format !== 'KNOCKOUT');
+    const leagueComps = competitions.filter(c => (c.format || 'SEASON') === 'SEASON');
     const selectedComp = competitions.find(c => c.id === selectedCompetitionId);
 
-    const isCurrentPlayoff = selectedComp?.format === 'KNOCKOUT';
-    const dropdownComps = isCurrentPlayoff
-        ? competitions.filter(c => c.format === 'KNOCKOUT')
-        : leagueComps;
+    const dropdownComps = dropdownCompetitionsFor(competitions, selectedComp);
 
     // Pick the competition of the most recent match so the default lands on
     // the currently-running stage (regular season → playoffs → bowl) instead
@@ -108,7 +105,7 @@ export const StandingsPage = () => {
     // Find selected competition name
     const selectedCompetition = competitions.find(c => c.id === selectedCompetitionId);
     // Knockout competitions (playoffs + bowl) have a bracket instead of standings.
-    const isKnockout = selectedCompetition?.format === 'KNOCKOUT';
+    const isKnockout = selectedCompetition?.format === 'PLAYOFFS';
 
     const { data: standingsData, isLoading: dataLoading } = useQuery({
         queryKey: ['publicStandings', selectedCompetitionId],
@@ -159,7 +156,7 @@ export const StandingsPage = () => {
             </div>
 
             {competitions.length > 0 && (
-                <SeasonPlayoffTabs competitions={competitions} currentId={selectedCompetitionId} onChange={handleCompetitionChange} />
+                <SeasonStageTabs competitions={competitions} currentId={selectedCompetitionId} onChange={handleCompetitionChange} />
             )}
 
             {dataLoading && !isKnockout && (

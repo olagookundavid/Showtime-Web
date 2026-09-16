@@ -67,7 +67,7 @@ export const AdminMatches = () => {
 
     // Knockout comps swap the date-grouped table for the bracket builder,
     // which needs the whole bracket at once (no pagination).
-    const isKnockout = (compsData?.data || []).find(c => c.id === filterComp)?.format === 'KNOCKOUT';
+    const isKnockout = (compsData?.data || []).find(c => c.id === filterComp)?.format === 'PLAYOFFS';
 
     const { data: matchesData, isLoading: loadingMatches } = useQuery({
         queryKey: ['adminMatches', { comp: filterComp, page, search: searchTerm, knockout: isKnockout }],
@@ -111,7 +111,7 @@ export const AdminMatches = () => {
     const selectedCompData = competitions.find(c => c.id === filterComp);
     const isCompleted = selectedCompData?.status === 'completed';
     const formComp = (compsData?.data || []).find(c => c.id === form.competition_id);
-    const formIsKnockout = formComp?.format === 'KNOCKOUT';
+    const formIsKnockout = formComp?.format === 'PLAYOFFS';
     const bracketTargets: Match[] = (bracketMatchesData?.data || []).filter(m => m.id !== editingId);
 
     // teams must be declared FIRST — compScopedTeams and activeTeamsForForm depend on it.

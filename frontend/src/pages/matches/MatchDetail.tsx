@@ -271,7 +271,7 @@ export const MatchDetail = () => {
     const awaySheet = team_sheet?.away_team ?? [];
     const hasTeamSheet = homeSheet.length > 0 || awaySheet.length > 0;
 
-    const isBye = match.competition?.format === 'KNOCKOUT' &&
+    const isBye = match.competition?.format === 'PLAYOFFS' &&
         ((match.home_team?.id && !match.away_team?.id && match.status === 'FINISHED') ||
          (!match.home_team?.id && match.away_team?.id && match.status === 'FINISHED'));
 

@@ -101,7 +101,7 @@ export const AdminPlayers = () => {
             toast.error('Please enter a valid jersey number (1 to 99)');
             return;
         }
-        if (!form.team_id) {
+        if (!editingId && !form.team_id) {
             toast.error('Team selection is required');
             return;
         }
@@ -131,6 +131,8 @@ export const AdminPlayers = () => {
                 toast.success('Player created successfully');
             }
             queryClient.invalidateQueries({ queryKey: ['adminPlayers'] });
+            queryClient.invalidateQueries({ queryKey: ['adminTeams'] });
+            queryClient.invalidateQueries({ queryKey: ['adminTeamsList'] });
             setShowModal(false);
         } catch (err: any) {
             console.error(err);
@@ -440,16 +442,14 @@ export const AdminPlayers = () => {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Team *</label>
-                                    {editingId ? (
-                                        <div className="w-full border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-700/60 text-gray-700 dark:text-gray-300 rounded-lg px-3 py-2 min-h-[44px] flex items-center font-semibold text-sm cursor-not-allowed select-none">
-                                            {teams.find(t => t.id === form.team_id)?.name || 'Unassigned / Free Agent'}
-                                        </div>
-                                    ) : (
-                                        <select value={form.team_id} onChange={e => set('team_id', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-[44px] z-50">
-                                            <option value="" className="truncate">Select...</option>
-                                            {teams.map(t => <option key={t.id} value={t.id} className="truncate">{t.name}</option>)}
-                                        </select>
-                                    )}
+                                    <select
+                                        value={form.team_id}
+                                        onChange={e => set('team_id', e.target.value)}
+                                        className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-[44px] z-50 font-semibold text-sm"
+                                    >
+                                        <option value="" className="truncate">{editingId ? 'Unassigned / Free Agent' : 'Select...'}</option>
+                                        {teams.map(t => <option key={t.id} value={t.id} className="truncate">{t.name}</option>)}
+                                    </select>
                                 </div>
                             </div>
                             <div>

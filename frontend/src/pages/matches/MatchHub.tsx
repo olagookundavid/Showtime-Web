@@ -1,13 +1,13 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { getCompetitions, getMatches, getStandings, getTeams, sortCompetitionsBySeason, type Match, type Competition, type PaginatedResponse } from '../../services/api';
+import { getCompetitions, getMatches, getStandings, getTeams, sortCompetitionsBySeason, dropdownCompetitionsFor, type Match, type Competition, type PaginatedResponse } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { Spinner } from '../../components/ui';
 import { MatchCard } from '../../components/matches/MatchCard';
 import { MatchStandingsTable } from '../../components/matches/MatchStandingsTable';
 import { BracketView } from '../../components/matches/BracketView';
-import { SeasonPlayoffTabs } from '../../components/common/SeasonPlayoffTabs';
+import { SeasonStageTabs } from '../../components/common/SeasonStageTabs';
 
 export const MatchHub = () => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -53,13 +53,10 @@ export const MatchHub = () => {
     const competitions = sortCompetitionsBySeason(
         (competitionsData?.data || []).filter(c => c.status !== 'inactive')
     );
-    const leagueComps = competitions.filter(c => c.format !== 'KNOCKOUT');
+    const leagueComps = competitions.filter(c => (c.format || 'SEASON') === 'SEASON');
     const selectedComp = competitions.find(c => c.id === selectedCompetitionId);
 
-    const isCurrentPlayoff = selectedComp?.format === 'KNOCKOUT';
-    const dropdownComps = isCurrentPlayoff
-        ? competitions.filter(c => c.format === 'KNOCKOUT')
-        : leagueComps;
+    const dropdownComps = dropdownCompetitionsFor(competitions, selectedComp);
 
     // Anchor the default selection to the most recently PLAYED match's
     // competition (FINISHED only). Without the status filter, future scheduled
@@ -113,8 +110,8 @@ export const MatchHub = () => {
 
     const selectedCompetition = competitions.find(c => c.id === selectedCompetitionId);
     const isCompleted = selectedCompetition?.status === 'completed';
-    // Knockout competitions show the playoff bracket instead of standings.
-    const isKnockout = selectedCompetition?.format === 'KNOCKOUT';
+    // Playoffs competitions show the bracket instead of standings.
+    const isKnockout = selectedCompetition?.format === 'PLAYOFFS';
 
     const { data: standingsData, isLoading: standingsLoading } = useQuery({
         queryKey: ['publicStandings', selectedCompetitionId],
@@ -260,7 +257,7 @@ export const MatchHub = () => {
 
                 {/* Left Column: Matches (2/3 width) */}
                 <div className="lg:col-span-2 space-y-6">
-                    <SeasonPlayoffTabs competitions={competitions} currentId={selectedCompetitionId} onChange={handleCompetitionChange} />
+                    <SeasonStageTabs competitions={competitions} currentId={selectedCompetitionId} onChange={handleCompetitionChange} />
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <h2 className="text-2xl font-bold text-sffl-navy dark:text-white flex items-center gap-2">
                             <span className="text-sffl-red">●</span> Fixtures & Results
@@ -395,7 +392,7 @@ export const MatchHub = () => {
                             <MatchStandingsTable 
                                 standings={standings} 
                                 isCompleted={isCompleted} 
-                                isPlayoffs={selectedComp?.format === 'KNOCKOUT'}
+                                isPlayoffs={selectedComp?.format === 'PLAYOFFS'}
                                 viewAllLink={`/standings?comp=${selectedCompetitionId}`}
                             />
 

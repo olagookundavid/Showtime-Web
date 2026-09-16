@@ -113,7 +113,7 @@ export const LatestMatchesCarousel = () => {
                             const isLive = match.status === 'LIVE';
                             // A knockout match with exactly one team is a bye — show "BYE"
                             // on the empty side instead of the raw T1/T2 placeholder.
-                            const isBye = match.competition?.format === 'KNOCKOUT' &&
+                            const isBye = match.competition?.format === 'PLAYOFFS' &&
                                 ((!!match.home_team?.id && !match.away_team?.id) ||
                                  (!match.home_team?.id && !!match.away_team?.id));
                             return (

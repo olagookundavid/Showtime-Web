@@ -20,8 +20,8 @@ interface Competition {
     name: string;
     logo: string;
     status?: string;
-    format?: string;
-    playoff_competition_id?: string | null;
+    format?: string; // PRESEASON | SEASON | PLAYOFFS | CUP
+    season_id?: string | null;
     tie_breaker_rule?: string;
     team_ids?: string[];
 }
@@ -54,15 +54,15 @@ const AdminCompetitions = () => {
         logo: string;
         status: string;
         format: string;
-        playoff_competition_id: string;
+        season_id: string;
         tie_breaker_rule: string;
         team_ids: string[];
     }>({
         name: '',
         logo: '',
         status: 'active',
-        format: 'LEAGUE',
-        playoff_competition_id: '',
+        format: 'SEASON',
+        season_id: '',
         tie_breaker_rule: 'PCT_PD_PF_PA_NAME',
         team_ids: [],
     });
@@ -73,7 +73,7 @@ const AdminCompetitions = () => {
         queryKey: ['allCompetitionsLinkable'],
         queryFn: () => getCompetitions(1, 100),
     });
-    const knockoutComps = (allCompsData?.data || []).filter(c => c.format === 'KNOCKOUT');
+    const seasonComps = (allCompsData?.data || []).filter(c => c.format === 'SEASON');
 
     const { data: allTeamsData } = useQuery({
         queryKey: ['adminTeamsAll'],
@@ -99,8 +99,8 @@ const AdminCompetitions = () => {
             name: '',
             logo: '',
             status: 'active',
-            format: 'LEAGUE',
-            playoff_competition_id: '',
+            format: 'SEASON',
+            season_id: '',
             tie_breaker_rule: 'PCT_PD_PF_PA_NAME',
             team_ids: [],
         });
@@ -114,8 +114,8 @@ const AdminCompetitions = () => {
             name: c.name,
             logo: c.logo,
             status: c.status || 'active',
-            format: c.format || 'LEAGUE',
-            playoff_competition_id: c.playoff_competition_id || '',
+            format: c.format || 'SEASON',
+            season_id: c.season_id || '',
             tie_breaker_rule: c.tie_breaker_rule || 'PCT_PD_PF_PA_NAME',
             team_ids: [],
         });
@@ -139,7 +139,7 @@ const AdminCompetitions = () => {
         try {
             const payload = {
                 ...form,
-                playoff_competition_id: form.format === 'LEAGUE' ? (form.playoff_competition_id || null) : null
+                season_id: form.format !== 'SEASON' ? (form.season_id || null) : null
             };
             if (editing) {
                 await updateCompetition(editing.id, payload);
@@ -266,9 +266,9 @@ const AdminCompetitions = () => {
                                         </div>
                                     )}
                                     <h3 className="text-lg font-bold text-gray-900 dark:text-white flex-1">{comp.name}</h3>
-                                    {comp.format === 'KNOCKOUT' && (
+                                    {comp.format && comp.format !== 'SEASON' && (
                                         <span className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-sffl-navy/10 text-sffl-navy dark:bg-gray-700 dark:text-gray-200">
-                                            Knockout
+                                            {comp.format}
                                         </span>
                                     )}
                                     {comp.status && (
@@ -283,11 +283,11 @@ const AdminCompetitions = () => {
                                         </span>
                                     )}
                                 </div>
-                                {comp.playoff_competition_id && (
+                                {comp.season_id && (
                                     <div className="mt-1 mb-3 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5 bg-gray-50 dark:bg-gray-700/50 px-2 py-1.5 rounded-lg border border-gray-100 dark:border-gray-700/50 w-fit">
-                                        <span>🔗 Playoff:</span>
+                                        <span>🔗 Season:</span>
                                         <span className="font-semibold text-sffl-navy dark:text-gray-200">
-                                            {(allCompsData?.data || []).find(c => c.id === comp.playoff_competition_id)?.name || 'Linked Playoff'}
+                                            {(allCompsData?.data || []).find(c => c.id === comp.season_id)?.name || 'Linked Season'}
                                         </span>
                                     </div>
                                 )}
@@ -371,46 +371,54 @@ const AdminCompetitions = () => {
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Format *</label>
                                 <select value={form.format} onChange={e => setForm(f => ({ ...f, format: e.target.value }))}
                                     className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red">
-                                    <option value="LEAGUE">League (standings table)</option>
-                                    <option value="KNOCKOUT">Knockout (playoff bracket)</option>
+                                    <option value="SEASON">Season (regular season with standings)</option>
+                                    <option value="PRESEASON">Preseason (tune-up scrimmages & matches)</option>
+                                    <option value="PLAYOFFS">Playoffs (knockout bracket)</option>
+                                    <option value="CUP">Cup (tournament / cup competition)</option>
                                 </select>
                                 <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-                                    Knockout competitions show a bracket instead of standings. Winners advance automatically.
+                                    {form.format === 'PLAYOFFS'
+                                        ? 'Knockout competitions show a bracket instead of standings. Winners advance automatically.'
+                                        : 'Regular, preseason, and cup competitions track standings and team performances.'}
                                 </p>
                             </div>
 
-                            {form.format === 'LEAGUE' && (
-                                <>
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Standings Tie-Breaker Rule *</label>
-                                        <select
-                                            value={form.tie_breaker_rule}
-                                            onChange={e => setForm(f => ({ ...f, tie_breaker_rule: e.target.value }))}
-                                            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red text-xs sm:text-sm font-medium"
-                                        >
-                                            <option value="PCT_PD_PF_PA_NAME">Rule 1: Win % → Point Diff → Points For → Points Against → Name (A-Z)</option>
-                                            <option value="H2H_PCT_PD_PF_PA_NAME">Rule 2: Head-to-Head → Win % → Point Diff → Points For → Points Against → Name (A-Z)</option>
-                                        </select>
-                                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-                                            Determines how teams are ranked and broken when tied on points/percentage in standings.
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Playoff Stage</label>
-                                        <select value={form.playoff_competition_id} onChange={e => setForm(f => ({ ...f, playoff_competition_id: e.target.value }))}
-                                            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red text-xs sm:text-sm">
-                                            <option value="">-- No Playoff Stage --</option>
-                                            {knockoutComps.map(kc => (
-                                                <option key={kc.id} value={kc.id}>
-                                                    {kc.name}
+                            {form.format === 'SEASON' ? (
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Standings Tie-Breaker Rule *</label>
+                                    <select
+                                        value={form.tie_breaker_rule}
+                                        onChange={e => setForm(f => ({ ...f, tie_breaker_rule: e.target.value }))}
+                                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red text-xs sm:text-sm font-medium"
+                                    >
+                                        <option value="PCT_PD_PF_PA_NAME">Rule 1: Win % → Point Diff → Points For → Points Against → Name (A-Z)</option>
+                                        <option value="H2H_PCT_PD_PF_PA_NAME">Rule 2: Head-to-Head → Win % → Point Diff → Points For → Points Against → Name (A-Z)</option>
+                                    </select>
+                                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                                        Determines how teams are ranked and broken when tied on points/percentage in standings.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Parent Season</label>
+                                    <select
+                                        value={form.season_id}
+                                        onChange={e => setForm(f => ({ ...f, season_id: e.target.value }))}
+                                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-sffl-red text-xs sm:text-sm"
+                                    >
+                                        <option value="">-- No Parent Season (Independent) --</option>
+                                        {seasonComps
+                                            .filter(sc => !editing || sc.id !== editing.id)
+                                            .map(sc => (
+                                                <option key={sc.id} value={sc.id}>
+                                                    {sc.name}
                                                 </option>
                                             ))}
-                                        </select>
-                                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-                                            Link a knockout stage (playoffs/bowl) to this regular season competition.
-                                        </p>
-                                    </div>
-                                </>
+                                    </select>
+                                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                                        Attach this {form.format.toLowerCase()} competition to a regular season.
+                                    </p>
+                                </div>
                             )}
 
                             {/* ── Enrolled Teams Multi-Select Section ── */}

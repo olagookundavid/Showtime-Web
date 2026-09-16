@@ -8,6 +8,7 @@ import {
     getCompetitions,
     getPlayers,
     sortCompetitionsBySeason,
+    dropdownCompetitionsFor,
     type Team,
 } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
@@ -53,25 +54,21 @@ export const TeamDetail = () => {
     const competitions = sortCompetitionsBySeason(
         (competitionsData?.data || []).filter(c => c.status !== 'inactive')
     );
-    const leagueComps = competitions.filter(c => c.format !== 'KNOCKOUT');
     const selectedComp = competitions.find(c => c.id === selectedCompetitionId);
-    
-    // Find linked playoff for selected comp
-    const linkedPlayoff = selectedComp?.playoff_competition_id
-        ? competitions.find(c => c.id === selectedComp.playoff_competition_id)
+
+    const seasonId = selectedComp?.format === 'SEASON' ? selectedComp.id : selectedComp?.season_id;
+
+    // Find the linked playoffs for the selected season.
+    const linkedPlayoff = selectedComp?.format === 'SEASON' && seasonId
+        ? competitions.find(c => c.season_id === seasonId && c.format === 'PLAYOFFS')
         : null;
 
-    // Reverse: if currently on a KNOCKOUT, find its parent league
-    const parentLeague = !linkedPlayoff
-        ? competitions.find(c => c.playoff_competition_id === selectedCompetitionId)
+    // Reverse: if currently on a Preseason/Playoffs/Cup, find its parent season.
+    const parentLeague = !linkedPlayoff && seasonId
+        ? competitions.find(c => c.id === seasonId)
         : null;
 
-    const dropdownComps = leagueComps.slice();
-    if (selectedComp && selectedComp.format === 'KNOCKOUT') {
-        if (!dropdownComps.some(c => c.id === selectedComp.id)) {
-            dropdownComps.push(selectedComp);
-        }
-    }
+    const dropdownComps = dropdownCompetitionsFor(competitions, selectedComp);
 
     useEffect(() => {
         if (!selectedCompetitionId && standingCompetitionId) {
