@@ -32,6 +32,7 @@ type IFantasyHandler interface {
 	AdminGetScheduledMatchDays(c *gin.Context)
 	AdminAutoScheduleGameweeks(c *gin.Context)
 	AdminUpdateGameweekDeadline(c *gin.Context)
+	AdminDeleteGameweek(c *gin.Context)
 	AdminInitializePrices(c *gin.Context)
 	AdminListPlayerPrices(c *gin.Context)
 	AdminOverridePlayerPrice(c *gin.Context)
@@ -336,6 +337,15 @@ func (h *FantasyHandler) AdminUpdateGameweekDeadline(c *gin.Context) {
 		"message": "Gameweek deadline updated successfully",
 		"data":    res,
 	})
+}
+
+func (h *FantasyHandler) AdminDeleteGameweek(c *gin.Context) {
+	gwID := c.Param("id")
+	if err := h.service.DeleteGameweek(c.Request.Context(), gwID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Gameweek deleted and remaining gameweeks re-synced successfully"})
 }
 
 func (h *FantasyHandler) AdminInitializePrices(c *gin.Context) {

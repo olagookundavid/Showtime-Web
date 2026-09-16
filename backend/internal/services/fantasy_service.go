@@ -28,6 +28,7 @@ type IFantasyService interface {
 	// resolve tidily, for the admin to see.
 	GameweekSyncNotices(seasonID string) []string
 	UpdateGameweekDeadline(ctx context.Context, gameweekID string, req dto.UpdateGameweekDeadlineRequest) (*dto.GameweekResponse, error)
+	DeleteGameweek(ctx context.Context, gameweekID string) error
 	InitializePlayerPrices(ctx context.Context, seasonID string) error
 	ListPlayerPricesForAdmin(ctx context.Context, seasonID string, search, position, teamID, overrideStatus string, page, limit int) ([]dto.AdminPlayerPriceItem, int, error)
 	OverridePlayerPrice(ctx context.Context, seasonID, playerID string, price *float64, reset bool) (*dto.AdminPlayerPriceItem, error)
@@ -353,6 +354,30 @@ func (s *FantasyService) UpdateGameweekDeadline(ctx context.Context, gameweekID 
 	}
 	kickoff, _ := s.repo.GetEventDayFirstKickoff(ctx, gw.EventDayID)
 	return gameweekResponse(gw, kickoff), nil
+}
+
+func (s *FantasyService) DeleteGameweek(ctx context.Context, gameweekID string) error {
+	gw, err := s.repo.GetGameweekByID(ctx, gameweekID)
+	if err != nil {
+		return err
+	}
+	if gw == nil {
+		return errors.New("gameweek not found")
+	}
+	if gw.Status == domain.GameweekFinalized {
+		return errors.New("cannot delete a finalized gameweek")
+	}
+
+	seasonID := gw.SeasonID
+
+	if err := s.repo.DeleteGameweek(ctx, gameweekID); err != nil {
+		return err
+	}
+
+	// Re-sync match days and renumber remaining scheduled gameweeks in calendar order.
+	_, _ = s.AutoScheduleGameweeks(ctx, seasonID)
+
+	return nil
 }
 
 // resolveDeadline turns an optional RFC3339 override plus the day's first

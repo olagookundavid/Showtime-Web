@@ -34,6 +34,7 @@ import {
 } from '../../services/api';
 import type {
     FantasySeason,
+    FantasyGameweek,
     AdminLeagueRow,
     AdminPlayerPriceRow,
     OwedRow,
@@ -943,6 +944,19 @@ function SetupTab({ season }: { season: FantasySeason }) {
         onError: (err: any) => toast.error(err?.response?.data?.error || err.message),
     });
 
+    const [deletingGw, setDeletingGw] = useState<FantasyGameweek | null>(null);
+
+    const deleteGwMutation = useMutation({
+        mutationFn: async (gwId: string) => fantasyApi.adminDeleteGameweek(gwId),
+        onSuccess: () => {
+            toast.success("Gameweek deleted and remaining schedule re-synced!");
+            setDeletingGw(null);
+            queryClient.invalidateQueries({ queryKey: ['adminFantasyGameweeks', season.id] });
+            queryClient.invalidateQueries({ queryKey: ['adminFantasyScheduledMatchDays', season.id] });
+        },
+        onError: (err: any) => toast.error(err?.response?.data?.error || err.message || 'Failed to delete gameweek'),
+    });
+
     if (gwLoading) {
         return <Loader />;
     }
@@ -1155,6 +1169,18 @@ function SetupTab({ season }: { season: FantasySeason }) {
                                                     {isFinalized && <ArrowPathIcon className="w-3.5 h-3.5" />}
                                                     {isFinalized ? 'Re-score' : 'Finalize & Score'}
                                                 </button>
+
+                                                {!isFinalized && (
+                                                    <button
+                                                        onClick={() => setDeletingGw(gw)}
+                                                        disabled={deleteGwMutation.isPending}
+                                                        className="px-3.5 py-2 rounded-xl bg-red-50 dark:bg-red-950/30 hover:bg-red-600 hover:text-white text-red-600 dark:text-red-400 text-xs font-bold uppercase flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+                                                        title={`Delete Gameweek ${gw.number}`}
+                                                    >
+                                                        <TrashIcon className="w-3.5 h-3.5" />
+                                                        <span>Delete</span>
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
 
@@ -1185,6 +1211,28 @@ function SetupTab({ season }: { season: FantasySeason }) {
                     )}
                 </div>
             </div>
+
+            {deletingGw && (
+                <ConfirmDialog
+                    open
+                    title={`Delete Gameweek ${deletingGw.number}?`}
+                    warning="This will permanently delete this gameweek. Unfinalized lineups will be cleared and remaining gameweeks will be automatically renumbered."
+                    confirmLabel="Yes, Delete Gameweek"
+                    pending={deleteGwMutation.isPending}
+                    onCancel={() => setDeletingGw(null)}
+                    onConfirm={() => deleteGwMutation.mutate(deletingGw.id)}
+                    body={
+                        <div className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
+                            <p>
+                                Are you sure you want to delete <strong className="text-gray-900 dark:text-white">Gameweek {deletingGw.number}</strong> (Lock Deadline: {new Date(deletingGw.deadline).toLocaleString()})?
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                Any unfinalized draft or rollover lineups for this gameweek will be safely removed, and remaining scheduled gameweeks will be automatically renumbered in calendar order.
+                            </p>
+                        </div>
+                    }
+                />
+            )}
         </div>
     );
 }

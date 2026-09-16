@@ -854,6 +854,7 @@ func SetupFantasyRoutes(r *gin.RouterGroup, app *api.Application) {
 		adminFantasy.PUT("/seasons/:id/prices/:playerId", app.Handlers.FantasyHandler.AdminOverridePlayerPrice)
 		adminFantasy.POST("/gameweeks/:id/finalize", app.Handlers.FantasyHandler.AdminFinalizeGameweek)
 		adminFantasy.POST("/gameweeks/:id/deadline", app.Handlers.FantasyHandler.AdminUpdateGameweekDeadline)
+		adminFantasy.DELETE("/gameweeks/:id", app.Handlers.FantasyHandler.AdminDeleteGameweek)
 
 		// Oversight
 		adminFantasy.GET("/seasons/:id/overview", app.Handlers.FantasyPayoutHandler.AdminGetOverview)

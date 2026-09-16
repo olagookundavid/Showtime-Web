@@ -46,6 +46,7 @@ type fakeFantasyRepo struct {
 	gwStatus     map[string]domain.GameweekStatus
 	clonedInto   []string
 	lockedGWs    []string
+	deletedGWs   []string
 	savedLineup  *domain.FantasyLineup
 	savedPicks   []domain.FantasyLineupPick
 	pickPoints     map[string]map[string]float64
@@ -88,6 +89,12 @@ func (f *fakeFantasyRepo) UpdateSeasonStatus(_ context.Context, id string, st do
 
 func (f *fakeFantasyRepo) GetGameweekByID(_ context.Context, id string) (*domain.FantasyGameweek, error) {
 	return f.gameweeks[id], nil
+}
+
+func (f *fakeFantasyRepo) DeleteGameweek(_ context.Context, id string) error {
+	delete(f.gameweeks, id)
+	f.deletedGWs = append(f.deletedGWs, id)
+	return nil
 }
 
 func (f *fakeFantasyRepo) GetSeasonPricingLines(_ context.Context, _, _ string) ([]ports.PlayerPricingLine, error) {
@@ -1306,5 +1313,49 @@ func TestRepriceSeason_AbortsWhenOverridesUnreadable(t *testing.T) {
 
 	if len(repo.upsertedPrices) != 0 {
 		t.Errorf("expected no prices written when overrides could not be read, got %d", len(repo.upsertedPrices))
+	}
+}
+
+func TestDeleteGameweek_RejectsFinalized(t *testing.T) {
+	repo := newFakeRepo()
+	gw := testGameweek()
+	gw.Status = domain.GameweekFinalized
+	repo.gameweeks[gw.ID] = gw
+
+	svc := NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil, ownsPool(repo))
+
+	err := svc.DeleteGameweek(context.Background(), gw.ID)
+	if err == nil {
+		t.Fatal("expected error deleting finalized gameweek, got nil")
+	}
+	assertErrContains(t, err, "cannot delete a finalized gameweek")
+
+	if len(repo.deletedGWs) != 0 {
+		t.Errorf("expected gameweek not to be deleted, got %v", repo.deletedGWs)
+	}
+}
+
+func TestDeleteGameweek_SucceedsForUnfinalized(t *testing.T) {
+	for _, st := range []domain.GameweekStatus{domain.GameweekScheduled, domain.GameweekLocked, domain.GameweekLive} {
+		t.Run(string(st), func(t *testing.T) {
+			repo := newFakeRepo()
+			gw := testGameweek()
+			gw.Status = st
+			repo.gameweeks[gw.ID] = gw
+
+			svc := NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil, ownsPool(repo))
+
+			err := svc.DeleteGameweek(context.Background(), gw.ID)
+			if err != nil {
+				t.Fatalf("unexpected error deleting gameweek: %v", err)
+			}
+
+			if len(repo.deletedGWs) != 1 || repo.deletedGWs[0] != gw.ID {
+				t.Errorf("expected gameweek %s to be deleted, got %v", gw.ID, repo.deletedGWs)
+			}
+			if repo.gameweeks[gw.ID] != nil {
+				t.Errorf("expected gameweek to be removed from map")
+			}
+		})
 	}
 }

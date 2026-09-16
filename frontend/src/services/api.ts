@@ -3218,6 +3218,9 @@ export const fantasyApi = {
     adminFinalizeGameweek: async (gwId: string): Promise<void> => {
         await api.post(`/admin/fantasy/gameweeks/${gwId}/finalize`);
     },
+    adminDeleteGameweek: async (gwId: string): Promise<void> => {
+        await api.delete(`/admin/fantasy/gameweeks/${gwId}`);
+    },
 };
 
 export interface ScheduledMatchDay {

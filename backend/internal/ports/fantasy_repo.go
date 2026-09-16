@@ -31,6 +31,7 @@ type IFantasyRepository interface {
 	// Gameweek
 	CreateGameweek(ctx context.Context, gw *domain.FantasyGameweek) error
 	GetGameweekByID(ctx context.Context, id string) (*domain.FantasyGameweek, error)
+	DeleteGameweek(ctx context.Context, id string) error
 	GetCurrentGameweek(ctx context.Context, seasonID string) (*domain.FantasyGameweek, error)
 	ListGameweeks(ctx context.Context, seasonID string) ([]domain.FantasyGameweek, error)
 	UpdateGameweekStatus(ctx context.Context, id string, status domain.GameweekStatus) error
@@ -424,6 +425,29 @@ func (r *FantasyRepository) UpdateGameweekDeadline(ctx context.Context, id strin
 	}
 	if tag.RowsAffected() == 0 {
 		return errors.New("gameweek not found, or already locked — its deadline can no longer be moved")
+	}
+	return nil
+}
+
+func (r *FantasyRepository) DeleteGameweek(ctx context.Context, id string) error {
+	// status <> 'FINALIZED' is re-checked here rather than trusted from the
+	// service's earlier read, so a gameweek that gets finalized by the
+	// auto-finalize cron in the gap between that read and this exec can never
+	// be deleted out from under its just-computed scores.
+	query := `DELETE FROM fantasy_gameweeks WHERE id = $1::uuid AND status <> 'FINALIZED'`
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	tag, err := r.pool.Exec(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete gameweek: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		var exists bool
+		if err := r.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM fantasy_gameweeks WHERE id = $1::uuid)`, id).Scan(&exists); err == nil && exists {
+			return errors.New("cannot delete a finalized gameweek")
+		}
+		return errors.New("gameweek not found")
 	}
 	return nil
 }
@@ -1876,7 +1900,11 @@ func (r *FantasyRepository) ListScheduledGameweeks(ctx context.Context, seasonID
 
 	rows, err := r.pool.Query(ctx, `
 		SELECT g.id::text, g.number, ed.date::text, g.status, g.deadline,
-		       EXISTS (SELECT 1 FROM fantasy_lineups fl WHERE fl.gameweek_id = g.id) AS has_history
+		       (
+		           g.status = 'FINALIZED'
+		           OR EXISTS (SELECT 1 FROM fantasy_gw_points gp WHERE gp.gameweek_id = g.id)
+		           OR EXISTS (SELECT 1 FROM fantasy_lineups fl WHERE fl.gameweek_id = g.id AND fl.status = 'LOCKED')
+		       ) AS has_history
 		FROM fantasy_gameweeks g
 		JOIN event_days ed ON ed.id = g.event_day_id
 		WHERE g.season_id = $1::uuid
@@ -1954,16 +1982,21 @@ func (r *FantasyRepository) ApplyGameweekPlan(ctx context.Context, seasonID, com
 		// stale plan can never take scored history with it.
 		//
 		// Two things may go: a gameweek still SCHEDULED, and one that locked
-		// but holds nothing — no lineup was ever saved against it, so no points
-		// were awarded and there is no result to lose. That second case is how
-		// an empty gameweek left behind by a fixture change gets cleared; a
-		// locked gameweek anyone actually played survives the NOT EXISTS.
+		// but holds nothing — no points were awarded against it, no manager
+		// ever locked in a squad, and it was never finalized. That second case
+		// is how an empty gameweek left behind by a fixture change gets
+		// cleared; a locked gameweek that was actually scored, or that a
+		// manager committed a squad to, survives.
 		if _, err := tx.Exec(ctx, `
 			DELETE FROM fantasy_gameweeks g
 			WHERE g.id = $1::uuid AND g.season_id = $2::uuid
 			  AND (
 			      g.status = 'SCHEDULED'
-			      OR NOT EXISTS (SELECT 1 FROM fantasy_lineups fl WHERE fl.gameweek_id = g.id)
+			      OR (
+			          g.status <> 'FINALIZED'
+			          AND NOT EXISTS (SELECT 1 FROM fantasy_gw_points gp WHERE gp.gameweek_id = g.id)
+			          AND NOT EXISTS (SELECT 1 FROM fantasy_lineups fl WHERE fl.gameweek_id = g.id AND fl.status = 'LOCKED')
+			      )
 			  )
 		`, id, seasonID); err != nil {
 			return fmt.Errorf("failed to remove gameweek %s: %w", id, err)
