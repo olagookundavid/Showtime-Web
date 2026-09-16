@@ -1433,3 +1433,180 @@ func TestMatchListingOrder(t *testing.T) {
 		}
 	})
 }
+
+// TestEmptyLockedGameweekIsClearedButPlayedOnesSurvive covers the case that left
+// a permanently stuck Gameweek 1 on the live season: a gameweek locked purely
+// because its deadline passed, on a date with no fixtures, that nobody had ever
+// fielded a side in. It could not score and could not be removed.
+//
+// The SQL guard is what matters here — the plan says what should go, but the
+// delete re-checks that nothing hangs off the gameweek before removing it.
+func TestEmptyLockedGameweekIsClearedButPlayedOnesSurvive(t *testing.T) {
+	f := setupFantasyFixture(t)
+	ctx := context.Background()
+	repo := ports.NewFantasyRepository(f.pool)
+
+	// Two locked gameweeks on dates with no fixtures. One has a lineup against
+	// it, the other has nothing.
+	mkEmptyDay := func(t *testing.T, offset, number int) string {
+		t.Helper()
+		edID := mustScan(t, f.pool,
+			`INSERT INTO event_days (title, date) VALUES ($1, CURRENT_DATE + $2::int) RETURNING id`,
+			fmt.Sprintf("ITest Empty %d", number), offset)
+		gwID := mustScan(t, f.pool,
+			`INSERT INTO fantasy_gameweeks (season_id, number, event_day_id, deadline, status)
+			 VALUES ($1, $2, $3, NOW() - INTERVAL '1 day', 'LOCKED') RETURNING id`,
+			f.seasonID, number, edID)
+		t.Cleanup(func() {
+			f.pool.Exec(ctx, `DELETE FROM fantasy_gameweeks WHERE id = $1`, gwID)
+			f.pool.Exec(ctx, `DELETE FROM event_days WHERE id = $1`, edID)
+		})
+		return gwID
+	}
+
+	emptyGW := mkEmptyDay(t, f.dayOffset+30, 90)
+	playedGW := mkEmptyDay(t, f.dayOffset+31, 91)
+
+	// Somebody actually played the second one.
+	mustExec(t, f.pool,
+		`INSERT INTO fantasy_lineups (team_id, gameweek_id, total_spent, points, status)
+		 VALUES ($1, $2, 140.00, 42.5, 'LOCKED')`,
+		f.teamID, playedGW)
+
+	existing, err := repo.ListScheduledGameweeks(ctx, f.seasonID)
+	if err != nil {
+		t.Fatalf("ListScheduledGameweeks: %v", err)
+	}
+
+	// The history flag is what the planner decides on, so check it is read.
+	byID := map[string]domain.ScheduledGameweek{}
+	for _, gw := range existing {
+		byID[gw.ID] = gw
+	}
+	if byID[emptyGW].HasHistory {
+		t.Error("a gameweek with no lineups must not report history")
+	}
+	if !byID[playedGW].HasHistory {
+		t.Error("a gameweek with a lineup must report history")
+	}
+
+	days, err := repo.GetScheduledMatchDays(ctx, f.compID)
+	if err != nil {
+		t.Fatalf("GetScheduledMatchDays: %v", err)
+	}
+	mds := make([]domain.MatchDay, 0, len(days))
+	for _, d := range days {
+		md := domain.MatchDay{Date: d.Date, MatchCount: d.MatchCount}
+		if k, err := time.Parse(time.RFC3339, d.EarliestKickoff); err == nil {
+			md.EarliestKickoff = &k
+		}
+		mds = append(mds, md)
+	}
+
+	plan, err := domain.PlanGameweeks(existing, mds, 720)
+	if err != nil {
+		t.Fatalf("PlanGameweeks: %v", err)
+	}
+	if err := repo.ApplyGameweekPlan(ctx, f.seasonID, f.compID, plan); err != nil {
+		t.Fatalf("ApplyGameweekPlan: %v", err)
+	}
+
+	stillThere := func(t *testing.T, id string) bool {
+		t.Helper()
+		var n int
+		if err := f.pool.QueryRow(ctx,
+			`SELECT COUNT(*) FROM fantasy_gameweeks WHERE id = $1::uuid`, id).Scan(&n); err != nil {
+			t.Fatalf("existence check: %v", err)
+		}
+		return n > 0
+	}
+
+	if stillThere(t, emptyGW) {
+		t.Error("an empty locked gameweek should have been cleared")
+	}
+	if !stillThere(t, playedGW) {
+		t.Error("a locked gameweek someone played in must never be deleted")
+	}
+
+	// The planner would never ask for this, which is the point: the apply must
+	// refuse it anyway. A plan is computed from a snapshot, and between planning
+	// and applying a manager can save a lineup — so the guard has to live in the
+	// statement, not in the caller's good intentions.
+	t.Run("a stale plan cannot delete a gameweek someone has played", func(t *testing.T) {
+		if err := repo.ApplyGameweekPlan(ctx, f.seasonID, f.compID, domain.SchedulePlan{
+			Delete: []string{playedGW},
+		}); err != nil {
+			t.Fatalf("ApplyGameweekPlan: %v", err)
+		}
+		if !stillThere(t, playedGW) {
+			t.Error("the apply deleted a gameweek holding a manager's lineup")
+		}
+	})
+
+	// And its points are intact.
+	var points float64
+	if err := f.pool.QueryRow(ctx,
+		`SELECT COALESCE(SUM(points), 0) FROM fantasy_lineups WHERE gameweek_id = $1::uuid`,
+		playedGW).Scan(&points); err != nil {
+		t.Fatalf("points check: %v", err)
+	}
+	if points != 42.5 {
+		t.Errorf("points were lost: got %.1f, want 42.5", points)
+	}
+}
+
+// TestEmptyGameweeksNeverLock stops the artefact being created in the first
+// place: locking used to depend on the deadline alone, so a gameweek on a date
+// with no fixtures locked itself and then could never score.
+func TestEmptyGameweeksNeverLock(t *testing.T) {
+	f := setupFantasyFixture(t)
+	ctx := context.Background()
+	repo := ports.NewFantasyRepository(f.pool)
+
+	// An overdue gameweek on a date that has no fixtures at all.
+	edID := mustScan(t, f.pool,
+		`INSERT INTO event_days (title, date) VALUES ('ITest No Fixtures', CURRENT_DATE + $1::int) RETURNING id`,
+		f.dayOffset+40)
+	emptyGW := mustScan(t, f.pool,
+		`INSERT INTO fantasy_gameweeks (season_id, number, event_day_id, deadline, status)
+		 VALUES ($1, 95, $2, NOW() - INTERVAL '1 hour', 'SCHEDULED') RETURNING id`,
+		f.seasonID, edID)
+	t.Cleanup(func() {
+		f.pool.Exec(ctx, `DELETE FROM fantasy_gameweeks WHERE id = $1`, emptyGW)
+		f.pool.Exec(ctx, `DELETE FROM event_days WHERE id = $1`, edID)
+	})
+
+	due, err := repo.GetGameweeksDueForLock(ctx)
+	if err != nil {
+		t.Fatalf("GetGameweeksDueForLock: %v", err)
+	}
+	for _, gw := range due {
+		if gw.ID == emptyGW {
+			t.Error("a gameweek with no fixtures must not be due for locking")
+		}
+	}
+
+	// Give the day a fixture and it becomes lockable like any other.
+	mustExec(t, f.pool,
+		`INSERT INTO matches (competition_id, home_team_id, away_team_id, date, time)
+		 VALUES ($1, $2, $2, CURRENT_DATE + $3::int, '15:00')`,
+		f.compID, f.clubID, f.dayOffset+40)
+	t.Cleanup(func() {
+		f.pool.Exec(ctx, `DELETE FROM matches WHERE competition_id = $1 AND date = CURRENT_DATE + $2::int`,
+			f.compID, f.dayOffset+40)
+	})
+
+	due, err = repo.GetGameweeksDueForLock(ctx)
+	if err != nil {
+		t.Fatalf("GetGameweeksDueForLock: %v", err)
+	}
+	var found bool
+	for _, gw := range due {
+		if gw.ID == emptyGW {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("once the day has a fixture the gameweek must lock normally")
+	}
+}

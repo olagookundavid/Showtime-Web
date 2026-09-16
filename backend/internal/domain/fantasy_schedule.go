@@ -34,6 +34,11 @@ type ScheduledGameweek struct {
 	Date     string // the date of the event day it is bound to
 	Status   GameweekStatus
 	Deadline time.Time
+	// HasHistory is true when a manager has a lineup in this gameweek or points
+	// have been awarded for it. It is what makes a played gameweek worth
+	// protecting — a locked gameweek that nobody ever fielded a side in and that
+	// scored nothing is an artefact, not a result.
+	HasHistory bool
 }
 
 // PlannedGameweek is one gameweek the plan wants written. A blank ID means it
@@ -97,8 +102,18 @@ func PlanGameweeks(existing []ScheduledGameweek, days []MatchDay, lockMinsBefore
 	openByDate := make(map[string]ScheduledGameweek)
 	usedNumbers := make(map[int]bool)
 
+	dayHasFixtures := make(map[string]bool, len(days))
+	for _, d := range days {
+		dayHasFixtures[d.Date] = true
+	}
+
 	for _, gw := range existing {
-		if gameweekIsPlayed(gw.Status) {
+		// A played gameweek is frozen because points were awarded against it.
+		// One that never scored and that nobody fielded a side in has no such
+		// claim: if its day has also lost every fixture, it is an empty slot
+		// left behind by a schedule change and it goes like any other.
+		empty := gameweekIsPlayed(gw.Status) && !gw.HasHistory && !dayHasFixtures[gw.Date]
+		if gameweekIsPlayed(gw.Status) && !empty {
 			frozenByDate[gw.Date] = gw
 			usedNumbers[gw.Number] = true
 			plan.Frozen = append(plan.Frozen, gw.ID)

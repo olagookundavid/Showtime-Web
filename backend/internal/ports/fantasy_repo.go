@@ -531,11 +531,25 @@ func (r *FantasyRepository) GetScheduledMatchDays(ctx context.Context, competiti
 // locking. Restricted to ACTIVE seasons so draft or completed seasons are never
 // touched by the cron.
 func (r *FantasyRepository) GetGameweeksDueForLock(ctx context.Context) ([]domain.FantasyGameweek, error) {
+	// Only a gameweek with something to play locks.
+	//
+	// Locking used to depend on the deadline alone, so a gameweek sitting on a
+	// date with no fixtures — left behind when the calendar moved — locked
+	// itself the moment its deadline passed and then stayed LOCKED forever,
+	// unscoreable and undeletable. A gameweek with nothing on it is not a
+	// match day; it waits, and the next sync clears it away.
 	query := `
 		SELECT gw.id, gw.season_id, gw.number, gw.event_day_id, gw.deadline, gw.status, gw.created_at, gw.updated_at
 		FROM fantasy_gameweeks gw
 		JOIN fantasy_seasons s ON gw.season_id = s.id
+		JOIN event_days ed ON ed.id = gw.event_day_id
 		WHERE gw.status = 'SCHEDULED' AND gw.deadline <= NOW() AND s.status = 'ACTIVE'
+		  AND EXISTS (
+		      SELECT 1 FROM matches m
+		      WHERE m.competition_id = s.competition_id
+		        AND m.date = ed.date
+		        AND COALESCE(m.status, 'SCHEDULED') <> 'POSTPONED'
+		  )
 		ORDER BY gw.deadline ASC
 	`
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
@@ -1853,7 +1867,8 @@ func (r *FantasyRepository) ListScheduledGameweeks(ctx context.Context, seasonID
 	defer cancel()
 
 	rows, err := r.pool.Query(ctx, `
-		SELECT g.id::text, g.number, ed.date::text, g.status, g.deadline
+		SELECT g.id::text, g.number, ed.date::text, g.status, g.deadline,
+		       EXISTS (SELECT 1 FROM fantasy_lineups fl WHERE fl.gameweek_id = g.id) AS has_history
 		FROM fantasy_gameweeks g
 		JOIN event_days ed ON ed.id = g.event_day_id
 		WHERE g.season_id = $1::uuid
@@ -1867,7 +1882,7 @@ func (r *FantasyRepository) ListScheduledGameweeks(ctx context.Context, seasonID
 	var out []domain.ScheduledGameweek
 	for rows.Next() {
 		var gw domain.ScheduledGameweek
-		if err := rows.Scan(&gw.ID, &gw.Number, &gw.Date, &gw.Status, &gw.Deadline); err != nil {
+		if err := rows.Scan(&gw.ID, &gw.Number, &gw.Date, &gw.Status, &gw.Deadline, &gw.HasHistory); err != nil {
 			return nil, err
 		}
 		out = append(out, gw)
@@ -1927,11 +1942,21 @@ func (r *FantasyRepository) ApplyGameweekPlan(ctx context.Context, seasonID, com
 	defer tx.Rollback(ctx)
 
 	for _, id := range plan.Delete {
-		// Only ever a gameweek the planner judged unplayed, but the status is
-		// re-checked here so a stale plan can never delete scored history.
+		// The guard is re-stated here rather than trusted from the plan, so a
+		// stale plan can never take scored history with it.
+		//
+		// Two things may go: a gameweek still SCHEDULED, and one that locked
+		// but holds nothing — no lineup was ever saved against it, so no points
+		// were awarded and there is no result to lose. That second case is how
+		// an empty gameweek left behind by a fixture change gets cleared; a
+		// locked gameweek anyone actually played survives the NOT EXISTS.
 		if _, err := tx.Exec(ctx, `
-			DELETE FROM fantasy_gameweeks
-			WHERE id = $1::uuid AND season_id = $2::uuid AND status = 'SCHEDULED'
+			DELETE FROM fantasy_gameweeks g
+			WHERE g.id = $1::uuid AND g.season_id = $2::uuid
+			  AND (
+			      g.status = 'SCHEDULED'
+			      OR NOT EXISTS (SELECT 1 FROM fantasy_lineups fl WHERE fl.gameweek_id = g.id)
+			  )
 		`, id, seasonID); err != nil {
 			return fmt.Errorf("failed to remove gameweek %s: %w", id, err)
 		}

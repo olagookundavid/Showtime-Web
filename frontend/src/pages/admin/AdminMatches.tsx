@@ -583,6 +583,20 @@ export const AdminMatches = () => {
                                     <input type="text" value={form.venue} onChange={e => set('venue', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="e.g. SFFL Arena" />
                                 </div>
                             </div>
+
+                            {/* The routine edit. Moving a kickoff is safe but it
+                                does move the fantasy deadline, and moving a date
+                                moves the whole gameweek — worth saying before
+                                the save, not after. */}
+                            <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
+                                <p className="font-black uppercase tracking-wider mb-1">Fantasy follows this</p>
+                                <p>
+                                    Changing the <strong>kick-off</strong> moves this match day's fantasy lock time if
+                                    it is the earliest game of the day. Changing the <strong>date</strong> moves the
+                                    fantasy gameweek to the new day and renumbers the rest. Gameweeks already played
+                                    keep their number and are never moved.
+                                </p>
+                            </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Home Score</label>
@@ -617,7 +631,44 @@ export const AdminMatches = () => {
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4" data-dialog onClick={() => setDeleteConfirm(null)}>
                     <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl max-w-sm w-full border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <h3 className="text-lg font-bold text-sffl-navy dark:text-white mb-2">Delete Match?</h3>
-                        <p className="text-gray-600 dark:text-gray-400 mb-6">This action cannot be undone.</p>
+                        <p className="text-gray-600 dark:text-gray-400 mb-4">This action cannot be undone.</p>
+
+                        {/* Fantasy runs off this calendar: a gameweek is one date
+                            the competition plays on. Removing the last fixture on
+                            a day removes the day, and with it the gameweek — so
+                            the warning has to be louder for that case than for
+                            deleting one of several. */}
+                        {(() => {
+                            const match = matches.find(m => m.id === deleteConfirm);
+                            if (!match) return null;
+                            const sameDay = matches.filter(m => m.date === match.date);
+                            const isLastOnDay = sameDay.length <= 1;
+                            return (
+                                <div className={`mb-6 rounded-xl border p-3 text-xs ${
+                                    isLastOnDay
+                                        ? 'bg-red-50 border-red-200 text-red-800 dark:bg-red-950/40 dark:border-red-800 dark:text-red-200'
+                                        : 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-200'
+                                }`}>
+                                    <p className="font-black uppercase tracking-wider mb-1">
+                                        {isLastOnDay ? 'This also deletes a fantasy gameweek' : 'Affects fantasy'}
+                                    </p>
+                                    {isLastOnDay ? (
+                                        <p>
+                                            It is the only fixture on this date, so the match day disappears and its
+                                            fantasy gameweek is removed with it. If managers have already scored on that
+                                            gameweek their points go too — that gameweek is kept instead, and you will be
+                                            told. Either way the remaining gameweeks are renumbered.
+                                        </p>
+                                    ) : (
+                                        <p>
+                                            {sameDay.length - 1} other {sameDay.length - 1 === 1 ? 'fixture' : 'fixtures'} remain
+                                            on this date, so the fantasy gameweek stays. Its lock time may shift if this was
+                                            the earliest kickoff.
+                                        </p>
+                                    )}
+                                </div>
+                            );
+                        })()}
                         <div className="flex justify-end gap-2">
                             <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">Cancel</button>
                             <button onClick={() => handleDelete(deleteConfirm)} className="px-4 py-2 min-h-[44px] bg-red-600 text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">Delete</button>

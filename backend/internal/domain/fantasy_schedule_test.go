@@ -147,12 +147,18 @@ func TestPlanGameweeksTracksFixtureChanges(t *testing.T) {
 	})
 }
 
-// A played gameweek is history: points have been awarded against its number.
+// A played gameweek is protected because points were awarded against it, so
+// what is actually being protected is the history, not the status.
 func TestPlanGameweeksNeverDisturbsPlayedGameweeks(t *testing.T) {
+	withHistory := func(gw ScheduledGameweek) ScheduledGameweek {
+		gw.HasHistory = true
+		return gw
+	}
+
 	for _, status := range []GameweekStatus{GameweekLocked, GameweekLive, GameweekFinalized} {
-		t.Run(string(status)+" is frozen", func(t *testing.T) {
+		t.Run(string(status)+" with lineups is frozen", func(t *testing.T) {
 			existing := []ScheduledGameweek{
-				gwOn("played", 1, "2026-10-08", status, lockMins),
+				withHistory(gwOn("played", 1, "2026-10-08", status, lockMins)),
 				gwOn("open", 2, "2026-10-18", GameweekScheduled, lockMins),
 			}
 			// Its fixtures vanish, and its kickoff would have moved.
@@ -161,7 +167,7 @@ func TestPlanGameweeksNeverDisturbsPlayedGameweeks(t *testing.T) {
 			plan, _ := PlanGameweeks(existing, days, lockMins)
 			for _, id := range plan.Delete {
 				if id == "played" {
-					t.Error("a played gameweek must never be deleted")
+					t.Error("a gameweek managers played in must never be deleted")
 				}
 			}
 			for _, u := range plan.Update {
@@ -177,6 +183,48 @@ func TestPlanGameweeksNeverDisturbsPlayedGameweeks(t *testing.T) {
 			}
 		})
 	}
+
+	// The case that left a permanently stuck Gameweek 1 on the live season: a
+	// gameweek that locked purely because its deadline passed, on a date with no
+	// fixtures, that nobody ever fielded a side in. Nothing was scored, so there
+	// is nothing to protect and it is cleared like any other empty day.
+	t.Run("a locked gameweek that holds nothing is cleared", func(t *testing.T) {
+		existing := []ScheduledGameweek{
+			gwOn("empty", 1, "2026-09-13", GameweekLocked, lockMins), // HasHistory false
+			gwOn("real", 2, "2026-09-20", GameweekScheduled, lockMins),
+		}
+		days := []MatchDay{day("2026-09-20", 5)}
+
+		plan, _ := PlanGameweeks(existing, days, lockMins)
+
+		var cleared bool
+		for _, id := range plan.Delete {
+			if id == "empty" {
+				cleared = true
+			}
+		}
+		if !cleared {
+			t.Errorf("expected the empty locked gameweek to be cleared, got %+v", plan)
+		}
+		// And the real match day takes over as Gameweek 1.
+		if n := numbersByDate(t, plan)["2026-09-20"]; n != 1 {
+			t.Errorf("expected the first real match day to become Gameweek 1, got %d", n)
+		}
+	})
+
+	// It is emptiness that makes it disposable, not the lock. A locked gameweek
+	// whose fixtures are still there stays put even with no lineups yet.
+	t.Run("a locked gameweek that still has fixtures stays", func(t *testing.T) {
+		existing := []ScheduledGameweek{
+			gwOn("locked", 1, "2026-09-20", GameweekLocked, lockMins),
+		}
+		days := []MatchDay{day("2026-09-20", 5)}
+
+		plan, _ := PlanGameweeks(existing, days, lockMins)
+		if len(plan.Delete) != 0 {
+			t.Errorf("a locked gameweek with fixtures must stay, got %v", plan.Delete)
+		}
+	})
 }
 
 // The case that drove the design: a fixture appears earlier in the calendar than
