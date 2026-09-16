@@ -515,16 +515,30 @@ export const AdminPlayByPlay = () => {
 
     const [visibleCount, setVisibleCount] = useState(10);
 
+    // Fetched by status rather than one plain "page 1" call: the backend sorts
+    // the unfiltered list by date DESC, so any competition with upcoming
+    // fixtures buries every already-played match below a full page of future
+    // SCHEDULED ones and this dropdown would come up empty. Querying FINISHED
+    // and LIVE directly guarantees they're actually fetched regardless of how
+    // many SCHEDULED matches exist; SCHEDULED is fetched too (ascending, so
+    // the nearest dates lead) to catch today's not-yet-kicked-off games.
     const { data: matchesData } = useQuery({
         queryKey: ['pbpMatches'],
-        queryFn: () => getMatches(undefined, 1, 100),
+        queryFn: async () => {
+            const [finished, live, scheduled] = await Promise.all([
+                getMatches(undefined, 1, 100, 'FINISHED'),
+                getMatches(undefined, 1, 50, 'LIVE'),
+                getMatches(undefined, 1, 50, 'SCHEDULED'),
+            ]);
+            return { data: [...finished.data, ...live.data, ...scheduled.data] };
+        },
     });
     // Latest matches first — makes the most likely picks (today's/this week's
     // games) sit at the top instead of scattered through whatever order the
     // API returned.
     const matches: Match[] = useMemo(() => {
         const rawMatches = matchesData?.data || [];
-        
+
         // Get today's YYYY-MM-DD in local time to accurately filter out future matches
         const now = new Date();
         const year = now.getFullYear();

@@ -50,7 +50,7 @@ export const ProtectedRoute = ({
                     // Someone who opened this URL directly has nothing behind
                     // them; send them to the feature's public page instead of
                     // off the site.
-                    window.history.length > 1 ? navigate(-1) : navigate(fallbackPath)
+                    (window.history.state?.idx ?? 0) > 0 ? navigate(-1) : navigate(fallbackPath)
                 }
             />
         );

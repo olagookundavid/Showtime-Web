@@ -123,81 +123,82 @@ export const LatestMatchesCarousel = () => {
                                 <Link
                                     key={match.id}
                                     to={`/matches/${match.id}`}
-                                    className="flex-none w-[114px] sm:w-[120px] rounded-lg px-2 py-1 flex items-center justify-between gap-1.5 transition-all duration-300 snap-center cursor-pointer group h-[38px] sm:h-[40px] bg-white/5 dark:bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20"
+                                    className="flex-none w-[92px] sm:w-[98px] rounded-lg px-1.5 py-1 flex items-center justify-between gap-1 transition-all duration-300 snap-center cursor-pointer group h-[38px] sm:h-[40px] bg-white/5 dark:bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20"
                                 >
                                     <div className="flex flex-col justify-center gap-0.5 flex-1 min-w-0">
                                         {/* Home Team */}
-                                        <div className="flex items-center justify-between gap-1 min-w-0">
-                                            <div className="flex items-center gap-1 min-w-0">
-                                                {!match.home_team?.id && isBye ? (
-                                                    <span className="font-bold text-[9px] text-gray-400 italic uppercase truncate">BYE</span>
-                                                ) : (
-                                                    <>
-                                                        {match.home_team?.logo ? (
-                                                            <img
-                                                                src={match.home_team.logo}
-                                                                alt={match.home_team.short_name || match.home_team.name}
-                                                                className="w-3 h-3 sm:w-3.5 sm:h-3.5 object-contain shrink-0"
-                                                            />
-                                                        ) : (
-                                                            <span className="w-3 h-3 sm:w-3.5 sm:h-3.5 bg-white/10 rounded flex items-center justify-center text-[7.5px] text-gray-400 shrink-0">T1</span>
-                                                        )}
-                                                        <span className="font-bold text-[9.5px] sm:text-[10px] text-white truncate leading-none" title={match.home_team?.name}>
-                                                            {match.home_team?.short_name || match.home_team?.name}
-                                                        </span>
-                                                    </>
-                                                )}
-                                            </div>
-                                            {match.status === 'FINISHED' && match.home_team?.id && (
-                                                <span className="font-black text-[9.5px] sm:text-[10px] text-white/90 tabular-nums shrink-0 ml-1 leading-none">{match.home_score}</span>
+                                        <div className="flex items-center gap-1 min-w-0 h-[14px] sm:h-[15px]">
+                                            {!match.home_team?.id && isBye ? (
+                                                <span className="font-bold text-[9px] text-gray-400 italic uppercase truncate">BYE</span>
+                                            ) : (
+                                                <>
+                                                    {match.home_team?.logo ? (
+                                                        <img
+                                                            src={match.home_team.logo}
+                                                            alt={match.home_team.short_name || match.home_team.name}
+                                                            className="w-3 h-3 sm:w-3.5 sm:h-3.5 object-contain shrink-0"
+                                                        />
+                                                    ) : (
+                                                        <span className="w-3 h-3 sm:w-3.5 sm:h-3.5 bg-white/10 rounded flex items-center justify-center text-[7.5px] text-gray-400 shrink-0">T1</span>
+                                                    )}
+                                                    <span className="font-bold text-[9.5px] sm:text-[10px] text-white truncate leading-none" title={match.home_team?.name}>
+                                                        {match.home_team?.short_name || match.home_team?.name}
+                                                    </span>
+                                                </>
                                             )}
                                         </div>
                                         {/* Away Team */}
-                                        <div className="flex items-center justify-between gap-1 min-w-0">
-                                            <div className="flex items-center gap-1 min-w-0">
-                                                {!match.away_team?.id && isBye ? (
-                                                    <span className="font-bold text-[9px] text-gray-400 italic uppercase truncate">BYE</span>
-                                                ) : (
-                                                    <>
-                                                        {match.away_team?.logo ? (
-                                                            <img
-                                                                src={match.away_team.logo}
-                                                                alt={match.away_team.short_name || match.away_team.name}
-                                                                className="w-3 h-3 sm:w-3.5 sm:h-3.5 object-contain shrink-0"
-                                                            />
-                                                        ) : (
-                                                            <span className="w-3 h-3 sm:w-3.5 sm:h-3.5 bg-white/10 rounded flex items-center justify-center text-[7.5px] text-gray-400 shrink-0">T2</span>
-                                                        )}
-                                                        <span className="font-bold text-[9.5px] sm:text-[10px] text-white truncate leading-none" title={match.away_team?.name}>
-                                                            {match.away_team?.short_name || match.away_team?.name}
-                                                        </span>
-                                                    </>
-                                                )}
-                                            </div>
-                                            {match.status === 'FINISHED' && match.away_team?.id && (
-                                                <span className="font-black text-[9.5px] sm:text-[10px] text-white/90 tabular-nums shrink-0 ml-1 leading-none">{match.away_score}</span>
+                                        <div className="flex items-center gap-1 min-w-0 h-[14px] sm:h-[15px]">
+                                            {!match.away_team?.id && isBye ? (
+                                                <span className="font-bold text-[9px] text-gray-400 italic uppercase truncate">BYE</span>
+                                            ) : (
+                                                <>
+                                                    {match.away_team?.logo ? (
+                                                        <img
+                                                            src={match.away_team.logo}
+                                                            alt={match.away_team.short_name || match.away_team.name}
+                                                            className="w-3 h-3 sm:w-3.5 sm:h-3.5 object-contain shrink-0"
+                                                        />
+                                                    ) : (
+                                                        <span className="w-3 h-3 sm:w-3.5 sm:h-3.5 bg-white/10 rounded flex items-center justify-center text-[7.5px] text-gray-400 shrink-0">T2</span>
+                                                    )}
+                                                    <span className="font-bold text-[9.5px] sm:text-[10px] text-white truncate leading-none" title={match.away_team?.name}>
+                                                        {match.away_team?.short_name || match.away_team?.name}
+                                                    </span>
+                                                </>
                                             )}
                                         </div>
                                     </div>
-                                    {/* Action / Status Column */}
-                                    <div className="flex flex-col items-center justify-center shrink-0 border-l border-white/10 pl-1.5 text-center min-w-[28px] sm:min-w-[32px]">
-                                        {isLive ? (
+                                    {/* Action / Status / Score Column */}
+                                    {match.status === 'FINISHED' ? (
+                                        <div className="flex flex-col justify-center shrink-0 border-l border-white/10 pl-1 sm:pl-1.5 text-right min-w-[14px] sm:min-w-[16px] gap-0.5">
+                                            <span className="font-black text-[9.5px] sm:text-[10px] text-white/95 tabular-nums leading-none h-[14px] sm:h-[15px] flex items-center justify-end">
+                                                {match.home_score ?? 0}
+                                            </span>
+                                            <span className="font-black text-[9.5px] sm:text-[10px] text-white/95 tabular-nums leading-none h-[14px] sm:h-[15px] flex items-center justify-end">
+                                                {match.away_score ?? 0}
+                                            </span>
+                                        </div>
+                                    ) : isLive ? (
+                                        <div className="flex flex-col items-center justify-center shrink-0 border-l border-white/10 pl-1 sm:pl-1.5 text-center min-w-[22px] sm:min-w-[26px]">
                                             <span className="bg-sffl-red text-white text-[6.5px] sm:text-[7px] font-black uppercase px-1 py-0.5 rounded animate-pulse">LIVE</span>
-                                        ) : isBye ? (
+                                        </div>
+                                    ) : isBye ? (
+                                        <div className="flex flex-col items-center justify-center shrink-0 border-l border-white/10 pl-1 sm:pl-1.5 text-center min-w-[22px] sm:min-w-[26px]">
                                             <span className="text-[7px] font-black text-emerald-400 uppercase">BYE</span>
-                                        ) : (
-                                            <div className="flex flex-col items-center justify-center leading-tight gap-0.5">
-                                                <span className="text-[7.5px] sm:text-[8px] font-bold text-gray-300 whitespace-nowrap">
-                                                    {match.date ? new Date(match.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center shrink-0 border-l border-white/10 pl-1 sm:pl-1.5 text-center min-w-[26px] sm:min-w-[28px] leading-tight gap-0.5">
+                                            <span className="text-[7.5px] sm:text-[8px] font-bold text-gray-300 whitespace-nowrap">
+                                                {match.date ? new Date(match.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}
+                                            </span>
+                                            {match.start_time && formatMatchTime(match.start_time) !== 'TBD' && (
+                                                <span className="text-[6.5px] sm:text-[7px] font-medium text-gray-400 whitespace-nowrap">
+                                                    {formatMatchTime(match.start_time)}
                                                 </span>
-                                                {match.status !== 'FINISHED' && match.start_time && formatMatchTime(match.start_time) !== 'TBD' && (
-                                                    <span className="text-[6.5px] sm:text-[7px] font-medium text-gray-400 whitespace-nowrap">
-                                                        {formatMatchTime(match.start_time)}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </Link>
                             );
                         })}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { LockClosedIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 interface AuthRequiredDialogProps {
@@ -34,19 +34,7 @@ export const AuthRequiredDialog: React.FC<AuthRequiredDialogProps> = ({
     title = 'Sign In Required',
     closeLabel = 'Go Back',
 }) => {
-    const navigate = useNavigate();
-
     if (!open) return null;
-
-    // returnUrl travels in both the query string and router state: state survives
-    // the hop to the sign-up page and back, the query string survives a reload or
-    // a link the user copies out mid-flow.
-    const goToAuth = (path: '/login' | '/signup') => {
-        onClose?.();
-        navigate(`${path}?returnUrl=${encodeURIComponent(returnUrl)}`, {
-            state: { returnUrl },
-        });
-    };
 
     return createPortal(
         <div
@@ -80,18 +68,20 @@ export const AuthRequiredDialog: React.FC<AuthRequiredDialogProps> = ({
                     </div>
 
                     <div className="w-full space-y-2 pt-2">
-                        <button
-                            onClick={() => goToAuth('/login')}
-                            className="w-full bg-sffl-red hover:bg-red-700 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg transition-transform active:scale-95 text-sm cursor-pointer"
+                        <Link
+                            to={`/login?returnUrl=${encodeURIComponent(returnUrl)}`}
+                            state={{ returnUrl }}
+                            className="w-full block text-center bg-sffl-red hover:bg-[#A52323] text-white font-bold py-3.5 px-6 rounded-xl shadow-lg transition-transform active:scale-95 text-sm cursor-pointer"
                         >
                             Go to Login
-                        </button>
-                        <button
-                            onClick={() => goToAuth('/signup')}
-                            className="w-full bg-sffl-navy hover:bg-sffl-navy/90 dark:bg-gray-700 dark:hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-xl text-sm transition-colors cursor-pointer"
+                        </Link>
+                        <Link
+                            to={`/signup?returnUrl=${encodeURIComponent(returnUrl)}`}
+                            state={{ returnUrl }}
+                            className="w-full block text-center bg-sffl-navy hover:bg-sffl-navy/90 dark:bg-gray-700 dark:hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-xl text-sm transition-colors cursor-pointer"
                         >
                             Create an Account
-                        </button>
+                        </Link>
                         {onClose && (
                             <button
                                 onClick={onClose}
@@ -110,3 +100,4 @@ export const AuthRequiredDialog: React.FC<AuthRequiredDialogProps> = ({
         document.body
     );
 };
+

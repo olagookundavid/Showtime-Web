@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"errors"
 	"math"
 	"net/http"
 	"pkg-common/helpers"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
 )
 
 type IMatchHandler interface {
@@ -786,6 +788,10 @@ func (h *MatchHandler) GetMatchDetail(c *gin.Context) {
 	id := c.Param("id")
 	detail, err := h.service.GetMatchDetail(c.Request.Context(), id)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) || strings.Contains(err.Error(), "no rows") {
+			helpers.NotFoundResponseWithMsg(c, "Match not found")
+			return
+		}
 		helpers.ServerErrorResponse(c, err)
 		return
 	}
