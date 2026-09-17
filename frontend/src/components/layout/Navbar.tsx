@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 
@@ -11,26 +11,12 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
     const [leagueDropdownOpen, setLeagueDropdownOpen] = useState(false);
     const [storeDropdownOpen, setStoreDropdownOpen] = useState(false);
     const [statsDropdownOpen, setStatsDropdownOpen] = useState(false);
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [mobileStoreOpen, setMobileStoreOpen] = useState(false);
-    const [mobileLeagueOpen, setMobileLeagueOpen] = useState(false);
     const { isAuthenticated, user, logout } = useAuth();
     const { count: cartCount } = useCart();
     const navigate = useNavigate();
     const leagueTimeoutRef = useRef<number | null>(null);
     const storeTimeoutRef = useRef<number | null>(null);
     const statsTimeoutRef = useRef<number | null>(null);
-
-    useEffect(() => {
-        if (mobileMenuOpen) {
-            document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = 'unset';
-        }
-        return () => {
-            document.body.style.overflow = 'unset';
-        };
-    }, [mobileMenuOpen]);
 
     const handleLeagueEnter = () => {
         if (leagueTimeoutRef.current) {
@@ -79,7 +65,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
     return (
         <nav className="bg-sffl-navy sticky top-0 z-50 shadow-lg border-b-4 border-sffl-red">
             <div className="max-w-shell mx-auto px-4 py-2.5 md:py-3">
-                <div className="flex items-center justify-between text-white">
+                <div className="relative flex items-center justify-between text-white">
                     {/* Logo - Left */}
                     <Link to="/" className="flex items-center flex-shrink-0" aria-label="Showtime Home">
                         <img
@@ -284,140 +270,43 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                         </div>
                     </div>
 
-                    {/* Mobile Greeting */}
+                    {/* Mobile Center Greeting */}
                     {isAuthenticated && user?.name && (
-                        <span className="lg:hidden text-white/90 text-xs font-bold mr-3 self-center">
-                            Hi {user.name.split(' ')[0]}
-                        </span>
+                        <div className="lg:hidden absolute left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-none max-w-[45%] sm:max-w-[55%] text-center">
+                            <span className="text-white/90 text-xs sm:text-sm font-bold truncate">
+                                Hi <span className="font-extrabold text-white">{user.name.split(' ')[0]}</span>
+                            </span>
+                        </div>
                     )}
 
-                    {/* Mobile Menu Button - More icon */}
-                    <button
-                        onClick={onMoreClick}
-                        className="lg:hidden text-white focus:outline-none p-1 ml-2"
-                        aria-label="Open navigation menu"
-                    >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-
-            {/* Mobile Menu Overlay */}
-            <div
-                className={`lg:hidden fixed inset-0 z-40 bg-sffl-navy/95 backdrop-blur-sm transition-all duration-300 overflow-y-auto pt-[72px] ${mobileMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'}`}
-            >
-                <div className="container mx-auto px-6 py-8 pb-32 min-h-full flex flex-col">
-                    <div className="flex flex-col space-y-2 text-center">
-
-                        <Link to="/" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors uppercase">Home</Link>
-
-                        {/* League accordion — groups Matches, Standings, Teams */}
-                        <button
-                            onClick={() => setMobileLeagueOpen(!mobileLeagueOpen)}
-                            className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors flex items-center justify-center gap-2 w-full uppercase"
+                    {/* Mobile Right Controls: Cart & Menu Button */}
+                    <div className="flex lg:hidden items-center gap-1 sm:gap-1.5">
+                        {/* Mobile Cart Icon */}
+                        <Link
+                            to="/store/cart"
+                            aria-label={`Cart, ${cartCount} items`}
+                            className="relative text-white hover:text-sffl-red transition-colors p-1.5"
                         >
-                            League
-                            <svg className={`w-4 h-4 transition-transform duration-200 ${mobileLeagueOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                             </svg>
-                        </button>
-                        {mobileLeagueOpen && (
-                            <div className="bg-gray-800/50 rounded-xl py-2 px-4 space-y-2 flex flex-col items-center">
-                                <Link to="/matches" onClick={() => setMobileMenuOpen(false)} className="text-gray-300 hover:text-white text-base font-bold py-2 transition-colors">Matches</Link>
-                                <Link to="/standings" onClick={() => setMobileMenuOpen(false)} className="text-gray-300 hover:text-white text-base font-bold py-2 transition-colors">Standings</Link>
-                                <Link to="/teams" onClick={() => setMobileMenuOpen(false)} className="text-gray-300 hover:text-white text-base font-bold py-2 transition-colors">Teams</Link>
-                            </div>
-                        )}
-
-                        <Link to="/players" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors uppercase">Players</Link>
-                        <Link to="/stats" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors uppercase">Stats</Link>
-                        <Link to="/news" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors uppercase">News</Link>
-                        <Link to="/fantasy" onClick={() => setMobileMenuOpen(false)} className="text-yellow-400 hover:text-yellow-300 text-lg font-bold py-2 transition-colors uppercase">Fantasy</Link>
-
-                        <button
-                            onClick={() => setMobileStoreOpen(!mobileStoreOpen)}
-                            className="text-white hover:text-sffl-red text-lg font-bold py-2 transition-colors flex items-center justify-center gap-2 w-full uppercase"
-                        >
-                            Store
-                            <svg className={`w-4 h-4 transition-transform duration-200 ${mobileStoreOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </button>
-                        {mobileStoreOpen && (
-                            <div className="bg-gray-800/50 rounded-xl py-2 px-4 space-y-2 flex flex-col items-center">
-                                <Link to="/tickets" onClick={() => setMobileMenuOpen(false)} className="text-gray-300 hover:text-white text-base font-bold py-2 transition-colors">Gameday Tickets</Link>
-                                <Link to="/store" onClick={() => setMobileMenuOpen(false)} className="text-gray-300 hover:text-white text-base font-bold py-2 transition-colors">Merch Store</Link>
-                                {isAuthenticated && (
-                                    <Link to="/store/orders" onClick={() => setMobileMenuOpen(false)} className="text-gray-300 hover:text-white text-base font-bold py-2 transition-colors">My Orders</Link>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Mobile Auth */}
-                        <div className="mt-8 pt-8 border-t border-gray-700/50 w-full max-w-sm mx-auto">
-                            {isAuthenticated ? (
-                                <div className="space-y-4">
-                                    <div className="text-gray-300 text-sm">Hi, <span className="text-white font-extrabold text-lg">{user?.name}</span></div>
-                                    {user?.role === 'admin' && (
-                                        <Link to="/admin" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-sffl-red hover:bg-[#A52323] text-white font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
-                                            Admin Panel
-                                        </Link>
-                                    )}
-                                    {user?.role === 'app_admin' && (
-                                        <Link to="/admin" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
-                                            App Admin Panel
-                                        </Link>
-                                    )}
-                                    {user?.role === 'referee' && (
-                                        <Link to="/admin/matches" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-sffl-navy border border-sffl-red hover:bg-sffl-red text-white font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
-                                            Referee Portal
-                                        </Link>
-                                    )}
-                                    {user?.role === 'stats' && (
-                                        <Link to="/admin/matches" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-purple-600 hover:bg-purple-700 text-white font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
-                                            Stats Portal
-                                        </Link>
-                                    )}
-                                    {user?.role === 'team_head' && (
-                                        <Link to="/team-head" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
-                                            My Team Panel
-                                        </Link>
-                                    )}
-                                    {user?.role === 'player' && (
-                                        <Link to="/player-portal" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-sffl-red hover:bg-sffl-red/90 text-white font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
-                                            Player Portal
-                                        </Link>
-                                    )}
-                                    {user?.role === 'ticketer' && (
-                                        <Link to="/admin/tickets" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-sffl-navy border border-sffl-red hover:bg-sffl-red text-white font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
-                                            Ticketing Portal
-                                        </Link>
-                                    )}
-                                    {user?.role === 'seller' && (
-                                        <Link to="/seller" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-green-600 border border-green-500 hover:bg-green-700 text-white font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
-                                            Store Portal
-                                        </Link>
-                                    )}
-                                    <button
-                                        onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
-                                        className="w-full bg-white dark:bg-gray-700 text-sffl-navy dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600 font-bold px-6 py-3 min-h-[44px] rounded-xl transition-transform active:scale-95 shadow-lg"
-                                    >
-                                        Logout
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    <Link to="/login?role=fan" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-white dark:bg-gray-700 text-sffl-navy dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600 font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
-                                        Login
-                                    </Link>
-                                    <Link to="/signup" onClick={() => setMobileMenuOpen(false)} className="block w-full bg-sffl-red hover:bg-[#A52323] text-white font-bold px-6 py-3 min-h-[44px] rounded-xl text-center transition-transform active:scale-95 shadow-lg">
-                                        Sign Up
-                                    </Link>
-                                </div>
+                            {cartCount > 0 && (
+                                <span className="absolute -top-1 -right-1 bg-sffl-red text-white text-[9px] font-black rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1 shadow-md">
+                                    {cartCount > 99 ? '99+' : cartCount}
+                                </span>
                             )}
-                        </div>
+                        </Link>
+
+                        {/* Mobile Menu Button - More icon */}
+                        <button
+                            onClick={onMoreClick}
+                            className="text-white hover:text-sffl-red transition-colors focus:outline-none p-1.5"
+                            aria-label="Open navigation menu"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                            </svg>
+                        </button>
                     </div>
                 </div>
             </div>
