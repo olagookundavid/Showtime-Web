@@ -335,7 +335,7 @@ export function FantasySquadBuilder() {
         const budget = season?.budget || 230;
         const minFemaleOffense = season?.min_female_offense || 3;
         const minFemaleDefense = season?.min_female_defense || 3;
-        const maxPerClub = season?.max_per_club || 4;
+        const maxPerClub = season?.max_per_club || 3;
 
         const budgetValid = totalSpent <= budget;
         const slotsFilled = filledCount === 14;
@@ -1570,7 +1570,7 @@ export function FantasySquadBuilder() {
                                 {buyablePlayers.map((p) => {
                                     const isAlreadyPicked = calculations.chosenPlayerIds.has(p.player_id);
                                     const clubCount = calculations.clubCounts[p.team_id] || 0;
-                                    const clubExceeded = clubCount >= (season?.max_per_club || 4);
+                                    const clubExceeded = clubCount >= (season?.max_per_club || 3);
                                     // Signing spends real money out of the bank — the
                                     // lineup no longer has a budget of its own.
                                     const affordable = p.price <= (mySquad?.bank ?? 0);
@@ -1629,7 +1629,7 @@ export function FantasySquadBuilder() {
                                                 </div>
                                                 {clubExceeded && !isAlreadyPicked && (
                                                     <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold block mt-0.5">
-                                                        Club limit reached ({clubCount}/{season?.max_per_club || 4})
+                                                        Club limit reached ({clubCount}/{season?.max_per_club || 3})
                                                     </span>
                                                 )}
                                                 {!affordable && !isAlreadyPicked && (

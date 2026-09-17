@@ -291,7 +291,7 @@ func testSeason() *domain.FantasySeason {
 	return &domain.FantasySeason{
 		ID: "season-1", CompetitionID: "comp-1", Name: "Test Season",
 		SquadSize: 14, Budget: 230, MinFemaleOffense: 3, MinFemaleDefense: 3,
-		MaxPerClub: 4, LockMinsBefore: 15, Status: domain.FantasySeasonActive,
+		MaxPerClub: 3, LockMinsBefore: 15, Status: domain.FantasySeasonActive,
 	}
 }
 
@@ -336,8 +336,8 @@ func validSquad() []domain.LineupCandidate {
 			Name:     string(s.slot),
 			Position: s.position,
 			Gender:   s.gender,
-			// Four clubs keeps every club at or under the max of 4.
-			TeamID: []string{"club-a", "club-b", "club-c", "club-d"}[i%4],
+			// Five clubs keeps every club at or under the max of 3.
+			TeamID: []string{"club-a", "club-b", "club-c", "club-d", "club-e"}[i%5],
 			Price:  10.00,
 		})
 	}
@@ -660,7 +660,7 @@ func TestLineupValidation(t *testing.T) {
 		_, _, svc := newServiceWith(squad)
 
 		_, err := svc.SaveLineup(context.Background(), "user-1", saveRequest(squad))
-		assertErrContains(t, err, "no more than 4 players")
+		assertErrContains(t, err, "no more than 3 players")
 	})
 
 	// Budget is no longer a lineup rule. The money was spent when these players

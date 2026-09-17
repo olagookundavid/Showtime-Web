@@ -1043,11 +1043,12 @@ func (r *FantasyRepository) GetTeamOverallRank(ctx context.Context, seasonID, te
 
 	query := `
 		SELECT rnk, total FROM (
-			SELECT id,
-			       RANK() OVER (ORDER BY total_points DESC) AS rnk,
+			SELECT ft.id,
+			       ROW_NUMBER() OVER (ORDER BY ft.total_points DESC, COALESCE(u.full_name, '') ASC, ft.id ASC) AS rnk,
 			       COUNT(*) OVER () AS total
-			FROM fantasy_teams
-			WHERE season_id = $1
+			FROM fantasy_teams ft
+			LEFT JOIN users u ON ft.user_id = u.id
+			WHERE ft.season_id = $1
 		) ranked
 		WHERE id = $2
 	`

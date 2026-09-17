@@ -33,7 +33,7 @@ func legalSquad() []SquadPlayer {
 	}
 }
 
-var squadRules = LineupRules{MinFemaleOffense: 1, MinFemaleDefense: 1, MaxPerClub: 4}
+var squadRules = LineupRules{MinFemaleOffense: 1, MinFemaleDefense: 1, MaxPerClub: 3}
 
 func withoutPlayer(squad []SquadPlayer, id string) []SquadPlayer {
 	out := make([]SquadPlayer, 0, len(squad))

@@ -27,6 +27,7 @@ import {
     type LeaderboardEntry,
 } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
+import { useAuth } from '../../contexts/AuthContext';
 import {
     useFantasyLeaderboard,
     rankBadgeClass,
@@ -137,10 +138,13 @@ function LeaderboardRow({
 function DashboardLeaderboard({
     seasonId,
     leagues,
+    myTeamId,
 }: {
     seasonId: string;
     leagues: DashboardLeagueRow[];
+    myTeamId?: string;
 }) {
+    const { user } = useAuth();
     const [scope, setScope] = useState<string>(OVERALL);
 
     const leagueOptions = (leagues ?? [])
@@ -159,6 +163,16 @@ function DashboardLeaderboard({
         resetPaging();
     };
 
+    const isRowMe = (entry: LeaderboardEntry | undefined) => {
+        if (!entry) return false;
+        if (user?.id && entry.user_id && entry.user_id === user.id) return true;
+        if (myTeamId && entry.team_id && entry.team_id === myTeamId) return true;
+        return false;
+    };
+
+    const myEntry = topThree.find(isRowMe) || windowRows.find(isRowMe);
+    const effectiveRank = myEntry?.rank ? num(myEntry.rank) : myRank;
+
     const fullTableTo =
         scope === OVERALL ? `/fantasy/leaderboard/${seasonId}?type=overall` : `/fantasy/leaderboard/${scope}`;
 
@@ -170,8 +184,8 @@ function DashboardLeaderboard({
                         <ChartBarIcon className="w-5 h-5 text-sffl-red" /> Standings
                     </h2>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                        {myRank > 0
-                            ? `You are ranked #${myRank.toLocaleString()}${total > 0 ? ` of ${total.toLocaleString()}` : ''} here`
+                        {effectiveRank > 0
+                            ? `You are ranked #${effectiveRank.toLocaleString()}${total > 0 ? ` of ${total.toLocaleString()}` : ''} here`
                             : 'Season leaders across the table you pick'}
                     </p>
                 </div>
@@ -234,7 +248,7 @@ function DashboardLeaderboard({
                                         key={entry?.team_id ?? `top-${idx}`}
                                         entry={entry}
                                         fallbackRank={idx + 1}
-                                        isMe={myRank > 0 && num(entry?.rank) === myRank}
+                                        isMe={isRowMe(entry)}
                                     />
                                 ))}
                             </div>
@@ -270,7 +284,7 @@ function DashboardLeaderboard({
                                     key={entry?.team_id ?? `row-${idx}`}
                                     entry={entry}
                                     fallbackRank={fallbackRankAt(idx)}
-                                    isMe={myRank > 0 && num(entry?.rank) === myRank}
+                                    isMe={isRowMe(entry)}
                                 />
                             ))}
                         </div>
@@ -528,7 +542,7 @@ export function FantasyDashboard() {
             )}
 
             {/* Standings — first thing under the hero, by design */}
-            <DashboardLeaderboard seasonId={season.id} leagues={leagues} />
+            <DashboardLeaderboard seasonId={season.id} leagues={leagues} myTeamId={team?.id} />
 
             {/* Deadline */}
             <div

@@ -61,7 +61,7 @@ const (
 	defaultBudget = 100.00
 	defaultMinFemaleOffense = 3
 	defaultMinFemaleDefense = 3
-	defaultMaxPerClub       = 4
+	defaultMaxPerClub       = 3
 	defaultLockMinsBefore   = 720 // 12 hours
 )
 

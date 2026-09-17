@@ -613,7 +613,7 @@ function CreateSeasonCard() {
         budget: 100,
         min_female_offense: 3,
         min_female_defense: 3,
-        max_per_club: 4,
+        max_per_club: 3,
         lock_mins_before: 720,
     });
 

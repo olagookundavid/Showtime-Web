@@ -448,9 +448,10 @@ func (r *FantasyLeagueRepository) ListMyLeaguesWithRank(ctx context.Context, use
 	query := `
 		WITH ranked AS (
 			SELECT flm.league_id, flm.user_id,
-			       RANK() OVER (PARTITION BY flm.league_id ORDER BY ft.total_points DESC) AS rnk
+			       ROW_NUMBER() OVER (PARTITION BY flm.league_id ORDER BY ft.total_points DESC, COALESCE(u.full_name, '') ASC, ft.id ASC) AS rnk
 			FROM fantasy_league_members flm
 			JOIN fantasy_teams ft ON flm.team_id = ft.id
+			LEFT JOIN users u ON flm.user_id = u.id
 			WHERE flm.payment_status IN ('FREE', 'PAID') AND flm.left_at IS NULL
 		)
 		SELECT l.id, l.name, l.type, l.entry_fee,
@@ -490,9 +491,10 @@ func (r *FantasyLeagueRepository) GetMyRankInLeague(ctx context.Context, leagueI
 	query := `
 		SELECT rnk FROM (
 			SELECT flm.user_id,
-			       RANK() OVER (ORDER BY ft.total_points DESC) AS rnk
+			       ROW_NUMBER() OVER (ORDER BY ft.total_points DESC, COALESCE(u.full_name, '') ASC, ft.id ASC) AS rnk
 			FROM fantasy_league_members flm
 			JOIN fantasy_teams ft ON flm.team_id = ft.id
+			LEFT JOIN users u ON flm.user_id = u.id
 			WHERE flm.league_id = $1 AND flm.payment_status IN ('FREE', 'PAID') AND flm.left_at IS NULL
 		) ranked
 		WHERE user_id = $2

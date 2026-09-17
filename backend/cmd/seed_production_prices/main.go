@@ -197,7 +197,7 @@ func main() {
 			}
 			err = pool.QueryRow(ctx, `
 				INSERT INTO fantasy_seasons (competition_id, name, squad_size, budget, min_female_offense, min_female_defense, max_per_club, lock_mins_before, status, created_at, updated_at)
-				VALUES ($1::uuid, $2, 14, 100.00, 3, 3, 4, 15, 'ACTIVE', NOW(), NOW())
+				VALUES ($1::uuid, $2, 14, 100.00, 3, 3, 3, 15, 'ACTIVE', NOW(), NOW())
 				RETURNING id::text
 			`, compID, targetSeason.Name).Scan(&targetSeason.ID)
 			if err != nil {

@@ -14,7 +14,8 @@ import {
     ArrowRightStartOnRectangleIcon,
     ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
-import { fantasyApi, formatKobo } from '../../services/api';
+import { fantasyApi, formatKobo, type LeaderboardEntry } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 import { useFantasyLeaderboard, num, rankBadgeClass, OVERALL } from '../../hooks/useFantasyLeaderboard';
 
 const pts = (v: number | null | undefined): string => num(v).toFixed(2);
@@ -114,6 +115,17 @@ export function FantasyLeaderboard() {
             toast.error(err?.response?.data?.error || 'Could not leave this league. Try again.'),
     });
 
+    const { user } = useAuth();
+
+    const isRowMe = (entry: LeaderboardEntry | undefined) => {
+        if (!entry) return false;
+        if (user?.id && entry.user_id && entry.user_id === user.id) return true;
+        return false;
+    };
+
+    const myEntry = (topThree ?? []).find(isRowMe) || (windowRows ?? []).find(isRowMe);
+    const effectiveRank = myEntry?.rank ? num(myEntry.rank) : myRank;
+
     const activeLeagueName =
         scope === OVERALL ? null : leagueOptions.find((o) => o.id === scope)?.name ?? 'League';
 
@@ -137,8 +149,8 @@ export function FantasyLeaderboard() {
                             {scope === OVERALL ? 'Global Showtime Leaderboard' : activeLeagueName || 'League Standings'}
                         </h1>
                         <p className="text-xs md:text-sm text-gray-300 mt-1 font-medium">
-                            {myRank > 0
-                                ? `You are ranked #${myRank.toLocaleString()} in this table.`
+                            {effectiveRank > 0
+                                ? `You are ranked #${effectiveRank.toLocaleString()} in this table.`
                                 : 'Rankings appear here once points are scored.'}
                         </p>
                     </div>
@@ -231,7 +243,7 @@ export function FantasyLeaderboard() {
                     <div className="divide-y divide-gray-100 dark:divide-gray-700">
                         {topThree.map((entry, idx) => {
                             const rank = num(entry?.rank) > 0 ? num(entry.rank) : idx + 1;
-                            const isMe = myRank > 0 && rank === myRank;
+                            const isMe = isRowMe(entry);
                             return (
                                 <div
                                     key={entry?.team_id ?? `top-${idx}`}
@@ -328,7 +340,7 @@ export function FantasyLeaderboard() {
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                                 {windowRows.map((entry, idx) => {
                                     const rank = num(entry?.rank);
-                                    const isMe = myRank > 0 && rank === myRank;
+                                    const isMe = isRowMe(entry);
                                     return (
                                         <tr
                                             key={entry?.team_id ?? `row-${idx}`}
