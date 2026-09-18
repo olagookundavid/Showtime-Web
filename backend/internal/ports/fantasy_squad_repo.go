@@ -169,6 +169,13 @@ func (r *FantasySquadRepository) GetMarketPlayer(ctx context.Context, seasonID, 
 // The bank row is locked first so two concurrent buys cannot both read the same
 // balance and overspend it. The column's non-negative CHECK is the last line: an
 // overdraft fails the transaction rather than persisting.
+//
+// The squad-size cap is re-checked here, inside the lock, rather than trusting
+// the caller's earlier count: two buy requests fired at once would otherwise
+// both read a squad one below the cap and both insert, landing at
+// SquadMax+1. Serializing on the team row (the same lock the budget check
+// already takes) makes the second request see the first's insert before it
+// commits its own.
 func (r *FantasySquadRepository) BuyPlayer(ctx context.Context, teamID, playerID string, price float64) error {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
@@ -189,6 +196,16 @@ func (r *FantasySquadRepository) BuyPlayer(ctx context.Context, teamID, playerID
 	}
 	if bank+domain.BudgetEpsilon < price {
 		return fmt.Errorf("you have %.2f SC in the bank and this costs %.2f SC", bank, price)
+	}
+
+	var squadSize int
+	if err := tx.QueryRow(ctx,
+		`SELECT COUNT(*) FROM fantasy_squad_players WHERE team_id = $1 AND sold_at IS NULL`,
+		teamID).Scan(&squadSize); err != nil {
+		return fmt.Errorf("failed to count the squad: %w", err)
+	}
+	if squadSize >= domain.SquadMax {
+		return fmt.Errorf("your squad is full at %d players — sell someone before signing another", domain.SquadMax)
 	}
 
 	tag, err := tx.Exec(ctx, `

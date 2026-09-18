@@ -13,6 +13,7 @@ import {
     ChartBarIcon,
     ChevronLeftIcon,
     ChevronRightIcon,
+    ChevronDownIcon,
     ChevronDoubleLeftIcon,
     ChevronDoubleRightIcon,
     MapPinIcon,
@@ -28,6 +29,10 @@ import {
 } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { useAuth } from '../../contexts/AuthContext';
+import { FantasyBackLink } from '../../components/fantasy/FantasyBackLink';
+import { FantasyPitch } from '../../components/fantasy/FantasyPitch';
+import { FantasyTeamModal } from '../../components/fantasy/FantasyTeamModal';
+import { FantasyPlayerModal, type FantasyPlayerModalData } from '../../components/fantasy/FantasyPlayerModal';
 import {
     useFantasyLeaderboard,
     rankBadgeClass,
@@ -92,17 +97,34 @@ function LeaderboardRow({
     entry,
     fallbackRank,
     isMe,
+    onSelect,
 }: {
     entry: LeaderboardEntry;
     fallbackRank: number;
     isMe: boolean;
+    onSelect?: (teamId: string) => void;
 }) {
     const rank = num(entry?.rank) > 0 ? num(entry.rank) : fallbackRank;
+    const canClick = Boolean(onSelect && entry?.team_id);
     return (
         <div
-            className={`px-3 py-3 flex items-center justify-between gap-3 rounded-xl ${
+            onClick={canClick ? () => onSelect!(entry.team_id!) : undefined}
+            role={canClick ? 'button' : undefined}
+            tabIndex={canClick ? 0 : undefined}
+            onKeyDown={
+                canClick
+                    ? (e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              onSelect!(entry.team_id!);
+                          }
+                      }
+                    : undefined
+            }
+            title={canClick ? 'Click to inspect team formation and squad' : undefined}
+            className={`px-3 py-3 flex items-center justify-between gap-3 rounded-xl transition ${
                 isMe ? 'bg-emerald-50 dark:bg-emerald-950/30 ring-1 ring-inset ring-emerald-500/40' : ''
-            }`}
+            } ${canClick ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/60 group' : ''}`}
         >
             <div className="flex items-center gap-3 min-w-0">
                 <div
@@ -111,8 +133,8 @@ function LeaderboardRow({
                     {rank > 0 ? rank : '—'}
                 </div>
                 <div className="min-w-0">
-                    <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
-                        {entry?.team_name || 'Unnamed squad'}
+                    <p className="text-sm font-bold text-gray-900 dark:text-white truncate flex items-center gap-1.5">
+                        <span className="truncate group-hover:text-sffl-red transition-colors">{entry?.team_name || 'Unnamed squad'}</span>
                         {isMe && (
                             <span className="ml-2 text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
                                 You
@@ -139,13 +161,16 @@ function DashboardLeaderboard({
     seasonId,
     leagues,
     myTeamId,
+    currentGameweekId,
 }: {
     seasonId: string;
     leagues: DashboardLeagueRow[];
     myTeamId?: string;
+    currentGameweekId?: string;
 }) {
     const { user } = useAuth();
     const [scope, setScope] = useState<string>(OVERALL);
+    const [inspectingTeamId, setInspectingTeamId] = useState<string | null>(null);
 
     const leagueOptions = (leagues ?? [])
         .filter((l) => !!l?.league_id && l.type !== 'OVERALL')
@@ -249,6 +274,7 @@ function DashboardLeaderboard({
                                         entry={entry}
                                         fallbackRank={idx + 1}
                                         isMe={isRowMe(entry)}
+                                        onSelect={(id) => setInspectingTeamId(id)}
                                     />
                                 ))}
                             </div>
@@ -285,6 +311,7 @@ function DashboardLeaderboard({
                                     entry={entry}
                                     fallbackRank={fallbackRankAt(idx)}
                                     isMe={isRowMe(entry)}
+                                    onSelect={(id) => setInspectingTeamId(id)}
                                 />
                             ))}
                         </div>
@@ -308,7 +335,7 @@ function DashboardLeaderboard({
                             <button
                                 type="button"
                                 onClick={() => goToPage(safePage - 1)}
-                                disabled={safePage === 1}
+                                disabled={safePage <= 1}
                                 title="Previous page"
                                 className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition"
                             >
@@ -336,6 +363,15 @@ function DashboardLeaderboard({
                     </div>
                 </>
             )}
+
+            {/* Team Inspection Modal */}
+            <FantasyTeamModal
+                isOpen={Boolean(inspectingTeamId)}
+                onClose={() => setInspectingTeamId(null)}
+                teamId={inspectingTeamId}
+                seasonId={seasonId}
+                initialGameweekId={currentGameweekId}
+            />
         </div>
     );
 }
@@ -357,6 +393,7 @@ export function FantasyDashboard() {
 
     const gameweek = dashboard?.current_gameweek;
     const countdown = useCountdown(gameweek?.deadline);
+    const [inspectingPlayer, setInspectingPlayer] = useState<FantasyPlayerModalData | null>(null);
 
     if (isLoading) {
         return <Loader />;
@@ -421,6 +458,7 @@ export function FantasyDashboard() {
 
     return (
         <div className="space-y-6 md:space-y-8 pb-36 md:pb-24">
+            <FantasyBackLink to="/fantasy" label="Back to Fantasy" />
             {/* Hero: personal progress first */}
             <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-6 md:p-8">
                 <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
@@ -437,6 +475,12 @@ export function FantasyDashboard() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
+                        <Link
+                            to="/fantasy/analytics"
+                            className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase flex items-center gap-2 transition backdrop-blur-md"
+                        >
+                            <ChartBarIcon className="w-3.5 h-3.5 text-yellow-400" /> Weekly Report
+                        </Link>
                         <Link
                             to="/fantasy/wallet"
                             className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase flex items-center gap-2 transition backdrop-blur-md"
@@ -542,7 +586,7 @@ export function FantasyDashboard() {
             )}
 
             {/* Standings — first thing under the hero, by design */}
-            <DashboardLeaderboard seasonId={season.id} leagues={leagues} myTeamId={team?.id} />
+            <DashboardLeaderboard seasonId={season.id} leagues={leagues} myTeamId={team?.id} currentGameweekId={gameweek?.id} />
 
             {/* Deadline */}
             <div
@@ -630,19 +674,80 @@ export function FantasyDashboard() {
                         </Link>
                     </div>
                 ) : (
-                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm overflow-hidden">
-                        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 divide-gray-100 dark:divide-gray-700">
+                    <div className="space-y-4">
+                        {/* The formation, so the 7v7 shape and any empty position
+                            read at a glance. The list below still answers "who
+                            scored what", which a pitch cannot do as compactly. */}
+                        <FantasyPitch
+                            picks={picks}
+                            gameweekLabel={gameweek ? `Gameweek ${gameweek.number}` : undefined}
+                            gameweekId={gameweek?.id}
+                            showPoints={deadlinePassed}
+                        />
+
+                        <details className="group bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm overflow-hidden">
+                            <summary className="px-4 py-3 cursor-pointer list-none flex items-center justify-between text-xs font-black uppercase tracking-wider text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                                <span>All {picks.length} players &amp; points</span>
+                                <ChevronDownIcon className="w-4 h-4 transition-transform group-open:rotate-180" />
+                            </summary>
+                            <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 divide-gray-100 dark:divide-gray-700 border-t border-gray-100 dark:border-gray-700">
                             {picks.map((pick, idx) => (
                                 <div
                                     key={`${pick.slot}-${pick.player_id ?? idx}`}
-                                    className="px-4 py-3 flex items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+                                    onClick={() => {
+                                        if (pick.player_id) {
+                                            setInspectingPlayer({
+                                                playerId: pick.player_id,
+                                                playerName: pick.player_name || 'Player',
+                                                playerImage: (pick as any).player_image || (pick as any).photo_url,
+                                                position: pick.position || pick.slot,
+                                                gender: pick.gender,
+                                                teamName: pick.team_name,
+                                                teamShortName: pick.team_short_name,
+                                                points: num(pick.points),
+                                                purchasePrice: (pick as any).purchase_price,
+                                                price: (pick as any).fantasy_price || (pick as any).price || (pick as any).purchase_price,
+                                                gameweekId: gameweek?.id,
+                                                gameweekNumber: gameweek?.number,
+                                            });
+                                        }
+                                    }}
+                                    role={pick.player_id ? 'button' : undefined}
+                                    tabIndex={pick.player_id ? 0 : undefined}
+                                    onKeyDown={
+                                        pick.player_id
+                                            ? (e) => {
+                                                  if (e.key === 'Enter' || e.key === ' ') {
+                                                      e.preventDefault();
+                                                      setInspectingPlayer({
+                                                          playerId: pick.player_id,
+                                                          playerName: pick.player_name || 'Player',
+                                                          playerImage: (pick as any).player_image || (pick as any).photo_url,
+                                                          position: pick.position || pick.slot,
+                                                          gender: pick.gender,
+                                                          teamName: pick.team_name,
+                                                          teamShortName: pick.team_short_name,
+                                                          points: num(pick.points),
+                                                          purchasePrice: (pick as any).purchase_price,
+                                                          price: (pick as any).fantasy_price || (pick as any).price || (pick as any).purchase_price,
+                                                          gameweekId: gameweek?.id,
+                                                          gameweekNumber: gameweek?.number,
+                                                      });
+                                                  }
+                                              }
+                                            : undefined
+                                    }
+                                    title={pick.player_id ? 'Click to view player fantasy profile' : undefined}
+                                    className={`px-4 py-3 flex items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition group ${
+                                        pick.player_id ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50' : ''
+                                    }`}
                                 >
                                     <div className="flex items-center gap-3 min-w-0">
                                         <span className="text-[10px] font-black px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-200 shrink-0">
                                             {pick.slot}
                                         </span>
                                         <div className="min-w-0">
-                                            <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                                            <p className="text-sm font-bold text-gray-900 dark:text-white truncate group-hover:text-sffl-red transition-colors">
                                                 {pick.player_name || 'Unnamed player'}
                                             </p>
                                             <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
@@ -655,7 +760,8 @@ export function FantasyDashboard() {
                                     </span>
                                 </div>
                             ))}
-                        </div>
+                            </div>
+                        </details>
                     </div>
                 )}
             </div>
@@ -721,6 +827,12 @@ export function FantasyDashboard() {
                 )}
             </div>
 
+            {/* Player Profile Modal */}
+            <FantasyPlayerModal
+                isOpen={Boolean(inspectingPlayer)}
+                onClose={() => setInspectingPlayer(null)}
+                player={inspectingPlayer}
+            />
         </div>
     );
 }

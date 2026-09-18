@@ -45,6 +45,8 @@ type IFantasyService interface {
 	GetDashboard(ctx context.Context, userID, seasonID string) (*dto.FantasyDashboardResponse, error)
 	SaveLineup(ctx context.Context, userID string, req dto.SaveLineupRequest) (*dto.FantasyLineupResponse, error)
 	GetMyLineup(ctx context.Context, userID, seasonID, gameweekID string) (*dto.FantasyLineupResponse, error)
+	GetTeamLineup(ctx context.Context, requestingUserID, teamID, gameweekID string) (*dto.FantasyTeamLineupDetailResponse, error)
+	GetGameweekReport(ctx context.Context, seasonID, gameweekID string) (*dto.GameweekReportResponse, error)
 	GetPlayerBreakdown(ctx context.Context, playerID, gameweekID string) (*dto.PlayerGWBreakdownResponse, error)
 
 	// Core Engine
@@ -1072,16 +1074,112 @@ func (s *FantasyService) GetMyLineup(ctx context.Context, userID, seasonID, game
 	}, nil
 }
 
+func (s *FantasyService) GetTeamLineup(ctx context.Context, requestingUserID, teamID, gameweekID string) (*dto.FantasyTeamLineupDetailResponse, error) {
+	team, err := s.repo.GetTeamByID(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	if team == nil {
+		return nil, fmt.Errorf("team not found")
+	}
+
+	gw, err := s.repo.GetGameweekByID(ctx, gameweekID)
+	if err != nil {
+		return nil, err
+	}
+	if gw == nil {
+		return nil, ErrGameweekNotFound
+	}
+
+	resp := &dto.FantasyTeamLineupDetailResponse{
+		TeamID:         team.ID,
+		TeamName:       team.Name,
+		ManagerName:    team.ManagerName,
+		SeasonID:       team.SeasonID,
+		GameweekID:     gw.ID,
+		GameweekNumber: gw.Number,
+		GameweekStatus: string(gw.Status),
+		DeadlinePassed: gw.Status != domain.GameweekScheduled,
+		Picks:          make([]dto.FantasyLineupPickResponse, 0),
+	}
+
+	lineup, err := s.repo.GetLineup(ctx, team.ID, gw.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	isRollover := false
+	if lineup == nil {
+		prior, err := s.repo.GetLatestPriorLockedLineup(ctx, team.ID, gw.Number)
+		if err != nil {
+			return nil, err
+		}
+		if prior == nil {
+			// Fallback: Check if the team has any saved lineup across the season
+			prior, _ = s.repo.GetLatestPriorLockedLineup(ctx, team.ID, 9999)
+		}
+		if prior != nil {
+			lineup = prior
+			isRollover = true
+		}
+	}
+
+	if lineup == nil {
+		return resp, nil
+	}
+
+	resp.Points = lineup.Points
+	resp.TotalSpent = lineup.TotalSpent
+	resp.IsRollover = isRollover
+
+	for _, p := range lineup.Picks {
+		item := dto.FantasyLineupPickResponse{
+			Slot:          string(p.Slot),
+			PlayerID:      p.PlayerID,
+			PurchasePrice: p.PurchasePrice,
+			CurrentPrice:  p.PurchasePrice,
+			Points:        p.Points,
+		}
+		if p.Player != nil {
+			item.PlayerName = p.Player.Name
+			item.PlayerImage = p.Player.Image
+			item.Position = p.Player.Position
+			item.Gender = domain.NormalizeGender(p.Player.Gender)
+			item.TeamID = p.Player.TeamID
+			if p.Player.Team != nil {
+				item.TeamName = p.Player.Team.Name
+				item.TeamShortName = p.Player.Team.ShortName
+				item.TeamLogo = p.Player.Team.Logo
+			}
+		}
+		resp.Picks = append(resp.Picks, item)
+	}
+
+	return resp, nil
+}
+
+func (s *FantasyService) GetGameweekReport(ctx context.Context, seasonID, gameweekID string) (*dto.GameweekReportResponse, error) {
+	return s.repo.GetGameweekAnalytics(ctx, seasonID, gameweekID)
+}
+
+// ErrGameweekNotFound means the gameweek in the URL does not exist — a real
+// 404, unlike a player simply having no stats recorded yet for one that does.
+var ErrGameweekNotFound = errors.New("gameweek not found")
+
 // GetPlayerBreakdown scores a player's gameweek directly from the official
 // stat lines rather than from the points log, so it reflects live stat entry
 // before the gameweek has been finalised.
+//
+// A nil, nil result means the gameweek is real but the player has no stat
+// lines yet — normal before or during a match day, not an error condition —
+// and the caller should answer with empty data rather than a 404.
 func (s *FantasyService) GetPlayerBreakdown(ctx context.Context, playerID, gameweekID string) (*dto.PlayerGWBreakdownResponse, error) {
 	gw, err := s.repo.GetGameweekByID(ctx, gameweekID)
 	if err != nil {
 		return nil, err
 	}
 	if gw == nil {
-		return nil, nil
+		return nil, ErrGameweekNotFound
 	}
 
 	stats, err := s.repo.GetPlayerStatsByEventDay(ctx, gw.EventDayID)

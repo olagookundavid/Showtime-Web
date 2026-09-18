@@ -791,6 +791,8 @@ func SetupFantasyRoutes(r *gin.RouterGroup, app *api.Application) {
 		fantasyRoutes.GET("/leagues/preview", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.FantasyPayoutHandler.GetLeagueJoinPreviewByCode)
 		fantasyRoutes.GET("/leagues/:id/preview", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.FantasyPayoutHandler.GetLeagueJoinPreview)
 		fantasyRoutes.GET("/season/:id/leaderboard", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.FantasyLeagueHandler.GetOverallLeaderboard)
+		fantasyRoutes.GET("/teams/:team_id/gameweeks/:gw_id", commonAuth.OptionalTokenMiddleware(app.TokenMaker), app.Handlers.FantasyHandler.GetTeamLineup)
+		fantasyRoutes.GET("/seasons/:season_id/gameweeks/:gw_id/report", app.Handlers.FantasyHandler.GetGameweekReport)
 
 		// Webhook (Unauthenticated, HMAC signature validated)
 		fantasyRoutes.POST("/leagues/webhook", app.Handlers.FantasyLeagueHandler.LeagueWebhook)

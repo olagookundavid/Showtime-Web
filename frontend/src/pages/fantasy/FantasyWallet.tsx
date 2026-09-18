@@ -23,6 +23,7 @@ import {
 } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { Loader } from '../../components/ui/Loader';
+import { FantasyBackLink } from '../../components/fantasy/FantasyBackLink';
 
 const STATUS_STYLES: Record<PayoutStatus, string> = {
     PENDING: 'bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300',
@@ -192,6 +193,7 @@ export function FantasyWallet() {
 
     return (
         <div className="space-y-6 md:space-y-8 pb-36 md:pb-24">
+            <FantasyBackLink to="/fantasy/dashboard" label="Back to Dashboard" />
             {/* Header Showtime Navy Banner */}
             <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-6 md:p-8">
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-yellow-400 text-xs font-bold uppercase mb-2">

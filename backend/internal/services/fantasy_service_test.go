@@ -153,6 +153,13 @@ func (f *fakeFantasyRepo) GetTeamByUserAndSeason(_ context.Context, _, _ string)
 	return f.enteredTeam, nil
 }
 
+func (f *fakeFantasyRepo) GetTeamByID(_ context.Context, id string) (*domain.FantasyTeam, error) {
+	if f.enteredTeam != nil && f.enteredTeam.ID == id {
+		return f.enteredTeam, nil
+	}
+	return &domain.FantasyTeam{ID: id, UserID: "user-1", SeasonID: "season-1", Name: "Test Squad", ManagerName: "Test Manager"}, nil
+}
+
 func (f *fakeFantasyRepo) GetCurrentGameweek(_ context.Context, _ string) (*domain.FantasyGameweek, error) {
 	return f.currentGW, nil
 }
@@ -254,6 +261,20 @@ func (f *fakeFantasyRepo) UpdateLineupPoints(_ context.Context, lineupID string,
 func (f *fakeFantasyRepo) BulkUpsertGWPoints(_ context.Context, pts []domain.FantasyGWPoints) error {
 	f.pointsLogLen = len(pts)
 	return nil
+}
+
+func (f *fakeFantasyRepo) GetGameweekAnalytics(_ context.Context, seasonID, gameweekID string) (*dto.GameweekReportResponse, error) {
+	return &dto.GameweekReportResponse{
+		SeasonID:       seasonID,
+		GameweekID:     gameweekID,
+		GameweekNumber: 1,
+		GameweekStatus: "LOCKED",
+		Summary: dto.GameweekSummaryStats{
+			AveragePoints: 50.0,
+			HighestPoints: 80.0,
+			TotalManagers: 2,
+		},
+	}, nil
 }
 
 // RecalculateAllTeamTotalsInSeason mirrors the production SQL: a team's total is

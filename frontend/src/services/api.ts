@@ -2951,6 +2951,88 @@ export interface FantasyLineupResponse {
     picks: FantasyLineupPick[];
 }
 
+export interface FantasyTeamLineupDetailResponse {
+    team_id: string;
+    team_name: string;
+    manager_name: string;
+    season_id: string;
+    gameweek_id: string;
+    gameweek_number: number;
+    gameweek_status: string;
+    deadline_passed: boolean;
+    is_private: boolean;
+    private_reason?: string;
+    points: number;
+    total_spent: number;
+    is_rollover: boolean;
+    picks: FantasyLineupPick[];
+}
+
+export interface GameweekSummaryStats {
+    average_points: number;
+    highest_points: number;
+    highest_scoring_team: string;
+    lowest_points: number;
+    total_managers: number;
+}
+
+export interface MostOwnedPlayerItem {
+    player_id: string;
+    player_name: string;
+    player_image: string;
+    position: string;
+    gender: string;
+    team_id: string;
+    team_name: string;
+    team_short_name: string;
+    team_logo: string;
+    current_price: number;
+    ownership_count: number;
+    ownership_percentage: number;
+    points: number;
+}
+
+export interface TopScoringPlayerItem {
+    player_id: string;
+    player_name: string;
+    player_image: string;
+    position: string;
+    gender: string;
+    team_id: string;
+    team_name: string;
+    team_short_name: string;
+    team_logo: string;
+    price: number;
+    points: number;
+    ownership_percentage: number;
+}
+
+export interface ClubPointsItem {
+    club_id: string;
+    club_name: string;
+    club_short_name: string;
+    club_logo: string;
+    total_points: number;
+    active_player_count: number;
+    average_points_per_player: number;
+    top_scorer_name: string;
+    top_scorer_points: number;
+}
+
+export interface GameweekReportResponse {
+    season_id: string;
+    gameweek_id: string;
+    gameweek_number: number;
+    gameweek_status: string;
+    summary: GameweekSummaryStats;
+    most_owned: MostOwnedPlayerItem[];
+    top_scorers: TopScoringPlayerItem[];
+    club_points: ClubPointsItem[];
+    dream_team: FantasyLineupPick[];
+    dream_team_total_points: number;
+    differentials: TopScoringPlayerItem[];
+}
+
 export interface PointsBreakdown {
     version: string;
     passing_yards_pts: number;
@@ -3088,6 +3170,14 @@ export const fantasyApi = {
         const res = await api.get<{ data: FantasyLineupResponse | null }>('/fantasy/lineups/mine', {
             params: { season_id: seasonId, gameweek_id: gameweekId },
         });
+        return res.data.data;
+    },
+    getTeamLineup: async (teamId: string, gameweekId: string): Promise<FantasyTeamLineupDetailResponse> => {
+        const res = await api.get<{ data: FantasyTeamLineupDetailResponse }>(`/fantasy/teams/${teamId}/gameweeks/${gameweekId}`);
+        return res.data.data;
+    },
+    getGameweekReport: async (seasonId: string, gameweekId: string): Promise<GameweekReportResponse> => {
+        const res = await api.get<{ data: GameweekReportResponse }>(`/fantasy/seasons/${seasonId}/gameweeks/${gameweekId}/report`);
         return res.data.data;
     },
     // Paged on the server — the public browse list grows with every league

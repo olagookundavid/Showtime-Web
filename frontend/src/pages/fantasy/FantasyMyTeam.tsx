@@ -19,6 +19,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { Loader } from '../../components/ui/Loader';
 import { PlayerAvatar } from '../../components/fantasy/PlayerAvatar';
+import { FantasyBackLink } from '../../components/fantasy/FantasyBackLink';
 
 export function FantasyMyTeam() {
     // Shares the hub/dashboard query key, so this is a cache hit.
@@ -114,6 +115,7 @@ export function FantasyMyTeam() {
 
     return (
         <div className="space-y-6 md:space-y-8 pb-36 md:pb-24">
+            <FantasyBackLink to="/fantasy/dashboard" label="Back to Dashboard" />
             {/* Header Showtime Navy Banner */}
             <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-6 md:p-8">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

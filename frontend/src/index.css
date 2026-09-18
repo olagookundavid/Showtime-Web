@@ -23,7 +23,8 @@
  *
  * Specificity beats the utility classes on the element (0,2,1 against 0,1,0),
  * so no !important is needed. */
-body:has([data-dialog]) .chrome-carousel {
+body:has([data-dialog]) .chrome-carousel,
+body:has([role="dialog"]) .chrome-carousel {
     grid-template-rows: 0fr;
     opacity: 0;
 }

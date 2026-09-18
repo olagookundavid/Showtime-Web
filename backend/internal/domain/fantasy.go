@@ -534,6 +534,7 @@ type FantasyTeam struct {
 	UserID      string    `json:"user_id"`
 	SeasonID    string    `json:"season_id"`
 	Name        string    `json:"name"`
+	ManagerName string    `json:"manager_name,omitempty"`
 	TotalPoints float64   `json:"total_points"` // Running cumulative season score
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`

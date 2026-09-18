@@ -20,6 +20,7 @@ import {
 import { fantasyApi, fantasyLeagueApi, formatKobo, type FantasyLeague } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { Loader } from '../../components/ui/Loader';
+import { FantasyBackLink } from '../../components/fantasy/FantasyBackLink';
 
 /** Nothing off the wire is trusted to be a finite number. */
 const num = (v: number | null | undefined): number =>
@@ -319,6 +320,7 @@ export function FantasyLeagues() {
 
     return (
         <div className="space-y-6 md:space-y-8 pb-36 md:pb-24">
+            <FantasyBackLink to="/fantasy/dashboard" label="Back to Dashboard" />
             {/* Header Showtime Navy Banner */}
             <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-6 md:p-8">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

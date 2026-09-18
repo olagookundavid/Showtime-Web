@@ -13,10 +13,13 @@ import {
     UserGroupIcon,
     ArrowRightStartOnRectangleIcon,
     ExclamationTriangleIcon,
+    ChartBarIcon,
+    EyeIcon,
 } from '@heroicons/react/24/outline';
 import { fantasyApi, formatKobo, type LeaderboardEntry } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFantasyLeaderboard, num, rankBadgeClass, OVERALL } from '../../hooks/useFantasyLeaderboard';
+import { FantasyTeamModal } from '../../components/fantasy/FantasyTeamModal';
 
 const pts = (v: number | null | undefined): string => num(v).toFixed(2);
 
@@ -28,6 +31,7 @@ export function FantasyLeaderboard() {
     // 'overall' or a league id. Seeded from the route, then driven by the filter.
     const [scope, setScope] = useState<string>(urlIsOverall || !id ? OVERALL : id);
     const [selectedGWId, setSelectedGWId] = useState<string>('');
+    const [inspectingTeamId, setInspectingTeamId] = useState<string | null>(null);
     const [confirmLeave, setConfirmLeave] = useState(false);
     const queryClient = useQueryClient();
 
@@ -182,6 +186,12 @@ export function FantasyLeaderboard() {
                                 </option>
                             ))}
                         </select>
+                        <Link
+                            to={`/fantasy/analytics${selectedGWId ? `?gw=${selectedGWId}` : ''}`}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white text-xs font-black uppercase tracking-wider transition shadow-sm cursor-pointer"
+                        >
+                            <ChartBarIcon className="w-3.5 h-3.5" /> Weekly Report
+                        </Link>
                     </div>
                 </div>
             </div>
@@ -247,9 +257,11 @@ export function FantasyLeaderboard() {
                             return (
                                 <div
                                     key={entry?.team_id ?? `top-${idx}`}
-                                    className={`px-4 py-3 flex items-center justify-between gap-3 ${
+                                    onClick={() => entry?.team_id && setInspectingTeamId(entry.team_id)}
+                                    className={`px-4 py-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/60 transition group ${
                                         isMe ? 'bg-emerald-50 dark:bg-emerald-950/30' : ''
                                     }`}
+                                    title="Click to inspect team formation and picks"
                                 >
                                     <div className="flex items-center gap-3 min-w-0">
                                         <span
@@ -258,13 +270,14 @@ export function FantasyLeaderboard() {
                                             {rank}
                                         </span>
                                         <div className="min-w-0">
-                                            <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
-                                                {entry?.team_name || 'Unnamed squad'}
+                                            <p className="text-sm font-bold text-gray-900 dark:text-white truncate group-hover:text-sffl-red transition-colors flex items-center gap-1.5">
+                                                <span className="truncate">{entry?.team_name || 'Unnamed squad'}</span>
                                                 {isMe && (
-                                                    <span className="ml-2 text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
+                                                    <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
                                                         You
                                                     </span>
                                                 )}
+                                                <EyeIcon className="w-3.5 h-3.5 text-gray-400 group-hover:text-sffl-red opacity-0 group-hover:opacity-100 transition-opacity shrink-0 hidden sm:inline-block" />
                                             </p>
                                             <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                                                 {entry?.user_name || '—'}
@@ -344,11 +357,13 @@ export function FantasyLeaderboard() {
                                     return (
                                         <tr
                                             key={entry?.team_id ?? `row-${idx}`}
-                                            className={`transition ${
+                                            onClick={() => entry?.team_id && setInspectingTeamId(entry.team_id)}
+                                            className={`transition cursor-pointer group ${
                                                 isMe
-                                                    ? 'bg-emerald-50 dark:bg-emerald-950/30 ring-1 ring-inset ring-emerald-500/40'
+                                                    ? 'bg-emerald-50 dark:bg-emerald-950/30 ring-1 ring-inset ring-emerald-500/40 hover:bg-emerald-100/60 dark:hover:bg-emerald-950/50'
                                                     : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
                                             }`}
+                                            title="Click to inspect team formation and picks"
                                         >
                                             <td className="py-3.5 px-4 text-center">
                                                 <span
@@ -358,17 +373,24 @@ export function FantasyLeaderboard() {
                                                 </span>
                                             </td>
                                             <td className="py-3.5 px-4">
-                                                <p className="font-bold text-gray-900 dark:text-white text-sm">
-                                                    {entry?.team_name || 'Unnamed squad'}
-                                                    {isMe && (
-                                                        <span className="ml-2 text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
-                                                            You
-                                                        </span>
-                                                    )}
-                                                </p>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                                    {entry?.user_name || '—'}
-                                                </p>
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <p className="font-bold text-gray-900 dark:text-white text-sm group-hover:text-sffl-red transition-colors flex items-center gap-1.5">
+                                                            <span>{entry?.team_name || 'Unnamed squad'}</span>
+                                                            {isMe && (
+                                                                <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
+                                                                    You
+                                                                </span>
+                                                            )}
+                                                        </p>
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                            {entry?.user_name || '—'}
+                                                        </p>
+                                                    </div>
+                                                    <span className="text-[11px] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center gap-1 text-sffl-navy dark:text-gray-300 font-bold hidden sm:inline-flex">
+                                                        <EyeIcon className="w-3.5 h-3.5" /> View Team
+                                                    </span>
+                                                </div>
                                             </td>
                                             {showGWColumn && (
                                                 <td className="py-3.5 px-4 text-right font-mono font-bold text-gray-700 dark:text-gray-300">
@@ -496,6 +518,15 @@ export function FantasyLeaderboard() {
                     </div>
                 </div>
             )}
+
+            {/* Team Inspector Modal */}
+            <FantasyTeamModal
+                isOpen={Boolean(inspectingTeamId)}
+                onClose={() => setInspectingTeamId(null)}
+                teamId={inspectingTeamId}
+                gameweeks={gameweeks || []}
+                initialGameweekId={selectedGWId}
+            />
         </div>
     );
 }

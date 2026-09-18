@@ -28,6 +28,7 @@ const FantasyLeagues = lazy(() => import('./pages/fantasy/FantasyLeagues').then(
 const FantasyLeagueConfirm = lazy(() => import('./pages/fantasy/FantasyLeagueConfirm').then(m => ({ default: m.FantasyLeagueConfirm })));
 const FantasyLeaderboard = lazy(() => import('./pages/fantasy/FantasyLeaderboard').then(m => ({ default: m.FantasyLeaderboard })));
 const FantasyWallet = lazy(() => import('./pages/fantasy/FantasyWallet').then(m => ({ default: m.FantasyWallet })));
+const FantasyAnalytics = lazy(() => import('./pages/fantasy/FantasyAnalytics').then(m => ({ default: m.FantasyAnalytics })));
 
 
 import { AboutShowtimeFlag } from './pages/about/AboutShowtimeFlag';
@@ -222,6 +223,8 @@ function App() {
               } />
               <Route path="/fantasy/trading" element={<Navigate to="/fantasy/build" replace />} />
               <Route path="/fantasy/leaderboard/:id" element={<FantasyLeaderboard />} />
+              <Route path="/fantasy/analytics" element={<FantasyAnalytics />} />
+              <Route path="/fantasy/reports" element={<Navigate to="/fantasy/analytics" replace />} />
               <Route path="/fantasy/leagues/confirm" element={
                 <ProtectedRoute actionText="confirm your league payment" fallbackPath="/fantasy">
                   <FantasyLeagueConfirm />

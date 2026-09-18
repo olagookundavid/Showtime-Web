@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"showtime-backend/internal/domain"
@@ -103,6 +104,9 @@ type IFantasyRepository interface {
 	// Scoring writes one row per (team, player, match), so this is always a
 	// bulk operation — there is deliberately no single-row variant to reach for.
 	BulkUpsertGWPoints(ctx context.Context, pts []domain.FantasyGWPoints) error
+
+	// Analytics
+	GetGameweekAnalytics(ctx context.Context, seasonID, gameweekID string) (*dto.GameweekReportResponse, error)
 }
 
 // PlayerRatingLine pairs a player's rating category with their aggregated stat
@@ -980,16 +984,17 @@ func (r *FantasyRepository) GetTeamByUserAndSeason(ctx context.Context, userID, 
 
 func (r *FantasyRepository) GetTeamByID(ctx context.Context, id string) (*domain.FantasyTeam, error) {
 	query := `
-		SELECT id, user_id, season_id, name, total_points, created_at, updated_at
-		FROM fantasy_teams
-		WHERE id = $1
+		SELECT ft.id, ft.user_id, ft.season_id, ft.name, COALESCE(u.full_name, 'Manager'), ft.total_points, ft.created_at, ft.updated_at
+		FROM fantasy_teams ft
+		LEFT JOIN users u ON ft.user_id = u.id
+		WHERE ft.id = $1
 	`
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	var t domain.FantasyTeam
 	err := r.pool.QueryRow(ctx, query, id).Scan(
-		&t.ID, &t.UserID, &t.SeasonID, &t.Name, &t.TotalPoints, &t.CreatedAt, &t.UpdatedAt,
+		&t.ID, &t.UserID, &t.SeasonID, &t.Name, &t.ManagerName, &t.TotalPoints, &t.CreatedAt, &t.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -1259,7 +1264,7 @@ func (r *FantasyRepository) GetLatestPriorLockedLineup(ctx context.Context, team
 		SELECT fl.id, fl.team_id, fl.gameweek_id, fl.total_spent, fl.points, fl.status, fl.locked_at, fl.created_at, fl.updated_at
 		FROM fantasy_lineups fl
 		JOIN fantasy_gameweeks fgw ON fl.gameweek_id = fgw.id
-		WHERE fl.team_id = $1 AND fgw.number < $2 AND fl.status = 'LOCKED'
+		WHERE fl.team_id = $1 AND (fgw.number < $2 OR $2 >= 999) AND fl.status IN ('LOCKED', 'DRAFT')
 		ORDER BY fgw.number DESC
 		LIMIT 1
 	`
@@ -1275,11 +1280,17 @@ func (r *FantasyRepository) GetLatestPriorLockedLineup(ctx context.Context, team
 		return nil, err
 	}
 
-	// Fetch picks
+	// Fetch picks with hydrated player & team info
 	picksQuery := `
-		SELECT id, lineup_id, player_id, slot, purchase_price, points, created_at
-		FROM fantasy_lineup_picks
-		WHERE lineup_id = $1
+		SELECT flp.id, flp.lineup_id, flp.player_id, flp.slot, flp.purchase_price, flp.points, flp.created_at,
+		       p.id, p.name, COALESCE(p.image, ''), COALESCE(p.position, '-'), COALESCE(p.gender, 'M'),
+		       COALESCE(p.status, 'active'),
+		       COALESCE(t.id::text, ''), COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, '')
+		FROM fantasy_lineup_picks flp
+		JOIN players p ON flp.player_id = p.id
+		LEFT JOIN teams t ON p.team_id = t.id
+		WHERE flp.lineup_id = $1
+		ORDER BY flp.slot ASC
 	`
 	rows, err := r.pool.Query(ctx, picksQuery, l.ID)
 	if err != nil {
@@ -1289,9 +1300,18 @@ func (r *FantasyRepository) GetLatestPriorLockedLineup(ctx context.Context, team
 
 	for rows.Next() {
 		var pick domain.FantasyLineupPick
-		if err := rows.Scan(&pick.ID, &pick.LineupID, &pick.PlayerID, &pick.Slot, &pick.PurchasePrice, &pick.Points, &pick.CreatedAt); err != nil {
+		var pl domain.Player
+		var tm domain.Team
+		if err := rows.Scan(
+			&pick.ID, &pick.LineupID, &pick.PlayerID, &pick.Slot, &pick.PurchasePrice, &pick.Points, &pick.CreatedAt,
+			&pl.ID, &pl.Name, &pl.Image, &pl.Position, &pl.Gender,
+			&pl.Status,
+			&tm.ID, &tm.Name, &tm.ShortName, &tm.Logo,
+		); err != nil {
 			return nil, err
 		}
+		pl.Team = &tm
+		pick.Player = &pl
 		l.Picks = append(l.Picks, pick)
 	}
 	return &l, nil
@@ -2138,4 +2158,398 @@ func (r *FantasyRepository) LinkFixturesToEventDays(ctx context.Context, competi
 		}
 	}
 	return tx.Commit(ctx)
+}
+
+func (r *FantasyRepository) GetGameweekAnalytics(ctx context.Context, seasonID, gameweekID string) (*dto.GameweekReportResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, 6*time.Second)
+	defer cancel()
+
+	gw, err := r.GetGameweekByID(ctx, gameweekID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load gameweek: %w", err)
+	}
+	if gw == nil {
+		return nil, fmt.Errorf("gameweek not found")
+	}
+
+	report := &dto.GameweekReportResponse{
+		SeasonID:       seasonID,
+		GameweekID:     gw.ID,
+		GameweekNumber: gw.Number,
+		GameweekStatus: string(gw.Status),
+		MostOwned:      make([]dto.MostOwnedPlayerItem, 0),
+		TopScorers:     make([]dto.TopScoringPlayerItem, 0),
+		ClubPoints:     make([]dto.ClubPointsItem, 0),
+		DreamTeam:      make([]dto.FantasyLineupPickResponse, 0),
+		Differentials:  make([]dto.TopScoringPlayerItem, 0),
+	}
+
+	// 1. Summary stats
+	summaryQuery := `
+		SELECT 
+			COUNT(fl.id) as total_lineups,
+			COALESCE(AVG(fl.points), 0)::float8 as avg_pts,
+			COALESCE(MAX(fl.points), 0)::float8 as max_pts,
+			COALESCE(MIN(fl.points), 0)::float8 as min_pts
+		FROM fantasy_lineups fl
+		WHERE fl.gameweek_id = $1 AND fl.status = 'LOCKED'
+	`
+	var totalLineups int
+	var avgPts, maxPts, minPts float64
+	err = r.pool.QueryRow(ctx, summaryQuery, gw.ID).Scan(&totalLineups, &avgPts, &maxPts, &minPts)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, fmt.Errorf("failed to query summary stats: %w", err)
+	}
+
+	topTeam := ""
+	if totalLineups > 0 {
+		_ = r.pool.QueryRow(ctx, `
+			SELECT ft.name
+			FROM fantasy_lineups fl
+			JOIN fantasy_teams ft ON ft.id = fl.team_id
+			WHERE fl.gameweek_id = $1 AND fl.status = 'LOCKED'
+			ORDER BY fl.points DESC
+			LIMIT 1
+		`, gw.ID).Scan(&topTeam)
+	}
+
+	report.Summary = dto.GameweekSummaryStats{
+		AveragePoints:      math.Round(avgPts*10) / 10,
+		HighestPoints:      math.Round(maxPts*10) / 10,
+		HighestScoringTeam: topTeam,
+		LowestPoints:       math.Round(minPts*10) / 10,
+		TotalManagers:      totalLineups,
+	}
+
+	// 2. Most Owned Players (from locked starting lineups)
+	mostOwnedQuery := `
+		SELECT p.id, p.name, COALESCE(p.image, ''), COALESCE(p.position, '-'), COALESCE(p.gender, 'M'),
+		       COALESCE(t.id::text, ''), COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
+		       COALESCE(pp.price, 10.00)::float8,
+		       COUNT(flp.player_id) as ownership_count,
+		       COALESCE(MAX(flp.points), 0)::float8 as player_points
+		FROM fantasy_lineup_picks flp
+		JOIN fantasy_lineups fl ON fl.id = flp.lineup_id
+		JOIN players p ON p.id = flp.player_id
+		LEFT JOIN teams t ON t.id = p.team_id
+		LEFT JOIN LATERAL (
+			SELECT price FROM fantasy_player_prices
+			WHERE player_id = p.id AND season_id = $2 AND (gameweek_id = $1 OR gameweek_id IS NULL)
+			ORDER BY (gameweek_id = $1) DESC
+			LIMIT 1
+		) pp ON true
+		WHERE fl.gameweek_id = $1 AND fl.status = 'LOCKED'
+		GROUP BY p.id, p.name, p.image, p.position, p.gender, t.id, t.name, t.short_name, t.logo, pp.price
+		ORDER BY ownership_count DESC, player_points DESC
+		LIMIT 15
+	`
+	ownershipRows, err := r.pool.Query(ctx, mostOwnedQuery, gw.ID, seasonID)
+	ownershipMap := make(map[string]float64)
+	if err == nil {
+		defer ownershipRows.Close()
+		for ownershipRows.Next() {
+			var m dto.MostOwnedPlayerItem
+			if err := ownershipRows.Scan(
+				&m.PlayerID, &m.PlayerName, &m.PlayerImage, &m.Position, &m.Gender,
+				&m.TeamID, &m.TeamName, &m.TeamShortName, &m.TeamLogo,
+				&m.CurrentPrice, &m.OwnershipCount, &m.Points,
+			); err == nil {
+				m.Gender = domain.NormalizeGender(m.Gender)
+				if totalLineups > 0 {
+					m.OwnershipPercentage = math.Round((float64(m.OwnershipCount)/float64(totalLineups)*100)*10) / 10
+				}
+				ownershipMap[m.PlayerID] = m.OwnershipPercentage
+				report.MostOwned = append(report.MostOwned, m)
+			}
+		}
+	}
+
+	// 3. Top Scoring Players
+	topScorersQuery := `
+		SELECT p.id, p.name, COALESCE(p.image, ''), COALESCE(p.position, '-'), COALESCE(p.gender, 'M'),
+		       COALESCE(t.id::text, ''), COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
+		       COALESCE(pp.price, 10.00)::float8,
+		       COALESCE(gp.pts, 0.0)::float8 as total_pts
+		FROM (
+			SELECT player_id, SUM(points) as pts
+			FROM (
+				SELECT DISTINCT player_id, match_id, points
+				FROM fantasy_gw_points
+				WHERE gameweek_id = $1
+			) dm
+			GROUP BY player_id
+		) gp
+		JOIN players p ON p.id = gp.player_id
+		LEFT JOIN teams t ON t.id = p.team_id
+		LEFT JOIN LATERAL (
+			SELECT price FROM fantasy_player_prices
+			WHERE player_id = p.id AND season_id = $2 AND (gameweek_id = $1 OR gameweek_id IS NULL)
+			ORDER BY (gameweek_id = $1) DESC
+			LIMIT 1
+		) pp ON true
+		ORDER BY gp.pts DESC
+		LIMIT 30
+	`
+	tsRows, err := r.pool.Query(ctx, topScorersQuery, gw.ID, seasonID)
+	if err == nil {
+		defer tsRows.Close()
+		for tsRows.Next() {
+			var ts dto.TopScoringPlayerItem
+			if err := tsRows.Scan(
+				&ts.PlayerID, &ts.PlayerName, &ts.PlayerImage, &ts.Position, &ts.Gender,
+				&ts.TeamID, &ts.TeamName, &ts.TeamShortName, &ts.TeamLogo,
+				&ts.Price, &ts.Points,
+			); err == nil {
+				ts.Gender = domain.NormalizeGender(ts.Gender)
+				ts.OwnershipPercentage = ownershipMap[ts.PlayerID]
+				report.TopScorers = append(report.TopScorers, ts)
+			}
+		}
+	}
+
+	// If fantasy_gw_points was empty, fallback to reading scored picks
+	if len(report.TopScorers) == 0 {
+		fallbackQuery := `
+			SELECT p.id, p.name, COALESCE(p.image, ''), COALESCE(p.position, '-'), COALESCE(p.gender, 'M'),
+			       COALESCE(t.id::text, ''), COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
+			       COALESCE(pp.price, 10.00)::float8,
+			       COALESCE(MAX(flp.points), 0)::float8 as points
+			FROM fantasy_lineup_picks flp
+			JOIN fantasy_lineups fl ON fl.id = flp.lineup_id
+			JOIN players p ON p.id = flp.player_id
+			LEFT JOIN teams t ON t.id = p.team_id
+			LEFT JOIN LATERAL (
+				SELECT price FROM fantasy_player_prices
+				WHERE player_id = p.id AND season_id = $2 AND (gameweek_id = $1 OR gameweek_id IS NULL)
+				ORDER BY (gameweek_id = $1) DESC
+				LIMIT 1
+			) pp ON true
+			WHERE fl.gameweek_id = $1 AND fl.status = 'LOCKED'
+			GROUP BY p.id, p.name, p.image, p.position, p.gender, t.id, t.name, t.short_name, t.logo, pp.price
+			ORDER BY points DESC
+			LIMIT 30
+		`
+		fbRows, fbErr := r.pool.Query(ctx, fallbackQuery, gw.ID, seasonID)
+		if fbErr == nil {
+			defer fbRows.Close()
+			for fbRows.Next() {
+				var ts dto.TopScoringPlayerItem
+				if err := fbRows.Scan(
+					&ts.PlayerID, &ts.PlayerName, &ts.PlayerImage, &ts.Position, &ts.Gender,
+					&ts.TeamID, &ts.TeamName, &ts.TeamShortName, &ts.TeamLogo,
+					&ts.Price, &ts.Points,
+				); err == nil {
+					ts.Gender = domain.NormalizeGender(ts.Gender)
+					ts.OwnershipPercentage = ownershipMap[ts.PlayerID]
+					report.TopScorers = append(report.TopScorers, ts)
+				}
+			}
+		}
+	}
+
+	// Differentials: High points (>0) and low ownership (< 20%)
+	for _, ts := range report.TopScorers {
+		if ts.Points > 0 && ts.OwnershipPercentage < 20.0 {
+			report.Differentials = append(report.Differentials, ts)
+			if len(report.Differentials) >= 6 {
+				break
+			}
+		}
+	}
+
+	// 4. Points by Actual SFFL Club
+	clubQuery := `
+		SELECT t.id, t.name, COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
+		       COALESCE(SUM(flp.points), 0)::float8 as total_points,
+		       COUNT(DISTINCT p.id) as active_player_count
+		FROM fantasy_lineup_picks flp
+		JOIN fantasy_lineups fl ON fl.id = flp.lineup_id
+		JOIN players p ON p.id = flp.player_id
+		JOIN teams t ON t.id = p.team_id
+		WHERE fl.gameweek_id = $1 AND fl.status = 'LOCKED'
+		GROUP BY t.id, t.name, t.short_name, t.logo
+		ORDER BY total_points DESC
+	`
+	cRows, err := r.pool.Query(ctx, clubQuery, gw.ID)
+	if err == nil {
+		defer cRows.Close()
+		for cRows.Next() {
+			var cp dto.ClubPointsItem
+			if err := cRows.Scan(
+				&cp.ClubID, &cp.ClubName, &cp.ClubShortName, &cp.ClubLogo,
+				&cp.TotalPoints, &cp.ActivePlayerCount,
+			); err == nil {
+				if cp.ActivePlayerCount > 0 {
+					cp.AveragePointsPerPlayer = math.Round((cp.TotalPoints/float64(cp.ActivePlayerCount))*10) / 10
+				}
+				// Find top scorer for this club
+				for _, ts := range report.TopScorers {
+					if ts.TeamID == cp.ClubID {
+						cp.TopScorerName = ts.PlayerName
+						cp.TopScorerPoints = ts.Points
+						break
+					}
+				}
+				report.ClubPoints = append(report.ClubPoints, cp)
+			}
+		}
+	}
+
+	// 5. Dream Team (Optimal legal starting 14)
+	report.DreamTeam, report.DreamTeamTotalPoints = buildDreamTeam(report.TopScorers)
+
+	return report, nil
+}
+
+// buildDreamTeam constructs the highest-scoring legal starting lineup from the gameweek's performers.
+func buildDreamTeam(scorers []dto.TopScoringPlayerItem) ([]dto.FantasyLineupPickResponse, float64) {
+	if len(scorers) == 0 {
+		return nil, 0
+	}
+
+	picks := make([]dto.FantasyLineupPickResponse, 0, 14)
+	usedPlayers := make(map[string]bool)
+	clubCounts := make(map[string]int)
+	const maxPerClub = 3
+
+	canPick := func(p dto.TopScoringPlayerItem) bool {
+		if usedPlayers[p.PlayerID] {
+			return false
+		}
+		if p.TeamID != "" && clubCounts[p.TeamID] >= maxPerClub {
+			return false
+		}
+		return true
+	}
+
+	takePick := func(p dto.TopScoringPlayerItem, slot string) dto.FantasyLineupPickResponse {
+		usedPlayers[p.PlayerID] = true
+		if p.TeamID != "" {
+			clubCounts[p.TeamID]++
+		}
+		return dto.FantasyLineupPickResponse{
+			Slot:          slot,
+			PlayerID:      p.PlayerID,
+			PlayerName:    p.PlayerName,
+			PlayerImage:   p.PlayerImage,
+			Position:      p.Position,
+			Gender:        p.Gender,
+			TeamID:        p.TeamID,
+			TeamName:      p.TeamName,
+			TeamShortName: p.TeamShortName,
+			TeamLogo:      p.TeamLogo,
+			PurchasePrice: p.Price,
+			CurrentPrice:  p.Price,
+			Points:        p.Points,
+		}
+	}
+
+	// 1. Male QB
+	for _, p := range scorers {
+		if (p.Position == "QB" || p.Position == "Quarterback") && p.Gender == "M" && canPick(p) {
+			picks = append(picks, takePick(p, "QB_M"))
+			break
+		}
+	}
+
+	// 2. Female QB
+	for _, p := range scorers {
+		if (p.Position == "QB" || p.Position == "Quarterback") && p.Gender == "F" && canPick(p) {
+			picks = append(picks, takePick(p, "QB_F"))
+			break
+		}
+	}
+
+	// 3. Receivers (5 slots). Quota needs at least 2 female receivers to hit min 3 female offense with QB_F.
+	//
+	// Slots are assigned from the canonical list by position, not derived from
+	// len(picks): if an earlier slot (say QB_F) went unfilled because no such
+	// scorer existed, len(picks) undercounts and produces a slot name like
+	// "REC_0" that nothing else recognises, silently corrupting the label.
+	recSlots := []string{"REC_1", "REC_2", "REC_3", "REC_4", "REC_5"}
+	recIdx := 0
+	femaleRecNeeded := 2
+	for _, p := range scorers {
+		if femaleRecNeeded <= 0 || recIdx >= len(recSlots) {
+			break
+		}
+		if (p.Position == "Receiver" || p.Position == "Center" || p.Position == "WR") && p.Gender == "F" && canPick(p) {
+			picks = append(picks, takePick(p, recSlots[recIdx]))
+			recIdx++
+			femaleRecNeeded--
+		}
+	}
+
+	// Remaining receivers up to 5 total receivers
+	for _, slot := range recSlots {
+		alreadyFilled := false
+		for _, pk := range picks {
+			if pk.Slot == slot {
+				alreadyFilled = true
+				break
+			}
+		}
+		if !alreadyFilled {
+			for _, p := range scorers {
+				if (p.Position == "Receiver" || p.Position == "Center" || p.Position == "WR") && canPick(p) {
+					picks = append(picks, takePick(p, slot))
+					break
+				}
+			}
+		}
+	}
+
+	// 4. Rusher (1 slot)
+	for _, p := range scorers {
+		if (p.Position == "Rusher" || p.Position == "RUSH") && canPick(p) {
+			picks = append(picks, takePick(p, "RUSHER"))
+			break
+		}
+	}
+
+	// 5. Defenders (6 slots). Quota needs at least 3 female defenders.
+	// See the receivers section above for why this indexes into the canonical
+	// slot list instead of deriving a number from len(picks).
+	defSlots := []string{"DEF_1", "DEF_2", "DEF_3", "DEF_4", "DEF_5", "DEF_6"}
+	defIdx := 0
+	femaleDefNeeded := 3
+	for _, p := range scorers {
+		if femaleDefNeeded <= 0 || defIdx >= len(defSlots) {
+			break
+		}
+		if (p.Position == "Defender" || p.Position == "DB" || p.Position == "CB" || p.Position == "Safety" || p.Position == "LB") && p.Gender == "F" && canPick(p) {
+			picks = append(picks, takePick(p, defSlots[defIdx]))
+			defIdx++
+			femaleDefNeeded--
+		}
+	}
+
+	// Remaining defenders up to 6 total defenders
+	for _, slot := range defSlots {
+		alreadyFilled := false
+		for _, pk := range picks {
+			if pk.Slot == slot {
+				alreadyFilled = true
+				break
+			}
+		}
+		if !alreadyFilled {
+			for _, p := range scorers {
+				if (p.Position == "Defender" || p.Position == "DB" || p.Position == "CB" || p.Position == "Safety" || p.Position == "LB") && canPick(p) {
+					picks = append(picks, takePick(p, slot))
+					break
+				}
+			}
+		}
+	}
+
+	var totalPts float64
+	for _, pk := range picks {
+		totalPts += pk.Points
+	}
+	return picks, math.Round(totalPts*10) / 10
+}
+
+func BuildDreamTeamForTest(scorers []dto.TopScoringPlayerItem) ([]dto.FantasyLineupPickResponse, float64) {
+	return buildDreamTeam(scorers)
 }

@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -22,6 +23,8 @@ type IFantasyHandler interface {
 	GetDashboard(c *gin.Context)
 	SaveLineup(c *gin.Context)
 	GetMyLineup(c *gin.Context)
+	GetTeamLineup(c *gin.Context)
+	GetGameweekReport(c *gin.Context)
 
 	// Admin
 	AdminListSeasons(c *gin.Context)
@@ -113,14 +116,18 @@ func (h *FantasyHandler) GetPlayerBreakdown(c *gin.Context) {
 	gwID := c.Param("gwId")
 
 	breakdown, err := h.service.GetPlayerBreakdown(c.Request.Context(), playerID, gwID)
+	if errors.Is(err, services.ErrGameweekNotFound) {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	if breakdown == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "breakdown not found for player in this gameweek"})
-		return
-	}
+	// A player can legitimately have no stat lines yet for a real gameweek —
+	// before kickoff, or while a match day is still being played. That is not
+	// an error: it answers with empty data so the client shows "no stats yet"
+	// instead of retrying a request that will never succeed.
 	c.JSON(http.StatusOK, gin.H{"data": breakdown})
 }
 
@@ -203,6 +210,49 @@ func (h *FantasyHandler) GetMyLineup(c *gin.Context) {
 	}
 
 	res, err := h.service.GetMyLineup(c.Request.Context(), payload.UserId, seasonID, gameweekID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": res})
+}
+
+func (h *FantasyHandler) GetTeamLineup(c *gin.Context) {
+	teamID := c.Param("team_id")
+	gameweekID := c.Param("gw_id")
+	if teamID == "" || gameweekID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "team_id and gw_id are required"})
+		return
+	}
+
+	requestingUserID := ""
+	if payload, err := helpers.GetTokenPayloadFromContext(c); err == nil && payload != nil {
+		requestingUserID = payload.UserId
+	}
+
+	res, err := h.service.GetTeamLineup(c.Request.Context(), requestingUserID, teamID, gameweekID)
+	if err != nil {
+		if errors.Is(err, services.ErrGameweekNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": res})
+}
+
+func (h *FantasyHandler) GetGameweekReport(c *gin.Context) {
+	seasonID := c.Param("season_id")
+	gameweekID := c.Param("gw_id")
+	if seasonID == "" || gameweekID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "season_id and gw_id are required"})
+		return
+	}
+
+	res, err := h.service.GetGameweekReport(c.Request.Context(), seasonID, gameweekID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
