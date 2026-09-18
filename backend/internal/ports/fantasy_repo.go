@@ -742,7 +742,7 @@ func (r *FantasyRepository) ListPlayerMarket(ctx context.Context, seasonID strin
 	baseQuery := `
 		FROM players p
 		JOIN teams t ON p.team_id = t.id
-		LEFT JOIN fantasy_player_prices fpp ON fpp.player_id = p.id AND fpp.season_id = $1 AND fpp.gameweek_id IS NULL
+		JOIN fantasy_player_prices fpp ON fpp.player_id = p.id AND fpp.season_id = $1 AND fpp.gameweek_id IS NULL AND fpp.price > 0
 		LEFT JOIN (
 			SELECT fgp.player_id, SUM(fgp.points) AS total_pts
 			FROM fantasy_gw_points fgp
@@ -769,6 +769,11 @@ func (r *FantasyRepository) ListPlayerMarket(ctx context.Context, seasonID strin
 		  -- Deactivated players (migration 088) keep their history but cannot be
 		  -- signed, picked or fielded again.
 		  AND COALESCE(p.status, 'active') = 'active'
+		  -- Exclude reserve squad players (migration 087): only main squad players
+		  -- are active and eligible to be bought on the fantasy transfer market.
+		  AND NOT EXISTS (
+		      SELECT 1 FROM team_reserves tr WHERE tr.player_id = p.id
+		  )
 		  AND (
 		      NOT EXISTS (
 		          SELECT 1 FROM competition_teams ct

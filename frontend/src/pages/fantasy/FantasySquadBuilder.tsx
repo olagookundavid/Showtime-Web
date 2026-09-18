@@ -573,15 +573,15 @@ export function FantasySquadBuilder() {
     );
 
     // Anyone already owned is shown in the section above, so the market half
-    // lists only players who would need signing.
+    // lists only players who would need signing and have a valid market price.
     const buyablePlayers = useMemo(
-        () => marketPlayers.filter((p) => !ownedIds.has(p.player_id)),
+        () => marketPlayers.filter((p) => !ownedIds.has(p.player_id) && p.price > 0),
         [marketPlayers, ownedIds],
     );
 
-    // Bench market: anyone not already owned
+    // Bench market: anyone not already owned with valid market price
     const buyableBenchPlayers = useMemo(
-        () => (benchMarketData?.data ?? []).filter((p) => !ownedIds.has(p.player_id)),
+        () => (benchMarketData?.data ?? []).filter((p) => !ownedIds.has(p.player_id) && p.price > 0),
         [benchMarketData, ownedIds],
     );
 
@@ -1704,15 +1704,16 @@ export function FantasySquadBuilder() {
                                                     it, not merely in the squad. */}
                                                     <button
                                                         onClick={() => buyAndSelect(p)}
-                                                        disabled={isAlreadyPicked || !affordable || squadFull || clubExceeded || !!mktClosed || buyMutation.isPending}
+                                                        disabled={isAlreadyPicked || !affordable || squadFull || clubExceeded || !!mktClosed || buyMutation.isPending || p.price <= 0}
                                                         title={
                                                             mktClosed ? mktClosed
+                                                                : p.price <= 0 ? 'This player is not on the market for this season'
                                                                 : squadFull ? `Your squad is full at ${mySquad?.squad_max}`
                                                                     : clubExceeded ? `No more than ${season?.max_per_club || 3} players may come from one club`
                                                                         : !affordable ? 'Not enough in the bank'
                                                                             : undefined
                                                         }
-                                                        className={`mt-1 px-3.5 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition ${isAlreadyPicked || !affordable || squadFull || clubExceeded || mktClosed
+                                                        className={`mt-1 px-3.5 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition ${isAlreadyPicked || !affordable || squadFull || clubExceeded || mktClosed || p.price <= 0
                                                                 ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                                                                 : 'bg-sffl-red hover:bg-[#A52323] text-white cursor-pointer shadow-sm'
                                                             }`}
@@ -1892,8 +1893,8 @@ export function FantasySquadBuilder() {
                                                 </span>
                                                 <button
                                                     onClick={() => buyForBench(p.player_id)}
-                                                    disabled={!affordable || squadFull || buyMutation.isPending}
-                                                    className={`mt-1 px-3.5 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition ${!affordable || squadFull
+                                                    disabled={!affordable || squadFull || buyMutation.isPending || p.price <= 0}
+                                                    className={`mt-1 px-3.5 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition ${!affordable || squadFull || p.price <= 0
                                                             ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                                                             : 'bg-sffl-red hover:bg-[#A52323] text-white cursor-pointer shadow-sm'
                                                         }`}

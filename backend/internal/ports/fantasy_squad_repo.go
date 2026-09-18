@@ -121,6 +121,7 @@ func (r *FantasySquadRepository) GetMarketPlayer(ctx context.Context, seasonID, 
 	var teamStatus string
 	var compEligible bool
 	var playerStatus string
+	var isReserve bool
 	err := r.pool.QueryRow(ctx, `
 		SELECT COALESCE((
 		           SELECT pp.price FROM fantasy_player_prices pp
@@ -139,11 +140,15 @@ func (r *FantasySquadRepository) GetMarketPlayer(ctx context.Context, seasonID, 
 		           SELECT 1 FROM competition_teams ct
 		           JOIN fantasy_seasons fs ON fs.id = $1
 		           WHERE ct.competition_id = fs.competition_id
+		       ),
+		       EXISTS (
+		           SELECT 1 FROM team_reserves tr
+		           WHERE tr.player_id = p.id
 		       )
 		FROM players p
 		LEFT JOIN teams t ON p.team_id = t.id
 		WHERE p.id = $2
-	`, seasonID, playerID).Scan(&price, &clubID, &teamStatus, &playerStatus, &compEligible)
+	`, seasonID, playerID).Scan(&price, &clubID, &teamStatus, &playerStatus, &compEligible, &isReserve)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return 0, "", errors.New("player not found")
@@ -154,6 +159,9 @@ func (r *FantasySquadRepository) GetMarketPlayer(ctx context.Context, seasonID, 
 	// still be signed by id even though they no longer appear in the market.
 	if playerStatus != "active" {
 		return 0, "", errors.New("this player has been deleted and cannot be signed")
+	}
+	if isReserve {
+		return 0, "", errors.New("reserve squad players cannot be signed to a fantasy squad")
 	}
 	if clubID == "" || teamStatus != "active" {
 		return 0, "", errors.New("players from inactive teams cannot be signed to a fantasy squad")
