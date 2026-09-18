@@ -23,6 +23,8 @@ export const useLiveStream = () => {
 
     return {
         isLive: Boolean(data?.is_live && data.video_id),
+        isVideo: Boolean(data?.is_video && data.video_id),
+        mode: data?.mode,
         videoId: data?.video_id,
         title: data?.title,
     };

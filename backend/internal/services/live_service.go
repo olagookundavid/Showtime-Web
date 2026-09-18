@@ -25,9 +25,10 @@ const (
 	// override. Auto-detected streams take their title from YouTube instead.
 	SettingKeyLiveTitle = "live_stream_title"
 
-	LiveModeAuto = "auto"
-	LiveModeOn   = "on"
-	LiveModeOff  = "off"
+	LiveModeAuto  = "auto"
+	LiveModeOn    = "on"
+	LiveModeOff   = "off"
+	LiveModeVideo = "video"
 
 	// ChannelHandle is the channel we watch. YouTube serves the current live
 	// broadcast at /@handle/live, so no API key or quota is involved — the same
@@ -91,7 +92,7 @@ func (s *LiveService) GetStatus(ctx context.Context) (*dto.LiveStatusResponse, e
 		// "on" with no video id is a half-finished setting, not a live stream —
 		// fall through to the carousel rather than embedding a broken player.
 		if videoID == "" {
-			return &dto.LiveStatusResponse{IsLive: false, Source: LiveSourceManual}, nil
+			return &dto.LiveStatusResponse{IsLive: false, Mode: LiveModeOn, Source: LiveSourceManual}, nil
 		}
 		title, err := s.repo.Get(ctx, SettingKeyLiveTitle)
 		if err != nil {
@@ -99,17 +100,43 @@ func (s *LiveService) GetStatus(ctx context.Context) (*dto.LiveStatusResponse, e
 		}
 		return &dto.LiveStatusResponse{
 			IsLive:  true,
+			Mode:    LiveModeOn,
+			VideoID: videoID,
+			Title:   title,
+			Source:  LiveSourceManual,
+		}, nil
+
+	case LiveModeVideo:
+		videoID, err := s.repo.Get(ctx, SettingKeyLiveVideoID)
+		if err != nil {
+			return nil, err
+		}
+		if videoID == "" {
+			return &dto.LiveStatusResponse{IsLive: false, IsVideo: false, Mode: LiveModeVideo, Source: LiveSourceManual}, nil
+		}
+		title, err := s.repo.Get(ctx, SettingKeyLiveTitle)
+		if err != nil {
+			return nil, err
+		}
+		return &dto.LiveStatusResponse{
+			IsLive:  false,
+			IsVideo: true,
+			Mode:    LiveModeVideo,
 			VideoID: videoID,
 			Title:   title,
 			Source:  LiveSourceManual,
 		}, nil
 
 	case LiveModeOff:
-		return &dto.LiveStatusResponse{IsLive: false, Source: LiveSourceManual}, nil
+		return &dto.LiveStatusResponse{IsLive: false, Mode: LiveModeOff, Source: LiveSourceManual}, nil
 	}
 
 	// Unset or "auto".
-	return s.detect(ctx), nil
+	status := s.detect(ctx)
+	if status != nil {
+		status.Mode = LiveModeAuto
+	}
+	return status, nil
 }
 
 func (s *LiveService) GetAdminStatus(ctx context.Context) (*dto.AdminLiveStatusResponse, error) {
@@ -122,12 +149,12 @@ func (s *LiveService) GetAdminStatus(ctx context.Context) (*dto.AdminLiveStatusR
 
 func (s *LiveService) SetOverride(ctx context.Context, mode, videoID, title string) (*dto.AdminLiveStatusResponse, error) {
 	switch mode {
-	case LiveModeAuto, LiveModeOn, LiveModeOff:
+	case LiveModeAuto, LiveModeOn, LiveModeOff, LiveModeVideo:
 	default:
-		return nil, fmt.Errorf("invalid mode %q: expected auto, on or off", mode)
+		return nil, fmt.Errorf("invalid mode %q: expected auto, on, off or video", mode)
 	}
 
-	if mode == LiveModeOn {
+	if mode == LiveModeOn || mode == LiveModeVideo {
 		// Admins paste whatever YouTube gave them — a watch URL, a youtu.be
 		// link, a /live/ link, or the bare id. Normalise here so the frontend
 		// only ever deals in ids.

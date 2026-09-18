@@ -181,6 +181,8 @@ export const getRelivePlaylist = async (playlistId?: string): Promise<RelivePlay
 // ─── Live stream ──────────────────────────────────────────────────────────────
 export interface LiveStatus {
     is_live: boolean;
+    is_video?: boolean;
+    mode?: 'auto' | 'on' | 'off' | 'video';
     video_id?: string;
     title?: string;
     /** 'auto' = detected from the channel, 'manual' = an admin override decided it. */
@@ -188,7 +190,7 @@ export interface LiveStatus {
 }
 
 export interface AdminLiveStatus extends LiveStatus {
-    mode: 'auto' | 'on' | 'off';
+    mode: 'auto' | 'on' | 'off' | 'video';
     override_video_id: string;
     override_title: string;
     detected_live: boolean;
@@ -207,7 +209,7 @@ export const liveApi = {
         const res = await api.get<AdminLiveStatus>('/admin/live');
         return res.data;
     },
-    setOverride: async (payload: { mode: 'auto' | 'on' | 'off'; video_id?: string; title?: string }): Promise<AdminLiveStatus> => {
+    setOverride: async (payload: { mode: 'auto' | 'on' | 'off' | 'video'; video_id?: string; title?: string }): Promise<AdminLiveStatus> => {
         const res = await api.put<AdminLiveStatus>('/admin/live', payload);
         return res.data;
     },

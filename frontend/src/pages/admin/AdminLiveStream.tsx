@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { SignalIcon, ArrowPathIcon, PlayCircleIcon, NoSymbolIcon } from '@heroicons/react/24/outline';
+import { SignalIcon, ArrowPathIcon, PlayCircleIcon, NoSymbolIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
 import { liveApi, type AdminLiveStatus } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 
-type Mode = 'auto' | 'on' | 'off';
+type Mode = 'auto' | 'on' | 'off' | 'video';
 
 const MODES: { id: Mode; label: string; blurb: string }[] = [
     {
@@ -15,13 +15,18 @@ const MODES: { id: Mode; label: string; blurb: string }[] = [
     },
     {
         id: 'on',
-        label: 'Force live',
-        blurb: 'Always show the video below, whatever YouTube says. Use this for an unlisted stream, or when automatic detection is slow to notice. Remember to switch back to Automatic afterwards.',
+        label: 'Live Stream',
+        blurb: 'Force live stream mode. Always displays the stream on the homepage hero with the red LIVE / ON AIR indicator, whatever YouTube says.',
+    },
+    {
+        id: 'video',
+        label: 'Featured Video',
+        blurb: 'Show a featured YouTube video (game replay, highlights, promo) on the homepage hero instead of the carousel. Does not trigger LIVE badges.',
     },
     {
         id: 'off',
-        label: 'Force carousel',
-        blurb: 'Never show a live player, even if the channel is streaming. Use this to keep the homepage on the carousel during a test or private broadcast.',
+        label: 'Carousel',
+        blurb: 'Never show a live stream or featured video, even if the channel is streaming. Keeps the homepage strictly on the carousel slides.',
     },
 ];
 
@@ -63,12 +68,11 @@ const Header = () => (
                 <SignalIcon className="w-7 h-7" />
             </div>
             <h1 className="text-2xl md:text-3xl font-black tracking-tight text-sffl-navy dark:text-white uppercase">
-                Live Stream
+                Homepage Hero & Live Stream
             </h1>
         </div>
         <p className="text-sm md:text-base text-gray-600 dark:text-gray-300 max-w-3xl">
-            Controls what visitors see at the top of the homepage. When we're live, the hero carousel
-            is replaced by the stream and a red LIVE badge appears in the navigation on every page.
+            Controls what visitors see at the top of the homepage: automatic stream detection, forced live stream, a featured YouTube video, or the standard carousel slides.
         </p>
     </div>
 );
@@ -107,13 +111,34 @@ const StatusCards = ({ status }: { status: AdminLiveStatus }) => {
                             Decided by: {status.source === 'auto' ? 'automatic detection' : 'your override'}
                         </div>
                     </>
+                ) : status.mode === 'video' && (status.video_id || status.override_video_id) ? (
+                    <>
+                        <div className="flex items-center gap-2 mb-2 text-sffl-navy dark:text-white">
+                            <VideoCameraIcon className="w-6 h-6 text-sffl-red" />
+                            <span className="text-2xl font-black italic uppercase">Featured Video</span>
+                        </div>
+                        <p className="text-sm text-gray-700 dark:text-gray-200 truncate" title={status.title || status.override_title}>
+                            {status.title || status.override_title || 'Featured YouTube video'}
+                        </p>
+                        <a
+                            href={`https://www.youtube.com/watch?v=${status.video_id || status.override_video_id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-block mt-3 text-xs font-mono bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2.5 py-1 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                        >
+                            {status.video_id || status.override_video_id} ↗
+                        </a>
+                        <div className="mt-3 text-[10px] uppercase tracking-widest font-bold text-gray-400 dark:text-gray-400">
+                            Decided by: your video override
+                        </div>
+                    </>
                 ) : (
                     <>
                         <div className="text-2xl font-black italic uppercase text-sffl-navy dark:text-white mb-2">
                             Carousel
                         </div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                            No live stream is showing. Visitors see the normal hero slides.
+                            No live stream or featured video is showing. Visitors see the normal hero slides.
                         </p>
                     </>
                 )}
@@ -166,13 +191,15 @@ const LiveControls = ({ status }: { status: AdminLiveStatus }) => {
             // the change shows up without waiting out their poll.
             queryClient.invalidateQueries({ queryKey: ['liveStatus'] });
             toast.success(
-                updated.is_live
-                    ? 'Saved — the homepage is showing the live stream.'
-                    : 'Saved — the homepage is showing the carousel.'
+                updated.mode === 'video'
+                    ? 'Saved — the homepage is showing the featured video.'
+                    : updated.is_live
+                        ? 'Saved — the homepage is showing the live stream.'
+                        : 'Saved — the homepage is showing the carousel.'
             );
         },
         onError: (err: unknown) => {
-            toast.error(errorMessage(err, 'Could not save the live settings.'));
+            toast.error(errorMessage(err, 'Could not save the hero settings.'));
         },
     });
 
@@ -183,10 +210,16 @@ const LiveControls = ({ status }: { status: AdminLiveStatus }) => {
                     Who decides?
                 </h2>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {MODES.map(m => {
                         const active = mode === m.id;
-                        const Icon = m.id === 'auto' ? SignalIcon : m.id === 'on' ? PlayCircleIcon : NoSymbolIcon;
+                        const Icon = m.id === 'auto'
+                            ? SignalIcon
+                            : m.id === 'on'
+                                ? PlayCircleIcon
+                                : m.id === 'video'
+                                    ? VideoCameraIcon
+                                    : NoSymbolIcon;
                         return (
                             <button
                                 key={m.id}
@@ -211,8 +244,8 @@ const LiveControls = ({ status }: { status: AdminLiveStatus }) => {
                 </div>
             </div>
 
-            {/* Video fields — only meaningful for "Force live" */}
-            {mode === 'on' && (
+            {/* Video fields — shown for "Live Stream" or "Featured Video" */}
+            {(mode === 'on' || mode === 'video') && (
                 <div className="p-6 md:p-8 rounded-3xl bg-white dark:bg-gray-800 shadow-xl border border-gray-200 dark:border-gray-700 space-y-5">
                     <div>
                         <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
@@ -221,7 +254,7 @@ const LiveControls = ({ status }: { status: AdminLiveStatus }) => {
                         <input
                             value={videoInput}
                             onChange={e => setVideoInput(e.target.value)}
-                            placeholder="https://www.youtube.com/watch?v=..."
+                            placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/..."
                             className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-sffl-navy dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-sffl-red/40"
                         />
                         <div className="flex flex-wrap items-center gap-3 mt-2">
@@ -242,16 +275,16 @@ const LiveControls = ({ status }: { status: AdminLiveStatus }) => {
 
                     <div>
                         <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
-                            Caption (optional)
+                            {mode === 'video' ? 'Video caption / title (optional)' : 'Caption (optional)'}
                         </label>
                         <input
                             value={title}
                             onChange={e => setTitle(e.target.value)}
-                            placeholder="Bowl 14 Semifinal — Rebels vs Knights"
+                            placeholder={mode === 'video' ? 'Week 5 Highlights — Game of the Week' : 'Bowl 14 Semifinal — Rebels vs Knights'}
                             className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-sffl-navy dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-sffl-red/40"
                         />
                         <p className="text-xs text-gray-400 mt-2">
-                            Shown next to the LIVE badge on the player.
+                            {mode === 'video' ? 'Shown in player accessibility metadata and admin dashboard.' : 'Shown next to the LIVE badge on the player.'}
                         </p>
                     </div>
                 </div>
@@ -260,7 +293,7 @@ const LiveControls = ({ status }: { status: AdminLiveStatus }) => {
             <div className="flex flex-col sm:flex-row items-center gap-3">
                 <button
                     onClick={() => save.mutate()}
-                    disabled={save.isPending || (mode === 'on' && !videoInput.trim())}
+                    disabled={save.isPending || ((mode === 'on' || mode === 'video') && !videoInput.trim())}
                     className="w-full sm:w-auto px-8 py-3.5 bg-sffl-red hover:bg-sffl-red/90 text-white font-bold text-sm rounded-2xl shadow-lg transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
                 >
                     {save.isPending ? 'Saving…' : 'Apply to homepage'}

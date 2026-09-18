@@ -11,9 +11,9 @@ import { ArrowRightIcon } from '@heroicons/react/24/outline';
 import { LightboxImage } from '../components/ui/LightboxImage';
 
 export const LandingPage = () => {
-    // While the channel is live the hero *is* the stream; the carousel comes
-    // back on its own once the poll sees the broadcast end.
-    const { isLive, videoId, title: liveTitle } = useLiveStream();
+    // While the channel is live or a featured video is active, the hero displays
+    // the video; the carousel comes back on its own once the setting/stream ends.
+    const { isLive, isVideo, videoId, title: heroTitle } = useLiveStream();
 
     const { data: newsData, isLoading: loadingNews } = useQuery({
         queryKey: ['publicNews', "Commissioner's Note"],
@@ -30,10 +30,10 @@ export const LandingPage = () => {
 
     return (
         <div className="space-y-6 md:space-y-12 pt-4">
-            {/* Hero — the live stream when we're on air, the carousel otherwise */}
+            {/* Hero — the live stream or featured video when active, the carousel otherwise */}
             <section className="px-1">
-                {isLive && videoId ? (
-                    <LiveHero videoId={videoId} title={liveTitle} />
+                {(isLive || isVideo) && videoId ? (
+                    <LiveHero videoId={videoId} title={heroTitle} isLive={isLive} />
                 ) : (
                     <MainHeroCarousel />
                 )}
