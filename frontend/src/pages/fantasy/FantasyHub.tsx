@@ -195,9 +195,9 @@ export function FantasyHub() {
                                 </Link>
                                 <Link
                                     to="/fantasy/leagues"
-                                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs transition backdrop-blur-md"
+                                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-sffl-navy font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-400/30 transition active:scale-95 ring-1 ring-amber-300/70"
                                 >
-                                    <TrophyIcon className="w-4 h-4 text-yellow-400" /> Browse Leagues
+                                    <TrophyIcon className="w-4 h-4 text-sffl-navy" /> Browse Leagues
                                 </Link>
                                 <Link
                                     to={gameweek?.id ? `/fantasy/analytics?gw=${gameweek.id}` : '/fantasy/analytics'}
@@ -228,9 +228,9 @@ export function FantasyHub() {
                                 </button>
                                 <Link
                                     to="/fantasy/leagues"
-                                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs transition backdrop-blur-md"
+                                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-sffl-navy font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-400/30 transition active:scale-95 ring-1 ring-amber-300/70"
                                 >
-                                    <TrophyIcon className="w-4 h-4 text-yellow-400" /> Browse Leagues
+                                    <TrophyIcon className="w-4 h-4 text-sffl-navy" /> Browse Leagues
                                 </Link>
                                 <Link
                                     to={gameweek?.id ? `/fantasy/analytics?gw=${gameweek.id}` : '/fantasy/analytics'}

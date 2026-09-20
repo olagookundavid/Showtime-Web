@@ -477,10 +477,18 @@ export function FantasyDashboard() {
                     <div className="flex flex-wrap items-center gap-3">
                         <Link
                             to="/fantasy/leagues"
-                            className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase flex items-center gap-2 transition backdrop-blur-md"
+                            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-sffl-navy font-black text-xs uppercase tracking-wider flex items-center gap-2 transition active:scale-95 shadow-lg shadow-amber-400/30 ring-1 ring-amber-300/70"
                         >
-                            <TrophyIcon className="w-3.5 h-3.5 text-yellow-400" /> Browse Leagues
+                            <TrophyIcon className="w-4 h-4 text-sffl-navy" /> Browse Leagues
                         </Link>
+                        {!deadlinePassed && (
+                            <Link
+                                to="/fantasy/build"
+                                className="px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 transition active:scale-95 shadow-lg shadow-sffl-red/30"
+                            >
+                                <PencilSquareIcon className="w-3.5 h-3.5" /> My Team & Transfers
+                            </Link>
+                        )}
                         <Link
                             to="/fantasy/analytics"
                             className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase flex items-center gap-2 transition backdrop-blur-md"
@@ -499,14 +507,6 @@ export function FantasyDashboard() {
                         >
                             <ShieldCheckIcon className="w-3.5 h-3.5 text-emerald-400" /> Full Squad
                         </Link>
-                        {!deadlinePassed && (
-                            <Link
-                                to="/fantasy/build"
-                                className="px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase flex items-center gap-2 transition active:scale-95 shadow-lg shadow-sffl-red/30"
-                            >
-                                <PencilSquareIcon className="w-3.5 h-3.5" /> My Team & Transfers
-                            </Link>
-                        )}
                     </div>
                 </div>
 
