@@ -7,7 +7,6 @@ import {
     UsersIcon,
     CheckCircleIcon,
     ExclamationCircleIcon,
-    ChevronRightIcon,
     XMarkIcon,
     MagnifyingGlassIcon,
     RocketLaunchIcon,
@@ -36,6 +35,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Loader } from '../../components/ui/Loader';
 import { PlayerAvatar } from '../../components/fantasy/PlayerAvatar';
 import { FantasyBackLink } from '../../components/fantasy/FantasyBackLink';
+import { FantasyPitch } from '../../components/fantasy/FantasyPitch';
 
 interface SlotDefinition {
     slot: FantasySlot;
@@ -788,13 +788,6 @@ export function FantasySquadBuilder() {
         );
     }
 
-    // Filter slots for unit tab
-    const displayedSlots = SLOT_DEFINITIONS.filter(def => {
-        if (selectedUnitTab === 'ALL') return true;
-        return def.unit === selectedUnitTab;
-    });
-
-
     // Signing from the picker puts them in the squad, then straight into the
     // slot the manager opened — one action, not two.
     const buyAndSelect = async (p: FantasyPlayerListItem) => {
@@ -1002,202 +995,155 @@ export function FantasySquadBuilder() {
                 </div>
             )}
 
-            {/* Starting 14 Section Header & Unit Switcher */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                    <h2 className="text-sm font-black uppercase tracking-wider text-sffl-navy dark:text-white flex items-center gap-2">
-                        <UsersIcon className="w-4 h-4 text-sffl-red" />
-                        Starting 14 Lineup
-                    </h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                        Tap an empty slot to draft an athlete, or tap a starter to swap, transfer, or bench.
-                    </p>
-                </div>
-
-                {/* Unit Switcher Tabs */}
-                <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-md p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm inline-flex gap-1.5 shrink-0">
-                    <button
-                        onClick={() => setSelectedUnitTab('ALL')}
-                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${selectedUnitTab === 'ALL'
-                                ? 'bg-sffl-navy text-white shadow-md'
-                                : 'text-gray-600 dark:text-gray-300 hover:text-sffl-navy dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
-                            }`}
-                    >
-                        Full Roster (14)
-                    </button>
-                    <button
-                        onClick={() => setSelectedUnitTab('OFFENSE')}
-                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${selectedUnitTab === 'OFFENSE'
-                                ? 'bg-sffl-red text-white shadow-md'
-                                : 'text-gray-600 dark:text-gray-300 hover:text-sffl-red hover:bg-gray-100 dark:hover:bg-gray-700'
-                            }`}
-                    >
-                        Offensive Unit (7)
-                    </button>
-                    <button
-                        onClick={() => setSelectedUnitTab('DEFENSE')}
-                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${selectedUnitTab === 'DEFENSE'
-                                ? 'bg-emerald-600 text-white shadow-md'
-                                : 'text-gray-600 dark:text-gray-300 hover:text-emerald-600 hover:bg-gray-100 dark:hover:bg-gray-700'
-                            }`}
-                    >
-                        Defensive Unit (7)
-                    </button>
-                </div>
+            {/* Starting 14 Tactical Pitch View */}
+            <div>
+                <FantasyPitch
+                    squad={squad}
+                    mode="builder"
+                    title="Starting 14 Lineup"
+                    selectedUnitTab={selectedUnitTab}
+                    onUnitTabChange={setSelectedUnitTab}
+                    actionSlot={actionSlot}
+                    onSlotClick={(slot, player) => {
+                        if (player) {
+                            setActionSlot(actionSlot === slot ? null : slot);
+                        } else {
+                            const def = SLOT_DEFINITIONS.find(d => d.slot === slot);
+                            if (def) setActiveModalSlot(def);
+                        }
+                    }}
+                    isSlotInactive={(slot) => {
+                        const player = squad[slot];
+                        if (!player) return false;
+                        const squadMember = mySquad?.players?.find(sp => sp.player_id === player.player_id);
+                        return squadMember?.team_active === false;
+                    }}
+                    isSlotDeleted={(slot) => {
+                        const player = squad[slot];
+                        if (!player) return false;
+                        const squadMember = mySquad?.players?.find(sp => sp.player_id === player.player_id);
+                        return isDeletedPlayer({ status: squadMember?.player_status });
+                    }}
+                />
             </div>
 
-            {/* Slots Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 md:gap-4">
-                {displayedSlots.map(def => {
-                    const player = squad[def.slot];
-                    const isActionOpen = actionSlot === def.slot;
-                    const squadMember = player ? mySquad?.players?.find(sp => sp.player_id === player.player_id) : undefined;
-                    const isInactiveClub = squadMember?.team_active === false;
-                    const isDeleted = isDeletedPlayer({ status: squadMember?.player_status });
-                    return (
-                        <div key={def.slot} className="relative">
-                            <div
-                                role="button"
-                                tabIndex={0}
-                                aria-label={player ? `${def.label}: ${player.player_name}` : `Draft athlete for ${def.label}`}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                        e.preventDefault();
-                                        if (player) {
-                                            setActionSlot(isActionOpen ? null : def.slot);
-                                        } else {
-                                            setActiveModalSlot(def);
-                                        }
-                                    }
-                                }}
-                                onClick={() => {
-                                    if (player) {
-                                        // Toggle action popover on occupied slots
-                                        setActionSlot(isActionOpen ? null : def.slot);
-                                    } else {
-                                        setActiveModalSlot(def);
-                                    }
-                                }}
-                                className={`p-4 rounded-2xl border transition cursor-pointer flex items-center justify-between ${player
-                                        ? isActionOpen
-                                            ? 'bg-white dark:bg-gray-800 border-sffl-red shadow-md ring-1 ring-sffl-red/30'
-                                            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500 shadow-sm'
-                                        : 'bg-white/60 dark:bg-gray-800/40 border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-sffl-red dark:hover:border-sffl-red hover:bg-white dark:hover:bg-gray-800 shadow-sm'
-                                    }`}
-                            >
-                                <div className="flex items-center gap-3.5">
-                                    {player ? (
-                                        <PlayerAvatar
-                                            name={player.player_name}
-                                            image={player.player_image}
-                                            gender={player.gender}
-                                            size="lg"
-                                        />
-                                    ) : (
-                                        <div className="w-14 h-14 rounded-xl bg-gray-100 dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
-                                            <span className="text-[10px] font-black uppercase tracking-wider">{def.slot}</span>
-                                            <UsersIcon className="w-4 h-4 mt-0.5 text-gray-400" />
-                                        </div>
-                                    )}
-
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
-                                                {def.slot}
-                                            </span>
-                                            <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">{def.label}</span>
-                                            {isInactiveClub && (
-                                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800">
-                                                    Inactive Club
-                                                </span>
-                                            )}
-                                            {isDeleted && (
-                                                <span
-                                                    title="This player has been deleted"
-                                                    className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-300 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600"
-                                                >
-                                                    Deleted
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        {player ? (
-                                            <div className={`mt-1 ${isDeleted ? 'opacity-50' : ''}`}>
-                                                <h3
-                                                    className={`text-base font-bold leading-tight ${isDeleted
-                                                        ? 'text-gray-400 dark:text-gray-500 line-through decoration-1'
-                                                        : 'text-gray-900 dark:text-white'}`}
-                                                    title={isDeleted ? 'This player has been deleted' : undefined}
-                                                >{player.player_name}</h3>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                                    {player.team_short_name || player.team_name} • {player.position}
-                                                </p>
-                                            </div>
-                                        ) : (
-                                            <p className="text-xs text-sffl-red font-bold mt-1">Tap to draft athlete</p>
-                                        )}
+            {/* Action Dialog Modal for occupied slot */}
+            {actionSlot && squad[actionSlot] && (
+                <div
+                    className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 animate-in fade-in duration-150"
+                    onClick={() => setActionSlot(null)}
+                >
+                    <div
+                        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-150"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Modal Header */}
+                        <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                                <PlayerAvatar
+                                    name={squad[actionSlot]!.player_name}
+                                    image={squad[actionSlot]!.player_image}
+                                    gender={squad[actionSlot]!.gender}
+                                    size="md"
+                                />
+                                <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                                            {actionSlot}
+                                        </span>
+                                        <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                                            {SLOT_DEFINITIONS.find(d => d.slot === actionSlot)?.label}
+                                        </span>
                                     </div>
-                                </div>
-
-                                <div className="flex items-center gap-3">
-                                    {player && (
-                                        <div className="text-right">
-                                            <span className="text-[10px] text-gray-400 uppercase font-bold block">Price</span>
-                                            <span className="text-sm font-black text-sffl-red">{formatFantasyPrice(player.price)}</span>
-                                        </div>
-                                    )}
-
-                                    {player ? (
-                                        <div className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-500">
-                                            <ArrowsRightLeftIcon className="w-4 h-4" />
-                                        </div>
-                                    ) : (
-                                        <ChevronRightIcon className="w-5 h-5 text-gray-400 dark:text-gray-600" />
-                                    )}
+                                    <h3 className="text-base font-black truncate text-gray-900 dark:text-white mt-0.5">
+                                        {squad[actionSlot]!.player_name}
+                                    </h3>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                        {squad[actionSlot]!.team_short_name || squad[actionSlot]!.team_name} • {formatFantasyPrice(squad[actionSlot]!.price)}
+                                    </p>
                                 </div>
                             </div>
-
-                            {/* Action Popover for occupied slot */}
-                            {isActionOpen && player && (
-                                <div className="absolute top-full left-0 right-0 z-30 mt-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl p-2 space-y-1 animate-in fade-in slide-in-from-top-2 duration-150">
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); handleSwapWithReserve(def.slot); }}
-                                        className="w-full min-h-[44px] flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition cursor-pointer"
-                                    >
-                                        <ArrowsRightLeftIcon className="w-4.5 h-4.5 text-sffl-navy dark:text-white shrink-0" />
-                                        <div>
-                                            <span className="text-xs font-black text-gray-900 dark:text-white block">Swap with Reserve</span>
-                                            <span className="text-[10px] text-gray-500 dark:text-gray-400">Replace with an eligible bench player</span>
-                                        </div>
-                                    </button>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); handleTransferOut(def.slot); }}
-                                        disabled={!!marketClosed}
-                                        title={marketClosed}
-                                        className="w-full min-h-[44px] flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left hover:bg-red-50 dark:hover:bg-red-950/30 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                                    >
-                                        <ArrowUpTrayIcon className="w-4.5 h-4.5 text-sffl-red shrink-0" />
-                                        <div>
-                                            <span className="text-xs font-black text-sffl-red block">Transfer Out</span>
-                                            <span className="text-[10px] text-gray-500 dark:text-gray-400">Sell back to market & sign replacement</span>
-                                        </div>
-                                    </button>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); handleMoveToBench(def.slot); }}
-                                        className="w-full min-h-[44px] flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition cursor-pointer"
-                                    >
-                                        <ArrowUturnDownIcon className="w-4.5 h-4.5 text-gray-600 dark:text-gray-300 shrink-0" />
-                                        <div>
-                                            <span className="text-xs font-black text-gray-900 dark:text-white block">Move to Bench</span>
-                                            <span className="text-[10px] text-gray-500 dark:text-gray-400">Remove from starting 14 without selling</span>
-                                        </div>
-                                    </button>
-                                </div>
-                            )}
+                            <button
+                                type="button"
+                                onClick={() => setActionSlot(null)}
+                                className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300 transition cursor-pointer"
+                            >
+                                <XMarkIcon className="w-5 h-5" />
+                            </button>
                         </div>
-                    );
-                })}
-            </div>
+
+                        {/* Action buttons */}
+                        <div className="p-4 space-y-2">
+                            <button
+                                type="button"
+                                onClick={() => handleSwapWithReserve(actionSlot)}
+                                className="w-full flex items-center gap-3.5 p-3.5 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/60 transition cursor-pointer text-left"
+                            >
+                                <div className="p-2.5 rounded-xl bg-sffl-navy/10 dark:bg-white/10 text-sffl-navy dark:text-white">
+                                    <ArrowsRightLeftIcon className="w-5 h-5" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <span className="text-sm font-black text-gray-900 dark:text-white block">
+                                        Swap with Reserve
+                                    </span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400 block">
+                                        Replace with an eligible bench player
+                                    </span>
+                                </div>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => handleTransferOut(actionSlot)}
+                                disabled={!!marketClosed}
+                                title={marketClosed || undefined}
+                                className="w-full flex items-center gap-3.5 p-3.5 rounded-xl border border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-950/30 transition cursor-pointer text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                <div className="p-2.5 rounded-xl bg-red-100 dark:bg-red-900/40 text-sffl-red">
+                                    <ArrowUpTrayIcon className="w-5 h-5" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <span className="text-sm font-black text-sffl-red block">
+                                        Transfer Out
+                                    </span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400 block">
+                                        Sell back to market &amp; sign replacement
+                                    </span>
+                                </div>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => handleMoveToBench(actionSlot)}
+                                className="w-full flex items-center gap-3.5 p-3.5 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/60 transition cursor-pointer text-left"
+                            >
+                                <div className="p-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                                    <ArrowUturnDownIcon className="w-5 h-5" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <span className="text-sm font-black text-gray-900 dark:text-white block">
+                                        Move to Bench
+                                    </span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400 block">
+                                        Remove from starting 14 without selling
+                                    </span>
+                                </div>
+                            </button>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+                            <button
+                                type="button"
+                                onClick={() => setActionSlot(null)}
+                                className="px-4 py-2 rounded-xl bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-bold text-xs hover:bg-gray-50 dark:hover:bg-gray-600 transition cursor-pointer"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* ──────────────────────────────────────────────────────────────────
                 PUBLISH PANEL

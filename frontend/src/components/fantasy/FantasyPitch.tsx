@@ -1,6 +1,16 @@
-import { useMemo, useState } from 'react';
-import type { FantasyLineupPick, FantasySlot } from '../../services/api';
+import { useMemo, useState, useEffect } from 'react';
+import {
+    type FantasyLineupPick,
+    type FantasySlot,
+    type FantasyPlayerListItem,
+    formatFantasyPrice,
+} from '../../services/api';
 import { FantasyPlayerModal, type FantasyPlayerModalData } from './FantasyPlayerModal';
+import {
+    PlusIcon,
+    ArrowsRightLeftIcon,
+    ExclamationTriangleIcon,
+} from '@heroicons/react/24/outline';
 
 /**
  * The starting fourteen, laid out on a flag football field.
@@ -99,22 +109,18 @@ function normalizePosition(pos?: string): string {
         case 'CENTRE':
             return 'Center';
         default:
-            // QB / Receiver / Center / Rusher / Defender pass through as-is.
-            // Anything else is shown verbatim rather than swallowed, so a
-            // position the table below doesn't know about is still visible.
             return p;
     }
 }
 
 /**
- * A shirt colour per real position, not the offense/defense binary — a
- * Center filling a receiver slot, or an All-Rounder filling anything, should
- * not look the same as a plain Receiver.
+ * A shirt colour per real position, strictly avoiding forbidden purple accents
+ * in compliance with the Showtime Web design system.
  */
 const POSITION_STYLE: Record<string, { avatar: string; label: string; chipBg: string; chipText: string }> = {
     QB: { avatar: 'linear-gradient(150deg,#f9776a,#b72f32)', label: '#fca5a5', chipBg: 'bg-sffl-red', chipText: 'text-white' },
     Receiver: { avatar: 'linear-gradient(150deg,#fcd34d,#b45309)', label: '#fde68a', chipBg: 'bg-amber-400', chipText: 'text-amber-950' },
-    Center: { avatar: 'linear-gradient(150deg,#c4b5fd,#6d28d9)', label: '#ddd6fe', chipBg: 'bg-violet-400', chipText: 'text-violet-950' },
+    Center: { avatar: 'linear-gradient(150deg,#fb923c,#c2410c)', label: '#fed7aa', chipBg: 'bg-orange-500', chipText: 'text-white' },
     Rusher: { avatar: 'linear-gradient(150deg,#6ee7b7,#047857)', label: '#a7f3d0', chipBg: 'bg-emerald-400', chipText: 'text-emerald-950' },
     Defender: { avatar: 'linear-gradient(150deg,#99cafa,#37699f)', label: '#bfdbfe', chipBg: 'bg-[#7fbbfa]', chipText: 'text-[#0d2440]' },
     'All-Rounder': { avatar: 'linear-gradient(150deg,#67e8f9,#0e7490)', label: '#a5f3fc', chipBg: 'bg-cyan-400', chipText: 'text-cyan-950' },
@@ -123,13 +129,35 @@ const POSITION_STYLE: Record<string, { avatar: string; label: string; chipBg: st
 function styleFor(position: string | undefined, unit: 'OFFENSE' | 'DEFENSE') {
     const key = normalizePosition(position);
     if (key && POSITION_STYLE[key]) return POSITION_STYLE[key];
-    // A position the table doesn't recognise (or none on file) falls back to
-    // the offense/defense split, so the shirt is never left uncoloured.
     return unit === 'DEFENSE' ? POSITION_STYLE.Defender : POSITION_STYLE.QB;
 }
 
-interface FantasyPitchProps {
-    picks: FantasyLineupPick[];
+export interface PitchPlayerItem {
+    slot: FantasySlot;
+    player_id?: string;
+    player_name?: string;
+    player_image?: string;
+    position?: string;
+    gender?: string;
+    team_id?: string;
+    team_name?: string;
+    team_short_name?: string;
+    team_logo?: string;
+    price?: number;
+    current_price?: number;
+    purchase_price?: number;
+    points?: number;
+    isInactiveClub?: boolean;
+    isDeleted?: boolean;
+}
+
+export interface FantasyPitchProps {
+    /** Picks list (for display views like Dashboard, My Team, Hub, Modal) */
+    picks?: FantasyLineupPick[];
+    /** Squad slot map (for Squad Builder) */
+    squad?: Record<FantasySlot, FantasyPlayerListItem | null>;
+    /** 'display' (default) or 'builder' mode */
+    mode?: 'display' | 'builder';
     /** Shown in the header, e.g. "Gameweek 3". */
     gameweekLabel?: string;
     /** Gameweek ID for scoring breakdown queries */
@@ -137,30 +165,109 @@ interface FantasyPitchProps {
     /** Hides the points column before a gameweek has been scored. */
     showPoints?: boolean;
     title?: string;
+    /** Handler when a player tile is clicked in display mode */
     onPlayerClick?: (pick: FantasyLineupPick) => void;
+    /** Handler for slot clicks in builder mode */
+    onSlotClick?: (slot: FantasySlot, player: PitchPlayerItem | null) => void;
+    /** Unit filter control ('ALL' | 'OFFENSE' | 'DEFENSE') */
+    selectedUnitTab?: 'ALL' | 'OFFENSE' | 'DEFENSE';
+    onUnitTabChange?: (tab: 'ALL' | 'OFFENSE' | 'DEFENSE') => void;
+    /** Active/selected slot for highlighting or open popover */
+    actionSlot?: FantasySlot | null;
+    /** Status predicates for squad builder */
+    isSlotInactive?: (slot: FantasySlot) => boolean;
+    isSlotDeleted?: (slot: FantasySlot) => boolean;
 }
 
 export function FantasyPitch({
     picks,
+    squad,
+    mode = 'display',
     gameweekLabel,
     gameweekId,
     showPoints = true,
     title = 'My starting lineup',
     onPlayerClick,
+    onSlotClick,
+    selectedUnitTab,
+    onUnitTabChange,
+    actionSlot,
+    isSlotInactive,
+    isSlotDeleted,
 }: FantasyPitchProps) {
     const bySlot = useMemo(() => {
-        const map = new Map<FantasySlot, FantasyLineupPick>();
-        for (const p of picks) map.set(p.slot, p);
+        const map = new Map<FantasySlot, PitchPlayerItem>();
+        if (picks && picks.length > 0) {
+            for (const p of picks) {
+                map.set(p.slot, {
+                    slot: p.slot,
+                    player_id: p.player_id,
+                    player_name: p.player_name,
+                    player_image: p.player_image,
+                    position: p.position,
+                    gender: p.gender,
+                    team_id: p.team_id,
+                    team_name: p.team_name,
+                    team_short_name: p.team_short_name,
+                    team_logo: p.team_logo,
+                    price: p.current_price ?? p.purchase_price,
+                    current_price: p.current_price,
+                    purchase_price: p.purchase_price,
+                    points: p.points,
+                });
+            }
+        } else if (squad) {
+            for (const spot of PITCH_SPOTS) {
+                const player = squad[spot.slot];
+                if (player) {
+                    map.set(spot.slot, {
+                        slot: spot.slot,
+                        player_id: player.player_id,
+                        player_name: player.player_name,
+                        player_image: player.player_image,
+                        position: player.position,
+                        gender: player.gender,
+                        team_id: player.team_id,
+                        team_name: player.team_name,
+                        team_short_name: player.team_short_name,
+                        team_logo: player.team_logo,
+                        price: player.price,
+                        points: player.total_points,
+                        isInactiveClub: isSlotInactive ? isSlotInactive(spot.slot) : false,
+                        isDeleted: isSlotDeleted ? isSlotDeleted(spot.slot) : false,
+                    });
+                }
+            }
+        }
         return map;
-    }, [picks]);
+    }, [picks, squad, isSlotInactive, isSlotDeleted]);
+
+    // Unit tabs state (internal or controlled via props)
+    const [internalUnitTab, setInternalUnitTab] = useState<'ALL' | 'OFFENSE' | 'DEFENSE'>('ALL');
+    const currentUnitTab = selectedUnitTab !== undefined ? selectedUnitTab : internalUnitTab;
+
+    const handleUnitChange = (tab: 'ALL' | 'OFFENSE' | 'DEFENSE') => {
+        if (onUnitTabChange) {
+            onUnitTabChange(tab);
+        } else {
+            setInternalUnitTab(tab);
+        }
+    };
 
     // Opens on the QB, so the strip is never empty on arrival.
     const [selected, setSelected] = useState<FantasySlot>('QB_M');
     const [inspectingPlayer, setInspectingPlayer] = useState<FantasyPlayerModalData | null>(null);
 
-    const openPlayerProfile = (pick: FantasyLineupPick) => {
+    // Keep selected slot aligned with actionSlot if passed
+    useEffect(() => {
+        if (actionSlot) {
+            setSelected(actionSlot);
+        }
+    }, [actionSlot]);
+
+    const openPlayerProfile = (pick: PitchPlayerItem) => {
         setInspectingPlayer({
-            playerId: pick.player_id,
+            playerId: pick.player_id || '',
             playerName: pick.player_name || 'Player',
             playerImage: pick.player_image,
             position: pick.position,
@@ -168,13 +275,47 @@ export function FantasyPitch({
             teamName: pick.team_name,
             teamShortName: pick.team_short_name,
             teamLogo: pick.team_logo,
-            price: pick.current_price ?? pick.purchase_price,
+            price: pick.current_price ?? pick.purchase_price ?? pick.price,
             currentPrice: pick.current_price,
             purchasePrice: pick.purchase_price,
             points: pick.points,
             gameweekId: gameweekId,
         });
-        if (onPlayerClick) onPlayerClick(pick);
+    };
+
+    const handleSpotClick = (spot: PitchSpot) => {
+        setSelected(spot.slot);
+        const item = bySlot.get(spot.slot);
+
+        if (mode === 'builder') {
+            if (onSlotClick) {
+                onSlotClick(spot.slot, item || null);
+            }
+            return;
+        }
+
+        // Display mode
+        if (item) {
+            if (onPlayerClick) {
+                onPlayerClick({
+                    slot: item.slot,
+                    player_id: item.player_id || '',
+                    player_name: item.player_name,
+                    player_image: item.player_image,
+                    position: item.position,
+                    gender: item.gender,
+                    team_id: item.team_id,
+                    team_name: item.team_name,
+                    team_short_name: item.team_short_name,
+                    team_logo: item.team_logo,
+                    purchase_price: item.purchase_price || item.price || 0,
+                    current_price: item.current_price || item.price || 0,
+                    points: item.points || 0,
+                });
+            } else {
+                openPlayerProfile(item);
+            }
+        }
     };
 
     const filled = PITCH_SPOTS.filter(s => bySlot.has(s.slot)).length;
@@ -207,15 +348,49 @@ export function FantasyPitch({
                 </div>
             </div>
 
-            {/* Key */}
-            <div className="flex items-center justify-between gap-2 px-5 py-3 bg-[#102746] text-xs text-[#dbe5f1]">
-                <span className="flex items-center gap-2 whitespace-nowrap">
-                    <span className="w-2.5 h-2.5 rounded-full bg-sffl-red" /> Offense <b>{offenseFilled}</b>
+            {/* Filter Controls & Formation Info */}
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-5 py-3 bg-[#102746] text-xs text-[#dbe5f1] border-b border-white/10">
+                <div className="flex items-center gap-1.5 p-1 rounded-xl bg-white/5 border border-white/10">
+                    <button
+                        type="button"
+                        onClick={() => handleUnitChange('ALL')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition cursor-pointer ${
+                            currentUnitTab === 'ALL'
+                                ? 'bg-sffl-navy text-white shadow-sm ring-1 ring-white/30'
+                                : 'text-[#afc1d4] hover:text-white hover:bg-white/10'
+                        }`}
+                    >
+                        Full Roster ({filled}/14)
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => handleUnitChange('OFFENSE')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition cursor-pointer ${
+                            currentUnitTab === 'OFFENSE'
+                                ? 'bg-sffl-red text-white shadow-sm ring-1 ring-white/30'
+                                : 'text-[#afc1d4] hover:text-white hover:bg-white/10'
+                        }`}
+                    >
+                        <span className="w-2 h-2 rounded-full bg-sffl-red" />
+                        Offense ({offenseFilled}/7)
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => handleUnitChange('DEFENSE')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition cursor-pointer ${
+                            currentUnitTab === 'DEFENSE'
+                                ? 'bg-[#2563eb] text-white shadow-sm ring-1 ring-white/30'
+                                : 'text-[#afc1d4] hover:text-white hover:bg-white/10'
+                        }`}
+                    >
+                        <span className="w-2 h-2 rounded-full bg-[#7fbbfa]" />
+                        Defense ({defenseFilled}/7)
+                    </button>
+                </div>
+
+                <span className="hidden sm:inline text-[#aebdd0] text-xs font-medium">
+                    7 v 7 tactical formation
                 </span>
-                <span className="flex items-center gap-2 whitespace-nowrap">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#7fbbfa]" /> Defense <b>{defenseFilled}</b>
-                </span>
-                <span className="hidden sm:inline text-[#aebdd0]">7 v 7 formation</span>
             </div>
 
             {/* Field */}
@@ -223,7 +398,6 @@ export function FantasyPitch({
                 <div
                     className="relative h-[640px] sm:h-[720px] overflow-hidden rounded-xl border-2 border-[#d1ebd15c]"
                     style={{
-                        // Alternating mown stripes, with a lighter seam between each.
                         backgroundImage:
                             'repeating-linear-gradient(to bottom, transparent 0, transparent calc(20% - 2px), #e3f6d222 calc(20% - 1px), #e3f6d222 20%), repeating-linear-gradient(to bottom, #194b3b 0, #194b3b 20%, #164535 20%, #164535 40%)',
                         boxShadow: 'inset 0 0 65px #06180e66',
@@ -257,10 +431,10 @@ export function FantasyPitch({
                         LINE OF SCRIMMAGE
                     </span>
 
-                    {/* Players */}
+                    {/* Player spots */}
                     {PITCH_SPOTS.map(spot => {
                         const pick = bySlot.get(spot.slot);
-                        const isActive = selected === spot.slot;
+                        const isSpotSelected = selected === spot.slot || actionSlot === spot.slot;
                         const empty = !pick;
                         const style = styleFor(pick?.position, spot.unit);
                         const isFemale = (pick?.gender || '').toUpperCase().startsWith('F');
@@ -268,33 +442,37 @@ export function FantasyPitch({
                             ? SPOT_POSITION_LABEL[spot.slot]
                             : normalizePosition(pick.position) || SPOT_POSITION_LABEL[spot.slot];
 
+                        // Filter dimming: if currentUnitTab is set to a specific unit, dim the opposite unit
+                        const isDimmed = currentUnitTab !== 'ALL' && spot.unit !== currentUnitTab;
+
                         return (
                             <button
                                 key={spot.slot}
                                 type="button"
-                                onClick={() => {
-                                    setSelected(spot.slot);
-                                    if (pick) {
-                                        openPlayerProfile(pick);
-                                    }
-                                }}
-                                aria-pressed={isActive}
+                                onClick={() => handleSpotClick(spot)}
+                                aria-pressed={isSpotSelected}
                                 aria-label={
                                     empty
-                                        ? `${spot.role} — no player selected`
-                                        : `${spot.role}: ${pick.player_name ?? 'Unnamed player'}, ${positionLabel}, ${isFemale ? 'female' : 'male'} - click to view profile`
+                                        ? `${spot.role} — ${mode === 'builder' ? 'Tap to draft athlete' : 'no player selected'}`
+                                        : `${spot.role}: ${pick.player_name ?? 'Unnamed player'}, ${positionLabel}, ${isFemale ? 'female' : 'male'} - ${mode === 'builder' ? 'click to manage' : 'click to view details'}`
                                 }
-                                className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-0.5 sm:gap-1 w-[64px] sm:w-[84px] px-0.5 py-0.5 cursor-pointer transition hover:brightness-110 focus-visible:outline-none focus-visible:brightness-110 z-[3]"
+                                className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-0.5 sm:gap-1 w-[68px] sm:w-[86px] px-0.5 py-0.5 cursor-pointer transition-all duration-200 hover:brightness-110 focus-visible:outline-none focus-visible:brightness-110 z-[3] ${
+                                    isDimmed ? 'opacity-20 pointer-events-none filter grayscale scale-90' : 'opacity-100 scale-100'
+                                }`}
                                 style={{ left: `${spot.x}%`, top: `${spot.y}%` }}
                             >
-                                {/* Shirt — the pic with outside gender badge */}
+                                {/* Shirt / Avatar circle */}
                                 <div className="relative">
                                     <span
-                                        className={`relative block w-10 h-10 sm:w-[46px] sm:h-[46px] rounded-full border-2 overflow-hidden ${
+                                        className={`relative block w-10 h-10 sm:w-[46px] sm:h-[46px] rounded-full border-2 overflow-hidden transition-transform ${
                                             empty
-                                                ? 'border-dashed border-white/40 bg-white/10'
+                                                ? 'border-dashed border-white/50 bg-white/10 hover:border-white hover:bg-white/20'
                                                 : 'border-white/75'
-                                        } ${isActive && !empty ? 'ring-[3px] ring-white ring-offset-2 ring-offset-[#f9d16b]' : ''}`}
+                                        } ${
+                                            isSpotSelected
+                                                ? 'ring-[3px] ring-white ring-offset-2 ring-offset-sffl-red scale-105 shadow-lg'
+                                                : ''
+                                        }`}
                                         style={empty ? undefined : { backgroundImage: style.avatar, boxShadow: '0 5px 13px #051a13a8' }}
                                     >
                                         {pick?.player_image ? (
@@ -304,11 +482,10 @@ export function FantasyPitch({
                                                 className="absolute inset-0 w-full h-full object-cover"
                                             />
                                         ) : empty ? (
-                                            <span className="absolute inset-0 flex items-center justify-center text-white/60 text-lg font-black leading-none">
-                                                +
+                                            <span className="absolute inset-0 flex flex-col items-center justify-center text-white/75 group-hover:text-white">
+                                                <PlusIcon className="w-5 h-5 stroke-[2.5]" />
                                             </span>
                                         ) : (
-                                            // The generic figure from the mockup: head and shoulders.
                                             <>
                                                 <span className="absolute top-[18%] left-1/2 -translate-x-1/2 w-[22%] h-[24%] rounded-full bg-white" />
                                                 <span className="absolute bottom-[8%] left-1/2 -translate-x-1/2 w-[56%] h-[40%] rounded-t-full bg-white" />
@@ -316,7 +493,7 @@ export function FantasyPitch({
                                         )}
                                     </span>
 
-                                    {/* Gender mark, placed OUTSIDE the circular avatar so it never covers the player's photo */}
+                                    {/* Gender indicator badge */}
                                     {!empty && (
                                         <span
                                             aria-hidden="true"
@@ -327,22 +504,51 @@ export function FantasyPitch({
                                             {isFemale ? '♀' : '♂'}
                                         </span>
                                     )}
+
+                                    {/* Inactive club or deleted player warning icon */}
+                                    {(pick?.isInactiveClub || pick?.isDeleted) && (
+                                        <span
+                                            aria-hidden="true"
+                                            title={pick.isDeleted ? 'Deleted Player' : 'Inactive Club'}
+                                            className="absolute -top-1 -left-1 z-10 flex items-center justify-center w-[15px] h-[15px] sm:w-[17px] sm:h-[17px] rounded-full border-2 border-white shadow bg-red-600 text-white text-[8px]"
+                                        >
+                                            <ExclamationTriangleIcon className="w-2.5 h-2.5" />
+                                        </span>
+                                    )}
                                 </div>
 
-                                {/* Name */}
-                                {!empty && (
+                                {/* Name or Empty CTA */}
+                                {!empty ? (
                                     <span className="block max-w-full truncate text-[9px] sm:text-[10px] font-bold text-white leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
                                         {shortName(pick.player_name)}
                                     </span>
+                                ) : (
+                                    <span className="block max-w-full text-center text-[8px] sm:text-[9px] font-black uppercase text-white/80 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                                        {spot.code}
+                                    </span>
                                 )}
 
-                                {/* Position, in brackets */}
+                                {/* Position or Price in brackets */}
                                 <span
-                                    className="block max-w-full text-center text-[9px] sm:text-[10px] font-bold leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
-                                    style={{ color: empty ? 'rgba(255,255,255,0.65)' : style.label }}
+                                    className="block max-w-full text-center text-[8px] sm:text-[9px] font-bold leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] truncate"
+                                    style={{ color: empty ? 'rgba(255,255,255,0.75)' : style.label }}
                                 >
-                                    ({positionLabel})
+                                    {empty ? `(${positionLabel})` : `(${positionLabel})`}
                                 </span>
+
+                                {/* Builder price tag */}
+                                {mode === 'builder' && pick && pick.price !== undefined && (
+                                    <span className="block text-[8px] sm:text-[9px] font-black text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] tabular-nums">
+                                        {formatFantasyPrice(pick.price)}
+                                    </span>
+                                )}
+
+                                {/* Points tag in scored display mode */}
+                                {mode === 'display' && showPoints && pick && pick.points !== undefined && (
+                                    <span className="block text-[8px] sm:text-[9px] font-black text-emerald-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] tabular-nums">
+                                        {pick.points.toFixed(1)} pts
+                                    </span>
+                                )}
                             </button>
                         );
                     })}
@@ -359,6 +565,7 @@ export function FantasyPitch({
                 >
                     {activeSpot.code}
                 </span>
+
                 <div className="min-w-0 flex-1">
                     <strong className="block text-sm text-white truncate">
                         {activePick?.player_name ?? activeSpot.role}
@@ -366,10 +573,25 @@ export function FantasyPitch({
                     <small className="block mt-0.5 text-[11px] text-[#afc1d4] truncate">
                         {activePick
                             ? `${activeSpot.role} · ${activePick.team_short_name || activePick.team_name || '—'}`
+                            : mode === 'builder'
+                            ? `Empty slot · Tap here or on the pitch to draft an athlete`
                             : 'No player in this position yet'}
                     </small>
                 </div>
-                {showPoints && activePick && (
+
+                {/* Pricing / Points metrics */}
+                {activePick && mode === 'builder' && activePick.price !== undefined && (
+                    <div className="text-right shrink-0">
+                        <span className="block text-sm sm:text-base font-black text-sffl-red tabular-nums leading-none">
+                            {formatFantasyPrice(activePick.price)}
+                        </span>
+                        <span className="block text-[9px] uppercase tracking-wider text-[#afc1d4] mt-0.5">
+                            price
+                        </span>
+                    </div>
+                )}
+
+                {activePick && mode === 'display' && showPoints && (
                     <div className="text-right shrink-0">
                         <span className="block text-lg font-black text-white tabular-nums leading-none">
                             {(activePick.points ?? 0).toFixed(2)}
@@ -379,23 +601,49 @@ export function FantasyPitch({
                         </span>
                     </div>
                 )}
-                {activePick && (
-                    <button
-                        type="button"
-                        onClick={() => openPlayerProfile(activePick)}
-                        className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[10px] font-black uppercase tracking-wider transition cursor-pointer shrink-0 ml-1"
-                    >
-                        View Profile
-                    </button>
+
+                {/* Primary action button */}
+                {mode === 'builder' ? (
+                    activePick ? (
+                        <button
+                            type="button"
+                            onClick={() => onSlotClick?.(activeSpot.slot, activePick)}
+                            className="px-3 py-1.5 rounded-lg bg-sffl-red hover:bg-[#A52323] text-white text-[11px] font-black uppercase tracking-wider transition cursor-pointer shrink-0 ml-1 flex items-center gap-1.5 shadow-sm"
+                        >
+                            <ArrowsRightLeftIcon className="w-3.5 h-3.5" />
+                            Manage
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => onSlotClick?.(activeSpot.slot, null)}
+                            className="px-3 py-1.5 rounded-lg bg-sffl-red hover:bg-[#A52323] text-white text-[11px] font-black uppercase tracking-wider transition cursor-pointer shrink-0 ml-1 flex items-center gap-1.5 shadow-sm"
+                        >
+                            <PlusIcon className="w-3.5 h-3.5" />
+                            Draft
+                        </button>
+                    )
+                ) : (
+                    activePick && (
+                        <button
+                            type="button"
+                            onClick={() => handleSpotClick(activeSpot)}
+                            className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[10px] font-black uppercase tracking-wider transition cursor-pointer shrink-0 ml-1"
+                        >
+                            {onPlayerClick ? 'Breakdown' : 'View Profile'}
+                        </button>
+                    )
                 )}
             </div>
 
-            {/* Player Fantasy Profile Modal */}
-            <FantasyPlayerModal
-                isOpen={Boolean(inspectingPlayer)}
-                onClose={() => setInspectingPlayer(null)}
-                player={inspectingPlayer}
-            />
+            {/* Standalone Player Fantasy Profile Modal (for display mode when no onPlayerClick is provided) */}
+            {!onPlayerClick && (
+                <FantasyPlayerModal
+                    isOpen={Boolean(inspectingPlayer)}
+                    onClose={() => setInspectingPlayer(null)}
+                    player={inspectingPlayer}
+                />
+            )}
         </div>
     );
 }

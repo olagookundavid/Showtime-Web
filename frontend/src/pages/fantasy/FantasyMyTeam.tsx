@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import { 
     UserGroupIcon,
     PencilSquareIcon, 
-    ChevronRightIcon, 
     XMarkIcon, 
     LockClosedIcon, 
     ClockIcon, 
@@ -18,8 +17,8 @@ import {
 } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { Loader } from '../../components/ui/Loader';
-import { PlayerAvatar } from '../../components/fantasy/PlayerAvatar';
 import { FantasyBackLink } from '../../components/fantasy/FantasyBackLink';
+import { FantasyPitch } from '../../components/fantasy/FantasyPitch';
 
 export function FantasyMyTeam() {
     // Shares the hub/dashboard query key, so this is a cache hit.
@@ -112,6 +111,7 @@ export function FantasyMyTeam() {
     }
 
     const isLocked = lineup.status === 'LOCKED';
+    const selectedGw = gameweeks.find(gw => gw.id === selectedGWId);
 
     return (
         <div className="space-y-6 md:space-y-8 pb-36 md:pb-24">
@@ -187,101 +187,16 @@ export function FantasyMyTeam() {
                 </div>
             </div>
 
-            {/* Squad List */}
-            <div className="space-y-6">
-                {/* Offense Section */}
-                <div>
-                    <div className="flex items-center gap-2 mb-3">
-                        <span className="w-2.5 h-2.5 rounded-full bg-sffl-red" />
-                        <h2 className="text-sm font-black uppercase tracking-wider text-sffl-navy dark:text-white">
-                            Offensive Unit (7 Starters)
-                        </h2>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                        {lineup.picks.filter(p => p.slot.startsWith('QB') || p.slot.startsWith('REC')).map(pick => (
-                            <div
-                                key={pick.slot}
-                                onClick={() => setSelectedPlayerForBreakdown(pick)}
-                                className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-sffl-red/50 rounded-2xl shadow-sm flex items-center justify-between cursor-pointer transition"
-                            >
-                                <div className="flex items-center gap-3.5">
-                                    <PlayerAvatar
-                                        name={pick.player_name || 'Unknown'}
-                                        image={pick.player_image}
-                                        gender={pick.gender}
-                                    />
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-[10px] font-black px-1.5 py-0.2 bg-gray-100 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-200">
-                                                {pick.slot}
-                                            </span>
-                                            <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">{pick.position}</span>
-                                        </div>
-                                        <h4 className="text-sm font-bold text-gray-900 dark:text-white mt-0.5">{pick.player_name}</h4>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">{pick.team_short_name || pick.team_name}</p>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-4">
-                                    <div className="text-right">
-                                        <span className="text-[10px] text-gray-400 uppercase font-bold block">Points</span>
-                                        <span className="text-sm font-black text-sffl-red">
-                                            {pick.points.toFixed(2)}
-                                        </span>
-                                    </div>
-                                    <ChevronRightIcon className="w-4 h-4 text-gray-400" />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Defense Section */}
-                <div>
-                    <div className="flex items-center gap-2 mb-3">
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
-                        <h2 className="text-sm font-black uppercase tracking-wider text-sffl-navy dark:text-white">
-                            Defensive Unit (7 Starters)
-                        </h2>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                        {lineup.picks.filter(p => p.slot === 'RUSHER' || p.slot.startsWith('DEF')).map(pick => (
-                            <div
-                                key={pick.slot}
-                                onClick={() => setSelectedPlayerForBreakdown(pick)}
-                                className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-sffl-red/50 rounded-2xl shadow-sm flex items-center justify-between cursor-pointer transition"
-                            >
-                                <div className="flex items-center gap-3.5">
-                                    <PlayerAvatar
-                                        name={pick.player_name || 'Unknown'}
-                                        image={pick.player_image}
-                                        gender={pick.gender}
-                                    />
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-[10px] font-black px-1.5 py-0.2 bg-gray-100 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-200">
-                                                {pick.slot}
-                                            </span>
-                                            <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">{pick.position}</span>
-                                        </div>
-                                        <h4 className="text-sm font-bold text-gray-900 dark:text-white mt-0.5">{pick.player_name}</h4>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">{pick.team_short_name || pick.team_name}</p>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-4">
-                                    <div className="text-right">
-                                        <span className="text-[10px] text-gray-400 uppercase font-bold block">Points</span>
-                                        <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
-                                            {pick.points.toFixed(2)}
-                                        </span>
-                                    </div>
-                                    <ChevronRightIcon className="w-4 h-4 text-gray-400" />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+            {/* Pitch Lineup View */}
+            <div>
+                <FantasyPitch
+                    picks={lineup.picks}
+                    gameweekLabel={selectedGw ? `Gameweek ${selectedGw.number}` : undefined}
+                    gameweekId={selectedGWId}
+                    showPoints={true}
+                    title={`${lineup.team_name} Starting Lineup`}
+                    onPlayerClick={(pick) => setSelectedPlayerForBreakdown(pick)}
+                />
             </div>
 
             {/* Points Breakdown Modal */}
