@@ -8,15 +8,17 @@ import { LightboxImage } from '../../components/ui';
 import { PlayByPlayTimeline } from '../../components/matches/PlayByPlayTimeline';
 import { PublicMatchStats } from '../../components/matches/PublicMatchStats';
 import { CommentSection } from '../../components/comments/CommentSection';
+import { BackButton } from '../../components/common/BackButton';
 
 import { formatMatchTime, formatMatchDate } from '../../utils/dateUtils';
 
-// Right-side value on the Player Rating tab. QB and undetermined "-" positions
-// have no rating formula yet (dash); a rateable player with no rating didn't
-// play / had no qualifying activity, shown as the base 5.0.
+// Right-side value on the Player Rating tab. Positions with no rating formula
+// ('-', 'All Rounder') show '–'; a player with no qualifying activity
+// (UNRATED status, null rating) shows '–' too; otherwise show the rating value.
 function ratingLabel(p: TeamSheetPlayer): string {
-    if (p.position === '-') return '-';
-    return p.rating != null ? p.rating.toFixed(1) : '5.0';
+    if (p.position === '-' || p.position === 'All Rounder') return '–';
+    if (p.rating_status === 'UNRATED' || p.rating == null) return '–';
+    return p.rating.toFixed(1);
 }
 
 // Jersey number shown next to the position. 0 means no number assigned → dash.
@@ -26,12 +28,12 @@ function jerseyLabel(n: number): string {
 
 type RatingSort = 'default' | 'high' | 'low';
 
-// Numeric value used to sort a player by rating, mirroring what ratingLabel
-// shows: "-" has no number (sinks to the bottom); a rateable player with no
-// rating sorts as the base 5.0.
+// Numeric value used to sort a player by rating. Non-rateable positions and
+// unrated players have no value (sink to the bottom).
 function ratingSortValue(p: TeamSheetPlayer): number | null {
-    if (p.position === '-') return null;
-    return p.rating ?? 5.0;
+    if (p.position === '-' || p.position === 'All Rounder') return null;
+    if (p.rating_status === 'UNRATED' || p.rating == null) return null;
+    return p.rating;
 }
 
 // Returns a rating-sorted copy of the roster. 'default' keeps the incoming order
@@ -74,7 +76,7 @@ function getMatchMvpPlayerId(
     let mvpPlayerId: string | null = null;
 
     targetSheet.forEach(p => {
-        if (p.position !== '-' && p.rating != null && p.rating > maxRating) {
+        if (p.position !== '-' && p.position !== 'All Rounder' && p.rating != null && p.rating > maxRating) {
             maxRating = p.rating;
             mvpPlayerId = p.player_id;
         }
@@ -82,7 +84,7 @@ function getMatchMvpPlayerId(
 
     if (!mvpPlayerId) {
         [...homeSheet, ...awaySheet].forEach(p => {
-            if (p.position !== '-' && p.rating != null && p.rating > maxRating) {
+            if (p.position !== '-' && p.position !== 'All Rounder' && p.rating != null && p.rating > maxRating) {
                 maxRating = p.rating;
                 mvpPlayerId = p.player_id;
             }
@@ -112,12 +114,14 @@ function TeamSheetRosterList({
     }
 
     // Group players:
-    // 1. Rated above or below 5.0 (p.position !== '-' && p.rating != null && p.rating !== 5.0)
-    // 2. Baseline 5.0 (p.position !== '-' && (p.rating == null || p.rating === 5.0))
-    // 3. Non-rateable (p.position === '-')
-    const ratedPlayers = sheet.filter(p => p.position !== '-' && p.rating != null && p.rating !== 5.0);
-    const baselinePlayers = sheet.filter(p => p.position !== '-' && (p.rating == null || p.rating === 5.0));
-    const nonRateablePlayers = sheet.filter(p => p.position === '-');
+    // 1. Rated (have a real rating — OFFICIAL or PROVISIONAL)
+    // 2. Unrated (rateable position but no qualifying stats this match)
+    // 3. Non-rateable ('-' or 'All Rounder')
+    const isNonRateable = (p: TeamSheetPlayer) => p.position === '-' || p.position === 'All Rounder';
+    const isUnrated = (p: TeamSheetPlayer) => !isNonRateable(p) && (p.rating_status === 'UNRATED' || p.rating == null);
+    const ratedPlayers = sheet.filter(p => !isNonRateable(p) && !isUnrated(p));
+    const baselinePlayers = sheet.filter(p => isUnrated(p));
+    const nonRateablePlayers = sheet.filter(p => isNonRateable(p));
 
     const sortedRated = sortByRating(ratedPlayers, ratingSort);
     const sortedBaseline = sortByRating(baselinePlayers, ratingSort);
@@ -177,26 +181,26 @@ function TeamSheetRosterList({
             {/* Above and Below 5.0 players */}
             {sortedRated.map(p => renderPlayerRow(p, false))}
 
-            {/* Divider line & caveat for 5.0 baseline players — only shown when
-                there are rated players above to separate them from the baseline */}
+            {/* Divider line & caveat for unrated players — only shown when
+                there are rated players above to separate them from the unrated */}
             {ratedPlayers.length > 0 && (baselinePlayers.length > 0 || nonRateablePlayers.length > 0) && (
                 <div className="py-2.5">
                     <div className="relative flex items-center justify-center">
                         <div className="border-t border-gray-200 dark:border-gray-700 w-full" />
                         <span className="bg-white dark:bg-gray-800 px-3 text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400 tracking-wider whitespace-nowrap">
-                            5.0 Rating · Might not have played in the game
+                            No qualifying stats recorded
                         </span>
                         <div className="border-t border-gray-200 dark:border-gray-700 w-full" />
                     </div>
                 </div>
             )}
 
-            {/* When ALL players are at baseline (no one has a distinct rating yet),
+            {/* When ALL players are unrated (no one has a distinct rating yet),
                 still show the caveat as a standalone note */}
             {ratedPlayers.length === 0 && (baselinePlayers.length > 0 || nonRateablePlayers.length > 0) && (
                 <div className="pt-1 pb-2.5">
                     <span className="block text-center text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400 tracking-wider">
-                        5.0 Rating · Might not have played in the game
+                        No qualifying stats recorded
                     </span>
                 </div>
             )}
@@ -246,9 +250,9 @@ export const MatchDetail = () => {
                 <div className="text-6xl mb-6">🏈</div>
                 <h1 className="text-3xl font-black text-sffl-navy dark:text-white mb-3">Match Not Found</h1>
                 <p className="text-gray-500 mb-8">This match could not be loaded. It may have been removed.</p>
-                <Link to={backLink} className="px-6 py-3 bg-sffl-red text-white font-bold rounded-xl hover:bg-red-700 transition-colors">
-                    ← Back to Matches
-                </Link>
+                <BackButton fallback={backLink} className="inline-flex items-center gap-2 px-6 py-3 bg-sffl-red text-white font-bold rounded-xl hover:bg-red-700 transition-colors">
+                    Back to Matches
+                </BackButton>
             </div>
         );
     }
@@ -259,7 +263,9 @@ export const MatchDetail = () => {
         return (
             <div className="text-center py-20">
                 <p className="text-gray-500">Match data unavailable.</p>
-                <Link to={backLink} className="text-sffl-red hover:underline font-semibold mt-4 block">← Back</Link>
+                <div className="mt-4">
+                    <BackButton fallback={backLink}>Back to Matches</BackButton>
+                </div>
             </div>
         );
     }
@@ -287,9 +293,9 @@ export const MatchDetail = () => {
         <div className="space-y-4 md:space-y-8 pb-36 md:pb-16">
 
             {/* Back nav */}
-            <Link to={backLink} className="inline-flex items-center gap-1.5 text-sffl-red hover:underline font-bold text-xs uppercase tracking-wider">
-                ← Back to Matches
-            </Link>
+            <div className="px-1">
+                <BackButton fallback={backLink} />
+            </div>
 
             {/* Match Card Header */}
             <div className="bg-sffl-navy rounded-2xl shadow-2xl overflow-hidden border border-white/5 relative">

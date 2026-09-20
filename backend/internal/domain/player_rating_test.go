@@ -316,3 +316,75 @@ func TestCalculateQuarterbackRating(t *testing.T) {
 		})
 	}
 }
+
+func TestRateByPosition(t *testing.T) {
+	t.Run("All Rounder returns nil", func(t *testing.T) {
+		res := RateByPosition("All Rounder", RatingStatLine{FlagPulls: 5, Receptions: 3})
+		if res != nil {
+			t.Errorf("expected nil for All Rounder, got %+v", res)
+		}
+	})
+
+	t.Run("Dash position returns nil", func(t *testing.T) {
+		res := RateByPosition("-", RatingStatLine{FlagPulls: 5})
+		if res != nil {
+			t.Errorf("expected nil for -, got %+v", res)
+		}
+	})
+
+	t.Run("Unknown position returns nil", func(t *testing.T) {
+		res := RateByPosition("Kicker", RatingStatLine{})
+		if res != nil {
+			t.Errorf("expected nil for unknown position, got %+v", res)
+		}
+	})
+
+	t.Run("Defender with sacks", func(t *testing.T) {
+		res := RateByPosition("Defender", RatingStatLine{
+			FlagPulls:      2,
+			DefensiveSacks: 1,
+		})
+		if res == nil {
+			t.Fatalf("expected non-nil rating for Defender")
+		}
+		if res.Status != RatingStatusOfficial {
+			t.Errorf("expected Official status, got %q", res.Status)
+		}
+		if res.Components["defensive_sacks"] <= 0 {
+			t.Errorf("expected positive defensive_sacks component, got %v", res.Components["defensive_sacks"])
+		}
+	})
+
+	t.Run("QB with XPGood gets credited and does not double count with ExtraPointTDs", func(t *testing.T) {
+		// QB with 10 attempts, 5 completions, 1 pass TD, and 1 XPGood
+		base := RateByPosition("QB", RatingStatLine{
+			PassingAttempts: 10,
+			CompletedPasses: 5,
+			PassingTDs:      1,
+		})
+		withXPGood := RateByPosition("QB", RatingStatLine{
+			PassingAttempts: 10,
+			CompletedPasses: 5,
+			PassingTDs:      1,
+			XPGood:          1,
+		})
+		withBoth := RateByPosition("QB", RatingStatLine{
+			PassingAttempts: 10,
+			CompletedPasses: 5,
+			PassingTDs:      1,
+			XPGood:          1,
+			ExtraPointTDs:   1,
+		})
+
+		if base == nil || withXPGood == nil || withBoth == nil {
+			t.Fatalf("expected non-nil ratings")
+		}
+		if withXPGood.FinalRating <= base.FinalRating {
+			t.Errorf("expected withXPGood rating (%v) > base rating (%v)", withXPGood.FinalRating, base.FinalRating)
+		}
+		// withBoth should equal withXPGood because max(1, 1) = 1 (no double counting)
+		if withBoth.FinalRating != withXPGood.FinalRating {
+			t.Errorf("expected withBoth (%v) == withXPGood (%v) to avoid double counting", withBoth.FinalRating, withXPGood.FinalRating)
+		}
+	})
+}

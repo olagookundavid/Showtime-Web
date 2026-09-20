@@ -12,6 +12,7 @@ import {
     type Team,
 } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
+import { BackButton } from '../../components/common/BackButton';
 
 // Team Hub — lightweight navigation page for a single team. Header shows the
 // team's current standing snapshot; the 4 quick-links route into the global
@@ -107,7 +108,9 @@ export const TeamDetail = () => {
                 <div className="bg-gray-100 dark:bg-gray-800 p-12 rounded-xl text-center">
                     <div className="text-4xl mb-3">🛡️</div>
                     <p className="text-gray-500 text-lg font-semibold">Team not found.</p>
-                    <Link to="/teams" className="text-sffl-red font-bold mt-4 inline-block">← Back to Teams</Link>
+                    <div className="mt-4">
+                        <BackButton fallback="/teams">Back to Teams</BackButton>
+                    </div>
                 </div>
             </div>
         );
@@ -120,7 +123,12 @@ export const TeamDetail = () => {
         : `/standings?team=${team.id}`;
 
     return (
-        <div className="space-y-6 md:space-y-8 pb-36 md:pb-16">
+        <div className="space-y-4 md:space-y-6 pb-36 md:pb-16">
+            {/* Back Button */}
+            <div className="px-1">
+                <BackButton fallback="/teams" />
+            </div>
+
             {/* ── Header ─────────────────────────────────────────────────── */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6 bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
                 <div className="flex items-center gap-4 md:gap-6">

@@ -6,6 +6,7 @@ import { Spinner } from '../../components/ui';
 import { useSearchParams } from 'react-router-dom';
 import { SeasonStageTabs } from '../../components/common/SeasonStageTabs';
 import { getStatsForPosition } from '../../utils/positionStatsMatrix';
+import { BackButton } from '../../components/common/BackButton';
 
 const StatCard = ({ label, value }: { label: string, value: number }) => {
     return (
@@ -79,7 +80,7 @@ export const PlayerDetail = () => {
         return (
             <div className="text-center py-20">
                 <h1 className="text-4xl font-black text-sffl-navy dark:text-white mb-4">Player Not Found</h1>
-                <Link to={backLink} className="text-sffl-red hover:underline font-semibold">Back to Players</Link>
+                <BackButton fallback={backLink}>Back to Players</BackButton>
             </div>
         );
     }
@@ -87,9 +88,9 @@ export const PlayerDetail = () => {
     return (
         <div className="space-y-4 md:space-y-8">
             {/* Back Button */}
-            <Link to={backLink} className="inline-flex items-center text-sffl-red hover:underline font-bold text-xs uppercase tracking-wider px-2">
-                ← Back to Players
-            </Link>
+            <div className="px-2">
+                <BackButton fallback={backLink} />
+            </div>
 
             {/* Player Header */}
             <div className="bg-gradient-to-r from-sffl-navy to-sffl-red rounded-2xl overflow-hidden">

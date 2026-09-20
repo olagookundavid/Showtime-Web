@@ -119,6 +119,7 @@ type RatingStatLine struct {
 	UncatchablePasses   int
 	ThrownAwayPasses    int
 	BattedDownPasses    int
+	XPGood              int
 }
 
 // RateByPosition computes a rating for a stat line using the formula for the
@@ -135,6 +136,7 @@ func RateByPosition(position string, s RatingStatLine) *RatingResult {
 		if otherTurnovers < 0 {
 			otherTurnovers = 0
 		}
+		xpTDs := max(s.ExtraPointTDs, s.XPGood)
 		res = CalculateQuarterbackRating(QuarterbackRatingInput{
 			PassingAttempts:     s.PassingAttempts,
 			CompletedPasses:     s.CompletedPasses,
@@ -145,7 +147,7 @@ func RateByPosition(position string, s RatingStatLine) *RatingResult {
 			RushingAttempts:     s.RushingAttempts,
 			RushingYards:        s.RushingYards,
 			RushingTDs:          s.RushingTDs,
-			ExtraPointTDs:       s.ExtraPointTDs,
+			ExtraPointTDs:       xpTDs,
 			OtherTurnovers:      otherTurnovers,
 			UncatchablePasses:   s.UncatchablePasses,
 			ThrownAwayPasses:    s.ThrownAwayPasses,
@@ -162,6 +164,7 @@ func RateByPosition(position string, s RatingStatLine) *RatingResult {
 			FlagPulls: s.FlagPulls, PassDeflections: s.PassDeflections,
 			Interceptions: s.Interceptions, Safeties: s.Safeties,
 			DefensiveTDs: s.DefensiveTDs, DefensiveXPTDs: s.DefensiveXPTDs,
+			DefensiveSacks: s.DefensiveSacks,
 		})
 	case "Rusher":
 		res = CalculateRusherRating(RusherRatingInput{
@@ -256,6 +259,7 @@ type DefenderRatingInput struct {
 	Safeties        int
 	DefensiveTDs    int
 	DefensiveXPTDs  int
+	DefensiveSacks  int
 }
 
 // Defender formula weights / caps (spec §6).
@@ -272,13 +276,15 @@ const (
 	defTDCap             = 2.40
 	defXPPerUnit         = 0.60
 	defXPCap             = 1.20
+	defSackPerUnit       = 0.50
+	defSackCap           = 1.50
 	defFullReliability   = 5.0 // defensive actions for full reliability
 )
 
 // CalculateDefenderRating implements DEFENDER_RATING_V1.0.
 func CalculateDefenderRating(in DefenderRatingInput) RatingResult {
 	actions := in.FlagPulls + in.PassDeflections + in.Interceptions +
-		in.Safeties + in.DefensiveTDs + in.DefensiveXPTDs
+		in.Safeties + in.DefensiveTDs + in.DefensiveXPTDs + in.DefensiveSacks
 
 	res := RatingResult{
 		FormulaVersion: DefenderFormulaVersion,
@@ -302,8 +308,9 @@ func CalculateDefenderRating(in DefenderRatingInput) RatingResult {
 	safety := capped(defSafetyPerUnit, in.Safeties, defSafetyCap)
 	defensiveTD := capped(defTDPerUnit, in.DefensiveTDs, defTDCap)
 	defensiveXP := capped(defXPPerUnit, in.DefensiveXPTDs, defXPCap)
+	sack := capped(defSackPerUnit, in.DefensiveSacks, defSackCap)
 
-	raw := ratingBaseline + flagPull + deflection + interception + safety + defensiveTD + defensiveXP
+	raw := ratingBaseline + flagPull + deflection + interception + safety + defensiveTD + defensiveXP + sack
 	reliability := math.Min(1.0, float64(actions)/defFullReliability)
 
 	res.Components = map[string]float64{
@@ -313,6 +320,7 @@ func CalculateDefenderRating(in DefenderRatingInput) RatingResult {
 		"safeties":         safety,
 		"defensive_tds":    defensiveTD,
 		"defensive_xp_tds": defensiveXP,
+		"defensive_sacks":  sack,
 	}
 	res.RawRating = raw
 	res.ReliabilityFactor = reliability

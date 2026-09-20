@@ -3,6 +3,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { getCustomerOrders } from '../services/api';
+import { BackButton } from '../components/common/BackButton';
 
 const statusBadge = (kind: 'payment' | 'fulfillment', value: string) => {
     const base = 'text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider';
@@ -45,9 +46,7 @@ export const MyOrdersPage = () => {
                         Your Showtime Store purchase history
                     </p>
                 </div>
-                <Link to="/store" className="text-xs font-black uppercase tracking-wider text-sffl-red hover:underline">
-                    ← Back to Store
-                </Link>
+                <BackButton fallback="/store">Back to Store</BackButton>
             </div>
 
             {isLoading ? (

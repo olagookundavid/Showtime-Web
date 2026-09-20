@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
     TrophyIcon,
-    ArrowLeftIcon,
     ChevronLeftIcon,
     ChevronRightIcon,
     ChevronDoubleLeftIcon,
@@ -20,6 +19,7 @@ import { fantasyApi, formatKobo, type LeaderboardEntry } from '../../services/ap
 import { useAuth } from '../../contexts/AuthContext';
 import { useFantasyLeaderboard, num, rankBadgeClass, OVERALL } from '../../hooks/useFantasyLeaderboard';
 import { FantasyTeamModal } from '../../components/fantasy/FantasyTeamModal';
+import { BackButton } from '../../components/common/BackButton';
 
 const pts = (v: number | null | undefined): string => num(v).toFixed(2);
 
@@ -137,12 +137,14 @@ export function FantasyLeaderboard() {
         <div className="space-y-6 md:space-y-8 pb-36 md:pb-24">
             {/* Header Showtime Navy Banner */}
             <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-6 md:p-8">
-                <Link
-                    to="/fantasy/leagues"
-                    className="inline-flex items-center gap-1.5 text-xs text-gray-300 hover:text-white mb-3 font-semibold transition"
-                >
-                    <ArrowLeftIcon className="w-3.5 h-3.5" /> Back to Leagues
-                </Link>
+                <div className="mb-3">
+                    <BackButton
+                        fallback="/fantasy/leagues"
+                        className="inline-flex items-center gap-1.5 text-xs text-gray-300 hover:text-white font-semibold transition cursor-pointer"
+                    >
+                        Back to Leagues
+                    </BackButton>
+                </div>
 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>

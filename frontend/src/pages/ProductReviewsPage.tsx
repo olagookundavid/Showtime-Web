@@ -13,6 +13,7 @@ import {
 } from '../services/api';
 import { StarRating } from '../components/store/StarRating';
 import { Loader } from '../components/ui/Loader';
+import { BackButton } from '../components/common/BackButton';
 
 export const ProductReviewsPage = () => {
     const { id } = useParams<{ id: string }>();
@@ -92,7 +93,7 @@ export const ProductReviewsPage = () => {
         return (
             <div className="max-w-2xl mx-auto px-4 py-16 text-center space-y-4">
                 <p className="text-gray-500">Product not found.</p>
-                <Link to="/store" className="text-sffl-red font-bold underline">Back to store</Link>
+                <BackButton fallback="/store">Back to Store</BackButton>
             </div>
         );
     }
@@ -101,14 +102,17 @@ export const ProductReviewsPage = () => {
 
     return (
         <div className="space-y-8 animate-fadeIn">
-            {/* Breadcrumbs + header */}
-            <div className="space-y-2">
-                <div className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                    <Link to="/store" className="hover:text-sffl-red transition-colors">Store</Link>
-                    <span>/</span>
-                    <Link to={`/store/products/${product.id}`} className="hover:text-sffl-red transition-colors truncate">{product.name}</Link>
-                    <span>/</span>
-                    <span className="text-gray-900 dark:text-white">Reviews</span>
+            {/* Breadcrumbs + Back Nav */}
+            <div className="space-y-3">
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <BackButton fallback={`/store/products/${product.id}`} />
+                    <div className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        <Link to="/store" className="hover:text-sffl-red transition-colors">Store</Link>
+                        <span>/</span>
+                        <Link to={`/store/products/${product.id}`} className="hover:text-sffl-red transition-colors truncate max-w-xs md:max-w-md">{product.name}</Link>
+                        <span>/</span>
+                        <span className="text-gray-900 dark:text-white">Reviews</span>
+                    </div>
                 </div>
                 <h1 className="text-3xl font-black italic tracking-tighter text-sffl-navy dark:text-white uppercase">
                     Reviews — {product.name}

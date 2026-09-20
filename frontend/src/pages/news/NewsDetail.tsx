@@ -8,6 +8,7 @@ import { NewsContent } from '../../components/news/NewsContent';
 import { YouTubeEmbed } from '../../components/news/YouTubeEmbed';
 import { parseYouTubeId } from '../../utils/newsContent';
 import { CommentSection } from '../../components/comments/CommentSection';
+import { BackButton } from '../../components/common/BackButton';
 
 export const NewsDetail = () => {
     const { slug } = useParams<{ slug: string }>();
@@ -39,7 +40,7 @@ export const NewsDetail = () => {
         return (
             <div className="text-center py-20">
                 <h1 className="text-4xl font-black text-sffl-navy mb-4">Article Not Found</h1>
-                <Link to="/news" className="text-sffl-red hover:underline">← Back to News</Link>
+                <BackButton fallback="/news">Back to News</BackButton>
             </div>
         );
     }
@@ -47,9 +48,9 @@ export const NewsDetail = () => {
     return (
         <div className="space-y-6">
             {/* Back Button */}
-            <Link to="/news" className="inline-flex items-center text-sffl-navy dark:text-white hover:text-sffl-red font-bold transition">
-                <span className="mr-2">←</span> Back to News
-            </Link>
+            <div className="px-1">
+                <BackButton fallback="/news" />
+            </div>
 
             {/* Article Header */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-xl">

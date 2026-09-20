@@ -9,6 +9,7 @@ import { Modal } from '../components/ui/Modal';
 import { ReturnPolicyContent, ShippingPolicyContent, PrivacyPolicyContent } from '../components/store/PolicyContent';
 import { getVariantPrice, findVariantByValues } from '../utils/storeStock';
 import { useCart } from '../contexts/CartContext';
+import { BackButton } from '../components/common/BackButton';
 
 export const ProductDetailPage = () => {
     const { id } = useParams<{ id: string }>();
@@ -104,9 +105,9 @@ export const ProductDetailPage = () => {
                         The requested store item could not be retrieved. It may have been disabled or deleted from the catalog.
                     </p>
                 </div>
-                <Link to="/store" className="inline-block bg-sffl-navy hover:bg-sffl-red text-white text-xs font-bold uppercase tracking-wider px-6 py-3 rounded-full shadow transition-all">
+                <BackButton fallback="/store" className="inline-block bg-sffl-navy hover:bg-sffl-red text-white text-xs font-bold uppercase tracking-wider px-6 py-3 rounded-full shadow transition-all">
                     Back to Store
-                </Link>
+                </BackButton>
             </div>
         );
     }
@@ -207,11 +208,14 @@ export const ProductDetailPage = () => {
 
     return (
         <div className="space-y-8 animate-fadeIn">
-            {/* Breadcrumbs */}
-            <div className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                <Link to="/store" className="hover:text-sffl-red transition-colors">Store</Link>
-                <span>/</span>
-                <span className="text-gray-900 dark:text-white truncate">{product.name}</span>
+            {/* Breadcrumbs & Back Nav */}
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+                <BackButton fallback="/store" />
+                <div className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    <Link to="/store" className="hover:text-sffl-red transition-colors">Store</Link>
+                    <span>/</span>
+                    <span className="text-gray-900 dark:text-white truncate max-w-xs md:max-w-md">{product.name}</span>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">

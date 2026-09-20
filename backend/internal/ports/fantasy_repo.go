@@ -908,7 +908,7 @@ func (r *FantasyRepository) GetSeasonRatingLines(ctx context.Context, competitio
 		       COALESCE(SUM(ps.xp_attempts), 0), COALESCE(SUM(ps.qb_drives), 0),
 		       COALESCE(SUM(ps.qb_turnovers), 0), COALESCE(SUM(ps.qb_punts), 0),
 		       COALESCE(SUM(ps.uncatchable_passes), 0), COALESCE(SUM(ps.thrown_away_passes), 0),
-		       COALESCE(SUM(ps.batted_down_passes), 0)
+		       COALESCE(SUM(ps.batted_down_passes), 0), COALESCE(SUM(ps.xp_good), 0)
 		FROM players p
 		LEFT JOIN player_stats ps ON ps.player_id = p.id AND ps.competition_id = $1
 		GROUP BY p.id, COALESCE(p.position, '-')
@@ -931,7 +931,7 @@ func (r *FantasyRepository) GetSeasonRatingLines(ctx context.Context, competitio
 			&l.CompletedPasses, &l.PassingYards, &l.PassingTDs, &l.InterceptionsThrown,
 			&l.RushingAttempts, &l.RushingYards, &l.RushingTDs, &l.QBSacks,
 			&l.XPAttempts, &l.Drives, &l.Turnovers, &l.Punts,
-			&l.UncatchablePasses, &l.ThrownAwayPasses, &l.BattedDownPasses,
+			&l.UncatchablePasses, &l.ThrownAwayPasses, &l.BattedDownPasses, &l.XPGood,
 		); err != nil {
 			return nil, err
 		}
