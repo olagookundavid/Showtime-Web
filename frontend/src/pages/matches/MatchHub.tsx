@@ -7,6 +7,7 @@ import { Spinner } from '../../components/ui';
 import { MatchCard } from '../../components/matches/MatchCard';
 import { MatchStandingsTable } from '../../components/matches/MatchStandingsTable';
 import { BracketView } from '../../components/matches/BracketView';
+import { CompactMatchesWidget } from '../../components/matches/CompactMatchesWidget';
 import { SeasonStageTabs } from '../../components/common/SeasonStageTabs';
 
 export const MatchHub = () => {
@@ -110,13 +111,17 @@ export const MatchHub = () => {
 
     const selectedCompetition = competitions.find(c => c.id === selectedCompetitionId);
     const isCompleted = selectedCompetition?.status === 'completed';
+    const compFormat = (selectedCompetition?.format || 'SEASON').toUpperCase();
     // Playoffs competitions show the bracket instead of standings.
-    const isKnockout = selectedCompetition?.format === 'PLAYOFFS';
+    const isKnockout = compFormat === 'PLAYOFFS';
+    const isPreseason = compFormat === 'PRESEASON';
+    const isCup = compFormat === 'CUP';
+    const isMatchesOnly = isPreseason || isCup;
 
     const { data: standingsData, isLoading: standingsLoading } = useQuery({
         queryKey: ['publicStandings', selectedCompetitionId],
         queryFn: () => getStandings(selectedCompetitionId),
-        enabled: !!selectedCompetitionId && !isKnockout,
+        enabled: !!selectedCompetitionId && !isKnockout && !isMatchesOnly,
     });
     const standings = standingsData || [];
 
@@ -202,8 +207,12 @@ export const MatchHub = () => {
                     <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">MATCH HUB</h1>
                     <p className="text-gray-300 mt-2 text-lg">Scores, Fixtures & Standings</p>
                     <div className="mt-4 lg:hidden">
-                        <Link to="/standings" className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full text-xs font-bold transition-all border border-white/20">
-                            <span>🏆</span> View Full Standings
+                        <Link
+                            to={`/standings?comp=${selectedCompetitionId}`}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full text-xs font-bold transition-all border border-white/20"
+                        >
+                            <span>{isKnockout || isMatchesOnly ? '🏈' : '🏆'}</span>
+                            {isKnockout ? 'View Playoff Bracket' : isPreseason ? 'View Preseason Games' : isCup ? 'View Cup Matches' : 'View Full Standings'}
                         </Link>
                     </div>
                 </div>
@@ -365,13 +374,29 @@ export const MatchHub = () => {
                     )}
                 </div>
 
-                {/* Right Column: Standings or Bracket (1/3 width) — sticky sidebar */}
+                {/* Right Column: Standings, Bracket, or Matches Widget (1/3 width) — sticky sidebar */}
                 <div className="hidden lg:block lg:col-span-1 lg:sticky lg:top-[90px] self-start space-y-6">
                     {isKnockout ? (
                         <div className="space-y-6">
                             <BracketView
                                 competitionId={selectedCompetitionId}
                                 compact
+                                viewAllLink={`/standings?comp=${selectedCompetitionId}`}
+                            />
+
+                            <div className="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-xl p-6 text-white shadow-lg">
+                                <h3 className="text-xl font-bold mb-2">Join the Action!</h3>
+                                <p className="text-sm text-purple-100 mb-4">Don't miss a single moment of the SFFL season.</p>
+                                <Link to="/tickets" className="w-full py-2 bg-white text-indigo-700 font-bold rounded-lg hover:bg-purple-50 transition-colors block text-center">
+                                    Get Tickets
+                                </Link>
+                            </div>
+                        </div>
+                    ) : isMatchesOnly ? (
+                        <div className="space-y-6">
+                            <CompactMatchesWidget
+                                competitionId={selectedCompetitionId}
+                                title={isPreseason ? 'Preseason Matches' : isCup ? 'Cup Matches' : 'Matches'}
                                 viewAllLink={`/standings?comp=${selectedCompetitionId}`}
                             />
 

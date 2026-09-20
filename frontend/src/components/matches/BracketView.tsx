@@ -202,7 +202,7 @@ const TeamRow = ({ m, side, secondLeg }: { m: Match; side: 'HOME' | 'AWAY'; seco
                 </div>
             )}
             <span className={`text-xs flex-1 ${secondLeg ? 'leading-tight' : 'truncate'} ${isTbd ? 'text-gray-400 dark:text-gray-500 italic font-semibold' : isWinner ? 'font-black text-sffl-navy dark:text-white' : 'font-bold text-gray-700 dark:text-gray-300'}`}>
-                {isTbd ? 'TBD' : isBye && !team?.id ? 'BYE' : team.name.toUpperCase()}
+                {isTbd ? 'TBD' : isBye && !team?.id ? 'BYE' : (team.short_name || team.name).toUpperCase()}
             </span>
             {secondLeg ? (
                 <div className="flex gap-4 text-xs font-semibold tabular-nums text-gray-500 dark:text-gray-400">
@@ -303,9 +303,12 @@ export const ChampionCard = ({ team, compact = false }: { team: NonNullable<Matc
     );
 };
 
-const MatchCard = ({ m, secondLeg, isFinal }: { m: Match; secondLeg?: Match; isFinal: boolean }) => (
+export const MatchCard = ({ m, secondLeg, isFinal }: { m: Match; secondLeg?: Match; isFinal: boolean }) => (
     <div className={`bg-white dark:bg-gray-800 rounded-xl border shadow-sm overflow-hidden w-full ${isFinal ? 'border-sffl-red/40 ring-1 ring-sffl-red/20' : 'border-gray-100 dark:border-gray-700'}`}>
-        <div className="flex items-center justify-between px-3 py-1.5 bg-gray-50 dark:bg-gray-900/40 border-b border-gray-100 dark:border-gray-700">
+        <Link
+            to={`/matches/${m.id}`}
+            className="flex items-center justify-between px-3 py-1.5 bg-gray-50 dark:bg-gray-900/40 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        >
             <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
                 {new Date(m.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             </span>
@@ -320,7 +323,7 @@ const MatchCard = ({ m, secondLeg, isFinal }: { m: Match; secondLeg?: Match; isF
                     {m.status === 'FINISHED' ? 'FT' : m.status}
                 </span>
             )}
-        </div>
+        </Link>
         <div className="divide-y divide-gray-50 dark:divide-gray-700/50">
             <TeamRow m={m} side="HOME" secondLeg={secondLeg} />
             <TeamRow m={m} side="AWAY" secondLeg={secondLeg} />
@@ -362,6 +365,20 @@ export const BracketView = ({ competitionId, compact = false, viewAllLink }: Bra
 
     const columns = useMemo(() => buildBracketColumns(filteredMatches), [filteredMatches]);
     const champion = useMemo(() => championOf(filteredMatches), [filteredMatches]);
+
+    // In compact mode (mini standing widget for Playoffs), show the last match first (Bowl first, then earlier rounds)
+    // and sort matches within each stage latest first.
+    const compactColumns = useMemo(() => {
+        if (!compact) return columns;
+        return [...columns].reverse().map(col => ({
+            ...col,
+            matches: [...col.matches].sort((a, b) => {
+                const dateComp = b.date.localeCompare(a.date);
+                if (dateComp !== 0) return dateComp;
+                return (b.bracket_pos ?? 0) - (a.bracket_pos ?? 0);
+            }),
+        }));
+    }, [columns, compact]);
 
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -407,10 +424,10 @@ export const BracketView = ({ competitionId, compact = false, viewAllLink }: Bra
                 </div>
                 {champion && <ChampionCard team={champion} compact />}
                 <div className="p-3 space-y-4">
-                    {columns.map(col => (
+                    {compactColumns.map(col => (
                         <div key={col.title}>
                             <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 px-1 mb-2">
-                                {col.title.startsWith('Playoffs') ? 'Playoffs' : col.title}
+                                {col.title === 'Bowl' ? '🏆 Bowl — Final' : col.title.startsWith('Playoffs') ? 'Playoffs' : col.title}
                             </div>
                             <div className="space-y-2">
                                 {col.matches.map(m => (
@@ -418,7 +435,7 @@ export const BracketView = ({ competitionId, compact = false, viewAllLink }: Bra
                                         key={m.id}
                                         m={m}
                                         secondLeg={secondLegMap.get(m.id)}
-                                        isFinal={!m.feeds_match_id && col === columns[columns.length - 1]}
+                                        isFinal={isBowlStage(m.round) || col.title === 'Bowl'}
                                     />
                                 ))}
                             </div>

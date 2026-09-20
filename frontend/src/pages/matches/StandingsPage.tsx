@@ -1,13 +1,15 @@
-import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useEffect, useState, useMemo } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getCompetitions, getStandings, getMatches, sortCompetitionsBySeason, dropdownCompetitionsFor } from '../../services/api';
+import { getCompetitions, getStandings, getMatches, sortCompetitionsBySeason, dropdownCompetitionsFor, type Match } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { StandingsTable } from '../../components/matches/StandingsTable';
 import { BracketView } from '../../components/matches/BracketView';
+import { MatchCard } from '../../components/matches/MatchCard';
 import { SeasonStageTabs } from '../../components/common/SeasonStageTabs';
 
 export const StandingsPage = () => {
+    const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const compParam = searchParams.get('comp');
     const teamParam = searchParams.get('team');
@@ -104,15 +106,34 @@ export const StandingsPage = () => {
 
     // Find selected competition name
     const selectedCompetition = competitions.find(c => c.id === selectedCompetitionId);
+    const compFormat = selectedCompetition?.format;
     // Knockout competitions (playoffs + bowl) have a bracket instead of standings.
-    const isKnockout = selectedCompetition?.format === 'PLAYOFFS';
+    const isKnockout = compFormat === 'PLAYOFFS';
+    const isPreseason = compFormat === 'PRESEASON';
+    const isCup = compFormat === 'CUP';
+    const isMatchesOnly = isPreseason || isCup;
 
     const { data: standingsData, isLoading: dataLoading } = useQuery({
         queryKey: ['publicStandings', selectedCompetitionId],
         queryFn: () => getStandings(selectedCompetitionId),
-        enabled: !!selectedCompetitionId && !isKnockout,
+        enabled: !!selectedCompetitionId && !isKnockout && !isMatchesOnly,
     });
     const standings = standingsData || [];
+
+    // Preseason and Cup have no standings table; query their matches ordered latest match first
+    const { data: compMatchesData, isLoading: matchesLoading } = useQuery({
+        queryKey: ['standingsCompMatches', selectedCompetitionId],
+        queryFn: () => getMatches(selectedCompetitionId, 1, 100),
+        enabled: !!selectedCompetitionId && isMatchesOnly,
+    });
+    const matches = useMemo(() => {
+        const list = compMatchesData?.data || [];
+        return [...list].sort((a: Match, b: Match) => {
+            const d = b.date.localeCompare(a.date);
+            if (d !== 0) return d;
+            return (b.start_time || '').localeCompare(a.start_time || '');
+        });
+    }, [compMatchesData]);
 
     const loading = compLoading;
 
@@ -123,8 +144,12 @@ export const StandingsPage = () => {
             {/* Header - Condensed */}
             <div className="flex flex-col md:flex-row justify-between items-center bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
                 <div>
-                    <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">{isKnockout ? 'PLAYOFFS' : 'STANDINGS'}</h1>
-                    <p className="text-gray-300 mt-0.5 text-xs md:text-lg">{isKnockout ? 'Bracket & Road to the Bowl' : 'Rankings & Tables'}</p>
+                    <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">
+                        {isKnockout ? 'PLAYOFFS' : isPreseason ? 'PRESEASON' : isCup ? 'CUP' : 'STANDINGS'}
+                    </h1>
+                    <p className="text-gray-300 mt-0.5 text-xs md:text-lg">
+                        {isKnockout ? 'Bracket & Road to the Bowl' : isPreseason ? 'Preseason Matches & Results' : isCup ? 'Cup Matches & Results' : 'Rankings & Tables'}
+                    </p>
                 </div>
 
                 {/* Competition Selector - Mobile Optimized */}
@@ -159,10 +184,17 @@ export const StandingsPage = () => {
                 <SeasonStageTabs competitions={competitions} currentId={selectedCompetitionId} onChange={handleCompetitionChange} />
             )}
 
-            {dataLoading && !isKnockout && (
-                <div className="flex justify-center items-center gap-2 text-gray-500">
+            {dataLoading && !isKnockout && !isMatchesOnly && (
+                <div className="flex justify-center items-center gap-2 text-gray-500 py-12">
                     <div className="w-5 h-5 border-2 border-sffl-red border-t-transparent rounded-full animate-spin"></div>
                     <span className="font-semibold">Loading standings...</span>
+                </div>
+            )}
+
+            {matchesLoading && isMatchesOnly && (
+                <div className="flex justify-center items-center gap-2 text-gray-500 py-12">
+                    <div className="w-5 h-5 border-2 border-sffl-red border-t-transparent rounded-full animate-spin"></div>
+                    <span className="font-semibold">Loading matches...</span>
                 </div>
             )}
 
@@ -179,8 +211,54 @@ export const StandingsPage = () => {
                 </div>
             )}
 
+            {/* Matches-only (Preseason & Cup): matches list sorted latest first */}
+            {isMatchesOnly && selectedCompetitionId && !matchesLoading && (
+                <div className="space-y-4 md:space-y-6">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                            {selectedCompetition?.logo ? (
+                                <img src={selectedCompetition.logo} alt={selectedCompetition.name} className="w-6 h-6 md:w-8 md:h-8 object-contain" />
+                            ) : (
+                                <span className="text-base md:text-2xl">{isPreseason ? '🏈' : '🏆'}</span>
+                            )}
+                            <h2 className="text-sm md:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">
+                                {selectedCompetition?.name}
+                                {selectedCompetition?.status && !['active', 'completed'].includes(selectedCompetition.status) && (
+                                    <span className="text-red-500 text-sm ml-2 align-middle">[{selectedCompetition.status.toUpperCase()}]</span>
+                                )}
+                            </h2>
+                        </div>
+                        <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
+                            {matches.length} {matches.length === 1 ? 'Match' : 'Matches'}
+                        </span>
+                    </div>
+
+                    {matches.length === 0 ? (
+                        <div className="bg-gray-100 dark:bg-gray-800 p-16 rounded-xl text-center">
+                            <div className="text-5xl mb-4">{isPreseason ? '🏈' : '🏆'}</div>
+                            <p className="text-gray-500 text-lg font-semibold">No matches scheduled for this competition yet.</p>
+                            <p className="text-gray-400 mt-2">Check back soon for schedule updates.</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {matches.map(m => (
+                                <MatchCard
+                                    key={m.id}
+                                    match={m}
+                                    onClick={() => {
+                                        const params = new URLSearchParams();
+                                        if (selectedCompetitionId) params.set('comp', selectedCompetitionId);
+                                        navigate(`/matches/${m.id}?${params.toString()}`);
+                                    }}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Standings Table with Compact Legend */}
-            {!isKnockout && !dataLoading && standings.length > 0 ? (
+            {!isKnockout && !isMatchesOnly && !dataLoading && standings.length > 0 ? (
                 <div className="space-y-3 md:space-y-6">
                     <div className="flex items-center gap-2.5">
                         {selectedCompetition?.logo ? (
@@ -241,7 +319,7 @@ export const StandingsPage = () => {
                         isPlayoffs={isKnockout}
                     />
                 </div>
-            ) : !isKnockout && !dataLoading ? (
+            ) : !isKnockout && !isMatchesOnly && !dataLoading ? (
                 <div className="bg-gray-100 dark:bg-gray-800 p-16 rounded-xl text-center">
                     <div className="text-5xl mb-4">🏆</div>
                     <p className="text-gray-500 text-lg font-semibold">No standings available for this competition yet.</p>
