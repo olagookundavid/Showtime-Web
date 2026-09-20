@@ -179,7 +179,7 @@ export function FantasyLeagues() {
     const { data: serverCutPercent } = useQuery({
         queryKey: ['fantasyPlatformCut'],
         queryFn: fantasyLeagueApi.getPlatformCutPercent,
-        enabled: showCreateModal,
+        enabled: showCreateModal || !!termsTarget,
         staleTime: 5 * 60 * 1000,
     });
     const platformCutPercent = Number.isFinite(serverCutPercent)
@@ -267,10 +267,6 @@ export function FantasyLeagues() {
     const previewError = activePreviewQuery.error;
 
     const openTermsForLeague = (league: FantasyLeague) => {
-        if (!isAuthenticated) {
-            navigate('/login?redirect=/fantasy/leagues');
-            return;
-        }
         if (joinMutation.isPending) return;
         if (!league?.id) {
             toast.error('That league could not be identified. Please refresh and try again.');
@@ -281,6 +277,11 @@ export function FantasyLeagues() {
 
     const confirmJoin = () => {
         if (!termsTarget || joinMutation.isPending) return;
+        if (!isAuthenticated) {
+            setTermsTarget(null);
+            navigate('/login?redirect=/fantasy/leagues');
+            return;
+        }
         if (termsTarget.leagueId) {
             joinMutation.mutate({ league_id: termsTarget.leagueId });
             return;
@@ -293,6 +294,22 @@ export function FantasyLeagues() {
     const previewFee = num(preview?.entry_fee_kobo);
     const previewIsPaid = previewFee > 0;
     const previewStructure = (preview?.prize_structure ?? []).filter(Boolean);
+    const activePrizeStructure = useMemo(() => {
+        if (previewStructure.length > 0) return previewStructure;
+        return [
+            { rank: 1, percent: 50, amount_kobo: 0 },
+            { rank: 2, percent: 30, amount_kobo: 0 },
+            { rank: 3, percent: 20, amount_kobo: 0 },
+        ];
+    }, [previewStructure]);
+
+    const previewMaxMembers = Math.max(0, num(preview?.max_members));
+    const projectedMaxPoolKobo = useMemo(() => {
+        if (!previewIsPaid || previewMaxMembers <= 0) return 0;
+        const maxGrossKobo = previewFee * previewMaxMembers;
+        return Math.max(0, Math.round(maxGrossKobo - (maxGrossKobo * num(platformCutPercent)) / 100));
+    }, [previewIsPaid, previewMaxMembers, previewFee, platformCutPercent]);
+
     const previewBlocked =
         !!preview && (preview.already_member || preview.is_full || preview.settled || preview.forfeited);
     const previewStandingsId = preview?.league_id || termsTarget?.leagueId || '';
@@ -398,6 +415,17 @@ export function FantasyLeagues() {
                                                         Code: {l.invite_code}
                                                     </span>
                                                 )}
+                                                {num(l.entry_fee) > 0 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => openTermsForLeague(l)}
+                                                        className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition inline-flex items-center gap-1 cursor-pointer"
+                                                        title="View prize pool sharing formula and current pool"
+                                                    >
+                                                        <TrophyIcon className="w-3 h-3 text-amber-500" />
+                                                        <span>Sharing Formula</span>
+                                                    </button>
+                                                )}
                                             </div>
                                             <h3 className="text-base font-bold text-gray-900 dark:text-white mt-1.5">{l.name}</h3>
                                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
@@ -461,6 +489,17 @@ export function FantasyLeagues() {
                                                     <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">
                                                         Full
                                                     </span>
+                                                )}
+                                                {fee > 0 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => openTermsForLeague(l)}
+                                                        className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition inline-flex items-center gap-1 cursor-pointer"
+                                                        title="View prize pool sharing formula and rules"
+                                                    >
+                                                        <TrophyIcon className="w-3 h-3 text-amber-500" />
+                                                        <span>Sharing Formula</span>
+                                                    </button>
                                                 )}
                                             </div>
                                             <h3 className="text-base font-bold text-gray-900 dark:text-white mt-1.5 truncate">{l.name}</h3>
@@ -569,7 +608,10 @@ export function FantasyLeagues() {
                             className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-center text-xl font-mono font-black tracking-widest text-sffl-navy dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red mb-4 uppercase"
                         />
                         <button
-                            onClick={() => setTermsTarget({ inviteCode: inviteCodeInput.trim() })}
+                            onClick={() => {
+                                setShowJoinModal(false);
+                                setTermsTarget({ inviteCode: inviteCodeInput.trim() });
+                            }}
                             disabled={!inviteCodeInput.trim() || joinMutation.isPending}
                             className="w-full py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-black text-xs uppercase transition shadow-md cursor-pointer"
                         >
@@ -813,7 +855,7 @@ export function FantasyLeagues() {
                                     {preview?.name || termsTarget.name || 'League Terms'}
                                 </h3>
                                 <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                    Before you join
+                                    {preview?.already_member ? 'League Details & Prize Formula' : 'Before you join'}
                                 </p>
                             </div>
                             <button
@@ -931,82 +973,153 @@ export function FantasyLeagues() {
                                         </li>
                                     </ul>
                                 ) : (
-                                    /* ── Paid league: money is involved, so nothing is left out ── */
-                                    <>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <div className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700">
+                                    /* ── Paid league: transparent prize pool sharing formula ── */
+                                    <div className="space-y-4">
+                                        {/* Headline Metric Cards */}
+                                        <div className={`grid ${previewMaxMembers > 0 ? 'grid-cols-3' : 'grid-cols-2'} gap-2`}>
+                                            <div className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-700">
                                                 <p className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                                     You Pay
                                                 </p>
-                                                <p className="text-lg font-black text-sffl-navy dark:text-white">
+                                                <p className="text-base sm:text-lg font-black text-sffl-navy dark:text-white mt-0.5">
                                                     {formatKobo(previewFee)}
                                                 </p>
+                                                <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">Entry fee</p>
                                             </div>
-                                            <div className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700">
-                                                <p className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                                    Prize Pool So Far
+
+                                            <div className="p-3 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60">
+                                                <p className="text-[10px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                                                    Current Pool
                                                 </p>
-                                                <p className="text-lg font-black text-sffl-navy dark:text-white">
+                                                <p className="text-base sm:text-lg font-black text-emerald-700 dark:text-emerald-300 mt-0.5">
                                                     {formatKobo(num(preview.prize_pool_kobo))}
                                                 </p>
-                                            </div>
-                                        </div>
-                                        <p className="text-[11px] text-gray-600 dark:text-gray-300">
-                                            The pool grows with every entry, so the figures below rise as more managers join.
-                                        </p>
-
-                                        <div className="rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-                                            <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900/40 border-b border-gray-200 dark:border-gray-700">
-                                                <h4 className="text-[11px] font-black uppercase tracking-wider text-sffl-navy dark:text-white">
-                                                    Who Gets What
-                                                </h4>
-                                            </div>
-                                            {previewStructure.length === 0 ? (
-                                                <p className="px-3 py-3 text-xs text-gray-500 dark:text-gray-400">
-                                                    No prize split has been published for this league yet.
+                                                <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">
+                                                    {num(preview.member_count)} {num(preview.member_count) === 1 ? 'manager' : 'managers'}
                                                 </p>
+                                            </div>
+
+                                            {previewMaxMembers > 0 ? (
+                                                <div className="p-3 rounded-2xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60">
+                                                    <p className="text-[10px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                                                        Max Potential
+                                                    </p>
+                                                    <p className="text-base sm:text-lg font-black text-amber-700 dark:text-amber-300 mt-0.5">
+                                                        {formatKobo(projectedMaxPoolKobo)}
+                                                    </p>
+                                                    <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">
+                                                        At {previewMaxMembers} cap
+                                                    </p>
+                                                </div>
                                             ) : (
-                                                <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                                                    {previewStructure.map((t, i) => (
-                                                        <div
-                                                            key={`tier-${num(t?.rank) || i + 1}`}
-                                                            className="px-3 py-2 flex items-center justify-between gap-2"
-                                                        >
-                                                            <span className="text-xs font-black uppercase text-gray-700 dark:text-gray-200">
-                                                                {ordinal(num(t?.rank) || i + 1)}
-                                                            </span>
-                                                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                                                                {fmtPercent(num(t?.percent))}
-                                                            </span>
-                                                            <span className="text-xs font-bold text-gray-900 dark:text-white tabular-nums">
-                                                                {formatKobo(num(t?.amount_kobo))}
-                                                            </span>
-                                                        </div>
-                                                    ))}
+                                                <div className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-700">
+                                                    <p className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                                        Pool Type
+                                                    </p>
+                                                    <p className="text-base sm:text-lg font-black text-sffl-navy dark:text-white mt-0.5">
+                                                        Dynamic
+                                                    </p>
+                                                    <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                                        No member cap
+                                                    </p>
                                                 </div>
                                             )}
                                         </div>
 
-                                        <div className="p-3 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 flex items-start gap-2">
-                                            <ExclamationTriangleIcon className="w-5 h-5 shrink-0 text-red-600 dark:text-red-400" />
+                                        {/* Prize Pool Sharing Formula Table */}
+                                        <div className="rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800 shadow-sm">
+                                            <div className="px-4 py-2.5 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-2">
+                                                <div className="flex items-center gap-2">
+                                                    <TrophyIcon className="w-4 h-4 text-amber-500 shrink-0" />
+                                                    <h4 className="text-xs font-black uppercase tracking-wider text-sffl-navy dark:text-white">
+                                                        Prize Pool Sharing Formula
+                                                    </h4>
+                                                </div>
+                                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                                    Fixed Split
+                                                </span>
+                                            </div>
+
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-left border-collapse">
+                                                    <thead>
+                                                        <tr className="border-b border-gray-200 dark:border-gray-700 text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400 bg-gray-50/50 dark:bg-gray-700/30">
+                                                            <th className="py-2 px-3">Position</th>
+                                                            <th className="py-2 px-3">Formula Share</th>
+                                                            <th className="py-2 px-3 text-right">Current Prize</th>
+                                                            {previewMaxMembers > 0 && (
+                                                                <th className="py-2 px-3 text-right">At Max Cap</th>
+                                                            )}
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 text-xs">
+                                                        {activePrizeStructure.map((t, i) => {
+                                                            const rankNum = num(t?.rank) || i + 1;
+                                                            const pct = num(t?.percent);
+                                                            const currentAmount = num(t?.amount_kobo);
+                                                            const projectedTierAmount = previewMaxMembers > 0
+                                                                ? Math.round((projectedMaxPoolKobo * pct) / 100)
+                                                                : 0;
+
+                                                            return (
+                                                                <tr key={`tier-${rankNum}`} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                                                    <td className="py-2.5 px-3 font-bold text-gray-900 dark:text-white">
+                                                                        <div className="flex items-center gap-1.5">
+                                                                            {rankNum === 1 && <span className="text-sm">🥇</span>}
+                                                                            {rankNum === 2 && <span className="text-sm">🥈</span>}
+                                                                            {rankNum === 3 && <span className="text-sm">🥉</span>}
+                                                                            {rankNum > 3 && <span className="text-xs text-gray-400 font-mono">#{rankNum}</span>}
+                                                                            <span className={rankNum === 1 ? 'text-sffl-navy dark:text-white font-black' : ''}>
+                                                                                {ordinal(rankNum)} Place
+                                                                            </span>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="py-2.5 px-3">
+                                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-black bg-gray-100 dark:bg-gray-700 text-sffl-navy dark:text-gray-100 border border-gray-200 dark:border-gray-600">
+                                                                            {fmtPercent(pct)}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="py-2.5 px-3 text-right font-bold text-gray-900 dark:text-white tabular-nums">
+                                                                        {formatKobo(currentAmount)}
+                                                                    </td>
+                                                                    {previewMaxMembers > 0 && (
+                                                                        <td className="py-2.5 px-3 text-right font-black text-emerald-600 dark:text-emerald-400 tabular-nums">
+                                                                            {formatKobo(projectedTierAmount)}
+                                                                        </td>
+                                                                    )}
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                            <div className="px-3.5 py-2 bg-gray-50 dark:bg-gray-700/40 border-t border-gray-200 dark:border-gray-700 text-[11px] text-gray-600 dark:text-gray-300 flex items-start gap-2">
+                                                <InformationCircleIcon className="w-4 h-4 shrink-0 text-sffl-red mt-0.5" />
+                                                <span>
+                                                    <strong>100% of net pool</strong> is distributed to winners by this fixed formula when the season settles.
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="p-3.5 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 flex items-start gap-2.5">
+                                            <ExclamationTriangleIcon className="w-5 h-5 shrink-0 text-red-600 dark:text-red-400 mt-0.5" />
                                             <div>
                                                 <p className="text-xs font-black uppercase tracking-wider text-red-700 dark:text-red-300">
                                                     Your entry fee is not refundable
                                                 </p>
-                                                <p className="text-xs text-red-700 dark:text-red-300 mt-0.5">
-                                                    Once paid, {formatKobo(previewFee)} cannot be returned — not if you change your
-                                                    mind, and not if you finish outside the prizes.
+                                                <p className="text-xs text-red-700/90 dark:text-red-300/90 mt-0.5">
+                                                    Once paid, {formatKobo(previewFee)} is pooled and cannot be returned — not if you change your mind, and not if you finish outside the prizes.
                                                 </p>
                                             </div>
                                         </div>
 
                                         {!previewBlocked && (
                                             <p className="text-[11px] text-gray-600 dark:text-gray-300">
-                                                Confirming takes you to Paystack to pay {formatKobo(previewFee)}. Your place is
-                                                held once the payment clears.
+                                                Confirming takes you to Paystack to pay {formatKobo(previewFee)}. Your place is held once the payment clears.
                                             </p>
                                         )}
-                                    </>
+                                    </div>
                                 )}
 
                                 <div className="flex items-center gap-2 pt-1">
@@ -1024,7 +1137,7 @@ export function FantasyLeagues() {
                                             <button
                                                 type="button"
                                                 onClick={() => setTermsTarget(null)}
-                                                className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-black text-xs uppercase transition"
+                                                className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-black text-xs uppercase transition cursor-pointer"
                                             >
                                                 Close
                                             </button>
@@ -1034,24 +1147,37 @@ export function FantasyLeagues() {
                                             <button
                                                 type="button"
                                                 onClick={() => setTermsTarget(null)}
-                                                className="px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-black text-xs uppercase transition"
+                                                className="px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-black text-xs uppercase transition cursor-pointer"
                                             >
                                                 Cancel
                                             </button>
-                                            <button
-                                                type="button"
-                                                onClick={confirmJoin}
-                                                disabled={joinMutation.isPending}
-                                                className="flex-1 py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:text-gray-500 text-white font-black text-xs uppercase transition shadow-md cursor-pointer"
-                                            >
-                                                {joinMutation.isPending ? (
-                                                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
-                                                ) : previewIsPaid ? (
-                                                    `Pay ${formatKobo(previewFee)} & Join`
-                                                ) : (
-                                                    'Join League'
-                                                )}
-                                            </button>
+                                            {!isAuthenticated ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setTermsTarget(null);
+                                                        navigate('/login?redirect=/fantasy/leagues');
+                                                    }}
+                                                    className="flex-1 py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase transition shadow-md cursor-pointer text-center"
+                                                >
+                                                    {previewIsPaid ? `Log In to Pay ${formatKobo(previewFee)} & Join` : 'Log In to Join'}
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={confirmJoin}
+                                                    disabled={joinMutation.isPending}
+                                                    className="flex-1 py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:text-gray-500 text-white font-black text-xs uppercase transition shadow-md cursor-pointer"
+                                                >
+                                                    {joinMutation.isPending ? (
+                                                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+                                                    ) : previewIsPaid ? (
+                                                        `Pay ${formatKobo(previewFee)} & Join`
+                                                    ) : (
+                                                        'Join League'
+                                                    )}
+                                                </button>
+                                            )}
                                         </>
                                     )}
                                 </div>
