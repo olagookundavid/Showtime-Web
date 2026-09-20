@@ -9,8 +9,7 @@ interface State {
     hasError: boolean;
     error: Error | null;
     showDetails: boolean;
-    prodStage: 'refresh' | 'developer_working';
-    previewOverride?: 'dev' | 'prod_refresh' | 'prod_devs_working';
+    stage: 'refresh' | 'developer_working';
 }
 
 const RETRY_STORAGE_KEY = 'sffl_error_boundary_refresh_timestamp';
@@ -49,18 +48,12 @@ function clearRefreshAttempt(): void {
     }
 }
 
-/** Check whether we are in dev or prod environment */
-const IS_DEV_ENV =
-    Boolean(import.meta.env.DEV) ||
-    import.meta.env.MODE === 'development' ||
-    import.meta.env.VITE_APP_ENV === 'development';
-
 export class ErrorBoundary extends Component<Props, State> {
     public state: State = {
         hasError: false,
         error: null,
         showDetails: false,
-        prodStage: 'refresh',
+        stage: 'refresh',
     };
 
     public static getDerivedStateFromError(error: Error): Partial<State> {
@@ -69,7 +62,7 @@ export class ErrorBoundary extends Component<Props, State> {
             hasError: true,
             error,
             showDetails: false,
-            prodStage: hadRecentRefresh ? 'developer_working' : 'refresh',
+            stage: hadRecentRefresh ? 'developer_working' : 'refresh',
         };
     }
 
@@ -79,12 +72,21 @@ export class ErrorBoundary extends Component<Props, State> {
 
     private handleReload = () => {
         recordRefreshAttempt();
+        try {
+            if ('caches' in window) {
+                caches.keys().then((names) => {
+                    for (const name of names) caches.delete(name);
+                });
+            }
+        } catch {
+            // ignore
+        }
         window.location.reload();
     };
 
     private handleReset = () => {
         clearRefreshAttempt();
-        this.setState({ hasError: false, error: null, showDetails: false, prodStage: 'refresh' });
+        this.setState({ hasError: false, error: null, showDetails: false, stage: 'refresh' });
     };
 
     private handleGoHome = () => {
@@ -126,10 +128,7 @@ export class ErrorBoundary extends Component<Props, State> {
             this.state.error?.message?.includes('Failed to fetch dynamically imported module') ||
             this.state.error?.message?.includes('Importing a module script failed');
 
-        // Determine whether to display the dev view or the user-friendly production flow.
-        // In dev mode, defaults to dev UI unless the preview override is clicked.
-        const currentMode =
-            this.state.previewOverride ?? (IS_DEV_ENV ? 'dev' : this.state.prodStage);
+        const { stage, showDetails, error } = this.state;
 
         return (
             <div className="min-h-[520px] flex items-center justify-center p-4 md:p-8 my-6">
@@ -137,142 +136,11 @@ export class ErrorBoundary extends Component<Props, State> {
                     {/* Top Decorative Brand Gradient Bar */}
                     <div className="h-1.5 w-full bg-gradient-to-r from-sffl-navy via-sffl-red to-amber-500" />
 
-                    {/* Developer Preview Mode Switcher (Visible in dev mode) */}
-                    {IS_DEV_ENV && (
-                        <div className="bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-900/40 px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold text-amber-900 dark:text-amber-200">
-                            <span className="flex items-center gap-1.5">
-                                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                                DEV MODE PREVIEW
-                            </span>
-                            <div className="flex items-center gap-1">
-                                <button
-                                    type="button"
-                                    onClick={() => this.setState({ previewOverride: 'dev' })}
-                                    className={`px-2 py-0.5 rounded transition ${
-                                        currentMode === 'dev'
-                                            ? 'bg-amber-600 text-white shadow-xs'
-                                            : 'bg-white/80 dark:bg-gray-800 hover:bg-white text-gray-700 dark:text-gray-300'
-                                    }`}
-                                >
-                                    Dev Log View
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => this.setState({ previewOverride: 'prod_refresh' })}
-                                    className={`px-2 py-0.5 rounded transition ${
-                                        currentMode === 'prod_refresh' || currentMode === 'refresh'
-                                            ? 'bg-sffl-red text-white shadow-xs'
-                                            : 'bg-white/80 dark:bg-gray-800 hover:bg-white text-gray-700 dark:text-gray-300'
-                                    }`}
-                                >
-                                    Prod Stage 1 (Refresh)
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => this.setState({ previewOverride: 'prod_devs_working' })}
-                                    className={`px-2 py-0.5 rounded transition ${
-                                        currentMode === 'prod_devs_working' || currentMode === 'developer_working'
-                                            ? 'bg-sffl-navy text-white shadow-xs'
-                                            : 'bg-white/80 dark:bg-gray-800 hover:bg-white text-gray-700 dark:text-gray-300'
-                                    }`}
-                                >
-                                    Prod Stage 2 (Devs On It)
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
                     <div className="p-6 md:p-8 text-center space-y-5">
                         {/* ========================================================================= */}
-                        {/* 1. DEV VIEW (Developer technical layout requested by user for local work) */}
+                        {/* STAGE 1: "There must have been a change to this webpage, kindly refresh" */}
                         {/* ========================================================================= */}
-                        {currentMode === 'dev' && (
-                            <>
-                                {/* Showtime Logo */}
-                                <div className="flex justify-center">
-                                    <div className="p-3 bg-gray-50 dark:bg-gray-800/80 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-inner">
-                                        <img
-                                            src="/images/branding/showtime-logo.png"
-                                            alt="Showtime Flag Football League"
-                                            className="h-12 md:h-14 w-auto object-contain drop-shadow"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Status Tag */}
-                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 text-[11px] font-black uppercase tracking-wider border border-red-100 dark:border-red-900/40">
-                                    <span>⚠️ System Stoppage</span>
-                                </div>
-
-                                {/* Main Heading & Narrative */}
-                                <div className="space-y-2">
-                                    <h1 className="text-2xl md:text-3xl font-black text-sffl-navy dark:text-white tracking-tight">
-                                        {isChunkLoadError ? 'New Update Available' : "Sorry, there's been an error"}
-                                    </h1>
-                                    <p className="text-xs md:text-sm text-gray-600 dark:text-gray-300 leading-relaxed max-w-md mx-auto">
-                                        {isChunkLoadError
-                                            ? 'A new code update was deployed or your internet connection interrupted module loading. Refreshing will load the latest version.'
-                                            : 'An unexpected issue occurred while rendering this page on Showtime. You can attempt to retry, refresh, or return to the main dashboard.'}
-                                    </p>
-                                </div>
-
-                                {/* Action Buttons */}
-                                <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-2">
-                                    <button
-                                        type="button"
-                                        onClick={this.handleReset}
-                                        className="w-full sm:w-auto px-5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold text-xs rounded-xl border border-gray-200 dark:border-gray-700 transition-all shadow-sm active:scale-95 cursor-pointer"
-                                    >
-                                        🔄 Try again
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={this.handleReload}
-                                        className="w-full sm:w-auto px-5 py-2.5 bg-sffl-navy hover:bg-sffl-navy/90 text-white font-bold text-xs rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
-                                    >
-                                        ⚡ Refresh page
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={this.handleGoHome}
-                                        className="w-full sm:w-auto px-5 py-2.5 bg-sffl-red hover:bg-[#A52323] text-white font-bold text-xs rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
-                                    >
-                                        🏠 Home
-                                    </button>
-                                </div>
-
-                                {/* Collapsible Technical Error Details */}
-                                {this.state.error?.message && !isChunkLoadError && (
-                                    <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
-                                        <button
-                                            type="button"
-                                            onClick={this.toggleDetails}
-                                            className="text-[11px] font-bold text-gray-400 hover:text-sffl-navy dark:hover:text-white transition-colors cursor-pointer"
-                                        >
-                                            {this.state.showDetails ? 'Hide technical log ▲' : 'Show technical log ▼'}
-                                        </button>
-                                        {this.state.showDetails && (
-                                            <div className="mt-3 p-3 bg-gray-950 text-red-300 rounded-xl text-left font-mono text-[11px] leading-snug overflow-x-auto max-h-40 border border-gray-800">
-                                                <div className="font-bold text-gray-500 mb-1 text-[10px] uppercase tracking-wider">Exception Trace</div>
-                                                <p className="text-red-400 font-semibold mb-1">
-                                                    {this.state.error.name}: {this.state.error.message}
-                                                </p>
-                                                {this.state.error.stack && (
-                                                    <pre className="text-[10px] text-gray-400 whitespace-pre-wrap break-all mt-1">
-                                                        {this.state.error.stack}
-                                                    </pre>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </>
-                        )}
-
-                        {/* ========================================================================= */}
-                        {/* 2. PROD STAGE 1: "There must have been a change to this webpage, kindly refresh" */}
-                        {/* ========================================================================= */}
-                        {(currentMode === 'refresh' || currentMode === 'prod_refresh') && (
+                        {stage === 'refresh' && (
                             <>
                                 {/* Play Under Review / Referee GIF */}
                                 <div className="mx-auto w-full max-w-[280px] h-44 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80 shadow-md flex items-center justify-center relative">
@@ -335,7 +203,7 @@ export class ErrorBoundary extends Component<Props, State> {
                                         type="button"
                                         onClick={() => {
                                             recordRefreshAttempt();
-                                            this.setState({ prodStage: 'developer_working', previewOverride: 'prod_devs_working' });
+                                            this.setState({ stage: 'developer_working' });
                                         }}
                                         className="text-xs font-semibold text-gray-500 hover:text-sffl-red dark:text-gray-400 dark:hover:text-gray-200 underline decoration-dotted transition-colors cursor-pointer"
                                     >
@@ -346,9 +214,9 @@ export class ErrorBoundary extends Component<Props, State> {
                         )}
 
                         {/* ========================================================================= */}
-                        {/* 3. PROD STAGE 2: "It's not you, but us! Our developers are working on it" */}
+                        {/* STAGE 2: "It's not you, but us! Our developers are working on it" */}
                         {/* ========================================================================= */}
-                        {(currentMode === 'developer_working' || currentMode === 'prod_devs_working') && (
+                        {stage === 'developer_working' && (
                             <>
                                 {/* Developers Working / Cool Frantic Typing GIF */}
                                 <div className="mx-auto w-full max-w-[280px] h-44 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80 shadow-md flex items-center justify-center relative">
@@ -419,6 +287,32 @@ export class ErrorBoundary extends Component<Props, State> {
                                     </p>
                                 </div>
                             </>
+                        )}
+
+                        {/* Collapsible Technical Error Details (Available in both stages) */}
+                        {error?.message && !isChunkLoadError && (
+                            <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
+                                <button
+                                    type="button"
+                                    onClick={this.toggleDetails}
+                                    className="text-[11px] font-bold text-gray-400 hover:text-sffl-navy dark:hover:text-white transition-colors cursor-pointer"
+                                >
+                                    {showDetails ? 'Hide technical log ▲' : 'Show technical log ▼'}
+                                </button>
+                                {showDetails && (
+                                    <div className="mt-3 p-3 bg-gray-950 text-red-300 rounded-xl text-left font-mono text-[11px] leading-snug overflow-x-auto max-h-40 border border-gray-800">
+                                        <div className="font-bold text-gray-500 mb-1 text-[10px] uppercase tracking-wider">Exception Trace</div>
+                                        <p className="text-red-400 font-semibold mb-1">
+                                            {error.name}: {error.message}
+                                        </p>
+                                        {error.stack && (
+                                            <pre className="text-[10px] text-gray-400 whitespace-pre-wrap break-all mt-1">
+                                                {error.stack}
+                                            </pre>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         )}
                     </div>
 
