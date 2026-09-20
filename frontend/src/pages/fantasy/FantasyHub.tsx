@@ -197,7 +197,7 @@ export function FantasyHub() {
                                     to="/fantasy/leagues"
                                     className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs transition backdrop-blur-md"
                                 >
-                                    <TrophyIcon className="w-4 h-4 text-yellow-400" /> Leagues & Pools
+                                    <TrophyIcon className="w-4 h-4 text-yellow-400" /> Browse Leagues
                                 </Link>
                                 <Link
                                     to={gameweek?.id ? `/fantasy/analytics?gw=${gameweek.id}` : '/fantasy/analytics'}
@@ -230,7 +230,7 @@ export function FantasyHub() {
                                     to="/fantasy/leagues"
                                     className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs transition backdrop-blur-md"
                                 >
-                                    <TrophyIcon className="w-4 h-4 text-yellow-400" /> Leagues & Pools
+                                    <TrophyIcon className="w-4 h-4 text-yellow-400" /> Browse Leagues
                                 </Link>
                                 <Link
                                     to={gameweek?.id ? `/fantasy/analytics?gw=${gameweek.id}` : '/fantasy/analytics'}

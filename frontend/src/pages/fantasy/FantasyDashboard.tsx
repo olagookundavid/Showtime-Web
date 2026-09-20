@@ -476,6 +476,12 @@ export function FantasyDashboard() {
 
                     <div className="flex flex-wrap items-center gap-3">
                         <Link
+                            to="/fantasy/leagues"
+                            className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase flex items-center gap-2 transition backdrop-blur-md"
+                        >
+                            <TrophyIcon className="w-3.5 h-3.5 text-yellow-400" /> Browse Leagues
+                        </Link>
+                        <Link
                             to="/fantasy/analytics"
                             className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase flex items-center gap-2 transition backdrop-blur-md"
                         >
