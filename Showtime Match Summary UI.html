@@ -1,0 +1,2428 @@
+<!doctype html>
+<html lang="en" data-visualize-standalone>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Showtime Match Summary</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe id="codex-visualization" sandbox="allow-scripts" referrerpolicy="no-referrer" title="Showtime Match Summary" data-srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot; data-visualize-standalone&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Showtime Match Summary&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
+  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
+  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
+  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --icon-size: 16px;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --corner-shape: round;
+  --radius: var(--border-radius-lg, 10px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: var(--visualize-paint-gutter, 0px);
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+:root:not([data-app-block-surface], [data-visualize-standalone]) &gt; body {
+  padding: 12px;
+}
+
+.cursor-interaction {
+  cursor: var(--cursor-interaction, pointer);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: var(--cursor-interaction, pointer);
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: var(--corner-shape);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+.widget {
+  min-width: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  box-shadow: 0 0 0 0.5px var(--border-strong, var(--border));
+  color: var(--foreground);
+  background: var(--background);
+}
+
+#widget &gt; :not(.card, .widget, .progress) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* The shared runtime owns data-tooltip; suppress AppBlock&#x27;s pseudo-tooltip. */
+main [data-tooltip]::after {
+  content: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+hr {
+  width: 100%;
+  height: 1px;
+  margin-block: 6px;
+  border: 0;
+  background: var(--border);
+}
+
+.nav {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress {
+  display: flex;
+  height: 8px;
+  margin-block: calc((var(--line-height-normal, 1.5em) - 8px) / 2);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-bar:only-child {
+  border-radius: var(--radius-full);
+}
+
+.progress-bar {
+  height: 100%;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--viz-series-1);
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.nav-link,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn,
+.nav-link {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: var(--cursor-interaction, pointer);
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover,
+.nav-link:not(:disabled):not([aria-disabled=&quot;true&quot;]):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.nav-pills .nav-link {
+  min-width: 0;
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.nav-justified .nav-link {
+  flex: 1 1 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.nav-pills .nav-link.active {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+/* Shared preview chrome; product styles stay inside each variant. */
+.viz-dotted-background {
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--foreground) 14%, transparent) 0.8px,
+    transparent 0.8px
+  );
+  background-position: center;
+  background-size: 16px 16px;
+}
+
+.viz-carousel {
+  position: relative;
+  min-width: 0;
+}
+
+.viz-carousel:has(&gt; .viz-carousel-controls) {
+  min-height: calc(60px + var(--viz-carousel-picker-height, 0px));
+  padding-bottom: 60px;
+}
+
+.viz-carousel &gt; [data-variant][hidden] {
+  display: none !important;
+}
+
+.viz-carousel &gt; [data-variant] {
+  isolation: isolate;
+}
+
+.viz-carousel-controls {
+  --viz-carousel-hover: light-dark(
+    color-mix(in srgb, var(--foreground) 5.4%, transparent),
+    color-mix(in srgb, var(--foreground) 7.8%, transparent)
+  );
+  position: absolute;
+  z-index: 2;
+  bottom: 8px;
+  left: 50%;
+  display: flex;
+  width: max-content;
+  /* Leave room for the host&#x27;s design-controls launcher at the trailing edge. */
+  max-width: calc(100% - 96px);
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-sans);
+  /* Match the settings dropdown chrome independently of the content font size. */
+  font-size: 13px;
+  font-weight: var(--font-weight-normal);
+  line-height: 18px;
+  transform: translateX(-50%);
+  user-select: none;
+}
+
+.viz-carousel-controls button,
+.viz-carousel-picker &gt; summary {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 6px;
+  -webkit-app-region: no-drag;
+  border: 0;
+  border-radius: 14px;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.viz-carousel-controls &gt; button,
+.viz-carousel-picker &gt; summary {
+  position: relative;
+  isolation: isolate;
+}
+
+.viz-carousel-controls &gt; button {
+  --icon-size: 16px;
+  width: 30px;
+  padding: 0;
+}
+
+.viz-carousel-picker &gt; summary {
+  padding-inline: 12px;
+}
+
+.viz-carousel-controls .viz-carousel-caret {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  margin: 0;
+  color: inherit;
+  transform: rotate(180deg);
+}
+
+.viz-carousel-controls &gt; button &gt; svg,
+.viz-carousel-controls .viz-carousel-caret,
+.viz-carousel-count {
+  opacity: 0.5;
+}
+
+.viz-carousel-controls &gt; button::before,
+.viz-carousel-picker &gt; summary::before {
+  position: absolute;
+  z-index: -1;
+  inset: 3px;
+  border-radius: 12px;
+  content: &quot;&quot;;
+  pointer-events: none;
+}
+
+.viz-carousel-controls &gt; button:hover::before,
+.viz-carousel-picker &gt; summary:hover::before {
+  background: var(--viz-carousel-hover);
+}
+
+.viz-carousel-controls &gt; button,
+.viz-carousel-controls [data-lucide],
+.viz-carousel-controls .lucide {
+  flex-shrink: 0;
+}
+
+.viz-carousel-picker {
+  min-width: 0;
+}
+
+.viz-carousel-picker &gt; summary {
+  min-width: 0;
+  list-style: none;
+}
+
+.viz-carousel-picker &gt; summary::-webkit-details-marker {
+  display: none;
+}
+
+.viz-carousel-count {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.viz-carousel-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viz-carousel-options {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 4px);
+  left: 0;
+  display: flex;
+  max-height: 240px;
+  flex-direction: column;
+  gap: 2px;
+  overflow: auto;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--background);
+  box-shadow: 0 4px 12px light-dark(rgb(0 0 0 / 6%), rgb(0 0 0 / 25%));
+}
+
+.viz-carousel-options &gt; button {
+  width: 100%;
+  min-height: 28px;
+  justify-content: flex-start;
+  padding: 4px 8px;
+  font-size: var(--font-size-small);
+  text-align: start;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.viz-carousel-options &gt; [aria-current=&quot;true&quot;],
+.viz-carousel-options &gt; button:hover {
+  background: var(--viz-carousel-hover);
+}
+
+.btn:disabled,
+.nav-link:disabled,
+.nav-link[aria-disabled=&quot;true&quot;] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: var(--corner-shape);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+  [aria-pressed=&quot;true&quot;],
+  [aria-selected=&quot;true&quot;],
+  .is-selected
+) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible,
+.nav-link:focus-visible,
+.viz-carousel-controls :is(button, summary):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .viz-carousel:has(&gt; .viz-carousel-controls) {
+    min-height: calc(76px + var(--viz-carousel-picker-height, 0px));
+    padding-bottom: 76px;
+  }
+
+  .btn,
+  .nav-link,
+  .viz-carousel-controls button,
+  .viz-carousel-picker &gt; summary,
+  .form-control,
+  .form-select {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Keep small-screen WebKit from zooming when a text field receives focus. */
+  .form-control,
+  .form-select {
+    font-size: max(16px, var(--font-size-normal));
+  }
+
+  .form-control[type=&quot;file&quot;]::file-selector-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .form-control-color[type=&quot;color&quot;] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .form-control:is(
+    [type=&quot;date&quot;],
+    [type=&quot;datetime-local&quot;],
+    [type=&quot;month&quot;],
+    [type=&quot;time&quot;],
+    [type=&quot;week&quot;]
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    padding-block: 8px;
+  }
+
+  .form-check {
+    min-height: 44px;
+    padding-inline: 15px;
+  }
+
+  .form-check-input {
+    position: relative;
+  }
+
+  .form-check-input::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    content: &quot;&quot;;
+    transform: translate(-50%, -50%);
+  }
+
+  .form-check-label {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .form-range {
+    height: 44px;
+    touch-action: pan-y;
+  }
+
+  .form-range::-webkit-slider-runnable-track {
+    height: 44px;
+  }
+
+  .form-range::-moz-range-track {
+    height: 44px;
+  }
+
+  .form-range::-webkit-slider-thumb {
+    margin-top: 12px;
+  }
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;script type=&quot;application/json&quot; id=&quot;codex-visualization-widget-state&quot;&gt;__CODEX_VISUALIZATION_WIDGET_STATE__&lt;/script&gt;
+&lt;script&gt;(() =&gt; {
+  const root = document.documentElement;
+  const mediaQuery = globalThis.matchMedia(&quot;(prefers-color-scheme: dark)&quot;);
+  const apply = Reflect.apply;
+  const isArray = Array.isArray;
+  const hasOwn = Object.hasOwn;
+  const parentWindow = globalThis.parent;
+  const stringify = JSON.stringify;
+  const parse = JSON.parse;
+  const encode = TextEncoder.prototype.encode.bind(new TextEncoder());
+  const initialStateElement = document.getElementById(
+    &quot;codex-visualization-widget-state&quot;,
+  );
+  const initialGlobals = parse(initialStateElement?.textContent ?? &quot;{}&quot;);
+  initialStateElement?.remove();
+  /** @type {Record&lt;string, unknown&gt; | null} */
+  let state = initialGlobals.widgetState ?? null;
+  const statePersistence = initialGlobals.statePersistence ?? &quot;none&quot;;
+  let nextStateRequestId = 0;
+  /** @type {Map&lt;number, { resolve: () =&gt; void; reject: (error: Error) =&gt; void; timeout: ReturnType&lt;typeof globalThis.setTimeout&gt;; serializedState: string }&gt;} */
+  const pendingStateWrites = new Map();
+  const persistenceError = () =&gt;
+    Object.assign(
+      new Error(&quot;The host could not persist the widget state update&quot;),
+      {
+        code: -32000,
+        data: { code: &quot;widget_state_persistence_failed&quot;, retryable: false },
+      },
+    );
+  /**
+   * @param {object} prototype
+   * @param {string} property
+   */
+  const getPrototypeGetter = (prototype, property) =&gt; {
+    // oxlint-disable-next-line typescript/unbound-method -- invoked through captured Reflect.apply
+    const getter = Object.getOwnPropertyDescriptor(prototype, property)?.get;
+    if (getter == null) {
+      throw new Error(`Missing ${property} getter`);
+    }
+    return getter;
+  };
+  const getMessageData = getPrototypeGetter(MessageEvent.prototype, &quot;data&quot;);
+  const getMessagePorts = getPrototypeGetter(MessageEvent.prototype, &quot;ports&quot;);
+  const getMessageSource = getPrototypeGetter(MessageEvent.prototype, &quot;source&quot;);
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const addHostMessageListener = MessagePort.prototype.addEventListener;
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const postHostMessage = MessagePort.prototype.postMessage;
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const startHostPort = MessagePort.prototype.start;
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const stopMessagePropagation = Event.prototype.stopImmediatePropagation;
+  /** @type {MessagePort | null} */
+  let hostPort = null;
+  const postToHost = (type, payload) =&gt; {
+    if (hostPort != null) {
+      apply(postHostMessage, hostPort, [{ type, ...payload }]);
+    }
+  };
+  const openExternal = ({ href }) =&gt; {
+    if (globalThis.navigator.userActivation?.isActive === true) {
+      postToHost(&quot;open-external&quot;, { href });
+    }
+  };
+  const sendFollowUpMessage = ({ context, prompt, title }) =&gt; {
+    if (globalThis.navigator.userActivation?.isActive === true) {
+      postToHost(&quot;follow-up&quot;, { context, prompt, title });
+    }
+    return Promise.resolve();
+  };
+  /**
+   * @param {Record&lt;string, unknown&gt; | ((previous: Record&lt;string, unknown&gt; | null) =&gt; Record&lt;string, unknown&gt;)} next
+   * @returns {Promise&lt;void&gt;}
+   */
+  const setWidgetState = async (next) =&gt; {
+    const nextState = typeof next === &quot;function&quot; ? next(state) : next;
+    if (
+      nextState == null ||
+      typeof nextState !== &quot;object&quot; ||
+      isArray(nextState)
+    ) {
+      throw new TypeError(&quot;Widget state must be a JSON object&quot;);
+    }
+    const inputState = stringify(
+      nextState,
+      (_key, /** @type {unknown} */ value) =&gt; {
+        if (
+          typeof value === &quot;undefined&quot; ||
+          typeof value === &quot;function&quot; ||
+          typeof value === &quot;symbol&quot; ||
+          (typeof value === &quot;number&quot; &amp;&amp; !Number.isFinite(value))
+        ) {
+          throw new TypeError(&quot;Widget state must be a JSON object&quot;);
+        }
+        return value;
+      },
+    );
+    const parsedState = parse(inputState);
+    if (
+      parsedState == null ||
+      typeof parsedState !== &quot;object&quot; ||
+      isArray(parsedState)
+    ) {
+      throw new TypeError(&quot;Widget state must be a JSON object&quot;);
+    }
+    const storedState = {
+      modelContent: null,
+      privateContent: null,
+      ...parsedState,
+    };
+    const serializedState = stringify(storedState);
+    if (encode(serializedState).length &gt; 16 * 1024) {
+      throw new TypeError(
+        &quot;Widget state must be a JSON object of at most 16 KiB&quot;,
+      );
+    }
+    if (
+      hasOwn(storedState, &quot;imageIds&quot;) &amp;&amp;
+      (!isArray(storedState.imageIds) ||
+        storedState.imageIds.some(
+          (/** @type {unknown} */ id) =&gt; typeof id !== &quot;string&quot;,
+        ))
+    ) {
+      throw new TypeError(&quot;Widget state imageIds must be an array of strings&quot;);
+    }
+    if (storedState.imageIds?.length &gt; 0) {
+      throw Object.assign(
+        new TypeError(&quot;Visualization state does not support image attachments&quot;),
+        { code: -32602, data: { code: &quot;images_unsupported&quot; } },
+      );
+    }
+    state = storedState;
+    globalThis.openai.widgetState = state;
+    globalThis.dispatchEvent(
+      new CustomEvent(&quot;openai:set_globals&quot;, {
+        detail: { globals: { widgetState: state } },
+      }),
+    );
+    if (statePersistence === &quot;none&quot;) {
+      throw persistenceError();
+    }
+    const id = ++nextStateRequestId;
+    return new Promise((resolve, reject) =&gt; {
+      const timeout = globalThis.setTimeout(() =&gt; {
+        pendingStateWrites.delete(id);
+        reject(persistenceError());
+      }, 30_000);
+      pendingStateWrites.set(id, { resolve, reject, timeout, serializedState });
+      postToHost(&quot;widget-state-write&quot;, { id, state: serializedState });
+    });
+  };
+  const syncTheme = () =&gt; {
+    const theme = mediaQuery.matches ? &quot;dark&quot; : &quot;light&quot;;
+    root.dataset.theme = theme;
+    globalThis.openai = {
+      ...globalThis.openai,
+      openExternal,
+      sendFollowUpMessage,
+      setWidgetState,
+      theme,
+      visualizationStyleVariables: {},
+      visualizationTheme: theme,
+      widgetState: state,
+      statePersistence,
+      stateModelContext: &quot;none&quot;,
+    };
+    globalThis.dispatchEvent(
+      new CustomEvent(&quot;openai:set_globals&quot;, {
+        detail: { globals: globalThis.openai },
+      }),
+    );
+  };
+  const sendHeight = () =&gt; {
+    postToHost(&quot;height&quot;, {
+      height: Math.ceil(
+        Math.max(
+          document.body.scrollHeight,
+          document.body.getBoundingClientRect().height,
+        ),
+      ),
+    });
+  };
+
+  globalThis.addEventListener(
+    &quot;message&quot;,
+    (event) =&gt; {
+      const data = apply(getMessageData, event, []);
+      const ports = apply(getMessagePorts, event, []);
+      const source = apply(getMessageSource, event, []);
+      if (
+        hostPort != null ||
+        source !== parentWindow ||
+        typeof data !== &quot;object&quot; ||
+        data?.type !== &quot;codex-visualization-initialize&quot; ||
+        !isArray(ports) ||
+        ports.length !== 1
+      ) {
+        return;
+      }
+      apply(stopMessagePropagation, event, []);
+      const nextHostPort = ports[0];
+      try {
+        apply(addHostMessageListener, nextHostPort, [
+          &quot;message&quot;,
+          (event) =&gt; {
+            const data = apply(getMessageData, event, []);
+            if (typeof data === &quot;object&quot; &amp;&amp; data?.type === &quot;measure&quot;) {
+              sendHeight();
+            } else if (
+              typeof data === &quot;object&quot; &amp;&amp;
+              data?.type === &quot;widget-state-result&quot;
+            ) {
+              /** @type {unknown} */
+              const id = data.id;
+              if (typeof id !== &quot;number&quot;) {
+                return;
+              }
+              const pending = pendingStateWrites.get(id);
+              if (pending != null) {
+                pendingStateWrites.delete(id);
+                globalThis.clearTimeout(pending.timeout);
+                if (data.ok === true) {
+                  pending.resolve();
+                } else {
+                  pending.reject(persistenceError());
+                }
+              }
+            }
+          },
+        ]);
+        apply(startHostPort, nextHostPort, []);
+      } catch {
+        return;
+      }
+      hostPort = nextHostPort;
+      for (const [id, { serializedState }] of pendingStateWrites) {
+        postToHost(&quot;widget-state-write&quot;, { id, state: serializedState });
+      }
+      sendHeight();
+    },
+    { capture: true },
+  );
+  document.currentScript?.remove();
+  mediaQuery.addEventListener(&quot;change&quot;, syncTheme);
+  globalThis.addEventListener(&quot;click&quot;, (event) =&gt; {
+    if (event.defaultPrevented) {
+      return;
+    }
+    let element = null;
+    if (event.target instanceof globalThis.Element) {
+      element = event.target;
+    } else if (event.target instanceof globalThis.Node) {
+      element = event.target.parentElement;
+    }
+    const link = element?.closest(&quot;a[href]&quot;);
+    const href = link?.getAttribute(&quot;href&quot;);
+    if (href == null) {
+      return;
+    }
+    if (href.startsWith(&quot;#&quot;)) {
+      let id;
+      try {
+        id = decodeURIComponent(href.slice(1));
+      } catch {
+        return;
+      }
+      const target = id.length === 0 ? root : document.getElementById(id);
+      if (
+        target == null ||
+        globalThis.navigator.userActivation?.isActive !== true
+      ) {
+        return;
+      }
+      event.preventDefault();
+      postToHost(&quot;scroll-to&quot;, {
+        top: target.getBoundingClientRect().top + globalThis.scrollY,
+      });
+      return;
+    }
+    event.preventDefault();
+    openExternal({ href });
+  });
+  new ResizeObserver(sendHeight).observe(document.body);
+  syncTheme();
+})();
+&lt;/script&gt;
+&lt;div id=&quot;sf-match-summary&quot; class=&quot;viz-dotted-background&quot;&gt;
+  &lt;style&gt;
+    #sf-match-summary{--sf-navy:#07182e;--sf-navy-2:#0e2747;--sf-navy-3:#16355d;--sf-red:#ef4638;--sf-blue:#78baff;--sf-cream:#f7f4ec;--sf-muted:#9fb1c8;--sf-line:#ffffff1f;--sf-green:#4fce8a;padding:18px;font-family:Inter,Arial,sans-serif;color:var(--sf-cream)}
+    #sf-match-summary *{box-sizing:border-box}
+    #sf-match-summary .app{max-width:920px;margin:auto;background:var(--sf-navy);border-radius:22px;overflow:hidden;box-shadow:0 24px 55px #0004}
+    #sf-match-summary .appbar{display:flex;align-items:center;gap:13px;padding:16px 22px;background:linear-gradient(115deg,#10294c,#07162b);border-bottom:1px solid var(--sf-line)}
+    #sf-match-summary .logo{width:50px;height:50px;object-fit:contain;flex:none}
+    #sf-match-summary .brand{flex:1;min-width:0}
+    #sf-match-summary .brand-label{color:#8fa6c3;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase}
+    #sf-match-summary .brand-title{margin-top:3px;font-size:19px;font-weight:800}
+    #sf-match-summary .final{padding:6px 9px;border-radius:5px;background:var(--sf-green);color:#08281a;font-size:11px;font-weight:900;letter-spacing:.09em;text-transform:uppercase}
+    #sf-match-summary .scoreboard{padding:23px 22px 18px;background:radial-gradient(circle at 50% 0,#173b65 0,#0b2340 43%,#07182e 100%)}
+    #sf-match-summary .meta{text-align:center;color:#9fb2ca;font-size:12px;letter-spacing:.04em}
+    #sf-match-summary .score-row{display:grid;grid-template-columns:minmax(0,1fr) 110px minmax(0,1fr);gap:16px;align-items:center;margin-top:17px}
+    #sf-match-summary .team{display:flex;align-items:center;gap:12px;min-width:0}
+    #sf-match-summary .team.away{flex-direction:row-reverse;text-align:right}
+    #sf-match-summary .crest{display:grid;place-items:center;width:58px;height:58px;flex:none;border-radius:16px;background:linear-gradient(145deg,#1e497b,#0f2c50);border:1px solid #ffffff29;color:white;font-size:19px;font-weight:900}
+    #sf-match-summary .team.away .crest{background:linear-gradient(145deg,#f15c4c,#a9232b)}
+    #sf-match-summary .team-name{font-size:18px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #sf-match-summary .record{margin-top:3px;color:#91a5be;font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+    #sf-match-summary .score{text-align:center;font-size:47px;font-weight:900;letter-spacing:-.05em;white-space:nowrap}
+    #sf-match-summary .score span{color:#7086a1;padding:0 5px}
+    #sf-match-summary .periods{display:grid;grid-template-columns:1fr repeat(3,54px);max-width:440px;margin:20px auto 0;border-top:1px solid var(--sf-line);border-bottom:1px solid var(--sf-line)}
+    #sf-match-summary .periods div{padding:8px 7px;text-align:center;font-size:12px;color:#adbed1}
+    #sf-match-summary .periods .pteam{text-align:left;color:white;font-weight:700}
+    #sf-match-summary .periods .total{color:white;font-weight:900}
+    #sf-match-summary .tabs{display:flex;gap:6px;padding:12px 18px;background:#0b203b;border-bottom:1px solid var(--sf-line)}
+    #sf-match-summary .tab{appearance:none;border:0;border-radius:7px;padding:9px 13px;background:transparent;color:#9fb2ca;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+    #sf-match-summary .tab[aria-selected=&quot;true&quot;]{background:var(--sf-cream);color:#0a1f39}
+    #sf-match-summary .panel{padding:20px 22px 24px;background:#0a1d35}
+    #sf-match-summary .panel[hidden]{display:none}
+    #sf-match-summary .section-title{margin:0 0 13px;font-size:12px;font-weight:900;letter-spacing:.13em;text-transform:uppercase;color:#9fb3cc}
+    #sf-match-summary .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:20px}
+    #sf-match-summary .mvp{display:flex;align-items:center;gap:14px;padding:15px;background:#102a4b;border:1px solid var(--sf-line);border-radius:13px}
+    #sf-match-summary .mvp-avatar{display:grid;place-items:center;width:54px;height:54px;border-radius:50%;background:linear-gradient(145deg,#f76654,#b92830);color:white;font-size:14px;font-weight:900;border:2px solid #ffffffc7;flex:none}
+    #sf-match-summary .mvp-copy{min-width:0;flex:1}
+    #sf-match-summary .mvp-tag{color:#f6b44d;font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}
+    #sf-match-summary .mvp-name{margin-top:3px;font-size:16px;font-weight:900}
+    #sf-match-summary .mvp-stats{margin-top:4px;color:#aec0d4;font-size:11px}
+    #sf-match-summary .fantasy{text-align:right}
+    #sf-match-summary .fantasy strong{display:block;color:#f8d178;font-size:23px}
+    #sf-match-summary .fantasy small{font-size:10px;color:#9fb2c9;text-transform:uppercase}
+    #sf-match-summary .leaders{display:grid;gap:8px}
+    #sf-match-summary .leader{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #ffffff15}
+    #sf-match-summary .leader:last-child{border-bottom:0}
+    #sf-match-summary .leader-rank{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:#17385f;color:#bcd4ed;font-size:11px;font-weight:900}
+    #sf-match-summary .leader-name{font-size:12px;font-weight:900}
+    #sf-match-summary .leader-meta{margin-top:2px;color:#8fa5bf;font-size:10px}
+    #sf-match-summary .leader-value{text-align:right;font-size:13px;font-weight:900;color:#f8d178}
+    #sf-match-summary .leader-value small{display:block;margin-top:2px;color:#8298b2;font-size:9px;text-transform:uppercase}
+    #sf-match-summary .stats{display:grid;gap:9px}
+    #sf-match-summary .stat-line{display:grid;grid-template-columns:42px 1fr 42px;align-items:center;gap:9px}
+    #sf-match-summary .stat-value{font-size:12px;font-weight:900;text-align:center}
+    #sf-match-summary .stat-center{min-width:0}
+    #sf-match-summary .stat-name{text-align:center;color:#a8bad0;font-size:10px;text-transform:uppercase;letter-spacing:.07em}
+    #sf-match-summary .bar{display:flex;height:5px;margin-top:4px;background:#25405d;border-radius:5px;overflow:hidden}
+    #sf-match-summary .bar .home{background:var(--sf-blue);width:var(--home)}
+    #sf-match-summary .bar .away{background:var(--sf-red);flex:1}
+    #sf-match-summary .team-stats-head{display:grid;grid-template-columns:110px 1fr 110px;align-items:center;margin-bottom:12px}
+    #sf-match-summary .team-stats-head .left,#sf-match-summary .team-stats-head .right{font-size:12px;font-weight:900}
+    #sf-match-summary .team-stats-head .right{text-align:right}
+    #sf-match-summary .team-stats-head .middle{text-align:center;color:#8197b0;font-size:10px;letter-spacing:.12em;text-transform:uppercase}
+    #sf-match-summary .stat-groups{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+    #sf-match-summary .stat-group{min-width:0}
+    #sf-match-summary .stat-group-title{display:flex;align-items:center;gap:8px;margin-bottom:8px;color:#9fb4cc;font-size:10px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+    #sf-match-summary .stat-group-title:after{content:&quot;&quot;;height:1px;flex:1;background:#ffffff20}
+    #sf-match-summary .compare-row{display:grid;grid-template-columns:42px 1fr 42px;gap:8px;align-items:center;min-height:43px;border-bottom:1px solid #ffffff10}
+    #sf-match-summary .compare-value{font-size:12px;font-weight:900;text-align:center}
+    #sf-match-summary .compare-label{text-align:center;color:#b4c3d5;font-size:11px}
+    #sf-match-summary .compare-bar{display:flex;height:4px;margin-top:5px;background:#2a405b;border-radius:6px;overflow:hidden}
+    #sf-match-summary .compare-bar .h{width:var(--h);background:var(--sf-blue)}
+    #sf-match-summary .compare-bar .a{flex:1;background:var(--sf-red)}
+    #sf-match-summary .discipline-note{display:flex;gap:8px;align-items:flex-start;margin-top:13px;padding:11px 12px;background:#301f29;border-left:3px solid #e85b55;color:#d5c1c5;font-size:11px;line-height:1.45}
+    #sf-match-summary .divider{height:1px;margin:20px 0;background:var(--sf-line)}
+    #sf-match-summary .timeline{display:grid;gap:0}
+    #sf-match-summary .event{display:grid;grid-template-columns:60px 15px 1fr 42px;gap:9px;align-items:start;min-height:54px}
+    #sf-match-summary .clock{padding-top:1px;text-align:right;color:#93a9c2;font-size:11px;font-weight:800}
+    #sf-match-summary .track{position:relative;height:100%}
+    #sf-match-summary .track:after{content:&quot;&quot;;position:absolute;top:9px;bottom:-8px;left:7px;width:1px;background:#ffffff2b}
+    #sf-match-summary .event:last-child .track:after{display:none}
+    #sf-match-summary .node{position:absolute;top:3px;left:2px;width:11px;height:11px;border-radius:50%;background:var(--event-color);box-shadow:0 0 0 3px #0a1d35}
+    #sf-match-summary .event-title{font-size:12px;font-weight:800}
+    #sf-match-summary .event-detail{margin-top:3px;color:#9fb2c8;font-size:11px}
+    #sf-match-summary .running-score{text-align:right;font-size:12px;font-weight:900;color:white}
+    #sf-match-summary table{width:100%;border-collapse:collapse;font-size:12px}
+    #sf-match-summary th{padding:8px 7px;color:#90a5be;font-size:10px;text-align:left;text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid var(--sf-line)}
+    #sf-match-summary td{padding:11px 7px;border-bottom:1px solid #ffffff12}
+    #sf-match-summary th:not(:first-child),#sf-match-summary td:not(:first-child){text-align:right}
+    #sf-match-summary .player-name{font-weight:800}
+    #sf-match-summary .player-role{display:block;margin-top:2px;color:#8398b1;font-size:10px}
+    #sf-match-summary .fp{color:#f8d178;font-weight:900}
+    #sf-match-summary .play-team{display:inline-block;min-width:31px;margin-right:7px;padding:3px 4px;border-radius:4px;background:#1b4776;color:white;text-align:center;font-size:9px;font-weight:900}
+    #sf-match-summary .play-team.la{background:#c73736}
+    @media(max-width:650px){#sf-match-summary{padding:7px}#sf-match-summary .app{border-radius:14px}#sf-match-summary .appbar{padding:13px 14px}#sf-match-summary .logo{width:42px;height:42px}#sf-match-summary .scoreboard{padding:19px 12px 15px}#sf-match-summary .score-row{grid-template-columns:minmax(0,1fr) 74px minmax(0,1fr);gap:7px}#sf-match-summary .team,#sf-match-summary .team.away{flex-direction:column;text-align:center;gap:7px}#sf-match-summary .crest{width:48px;height:48px;border-radius:13px;font-size:16px}#sf-match-summary .team-name{font-size:13px;white-space:normal}#sf-match-summary .record{font-size:9px}#sf-match-summary .score{font-size:34px}#sf-match-summary .periods{grid-template-columns:1fr repeat(3,44px)}#sf-match-summary .tabs{padding:9px 10px}#sf-match-summary .tab{padding:8px 9px;font-size:11px}#sf-match-summary .panel{padding:17px 13px 20px}#sf-match-summary .hero-grid{grid-template-columns:1fr;gap:18px}#sf-match-summary .mvp{padding:12px}#sf-match-summary .stat-groups{grid-template-columns:1fr;gap:18px}#sf-match-summary .team-stats-head{grid-template-columns:85px 1fr 85px}#sf-match-summary .event{grid-template-columns:50px 14px 1fr 37px;gap:6px}#sf-match-summary th,#sf-match-summary td{padding-left:4px;padding-right:4px}#sf-match-summary .optional{display:none}}
+  &lt;/style&gt;
+  &lt;main class=&quot;app&quot; aria-label=&quot;Showtime Flag match summary&quot;&gt;
+    &lt;header class=&quot;appbar&quot;&gt;
+      &lt;img class=&quot;logo&quot; src=&quot;data:image/png;base64,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&quot; alt=&quot;Showtime Flag&quot;&gt;
+      &lt;div class=&quot;brand&quot;&gt;&lt;div class=&quot;brand-label&quot;&gt;Showtime Pro · Gameday 1&lt;/div&gt;&lt;div class=&quot;brand-title&quot;&gt;Match Summary&lt;/div&gt;&lt;/div&gt;
+      &lt;span class=&quot;final&quot;&gt;Final&lt;/span&gt;
+    &lt;/header&gt;
+    &lt;section class=&quot;scoreboard&quot; aria-label=&quot;Final score&quot;&gt;
+      &lt;div class=&quot;meta&quot;&gt;Showtime Arena · 18 September 2026 · 7:00 PM&lt;/div&gt;
+      &lt;div class=&quot;score-row&quot;&gt;
+        &lt;div class=&quot;team home&quot;&gt;&lt;div class=&quot;crest&quot;&gt;WAR&lt;/div&gt;&lt;div&gt;&lt;div class=&quot;team-name&quot;&gt;Warriors&lt;/div&gt;&lt;div class=&quot;record&quot;&gt;0–1 record&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;score&quot; aria-label=&quot;Warriors 30, LA Knights 32&quot;&gt;30&lt;span&gt;–&lt;/span&gt;32&lt;/div&gt;
+        &lt;div class=&quot;team away&quot;&gt;&lt;div class=&quot;crest&quot;&gt;LAK&lt;/div&gt;&lt;div&gt;&lt;div class=&quot;team-name&quot;&gt;LA Knights&lt;/div&gt;&lt;div class=&quot;record&quot;&gt;1–0 record&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+      &lt;/div&gt;
+      &lt;div class=&quot;periods&quot; aria-label=&quot;Score by half&quot;&gt;
+        &lt;div&gt;&lt;/div&gt;&lt;div&gt;1H&lt;/div&gt;&lt;div&gt;2H&lt;/div&gt;&lt;div&gt;FT&lt;/div&gt;
+        &lt;div class=&quot;pteam&quot;&gt;Warriors&lt;/div&gt;&lt;div&gt;18&lt;/div&gt;&lt;div&gt;12&lt;/div&gt;&lt;div class=&quot;total&quot;&gt;30&lt;/div&gt;
+        &lt;div class=&quot;pteam&quot;&gt;LA Knights&lt;/div&gt;&lt;div&gt;14&lt;/div&gt;&lt;div&gt;18&lt;/div&gt;&lt;div class=&quot;total&quot;&gt;32&lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/section&gt;
+    &lt;nav class=&quot;tabs&quot; role=&quot;tablist&quot; aria-label=&quot;Match statistics sections&quot;&gt;
+      &lt;button class=&quot;tab&quot; type=&quot;button&quot; role=&quot;tab&quot; aria-selected=&quot;true&quot; aria-controls=&quot;sf-teamstats&quot;&gt;Team stats&lt;/button&gt;
+      &lt;button class=&quot;tab&quot; type=&quot;button&quot; role=&quot;tab&quot; aria-selected=&quot;false&quot; aria-controls=&quot;sf-boxscore&quot;&gt;Box score&lt;/button&gt;
+    &lt;/nav&gt;
+    &lt;section class=&quot;panel&quot; id=&quot;sf-teamstats&quot; role=&quot;tabpanel&quot; aria-label=&quot;Full match statistics&quot;&gt;
+      &lt;h3 class=&quot;section-title&quot;&gt;Full team statistics&lt;/h3&gt;
+      &lt;div class=&quot;team-stats-head&quot;&gt;&lt;div class=&quot;left&quot;&gt;Warriors&lt;/div&gt;&lt;div class=&quot;middle&quot;&gt;Match comparison&lt;/div&gt;&lt;div class=&quot;right&quot;&gt;LA Knights&lt;/div&gt;&lt;/div&gt;
+      &lt;div class=&quot;stat-groups&quot;&gt;
+        &lt;div class=&quot;stat-group&quot;&gt;
+          &lt;div class=&quot;stat-group-title&quot;&gt;Attack &amp; possession&lt;/div&gt;
+          &lt;div class=&quot;compare-row&quot;&gt;&lt;span class=&quot;compare-value&quot;&gt;43&lt;/span&gt;&lt;div&gt;&lt;div class=&quot;compare-label&quot;&gt;Total plays&lt;/div&gt;&lt;div class=&quot;compare-bar&quot;&gt;&lt;span class=&quot;h&quot; style=&quot;--h:51%&quot;&gt;&lt;/span&gt;&lt;span class=&quot;a&quot;&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;compare-value&quot;&gt;41&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;compare-row&quot;&gt;&lt;span class=&quot;compare-value&quot;&gt;276&lt;/span&gt;&lt;div&gt;&lt;div class=&quot;compare-label&quot;&gt;Total yards&lt;/div&gt;&lt;div class=&quot;compare-bar&quot;&gt;&lt;span class=&quot;h&quot; style=&quot;--h:49%&quot;&gt;&lt;/span&gt;&lt;span class=&quot;a&quot;&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;compare-value&quot;&gt;284&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;compare-row&quot;&gt;&lt;span class=&quot;compare-value&quot;&gt;8&lt;/span&gt;&lt;div&gt;&lt;div class=&quot;compare-label&quot;&gt;Goal attempts&lt;/div&gt;&lt;div class=&quot;compare-bar&quot;&gt;&lt;span class=&quot;h&quot; style=&quot;--h:47%&quot;&gt;&lt;/span&gt;&lt;span class=&quot;a&quot;&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;compare-value&quot;&gt;9&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;compare-row&quot;&gt;&lt;span class=&quot;compare-value&quot;&gt;20&lt;/span&gt;&lt;div&gt;&lt;div class=&quot;compare-label&quot;&gt;Catches&lt;/div&gt;&lt;div class=&quot;compare-bar&quot;&gt;&lt;span class=&quot;h&quot; style=&quot;--h:48%&quot;&gt;&lt;/span&gt;&lt;span class=&quot;a&quot;&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;compare-value&quot;&gt;22&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;compare-row&quot;&gt;&lt;span class=&quot;compare-value&quot;&gt;4&lt;/span&gt;&lt;div&gt;&lt;div class=&quot;compare-label&quot;&gt;Drops&lt;/div&gt;&lt;div class=&quot;compare-bar&quot;&gt;&lt;span class=&quot;h&quot; style=&quot;--h:67%&quot;&gt;&lt;/span&gt;&lt;span class=&quot;a&quot;&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;compare-value&quot;&gt;2&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;compare-row&quot;&gt;&lt;span class=&quot;compare-value&quot;&gt;71%&lt;/span&gt;&lt;div&gt;&lt;div class=&quot;compare-label&quot;&gt;Completion %&lt;/div&gt;&lt;div class=&quot;compare-bar&quot;&gt;&lt;span class=&quot;h&quot; style=&quot;--h:48%&quot;&gt;&lt;/span&gt;&lt;span class=&quot;a&quot;&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;compare-value&quot;&gt;76%&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;compare-row&quot;&gt;&lt;span class=&quot;compare-value&quot;&gt;2&lt;/span&gt;&lt;div&gt;&lt;div class=&quot;compare-label&quot;&gt;Punts&lt;/div&gt;&lt;div class=&quot;compare-bar&quot;&gt;&lt;span class=&quot;h&quot; style=&quot;--h:67%&quot;&gt;&lt;/span&gt;&lt;span class=&quot;a&quot;&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;compare-value&quot;&gt;1&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;compare-row&quot;&gt;&lt;span class=&quot;compare-value&quot;&gt;5&lt;/span&gt;&lt;div&gt;&lt;div class=&quot;compare-label&quot;&gt;Total touchdowns&lt;/div&gt;&lt;div class=&quot;compare-bar&quot;&gt;&lt;span class=&quot;h&quot; style=&quot;--h:50%&quot;&gt;&lt;/span&gt;&lt;span class=&quot;a&quot;&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;compare-value&quot;&gt;5&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;compare-row&quot;&gt;&lt;span class=&quot;compare-value&quot;&gt;2&lt;/span&gt;&lt;div&gt;&lt;div class=&quot;compare-label&quot;&gt;Female touchdowns&lt;/div&gt;&lt;div class=&quot;compare-bar&quot;&gt;&lt;span class=&quot;h&quot; style=&quot;--h:50%&quot;&gt;&lt;/span&gt;&lt;span class=&quot;a&quot;&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;compare-value&quot;&gt;2&lt;/span&gt;&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;stat-group&quot;&gt;
+          &lt;div class=&quot;stat-group-title&quot;&gt;Defence &amp; discipline&lt;/div&gt;
+          &lt;div class=&quot;compare-row&quot;&gt;&lt;span class=&quot;compare-value&quot;&gt;27&lt;/span&gt;&lt;div&gt;&lt;div class=&quot;compare-label&quot;&gt;Flag pulls&lt;/div&gt;&lt;div class=&quot;compare-bar&quot;&gt;&lt;span class=&quot;h&quot; style=&quot;--h:52%&quot;&gt;&lt;/span&gt;&lt;span class=&quot;a&quot;&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;compare-value&quot;&gt;25&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;compare-row&quot;&gt;&lt;span class=&quot;compare-value&quot;&gt;0&lt;/span&gt;&lt;div&gt;&lt;div class=&quot;compare-label&quot;&gt;Interceptions&lt;/div&gt;&lt;div class=&quot;compare-bar&quot;&gt;&lt;span class=&quot;h&quot; style=&quot;--h:50%&quot;&gt;&lt;/span&gt;&lt;span class=&quot;a&quot;&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;compare-value&quot;&gt;0&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;compare-row&quot;&gt;&lt;span class=&quot;compare-value&quot;&gt;3&lt;/span&gt;&lt;div&gt;&lt;div class=&quot;compare-label&quot;&gt;Bat downs&lt;/div&gt;&lt;div class=&quot;compare-bar&quot;&gt;&lt;span class=&quot;h&quot; style=&quot;--h:60%&quot;&gt;&lt;/span&gt;&lt;span class=&quot;a&quot;&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;compare-value&quot;&gt;2&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;compare-row&quot;&gt;&lt;span class=&quot;compare-value&quot;&gt;5&lt;/span&gt;&lt;div&gt;&lt;div class=&quot;compare-label&quot;&gt;Infractions&lt;/div&gt;&lt;div class=&quot;compare-bar&quot;&gt;&lt;span class=&quot;h&quot; style=&quot;--h:42%&quot;&gt;&lt;/span&gt;&lt;span class=&quot;a&quot;&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;compare-value&quot;&gt;7&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;compare-row&quot;&gt;&lt;span class=&quot;compare-value&quot;&gt;0&lt;/span&gt;&lt;div&gt;&lt;div class=&quot;compare-label&quot;&gt;Ejections&lt;/div&gt;&lt;div class=&quot;compare-bar&quot;&gt;&lt;span class=&quot;h&quot; style=&quot;--h:0%&quot;&gt;&lt;/span&gt;&lt;span class=&quot;a&quot;&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;compare-value&quot;&gt;1&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;compare-row&quot;&gt;&lt;span class=&quot;compare-value&quot;&gt;0&lt;/span&gt;&lt;div&gt;&lt;div class=&quot;compare-label&quot;&gt;Pick 6&lt;/div&gt;&lt;div class=&quot;compare-bar&quot;&gt;&lt;span class=&quot;h&quot; style=&quot;--h:50%&quot;&gt;&lt;/span&gt;&lt;span class=&quot;a&quot;&gt;&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;compare-value&quot;&gt;0&lt;/span&gt;&lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/section&gt;
+    &lt;section class=&quot;panel&quot; id=&quot;sf-boxscore&quot; role=&quot;tabpanel&quot; aria-label=&quot;Player box score&quot; hidden&gt;
+      &lt;h3 class=&quot;section-title&quot;&gt;Offensive box score&lt;/h3&gt;
+      &lt;div class=&quot;table-responsive&quot;&gt;&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Player&lt;/th&gt;&lt;th&gt;CMP/ATT&lt;/th&gt;&lt;th class=&quot;optional&quot;&gt;YDS&lt;/th&gt;&lt;th&gt;TD&lt;/th&gt;&lt;th&gt;FP&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;
+        &lt;tr&gt;&lt;td&gt;&lt;span class=&quot;player-name&quot;&gt;Jordan Adebayo&lt;/span&gt;&lt;span class=&quot;player-role&quot;&gt;LA Knights · QB&lt;/span&gt;&lt;/td&gt;&lt;td&gt;22/29&lt;/td&gt;&lt;td class=&quot;optional&quot;&gt;284&lt;/td&gt;&lt;td&gt;5&lt;/td&gt;&lt;td class=&quot;fp&quot;&gt;32.4&lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td&gt;&lt;span class=&quot;player-name&quot;&gt;David Eze&lt;/span&gt;&lt;span class=&quot;player-role&quot;&gt;Warriors · QB&lt;/span&gt;&lt;/td&gt;&lt;td&gt;20/28&lt;/td&gt;&lt;td class=&quot;optional&quot;&gt;276&lt;/td&gt;&lt;td&gt;5&lt;/td&gt;&lt;td class=&quot;fp&quot;&gt;30.6&lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td&gt;&lt;span class=&quot;player-name&quot;&gt;Kayode Cole&lt;/span&gt;&lt;span class=&quot;player-role&quot;&gt;LA Knights · WR&lt;/span&gt;&lt;/td&gt;&lt;td&gt;7 REC&lt;/td&gt;&lt;td class=&quot;optional&quot;&gt;108&lt;/td&gt;&lt;td&gt;2&lt;/td&gt;&lt;td class=&quot;fp&quot;&gt;21.8&lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td&gt;&lt;span class=&quot;player-name&quot;&gt;Tobi Okafor&lt;/span&gt;&lt;span class=&quot;player-role&quot;&gt;Warriors · WR&lt;/span&gt;&lt;/td&gt;&lt;td&gt;8 REC&lt;/td&gt;&lt;td class=&quot;optional&quot;&gt;117&lt;/td&gt;&lt;td&gt;2&lt;/td&gt;&lt;td class=&quot;fp&quot;&gt;22.7&lt;/td&gt;&lt;/tr&gt;
+      &lt;/tbody&gt;&lt;/table&gt;&lt;/div&gt;
+      &lt;div class=&quot;divider&quot;&gt;&lt;/div&gt;
+      &lt;h3 class=&quot;section-title&quot;&gt;Defensive box score&lt;/h3&gt;
+      &lt;div class=&quot;table-responsive&quot;&gt;&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Player&lt;/th&gt;&lt;th&gt;PULL&lt;/th&gt;&lt;th&gt;BAT&lt;/th&gt;&lt;th&gt;INT&lt;/th&gt;&lt;th&gt;FP&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;
+        &lt;tr&gt;&lt;td&gt;&lt;span class=&quot;player-name&quot;&gt;Maya Bello&lt;/span&gt;&lt;span class=&quot;player-role&quot;&gt;LA Knights · Defender&lt;/span&gt;&lt;/td&gt;&lt;td&gt;5&lt;/td&gt;&lt;td&gt;2&lt;/td&gt;&lt;td&gt;0&lt;/td&gt;&lt;td class=&quot;fp&quot;&gt;5.0&lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td&gt;&lt;span class=&quot;player-name&quot;&gt;Femi Lawal&lt;/span&gt;&lt;span class=&quot;player-role&quot;&gt;Warriors · Rusher&lt;/span&gt;&lt;/td&gt;&lt;td&gt;3&lt;/td&gt;&lt;td&gt;1&lt;/td&gt;&lt;td&gt;0&lt;/td&gt;&lt;td class=&quot;fp&quot;&gt;3.6&lt;/td&gt;&lt;/tr&gt;
+      &lt;/tbody&gt;&lt;/table&gt;&lt;/div&gt;
+    &lt;/section&gt;
+  &lt;/main&gt;
+  &lt;script&gt;
+    (()=&gt;{const root=document.getElementById(&#x27;sf-match-summary&#x27;);const tabs=[...root.querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;)];tabs.forEach(tab=&gt;tab.addEventListener(&#x27;click&#x27;,()=&gt;{tabs.forEach(t=&gt;{const selected=t===tab;t.setAttribute(&#x27;aria-selected&#x27;,String(selected));root.querySelector(&#x27;#&#x27;+t.getAttribute(&#x27;aria-controls&#x27;)).hidden=!selected;});}));})();
+  &lt;/script&gt;
+&lt;/div&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+  let lastPointerWasTouch = false;
+  let pinnedByTouch = false;
+
+  const getTrigger = (event) =&gt; {
+    for (const target of event.composedPath()) {
+      if (target?.nodeType === Node.ELEMENT_NODE) {
+        const trigger = target.closest(&quot;[data-tooltip]&quot;);
+        if (trigger) return trigger;
+      }
+    }
+    return null;
+  };
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    pinnedByTouch = false;
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handlePointer = (event) =&gt; {
+    lastPointerWasTouch =
+      event.type === &quot;pointerdown&quot; &amp;&amp; event.pointerType === &quot;touch&quot;;
+  };
+  const handleTouchClick = (event) =&gt; {
+    const isTouch = event.pointerType === &quot;touch&quot; || lastPointerWasTouch;
+    lastPointerWasTouch = false;
+    if (!isTouch || event.detail === 0) {
+      return;
+    }
+    const trigger = getTrigger(event);
+    if (
+      trigger == null ||
+      !trigger.isConnected ||
+      getContent(trigger).length === 0 ||
+      (pinnedByTouch &amp;&amp; activeTrigger === trigger)
+    ) {
+      if (pinnedByTouch) {
+        closeTooltip();
+      }
+      return;
+    }
+    openTooltip(trigger);
+    pinnedByTouch = activeTrigger === trigger;
+    window.setTimeout(() =&gt; {
+      if (activeTrigger === trigger &amp;&amp; !trigger.isConnected) {
+        closeTooltip(false);
+      }
+    }, 0);
+  };
+  const handleLeave = (event) =&gt; {
+    if (pinnedByTouch) {
+      return;
+    }
+    const trigger = getTrigger(event);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    lastPointerWasTouch = false;
+    const trigger = getTrigger(event);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handlers = {
+    pointerover: handlePointerOpen,
+    pointerdown: handlePointer,
+    pointercancel: handlePointer,
+    click: handleTouchClick,
+    pointerout: handleLeave,
+    focusin: handleFocusIn,
+    focusout: handleLeave,
+    keydown: handleKeyDown,
+    contextmenu: handleContextMenu,
+  };
+  const roots = new Map();
+  const handledEvents = new WeakSet();
+  const handleEvent = (event) =&gt; {
+    if (handledEvents.has(event)) return;
+    handledEvents.add(event);
+    handlers[event.type](event);
+  };
+  const discoverRoots = (node) =&gt; {
+    if (node.shadowRoot) listen(node.shadowRoot);
+    for (const element of node.querySelectorAll(&quot;*&quot;)) {
+      if (element.shadowRoot) listen(element.shadowRoot);
+    }
+  };
+  const listen = (root) =&gt; {
+    if (roots.has(root)) return;
+    for (const type of Object.keys(handlers)) root.addEventListener(type, handleEvent);
+    const observer = new window.MutationObserver((records) =&gt; {
+      for (const { addedNodes } of records) {
+        for (const node of addedNodes) {
+          if (node.nodeType === Node.ELEMENT_NODE) discoverRoots(node);
+        }
+      }
+      for (const [root, cleanup] of roots) {
+        if (root.host &amp;&amp; !root.host.isConnected) {
+          cleanup();
+          roots.delete(root);
+        }
+      }
+      if (activeTrigger &amp;&amp; !activeTrigger.isConnected) closeTooltip(false);
+    });
+    observer.observe(root, { childList: true, subtree: true });
+    roots.set(root, () =&gt; {
+      observer.disconnect();
+      for (const type of Object.keys(handlers)) root.removeEventListener(type, handleEvent);
+    });
+    discoverRoots(root);
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    lastPointerWasTouch = false;
+    for (const cleanup of roots.values()) cleanup();
+    roots.clear();
+    tooltip = null;
+  };
+
+  // Events between children of one shadow root never reach the document.
+  listen(document);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-tabs&quot;&gt;
+(() =&gt; {
+  const selector = &#x27;.nav[role=&quot;tablist&quot;] [role=&quot;tab&quot;]&#x27;;
+  const disabled = &#x27;:disabled,[aria-disabled=&quot;true&quot;]&#x27;;
+  const selectTab = (selected) =&gt; {
+    const panelId = selected.getAttribute(&quot;aria-controls&quot;);
+    for (const tab of selected.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;)) {
+      const active = tab === selected;
+      tab.classList.toggle(&quot;active&quot;, active);
+      tab.setAttribute(&quot;aria-selected&quot;, String(active));
+      const id = tab.getAttribute(&quot;aria-controls&quot;);
+      const panel = id &amp;&amp; document.getElementById(id);
+      if (panel != null) {
+        panel.hidden = id !== panelId;
+        if (!panel.hidden &amp;&amp; selected.id) {
+          panel.setAttribute(&quot;aria-labelledby&quot;, selected.id);
+        }
+      }
+    }
+  };
+  const interact = (event) =&gt; {
+    const tab = event.target?.closest?.(selector);
+    if (event.defaultPrevented || tab == null || tab.matches(disabled)) {
+      return;
+    }
+    if (event.type === &quot;click&quot;) {
+      selectTab(tab);
+      return;
+    }
+    const tabs = Array.from(
+      tab.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;),
+    ).filter((candidate) =&gt; !candidate.matches(disabled));
+    const current = tabs.indexOf(tab);
+    let next;
+    if (event.key === &quot;ArrowRight&quot; || event.key === &quot;ArrowDown&quot;) {
+      next = (current + 1) % tabs.length;
+    } else if (event.key === &quot;ArrowLeft&quot; || event.key === &quot;ArrowUp&quot;) {
+      next = (current + tabs.length - 1) % tabs.length;
+    } else if (event.key === &quot;Home&quot;) {
+      next = 0;
+    } else if (event.key === &quot;End&quot;) {
+      next = tabs.length - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    tabs[next].focus();
+    selectTab(tabs[next]);
+  };
+
+  for (const list of document.querySelectorAll(&#x27;.nav[role=&quot;tablist&quot;]&#x27;)) {
+    const selected =
+      list.querySelector(&#x27;[role=&quot;tab&quot;][aria-selected=&quot;true&quot;]&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;].active&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;]&#x27;);
+    if (selected != null) {
+      selectTab(selected);
+    }
+  }
+  document.addEventListener(&quot;click&quot;, interact);
+  document.addEventListener(&quot;keydown&quot;, interact);
+  window.addEventListener(&quot;pagehide&quot;, () =&gt; {
+    document.removeEventListener(&quot;click&quot;, interact);
+    document.removeEventListener(&quot;keydown&quot;, interact);
+  }, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-carousel&quot;&gt;
+  (() =&gt; {
+    for (const root of document.querySelectorAll(&quot;.viz-carousel&quot;)) {
+      const panels = Array.from(
+        root.querySelectorAll(&quot;:scope &gt; [data-variant]&quot;),
+      );
+      if (panels.length === 0) {
+        continue;
+      }
+      root.setAttribute(&quot;role&quot;, &quot;group&quot;);
+      panels.forEach((panel, index) =&gt; {
+        panel.hidden = index !== 0;
+        panel.setAttribute(&quot;role&quot;, &quot;group&quot;);
+        if (!panel.hasAttribute(&quot;aria-label&quot;)) {
+          panel.setAttribute(&quot;aria-label&quot;, panel.dataset.variant);
+        }
+      });
+      root.dataset.activeVariant = panels[0].dataset.variant;
+      if (panels.length === 1) {
+        continue;
+      }
+
+      const controls = document.createElement(&quot;div&quot;);
+      controls.className = &quot;viz-carousel-controls&quot;;
+      // Portable copy of the settings dropdown&#x27;s legacy glyph; no 14px icon-package preset matches it.
+      // https://github.com/openai/openai/blob/master/codex/codex-apps/webview/src/icons/chevron.svg
+      controls.innerHTML = `
+      &lt;button type=&quot;button&quot; class=&quot;viz-carousel-previous cursor-interaction&quot;&gt;&lt;i data-lucide=&quot;chevron-left&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+      &lt;details class=&quot;viz-carousel-picker&quot;&gt;
+        &lt;summary class=&quot;cursor-interaction&quot;&gt;
+          &lt;span class=&quot;viz-carousel-count tabular-nums&quot;&gt;&lt;/span&gt;
+          &lt;span class=&quot;viz-carousel-name&quot;&gt;&lt;/span&gt;
+          &lt;svg class=&quot;viz-carousel-caret&quot; width=&quot;14&quot; height=&quot;14&quot; viewBox=&quot;0 0 20 21&quot; fill=&quot;none&quot; aria-hidden=&quot;true&quot; focusable=&quot;false&quot;&gt;
+            &lt;path d=&quot;M15.2793 7.71101C15.539 7.45131 15.961 7.45131 16.2207 7.71101C16.4804 7.97071 16.4804 8.39272 16.2207 8.65242L10.4707 14.4024C10.211 14.6621 9.78902 14.6621 9.52932 14.4024L3.77932 8.65242L3.69436 8.54792C3.52385 8.28979 3.55205 7.93828 3.77932 7.71101C4.00659 7.48374 4.3581 7.45554 4.61623 7.62605L4.72073 7.71101L10 12.9903L15.2793 7.71101Z&quot; fill=&quot;currentColor&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;0.6&quot; /&gt;
+          &lt;/svg&gt;
+        &lt;/summary&gt;
+        &lt;div class=&quot;viz-carousel-options&quot;&gt;&lt;/div&gt;
+      &lt;/details&gt;
+      &lt;button type=&quot;button&quot; class=&quot;viz-carousel-next cursor-interaction&quot;&gt;&lt;i data-lucide=&quot;chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;`;
+      const previous = controls.querySelector(&quot;.viz-carousel-previous&quot;);
+      const next = controls.querySelector(&quot;.viz-carousel-next&quot;);
+      const picker = controls.querySelector(&quot;.viz-carousel-picker&quot;);
+      const summary = picker.querySelector(&quot;summary&quot;);
+      const count = controls.querySelector(&quot;.viz-carousel-count&quot;);
+      const name = controls.querySelector(&quot;.viz-carousel-name&quot;);
+      const options = controls.querySelector(&quot;.viz-carousel-options&quot;);
+      const status = document.createElement(&quot;span&quot;);
+      status.className = &quot;sr-only&quot;;
+      status.setAttribute(&quot;role&quot;, &quot;status&quot;);
+      status.setAttribute(&quot;aria-live&quot;, &quot;polite&quot;);
+      status.setAttribute(&quot;aria-atomic&quot;, &quot;true&quot;);
+      previous.setAttribute(
+        &quot;aria-label&quot;,
+        root.dataset.previousLabel ?? &quot;Previous variant&quot;,
+      );
+      next.setAttribute(&quot;aria-label&quot;, root.dataset.nextLabel ?? &quot;Next variant&quot;);
+
+      let active = 0;
+      const choices = panels.map((panel, index) =&gt; {
+        const choice = document.createElement(&quot;button&quot;);
+        choice.type = &quot;button&quot;;
+        choice.className = &quot;cursor-interaction&quot;;
+        choice.textContent = panel.dataset.variant;
+        choice.addEventListener(&quot;click&quot;, () =&gt; {
+          select(index);
+          summary.focus();
+        });
+        options.appendChild(choice);
+        return choice;
+      });
+      const select = (index) =&gt; {
+        const changed = active !== index;
+        active = index;
+        panels.forEach((panel, position) =&gt; {
+          panel.hidden = position !== active;
+          choices[position].setAttribute(
+            &quot;aria-current&quot;,
+            String(position === active),
+          );
+        });
+        root.dataset.activeVariant = panels[active].dataset.variant;
+        count.textContent = `${active + 1} / ${panels.length}`;
+        name.textContent = panels[active].dataset.variant;
+        picker.open = false;
+        if (changed) {
+          status.textContent = `${count.textContent}: ${name.textContent}`;
+        }
+      };
+      previous.addEventListener(&quot;click&quot;, () =&gt;
+        select((active + panels.length - 1) % panels.length),
+      );
+      next.addEventListener(&quot;click&quot;, () =&gt;
+        select((active + 1) % panels.length),
+      );
+      picker.addEventListener(&quot;keydown&quot;, (event) =&gt; {
+        if (event.key === &quot;Escape&quot; &amp;&amp; picker.open) {
+          event.preventDefault();
+          picker.open = false;
+          summary.focus();
+        }
+      });
+      const dismiss = (event) =&gt; {
+        if (!picker.contains(event.target)) {
+          picker.open = false;
+        }
+      };
+      const sizePicker = () =&gt; {
+        root.style.setProperty(
+          &quot;--viz-carousel-picker-height&quot;,
+          `${picker.open ? options.offsetHeight : 0}px`,
+        );
+      };
+      picker.addEventListener(&quot;toggle&quot;, sizePicker);
+      window.addEventListener(&quot;resize&quot;, sizePicker);
+      document.addEventListener(&quot;pointerdown&quot;, dismiss);
+      window.addEventListener(
+        &quot;pagehide&quot;,
+        () =&gt; {
+          document.removeEventListener(&quot;pointerdown&quot;, dismiss);
+          window.removeEventListener(&quot;resize&quot;, sizePicker);
+        },
+        { once: true },
+      );
+      root.append(controls, status);
+      select(0);
+    }
+  })();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+<script>(() => {
+  const frame = document.getElementById("codex-visualization");
+  if (!(frame instanceof HTMLIFrameElement)) {
+    return;
+  }
+  let viewportHeight = globalThis.innerHeight;
+  const storageKey = `codex:visualization-widget-state-v2:${JSON.stringify([
+    globalThis.location.pathname,
+    globalThis.location.search,
+  ])}`;
+  const parseState = (serializedState) => {
+    if (
+      typeof serializedState !== "string" ||
+      new TextEncoder().encode(serializedState).length > 16 * 1024
+    ) {
+      throw new TypeError(
+        "Widget state must be a JSON object of at most 16 KiB",
+      );
+    }
+    /** @type {unknown} */
+    const state = JSON.parse(serializedState);
+    if (
+      state == null ||
+      typeof state !== "object" ||
+      Array.isArray(state) ||
+      ("imageIds" in state &&
+        (!Array.isArray(state.imageIds) || state.imageIds.length > 0))
+    ) {
+      throw new TypeError("Widget state must be a JSON object");
+    }
+    const storedState = { modelContent: null, privateContent: null, ...state };
+    const canonicalState = JSON.stringify(
+      storedState,
+      (_key, /** @type {unknown} */ value) => {
+        if (typeof value === "number" && !Number.isFinite(value)) {
+          throw new TypeError("Widget state must contain finite numbers");
+        }
+        return value;
+      },
+    );
+    if (new TextEncoder().encode(canonicalState).length > 16 * 1024) {
+      throw new TypeError(
+        "Widget state must be a JSON object of at most 16 KiB",
+      );
+    }
+    return storedState;
+  };
+  let storage = null;
+  let state = null;
+  try {
+    const localStorage = globalThis.localStorage;
+    const probeKey = `${storageKey}:probe`;
+    localStorage.setItem(probeKey, "1");
+    localStorage.removeItem(probeKey);
+    storage = localStorage;
+    const savedState = storage.getItem(storageKey);
+    if (savedState != null) {
+      try {
+        state = parseState(savedState);
+      } catch {
+        // Invalid saved state does not disable future writes.
+      }
+    }
+  } catch {
+    storage = null;
+  }
+  const initialGlobals = {
+    widgetState: state,
+    statePersistence: storage == null ? "none" : "local",
+  };
+
+  const channel = new MessageChannel();
+  channel.port1.addEventListener("message", (event) => {
+    const data = event.data;
+    if (typeof data !== "object" || data == null) {
+      return;
+    }
+    if (data.type === "widget-state-write") {
+      if (!Number.isSafeInteger(data.id) || data.id <= 0) {
+        return;
+      }
+      let ok = false;
+      try {
+        if (storage != null) {
+          const state = parseState(data.state);
+          storage.setItem(storageKey, JSON.stringify(state));
+          ok = true;
+        }
+      } catch {
+        // Storage denial, quota limits, and invalid state return a failed receipt.
+      }
+      channel.port1.postMessage({
+        type: "widget-state-result",
+        id: data.id,
+        ok,
+      });
+      return;
+    }
+    if (data.type === "height") {
+      const height = data.height;
+      if (
+        typeof height === "number" &&
+        Number.isFinite(height) &&
+        height >= 0 &&
+        height <= 10_000
+      ) {
+        frame.style.height = Math.ceil(height) + "px";
+      }
+      return;
+    }
+    if (data.type === "scroll-to") {
+      const top = data.top;
+      if (
+        typeof top === "number" &&
+        Number.isFinite(top) &&
+        top >= 0 &&
+        globalThis.navigator.userActivation?.isActive === true
+      ) {
+        globalThis.scrollTo({
+          top: Math.ceil(
+            globalThis.scrollY + frame.getBoundingClientRect().top + top,
+          ),
+        });
+      }
+      return;
+    }
+    if (data.type === "open-external") {
+      const rawHref = data.href;
+      if (typeof rawHref !== "string") {
+        return;
+      }
+      let href;
+      try {
+        const url = new URL(rawHref, document.baseURI);
+        if (url.protocol !== "https:") {
+          return;
+        }
+        href = url.href;
+      } catch {
+        return;
+      }
+      if (globalThis.navigator.userActivation?.isActive === true) {
+        const anchor = document.createElement("a");
+        anchor.href = href;
+        anchor.rel = "noopener noreferrer";
+        anchor.target = "_blank";
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+      }
+      return;
+    }
+    if (data.type === "follow-up") {
+      const prompt = data.prompt;
+      if (
+        typeof prompt !== "string" ||
+        globalThis.navigator.userActivation?.isActive !== true
+      ) {
+        return;
+      }
+      const title = data.title;
+      globalThis.prompt(typeof title === "string" ? title : prompt, prompt);
+    }
+  });
+  channel.port1.start();
+  const srcdoc = frame.dataset.srcdoc;
+  if (srcdoc == null) {
+    return;
+  }
+  globalThis.addEventListener("resize", () => {
+    const height = Number.parseFloat(frame.style.height);
+    if (!Number.isFinite(height) || height <= viewportHeight) {
+      frame.style.removeProperty("height");
+    }
+    viewportHeight = globalThis.innerHeight;
+    channel.port1.postMessage({ type: "measure" });
+  });
+  frame.addEventListener(
+    "load",
+    () => {
+      frame.contentWindow?.postMessage(
+        { type: "codex-visualization-initialize" },
+        "*",
+        [channel.port2],
+      );
+    },
+    { once: true },
+  );
+  // Match the trusted bootstrap element, not the same text in an authored title.
+  frame.srcdoc = srcdoc.replace(
+    '<script type="application/json" id="codex-visualization-widget-state">__CODEX_VISUALIZATION_WIDGET_STATE__<\/script>',
+    () =>
+      '<script type="application/json" id="codex-visualization-widget-state">' +
+      JSON.stringify(initialGlobals).replaceAll("<", "\\u003c") +
+      "<\/script>",
+  );
+  delete frame.dataset.srcdoc;
+})();
+</script>
+</body>
+</html>

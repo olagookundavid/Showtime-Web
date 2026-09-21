@@ -7,6 +7,7 @@ import { Loader } from '../../components/ui/Loader';
 import { LightboxImage } from '../../components/ui';
 import { PlayByPlayTimeline } from '../../components/matches/PlayByPlayTimeline';
 import { PublicMatchStats } from '../../components/matches/PublicMatchStats';
+import { MatchSummaryTab } from '../../components/matches/MatchSummaryTab';
 import { CommentSection } from '../../components/comments/CommentSection';
 import { BackButton } from '../../components/common/BackButton';
 
@@ -236,9 +237,10 @@ export const MatchDetail = () => {
     });
 
     const tabParam = searchParams.get('tab');
-    const initialTab = (tabParam === 'discussions' || tabParam === 'plays' || tabParam === 'stats' || tabParam === 'rating') ? tabParam : 'rating';
+    type MatchTab = 'summary' | 'rating' | 'plays' | 'stats' | 'discussions';
+    const initialTab: MatchTab = (tabParam === 'summary' || tabParam === 'discussions' || tabParam === 'plays' || tabParam === 'stats' || tabParam === 'rating') ? tabParam : 'summary';
 
-    const [activeTab, setActiveTab] = useState<'rating' | 'plays' | 'stats' | 'discussions'>(initialTab);
+    const [activeTab, setActiveTab] = useState<MatchTab>(initialTab);
     const [ratingSort, setRatingSort] = useState<RatingSort>('default');
     const cycleRatingSort = () => setRatingSort(s => (s === 'default' ? 'high' : s === 'high' ? 'low' : 'default'));
 
@@ -448,12 +450,13 @@ export const MatchDetail = () => {
                 </div>
             )}
 
-            {/* ── 4 Clean, Evenly Spaced Segmented Tabs ── */}
+            {/* ── 5 Clean, Evenly Spaced Segmented Tabs ── */}
             {!isBye && (
                 <div className="space-y-6">
                     {/* Segmented High-Contrast Tab Bar */}
-                    <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm grid grid-cols-2 md:grid-cols-4 gap-1.5 mb-6 text-center">
+                    <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5 mb-6 text-center">
                         {([
+                            ['summary', 'Summary'],
                             ['rating', 'Player Rating'],
                             ['plays', 'Play by Play'],
                             ['stats', 'Match Stats'],
@@ -483,6 +486,11 @@ export const MatchDetail = () => {
                             );
                         })}
                     </div>
+
+                    {/* Tab 0: Match Summary Overview */}
+                    {activeTab === 'summary' && (
+                        <MatchSummaryTab match={match} teamSheet={team_sheet} />
+                    )}
 
                     {/* Tab 1: Player Rating (Roster) */}
                     {activeTab === 'rating' && (
