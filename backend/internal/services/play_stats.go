@@ -144,7 +144,11 @@ func (s *PlayService) DeriveMatchStats(ctx context.Context, matchID string) ([]d
 			} else if d := get(p.DefenderID); d != nil {
 				d.Safety++
 			}
-			if qb := get(p.OffQBID); qb != nil {
+			if pt == "KO" || pt == "PUNT" {
+				if t := get(p.TargetID); t != nil {
+					t.SafetyConceded++
+				}
+			} else if qb := get(p.OffQBID); qb != nil {
 				qb.SafetyConceded++
 			}
 		}
@@ -307,6 +311,11 @@ func (s *PlayService) DeriveMatchStats(ctx context.Context, matchID string) ([]d
 					c.ExtraPointsTDs++
 				} else if res == "XPF" {
 					c.XPFail++
+				}
+			}
+			if p.ReturnedForTD {
+				if d := get(p.DefenderID); d != nil {
+					d.DefensiveXPTDs++
 				}
 			}
 		}

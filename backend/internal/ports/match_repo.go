@@ -535,18 +535,27 @@ func (r *PostgresMatchRepository) GetMatches(ctx context.Context, competitionID 
 }
 
 func (r *PostgresMatchRepository) GetMatchByID(ctx context.Context, id string) (*domain.Match, error) {
+	// Selects every column UpdateMatch writes back (date, time, venue,
+	// highlights_url, ticket_url included) — GetMatchByID -> mutate a couple
+	// fields -> UpdateMatch is a common read-modify-write pattern (e.g.
+	// CommitScore), and UpdateMatch does a full-row write. Any column missing
+	// here would silently go blank on the next such write, not just be absent
+	// from this response.
 	query := `
 		SELECT id, competition_id, status,
 		       COALESCE(home_team_id::text, ''), COALESCE(away_team_id::text, ''),
+		       date, time, COALESCE(venue, ''), COALESCE(highlights_url, ''), COALESCE(ticket_url, ''),
 		       home_score, away_score,
 		       COALESCE(round, ''), bracket_pos, feeds_match_id::text, COALESCE(feeds_slot, ''), second_leg_match_id::text,
 		       pbp_locked
 		FROM matches WHERE id = $1
 	`
 	var m domain.Match
+	var startTime time.Time
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&m.ID, &m.CompetitionID, &m.Status,
 		&m.HomeTeamID, &m.AwayTeamID,
+		&m.Date, &startTime, &m.Venue, &m.HighlightsURL, &m.TicketURL,
 		&m.HomeScore, &m.AwayScore,
 		&m.Round, &m.BracketPos, &m.FeedsMatchID, &m.FeedsSlot, &m.SecondLegMatchID,
 		&m.PBPLocked,
@@ -554,6 +563,7 @@ func (r *PostgresMatchRepository) GetMatchByID(ctx context.Context, id string) (
 	if err != nil {
 		return nil, err
 	}
+	m.StartTime = startTime
 	return &m, nil
 }
 

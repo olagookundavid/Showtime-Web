@@ -48,7 +48,7 @@ type RunDefenderAction = 'FG' | 'OB';
 type RunPlayOutcome = 'TD' | 'turnover' | 'next_down';
 
 type SpecialType = 'KO' | 'PUNT';
-type ReceiverOutcome = 'no_catch' | 'catch';
+type ReceiverOutcome = 'no_catch' | 'catch' | 'safety';
 type SpecialDefenderAction = 'FG' | 'OB';
 type SpecialPlayOutcome = 'TD' | 'next_down';
 
@@ -83,6 +83,7 @@ interface Wizard {
     // XP flow
     xpType?: 'PAT-R' | 'XP-P';
     xpResult?: 'XP' | 'XPF';
+    xpDefenseScored?: boolean;
 
     // Special flow
     specialType?: SpecialType;
@@ -135,6 +136,7 @@ const emptyWizard: Wizard = {
     rusherId: '',
     centerId: '',
     yards: '',
+    xpDefenseScored: false,
     penaltyOn: false,
     penaltyCode: '',
     penaltyTeam: '',
@@ -951,6 +953,11 @@ export const AdminPlayByPlay = () => {
                     } else {
                         base.off_qb_id = w.carrierId || undefined;
                     }
+                    if (w.xpResult === 'XPF' && w.xpDefenseScored) {
+                        if (!w.defenderId) return { payload: null, error: 'Select the defender who scored.' };
+                        base.defender_id = w.defenderId;
+                        base.returned_for_td = true;
+                    }
                     break;
                 }
                 case 'special': {
@@ -958,6 +965,10 @@ export const AdminPlayByPlay = () => {
                     base.play_type = w.specialType;
                     if (w.receiverOutcome === 'no_catch') {
                         base.result = 'DB';
+                    } else if (w.receiverOutcome === 'safety') {
+                        base.result = 'SAF';
+                        base.target_id = w.targetId || undefined;
+                        base.defender_id = w.defenderId || undefined;
                     } else if (w.receiverOutcome === 'catch') {
                         base.target_id = w.targetId || undefined;
                         base.defender_id = w.defenderId || undefined;
@@ -1247,10 +1258,16 @@ export const AdminPlayByPlay = () => {
             nw.qbId = p.off_qb?.id || '';
             nw.targetId = p.target?.id || '';
             nw.carrierId = p.off_qb?.id || '';
+            nw.defenderId = p.defender?.id || '';
+            nw.xpDefenseScored = Boolean(p.returned_for_td);
         } else if (pt === 'KO' || pt === 'PUNT') {
             nw.kind = 'special';
             nw.specialType = pt as SpecialType;
-            if (p.target) {
+            if (res === 'SAF') {
+                nw.receiverOutcome = 'safety';
+                nw.targetId = p.target?.id || '';
+                nw.defenderId = p.defender?.id || '';
+            } else if (p.target) {
                 nw.receiverOutcome = 'catch';
                 nw.targetId = p.target.id;
                 nw.defenderId = p.defender?.id || '';
@@ -1804,9 +1821,56 @@ export const AdminPlayByPlay = () => {
                                     />
                                 )}
                                 <div className="flex gap-2">
-                                    <button className={chip(w.xpResult === 'XP')} onClick={() => setField('xpResult', 'XP')}>Good</button>
+                                    <button className={chip(w.xpResult === 'XP')} onClick={() => { setField('xpResult', 'XP'); setField('xpDefenseScored', false); }}>Good</button>
                                     <button className={chip(w.xpResult === 'XPF')} onClick={() => setField('xpResult', 'XPF')}>Failed</button>
                                 </div>
+
+                                {w.xpResult === 'XPF' && (
+                                    <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                                                Did Defense Score? (1 pt M / 2 pts F)
+                                            </span>
+                                            <button
+                                                type="button"
+                                                className={chip(Boolean(w.xpDefenseScored))}
+                                                onClick={() => {
+                                                    const nextVal = !w.xpDefenseScored;
+                                                    setField('xpDefenseScored', nextVal);
+                                                    if (!nextVal) setField('defenderId', '');
+                                                }}
+                                            >
+                                                {w.xpDefenseScored ? '✓ Defense Scored' : '+ Defense Scored'}
+                                            </button>
+                                        </div>
+
+                                        {w.xpDefenseScored && (
+                                            <div className="space-y-2.5 bg-gray-50 dark:bg-gray-700/40 p-3 rounded-xl border border-gray-200 dark:border-gray-600">
+                                                <div className="text-xs text-gray-600 dark:text-gray-300">
+                                                    Points awarded to <strong className="text-sffl-navy dark:text-white">{teamName(ctx.offense === 'home' ? 'away' : 'home')}</strong> (defending team): <span className="font-semibold text-emerald-600 dark:text-emerald-400">1 pt for male, 2 pts for female</span>
+                                                </div>
+                                                <PlayerField
+                                                    label={`Scoring Defender (${teamName(ctx.offense === 'home' ? 'away' : 'home')})`}
+                                                    value={w.defenderId}
+                                                    onChange={v => handlePlayerSelect('defenderId', defenseTeamId, 'defender', v)}
+                                                    roster={defenseRoster}
+                                                    favoriteIds={getFavorites(defenseTeamId, 'defender')}
+                                                />
+                                                {w.defenderId && (() => {
+                                                    const defPlayer = defenseRoster.find(p => p.player_id === w.defenderId);
+                                                    if (!defPlayer) return null;
+                                                    const isFemale = defPlayer.gender?.toUpperCase() === 'F';
+                                                    return (
+                                                        <div className="text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
+                                                            <span>Awarding to {teamName(ctx.offense === 'home' ? 'away' : 'home')}:</span>
+                                                            <span>+{isFemale ? 2 : 1} pt ({defPlayer.name} · {isFemale ? 'Female' : 'Male'})</span>
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </Section>
                     )}
@@ -1851,12 +1915,44 @@ export const AdminPlayByPlay = () => {
 
                                 <div>
                                     <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">Receiver Outcome</div>
-                                    <div className="flex gap-2">
-                                        {([['no_catch', 'No Catch (Play ends)'], ['catch', 'Catch']] as [ReceiverOutcome, string][]).map(([ro, label]) => (
+                                    <div className="flex flex-wrap gap-2">
+                                        {([['no_catch', 'No Catch (Play ends)'], ['catch', 'Catch'], ['safety', 'Safety (2 pts)']] as [ReceiverOutcome, string][]).map(([ro, label]) => (
                                             <button key={ro} className={chip(w.receiverOutcome === ro)} onClick={() => setField('receiverOutcome', ro)}>{label}</button>
                                         ))}
                                     </div>
                                 </div>
+
+                                {w.receiverOutcome === 'safety' && (
+                                    <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-700 bg-amber-50/50 dark:bg-amber-950/20 p-3.5 rounded-xl border border-amber-200 dark:border-amber-800">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-xs font-bold text-amber-800 dark:text-amber-300">
+                                                Safety on Special Teams (+2 pts)
+                                            </span>
+                                            <span className="text-xs font-black text-amber-700 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-900/40 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-700">
+                                                +2 pts → {teamName(ctx.offense)}
+                                            </span>
+                                        </div>
+                                        <div className="text-xs text-gray-600 dark:text-gray-300">
+                                            The receiving team ({teamName(ctx.offense === 'home' ? 'away' : 'home')}) was tackled or conceded a safety in their own endzone. 2 points awarded to the kicking/punting team (<strong className="text-sffl-navy dark:text-white">{teamName(ctx.offense)}</strong>).
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                                            <PlayerField
+                                                label={`Returner Conceding (${teamName(ctx.offense === 'home' ? 'away' : 'home')})`}
+                                                value={w.targetId}
+                                                onChange={v => handlePlayerSelect('targetId', defenseTeamId, 'target', v)}
+                                                roster={defenseRoster}
+                                                favoriteIds={getFavorites(defenseTeamId, 'target')}
+                                            />
+                                            <PlayerField
+                                                label={`Coverage Tackler (${teamName(ctx.offense)})`}
+                                                value={w.defenderId}
+                                                onChange={v => handlePlayerSelect('defenderId', offenseTeamId, 'defender', v)}
+                                                roster={offenseRoster}
+                                                favoriteIds={getFavorites(offenseTeamId, 'defender')}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
 
                                 {w.receiverOutcome === 'catch' && (
                                     <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-700">

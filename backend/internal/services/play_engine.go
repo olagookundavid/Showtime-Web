@@ -123,18 +123,26 @@ func (s *PlayService) RecomputeScore(ctx context.Context, matchID string) (int, 
 				// Offensive pass TD: passer = QB, receiver = target.
 				addOff(domain.TouchdownPoints(gq, gt, thirdDown, false, false, match.Date))
 			}
-		case "XP":
+		case "XP", "XPF":
 			if p.ReturnedForTD {
-				// Returned extra point → the defence scores it.
+				// Returned extra point → the defence scores it (1 pt M, 2 pts F).
 				addDef(domain.ExtraPointPoints(gq, gd, true, false))
-			} else if pt == "PAT-R" {
-				addOff(domain.ExtraPointPoints(gq, gq, false, true))
-			} else { // XP-P (thrown extra point)
-				addOff(domain.ExtraPointPoints(gq, gt, false, false))
+			} else if res == "XP" {
+				if pt == "PAT-R" {
+					addOff(domain.ExtraPointPoints(gq, gq, false, true))
+				} else { // XP-P (thrown extra point)
+					addOff(domain.ExtraPointPoints(gq, gt, false, false))
+				}
 			}
 		case "SAF":
 			// Safety stays a flat value (not gender-based).
-			addDef(rules.SafetyPoints)
+			if isSpecialTeams {
+				// On a throw-off / punt, the receiving team conceded a safety in their
+				// own end zone, so the 2 points are awarded to the kicking/punting team (offense).
+				addOff(rules.SafetyPoints)
+			} else {
+				addDef(rules.SafetyPoints)
+			}
 		case "INT":
 			if p.ReturnedForTD {
 				// Pick-six recorded on an interception play.

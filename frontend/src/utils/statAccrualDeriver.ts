@@ -90,7 +90,11 @@ export const getPlayStatAccruals = (
         if (tackler) {
             addPlayer(tackler, 'Safety', '+1', 'defense', 'rose');
         }
-        if (p.off_qb) {
+        if (pt === 'KO' || pt === 'PUNT') {
+            if (p.target) {
+                addPlayer(p.target, 'Safety Conceded', '+1', 'receiving', 'rose');
+            }
+        } else if (p.off_qb) {
             addPlayer(p.off_qb, 'Safety Conceded', '+1', 'passing', 'rose');
         }
     }
@@ -210,6 +214,9 @@ export const getPlayStatAccruals = (
             } else if (res === 'XPF') {
                 addPlayer(p.off_qb, 'XP Failed', '+1', 'kicking', 'rose');
             }
+        }
+        if (p.returned_for_td && p.defender) {
+            addPlayer(p.defender, 'Defensive XP Scored', '+1', 'defense', 'emerald');
         }
     }
 

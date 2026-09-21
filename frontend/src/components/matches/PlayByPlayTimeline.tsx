@@ -20,7 +20,7 @@ const RESULT_LABEL: Record<string, string> = {
     INC: 'Incomplete', OMW: '1-MINUTE WARNING', '1MW': '1-MINUTE WARNING',
 };
 
-const isScore = (p: GamePlay) => p.result === 'TD' || p.result === 'XP' || p.result === 'SAF';
+const isScore = (p: GamePlay) => p.result === 'TD' || p.result === 'XP' || p.result === 'SAF' || (p.result === 'XPF' && p.returned_for_td);
 // An interception returned for a TD is a defensive score — green, not red.
 const isPickSix = (p: GamePlay) => (p.result === 'INT' || p.play_type === 'INT') && p.returned_for_td === true;
 // Red "possession changed the hard way": turnover on downs, a non-returned
@@ -194,6 +194,7 @@ export const PlayByPlayTimeline = ({ matchId, isLive, showEmpty = false }: { mat
                                                     · [{
                                                         p.play_type === 'BADSNAP' ? `Bad Snap${p.center ? ` - ${who(p.center)}` : ''}`
                                                             : isPickSix(p) ? 'Defensive Touchdown'
+                                                            : (p.result === 'XPF' && p.returned_for_td) ? 'Defensive Extra Point'
                                                             : RESULT_LABEL[p.result] || p.result
                                                     }]
                                                 </span>
