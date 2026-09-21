@@ -1,6 +1,9 @@
 package domain
 
-import "math"
+import (
+	"math"
+	"strings"
+)
 
 // Player rating engine — pure, dependency-free implementations of the Showtime
 // rating specifications (see /Ratings/*.docx). Each formula scores a player
@@ -24,6 +27,7 @@ import "math"
 const (
 	RatingStatusOfficial    = "OFFICIAL"
 	RatingStatusProvisional = "PROVISIONAL"
+	RatingStatusSingleRole  = "SINGLE_ROLE"
 	RatingStatusUnrated     = "UNRATED"
 )
 
@@ -34,6 +38,7 @@ const (
 	DefenderFormulaVersion    = "DEFENDER_RATING_V1.0"
 	RusherFormulaVersion      = "RUSHER_RATING_V1.0"
 	QuarterbackFormulaVersion = "QB_RATING_V1.3"
+	AllRounderFormulaVersion  = "ALL_ROUNDER_RATING_V1.0"
 )
 
 // Baseline every player starts from, and the display bounds.
@@ -51,6 +56,7 @@ type RatingResult struct {
 	RawRating         float64            `json:"raw_rating"`
 	ReliabilityFactor float64            `json:"reliability_factor"`
 	FinalRating       float64            `json:"final_rating"`
+	ExactRating       float64            `json:"exact_rating"`
 	FormulaVersion    string             `json:"formula_version"`
 	Components        map[string]float64 `json:"components"`
 }
@@ -79,12 +85,12 @@ func capped(perUnit float64, count int, cap float64) float64 {
 	return v
 }
 
-// finalise applies the reliability pull-toward-baseline, clamps and rounds. raw
-// is the pre-reliability rating; reliability in [0,1] scales the deviation from
-// the 5.0 baseline (small samples are pulled back toward neutral).
-func finalise(raw, reliability float64) float64 {
+// finalise applies the reliability pull-toward-baseline, clamps and returns
+// the 1-decimal rounded rating along with the unrounded exact clamped rating.
+func finalise(raw, reliability float64) (float64, float64) {
 	adjusted := ratingBaseline + (raw-ratingBaseline)*reliability
-	return round1(clampRating(adjusted))
+	exact := clampRating(adjusted)
+	return round1(exact), exact
 }
 
 // ─── Position dispatch ───────────────────────────────────────────────────────
@@ -173,6 +179,108 @@ func RateByPosition(position string, s RatingStatLine) *RatingResult {
 			DefensiveTDs: s.DefensiveTDs, DefensiveXPTDs: s.DefensiveXPTDs,
 			FlagPulls: s.FlagPulls,
 		})
+	case "All Rounder":
+		roles := make(map[string]AllRounderRoleInput)
+
+		// 1. QB
+		if s.PassingAttempts > 0 {
+			otherTurnovers := s.Turnovers - s.InterceptionsThrown
+			if otherTurnovers < 0 {
+				otherTurnovers = 0
+			}
+			xpTDs := max(s.ExtraPointTDs, s.XPGood)
+			qbRes := CalculateQuarterbackRating(QuarterbackRatingInput{
+				PassingAttempts:     s.PassingAttempts,
+				CompletedPasses:     s.CompletedPasses,
+				PassingYards:        s.PassingYards,
+				PassingTDs:          s.PassingTDs,
+				InterceptionsThrown: s.InterceptionsThrown,
+				QBSacks:             s.QBSacks,
+				RushingAttempts:     s.RushingAttempts,
+				RushingYards:        s.RushingYards,
+				RushingTDs:          s.RushingTDs,
+				ExtraPointTDs:       xpTDs,
+				OtherTurnovers:      otherTurnovers,
+				UncatchablePasses:   s.UncatchablePasses,
+				ThrownAwayPasses:    s.ThrownAwayPasses,
+				BattedDownPasses:    s.BattedDownPasses,
+			})
+			if qbRes.Status != RatingStatusUnrated {
+				adjAttempts := s.PassingAttempts
+				exclusions := s.UncatchablePasses + s.ThrownAwayPasses + s.BattedDownPasses
+				if exclusions > 0 {
+					testAdj := s.PassingAttempts - exclusions
+					if testAdj >= s.CompletedPasses && testAdj >= s.PassingTDs && testAdj > 0 {
+						adjAttempts = testAdj
+					}
+				}
+				roles["QB"] = AllRounderRoleInput{
+					Activity:    adjAttempts,
+					RatingExact: qbRes.ExactRating,
+					DataState:   "VALID",
+				}
+			}
+		}
+
+		// 2. REC
+		recOpportunities := s.Receptions + s.Drops
+		if recOpportunities > 0 || s.ReceivingTDs > 0 || s.ExtraPointTDs > 0 {
+			recRes := CalculateReceiverRating(ReceiverRatingInput{
+				Receptions:    s.Receptions,
+				ReceivingTDs:  s.ReceivingTDs,
+				ExtraPointTDs: s.ExtraPointTDs,
+				Drops:         s.Drops,
+			})
+			if recRes.Status != RatingStatusUnrated {
+				activity := recOpportunities
+				if activity == 0 && (s.ReceivingTDs > 0 || s.ExtraPointTDs > 0) {
+					activity = s.ReceivingTDs + s.ExtraPointTDs
+				}
+				roles["REC"] = AllRounderRoleInput{
+					Activity:    activity,
+					RatingExact: recRes.ExactRating,
+					DataState:   "VALID",
+				}
+			}
+		}
+
+		// 3. DEF: open field stats (excluding sacks per Spec §7 & §9)
+		defActions := s.FlagPulls + s.PassDeflections + s.Interceptions +
+			s.Safeties + s.DefensiveTDs + s.DefensiveXPTDs
+		if defActions > 0 {
+			defRes := CalculateDefenderRating(DefenderRatingInput{
+				FlagPulls:       s.FlagPulls,
+				PassDeflections: s.PassDeflections,
+				Interceptions:   s.Interceptions,
+				Safeties:        s.Safeties,
+				DefensiveTDs:    s.DefensiveTDs,
+				DefensiveXPTDs:  s.DefensiveXPTDs,
+				DefensiveSacks:  0, // Sacks allocated exclusively to RUSH per Spec §9
+			})
+			if defRes.Status != RatingStatusUnrated {
+				roles["DEF"] = AllRounderRoleInput{
+					Activity:    defActions,
+					RatingExact: defRes.ExactRating,
+					DataState:   "VALID",
+				}
+			}
+		}
+
+		// 4. RUSH: defensive sacks (Spec §7 & §9)
+		if s.DefensiveSacks > 0 {
+			rushRes := CalculateRusherRating(RusherRatingInput{
+				DefensiveSacks: s.DefensiveSacks,
+			})
+			if rushRes.Status != RatingStatusUnrated {
+				roles["RUSH"] = AllRounderRoleInput{
+					Activity:    s.DefensiveSacks,
+					RatingExact: rushRes.ExactRating,
+					DataState:   "VALID",
+				}
+			}
+		}
+
+		res = CalculateAllRounderRating(AllRounderRatingInput{Roles: roles})
 	default:
 		return nil
 	}
@@ -235,7 +343,8 @@ func CalculateReceiverRating(in ReceiverRatingInput) RatingResult {
 	tdImpact := capped(recTDPerUnit, in.ReceivingTDs, recTDCap)
 	xpImpact := capped(recXPPerUnit, in.ExtraPointTDs, recXPCap)
 
-	final := round1(clampRating(reliablePerf + tdImpact + xpImpact))
+	exact := clampRating(reliablePerf + tdImpact + xpImpact)
+	final := round1(exact)
 
 	res.Components = map[string]float64{
 		"catch":        catch,
@@ -245,6 +354,7 @@ func CalculateReceiverRating(in ReceiverRatingInput) RatingResult {
 	}
 	res.RawRating = raw
 	res.ReliabilityFactor = reliability
+	res.ExactRating = exact
 	res.FinalRating = final
 	return res
 }
@@ -322,9 +432,11 @@ func CalculateDefenderRating(in DefenderRatingInput) RatingResult {
 		"defensive_xp_tds": defensiveXP,
 		"defensive_sacks":  sack,
 	}
+	final, exact := finalise(raw, reliability)
 	res.RawRating = raw
 	res.ReliabilityFactor = reliability
-	res.FinalRating = finalise(raw, reliability)
+	res.ExactRating = exact
+	res.FinalRating = final
 	return res
 }
 
@@ -404,9 +516,11 @@ func CalculateRusherRating(in RusherRatingInput) RatingResult {
 		"defensive_xp_tds": defensiveXP,
 		"flag_pulls":       flagPull,
 	}
+	final, exact := finalise(raw, reliability)
 	res.RawRating = raw
 	res.ReliabilityFactor = reliability
-	res.FinalRating = finalise(raw, reliability)
+	res.ExactRating = exact
+	res.FinalRating = final
 	return res
 }
 
@@ -511,7 +625,8 @@ func CalculateQuarterbackRating(in QuarterbackRatingInput) RatingResult {
 	negativeImpact := interceptionPenalty + otherTurnoverPenalty + qbSackPenalty
 
 	// 5. Final Calculation (§9)
-	final := round1(clampRating(reliablePerf + positiveImpact - negativeImpact))
+	exact := clampRating(reliablePerf + positiveImpact - negativeImpact)
+	final := round1(exact)
 
 	res.Components = map[string]float64{
 		"completion":         completionComp,
@@ -524,6 +639,127 @@ func CalculateQuarterbackRating(in QuarterbackRatingInput) RatingResult {
 	}
 	res.RawRating = rawPerf
 	res.ReliabilityFactor = reliability
+	res.ExactRating = exact
+	res.FinalRating = final
+	return res
+}
+
+// ─── All Rounder (ALL_ROUNDER_RATING_V1.0) ──────────────────────────────────
+
+// AllRounderRoleInput represents the data for a single role (QB, REC, DEF, RUSH)
+// fed into the All-Rounder aggregator.
+type AllRounderRoleInput struct {
+	Activity    int
+	RatingExact float64
+	DataState   string // "VALID", "NO_ACTIVITY"
+}
+
+// AllRounderRatingInput contains the role inputs keyed by role name ("QB", "REC", "DEF", "RUSH").
+type AllRounderRatingInput struct {
+	Roles map[string]AllRounderRoleInput
+}
+
+// All-Rounder formula parameters (ALL_ROUNDER_RATING_V1.0 §2 & §7).
+const (
+	arQBThreshold   = 6
+	arRECThreshold  = 4
+	arDEFThreshold  = 5
+	arRUSHThreshold = 3
+	arBonusPerRole  = 0.25
+)
+
+// CalculateAllRounderRating implements ALL_ROUNDER_RATING_V1.0.
+func CalculateAllRounderRating(in AllRounderRatingInput) RatingResult {
+	res := RatingResult{
+		FormulaVersion: AllRounderFormulaVersion,
+		Components:     map[string]float64{},
+	}
+
+	thresholds := map[string]int{
+		"QB":   arQBThreshold,
+		"REC":  arRECThreshold,
+		"DEF":  arDEFThreshold,
+		"RUSH": arRUSHThreshold,
+	}
+
+	type activeRole struct {
+		rating    float64
+		activity  int
+		weight    float64
+		impact    float64
+		qualifies bool
+	}
+
+	active := make(map[string]activeRole)
+	for key, threshold := range thresholds {
+		role, ok := in.Roles[key]
+		if !ok || role.DataState == "NO_ACTIVITY" || role.Activity <= 0 {
+			continue
+		}
+		weight := math.Min(1.0, float64(role.Activity)/float64(threshold))
+		qualifies := (2*role.Activity >= threshold) && (role.RatingExact >= 5.0)
+		impact := (role.RatingExact - 5.0) * weight
+		active[key] = activeRole{
+			rating:    role.RatingExact,
+			activity:  role.Activity,
+			weight:    weight,
+			impact:    impact,
+			qualifies: qualifies,
+		}
+	}
+
+	if len(active) == 0 {
+		res.Status = RatingStatusUnrated
+		res.FinalRating = 0.0
+		res.ExactRating = 0.0
+		return res
+	}
+
+	var totalWeight, totalImpact float64
+	var qualifying int
+	for key, r := range active {
+		totalWeight += r.weight
+		totalImpact += r.impact
+		if r.qualifies {
+			qualifying++
+		}
+		res.Components[strings.ToLower(key)+"_weight"] = r.weight
+		res.Components[strings.ToLower(key)+"_impact"] = r.impact
+	}
+
+	var base float64
+	if len(active) == 1 {
+		// With one active position, its weight cancels and the base equals that position's exact rating.
+		for _, r := range active {
+			base = r.rating
+		}
+	} else {
+		base = 5.0 + (totalImpact / totalWeight)
+	}
+
+	var bonus float64
+	if qualifying >= 2 {
+		bonus = arBonusPerRole * float64(qualifying-1)
+	}
+
+	bounded := math.Max(0.0, math.Min(10.0, base+bonus))
+	final := round1(bounded)
+
+	switch {
+	case len(active) == 1:
+		res.Status = RatingStatusSingleRole
+	case qualifying >= 2:
+		res.Status = RatingStatusOfficial
+	default:
+		res.Status = RatingStatusProvisional
+	}
+
+	res.RawRating = base
+	res.Components["total_weight"] = totalWeight
+	res.Components["base_rating"] = base
+	res.Components["versatility_bonus"] = bonus
+	res.Components["qualifying_roles"] = float64(qualifying)
+	res.ExactRating = bounded
 	res.FinalRating = final
 	return res
 }

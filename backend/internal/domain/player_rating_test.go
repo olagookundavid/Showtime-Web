@@ -317,11 +317,162 @@ func TestCalculateQuarterbackRating(t *testing.T) {
 	}
 }
 
+func TestCalculateAllRounderRating(t *testing.T) {
+	cases := []struct {
+		name       string
+		in         AllRounderRatingInput
+		wantStatus string
+		wantFinal  float64
+	}{
+		{
+			name:       "Case 1: No recorded activity",
+			in:         AllRounderRatingInput{Roles: map[string]AllRounderRoleInput{}},
+			wantStatus: RatingStatusUnrated,
+			wantFinal:  0.0,
+		},
+		{
+			name: "Case 2: REC 8 at 1 target",
+			in: AllRounderRatingInput{Roles: map[string]AllRounderRoleInput{
+				"REC": {Activity: 1, RatingExact: 8.0, DataState: "VALID"},
+			}},
+			wantStatus: RatingStatusSingleRole,
+			wantFinal:  8.0,
+		},
+		{
+			name: "Case 3: REC 8 at 6 and DEF 6 at 2",
+			in: AllRounderRatingInput{Roles: map[string]AllRounderRoleInput{
+				"REC": {Activity: 6, RatingExact: 8.0, DataState: "VALID"},
+				"DEF": {Activity: 2, RatingExact: 6.0, DataState: "VALID"},
+			}},
+			wantStatus: RatingStatusProvisional,
+			wantFinal:  7.4,
+		},
+		{
+			name: "Case 4: REC 8 at 6 and DEF 6 at 3",
+			in: AllRounderRatingInput{Roles: map[string]AllRounderRoleInput{
+				"REC": {Activity: 6, RatingExact: 8.0, DataState: "VALID"},
+				"DEF": {Activity: 3, RatingExact: 6.0, DataState: "VALID"},
+			}},
+			wantStatus: RatingStatusOfficial,
+			wantFinal:  7.5,
+		},
+		{
+			name: "Case 5: REC 8 at 4 and DEF 8 at 5",
+			in: AllRounderRatingInput{Roles: map[string]AllRounderRoleInput{
+				"REC": {Activity: 4, RatingExact: 8.0, DataState: "VALID"},
+				"DEF": {Activity: 5, RatingExact: 8.0, DataState: "VALID"},
+			}},
+			wantStatus: RatingStatusOfficial,
+			wantFinal:  8.3,
+		},
+		{
+			name: "Case 6: REC 8 at 20 and DEF 6 at 5",
+			in: AllRounderRatingInput{Roles: map[string]AllRounderRoleInput{
+				"REC": {Activity: 20, RatingExact: 8.0, DataState: "VALID"},
+				"DEF": {Activity: 5, RatingExact: 6.0, DataState: "VALID"},
+			}},
+			wantStatus: RatingStatusOfficial,
+			wantFinal:  7.3,
+		},
+		{
+			name: "Case 7: QB 8 at 2 and REC 8 at 2",
+			in: AllRounderRatingInput{Roles: map[string]AllRounderRoleInput{
+				"QB":  {Activity: 2, RatingExact: 8.0, DataState: "VALID"},
+				"REC": {Activity: 2, RatingExact: 8.0, DataState: "VALID"},
+			}},
+			wantStatus: RatingStatusProvisional,
+			wantFinal:  8.0,
+		},
+		{
+			name: "Case 8: QB 8 at 3 and REC 8 at 2",
+			in: AllRounderRatingInput{Roles: map[string]AllRounderRoleInput{
+				"QB":  {Activity: 3, RatingExact: 8.0, DataState: "VALID"},
+				"REC": {Activity: 2, RatingExact: 8.0, DataState: "VALID"},
+			}},
+			wantStatus: RatingStatusOfficial,
+			wantFinal:  8.3,
+		},
+		{
+			name: "Case 9: REC 8 at 4 and DEF 4.96 at 5",
+			in: AllRounderRatingInput{Roles: map[string]AllRounderRoleInput{
+				"REC": {Activity: 4, RatingExact: 8.0, DataState: "VALID"},
+				"DEF": {Activity: 5, RatingExact: 4.96, DataState: "VALID"},
+			}},
+			wantStatus: RatingStatusProvisional,
+			wantFinal:  6.5,
+		},
+		{
+			name: "Case 10: All four at 5 with full weights",
+			in: AllRounderRatingInput{Roles: map[string]AllRounderRoleInput{
+				"QB":   {Activity: 6, RatingExact: 5.0, DataState: "VALID"},
+				"REC":  {Activity: 4, RatingExact: 5.0, DataState: "VALID"},
+				"DEF":  {Activity: 5, RatingExact: 5.0, DataState: "VALID"},
+				"RUSH": {Activity: 3, RatingExact: 5.0, DataState: "VALID"},
+			}},
+			wantStatus: RatingStatusOfficial,
+			wantFinal:  5.8,
+		},
+		{
+			name: "Case 11: All four at 10 with full weights",
+			in: AllRounderRatingInput{Roles: map[string]AllRounderRoleInput{
+				"QB":   {Activity: 6, RatingExact: 10.0, DataState: "VALID"},
+				"REC":  {Activity: 4, RatingExact: 10.0, DataState: "VALID"},
+				"DEF":  {Activity: 5, RatingExact: 10.0, DataState: "VALID"},
+				"RUSH": {Activity: 3, RatingExact: 10.0, DataState: "VALID"},
+			}},
+			wantStatus: RatingStatusOfficial,
+			wantFinal:  10.0,
+		},
+		{
+			name: "Case 12: QB 0 at 6",
+			in: AllRounderRatingInput{Roles: map[string]AllRounderRoleInput{
+				"QB": {Activity: 6, RatingExact: 0.0, DataState: "VALID"},
+			}},
+			wantStatus: RatingStatusSingleRole,
+			wantFinal:  0.0,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := CalculateAllRounderRating(c.in)
+			if got.Status != c.wantStatus {
+				t.Errorf("status = %q, want %q", got.Status, c.wantStatus)
+			}
+			if !approx(got.FinalRating, c.wantFinal) {
+				t.Errorf("final = %v, want %v", got.FinalRating, c.wantFinal)
+			}
+			if got.FormulaVersion != AllRounderFormulaVersion {
+				t.Errorf("formula version = %q, want %q", got.FormulaVersion, AllRounderFormulaVersion)
+			}
+		})
+	}
+}
+
 func TestRateByPosition(t *testing.T) {
-	t.Run("All Rounder returns nil", func(t *testing.T) {
-		res := RateByPosition("All Rounder", RatingStatLine{FlagPulls: 5, Receptions: 3})
-		if res != nil {
-			t.Errorf("expected nil for All Rounder, got %+v", res)
+	t.Run("All Rounder calculates rating with multi-phase activity", func(t *testing.T) {
+		res := RateByPosition("All Rounder", RatingStatLine{
+			FlagPulls:  5,
+			Receptions: 4,
+		})
+		if res == nil {
+			t.Fatalf("expected non-nil rating for All Rounder")
+		}
+		if res.Status != RatingStatusOfficial && res.Status != RatingStatusProvisional {
+			t.Errorf("expected Official or Provisional status, got %q", res.Status)
+		}
+		if res.FinalRating <= 0 {
+			t.Errorf("expected positive rating for active All Rounder, got %v", res.FinalRating)
+		}
+	})
+
+	t.Run("All Rounder with no stats returns UNRATED", func(t *testing.T) {
+		res := RateByPosition("All Rounder", RatingStatLine{})
+		if res == nil {
+			t.Fatalf("expected non-nil result for All Rounder")
+		}
+		if res.Status != RatingStatusUnrated {
+			t.Errorf("expected UNRATED status, got %q", res.Status)
 		}
 	})
 

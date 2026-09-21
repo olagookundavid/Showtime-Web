@@ -1,18 +1,19 @@
 package domain
 
-import "strings"
+import (
+	"strings"
+	"time"
+)
 
 // Gender-based scoring tables — the league's real scoring, from Scoring_Details.docx
 // (confirmed with the commissioner, 2026-07). The score of a touchdown / extra
 // point depends on the genders of the two players involved (a co-ed league that
 // rewards involving female players).
 //
-// A missing / unknown gender is treated as Male — the lowest-scoring combination —
-// per league instruction, so scoring is never blocked on missing data.
-//
-// These values live in code (not the editable game_rules config) because they are
-// fixed league rules, not a per-competition knob. The full model is documented in
-// docs/play-by-play-scoring-and-stats-rules.md.
+// Effective 2026-09-20 (yesterday), the league revised female 3rd-down touchdowns from
+// 7 points down to 6 points going forward. Historical matches before this date retain
+// their 7-point score.
+var Female3rdDownRuleRevisionDate = time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC)
 
 func normGender(g string) string {
 	if strings.EqualFold(strings.TrimSpace(g), "F") {
@@ -30,13 +31,21 @@ func normGender(g string) string {
 //	thirdDown — the play was on 3rd down (a female-only down).
 //	defensive — the defending team scored (use the Defensive table).
 //	isRun     — a rushing touchdown (scored by the runner's gender alone: M=6, F=7).
-func TouchdownPoints(passerG, receiverG string, thirdDown, defensive, isRun bool) int {
+//	matchDate — optional match date to apply historical rule versioning (>= Sept 20, 2026 uses 6 pts for 3rd down female TD).
+func TouchdownPoints(passerG, receiverG string, thirdDown, defensive, isRun bool, matchDate ...time.Time) int {
 	p, r := normGender(passerG), normGender(receiverG)
 
+	isNewRule := false
+	if len(matchDate) > 0 && !matchDate[0].IsZero() && !matchDate[0].Before(Female3rdDownRuleRevisionDate) {
+		isNewRule = true
+	}
+
 	if isRun {
-		// Scored by the runner's gender only. 3rd down is female-only, so a
-		// 3rd-down run is a female run — still 7.
+		// Scored by the runner's gender only. 3rd down is female-only.
 		if p == "F" || r == "F" {
+			if thirdDown && isNewRule {
+				return 6
+			}
 			return 7
 		}
 		return 6
@@ -45,6 +54,9 @@ func TouchdownPoints(passerG, receiverG string, thirdDown, defensive, isRun bool
 	// 3rd down is a female-only down: the only possible combination is F→F,
 	// which scores lower than a regular F→F. Applies to both tables.
 	if thirdDown && p == "F" && r == "F" {
+		if isNewRule {
+			return 6
+		}
 		return 7
 	}
 

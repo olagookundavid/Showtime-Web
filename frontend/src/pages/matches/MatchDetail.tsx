@@ -12,11 +12,11 @@ import { BackButton } from '../../components/common/BackButton';
 
 import { formatMatchTime, formatMatchDate } from '../../utils/dateUtils';
 
-// Right-side value on the Player Rating tab. Positions with no rating formula
-// ('-', 'All Rounder') show '–'; a player with no qualifying activity
-// (UNRATED status, null rating) shows '–' too; otherwise show the rating value.
+// Right-side value on the Player Rating tab. Non-rateable position ('-')
+// shows '–'; a player with no qualifying activity (UNRATED status, null rating)
+// shows '–' too; otherwise show the rating value.
 function ratingLabel(p: TeamSheetPlayer): string {
-    if (p.position === '-' || p.position === 'All Rounder') return '–';
+    if (p.position === '-') return '–';
     if (p.rating_status === 'UNRATED' || p.rating == null) return '–';
     return p.rating.toFixed(1);
 }
@@ -31,7 +31,7 @@ type RatingSort = 'default' | 'high' | 'low';
 // Numeric value used to sort a player by rating. Non-rateable positions and
 // unrated players have no value (sink to the bottom).
 function ratingSortValue(p: TeamSheetPlayer): number | null {
-    if (p.position === '-' || p.position === 'All Rounder') return null;
+    if (p.position === '-') return null;
     if (p.rating_status === 'UNRATED' || p.rating == null) return null;
     return p.rating;
 }
@@ -76,7 +76,7 @@ function getMatchMvpPlayerId(
     let mvpPlayerId: string | null = null;
 
     targetSheet.forEach(p => {
-        if (p.position !== '-' && p.position !== 'All Rounder' && p.rating != null && p.rating > maxRating) {
+        if (p.position !== '-' && p.rating != null && p.rating > maxRating) {
             maxRating = p.rating;
             mvpPlayerId = p.player_id;
         }
@@ -84,7 +84,7 @@ function getMatchMvpPlayerId(
 
     if (!mvpPlayerId) {
         [...homeSheet, ...awaySheet].forEach(p => {
-            if (p.position !== '-' && p.position !== 'All Rounder' && p.rating != null && p.rating > maxRating) {
+            if (p.position !== '-' && p.rating != null && p.rating > maxRating) {
                 maxRating = p.rating;
                 mvpPlayerId = p.player_id;
             }
@@ -114,10 +114,10 @@ function TeamSheetRosterList({
     }
 
     // Group players:
-    // 1. Rated (have a real rating — OFFICIAL or PROVISIONAL)
+    // 1. Rated (have a real rating — OFFICIAL, PROVISIONAL, or SINGLE_ROLE)
     // 2. Unrated (rateable position but no qualifying stats this match)
-    // 3. Non-rateable ('-' or 'All Rounder')
-    const isNonRateable = (p: TeamSheetPlayer) => p.position === '-' || p.position === 'All Rounder';
+    // 3. Non-rateable ('-')
+    const isNonRateable = (p: TeamSheetPlayer) => p.position === '-';
     const isUnrated = (p: TeamSheetPlayer) => !isNonRateable(p) && (p.rating_status === 'UNRATED' || p.rating == null);
     const ratedPlayers = sheet.filter(p => !isNonRateable(p) && !isUnrated(p));
     const baselinePlayers = sheet.filter(p => isUnrated(p));

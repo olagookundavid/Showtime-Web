@@ -110,18 +110,18 @@ func (s *PlayService) RecomputeScore(ctx context.Context, matchID string) (int, 
 					// TouchdownPoints before it ever looks at `defensive`, so
 					// that arg is inert here — passed false to match the
 					// existing run-TD call's convention below).
-					addDef(domain.TouchdownPoints(gt, gt, thirdDown, false, true))
+					addDef(domain.TouchdownPoints(gt, gt, thirdDown, false, true, match.Date))
 				} else {
 					// Defensive TD (pick-six recorded as a TD): passer = QB who
 					// threw it, receiver = the interceptor.
-					addDef(domain.TouchdownPoints(gq, gd, thirdDown, true, false))
+					addDef(domain.TouchdownPoints(gq, gd, thirdDown, true, false, match.Date))
 				}
 			} else if isRun {
 				// Run TD — scored by the runner's own gender.
-				addOff(domain.TouchdownPoints(gq, gq, thirdDown, false, true))
+				addOff(domain.TouchdownPoints(gq, gq, thirdDown, false, true, match.Date))
 			} else {
 				// Offensive pass TD: passer = QB, receiver = target.
-				addOff(domain.TouchdownPoints(gq, gt, thirdDown, false, false))
+				addOff(domain.TouchdownPoints(gq, gt, thirdDown, false, false, match.Date))
 			}
 		case "XP":
 			if p.ReturnedForTD {
@@ -138,7 +138,7 @@ func (s *PlayService) RecomputeScore(ctx context.Context, matchID string) (int, 
 		case "INT":
 			if p.ReturnedForTD {
 				// Pick-six recorded on an interception play.
-				addDef(domain.TouchdownPoints(gq, gd, thirdDown, true, false))
+				addDef(domain.TouchdownPoints(gq, gd, thirdDown, true, false, match.Date))
 			}
 		}
 
