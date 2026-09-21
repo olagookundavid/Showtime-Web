@@ -136,8 +136,12 @@ type RatingStatLine struct {
 // genuine UNRATED result.
 func RateByPosition(position string, s RatingStatLine) *RatingResult {
 	var res RatingResult
-	switch position {
-	case "QB":
+	// Tagless switch (not `switch position {`) so the All Rounder branch can be
+	// reached via IsAllrounderRole's spelling-tolerant check ("Allrounder",
+	// "All-Rounder", "AR", ...) instead of the single literal "All Rounder" the
+	// roster doesn't consistently use — see IsAllrounderRole's doc comment.
+	switch {
+	case position == "QB":
 		otherTurnovers := s.Turnovers - s.InterceptionsThrown
 		if otherTurnovers < 0 {
 			otherTurnovers = 0
@@ -159,27 +163,27 @@ func RateByPosition(position string, s RatingStatLine) *RatingResult {
 			ThrownAwayPasses:    s.ThrownAwayPasses,
 			BattedDownPasses:    s.BattedDownPasses,
 		})
-	case "Receiver", "Center":
+	case position == "Receiver" || position == "Center":
 		// Center is scored identically to Receiver — same formula, same inputs.
 		res = CalculateReceiverRating(ReceiverRatingInput{
 			Receptions: s.Receptions, ReceivingTDs: s.ReceivingTDs,
 			ExtraPointTDs: s.ExtraPointTDs, Drops: s.Drops,
 		})
-	case "Defender":
+	case position == "Defender":
 		res = CalculateDefenderRating(DefenderRatingInput{
 			FlagPulls: s.FlagPulls, PassDeflections: s.PassDeflections,
 			Interceptions: s.Interceptions, Safeties: s.Safeties,
 			DefensiveTDs: s.DefensiveTDs, DefensiveXPTDs: s.DefensiveXPTDs,
 			DefensiveSacks: s.DefensiveSacks,
 		})
-	case "Rusher":
+	case position == "Rusher":
 		res = CalculateRusherRating(RusherRatingInput{
 			DefensiveSacks: s.DefensiveSacks, Safeties: s.Safeties,
 			PassDeflections: s.PassDeflections, Interceptions: s.Interceptions,
 			DefensiveTDs: s.DefensiveTDs, DefensiveXPTDs: s.DefensiveXPTDs,
 			FlagPulls: s.FlagPulls,
 		})
-	case "All Rounder":
+	case IsAllrounderRole(position):
 		roles := make(map[string]AllRounderRoleInput)
 
 		// 1. QB
