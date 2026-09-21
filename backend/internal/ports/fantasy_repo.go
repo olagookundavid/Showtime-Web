@@ -1509,7 +1509,7 @@ func (r *FantasyRepository) BulkUpsertGWPoints(ctx context.Context, pts []domain
 
 	const query = `
 		INSERT INTO fantasy_gw_points (team_id, gameweek_id, player_id, match_id, points, breakdown)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		VALUES ($1, $2, $3, $4, $5, $6::jsonb)
 		ON CONFLICT (team_id, gameweek_id, player_id, match_id) DO UPDATE
 		SET points = EXCLUDED.points,
 		    breakdown = EXCLUDED.breakdown
@@ -1528,7 +1528,7 @@ func (r *FantasyRepository) BulkUpsertGWPoints(ctx context.Context, pts []domain
 			if err != nil {
 				return fmt.Errorf("failed to marshal points breakdown: %w", err)
 			}
-			batch.Queue(query, p.TeamID, p.GameweekID, p.PlayerID, p.MatchID, p.Points, breakdownJSON)
+			batch.Queue(query, p.TeamID, p.GameweekID, p.PlayerID, p.MatchID, p.Points, string(breakdownJSON))
 		}
 
 		results := tx.SendBatch(ctx, batch)
