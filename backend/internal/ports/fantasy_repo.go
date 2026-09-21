@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"showtime-backend/internal/domain"
@@ -2269,7 +2270,9 @@ func (r *FantasyRepository) GetGameweekAnalytics(ctx context.Context, seasonID, 
 		}
 	}
 
-	// 3. Top Scoring Players
+	// 3. All Gameweek Scorers (ordered by points descending)
+	var allScorers []dto.TopScoringPlayerItem
+
 	topScorersQuery := `
 		SELECT p.id, p.name, COALESCE(p.image, ''), COALESCE(p.position, '-'), COALESCE(p.gender, 'M'),
 		       COALESCE(t.id::text, ''), COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
@@ -2293,7 +2296,6 @@ func (r *FantasyRepository) GetGameweekAnalytics(ctx context.Context, seasonID, 
 			LIMIT 1
 		) pp ON true
 		ORDER BY gp.pts DESC
-		LIMIT 30
 	`
 	tsRows, err := r.pool.Query(ctx, topScorersQuery, gw.ID, seasonID)
 	if err == nil {
@@ -2307,13 +2309,13 @@ func (r *FantasyRepository) GetGameweekAnalytics(ctx context.Context, seasonID, 
 			); err == nil {
 				ts.Gender = domain.NormalizeGender(ts.Gender)
 				ts.OwnershipPercentage = ownershipMap[ts.PlayerID]
-				report.TopScorers = append(report.TopScorers, ts)
+				allScorers = append(allScorers, ts)
 			}
 		}
 	}
 
 	// If fantasy_gw_points was empty, fallback to reading scored picks
-	if len(report.TopScorers) == 0 {
+	if len(allScorers) == 0 {
 		fallbackQuery := `
 			SELECT p.id, p.name, COALESCE(p.image, ''), COALESCE(p.position, '-'), COALESCE(p.gender, 'M'),
 			       COALESCE(t.id::text, ''), COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
@@ -2332,7 +2334,6 @@ func (r *FantasyRepository) GetGameweekAnalytics(ctx context.Context, seasonID, 
 			WHERE fl.gameweek_id = $1 AND fl.status = 'LOCKED'
 			GROUP BY p.id, p.name, p.image, p.position, p.gender, t.id, t.name, t.short_name, t.logo, pp.price
 			ORDER BY points DESC
-			LIMIT 30
 		`
 		fbRows, fbErr := r.pool.Query(ctx, fallbackQuery, gw.ID, seasonID)
 		if fbErr == nil {
@@ -2346,14 +2347,21 @@ func (r *FantasyRepository) GetGameweekAnalytics(ctx context.Context, seasonID, 
 				); err == nil {
 					ts.Gender = domain.NormalizeGender(ts.Gender)
 					ts.OwnershipPercentage = ownershipMap[ts.PlayerID]
-					report.TopScorers = append(report.TopScorers, ts)
+					allScorers = append(allScorers, ts)
 				}
 			}
 		}
 	}
 
+	// Populate report.TopScorers (capped to top 30 for UI display widget)
+	if len(allScorers) > 30 {
+		report.TopScorers = append(report.TopScorers, allScorers[:30]...)
+	} else {
+		report.TopScorers = append(report.TopScorers, allScorers...)
+	}
+
 	// Differentials: High points (>0) and low ownership (< 20%)
-	for _, ts := range report.TopScorers {
+	for _, ts := range allScorers {
 		if ts.Points > 0 && ts.OwnershipPercentage < 20.0 {
 			report.Differentials = append(report.Differentials, ts)
 			if len(report.Differentials) >= 6 {
@@ -2387,8 +2395,8 @@ func (r *FantasyRepository) GetGameweekAnalytics(ctx context.Context, seasonID, 
 				if cp.ActivePlayerCount > 0 {
 					cp.AveragePointsPerPlayer = math.Round((cp.TotalPoints/float64(cp.ActivePlayerCount))*10) / 10
 				}
-				// Find top scorer for this club
-				for _, ts := range report.TopScorers {
+				// Find top scorer for this club from all gameweek performers
+				for _, ts := range allScorers {
 					if ts.TeamID == cp.ClubID {
 						cp.TopScorerName = ts.PlayerName
 						cp.TopScorerPoints = ts.Points
@@ -2400,8 +2408,8 @@ func (r *FantasyRepository) GetGameweekAnalytics(ctx context.Context, seasonID, 
 		}
 	}
 
-	// 5. Dream Team (Optimal legal starting 14)
-	report.DreamTeam, report.DreamTeamTotalPoints = buildDreamTeam(report.TopScorers)
+	// 5. Dream Team (Optimal legal starting 14 built from all performers)
+	report.DreamTeam, report.DreamTeamTotalPoints = buildDreamTeam(allScorers)
 
 	return report, nil
 }
@@ -2438,7 +2446,7 @@ func buildDreamTeam(scorers []dto.TopScoringPlayerItem) ([]dto.FantasyLineupPick
 			PlayerName:    p.PlayerName,
 			PlayerImage:   p.PlayerImage,
 			Position:      p.Position,
-			Gender:        p.Gender,
+			Gender:        domain.NormalizeGender(p.Gender),
 			TeamID:        p.TeamID,
 			TeamName:      p.TeamName,
 			TeamShortName: p.TeamShortName,
@@ -2449,28 +2457,59 @@ func buildDreamTeam(scorers []dto.TopScoringPlayerItem) ([]dto.FantasyLineupPick
 		}
 	}
 
+	isQB := func(pos string) bool {
+		p := strings.ToUpper(strings.TrimSpace(pos))
+		return p == "QB" || p == "QUARTERBACK" || domain.IsAllrounderRole(pos)
+	}
+	isReceiver := func(pos string) bool {
+		p := strings.ToUpper(strings.TrimSpace(pos))
+		return p == "RECEIVER" || p == "CENTER" || p == "WR" || p == "C" || p == "REC" || p == "WIDE RECEIVER" || domain.IsAllrounderRole(pos)
+	}
+	isFemaleStarter := func(pos string) bool {
+		p := strings.ToUpper(strings.TrimSpace(pos))
+		return p == "QB" || p == "QUARTERBACK" || p == "RECEIVER" || p == "CENTER" || p == "WR" || p == "C" || p == "REC" || domain.IsAllrounderRole(pos)
+	}
+	isRusher := func(pos string) bool {
+		p := strings.ToUpper(strings.TrimSpace(pos))
+		return p == "RUSHER" || p == "RUSH" || p == "DE" || p == "DT" || p == "EDGE" || p == "BLITZER" || domain.IsAllrounderRole(pos)
+	}
+	isDefender := func(pos string) bool {
+		p := strings.ToUpper(strings.TrimSpace(pos))
+		return p == "DEFENDER" || p == "DEF" || p == "DB" || p == "CB" || p == "SAFETY" || p == "FS" || p == "SS" || p == "LB" || domain.IsAllrounderRole(pos)
+	}
+
 	// 1. Male QB
 	for _, p := range scorers {
-		if (p.Position == "QB" || p.Position == "Quarterback") && p.Gender == "M" && canPick(p) {
+		if isQB(p.Position) && domain.NormalizeGender(p.Gender) == "M" && canPick(p) {
 			picks = append(picks, takePick(p, "QB_M"))
 			break
 		}
 	}
 
-	// 2. Female QB
+	// 2. Female QB or Starter (QB/Receiver/Center per Showtime rules)
 	for _, p := range scorers {
-		if (p.Position == "QB" || p.Position == "Quarterback") && p.Gender == "F" && canPick(p) {
+		if isQB(p.Position) && domain.NormalizeGender(p.Gender) == "F" && canPick(p) {
 			picks = append(picks, takePick(p, "QB_F"))
 			break
 		}
 	}
+	var hasQBF bool
+	for _, pk := range picks {
+		if pk.Slot == "QB_F" {
+			hasQBF = true
+			break
+		}
+	}
+	if !hasQBF {
+		for _, p := range scorers {
+			if isFemaleStarter(p.Position) && domain.NormalizeGender(p.Gender) == "F" && canPick(p) {
+				picks = append(picks, takePick(p, "QB_F"))
+				break
+			}
+		}
+	}
 
 	// 3. Receivers (5 slots). Quota needs at least 2 female receivers to hit min 3 female offense with QB_F.
-	//
-	// Slots are assigned from the canonical list by position, not derived from
-	// len(picks): if an earlier slot (say QB_F) went unfilled because no such
-	// scorer existed, len(picks) undercounts and produces a slot name like
-	// "REC_0" that nothing else recognises, silently corrupting the label.
 	recSlots := []string{"REC_1", "REC_2", "REC_3", "REC_4", "REC_5"}
 	recIdx := 0
 	femaleRecNeeded := 2
@@ -2478,7 +2517,7 @@ func buildDreamTeam(scorers []dto.TopScoringPlayerItem) ([]dto.FantasyLineupPick
 		if femaleRecNeeded <= 0 || recIdx >= len(recSlots) {
 			break
 		}
-		if (p.Position == "Receiver" || p.Position == "Center" || p.Position == "WR") && p.Gender == "F" && canPick(p) {
+		if isReceiver(p.Position) && domain.NormalizeGender(p.Gender) == "F" && canPick(p) {
 			picks = append(picks, takePick(p, recSlots[recIdx]))
 			recIdx++
 			femaleRecNeeded--
@@ -2496,7 +2535,7 @@ func buildDreamTeam(scorers []dto.TopScoringPlayerItem) ([]dto.FantasyLineupPick
 		}
 		if !alreadyFilled {
 			for _, p := range scorers {
-				if (p.Position == "Receiver" || p.Position == "Center" || p.Position == "WR") && canPick(p) {
+				if isReceiver(p.Position) && canPick(p) {
 					picks = append(picks, takePick(p, slot))
 					break
 				}
@@ -2506,15 +2545,13 @@ func buildDreamTeam(scorers []dto.TopScoringPlayerItem) ([]dto.FantasyLineupPick
 
 	// 4. Rusher (1 slot)
 	for _, p := range scorers {
-		if (p.Position == "Rusher" || p.Position == "RUSH") && canPick(p) {
+		if isRusher(p.Position) && canPick(p) {
 			picks = append(picks, takePick(p, "RUSHER"))
 			break
 		}
 	}
 
 	// 5. Defenders (6 slots). Quota needs at least 3 female defenders.
-	// See the receivers section above for why this indexes into the canonical
-	// slot list instead of deriving a number from len(picks).
 	defSlots := []string{"DEF_1", "DEF_2", "DEF_3", "DEF_4", "DEF_5", "DEF_6"}
 	defIdx := 0
 	femaleDefNeeded := 3
@@ -2522,7 +2559,7 @@ func buildDreamTeam(scorers []dto.TopScoringPlayerItem) ([]dto.FantasyLineupPick
 		if femaleDefNeeded <= 0 || defIdx >= len(defSlots) {
 			break
 		}
-		if (p.Position == "Defender" || p.Position == "DB" || p.Position == "CB" || p.Position == "Safety" || p.Position == "LB") && p.Gender == "F" && canPick(p) {
+		if isDefender(p.Position) && domain.NormalizeGender(p.Gender) == "F" && canPick(p) {
 			picks = append(picks, takePick(p, defSlots[defIdx]))
 			defIdx++
 			femaleDefNeeded--
@@ -2540,7 +2577,7 @@ func buildDreamTeam(scorers []dto.TopScoringPlayerItem) ([]dto.FantasyLineupPick
 		}
 		if !alreadyFilled {
 			for _, p := range scorers {
-				if (p.Position == "Defender" || p.Position == "DB" || p.Position == "CB" || p.Position == "Safety" || p.Position == "LB") && canPick(p) {
+				if isDefender(p.Position) && canPick(p) {
 					picks = append(picks, takePick(p, slot))
 					break
 				}
@@ -2558,3 +2595,4 @@ func buildDreamTeam(scorers []dto.TopScoringPlayerItem) ([]dto.FantasyLineupPick
 func BuildDreamTeamForTest(scorers []dto.TopScoringPlayerItem) ([]dto.FantasyLineupPickResponse, float64) {
 	return buildDreamTeam(scorers)
 }
+

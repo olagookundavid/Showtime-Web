@@ -42,6 +42,8 @@ type IFantasyLeagueRepository interface {
 	// GetMyRankInLeague locates a viewer inside one league's table, so the UI
 	// can open the leaderboard on the page they are actually on.
 	GetMyRankInLeague(ctx context.Context, leagueID, userID string) (int, error)
+	GetMyOverallEntry(ctx context.Context, seasonID, userID string, gameweekID *string) (*dto.LeaderboardEntry, error)
+	GetMyLeagueEntry(ctx context.Context, leagueID, userID string, gameweekID *string) (*dto.LeaderboardEntry, error)
 	GetLeaderboard(ctx context.Context, leagueID string, gameweekID *string, page, limit int) ([]dto.LeaderboardEntry, int, error)
 	GetOverallLeaderboard(ctx context.Context, seasonID string, gameweekID *string, page, limit int) ([]dto.LeaderboardEntry, int, error)
 }
@@ -508,6 +510,132 @@ func (r *FantasyLeagueRepository) GetMyRankInLeague(ctx context.Context, leagueI
 		return 0, fmt.Errorf("failed to find your position in this league: %w", err)
 	}
 	return rank, nil
+}
+
+func (r *FantasyLeagueRepository) GetMyOverallEntry(ctx context.Context, seasonID, userID string, gameweekID *string) (*dto.LeaderboardEntry, error) {
+	if userID == "" {
+		return nil, nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	var query string
+	var args []interface{}
+
+	if gameweekID != nil {
+		query = `
+			WITH ranked AS (
+				SELECT ft.id as team_id, ft.name as team_name, u.id as user_id, COALESCE(u.full_name, '') as user_name,
+				       COALESCE(fl.points, 0.000)::float8 as gw_pts,
+				       COALESCE(ft.total_points, 0.000)::float8 as tot_pts,
+				       ROW_NUMBER() OVER (
+				           ORDER BY COALESCE(fl.points, 0.000) DESC, ft.total_points DESC, u.full_name ASC, ft.id ASC
+				       ) as rnk
+				FROM fantasy_teams ft
+				JOIN users u ON ft.user_id = u.id
+				LEFT JOIN fantasy_lineups fl ON fl.team_id = ft.id AND fl.gameweek_id = $2 AND fl.status = 'LOCKED'
+				WHERE ft.season_id = $1
+			)
+			SELECT rnk, user_id, user_name, team_name, team_id, gw_pts, tot_pts
+			FROM ranked
+			WHERE user_id = $3
+		`
+		args = []interface{}{seasonID, *gameweekID, userID}
+	} else {
+		query = `
+			WITH ranked AS (
+				SELECT ft.id as team_id, ft.name as team_name, u.id as user_id, COALESCE(u.full_name, '') as user_name,
+				       0.000::float8 as gw_pts,
+				       COALESCE(ft.total_points, 0.000)::float8 as tot_pts,
+				       ROW_NUMBER() OVER (
+				           ORDER BY ft.total_points DESC, u.full_name ASC, ft.id ASC
+				       ) as rnk
+				FROM fantasy_teams ft
+				JOIN users u ON ft.user_id = u.id
+				WHERE ft.season_id = $1
+			)
+			SELECT rnk, user_id, user_name, team_name, team_id, gw_pts, tot_pts
+			FROM ranked
+			WHERE user_id = $2
+		`
+		args = []interface{}{seasonID, userID}
+	}
+
+	var entry dto.LeaderboardEntry
+	if err := r.pool.QueryRow(ctx, query, args...).Scan(
+		&entry.Rank, &entry.UserID, &entry.UserName, &entry.TeamName, &entry.TeamID,
+		&entry.GWPoints, &entry.TotalPoints,
+	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get your overall entry: %w", err)
+	}
+	return &entry, nil
+}
+
+func (r *FantasyLeagueRepository) GetMyLeagueEntry(ctx context.Context, leagueID, userID string, gameweekID *string) (*dto.LeaderboardEntry, error) {
+	if userID == "" {
+		return nil, nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	var query string
+	var args []interface{}
+
+	if gameweekID != nil {
+		query = `
+			WITH ranked AS (
+				SELECT ft.id as team_id, ft.name as team_name, u.id as user_id, COALESCE(u.full_name, '') as user_name,
+				       COALESCE(fl.points, 0.000)::float8 as gw_pts,
+				       COALESCE(ft.total_points, 0.000)::float8 as tot_pts,
+				       ROW_NUMBER() OVER (
+				           ORDER BY COALESCE(fl.points, 0.000) DESC, ft.total_points DESC, u.full_name ASC, ft.id ASC
+				       ) as rnk
+				FROM fantasy_league_members flm
+				JOIN fantasy_teams ft ON flm.team_id = ft.id
+				JOIN users u ON flm.user_id = u.id
+				LEFT JOIN fantasy_lineups fl ON fl.team_id = ft.id AND fl.gameweek_id = $2 AND fl.status = 'LOCKED'
+				WHERE flm.league_id = $1 AND flm.payment_status IN ('FREE', 'PAID') AND flm.left_at IS NULL
+			)
+			SELECT rnk, user_id, user_name, team_name, team_id, gw_pts, tot_pts
+			FROM ranked
+			WHERE user_id = $3
+		`
+		args = []interface{}{leagueID, *gameweekID, userID}
+	} else {
+		query = `
+			WITH ranked AS (
+				SELECT ft.id as team_id, ft.name as team_name, u.id as user_id, COALESCE(u.full_name, '') as user_name,
+				       0.000::float8 as gw_pts,
+				       COALESCE(ft.total_points, 0.000)::float8 as tot_pts,
+				       ROW_NUMBER() OVER (
+				           ORDER BY ft.total_points DESC, u.full_name ASC, ft.id ASC
+				       ) as rnk
+				FROM fantasy_league_members flm
+				JOIN fantasy_teams ft ON flm.team_id = ft.id
+				JOIN users u ON flm.user_id = u.id
+				WHERE flm.league_id = $1 AND flm.payment_status IN ('FREE', 'PAID') AND flm.left_at IS NULL
+			)
+			SELECT rnk, user_id, user_name, team_name, team_id, gw_pts, tot_pts
+			FROM ranked
+			WHERE user_id = $2
+		`
+		args = []interface{}{leagueID, userID}
+	}
+
+	var entry dto.LeaderboardEntry
+	if err := r.pool.QueryRow(ctx, query, args...).Scan(
+		&entry.Rank, &entry.UserID, &entry.UserName, &entry.TeamName, &entry.TeamID,
+		&entry.GWPoints, &entry.TotalPoints,
+	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get your league entry: %w", err)
+	}
+	return &entry, nil
 }
 
 func (r *FantasyLeagueRepository) GetLeaderboard(ctx context.Context, leagueID string, gameweekID *string, page, limit int) ([]dto.LeaderboardEntry, int, error) {

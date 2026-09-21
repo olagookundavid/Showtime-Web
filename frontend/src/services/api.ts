@@ -3103,6 +3103,7 @@ export interface Leaderboard {
     total: number;
     total_pages: number;
     my_rank: number;
+    my_entry?: LeaderboardEntry | null;
 }
 
 interface RawLeaderboard {
@@ -3110,6 +3111,7 @@ interface RawLeaderboard {
     total: number;
     total_pages: number;
     my_rank?: number;
+    my_entry?: LeaderboardEntry | null;
 }
 
 export interface LeaderboardEntry {
@@ -3251,7 +3253,12 @@ export const fantasyApi = {
         );
         // An empty list must reach the UI as [], never null — callers read
         // .length and .map on it directly.
-        return { ...res.data, data: res.data.data ?? [], my_rank: res.data.my_rank ?? 0 };
+        return {
+            ...res.data,
+            data: res.data.data ?? [],
+            my_rank: res.data.my_rank ?? 0,
+            my_entry: res.data.my_entry ?? null,
+        };
     },
     getOverallLeaderboard: async (
         seasonId: string,
@@ -3261,7 +3268,12 @@ export const fantasyApi = {
             `/fantasy/season/${seasonId}/leaderboard`,
             { params }
         );
-        return { ...res.data, data: res.data.data ?? [], my_rank: res.data.my_rank ?? 0 };
+        return {
+            ...res.data,
+            data: res.data.data ?? [],
+            my_rank: res.data.my_rank ?? 0,
+            my_entry: res.data.my_entry ?? null,
+        };
     },
 
     // Admin

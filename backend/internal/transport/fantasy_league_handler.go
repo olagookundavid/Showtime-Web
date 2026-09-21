@@ -74,10 +74,16 @@ func (h *FantasyLeagueHandler) GetLeaderboard(c *gin.Context) {
 	}
 
 	// Optional auth: a signed-in viewer also gets their own position, so the
-	// client can jump straight to the page they are on.
+	// client can display their row and jump to the page they are on.
+	var myEntry *dto.LeaderboardEntry
 	myRank := 0
 	if payload, err := helpers.GetTokenPayloadFromContext(c); err == nil && payload != nil {
-		myRank, _ = h.service.GetMyRankInLeague(c.Request.Context(), leagueID, payload.UserId)
+		myEntry, _ = h.service.GetMyLeagueEntry(c.Request.Context(), leagueID, payload.UserId, gwPtr)
+		if myEntry != nil {
+			myRank = myEntry.Rank
+		} else {
+			myRank, _ = h.service.GetMyRankInLeague(c.Request.Context(), leagueID, payload.UserId)
+		}
 	}
 
 	totalPages := 0
@@ -92,6 +98,7 @@ func (h *FantasyLeagueHandler) GetLeaderboard(c *gin.Context) {
 		"limit":       limit,
 		"total_pages": totalPages,
 		"my_rank":     myRank,
+		"my_entry":    myEntry,
 	})
 }
 
@@ -111,9 +118,15 @@ func (h *FantasyLeagueHandler) GetOverallLeaderboard(c *gin.Context) {
 		return
 	}
 
+	var myEntry *dto.LeaderboardEntry
 	myRank := 0
 	if payload, err := helpers.GetTokenPayloadFromContext(c); err == nil && payload != nil {
-		myRank, _ = h.service.GetMyOverallRank(c.Request.Context(), seasonID, payload.UserId)
+		myEntry, _ = h.service.GetMyOverallEntry(c.Request.Context(), seasonID, payload.UserId, gwPtr)
+		if myEntry != nil {
+			myRank = myEntry.Rank
+		} else {
+			myRank, _ = h.service.GetMyOverallRank(c.Request.Context(), seasonID, payload.UserId)
+		}
 	}
 
 	totalPages := 0
@@ -128,6 +141,7 @@ func (h *FantasyLeagueHandler) GetOverallLeaderboard(c *gin.Context) {
 		"limit":       limit,
 		"total_pages": totalPages,
 		"my_rank":     myRank,
+		"my_entry":    myEntry,
 	})
 }
 

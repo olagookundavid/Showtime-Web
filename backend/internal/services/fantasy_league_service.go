@@ -33,6 +33,8 @@ type IFantasyLeagueService interface {
 	// rather than page 1, which is meaningless to a mid-table manager.
 	GetMyRankInLeague(ctx context.Context, leagueID, userID string) (int, error)
 	GetMyOverallRank(ctx context.Context, seasonID, userID string) (int, error)
+	GetMyOverallEntry(ctx context.Context, seasonID, userID string, gameweekID *string) (*dto.LeaderboardEntry, error)
+	GetMyLeagueEntry(ctx context.Context, leagueID, userID string, gameweekID *string) (*dto.LeaderboardEntry, error)
 }
 
 type FantasyLeagueService struct {
@@ -465,3 +467,18 @@ func (s *FantasyLeagueService) GetLeaderboard(ctx context.Context, leagueID stri
 func (s *FantasyLeagueService) GetOverallLeaderboard(ctx context.Context, seasonID string, gameweekID *string, page, limit int) ([]dto.LeaderboardEntry, int, error) {
 	return s.repo.GetOverallLeaderboard(ctx, seasonID, gameweekID, page, limit)
 }
+
+func (s *FantasyLeagueService) GetMyOverallEntry(ctx context.Context, seasonID, userID string, gameweekID *string) (*dto.LeaderboardEntry, error) {
+	if userID == "" {
+		return nil, nil
+	}
+	return s.repo.GetMyOverallEntry(ctx, seasonID, userID, gameweekID)
+}
+
+func (s *FantasyLeagueService) GetMyLeagueEntry(ctx context.Context, leagueID, userID string, gameweekID *string) (*dto.LeaderboardEntry, error) {
+	if userID == "" {
+		return nil, nil
+	}
+	return s.repo.GetMyLeagueEntry(ctx, leagueID, userID, gameweekID)
+}
+

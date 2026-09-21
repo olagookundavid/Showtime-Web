@@ -158,3 +158,52 @@ func TestDreamTeamBuilder(t *testing.T) {
 		t.Errorf("expected positive total points, got %v", total)
 	}
 }
+
+func TestDreamTeamBuilder_WithSynonymsAndFallback(t *testing.T) {
+	// Simulates real-world scenario where:
+	// - No female QB exists; QB_F is filled by a female Receiver/Center
+	// - Position synonyms like 'DEF', 'WR', 'RUSH' are used
+	// - Many defenders have low scores (1.0 - 3.0 pts)
+	scorers := []dto.TopScoringPlayerItem{
+		{PlayerID: "p-qbm", Position: "Quarterback", Gender: "M", TeamID: "c1", Points: 30},
+		// No female QB: female WRs will fill QB_F + REC slots
+		{PlayerID: "p-wrf1", Position: "WR", Gender: "F", TeamID: "c2", Points: 28},
+		{PlayerID: "p-wrf2", Position: "Receiver", Gender: "F", TeamID: "c3", Points: 25},
+		{PlayerID: "p-wrf3", Position: "Center", Gender: "F", TeamID: "c4", Points: 24},
+		{PlayerID: "p-wrm1", Position: "WR", Gender: "M", TeamID: "c1", Points: 22},
+		{PlayerID: "p-wrm2", Position: "Receiver", Gender: "M", TeamID: "c2", Points: 20},
+		{PlayerID: "p-wrm3", Position: "WR", Gender: "M", TeamID: "c3", Points: 18},
+		{PlayerID: "p-rush", Position: "RUSH", Gender: "M", TeamID: "c5", Points: 15},
+		// Low-scoring defenders:
+		{PlayerID: "p-deff1", Position: "DEF", Gender: "F", TeamID: "c4", Points: 3.5},
+		{PlayerID: "p-deff2", Position: "DB", Gender: "F", TeamID: "c5", Points: 3.0},
+		{PlayerID: "p-deff3", Position: "Safety", Gender: "F", TeamID: "c6", Points: 2.5},
+		{PlayerID: "p-defm1", Position: "CB", Gender: "M", TeamID: "c7", Points: 2.0},
+		{PlayerID: "p-defm2", Position: "DEF", Gender: "M", TeamID: "c8", Points: 1.5},
+		{PlayerID: "p-defm3", Position: "Defender", Gender: "M", TeamID: "c9", Points: 1.0},
+	}
+
+	picks, total := ports.BuildDreamTeamForTest(scorers)
+	if len(picks) != 14 {
+		t.Fatalf("expected 14 dream team picks, got %d", len(picks))
+	}
+	if total <= 0 {
+		t.Errorf("expected positive total points, got %v", total)
+	}
+
+	// Verify all 14 required slots are present
+	slotsFound := make(map[string]bool)
+	for _, pk := range picks {
+		slotsFound[pk.Slot] = true
+	}
+	requiredSlots := []string{
+		"QB_M", "QB_F", "REC_1", "REC_2", "REC_3", "REC_4", "REC_5",
+		"RUSHER", "DEF_1", "DEF_2", "DEF_3", "DEF_4", "DEF_5", "DEF_6",
+	}
+	for _, req := range requiredSlots {
+		if !slotsFound[req] {
+			t.Errorf("missing expected slot: %s", req)
+		}
+	}
+}
+
