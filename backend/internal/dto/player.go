@@ -41,6 +41,8 @@ type PlayerResponse struct {
 	// they are still searchable and still carry their history.
 	Status    string `json:"status,omitempty"`
 	IsReserve bool   `json:"is_reserve"`
+	MVPCount  int    `json:"mvp_count"`
+	Tier      string `json:"tier,omitempty"`
 }
 
 type RosterSummaryResponse struct {

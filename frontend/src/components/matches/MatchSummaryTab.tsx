@@ -43,6 +43,181 @@ export function calculatePlayerFantasyPoints(s: PlayerStat): number {
     return Math.max(0, Math.round(total * 10) / 10);
 }
 
+export interface UnifiedMvpResult {
+    playerId: string;
+    playerName: string;
+    playerImage?: string;
+    playerJerseyNumber?: number;
+    playerPosition?: string;
+    teamName?: string;
+    teamId?: string;
+    fp: number;
+    rating?: number | null;
+    statSummary?: string;
+}
+
+/**
+ * Unified Match MVP calculation across the Showtime platform.
+ * 1. Winning Team priority (unless tie or no positive contributors on winning team).
+ * 2. Composite Impact Score = SFFL Fantasy Points (volume + big plays) + Rating efficiency bonus.
+ * 3. Fallback to roster rating if detailed stats are not yet recorded.
+ */
+export function getUnifiedMatchMvp(
+    match: Match,
+    teamSheet: MatchTeamSheet,
+    playerStats: PlayerStat[]
+): UnifiedMvpResult | null {
+    const homeScore = match.home_score ?? 0;
+    const awayScore = match.away_score ?? 0;
+    const homeTeamId = match.home_team?.id;
+    const awayTeamId = match.away_team?.id;
+    const winningTeamId = homeScore > awayScore ? homeTeamId : awayScore > homeScore ? awayTeamId : null;
+
+    const allSheet = [...(teamSheet?.home_team || []), ...(teamSheet?.away_team || [])];
+    const sheetMap = new Map(allSheet.map(p => [p.player_id, p]));
+
+    // 0. Official MVP persisted on match record takes precedence
+    if (match.mvp_player_id) {
+        const pStat = playerStats?.find(p => p.player_id === match.mvp_player_id);
+        const sheetEntry = sheetMap.get(match.mvp_player_id);
+        if (pStat || sheetEntry) {
+            const fp = pStat ? calculatePlayerFantasyPoints(pStat) : 0;
+            const rating = sheetEntry?.rating ?? null;
+            const statParts: string[] = [];
+            if (pStat) {
+                if (pStat.passing_tds) statParts.push(`${pStat.passing_tds} Pass TD`);
+                if (pStat.passing_yards) statParts.push(`${pStat.passing_yards} Pass Yds`);
+                if (pStat.receiving_tds) statParts.push(`${pStat.receiving_tds} Rec TD`);
+                if (pStat.receiving_yards) statParts.push(`${pStat.receiving_yards} Rec Yds`);
+                if (pStat.rushing_tds) statParts.push(`${pStat.rushing_tds} Rush TD`);
+                if (pStat.flag_pulls) statParts.push(`${pStat.flag_pulls} Pulls`);
+                if (pStat.interceptions) statParts.push(`${pStat.interceptions} INT`);
+                if (pStat.def_sacks) statParts.push(`${pStat.def_sacks} Sacks`);
+            } else if (rating) {
+                statParts.push(`Match Rating ${rating.toFixed(1)}`);
+            }
+
+            const isHome = teamSheet?.home_team?.some(p => p.player_id === match.mvp_player_id);
+            const teamId = pStat?.team_id || (isHome ? match.home_team?.id : match.away_team?.id) || '';
+            const teamName = pStat?.team_name || (isHome ? match.home_team?.name : match.away_team?.name) || '';
+
+            return {
+                playerId: match.mvp_player_id,
+                playerName: pStat?.player_name || sheetEntry?.name || 'Match MVP',
+                playerImage: pStat?.player_image || sheetEntry?.image,
+                playerJerseyNumber: pStat?.player_jersey_number || sheetEntry?.jersey_number,
+                playerPosition: pStat?.player_position || sheetEntry?.position,
+                teamName,
+                teamId,
+                fp,
+                rating,
+                statSummary: statParts.length > 0 ? statParts.slice(0, 3).join(' · ') : undefined,
+            };
+        }
+    }
+
+    // 1. If player stats exist, calculate composite impact
+    if (playerStats && playerStats.length > 0) {
+        const candidates = playerStats.map(p => {
+            const fp = calculatePlayerFantasyPoints(p);
+            const sheetEntry = sheetMap.get(p.player_id);
+            const rating = sheetEntry?.rating ?? null;
+
+            // Unified Composite Score:
+            // SFFL Fantasy Points is the primary objective volume & impact metric across all positions.
+            // If the player also holds an above-average rating (>5.0), they receive an efficiency boost.
+            const compositeScore = fp + (rating && rating > 5.0 ? (rating - 5.0) * 1.5 : 0);
+
+            return {
+                player: p,
+                sheetEntry,
+                fp,
+                rating,
+                compositeScore,
+                isWinningTeam: winningTeamId ? p.team_id === winningTeamId : true,
+            };
+        });
+
+        // Prioritize winning team candidates with positive contribution
+        let pool = candidates.filter(c => c.isWinningTeam && c.compositeScore > 0);
+        if (pool.length === 0) {
+            pool = candidates.filter(c => c.compositeScore > 0);
+        }
+
+        if (pool.length > 0) {
+            pool.sort((a, b) => b.compositeScore - a.compositeScore);
+            const best = pool[0];
+            const p = best.player;
+
+            const statParts: string[] = [];
+            if (p.passing_tds) statParts.push(`${p.passing_tds} Pass TD`);
+            if (p.passing_yards) statParts.push(`${p.passing_yards} Pass Yds`);
+            if (p.receiving_tds) statParts.push(`${p.receiving_tds} Rec TD`);
+            if (p.receiving_yards) statParts.push(`${p.receiving_yards} Rec Yds`);
+            if (p.rushing_tds) statParts.push(`${p.rushing_tds} Rush TD`);
+            if (p.flag_pulls) statParts.push(`${p.flag_pulls} Pulls`);
+            if (p.interceptions) statParts.push(`${p.interceptions} INT`);
+            if (p.def_sacks) statParts.push(`${p.def_sacks} Sacks`);
+
+            return {
+                playerId: p.player_id,
+                playerName: p.player_name,
+                playerImage: p.player_image || best.sheetEntry?.image,
+                playerJerseyNumber: p.player_jersey_number || best.sheetEntry?.jersey_number,
+                playerPosition: p.player_position || best.sheetEntry?.position,
+                teamName: p.team_name,
+                teamId: p.team_id,
+                fp: best.fp,
+                rating: best.rating,
+                statSummary: statParts.slice(0, 3).join(' · '),
+            };
+        }
+    }
+
+    // 2. Fallback: If no player_stats recorded, pick top rated player on winning team from teamSheet
+    let topRating = 5.0;
+    let fallbackPlayer: TeamSheetPlayer | null = null;
+    let fallbackTeamId: string | undefined;
+
+    const checkRoster = (roster: TeamSheetPlayer[], tId?: string) => {
+        roster.forEach(sp => {
+            if (sp.position !== '-' && sp.rating && sp.rating > topRating) {
+                topRating = sp.rating;
+                fallbackPlayer = sp;
+                fallbackTeamId = tId;
+            }
+        });
+    };
+
+    if (winningTeamId === homeTeamId) {
+        checkRoster(teamSheet?.home_team || [], homeTeamId);
+    } else if (winningTeamId === awayTeamId) {
+        checkRoster(teamSheet?.away_team || [], awayTeamId);
+    }
+    if (!fallbackPlayer) {
+        checkRoster(teamSheet?.home_team || [], homeTeamId);
+        checkRoster(teamSheet?.away_team || [], awayTeamId);
+    }
+
+    if (fallbackPlayer) {
+        const fp = fallbackPlayer as TeamSheetPlayer;
+        return {
+            playerId: fp.player_id,
+            playerName: fp.name,
+            playerImage: fp.image,
+            playerJerseyNumber: fp.jersey_number,
+            playerPosition: fp.position,
+            teamName: fallbackTeamId === homeTeamId ? match.home_team?.name : match.away_team?.name,
+            teamId: fallbackTeamId,
+            fp: 0,
+            rating: fp.rating,
+            statSummary: fp.rating ? `Rating: ${fp.rating.toFixed(1)}` : undefined,
+        };
+    }
+
+    return null;
+}
+
 interface MatchSummaryTabProps {
     match: Match;
     teamSheet: MatchTeamSheet;
@@ -156,6 +331,7 @@ export const MatchSummaryTab = ({ match, teamSheet }: MatchSummaryTabProps) => {
             passAttempts: 0,
             completions: 0,
             punts: 0,
+            turnovers: 0,
             totalTDs: 0,
             femaleTDs: 0,
             flagPulls: 0,
@@ -180,6 +356,7 @@ export const MatchSummaryTab = ({ match, teamSheet }: MatchSummaryTabProps) => {
             target.drops += p.drops || 0;
             target.passAttempts += p.passing_attempts || 0;
             target.completions += p.completed_passes || 0;
+            target.turnovers += p.interceptions_thrown || 0;
             const pTDs = (p.passing_tds || 0) + (p.rushing_tds || 0) + (p.receiving_tds || 0) + (p.defensive_tds || 0);
             target.totalTDs += pTDs;
             if (isFemale(sheet, p.player_id)) {
@@ -191,11 +368,25 @@ export const MatchSummaryTab = ({ match, teamSheet }: MatchSummaryTabProps) => {
             target.sacks += (p.def_sacks || 0) + (p.qb_sacks || 0);
         });
 
-        // Derive punts, penalties (infractions) and pick-sixes from plays
+        // If plays exist, compute precise turnovers (TO on downs, INTs, bad snaps) from play-by-play
+        if (plays.length > 0) {
+            home.turnovers = 0;
+            away.turnovers = 0;
+        }
+
+        // Derive punts, turnovers, penalties (infractions) and pick-sixes from plays
         plays.forEach(pl => {
             if (pl.play_type === 'PUNT') {
                 if (pl.offense_team_id === homeTeamId) home.punts += 1;
                 else if (pl.offense_team_id === awayTeamId) away.punts += 1;
+            }
+            const isTO = pl.result === 'TO' || 
+                         pl.result === 'INT' || 
+                         pl.play_type === 'INT' || 
+                         pl.play_type === 'BADSNAP';
+            if (isTO) {
+                if (pl.offense_team_id === homeTeamId) home.turnovers += 1;
+                else if (pl.offense_team_id === awayTeamId) away.turnovers += 1;
             }
             if (pl.penalty) {
                 if (pl.penalty_team_id === homeTeamId) home.infractions += 1;
@@ -214,45 +405,15 @@ export const MatchSummaryTab = ({ match, teamSheet }: MatchSummaryTabProps) => {
         return { home, away, homeCompPct, awayCompPct };
     }, [playerStats, plays, homeTeamId, awayTeamId, teamSheet]);
 
-    // ── Match MVP & Top Performers ──
-    const { mvpPlayer, topPerformers } = useMemo(() => {
-        if (playersWithFP.length === 0) {
-            return { mvpPlayer: null, topPerformers: [] };
-        }
+    // ── Unified Match MVP & Top Performers ──
+    const mvpPlayer = useMemo(() => {
+        return getUnifiedMatchMvp(match, teamSheet, playerStats);
+    }, [match, teamSheet, playerStats]);
 
-        const sorted = [...playersWithFP].sort((a, b) => b.fp - a.fp);
-
-        // Determine winning team id
-        const homeScore = match.home_score ?? 0;
-        const awayScore = match.away_score ?? 0;
-        const winningTeamId = homeScore > awayScore ? homeTeamId : awayScore > homeScore ? awayTeamId : null;
-
-        let mvp = winningTeamId
-            ? sorted.find(p => p.team_id === winningTeamId && p.fp > 0) || sorted[0]
-            : sorted[0];
-
-        // If all FP are 0, fallback to rating from teamSheet
-        if (!mvp || mvp.fp === 0) {
-            const allSheet = [...(teamSheet?.home_team || []), ...(teamSheet?.away_team || [])];
-            let topRating = -1;
-            let topRatedPlayerId = '';
-            allSheet.forEach(p => {
-                if (p.rating && p.rating > topRating) {
-                    topRating = p.rating;
-                    topRatedPlayerId = p.player_id;
-                }
-            });
-            if (topRatedPlayerId) {
-                const foundInStats = playerStats.find(p => p.player_id === topRatedPlayerId);
-                if (foundInStats) {
-                    mvp = { ...foundInStats, fp: calculatePlayerFantasyPoints(foundInStats) };
-                }
-            }
-        }
-
-        const top3 = sorted.slice(0, 3);
-        return { mvpPlayer: mvp, topPerformers: top3 };
-    }, [playersWithFP, match.home_score, match.away_score, homeTeamId, awayTeamId, teamSheet, playerStats]);
+    const topPerformers = useMemo(() => {
+        if (playersWithFP.length === 0) return [];
+        return [...playersWithFP].sort((a, b) => b.fp - a.fp).slice(0, 3);
+    }, [playersWithFP]);
 
     // ── Offensive Box Score ──
     const offensiveBoxScore = useMemo(() => {
@@ -409,18 +570,18 @@ export const MatchSummaryTab = ({ match, teamSheet }: MatchSummaryTabProps) => {
                         {mvpPlayer ? (
                             <div className="md:col-span-6 bg-gradient-to-br from-amber-50 to-orange-50/40 dark:from-gray-700/60 dark:to-gray-800 p-4 rounded-xl border border-amber-200/70 dark:border-gray-600 relative overflow-hidden">
                                 <div className="flex items-center gap-3">
-                                    {mvpPlayer.player_image ? (
+                                    {mvpPlayer.playerImage ? (
                                         <div className="w-14 h-14 rounded-full overflow-hidden ring-2 ring-amber-400 dark:ring-amber-500 shadow-md flex-shrink-0">
                                             <LightboxImage
-                                                src={mvpPlayer.player_image}
-                                                alt={mvpPlayer.player_name}
+                                                src={mvpPlayer.playerImage}
+                                                alt={mvpPlayer.playerName}
                                                 thumbnailClassName="w-full h-full"
                                                 imgClassName="w-full h-full object-cover"
                                             />
                                         </div>
                                     ) : (
                                         <div className="w-14 h-14 rounded-full bg-amber-500 text-white flex items-center justify-center font-black text-base shadow-md flex-shrink-0">
-                                            #{mvpPlayer.player_jersey_number || 'MVP'}
+                                            #{mvpPlayer.playerJerseyNumber || 'MVP'}
                                         </div>
                                     )}
                                     <div className="min-w-0 flex-1">
@@ -428,28 +589,38 @@ export const MatchSummaryTab = ({ match, teamSheet }: MatchSummaryTabProps) => {
                                             ⭐ MATCH MVP
                                         </span>
                                         <Link
-                                            to={`/players/${mvpPlayer.player_id}?match=${match.id}`}
+                                            to={`/players/${mvpPlayer.playerId}?match=${match.id}`}
                                             className="block font-black text-sm text-sffl-navy dark:text-white truncate hover:text-sffl-red transition-colors"
                                         >
-                                            {mvpPlayer.player_name}
+                                            {mvpPlayer.playerName}
                                         </Link>
                                         <p className="text-[11px] text-gray-600 dark:text-gray-300 font-semibold truncate">
-                                            {mvpPlayer.team_name} · {mvpPlayer.player_position}
+                                            {mvpPlayer.teamName} · {mvpPlayer.playerPosition}
                                         </p>
                                     </div>
                                 </div>
                                 <div className="mt-3 pt-2.5 border-t border-amber-200/60 dark:border-gray-600 flex items-center justify-between">
-                                    <div className="text-[11px] text-gray-600 dark:text-gray-300 font-medium">
-                                        {mvpPlayer.passing_tds ? `${mvpPlayer.passing_tds} Pass TD ` : ''}
-                                        {mvpPlayer.receiving_tds ? `${mvpPlayer.receiving_tds} Rec TD ` : ''}
-                                        {mvpPlayer.flag_pulls ? `${mvpPlayer.flag_pulls} Pulls ` : ''}
-                                        {mvpPlayer.interceptions ? `${mvpPlayer.interceptions} INT` : ''}
+                                    <div className="text-[11px] text-gray-600 dark:text-gray-300 font-medium truncate max-w-[180px]">
+                                        {mvpPlayer.statSummary || (mvpPlayer.rating ? `Rating: ${mvpPlayer.rating.toFixed(1)}` : 'Impact Player')}
                                     </div>
                                     <div className="text-right flex-shrink-0">
-                                        <span className="text-lg font-black text-amber-600 dark:text-amber-400 tabular-nums">
-                                            {mvpPlayer.fp.toFixed(1)}
-                                        </span>
-                                        <span className="text-[9px] font-bold text-gray-500 uppercase ml-1">FP</span>
+                                        {mvpPlayer.fp > 0 ? (
+                                            <>
+                                                <span className="text-lg font-black text-amber-600 dark:text-amber-400 tabular-nums">
+                                                    {mvpPlayer.fp.toFixed(1)}
+                                                </span>
+                                                <span className="text-[9px] font-bold text-gray-500 uppercase ml-1">FP</span>
+                                            </>
+                                        ) : mvpPlayer.rating ? (
+                                            <>
+                                                <span className="text-lg font-black text-amber-600 dark:text-amber-400 tabular-nums">
+                                                    {mvpPlayer.rating.toFixed(1)}
+                                                </span>
+                                                <span className="text-[9px] font-bold text-gray-500 uppercase ml-1">RATING</span>
+                                            </>
+                                        ) : (
+                                            <span className="text-xs font-black text-amber-600 dark:text-amber-400">MVP</span>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -504,8 +675,8 @@ export const MatchSummaryTab = ({ match, teamSheet }: MatchSummaryTabProps) => {
                         type="button"
                         onClick={() => setViewMode('comparison')}
                         className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-tight transition-all ${viewMode === 'comparison'
-                                ? 'bg-sffl-navy text-white shadow-sm'
-                                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                            ? 'bg-sffl-navy text-white shadow-sm'
+                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                             }`}
                     >
                         📊 Team Comparison
@@ -514,8 +685,8 @@ export const MatchSummaryTab = ({ match, teamSheet }: MatchSummaryTabProps) => {
                         type="button"
                         onClick={() => setViewMode('boxscore')}
                         className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-tight transition-all ${viewMode === 'boxscore'
-                                ? 'bg-sffl-navy text-white shadow-sm'
-                                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                            ? 'bg-sffl-navy text-white shadow-sm'
+                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                             }`}
                     >
                         📋 Key Box Score
@@ -551,6 +722,7 @@ export const MatchSummaryTab = ({ match, teamSheet }: MatchSummaryTabProps) => {
                             {renderComparisonRow('Pass Completion %', `${homeCompPct}%`, `${awayCompPct}%`, homeCompPct, awayCompPct)}
                             {renderComparisonRow('Catches', home.catches, away.catches, home.catches, away.catches)}
                             {renderComparisonRow('Drops', home.drops, away.drops, home.drops, away.drops)}
+                            {renderComparisonRow('Turnovers', home.turnovers, away.turnovers, home.turnovers, away.turnovers)}
                             {renderComparisonRow('Punts', home.punts, away.punts, home.punts, away.punts)}
                             {renderComparisonRow('Total Touchdowns', home.totalTDs, away.totalTDs, home.totalTDs, away.totalTDs)}
                             {renderComparisonRow('Female Touchdowns', home.femaleTDs, away.femaleTDs, home.femaleTDs, away.femaleTDs)}
@@ -715,3 +887,5 @@ export const MatchSummaryTab = ({ match, teamSheet }: MatchSummaryTabProps) => {
         </div>
     );
 };
+
+

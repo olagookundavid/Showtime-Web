@@ -52,6 +52,8 @@ func (s *PlayerService) GetPlayers(ctx context.Context, teamID string, search st
 			Email:             p.Email,
 			Status:            p.Status,
 			IsReserve:         p.IsReserve,
+			MVPCount:          p.MVPCount,
+			Tier:              p.Tier,
 		}
 		if p.Team != nil {
 			pr.Team = &dto.TeamResponse{
@@ -96,6 +98,8 @@ func (s *PlayerService) GetPlayerByID(ctx context.Context, id string) (*dto.Play
 		Email:             p.Email,
 		Status:            p.Status,
 		IsReserve:         p.IsReserve,
+		MVPCount:          p.MVPCount,
+		Tier:              p.Tier,
 	}
 	if p.Team != nil {
 		pr.Team = &dto.TeamResponse{

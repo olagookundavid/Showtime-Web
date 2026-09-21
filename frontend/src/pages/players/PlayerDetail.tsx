@@ -132,6 +132,28 @@ export const PlayerDetail = () => {
                                     {player.gender === 'F' ? 'Female (F)' : player.gender === 'M' ? 'Male (M)' : player.gender}
                                 </span>
                             )}
+                            {/* Career Tier Badge */}
+                            <span className={`px-3 py-0.5 rounded-full text-xs font-black uppercase tracking-wider border flex items-center gap-1 shadow-sm ${
+                                player.tier === 'Superstar'
+                                    ? 'bg-amber-400/30 text-amber-200 border-amber-400/60'
+                                    : player.tier === 'Star'
+                                    ? 'bg-emerald-400/30 text-emerald-200 border-emerald-400/60'
+                                    : player.tier === 'Starter'
+                                    ? 'bg-blue-400/30 text-blue-200 border-blue-400/60'
+                                    : 'bg-white/10 text-gray-200 border-white/20'
+                            }`}>
+                                {player.tier === 'Superstar' && '👑'}
+                                {player.tier === 'Star' && '⭐'}
+                                {player.tier === 'Starter' && '🛡️'}
+                                {(!player.tier || player.tier === 'Prospect') && '🌱'}
+                                <span>{player.tier || 'Prospect'} Tier</span>
+                            </span>
+                            {/* Career MVPs Badge */}
+                            {(player.mvp_count ?? 0) > 0 && (
+                                <span className="px-3 py-0.5 rounded-full text-xs font-black uppercase tracking-wider bg-yellow-400/30 text-yellow-200 border border-yellow-400/60 flex items-center gap-1 shadow-sm">
+                                    🏆 {player.mvp_count} Career MVP{player.mvp_count === 1 ? '' : 's'}
+                                </span>
+                            )}
                         </div>
                         {player.team?.id ? (
                             <Link

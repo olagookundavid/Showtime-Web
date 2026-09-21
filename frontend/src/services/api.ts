@@ -493,6 +493,7 @@ export interface Match {
     feeds_slot?: 'HOME' | 'AWAY';
     second_leg_match_id?: string | null;
     pbp_locked?: boolean;
+    mvp_player_id?: string | null;
 }
 
 export interface TeamSheetPlayer {
@@ -614,6 +615,8 @@ export interface Player {
     // which are treated as active.
     status?: string;
     is_reserve?: boolean;
+    mvp_count?: number;
+    tier?: 'Superstar' | 'Star' | 'Starter' | 'Prospect' | string;
 }
 
 export interface RosterSummary {
@@ -708,6 +711,7 @@ export interface CreateMatchPayload {
     feeds_match_id?: string | null;
     feeds_slot?: string;
     second_leg_match_id?: string | null;
+    mvp_player_id?: string | null;
 }
 
 export interface CreatePlayerPayload {

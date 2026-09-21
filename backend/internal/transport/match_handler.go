@@ -212,6 +212,7 @@ func (h *MatchHandler) CreateMatch(c *gin.Context) {
 		FeedsMatchID:  req.FeedsMatchID,
 		FeedsSlot:     strings.ToUpper(req.FeedsSlot),
 		SecondLegMatchID: req.SecondLegMatchID,
+		MVPPlayerID:   req.MVPPlayerID,
 	}
 
 	if match.Status == "" {
@@ -269,6 +270,7 @@ func (h *MatchHandler) UpdateMatch(c *gin.Context) {
 		FeedsMatchID:  req.FeedsMatchID,
 		FeedsSlot:     strings.ToUpper(req.FeedsSlot),
 		SecondLegMatchID: req.SecondLegMatchID,
+		MVPPlayerID:   req.MVPPlayerID,
 	}
 
 	if req.Date != "" {

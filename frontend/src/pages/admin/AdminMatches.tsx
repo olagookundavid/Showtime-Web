@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
     getMatches, getCompetitions, getTeams, getTeamsByCompetition,
-    createMatch, updateMatch, deleteMatch,
+    createMatch, updateMatch, deleteMatch, getAdminTeamSheet,
     type Match, type Competition, type Team, type CreateMatchPayload,
 } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
@@ -29,6 +29,7 @@ interface FormData {
     feeds_match_id: string;
     feeds_slot: string;
     second_leg_match_id: string;
+    mvp_player_id: string;
 }
 
 const emptyForm: FormData = {
@@ -37,6 +38,7 @@ const emptyForm: FormData = {
     home_score: '', away_score: '', highlights_url: '', ticket_url: '',
     round: '', bracket_pos: '', feeds_match_id: '', feeds_slot: 'HOME',
     second_leg_match_id: '',
+    mvp_player_id: '',
 };
 
 
@@ -88,6 +90,13 @@ export const AdminMatches = () => {
         queryKey: ['bracketTargets', form.competition_id],
         queryFn: () => getMatches(form.competition_id, 1, 100),
         enabled: showModal && !!form.competition_id,
+    });
+
+    // Team sheet for the match being edited (for MVP selection)
+    const { data: editTeamSheet } = useQuery({
+        queryKey: ['adminMatchTeamSheet', editingId],
+        queryFn: () => getAdminTeamSheet(editingId!),
+        enabled: showModal && !!editingId,
     });
 
     // Auto-select first competition when loaded
@@ -200,6 +209,7 @@ export const AdminMatches = () => {
             feeds_match_id: m.feeds_match_id || '',
             feeds_slot: m.feeds_slot || 'HOME',
             second_leg_match_id: m.second_leg_match_id || '',
+            mvp_player_id: m.mvp_player_id || '',
         });
         setShowModal(true);
     };
@@ -244,6 +254,7 @@ export const AdminMatches = () => {
                 feeds_match_id: formIsKnockout && form.feeds_match_id ? form.feeds_match_id : null,
                 feeds_slot: formIsKnockout && form.feeds_match_id ? form.feeds_slot : undefined,
                 second_leg_match_id: formIsKnockout && form.second_leg_match_id ? form.second_leg_match_id : null,
+                mvp_player_id: form.mvp_player_id ? form.mvp_player_id : null,
             };
             if (editingId) {
                 await updateMatch(editingId, payload);
@@ -607,6 +618,54 @@ export const AdminMatches = () => {
                                     <input type="number" value={form.away_score} onChange={e => set('away_score', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" min="0" />
                                 </div>
                             </div>
+
+                            {/* Match MVP Selection / Override */}
+                            {editingId && (
+                                <div className="p-3.5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <label className="block text-xs font-black uppercase tracking-wider text-sffl-navy dark:text-gray-200">
+                                            🏆 Official Match MVP (Admin Override)
+                                        </label>
+                                        {form.mvp_player_id && (
+                                            <button
+                                                type="button"
+                                                onClick={() => set('mvp_player_id', '')}
+                                                className="text-xs text-sffl-red hover:underline font-bold"
+                                            >
+                                                Reset to Auto-Calculated
+                                            </button>
+                                        )}
+                                    </div>
+                                    <select
+                                        value={form.mvp_player_id}
+                                        onChange={e => set('mvp_player_id', e.target.value)}
+                                        className="w-full min-h-[44px] border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm"
+                                    >
+                                        <option value="">Auto-Calculated by Platform (Default)</option>
+                                        {editTeamSheet?.home_team && editTeamSheet.home_team.length > 0 && (
+                                            <optgroup label="Home Team Roster">
+                                                {editTeamSheet.home_team.map(p => (
+                                                    <option key={p.player_id} value={p.player_id}>
+                                                        #{p.jersey_number} {p.name} ({p.position}) {p.rating ? `· Rating ${p.rating.toFixed(1)}` : ''}
+                                                    </option>
+                                                ))}
+                                            </optgroup>
+                                        )}
+                                        {editTeamSheet?.away_team && editTeamSheet.away_team.length > 0 && (
+                                            <optgroup label="Away Team Roster">
+                                                {editTeamSheet.away_team.map(p => (
+                                                    <option key={p.player_id} value={p.player_id}>
+                                                        #{p.jersey_number} {p.name} ({p.position}) {p.rating ? `· Rating ${p.rating.toFixed(1)}` : ''}
+                                                    </option>
+                                                ))}
+                                            </optgroup>
+                                        )}
+                                    </select>
+                                    <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-normal">
+                                        Leave as "Auto-Calculated" for the system to award MVP dynamically based on winning team and composite impact, or choose a player to record an official override.
+                                    </p>
+                                </div>
+                            )}
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Highlights URL</label>
                                 <input type="url" value={form.highlights_url} onChange={e => set('highlights_url', e.target.value)} className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2" placeholder="https://..." />

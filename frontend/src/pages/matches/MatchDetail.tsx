@@ -1,13 +1,13 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { isDeletedPlayer, DELETED_TITLE } from '../../components/common/DeletedPlayer';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
-import { getMatchDetail, type TeamSheetPlayer } from '../../services/api';
+import { getMatchDetail, getPublicMatchStats, type TeamSheetPlayer } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { LightboxImage } from '../../components/ui';
 import { PlayByPlayTimeline } from '../../components/matches/PlayByPlayTimeline';
 import { PublicMatchStats } from '../../components/matches/PublicMatchStats';
-import { MatchSummaryTab } from '../../components/matches/MatchSummaryTab';
+import { MatchSummaryTab, getUnifiedMatchMvp } from '../../components/matches/MatchSummaryTab';
 import { CommentSection } from '../../components/comments/CommentSection';
 import { BackButton } from '../../components/common/BackButton';
 
@@ -57,43 +57,7 @@ const RATING_SORT_LABEL: Record<RatingSort, string> = {
     low: '▲ Lowest rated',
 };
 
-function getMatchMvpPlayerId(
-    homeSheet: TeamSheetPlayer[],
-    awaySheet: TeamSheetPlayer[],
-    homeScore: number,
-    awayScore: number
-): string | null {
-    let targetSheet: TeamSheetPlayer[] = [];
 
-    if (homeScore > awayScore) {
-        targetSheet = homeSheet;
-    } else if (awayScore > homeScore) {
-        targetSheet = awaySheet;
-    } else {
-        targetSheet = [...homeSheet, ...awaySheet];
-    }
-
-    let maxRating = 5.0;
-    let mvpPlayerId: string | null = null;
-
-    targetSheet.forEach(p => {
-        if (p.position !== '-' && p.rating != null && p.rating > maxRating) {
-            maxRating = p.rating;
-            mvpPlayerId = p.player_id;
-        }
-    });
-
-    if (!mvpPlayerId) {
-        [...homeSheet, ...awaySheet].forEach(p => {
-            if (p.position !== '-' && p.rating != null && p.rating > maxRating) {
-                maxRating = p.rating;
-                mvpPlayerId = p.player_id;
-            }
-        });
-    }
-
-    return mvpPlayerId;
-}
 
 function TeamSheetRosterList({
     sheet,
@@ -278,6 +242,14 @@ export const MatchDetail = () => {
     const homeSheet = team_sheet?.home_team ?? [];
     const awaySheet = team_sheet?.away_team ?? [];
     const hasTeamSheet = homeSheet.length > 0 || awaySheet.length > 0;
+
+    const { data: statsData } = useQuery({
+        queryKey: ['publicMatchStatsCompare', match.id],
+        queryFn: () => getPublicMatchStats(match.id),
+        enabled: !!match.id,
+    });
+    const playerStatsList = useMemo(() => statsData?.derived || statsData?.current || [], [statsData]);
+    const unifiedMvp = useMemo(() => getUnifiedMatchMvp(match, team_sheet, playerStatsList), [match, team_sheet, playerStatsList]);
 
     const isBye = match.competition?.format === 'PLAYOFFS' &&
         ((match.home_team?.id && !match.away_team?.id && match.status === 'FINISHED') ||
@@ -516,9 +488,7 @@ export const MatchDetail = () => {
                                     <p className="text-gray-500 dark:text-gray-400 font-semibold text-sm">No team sheet announced for this match yet.</p>
                                 </div>
                             ) : (() => {
-                                const homeScore = match.home_score ?? 0;
-                                const awayScore = match.away_score ?? 0;
-                                const mvpPlayerId = getMatchMvpPlayerId(homeSheet, awaySheet, homeScore, awayScore);
+                                const mvpPlayerId = unifiedMvp?.playerId || null;
                                 return (
                                     <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-200 dark:divide-gray-700">
                                         {/* Home Sheet */}

@@ -73,6 +73,7 @@ type CreateMatchRequest struct {
 	FeedsMatchID  *string `json:"feeds_match_id"` // winner advances into this match...
 	FeedsSlot     string  `json:"feeds_slot"`     // ...as HOME or AWAY
 	SecondLegMatchID *string `json:"second_leg_match_id"`
+	MVPPlayerID      *string `json:"mvp_player_id"`
 }
 
 type UpdateMatchRequest struct {
@@ -92,6 +93,7 @@ type UpdateMatchRequest struct {
 	FeedsMatchID  *string `json:"feeds_match_id"`
 	FeedsSlot     string  `json:"feeds_slot"`
 	SecondLegMatchID *string `json:"second_leg_match_id"`
+	MVPPlayerID      *string `json:"mvp_player_id"`
 }
 
 type MatchResponse struct {
@@ -113,6 +115,7 @@ type MatchResponse struct {
 	FeedsSlot     string               `json:"feeds_slot,omitempty"`
 	SecondLegMatchID *string              `json:"second_leg_match_id,omitempty"`
 	PBPLocked     bool                 `json:"pbp_locked"`
+	MVPPlayerID   *string              `json:"mvp_player_id,omitempty"`
 }
 
 // --- Brackets ---

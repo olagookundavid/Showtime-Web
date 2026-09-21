@@ -197,6 +197,22 @@ export const PlayersPage = () => {
                                                     {player.gender === 'F' ? 'Female (F)' : 'Male (M)'}
                                                 </span>
                                             )}
+                                            {player.tier && player.tier !== 'Prospect' && (
+                                                <span className={`px-2 py-0.5 rounded-md text-[11px] font-black uppercase tracking-wider border ${
+                                                    player.tier === 'Superstar'
+                                                        ? 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
+                                                        : player.tier === 'Star'
+                                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
+                                                        : 'bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800'
+                                                }`}>
+                                                    {player.tier === 'Superstar' ? '👑 Superstar' : player.tier === 'Star' ? '⭐ Star' : '🛡️ Starter'}
+                                                </span>
+                                            )}
+                                            {(player.mvp_count ?? 0) > 0 && (
+                                                <span className="bg-yellow-50 text-yellow-800 border border-yellow-300 dark:bg-yellow-950/40 dark:text-yellow-300 dark:border-yellow-700 px-2 py-0.5 rounded-md text-xs font-black">
+                                                    🏆 {player.mvp_count} MVP{player.mvp_count === 1 ? '' : 's'}
+                                                </span>
+                                            )}
                                             {player.team?.name && (
                                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-gray-50 dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 rounded-md text-xs font-bold text-gray-700 dark:text-gray-200">
                                                     {player.team.logo && (

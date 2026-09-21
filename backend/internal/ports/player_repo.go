@@ -98,7 +98,8 @@ func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string
 			p.created_at, p.updated_at,
 			COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
 			COALESCE(p.status, 'active'),
-			(tr.id IS NOT NULL) AS is_reserve
+			(tr.id IS NOT NULL) AS is_reserve,
+			COALESCE((SELECT COUNT(*) FROM matches m WHERE m.mvp_player_id = p.id AND m.status = 'FINISHED'), 0) AS mvp_count
 	` + fromClause + whereClause +
 		// Deactivated players sort last but are still returned: they stay
 		// searchable and the client greys them rather than hiding them.
@@ -130,11 +131,13 @@ func (r *PostgresPlayerRepository) GetPlayers(ctx context.Context, teamID string
 			&p.Team.Name, &p.Team.ShortName, &p.Team.Logo,
 			&p.Status,
 			&p.IsReserve,
+			&p.MVPCount,
 		)
 		if err != nil {
 			return nil, 0, err
 		}
 		p.Team.ID = p.TeamID
+		p.Tier = domain.CalculatePlayerTier(p.MVPCount)
 		players = append(players, p)
 	}
 	return players, total, nil
@@ -152,7 +155,8 @@ func (r *PostgresPlayerRepository) GetPlayerByID(ctx context.Context, id string)
 			p.user_id, p.created_at, p.updated_at,
 			COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
 			COALESCE(p.status, 'active'), p.deactivated_at,
-			(tr.id IS NOT NULL) AS is_reserve
+			(tr.id IS NOT NULL) AS is_reserve,
+			COALESCE((SELECT COUNT(*) FROM matches m WHERE m.mvp_player_id = p.id AND m.status = 'FINISHED'), 0) AS mvp_count
 		FROM players p
 		LEFT JOIN teams t ON p.team_id = t.id
 		LEFT JOIN team_reserves tr ON tr.player_id = p.id
@@ -168,12 +172,14 @@ func (r *PostgresPlayerRepository) GetPlayerByID(ctx context.Context, id string)
 		&p.Team.Name, &p.Team.ShortName, &p.Team.Logo,
 		&p.Status, &p.DeactivatedAt,
 		&p.IsReserve,
+		&p.MVPCount,
 	)
 	if err != nil {
 		return nil, err
 	}
 	p.UserID = uid
 	p.Team.ID = p.TeamID
+	p.Tier = domain.CalculatePlayerTier(p.MVPCount)
 
 	return &p, nil
 }

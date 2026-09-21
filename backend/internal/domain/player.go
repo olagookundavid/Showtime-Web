@@ -43,12 +43,28 @@ type Player struct {
 	Status         string     `json:"status,omitempty"`
 	DeactivatedAt  *time.Time `json:"deactivated_at,omitempty"`
 	IsReserve      bool       `json:"is_reserve"`
+	MVPCount       int        `json:"mvp_count"`
+	Tier           string     `json:"tier,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 
 	// Relations
 	Team        *Team               `json:"team,omitempty"`
 	TeamHistory []PlayerTeamHistory `json:"team_history,omitempty"`
+}
+
+// CalculatePlayerTier assigns a career prestige tier based on verified Match MVP honors.
+func CalculatePlayerTier(mvpCount int) string {
+	switch {
+	case mvpCount >= 5:
+		return "Superstar"
+	case mvpCount >= 2:
+		return "Star"
+	case mvpCount >= 1:
+		return "Starter"
+	default:
+		return "Prospect"
+	}
 }
 
 type PlayerTeamHistory struct {

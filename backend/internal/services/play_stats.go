@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 
 	"showtime-backend/internal/domain"
@@ -438,6 +439,105 @@ func (s *PlayService) CommitDerivedStats(ctx context.Context, matchID string) (i
 	for i := range teamStats {
 		if err := s.statsRepo.UpsertTeamMatchStat(ctx, &teamStats[i]); err != nil {
 			return len(derived), fmt.Errorf("failed to write team stats: %w", err)
+		}
+	}
+
+	// Automated Match MVP determination:
+	// If MVP is not already locked by an admin override, compute the unified MVP from derived stats.
+	if (detail.Match.MVPPlayerID == nil || *detail.Match.MVPPlayerID == "") && len(derived) > 0 {
+		homeScore := 0
+		if detail.Match.HomeScore != nil {
+			homeScore = *detail.Match.HomeScore
+		}
+		awayScore := 0
+		if detail.Match.AwayScore != nil {
+			awayScore = *detail.Match.AwayScore
+		}
+		winningTeamID := ""
+		if homeScore > awayScore {
+			winningTeamID = detail.Match.HomeTeamID
+		} else if awayScore > homeScore {
+			winningTeamID = detail.Match.AwayTeamID
+		}
+
+		sheetRatings := make(map[string]float64)
+		for _, p := range detail.TeamSheet.HomeTeam {
+			if p.Rating != nil {
+				sheetRatings[p.PlayerID] = *p.Rating
+			}
+		}
+		for _, p := range detail.TeamSheet.AwayTeam {
+			if p.Rating != nil {
+				sheetRatings[p.PlayerID] = *p.Rating
+			}
+		}
+
+		type mvpCandidate struct {
+			playerID string
+			score    float64
+			isWinner bool
+		}
+
+		var candidates []mvpCandidate
+		for _, d := range derived {
+			st := domain.PlayerStat{
+				PassingYards:        d.PassingYards,
+				PassingTDs:          d.PassingTDs,
+				InterceptionsThrown: d.InterceptionsThrown,
+				QBSacks:             d.QBSacks,
+				RushingYards:        d.RushingYards,
+				RushingTDs:          d.RushingTDs,
+				Receptions:          d.Receptions,
+				ReceivingYards:      d.ReceivingYards,
+				ReceivingTDs:        d.ReceivingTDs,
+				Drops:               d.Drops,
+				XPGood:              d.XPGood,
+				ExtraPointsTDs:      d.ExtraPointsTDs,
+				BadSnaps:            d.BadSnaps,
+				FlagPulls:           d.FlagPulls,
+				PassDeflections:     d.PassDeflections,
+				Interceptions:       d.Interceptions,
+				DefSacks:            d.DefSacks,
+				DefensiveTDs:        d.DefensiveTDs,
+				DefensiveXPTDs:      d.DefensiveXPTDs,
+				Safety:              d.Safety,
+			}
+			fp := domain.FantasyWeights{}.Calculate(st).NetTotal
+			rating := sheetRatings[d.PlayerID]
+			efficiencyBonus := 0.0
+			if rating > 5.0 {
+				efficiencyBonus = (rating - 5.0) * 1.5
+			}
+			compositeScore := fp + efficiencyBonus
+			isWinner := winningTeamID != "" && d.TeamID == winningTeamID
+
+			candidates = append(candidates, mvpCandidate{
+				playerID: d.PlayerID,
+				score:    compositeScore,
+				isWinner: isWinner,
+			})
+		}
+
+		var pool []mvpCandidate
+		for _, c := range candidates {
+			if c.isWinner && c.score > 0 {
+				pool = append(pool, c)
+			}
+		}
+		if len(pool) == 0 {
+			for _, c := range candidates {
+				if c.score > 0 {
+					pool = append(pool, c)
+				}
+			}
+		}
+
+		if len(pool) > 0 {
+			sort.Slice(pool, func(i, j int) bool {
+				return pool[i].score > pool[j].score
+			})
+			bestID := pool[0].playerID
+			_ = s.matchRepo.SetMatchMVP(ctx, matchID, &bestID)
 		}
 	}
 
