@@ -13,7 +13,6 @@ import (
 // Effective 2026-09-20 (yesterday), the league revised female 3rd-down touchdowns from
 // 7 points down to 6 points going forward. Historical matches before this date retain
 // their 7-point score.
-var Female3rdDownRuleRevisionDate = time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC)
 
 func normGender(g string) string {
 	if strings.EqualFold(strings.TrimSpace(g), "F") {
@@ -36,8 +35,12 @@ func TouchdownPoints(passerG, receiverG string, thirdDown, defensive, isRun bool
 	p, r := normGender(passerG), normGender(receiverG)
 
 	isNewRule := false
-	if len(matchDate) > 0 && !matchDate[0].IsZero() && !matchDate[0].Before(Female3rdDownRuleRevisionDate) {
-		isNewRule = true
+	if len(matchDate) > 0 && !matchDate[0].IsZero() {
+		// Compare YYYY-MM-DD date string to prevent UTC timezone boundary shifts
+		dateStr := matchDate[0].Format("2006-01-02")
+		if dateStr >= "2026-09-20" {
+			isNewRule = true
+		}
 	}
 
 	if isRun {
