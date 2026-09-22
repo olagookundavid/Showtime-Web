@@ -1,3 +1,4 @@
+-- +goose Up
 
 -- Disambiguate any duplicate team names within the same season before enforcing unique constraint
 WITH duplicates AS (
@@ -10,7 +11,7 @@ SET name = ft.name || ' ' || d.rn
 FROM duplicates d
 WHERE ft.id = d.id AND d.rn > 1;
 
--- Enforce case-insensitive unique team name per season
+-- 3. Enforce case-insensitive unique team name per season
 CREATE UNIQUE INDEX IF NOT EXISTS uix_fantasy_teams_season_name
     ON fantasy_teams (season_id, LOWER(TRIM(name)));
 
