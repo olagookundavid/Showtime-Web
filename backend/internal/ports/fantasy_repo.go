@@ -1166,17 +1166,22 @@ func (r *FantasyRepository) SaveLineupDraft(ctx context.Context, lineup *domain.
 	}
 	defer tx.Rollback(ctx)
 
+	status := string(lineup.Status)
+	if status == "" {
+		status = string(domain.LineupDraft)
+	}
+
 	// Upsert lineup
 	lineupQuery := `
 		INSERT INTO fantasy_lineups (team_id, gameweek_id, total_spent, points, status)
-		VALUES ($1, $2, $3, 0.000, 'DRAFT')
+		VALUES ($1, $2, $3, 0.000, $4)
 		ON CONFLICT (team_id, gameweek_id) DO UPDATE
 		SET total_spent = EXCLUDED.total_spent,
-		    status = 'DRAFT',
+		    status = EXCLUDED.status,
 		    updated_at = NOW()
 		RETURNING id, created_at, updated_at
 	`
-	if err := tx.QueryRow(ctx, lineupQuery, lineup.TeamID, lineup.GameweekID, lineup.TotalSpent).
+	if err := tx.QueryRow(ctx, lineupQuery, lineup.TeamID, lineup.GameweekID, lineup.TotalSpent, status).
 		Scan(&lineup.ID, &lineup.CreatedAt, &lineup.UpdatedAt); err != nil {
 		return fmt.Errorf("failed to upsert lineup: %w", err)
 	}
@@ -1372,16 +1377,63 @@ func (r *FantasyRepository) CloneLineupToGameweek(ctx context.Context, srcLineup
 }
 
 func (r *FantasyRepository) LockLineupsForGameweek(ctx context.Context, gameweekID string) error {
-	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	query := `
-		UPDATE fantasy_lineups
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	// 1. Demote any incomplete lineups (< 14 picks) that might be in DRAFT or LOCKED to PARTIAL
+	// and ensure their score is 0 so they can never participate in scoring.
+	if _, err := tx.Exec(ctx, `
+		UPDATE fantasy_lineups fl
+		SET status = 'PARTIAL', points = 0.000, updated_at = NOW()
+		WHERE fl.gameweek_id = $1
+		  AND fl.status IN ('DRAFT', 'LOCKED')
+		  AND (SELECT COUNT(*) FROM fantasy_lineup_picks flp WHERE flp.lineup_id = fl.id) <> 14
+	`, gameweekID); err != nil {
+		return fmt.Errorf("failed to demote incomplete lineups: %w", err)
+	}
+
+	// 2. Clear pick points for any demoted lineups
+	if _, err := tx.Exec(ctx, `
+		UPDATE fantasy_lineup_picks flp
+		SET points = 0.000
+		FROM fantasy_lineups fl
+		WHERE flp.lineup_id = fl.id
+		  AND fl.gameweek_id = $1
+		  AND fl.status = 'PARTIAL'
+	`, gameweekID); err != nil {
+		return fmt.Errorf("failed to zero pick points for partial lineups: %w", err)
+	}
+
+	// 3. Clear gameweek points logs for partial teams in this gameweek
+	if _, err := tx.Exec(ctx, `
+		DELETE FROM fantasy_gw_points fgp
+		USING fantasy_lineups fl
+		WHERE fgp.team_id = fl.team_id
+		  AND fgp.gameweek_id = fl.gameweek_id
+		  AND fl.gameweek_id = $1
+		  AND fl.status = 'PARTIAL'
+	`, gameweekID); err != nil {
+		return fmt.Errorf("failed to clean gw points for partial lineups: %w", err)
+	}
+
+	// 4. Promote only complete (14 picks) DRAFT lineups to LOCKED
+	if _, err := tx.Exec(ctx, `
+		UPDATE fantasy_lineups fl
 		SET status = 'LOCKED', locked_at = NOW(), updated_at = NOW()
-		WHERE gameweek_id = $1 AND status = 'DRAFT'
-	`
-	_, err := r.pool.Exec(ctx, query, gameweekID)
-	return err
+		WHERE fl.gameweek_id = $1
+		  AND fl.status = 'DRAFT'
+		  AND (SELECT COUNT(*) FROM fantasy_lineup_picks flp WHERE flp.lineup_id = fl.id) = 14
+	`, gameweekID); err != nil {
+		return fmt.Errorf("failed to lock complete draft lineups: %w", err)
+	}
+
+	return tx.Commit(ctx)
 }
 
 func (r *FantasyRepository) UpdateLineupPoints(ctx context.Context, lineupID string, points float64) error {
@@ -2544,9 +2596,16 @@ func buildDreamTeam(scorers []dto.TopScoringPlayerItem) ([]dto.FantasyLineupPick
 	}
 
 	// 4. Rusher (1 slot)
+	defenseAllrounders := 0
 	for _, p := range scorers {
 		if isRusher(p.Position) && canPick(p) {
+			if domain.IsAllrounderRole(p.Position) && defenseAllrounders >= 1 {
+				continue
+			}
 			picks = append(picks, takePick(p, "RUSHER"))
+			if domain.IsAllrounderRole(p.Position) {
+				defenseAllrounders++
+			}
 			break
 		}
 	}
@@ -2560,7 +2619,13 @@ func buildDreamTeam(scorers []dto.TopScoringPlayerItem) ([]dto.FantasyLineupPick
 			break
 		}
 		if isDefender(p.Position) && domain.NormalizeGender(p.Gender) == "F" && canPick(p) {
+			if domain.IsAllrounderRole(p.Position) && defenseAllrounders >= 1 {
+				continue
+			}
 			picks = append(picks, takePick(p, defSlots[defIdx]))
+			if domain.IsAllrounderRole(p.Position) {
+				defenseAllrounders++
+			}
 			defIdx++
 			femaleDefNeeded--
 		}
@@ -2578,7 +2643,13 @@ func buildDreamTeam(scorers []dto.TopScoringPlayerItem) ([]dto.FantasyLineupPick
 		if !alreadyFilled {
 			for _, p := range scorers {
 				if isDefender(p.Position) && canPick(p) {
+					if domain.IsAllrounderRole(p.Position) && defenseAllrounders >= 1 {
+						continue
+					}
 					picks = append(picks, takePick(p, slot))
+					if domain.IsAllrounderRole(p.Position) {
+						defenseAllrounders++
+					}
 					break
 				}
 			}

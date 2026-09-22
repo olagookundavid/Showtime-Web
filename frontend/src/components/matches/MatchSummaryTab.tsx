@@ -75,10 +75,11 @@ export function getUnifiedMatchMvp(
 
     const allSheet = [...(teamSheet?.home_team || []), ...(teamSheet?.away_team || [])];
     const sheetMap = new Map(allSheet.map(p => [p.player_id, p]));
+    const pStatMap = new Map((playerStats || []).map(p => [p.player_id, p]));
 
-    // 0. Official MVP persisted on match record takes precedence
+    // 0. Official MVP persisted on match record takes precedence (e.g. manual Admin Override)
     if (match.mvp_player_id) {
-        const pStat = playerStats?.find(p => p.player_id === match.mvp_player_id);
+        const pStat = pStatMap.get(match.mvp_player_id);
         const sheetEntry = sheetMap.get(match.mvp_player_id);
         if (pStat || sheetEntry) {
             const fp = pStat ? calculatePlayerFantasyPoints(pStat) : 0;
@@ -116,106 +117,130 @@ export function getUnifiedMatchMvp(
         }
     }
 
-    // 1. If player stats exist, calculate composite impact
-    if (playerStats && playerStats.length > 0) {
-        const candidates = playerStats.map(p => {
-            const fp = calculatePlayerFantasyPoints(p);
-            const sheetEntry = sheetMap.get(p.player_id);
-            const rating = sheetEntry?.rating ?? null;
+    // 1. Unified Automated MVP Selection
+    // Aggregate all participating players across both stats and team sheets
+    const playerIds = new Set<string>();
+    (playerStats || []).forEach(p => playerIds.add(p.player_id));
+    allSheet.forEach(p => playerIds.add(p.player_id));
 
-            // Unified Composite Score:
-            // SFFL Fantasy Points is the primary objective volume & impact metric across all positions.
-            // If the player also holds an above-average rating (>5.0), they receive an efficiency boost.
-            const compositeScore = fp + (rating && rating > 5.0 ? (rating - 5.0) * 1.5 : 0);
+    interface Candidate {
+        playerId: string;
+        playerName: string;
+        playerImage?: string;
+        playerJerseyNumber?: number;
+        playerPosition?: string;
+        teamName: string;
+        teamId: string;
+        fp: number;
+        rating: number | null;
+        isRateable: boolean;
+        isWinningTeam: boolean;
+        pStat?: PlayerStat;
+        sheetEntry?: TeamSheetPlayer;
+    }
 
-            return {
-                player: p,
-                sheetEntry,
+    const candidates: Candidate[] = [];
+
+    playerIds.forEach(pid => {
+        const pStat = pStatMap.get(pid);
+        const sheetEntry = sheetMap.get(pid);
+        const fp = pStat ? calculatePlayerFantasyPoints(pStat) : 0;
+
+        const isRateable = Boolean(
+            sheetEntry &&
+            sheetEntry.position !== '-' &&
+            sheetEntry.rating_status !== 'UNRATED' &&
+            sheetEntry.rating != null &&
+            sheetEntry.rating > 0
+        );
+        const rating = isRateable ? (sheetEntry!.rating ?? null) : null;
+
+        const isHome = teamSheet?.home_team?.some(p => p.player_id === pid);
+        const teamId = pStat?.team_id || (isHome ? homeTeamId : awayTeamId) || '';
+        const teamName = pStat?.team_name || (teamId === homeTeamId ? match.home_team?.name : match.away_team?.name) || '';
+        const isWinningTeam = winningTeamId ? teamId === winningTeamId : true;
+
+        // Player qualifies if they have a recognized match rating (>= 5.0) or positive fantasy points
+        if ((rating !== null && rating >= 5.0) || fp > 0) {
+            candidates.push({
+                playerId: pid,
+                playerName: pStat?.player_name || sheetEntry?.name || 'Player',
+                playerImage: pStat?.player_image || sheetEntry?.image,
+                playerJerseyNumber: pStat?.player_jersey_number ?? sheetEntry?.jersey_number,
+                playerPosition: pStat?.player_position || sheetEntry?.position,
+                teamName,
+                teamId,
                 fp,
                 rating,
-                compositeScore,
-                isWinningTeam: winningTeamId ? p.team_id === winningTeamId : true,
-            };
-        });
-
-        // Prioritize winning team candidates with positive contribution
-        let pool = candidates.filter(c => c.isWinningTeam && c.compositeScore > 0);
-        if (pool.length === 0) {
-            pool = candidates.filter(c => c.compositeScore > 0);
+                isRateable,
+                isWinningTeam,
+                pStat,
+                sheetEntry,
+            });
         }
+    });
 
-        if (pool.length > 0) {
-            pool.sort((a, b) => b.compositeScore - a.compositeScore);
-            const best = pool[0];
-            const p = best.player;
+    if (candidates.length === 0) return null;
 
-            const statParts: string[] = [];
-            if (p.passing_tds) statParts.push(`${p.passing_tds} Pass TD`);
-            if (p.passing_yards) statParts.push(`${p.passing_yards} Pass Yds`);
-            if (p.receiving_tds) statParts.push(`${p.receiving_tds} Rec TD`);
-            if (p.receiving_yards) statParts.push(`${p.receiving_yards} Rec Yds`);
-            if (p.rushing_tds) statParts.push(`${p.rushing_tds} Rush TD`);
-            if (p.flag_pulls) statParts.push(`${p.flag_pulls} Pulls`);
-            if (p.interceptions) statParts.push(`${p.interceptions} INT`);
-            if (p.def_sacks) statParts.push(`${p.def_sacks} Sacks`);
-
-            return {
-                playerId: p.player_id,
-                playerName: p.player_name,
-                playerImage: p.player_image || best.sheetEntry?.image,
-                playerJerseyNumber: p.player_jersey_number || best.sheetEntry?.jersey_number,
-                playerPosition: p.player_position || best.sheetEntry?.position,
-                teamName: p.team_name,
-                teamId: p.team_id,
-                fp: best.fp,
-                rating: best.rating,
-                statSummary: statParts.slice(0, 3).join(' · '),
-            };
-        }
+    // Filter by winning team first
+    let pool = candidates.filter(c => c.isWinningTeam);
+    if (pool.length === 0) {
+        pool = candidates;
     }
 
-    // 2. Fallback: If no player_stats recorded, pick top rated player on winning team from teamSheet
-    let topRating = 5.0;
-    let fallbackPlayer: TeamSheetPlayer | null = null;
-    let fallbackTeamId: string | undefined;
-
-    const checkRoster = (roster: TeamSheetPlayer[], tId?: string) => {
-        roster.forEach(sp => {
-            if (sp.position !== '-' && sp.rating && sp.rating > topRating) {
-                topRating = sp.rating;
-                fallbackPlayer = sp;
-                fallbackTeamId = tId;
-            }
-        });
+    // Sort: highest rated player wins MVP; among rated players, exact rating
+    // ties break on Fantasy Points. A player with no official rating (or one
+    // below the 5.0 floor) is ranked on Fantasy Points alone, except an
+    // exceptional unrated day (fp >= 20) is treated as on par with a strong
+    // ~6.0 rating so it can still contend for MVP.
+    //
+    // This mirrors the backend's rescoring logic in play_stats.go and must
+    // reduce to a plain lexicographic (rankKey, fp) compare for the same
+    // reason: comparing each pair's own fp against fixed thresholds (as an
+    // earlier version of this function did) is relative to the specific
+    // opponent, so the relation isn't transitive — three candidates can each
+    // rank above the next in a cycle, leaving Array.sort's result dependent
+    // on unspecified input order rather than on the stats.
+    const rankKey = (c: Candidate): number => {
+        const hasRating = c.rating !== null && c.rating >= 5.0;
+        if (hasRating) return c.rating as number;
+        return c.fp >= 20.0 ? 6.0 : -1.0;
     };
+    pool.sort((a, b) => {
+        const ak = rankKey(a);
+        const bk = rankKey(b);
+        if (ak !== bk) return bk - ak;
+        return b.fp - a.fp;
+    });
 
-    if (winningTeamId === homeTeamId) {
-        checkRoster(teamSheet?.home_team || [], homeTeamId);
-    } else if (winningTeamId === awayTeamId) {
-        checkRoster(teamSheet?.away_team || [], awayTeamId);
-    }
-    if (!fallbackPlayer) {
-        checkRoster(teamSheet?.home_team || [], homeTeamId);
-        checkRoster(teamSheet?.away_team || [], awayTeamId);
-    }
-
-    if (fallbackPlayer) {
-        const fp = fallbackPlayer as TeamSheetPlayer;
-        return {
-            playerId: fp.player_id,
-            playerName: fp.name,
-            playerImage: fp.image,
-            playerJerseyNumber: fp.jersey_number,
-            playerPosition: fp.position,
-            teamName: fallbackTeamId === homeTeamId ? match.home_team?.name : match.away_team?.name,
-            teamId: fallbackTeamId,
-            fp: 0,
-            rating: fp.rating,
-            statSummary: fp.rating ? `Rating: ${fp.rating.toFixed(1)}` : undefined,
-        };
+    const best = pool[0];
+    const p = best.pStat;
+    const statParts: string[] = [];
+    if (p) {
+        if (p.passing_tds) statParts.push(`${p.passing_tds} Pass TD`);
+        if (p.passing_yards) statParts.push(`${p.passing_yards} Pass Yds`);
+        if (p.receiving_tds) statParts.push(`${p.receiving_tds} Rec TD`);
+        if (p.receiving_yards) statParts.push(`${p.receiving_yards} Rec Yds`);
+        if (p.rushing_tds) statParts.push(`${p.rushing_tds} Rush TD`);
+        if (p.flag_pulls) statParts.push(`${p.flag_pulls} Pulls`);
+        if (p.interceptions) statParts.push(`${p.interceptions} INT`);
+        if (p.def_sacks) statParts.push(`${p.def_sacks} Sacks`);
+    } else if (best.rating) {
+        statParts.push(`Match Rating ${best.rating.toFixed(1)}`);
     }
 
-    return null;
+    return {
+        playerId: best.playerId,
+        playerName: best.playerName,
+        playerImage: best.playerImage,
+        playerJerseyNumber: best.playerJerseyNumber,
+        playerPosition: best.playerPosition,
+        teamName: best.teamName,
+        teamId: best.teamId,
+        fp: best.fp,
+        rating: best.rating,
+        statSummary: statParts.length > 0 ? statParts.slice(0, 3).join(' · ') : undefined,
+    };
 }
 
 interface MatchSummaryTabProps {
@@ -561,7 +586,7 @@ export const MatchSummaryTab = ({ match, teamSheet = { home_team: [], away_team:
                             <h3 className="text-base font-black text-sffl-navy dark:text-white uppercase tracking-tight">Match MVP & Top Performers</h3>
                         </div>
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 uppercase tracking-wider">
-                            Fantasy Calibrated
+                            Rating & Fantasy Calibrated
                         </span>
                     </div>
 
@@ -603,22 +628,27 @@ export const MatchSummaryTab = ({ match, teamSheet = { home_team: [], away_team:
                                     <div className="text-[11px] text-gray-600 dark:text-gray-300 font-medium truncate max-w-[180px]">
                                         {mvpPlayer.statSummary || (mvpPlayer.rating ? `Rating: ${mvpPlayer.rating.toFixed(1)}` : 'Impact Player')}
                                     </div>
-                                    <div className="text-right flex-shrink-0">
-                                        {mvpPlayer.fp > 0 ? (
-                                            <>
-                                                <span className="text-lg font-black text-amber-600 dark:text-amber-400 tabular-nums">
+                                    <div className="text-right flex-shrink-0 flex items-center gap-2">
+                                        {mvpPlayer.rating != null && (
+                                            <div className="flex flex-col items-end">
+                                                <div className="flex items-baseline gap-0.5">
+                                                    <span className="text-lg font-black text-amber-600 dark:text-amber-400 tabular-nums leading-none">
+                                                        {mvpPlayer.rating.toFixed(1)}
+                                                    </span>
+                                                    <span className="text-[9px] font-black text-amber-500">★</span>
+                                                </div>
+                                                <span className="text-[8px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Rating</span>
+                                            </div>
+                                        )}
+                                        {mvpPlayer.fp > 0 && (
+                                            <div className={`flex flex-col items-end ${mvpPlayer.rating != null ? 'pl-2 border-l border-amber-200/80 dark:border-gray-600' : ''}`}>
+                                                <span className="text-lg font-black text-gray-800 dark:text-gray-100 tabular-nums leading-none">
                                                     {mvpPlayer.fp.toFixed(1)}
                                                 </span>
-                                                <span className="text-[9px] font-bold text-gray-500 uppercase ml-1">FP</span>
-                                            </>
-                                        ) : mvpPlayer.rating ? (
-                                            <>
-                                                <span className="text-lg font-black text-amber-600 dark:text-amber-400 tabular-nums">
-                                                    {mvpPlayer.rating.toFixed(1)}
-                                                </span>
-                                                <span className="text-[9px] font-bold text-gray-500 uppercase ml-1">RATING</span>
-                                            </>
-                                        ) : (
+                                                <span className="text-[8px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">FP</span>
+                                            </div>
+                                        )}
+                                        {mvpPlayer.rating == null && mvpPlayer.fp <= 0 && (
                                             <span className="text-xs font-black text-amber-600 dark:text-amber-400">MVP</span>
                                         )}
                                     </div>

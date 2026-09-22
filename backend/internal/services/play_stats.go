@@ -443,7 +443,14 @@ func (s *PlayService) CommitDerivedStats(ctx context.Context, matchID string) (i
 	}
 
 	// Automated Match MVP determination:
-	// If MVP is not already locked by an admin override, compute the unified MVP from derived stats.
+	// Compute the unified MVP from derived stats and match ratings.
+	// Re-fetch match detail so that TeamSheet includes ratings computed with the freshly written player stats.
+	freshDetail, err := s.matchRepo.GetMatchDetail(ctx, matchID)
+	if err == nil && freshDetail != nil {
+		detail = freshDetail
+	}
+
+	// Only automatically assign MVP if not manually locked/overridden by an admin
 	if (detail.Match.MVPPlayerID == nil || *detail.Match.MVPPlayerID == "") && len(derived) > 0 {
 		homeScore := 0
 		if detail.Match.HomeScore != nil {
@@ -462,24 +469,29 @@ func (s *PlayService) CommitDerivedStats(ctx context.Context, matchID string) (i
 
 		sheetRatings := make(map[string]float64)
 		for _, p := range detail.TeamSheet.HomeTeam {
-			if p.Rating != nil {
+			if p.Rating != nil && p.RatingStatus != domain.RatingStatusUnrated && p.Position != "-" {
 				sheetRatings[p.PlayerID] = *p.Rating
 			}
 		}
 		for _, p := range detail.TeamSheet.AwayTeam {
-			if p.Rating != nil {
+			if p.Rating != nil && p.RatingStatus != domain.RatingStatusUnrated && p.Position != "-" {
 				sheetRatings[p.PlayerID] = *p.Rating
 			}
 		}
 
 		type mvpCandidate struct {
-			playerID string
-			score    float64
-			isWinner bool
+			playerID  string
+			fp        float64
+			rating    float64
+			hasRating bool
+			isWinner  bool
 		}
 
 		var candidates []mvpCandidate
+		seenPlayers := make(map[string]bool)
+
 		for _, d := range derived {
+			seenPlayers[d.PlayerID] = true
 			st := domain.PlayerStat{
 				PassingYards:        d.PassingYards,
 				PassingTDs:          d.PassingTDs,
@@ -503,38 +515,84 @@ func (s *PlayService) CommitDerivedStats(ctx context.Context, matchID string) (i
 				Safety:              d.Safety,
 			}
 			fp := domain.FantasyWeights{}.Calculate(st).NetTotal
-			rating := sheetRatings[d.PlayerID]
-			efficiencyBonus := 0.0
-			if rating > 5.0 {
-				efficiencyBonus = (rating - 5.0) * 1.5
-			}
-			compositeScore := fp + efficiencyBonus
+			rating, hasRating := sheetRatings[d.PlayerID]
+			validRating := hasRating && rating >= 5.0
 			isWinner := winningTeamID != "" && d.TeamID == winningTeamID
 
-			candidates = append(candidates, mvpCandidate{
-				playerID: d.PlayerID,
-				score:    compositeScore,
-				isWinner: isWinner,
-			})
+			if validRating || fp > 0 {
+				candidates = append(candidates, mvpCandidate{
+					playerID:  d.PlayerID,
+					fp:        fp,
+					rating:    rating,
+					hasRating: validRating,
+					isWinner:  isWinner,
+				})
+			}
 		}
+
+		// Also check rostered players who might have received a rating but didn't have a derived row
+		addRosterCandidates := func(roster []domain.TeamSheetPlayer, teamID string) {
+			for _, p := range roster {
+				if seenPlayers[p.PlayerID] {
+					continue
+				}
+				seenPlayers[p.PlayerID] = true
+				if p.Rating != nil && *p.Rating >= 5.0 && p.RatingStatus != domain.RatingStatusUnrated && p.Position != "-" {
+					candidates = append(candidates, mvpCandidate{
+						playerID:  p.PlayerID,
+						fp:        0,
+						rating:    *p.Rating,
+						hasRating: true,
+						isWinner:  winningTeamID != "" && teamID == winningTeamID,
+					})
+				}
+			}
+		}
+		addRosterCandidates(detail.TeamSheet.HomeTeam, detail.Match.HomeTeamID)
+		addRosterCandidates(detail.TeamSheet.AwayTeam, detail.Match.AwayTeamID)
 
 		var pool []mvpCandidate
 		for _, c := range candidates {
-			if c.isWinner && c.score > 0 {
+			if c.isWinner {
 				pool = append(pool, c)
 			}
 		}
 		if len(pool) == 0 {
-			for _, c := range candidates {
-				if c.score > 0 {
-					pool = append(pool, c)
-				}
-			}
+			pool = candidates
 		}
 
 		if len(pool) > 0 {
+			// Sort: highest rated player wins MVP; among rated players, exact
+			// rating ties break on Fantasy Points. A player with no official
+			// rating (QBs are never rated, see sheetRatings above) is ranked
+			// on Fantasy Points alone, except an exceptional unrated day
+			// (fp >= 20) is treated as on par with a strong ~6.0 rating so it
+			// can still contend for MVP.
+			//
+			// This must reduce to a plain lexicographic (rankKey, fp) compare.
+			// An earlier version compared each pair's own fp against fixed
+			// thresholds (e.g. "unrated wins if fp >= 20 AND the other's own
+			// fp < 5") and against an epsilon-tolerant rating "tie" — both are
+			// relative to the specific opponent, so the relation they defined
+			// was not transitive: three candidates could each rank above the
+			// next in a cycle, leaving sort.Slice's pick dependent on the
+			// unspecified input order rather than on the stats.
+			rankKey := func(c mvpCandidate) float64 {
+				if c.hasRating {
+					return c.rating
+				}
+				if c.fp >= 20.0 {
+					return 6.0
+				}
+				return -1.0
+			}
 			sort.Slice(pool, func(i, j int) bool {
-				return pool[i].score > pool[j].score
+				a, b := pool[i], pool[j]
+				ak, bk := rankKey(a), rankKey(b)
+				if ak != bk {
+					return ak > bk
+				}
+				return a.fp > b.fp
 			})
 			bestID := pool[0].playerID
 			_ = s.matchRepo.SetMatchMVP(ctx, matchID, &bestID)

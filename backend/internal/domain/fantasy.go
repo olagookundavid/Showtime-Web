@@ -2,13 +2,14 @@ package domain
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"time"
 )
 
 // ─── Scoring Engine Constants & Calculation ───────────────────────────────────
 
-const FantasyScoringVersion = "FANTASY_SCORING_V1.0"
+const FantasyScoringVersion = "DEF-1.0"
 
 // FantasySlot defines allowable roster positions
 type FantasySlot string
@@ -190,9 +191,10 @@ type LineupRules struct {
 // LineupTotals is the accounting ValidateLineup produces as a side benefit, so
 // callers don't recompute it.
 type LineupTotals struct {
-	TotalSpent     float64
-	OffenseFemales int
-	DefenseFemales int
+	TotalSpent         float64
+	OffenseFemales     int
+	DefenseFemales     int
+	DefenseAllrounders int
 }
 
 // ValidateLineup enforces every squad rule against a fully-resolved set of
@@ -270,6 +272,10 @@ func validateLineup(picks []LineupCandidate, rules LineupRules, requireComplete 
 			}
 		}
 
+		if spec.Unit == UnitDefense && IsAllrounderRole(p.Position) {
+			totals.DefenseAllrounders++
+		}
+
 		if p.TeamID != "" {
 			clubCounts[p.TeamID]++
 		}
@@ -292,6 +298,13 @@ func validateLineup(picks []LineupCandidate, rules LineupRules, requireComplete 
 				return totals, fmt.Errorf("no more than %d players may come from the same team", rules.MaxPerClub)
 			}
 		}
+	}
+
+	// All-Rounder restriction: max 1 in defense, unlimited in offense.
+	// Like the club ceiling, having more than 1 in defense breaches the rule immediately,
+	// even on an incomplete/partial sheet.
+	if totals.DefenseAllrounders > 1 {
+		return totals, fmt.Errorf("defensive unit allows a maximum of 1 All-Rounder, received %d", totals.DefenseAllrounders)
 	}
 
 	// The female minimums are floors, and a sheet still being filled in is
@@ -373,21 +386,62 @@ func (FantasyWeights) Calculate(s PlayerStat) FantasyPointsBreakdown {
 
 	b.OffensiveTotal = b.OffensivePositive + b.OffensiveNegative
 
-	// ── Defensive Points (Positive Only — Safeties Conceded = 0) ──
-	b.FlagPullsPts = float64(s.FlagPulls) * 0.050             // 5 pulls = 0.250
-	b.PassDeflectionsPts = float64(s.PassDeflections) * 0.250 // +0.250
-	b.InterceptionsPts = float64(s.Interceptions) * 1.250     // +1.250
-	b.DefSacksPts = float64(s.DefSacks) * 0.750               // +0.750
-	b.DefensiveTDsPts = float64(s.DefensiveTDs) * 2.000       // +2.000 (pick-six = 1.25 + 2.0 = 3.25)
-	b.DefensiveXPTDsPts = float64(s.DefensiveXPTDs) * 1.000   // +1.000
-	b.SafetyPts = float64(s.Safety) * 1.250                   // +1.250
-	b.SafetyConcededPts = 0.000                               // Zero weight per spec
+	// ── Defensive Points (DEF-1.0 Specification) ──
+	// Maximum eight scoring pulls per player per match (+0.30/pull, max 2.40 pts).
+	pulls := s.FlagPulls
+	if pulls < 0 {
+		pulls = 0
+	}
+	if pulls > 8 {
+		pulls = 8
+	}
+	b.FlagPullsPts = float64(pulls) * 0.30
+
+	deflections := s.PassDeflections
+	if deflections < 0 {
+		deflections = 0
+	}
+	b.PassDeflectionsPts = float64(deflections) * 1.50
+
+	sacks := s.DefSacks
+	if sacks < 0 {
+		sacks = 0
+	}
+	b.DefSacksPts = float64(sacks) * 2.50
+
+	ints := s.Interceptions
+	if ints < 0 {
+		ints = 0
+	}
+	b.InterceptionsPts = float64(ints) * 4.00
+
+	defTDs := s.DefensiveTDs
+	if defTDs < 0 {
+		defTDs = 0
+	}
+	b.DefensiveTDsPts = float64(defTDs) * 5.00
+
+	defXPTDs := s.DefensiveXPTDs
+	if defXPTDs < 0 {
+		defXPTDs = 0
+	}
+	b.DefensiveXPTDsPts = float64(defXPTDs) * 2.00
+
+	safeties := s.Safety
+	if safeties < 0 {
+		safeties = 0
+	}
+	b.SafetyPts = float64(safeties) * 4.00
+
+	b.SafetyConcededPts = 0.000 // Zero weight per spec
 
 	b.DefensiveTotal = b.FlagPullsPts + b.PassDeflectionsPts + b.InterceptionsPts +
 		b.DefSacksPts + b.DefensiveTDsPts + b.DefensiveXPTDsPts + b.SafetyPts
 
 	// ── Combined Net Total ──
-	b.NetTotal = b.OffensiveTotal + b.DefensiveTotal
+	// Store points rounded to 2 decimal places per specification
+	rawNet := b.OffensiveTotal + b.DefensiveTotal
+	b.NetTotal = math.Round(rawNet*100) / 100
 	return b
 }
 
@@ -425,6 +479,7 @@ func SumBreakdowns(parts []FantasyPointsBreakdown) FantasyPointsBreakdown {
 		t.DefensiveTotal += b.DefensiveTotal
 		t.NetTotal += b.NetTotal
 	}
+	t.NetTotal = math.Round((t.OffensiveTotal+t.DefensiveTotal)*100) / 100
 	return t
 }
 

@@ -118,7 +118,7 @@ export const Layout = () => {
                     // Collapsed, the tiles are still in the DOM: `inert` keeps
                     // them out of the tab order and off screen readers, so
                     // nobody tabs into a row they cannot see.
-                    inert={hideMatchStrip}
+                    inert={hideMatchStrip ? true : undefined}
                 >
                     <div className="min-h-0">
                         <LatestMatchesCarousel />

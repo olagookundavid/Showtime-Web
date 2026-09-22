@@ -214,3 +214,45 @@ func TestAllrounderSlotEligibility(t *testing.T) {
 		}
 	})
 }
+
+func TestAllrounderDefenseRestriction(t *testing.T) {
+	t.Run("allows 1 allrounder in defense and multiple in offense", func(t *testing.T) {
+		lineup := fullValidLineup()
+		// Put 1 All-Rounder in SlotDef1 (defense)
+		lineup[8].Position = "Allrounder"
+		// Put 3 All-Rounders in SlotRec3, SlotRec4, SlotRec5 (offense)
+		lineup[4].Position = "Allrounder"
+		lineup[5].Position = "Allrounder"
+		lineup[6].Position = "Allrounder"
+
+		totals, err := ValidateLineup(lineup, testRules)
+		if err != nil {
+			t.Fatalf("expected lineup with 1 def allrounder and 3 off allrounders to be valid, got: %v", err)
+		}
+		if totals.DefenseAllrounders != 1 {
+			t.Errorf("expected 1 defense allrounder, got %d", totals.DefenseAllrounders)
+		}
+	})
+
+	t.Run("rejects 2 allrounders in defense in complete lineup", func(t *testing.T) {
+		lineup := fullValidLineup()
+		lineup[8].Position = "Allrounder"
+		lineup[9].Position = "Allrounder"
+
+		_, err := ValidateLineup(lineup, testRules)
+		if err == nil {
+			t.Fatal("expected lineup with 2 defense allrounders to be rejected")
+		}
+	})
+
+	t.Run("rejects 2 allrounders in defense even in partial lineup", func(t *testing.T) {
+		partial := []LineupCandidate{
+			{Slot: SlotDef1, PlayerID: "p1", Position: "Allrounder", Gender: "F"},
+			{Slot: SlotDef2, PlayerID: "p2", Position: "Allrounder", Gender: "F"},
+		}
+		_, err := ValidatePartialLineup(partial, testRules)
+		if err == nil {
+			t.Fatal("expected partial lineup with 2 defense allrounders to be rejected")
+		}
+	})
+}

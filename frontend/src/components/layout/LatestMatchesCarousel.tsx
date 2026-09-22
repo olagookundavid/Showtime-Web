@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useRef } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { getMatches, type Match } from '../../services/api';
 import { Loader } from '../ui/Loader';
@@ -68,13 +68,115 @@ const useHeaderMatches = () => {
 export const LatestMatchesCarousel = () => {
     const { matches, isLoading } = useHeaderMatches();
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const [canScrollLeft, setCanScrollLeft] = useState(false);
+    const [canScrollRight, setCanScrollRight] = useState(true);
+
+    // Touch swipe tracking to distinguish tap from slide
+    const touchStartXRef = useRef(0);
+    const touchStartYRef = useRef(0);
+    const isSwipingRef = useRef(false);
+
+    // Mouse drag-to-scroll tracking (for desktop & mobile emulation)
+    const isMouseDownRef = useRef(false);
+    const mouseStartXRef = useRef(0);
+    const mouseScrollLeftRef = useRef(0);
+    const hasMouseDraggedRef = useRef(false);
+
+    const updateScrollButtons = useCallback(() => {
+        const el = scrollContainerRef.current;
+        if (!el) return;
+        setCanScrollLeft(el.scrollLeft > 6);
+        setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 6);
+    }, []);
+
+    useEffect(() => {
+        const el = scrollContainerRef.current;
+        if (!el) return;
+        updateScrollButtons();
+        el.addEventListener('scroll', updateScrollButtons, { passive: true });
+        window.addEventListener('resize', updateScrollButtons);
+        return () => {
+            el.removeEventListener('scroll', updateScrollButtons);
+            window.removeEventListener('resize', updateScrollButtons);
+        };
+    }, [matches, updateScrollButtons]);
+
+    useEffect(() => {
+        const handleGlobalMouseUp = () => {
+            if (isMouseDownRef.current) {
+                isMouseDownRef.current = false;
+                if (hasMouseDraggedRef.current) {
+                    setTimeout(() => {
+                        hasMouseDraggedRef.current = false;
+                    }, 120);
+                }
+            }
+        };
+        window.addEventListener('mouseup', handleGlobalMouseUp);
+        return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+    }, []);
 
     const scrollLeft = () => {
-        scrollContainerRef.current?.scrollBy({ left: -260, behavior: 'smooth' });
+        scrollContainerRef.current?.scrollBy({ left: -240, behavior: 'smooth' });
     };
 
     const scrollRight = () => {
-        scrollContainerRef.current?.scrollBy({ left: 260, behavior: 'smooth' });
+        scrollContainerRef.current?.scrollBy({ left: 240, behavior: 'smooth' });
+    };
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        touchStartXRef.current = e.touches[0].clientX;
+        touchStartYRef.current = e.touches[0].clientY;
+        isSwipingRef.current = false;
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        const dx = Math.abs(e.touches[0].clientX - touchStartXRef.current);
+        const dy = Math.abs(e.touches[0].clientY - touchStartYRef.current);
+        if (dx > 6 && dx > dy) {
+            isSwipingRef.current = true;
+        }
+    };
+
+    const handleTouchEnd = () => {
+        if (isSwipingRef.current) {
+            setTimeout(() => {
+                isSwipingRef.current = false;
+            }, 150);
+        }
+    };
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        if (e.button !== 0) return;
+        isMouseDownRef.current = true;
+        hasMouseDraggedRef.current = false;
+        mouseStartXRef.current = e.pageX;
+        mouseScrollLeftRef.current = scrollContainerRef.current?.scrollLeft || 0;
+    };
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (!isMouseDownRef.current || !scrollContainerRef.current) return;
+        const dx = e.pageX - mouseStartXRef.current;
+        if (Math.abs(dx) > 4) {
+            hasMouseDraggedRef.current = true;
+            scrollContainerRef.current.scrollLeft = mouseScrollLeftRef.current - dx;
+        }
+    };
+
+    const handleMouseUpOrLeave = () => {
+        isMouseDownRef.current = false;
+        if (hasMouseDraggedRef.current) {
+            setTimeout(() => {
+                hasMouseDraggedRef.current = false;
+            }, 120);
+        }
+    };
+
+    const handleClickCapture = (e: React.MouseEvent) => {
+        if (isSwipingRef.current || hasMouseDraggedRef.current) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
     };
 
     if (isLoading) {
@@ -96,7 +198,9 @@ export const LatestMatchesCarousel = () => {
                     {/* Left Arrow */}
                     <button
                         onClick={scrollLeft}
-                        className="hidden sm:flex absolute left-0.5 sm:left-1 top-1/2 -translate-y-1/2 z-20 bg-white/10 hover:bg-sffl-red hover:scale-105 text-white p-1 rounded-full shadow-lg transition-all duration-300 items-center justify-center cursor-pointer"
+                        className={`flex absolute left-0.5 sm:left-1 top-1/2 -translate-y-1/2 z-20 bg-sffl-navy/95 dark:bg-gray-800/95 hover:bg-sffl-red text-white p-1.5 sm:p-1 rounded-full shadow-lg transition-all duration-200 items-center justify-center cursor-pointer border border-white/20 hover:scale-110 active:scale-95 ${
+                            canScrollLeft ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                        }`}
                         aria-label="Scroll left"
                     >
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -107,7 +211,20 @@ export const LatestMatchesCarousel = () => {
                     {/* Scroll Container */}
                     <div
                         ref={scrollContainerRef}
-                        className="flex overflow-x-auto gap-2 py-1 px-6 sm:px-8 md:px-10 snap-x snap-mandatory scroll-px-6 sm:scroll-px-8 md:scroll-px-10 no-scrollbar w-full h-full items-center"
+                        onTouchStart={handleTouchStart}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
+                        onMouseDown={handleMouseDown}
+                        onMouseMove={handleMouseMove}
+                        onMouseLeave={handleMouseUpOrLeave}
+                        onMouseUp={handleMouseUpOrLeave}
+                        onClickCapture={handleClickCapture}
+                        className="flex overflow-x-auto gap-2 py-1 px-7 sm:px-8 md:px-10 no-scrollbar w-full h-full items-center touch-pan-x overscroll-x-contain cursor-grab active:cursor-grabbing select-none"
+                        style={{
+                            WebkitOverflowScrolling: 'touch',
+                            scrollbarWidth: 'none',
+                            msOverflowStyle: 'none',
+                        }}
                     >
                         {matches.map(match => {
                             const isLive = match.status === 'LIVE';
@@ -120,12 +237,13 @@ export const LatestMatchesCarousel = () => {
                                 <Link
                                     key={match.id}
                                     to={`/matches/${match.id}`}
-                                    className="flex-none w-[114px] sm:w-[120px] rounded-lg px-2 py-1 flex items-center justify-between gap-1.5 transition-all duration-300 snap-center cursor-pointer group h-[38px] sm:h-[40px] bg-white/5 dark:bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20"
+                                    draggable={false}
+                                    className="flex-none w-[114px] sm:w-[120px] rounded-lg px-2 py-1 flex items-center justify-between gap-1.5 transition-all duration-300 cursor-pointer group h-[38px] sm:h-[40px] bg-white/5 dark:bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 select-none"
                                 >
                                     <div className="flex flex-col justify-center gap-0.5 flex-1 min-w-0">
                                         {/* Home Team */}
                                         <div className="flex items-center gap-1 min-w-0 h-[14px] sm:h-[15px]">
-                                            {!match.home_team?.id && isBye ? (
+                                             {!match.home_team?.id && isBye ? (
                                                 <span className="font-bold text-[9px] text-gray-400 italic uppercase truncate">BYE</span>
                                             ) : (
                                                 <>
@@ -133,7 +251,8 @@ export const LatestMatchesCarousel = () => {
                                                         <img
                                                             src={match.home_team.logo}
                                                             alt={match.home_team.short_name || match.home_team.name}
-                                                            className="w-3 h-3 sm:w-3.5 sm:h-3.5 object-contain shrink-0"
+                                                            draggable={false}
+                                                            className="w-3 h-3 sm:w-3.5 sm:h-3.5 object-contain shrink-0 pointer-events-none select-none"
                                                         />
                                                     ) : (
                                                         <span className="w-3 h-3 sm:w-3.5 sm:h-3.5 bg-white/10 rounded flex items-center justify-center text-[7.5px] text-gray-400 shrink-0">T1</span>
@@ -154,7 +273,8 @@ export const LatestMatchesCarousel = () => {
                                                         <img
                                                             src={match.away_team.logo}
                                                             alt={match.away_team.short_name || match.away_team.name}
-                                                            className="w-3 h-3 sm:w-3.5 sm:h-3.5 object-contain shrink-0"
+                                                            draggable={false}
+                                                            className="w-3 h-3 sm:w-3.5 sm:h-3.5 object-contain shrink-0 pointer-events-none select-none"
                                                         />
                                                     ) : (
                                                         <span className="w-3 h-3 sm:w-3.5 sm:h-3.5 bg-white/10 rounded flex items-center justify-center text-[7.5px] text-gray-400 shrink-0">T2</span>
@@ -204,7 +324,9 @@ export const LatestMatchesCarousel = () => {
                     {/* Right Arrow */}
                     <button
                         onClick={scrollRight}
-                        className="hidden sm:flex absolute right-0.5 sm:right-1 top-1/2 -translate-y-1/2 z-20 bg-white/10 hover:bg-sffl-red hover:scale-105 text-white p-1 rounded-full shadow-lg transition-all duration-300 items-center justify-center cursor-pointer"
+                        className={`flex absolute right-0.5 sm:right-1 top-1/2 -translate-y-1/2 z-20 bg-sffl-navy/95 dark:bg-gray-800/95 hover:bg-sffl-red text-white p-1.5 sm:p-1 rounded-full shadow-lg transition-all duration-200 items-center justify-center cursor-pointer border border-white/20 hover:scale-110 active:scale-95 ${
+                            canScrollRight ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                        }`}
                         aria-label="Scroll right"
                     >
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

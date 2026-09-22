@@ -348,6 +348,7 @@ export function FantasySquadBuilder() {
         let filledCount = 0;
         let offenseFemales = 0;
         let defenseFemales = 0;
+        let defenseAllrounders = 0;
         const clubCounts: Record<string, number> = {};
         const chosenPlayerIds = new Set<string>();
 
@@ -361,6 +362,10 @@ export function FantasySquadBuilder() {
                 const isFem = (player.gender || '').toUpperCase() === 'F';
                 if (def.unit === 'OFFENSE' && isFem) offenseFemales++;
                 if (def.unit === 'DEFENSE' && isFem) defenseFemales++;
+
+                if (def.unit === 'DEFENSE' && isAllrounderPosition(player.position)) {
+                    defenseAllrounders++;
+                }
 
                 if (player.team_id) {
                     clubCounts[player.team_id] = (clubCounts[player.team_id] || 0) + 1;
@@ -390,6 +395,7 @@ export function FantasySquadBuilder() {
         const slotsFilled = filledCount === 14;
         const offenseFemalesValid = offenseFemales >= minFemaleOffense;
         const defenseFemalesValid = defenseFemales >= minFemaleDefense;
+        const defenseAllroundersValid = defenseAllrounders <= 1;
 
         const clubExceeded = Object.entries(clubCounts).find(([_, count]) => count > maxPerClub);
         const clubLimitValid = !clubExceeded;
@@ -439,7 +445,8 @@ export function FantasySquadBuilder() {
         const slotEligibilityValid = ineligibleSlot === null;
 
         const isValid = slotsFilled && budgetValid && offenseFemalesValid && defenseFemalesValid
-            && clubLimitValid && clubsActiveValid && duplicatePlayerValid && slotEligibilityValid;
+            && clubLimitValid && clubsActiveValid && duplicatePlayerValid && slotEligibilityValid
+            && defenseAllroundersValid;
 
         return {
             totalSpent,
@@ -447,6 +454,8 @@ export function FantasySquadBuilder() {
             filledCount,
             offenseFemales,
             defenseFemales,
+            defenseAllrounders,
+            defenseAllroundersValid,
             clubCounts,
             chosenPlayerIds,
             budget,
@@ -489,6 +498,13 @@ export function FantasySquadBuilder() {
             ok: calculations.defenseFemalesValid,
             label: `Defence has ${calculations.minFemaleDefense} women`,
             detail: `${calculations.defenseFemales} of ${calculations.minFemaleDefense}`,
+        },
+        {
+            ok: calculations.defenseAllroundersValid,
+            label: 'Max 1 All-Rounder in defence',
+            detail: calculations.defenseAllroundersValid
+                ? `${calculations.defenseAllrounders} of 1`
+                : `${calculations.defenseAllrounders} selected (max 1)`,
         },
         {
             ok: calculations.budgetValid,
@@ -654,6 +670,17 @@ export function FantasySquadBuilder() {
             return;
         }
 
+        // Rule: max 1 All-Rounder in defence, unlimited in offence
+        if (activeModalSlot.unit === 'DEFENSE' && isAllrounderPosition(player.position)) {
+            const otherDefAllrounders = SLOT_DEFINITIONS
+                .filter(d => d.unit === 'DEFENSE' && d.slot !== activeModalSlot.slot)
+                .filter(d => isAllrounderPosition(squad[d.slot]?.position)).length;
+            if (otherDefAllrounders >= 1) {
+                toast.error('You can only have a maximum of 1 All-Rounder in defence.');
+                return;
+            }
+        }
+
         // The pick is saved the moment it is made, and it stays in the slot it
         // was put in — it is not parked on the bench waiting for a later save.
         commitSquad(prev => ({
@@ -708,11 +735,17 @@ export function FantasySquadBuilder() {
 
     // "Start" — promote a bench reserve into an open matching slot
     const handleStartReserve = (reservePlayer: SquadPlayer) => {
+        const currentDefAllrounders = SLOT_DEFINITIONS
+            .filter(d => d.unit === 'DEFENSE')
+            .filter(d => isAllrounderPosition(squad[d.slot]?.position)).length;
+        const isReserveAllrounder = isAllrounderPosition(reservePlayer.position);
+
         // Find the first empty slot that matches position & gender
         const matchingSlot = SLOT_DEFINITIONS.find(def => {
             if (squad[def.slot] !== null) return false; // Already filled
             if (!positionFitsSlot(def, reservePlayer.position)) return false;
             if (def.requiredGender && !reservePlayer.gender.toUpperCase().startsWith(def.requiredGender)) return false;
+            if (def.unit === 'DEFENSE' && isReserveAllrounder && currentDefAllrounders >= 1) return false;
             return true;
         });
 
@@ -1305,6 +1338,7 @@ export function FantasySquadBuilder() {
                 ) : (
                     <div className="divide-y divide-gray-100 dark:divide-gray-700">
                         {benchPlayers.map((p) => {
+                            const isReserveAllrounder = isAllrounderPosition(p.position);
                             // Can this reserve be promoted into an open matching slot?
                             const hasOpenSlot = p.team_active !== false
                                 && !isDeletedPlayer({ status: p.player_status })
@@ -1312,6 +1346,7 @@ export function FantasySquadBuilder() {
                                     if (squad[def.slot] !== null) return false;
                                     if (!positionFitsSlot(def, p.position)) return false;
                                     if (def.requiredGender && !p.gender.toUpperCase().startsWith(def.requiredGender)) return false;
+                                    if (def.unit === 'DEFENSE' && isReserveAllrounder && calculations.defenseAllrounders >= 1) return false;
                                     return true;
                                 });
 
@@ -1501,6 +1536,12 @@ export function FantasySquadBuilder() {
                                             const isAlreadyPicked = calculations.chosenPlayerIds.has(p.player_id);
                                             const clubExceededForOwned = !isAlreadyPicked
                                                 && (calculations.clubCounts[p.club_id] || 0) >= (season?.max_per_club || 3);
+                                            const defAllrounderExceededForOwned = !isAlreadyPicked
+                                                && activeModalSlot?.unit === 'DEFENSE'
+                                                && isAllrounderPosition(p.position)
+                                                && SLOT_DEFINITIONS
+                                                    .filter(d => d.unit === 'DEFENSE' && d.slot !== activeModalSlot.slot)
+                                                    .some(d => isAllrounderPosition(squad[d.slot]?.position));
                                             return (
                                                 <div
                                                     key={p.player_id}
@@ -1520,7 +1561,12 @@ export function FantasySquadBuilder() {
                                                         </p>
                                                         {clubExceededForOwned && (
                                                             <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold block mt-0.5">
-                                                                Club limit reached ({season?.max_per_club || 3})
+                                                                 Club limit reached ({season?.max_per_club || 3})
+                                                            </span>
+                                                        )}
+                                                        {defAllrounderExceededForOwned && (
+                                                            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold block mt-0.5">
+                                                                Max 1 All-Rounder in defence
                                                             </span>
                                                         )}
                                                     </div>
@@ -1543,9 +1589,13 @@ export function FantasySquadBuilder() {
                                                             transfers_in: 0,
                                                             transfers_out: 0,
                                                         })}
-                                                        disabled={isAlreadyPicked || clubExceededForOwned}
-                                                        title={clubExceededForOwned ? `No more than ${season?.max_per_club || 3} players may come from one club` : undefined}
-                                                        className={`shrink-0 px-3.5 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition ${isAlreadyPicked || clubExceededForOwned
+                                                        disabled={isAlreadyPicked || clubExceededForOwned || defAllrounderExceededForOwned}
+                                                        title={
+                                                            clubExceededForOwned ? `No more than ${season?.max_per_club || 3} players may come from one club`
+                                                                : defAllrounderExceededForOwned ? 'You can only have a maximum of 1 All-Rounder in defence'
+                                                                    : undefined
+                                                        }
+                                                        className={`shrink-0 px-3.5 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition ${isAlreadyPicked || clubExceededForOwned || defAllrounderExceededForOwned
                                                                 ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                                                                 : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-sm'
                                                             }`}
@@ -1573,6 +1623,12 @@ export function FantasySquadBuilder() {
                                         const isAlreadyPicked = calculations.chosenPlayerIds.has(p.player_id);
                                         const clubCount = calculations.clubCounts[p.team_id] || 0;
                                         const clubExceeded = clubCount >= (season?.max_per_club || 3);
+                                        const defAllrounderExceeded = !isAlreadyPicked
+                                            && activeModalSlot?.unit === 'DEFENSE'
+                                            && isAllrounderPosition(p.position)
+                                            && SLOT_DEFINITIONS
+                                                .filter(d => d.unit === 'DEFENSE' && d.slot !== activeModalSlot.slot)
+                                                .some(d => isAllrounderPosition(squad[d.slot]?.position));
                                         // Signing spends real money out of the bank — the
                                         // lineup no longer has a budget of its own.
                                         const affordable = p.price <= (mySquad?.bank ?? 0);
@@ -1633,6 +1689,11 @@ export function FantasySquadBuilder() {
                                                             Club limit reached ({clubCount}/{season?.max_per_club || 3})
                                                         </span>
                                                     )}
+                                                    {defAllrounderExceeded && !isAlreadyPicked && (
+                                                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold block mt-0.5">
+                                                            Max 1 All-Rounder in defence
+                                                        </span>
+                                                    )}
                                                     {!affordable && !isAlreadyPicked && (
                                                         <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold block mt-0.5">
                                                             {formatFantasyPrice(p.price - (mySquad?.bank ?? 0))} more than you have in the bank
@@ -1650,16 +1711,17 @@ export function FantasySquadBuilder() {
                                                     it, not merely in the squad. */}
                                                     <button
                                                         onClick={() => buyAndSelect(p)}
-                                                        disabled={isAlreadyPicked || !affordable || squadFull || clubExceeded || !!mktClosed || buyMutation.isPending || p.price <= 0}
+                                                        disabled={isAlreadyPicked || !affordable || squadFull || clubExceeded || defAllrounderExceeded || !!mktClosed || buyMutation.isPending || p.price <= 0}
                                                         title={
                                                             mktClosed ? mktClosed
                                                                 : p.price <= 0 ? 'This player is not on the market for this season'
                                                                 : squadFull ? `Your squad is full at ${mySquad?.squad_max}`
                                                                     : clubExceeded ? `No more than ${season?.max_per_club || 3} players may come from one club`
-                                                                        : !affordable ? 'Not enough in the bank'
-                                                                            : undefined
+                                                                        : defAllrounderExceeded ? 'You can only have a maximum of 1 All-Rounder in defence'
+                                                                            : !affordable ? 'Not enough in the bank'
+                                                                                : undefined
                                                         }
-                                                        className={`mt-1 px-3.5 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition ${isAlreadyPicked || !affordable || squadFull || clubExceeded || mktClosed || p.price <= 0
+                                                        className={`mt-1 px-3.5 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition ${isAlreadyPicked || !affordable || squadFull || clubExceeded || defAllrounderExceeded || mktClosed || p.price <= 0
                                                                 ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                                                                 : 'bg-sffl-red hover:bg-[#A52323] text-white cursor-pointer shadow-sm'
                                                             }`}
