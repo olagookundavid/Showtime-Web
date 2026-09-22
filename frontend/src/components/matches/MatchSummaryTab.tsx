@@ -220,10 +220,10 @@ export function getUnifiedMatchMvp(
 
 interface MatchSummaryTabProps {
     match: Match;
-    teamSheet: MatchTeamSheet;
+    teamSheet?: MatchTeamSheet;
 }
 
-export const MatchSummaryTab = ({ match, teamSheet }: MatchSummaryTabProps) => {
+export const MatchSummaryTab = ({ match, teamSheet = { home_team: [], away_team: [] } }: MatchSummaryTabProps) => {
     const homeTeam = match.home_team;
     const awayTeam = match.away_team;
     const homeTeamId = homeTeam?.id;

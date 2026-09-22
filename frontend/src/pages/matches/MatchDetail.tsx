@@ -208,6 +208,17 @@ export const MatchDetail = () => {
     const [ratingSort, setRatingSort] = useState<RatingSort>('default');
     const cycleRatingSort = () => setRatingSort(s => (s === 'default' ? 'high' : s === 'high' ? 'low' : 'default'));
 
+    const { data: statsData } = useQuery({
+        queryKey: ['publicMatchStatsCompare', id],
+        queryFn: () => getPublicMatchStats(id!),
+        enabled: !!id,
+    });
+    const playerStatsList = useMemo(() => statsData?.derived || statsData?.current || [], [statsData]);
+
+    const match = matchDetail?.match;
+    const team_sheet = matchDetail?.team_sheet;
+    const unifiedMvp = useMemo(() => (match && team_sheet ? getUnifiedMatchMvp(match, team_sheet, playerStatsList) : null), [match, team_sheet, playerStatsList]);
+
     if (isLoading) return <Loader />;
 
     if (isError || !matchDetail) {
@@ -222,8 +233,6 @@ export const MatchDetail = () => {
             </div>
         );
     }
-
-    const { match, team_sheet } = matchDetail;
 
     if (!match?.id) {
         return (
@@ -242,14 +251,6 @@ export const MatchDetail = () => {
     const homeSheet = team_sheet?.home_team ?? [];
     const awaySheet = team_sheet?.away_team ?? [];
     const hasTeamSheet = homeSheet.length > 0 || awaySheet.length > 0;
-
-    const { data: statsData } = useQuery({
-        queryKey: ['publicMatchStatsCompare', match.id],
-        queryFn: () => getPublicMatchStats(match.id),
-        enabled: !!match.id,
-    });
-    const playerStatsList = useMemo(() => statsData?.derived || statsData?.current || [], [statsData]);
-    const unifiedMvp = useMemo(() => getUnifiedMatchMvp(match, team_sheet, playerStatsList), [match, team_sheet, playerStatsList]);
 
     const isBye = match.competition?.format === 'PLAYOFFS' &&
         ((match.home_team?.id && !match.away_team?.id && match.status === 'FINISHED') ||
