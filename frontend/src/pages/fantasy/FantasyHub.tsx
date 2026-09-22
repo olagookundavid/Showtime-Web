@@ -23,8 +23,13 @@ import { FantasyTeamModal } from '../../components/fantasy/FantasyTeamModal';
 const num = (v: number | null | undefined): number =>
     typeof v === 'number' && Number.isFinite(v) ? v : 0;
 
+export function getDefaultTeamName(userName?: string | null): string {
+    const clean = (userName || '').trim();
+    return clean ? `${clean} Team` : 'Showtime Team';
+}
+
 export function FantasyHub() {
-    const { isAuthenticated } = useAuth();
+    const { user, isAuthenticated } = useAuth();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
 
@@ -221,7 +226,10 @@ export function FantasyHub() {
                         ) : (
                             <>
                                 <button
-                                    onClick={() => setShowJoinModal(true)}
+                                    onClick={() => {
+                                        setTeamNameInput(getDefaultTeamName(user?.name));
+                                        setShowJoinModal(true);
+                                    }}
                                     className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase tracking-wider shadow-md shadow-sffl-red/30 transition active:scale-95 cursor-pointer"
                                 >
                                     Join This Season <ArrowRightIcon className="w-4 h-4" />
@@ -375,9 +383,9 @@ export function FantasyHub() {
                         />
                         <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5 mb-4">
                             {trimmedName.length === 0
-                                ? 'This is the name shown on every leaderboard.'
+                                ? 'Team names must be unique across the season (3–40 characters).'
                                 : nameValid
-                                    ? `${trimmedName.length}/40 characters`
+                                    ? `${trimmedName.length}/40 characters • Team names must be unique in this season`
                                     : 'Team name must be between 3 and 40 characters.'}
                         </p>
 

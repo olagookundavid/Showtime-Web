@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { isDeletedPlayer } from '../../components/common/DeletedPlayer';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import {
     UsersIcon,
@@ -20,6 +19,7 @@ import {
     ExclamationTriangleIcon,
     LockClosedIcon,
     ClockIcon,
+    PencilSquareIcon,
 } from '@heroicons/react/24/outline';
 import {
     fantasyApi,
@@ -32,6 +32,7 @@ import {
     formatFantasyPrice,
 } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { getDefaultTeamName } from './FantasyHub';
 import { Loader } from '../../components/ui/Loader';
 import { PlayerAvatar } from '../../components/fantasy/PlayerAvatar';
 import { FantasyBackLink } from '../../components/fantasy/FantasyBackLink';
@@ -88,8 +89,6 @@ const SLOT_DEFINITIONS: SlotDefinition[] = [
     { slot: 'DEF_6', label: 'Defender 6', unit: 'DEFENSE', allowedPositions: ['Defender'] },
 ];
 
-const DEFAULT_TEAM_NAME = 'My Showtime Stars';
-
 const emptySquad = (): Record<FantasySlot, FantasyPlayerListItem | null> => ({
     QB_M: null,
     QB_F: null,
@@ -136,7 +135,7 @@ export function FantasySquadBuilder() {
     const hasJoined = dashboard ? dashboard.entered : undefined;
 
     const queryClient = useQueryClient();
-    const { isLoading: authLoading } = useAuth();
+    const { user, isLoading: authLoading } = useAuth();
 
     // Active Season & Gameweek
     const { data: season, isLoading: seasonLoading } = useQuery({
@@ -162,7 +161,10 @@ export function FantasySquadBuilder() {
     // Local squad state: slot -> FantasyPlayerListItem
     const [squad, setSquad] = useState<Record<FantasySlot, FantasyPlayerListItem | null>>(emptySquad);
 
-    const [teamName, setTeamName] = useState(DEFAULT_TEAM_NAME);
+    const [teamName, setTeamName] = useState(() => getDefaultTeamName(user?.name));
+    const [showEditNameModal, setShowEditNameModal] = useState(false);
+    const [editModalNameInput, setEditModalNameInput] = useState('');
+    const [joinTeamNameInput, setJoinTeamNameInput] = useState('');
     const [selectedUnitTab, setSelectedUnitTab] = useState<'ALL' | 'OFFENSE' | 'DEFENSE'>('ALL');
     const [activeModalSlot, setActiveModalSlot] = useState<SlotDefinition | null>(null);
     const [marketSearch, setMarketSearch] = useState('');
@@ -198,13 +200,18 @@ export function FantasySquadBuilder() {
 
         if (!currentLineup) {
             if (isGameweekSwitch) {
-                setTeamName(DEFAULT_TEAM_NAME);
+                setTeamName(dashboard?.team?.name && dashboard.team.name !== 'My Showtime Stars' ? dashboard.team.name : getDefaultTeamName(user?.name));
                 setSquad(emptySquad());
             }
             return;
         }
 
-        setTeamName(currentLineup.team_name || DEFAULT_TEAM_NAME);
+        const resolvedName = (currentLineup.team_name && currentLineup.team_name !== 'My Showtime Stars')
+            ? currentLineup.team_name
+            : (dashboard?.team?.name && dashboard.team.name !== 'My Showtime Stars')
+                ? dashboard.team.name
+                : getDefaultTeamName(user?.name);
+        setTeamName(resolvedName);
         setSquad(prev => {
             const next = isGameweekSwitch ? emptySquad() : { ...prev };
             currentLineup.picks.forEach(p => {
@@ -232,7 +239,24 @@ export function FantasySquadBuilder() {
             });
             return next;
         });
-    }, [currentLineup, scheduledGW?.id, lineupLoading]);
+    }, [currentLineup, scheduledGW?.id, lineupLoading, dashboard?.team?.name, user?.name]);
+
+    // Keep team name in sync with dashboard or user profile if unset/default
+    useEffect(() => {
+        if (dashboard?.team?.name && dashboard.team.name !== 'My Showtime Stars') {
+            setTeamName(dashboard.team.name);
+        } else if (user?.name && (!teamName || teamName === 'Showtime Team' || teamName === 'My Showtime Stars')) {
+            setTeamName(getDefaultTeamName(user.name));
+        }
+    }, [dashboard?.team?.name, user?.name]);
+
+    // If an entered manager still has legacy "My Showtime Stars", prompt them to name their team
+    useEffect(() => {
+        if (hasJoined && (dashboard?.team?.name === 'My Showtime Stars' || currentLineup?.team_name === 'My Showtime Stars')) {
+            setEditModalNameInput(getDefaultTeamName(user?.name));
+            setShowEditNameModal(true);
+        }
+    }, [hasJoined, dashboard?.team?.name, currentLineup?.team_name, user?.name]);
 
     // The manager's owned squad. A lineup can only name players they own, so
     // this is the primary source for the picker — the market below it is for
@@ -601,13 +625,54 @@ export function FantasySquadBuilder() {
         [benchMarketData, ownedIds],
     );
 
+    const renameMutation = useMutation({
+        mutationFn: async (newName: string) => {
+            if (!season?.id) throw new Error('Season not loaded');
+            const clean = newName.trim();
+            if (clean.length < 3 || clean.length > 40) {
+                throw new Error('Team name must be between 3 and 40 characters.');
+            }
+            return fantasySeasonApi.enterSeason(season.id, clean);
+        },
+        onSuccess: (updatedTeam) => {
+            setTeamName(updatedTeam.name);
+            setShowEditNameModal(false);
+            toast.success('Team name updated!');
+            queryClient.invalidateQueries({ queryKey: ['fantasyDashboard'] });
+            queryClient.invalidateQueries({ queryKey: ['myFantasyLineup'] });
+        },
+        onError: (err: any) => {
+            toast.error(err?.response?.data?.error || err.message || 'Failed to update team name');
+        },
+    });
+
+    const joinMutation = useMutation({
+        mutationFn: async (chosenName: string) => {
+            if (!season?.id) throw new Error('Season not loaded');
+            const clean = chosenName.trim();
+            if (clean.length < 3 || clean.length > 40) {
+                throw new Error('Team name must be between 3 and 40 characters.');
+            }
+            return fantasySeasonApi.enterSeason(season.id, clean);
+        },
+        onSuccess: (createdTeam) => {
+            setTeamName(createdTeam.name);
+            toast.success("You're in! Welcome to Showtime Fantasy.");
+            queryClient.invalidateQueries({ queryKey: ['fantasyDashboard'] });
+            queryClient.invalidateQueries({ queryKey: ['myFantasyLineup'] });
+        },
+        onError: (err: any) => {
+            toast.error(err?.response?.data?.error || err.message || 'Failed to join season');
+        },
+    });
+
     const saveMutation = useMutation({
         mutationFn: ({ picks, publish }: { picks: { player_id: string; slot: FantasySlot }[]; publish: boolean }) => {
             if (!season || !scheduledGW) throw new Error("No active season or scheduled gameweek");
             return fantasyApi.saveLineup({
                 season_id: season.id,
                 gameweek_id: scheduledGW.id,
-                team_name: teamName.trim() || DEFAULT_TEAM_NAME,
+                team_name: teamName.trim() || getDefaultTeamName(user?.name),
                 picks,
                 publish,
             });
@@ -790,21 +855,73 @@ export function FantasySquadBuilder() {
     // Building a squad without having joined would only fail at save time,
     // after picking all 14 players. Say so up front instead.
     if (hasJoined === false) {
+        const initialDefault = joinTeamNameInput || getDefaultTeamName(user?.name);
+        const trimmedJoin = initialDefault.trim();
+        const joinValid = trimmedJoin.length >= 3 && trimmedJoin.length <= 40;
+
         return (
-            <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 bg-white dark:bg-gray-800 rounded-2xl md:rounded-3xl border border-gray-200 dark:border-gray-700 shadow-sm p-8 md:p-12">
-                <div className="w-16 h-16 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 mb-4">
-                    <ExclamationCircleIcon className="w-10 h-10" />
+            <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 py-8">
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl md:rounded-3xl shadow-2xl p-6 md:p-10 max-w-lg w-full">
+                    <div className="w-14 h-14 rounded-2xl bg-sffl-red/10 dark:bg-sffl-red/20 flex items-center justify-center text-sffl-red mb-5">
+                        <SparklesIcon className="w-8 h-8" />
+                    </div>
+                    <h1 className="text-2xl md:text-3xl font-black italic tracking-tight uppercase text-sffl-navy dark:text-white">
+                        Name Your Fantasy Team
+                    </h1>
+                    <p className="text-gray-600 dark:text-gray-300 mt-2 text-sm leading-relaxed">
+                        Welcome to Showtime Fantasy! Choose a unique name for your squad to enter the season and start drafting your 14 players.
+                    </p>
+
+                    <form
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            if (joinValid && !joinMutation.isPending) {
+                                joinMutation.mutate(trimmedJoin);
+                            }
+                        }}
+                        className="mt-6 space-y-4"
+                    >
+                        <div>
+                            <label htmlFor="join-team-name-input" className="block text-xs font-black uppercase text-gray-500 dark:text-gray-400 mb-1.5 tracking-wider">
+                                Team Name (3–40 characters)
+                            </label>
+                            <input
+                                id="join-team-name-input"
+                                type="text"
+                                value={joinTeamNameInput || initialDefault}
+                                onChange={(e) => setJoinTeamNameInput(e.target.value)}
+                                placeholder="e.g. Lagos Blitz"
+                                maxLength={40}
+                                className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3.5 text-base font-bold text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red transition-all"
+                            />
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5">
+                                {trimmedJoin.length === 0
+                                    ? 'Team names must be unique across the season.'
+                                    : joinValid
+                                        ? `${trimmedJoin.length}/40 characters • Must be unique in this season`
+                                        : 'Team name must be between 3 and 40 characters.'}
+                            </p>
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={!joinValid || joinMutation.isPending}
+                            className="w-full py-3.5 rounded-xl bg-sffl-red hover:bg-[#A52323] disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-black text-xs uppercase tracking-wider transition shadow-md cursor-pointer flex items-center justify-center gap-2"
+                        >
+                            {joinMutation.isPending ? (
+                                <>
+                                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    <span>Entering Season…</span>
+                                </>
+                            ) : (
+                                <>
+                                    <span>Confirm Name &amp; Start Building</span>
+                                    <RocketLaunchIcon className="w-4 h-4" />
+                                </>
+                            )}
+                        </button>
+                    </form>
                 </div>
-                <h1 className="text-2xl font-black uppercase text-sffl-navy dark:text-white mb-2">Join The Season First</h1>
-                <p className="text-gray-600 dark:text-gray-300 max-w-md mb-6 text-sm">
-                    You need to join this season before you can pick a squad. It only takes a team name.
-                </p>
-                <Link
-                    to="/fantasy"
-                    className="px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-sm shadow-md transition-all active:scale-95"
-                >
-                    Go To The Season
-                </Link>
             </div>
         );
     }
@@ -864,19 +981,25 @@ export function FantasySquadBuilder() {
                         <p className="text-gray-300 mt-1 text-xs md:text-sm font-medium">
                             Manage your starting 14, bench depth, and transfer market signings in one place.
                         </p>
-                        <div className="mt-3 flex items-center gap-2">
-                            <label htmlFor="team-name-input" className="text-[11px] font-black uppercase text-gray-300 tracking-wider cursor-pointer">
+                        <div className="mt-3 flex flex-wrap items-center gap-2 sm:gap-3">
+                            <span className="text-[11px] font-black uppercase text-gray-300 tracking-wider">
                                 Team:
-                            </label>
-                            <input
-                                id="team-name-input"
-                                type="text"
-                                value={teamName}
-                                onChange={(e) => setTeamName(e.target.value)}
-                                placeholder="Enter Team Name..."
-                                aria-label="Team Name"
-                                className="text-base sm:text-lg font-black italic bg-transparent border-b border-white/20 hover:border-white/40 focus:border-sffl-red focus:outline-none text-white tracking-tight w-full max-w-xs"
-                            />
+                            </span>
+                            <span className="text-base sm:text-2xl font-black italic tracking-tight text-white uppercase drop-shadow-sm">
+                                {teamName || getDefaultTeamName(user?.name)}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setEditModalNameInput(teamName || getDefaultTeamName(user?.name));
+                                    setShowEditNameModal(true);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 text-white text-xs font-bold border border-white/20 transition cursor-pointer shadow-sm"
+                                title="Edit Team Name"
+                            >
+                                <PencilSquareIcon className="w-3.5 h-3.5 text-gray-300" />
+                                <span>Edit Name</span>
+                            </button>
                         </div>
                     </div>
 
@@ -1930,6 +2053,90 @@ export function FantasySquadBuilder() {
                     onCancel={() => { setConfirmSell(null); setPendingTransferOutSlot(null); }}
                     onConfirm={() => sellMutation.mutate(confirmSell.player_id)}
                 />
+            )}
+
+            {/* ──────────────────────────────────────────────────────────────────
+                EDIT TEAM NAME MODAL
+            ────────────────────────────────────────────────────────────────── */}
+            {showEditNameModal && (
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 w-full max-w-md rounded-2xl md:rounded-3xl p-6 shadow-2xl">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-black text-sffl-navy dark:text-white uppercase tracking-tight">
+                                Edit Team Name
+                            </h3>
+                            <button
+                                onClick={() => setShowEditNameModal(false)}
+                                className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300 cursor-pointer transition"
+                            >
+                                <XMarkIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <p className="text-xs text-gray-600 dark:text-gray-300 mb-4 leading-relaxed">
+                            Personalize your fantasy squad name. Team names must be unique within the season and appear across all leaderboards and match day summaries.
+                        </p>
+
+                        <form
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                                const trimmed = editModalNameInput.trim();
+                                if (trimmed.length >= 3 && trimmed.length <= 40 && !renameMutation.isPending) {
+                                    renameMutation.mutate(trimmed);
+                                }
+                            }}
+                            className="space-y-4"
+                        >
+                            <div>
+                                <label htmlFor="edit-team-name-modal-input" className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">
+                                    Team Name (3–40 characters)
+                                </label>
+                                <input
+                                    id="edit-team-name-modal-input"
+                                    type="text"
+                                    value={editModalNameInput}
+                                    onChange={(e) => setEditModalNameInput(e.target.value)}
+                                    placeholder="Enter unique team name..."
+                                    maxLength={40}
+                                    autoFocus
+                                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
+                                />
+                                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5">
+                                    {editModalNameInput.trim().length === 0
+                                        ? 'Team names must be unique across the season.'
+                                        : editModalNameInput.trim().length >= 3 && editModalNameInput.trim().length <= 40
+                                            ? `${editModalNameInput.trim().length}/40 characters • Must be unique in this season`
+                                            : 'Must be between 3 and 40 characters.'}
+                                </p>
+                            </div>
+
+                            <div className="flex items-center gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowEditNameModal(false)}
+                                    className="flex-1 py-2.5 rounded-xl bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 font-bold text-xs uppercase dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 dark:border-gray-600 transition cursor-pointer"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={
+                                        editModalNameInput.trim().length < 3 ||
+                                        editModalNameInput.trim().length > 40 ||
+                                        renameMutation.isPending
+                                    }
+                                    className="flex-1 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-black text-xs uppercase transition shadow-md cursor-pointer flex items-center justify-center gap-2"
+                                >
+                                    {renameMutation.isPending ? (
+                                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                        'Save Name'
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             )}
         </div>
     );

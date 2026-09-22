@@ -55,6 +55,7 @@ type fakeFantasyRepo struct {
 	overridesErr   error
 	upsertedPrices []domain.FantasyPlayerPrice
 	pricingLines   []ports.PlayerPricingLine
+	teamNameTaken  bool
 }
 
 func newFakeRepo() *fakeFantasyRepo {
@@ -169,6 +170,9 @@ func (f *fakeFantasyRepo) GetTeamOverallRank(_ context.Context, _, _ string) (in
 }
 
 func (f *fakeFantasyRepo) GetOrCreateTeam(_ context.Context, userID, seasonID, name string) (*domain.FantasyTeam, error) {
+	if f.teamNameTaken {
+		return nil, domain.ErrTeamNameTaken
+	}
 	return &domain.FantasyTeam{ID: "team-" + userID, UserID: userID, SeasonID: seasonID, Name: name}, nil
 }
 
@@ -536,6 +540,19 @@ func TestEnterSeason(t *testing.T) {
 		}
 		if leagues.added != 0 {
 			t.Errorf("entering a season must not join a league, but joined %d", leagues.added)
+		}
+	})
+
+	t.Run("rejects duplicate team name", func(t *testing.T) {
+		repo := newFakeRepo()
+		repo.season = testSeason()
+		repo.teamNameTaken = true
+		svc := NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil, ownsPool(repo))
+
+		_, err := svc.EnterSeason(context.Background(), "user-1", "season-1",
+			dto.EnterSeasonRequest{TeamName: "Lagos Lions"})
+		if !errors.Is(err, domain.ErrTeamNameTaken) {
+			t.Errorf("expected ErrTeamNameTaken, got %v", err)
 		}
 	})
 }
@@ -941,6 +958,19 @@ func TestLineupValidation(t *testing.T) {
 
 		_, err := svc.SaveLineup(context.Background(), "user-1", saveRequest(validSquad()))
 		assertErrContains(t, err, "not currently active")
+	})
+
+	t.Run("rejects renaming to a taken team name", func(t *testing.T) {
+		repo, _, svc := newServiceWith(validSquad())
+		repo.teamNameTaken = true
+
+		req := saveRequest(validSquad())
+		req.TeamName = "Already Taken FC"
+
+		_, err := svc.SaveLineup(context.Background(), "user-1", req)
+		if !errors.Is(err, domain.ErrTeamNameTaken) {
+			t.Errorf("expected ErrTeamNameTaken, got %v", err)
+		}
 	})
 }
 

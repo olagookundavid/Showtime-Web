@@ -1,10 +1,16 @@
 package domain
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"strings"
 	"time"
+)
+
+var (
+	// ErrTeamNameTaken is returned when a manager tries to create or rename a team to a name already chosen by another team in the same season.
+	ErrTeamNameTaken = errors.New("This team name is already taken in this season. Please choose a different name.")
 )
 
 // ─── Scoring Engine Constants & Calculation ───────────────────────────────────

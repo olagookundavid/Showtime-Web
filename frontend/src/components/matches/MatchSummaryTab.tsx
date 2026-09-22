@@ -376,21 +376,20 @@ export const MatchSummaryTab = ({ match, teamSheet = { home_team: [], away_team:
             const sheet = isHome ? homeSheet : awaySheet;
 
             target.plays += (p.passing_attempts || 0) + (p.rushing_attempts || 0);
-            target.yards += (p.passing_yards || 0) + (p.rushing_yards || 0) + (p.receiving_yards || 0);
+            target.yards += (p.passing_yards || 0) + (p.rushing_yards || 0);
             target.catches += p.receptions || 0;
             target.drops += p.drops || 0;
             target.passAttempts += p.passing_attempts || 0;
             target.completions += p.completed_passes || 0;
             target.turnovers += p.interceptions_thrown || 0;
-            const pTDs = (p.passing_tds || 0) + (p.rushing_tds || 0) + (p.receiving_tds || 0) + (p.defensive_tds || 0);
-            target.totalTDs += pTDs;
+            target.totalTDs += (p.passing_tds || 0) + (p.rushing_tds || 0);
             if (isFemale(sheet, p.player_id)) {
-                target.femaleTDs += pTDs;
+                target.femaleTDs += (p.receiving_tds || 0) + (p.rushing_tds || 0);
             }
             target.flagPulls += p.flag_pulls || 0;
             target.interceptions += p.interceptions || 0;
             target.batDowns += (p.batted_down_passes || 0) + (p.pass_deflections || 0);
-            target.sacks += (p.def_sacks || 0) + (p.qb_sacks || 0);
+            target.sacks += p.def_sacks || 0;
         });
 
         // If plays exist, compute precise turnovers (TO on downs, INTs, bad snaps) from play-by-play

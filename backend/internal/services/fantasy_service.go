@@ -707,6 +707,9 @@ func (s *FantasyService) EnterSeason(ctx context.Context, userID, seasonID strin
 
 	team, err := s.repo.GetOrCreateTeam(ctx, userID, seasonID, strings.TrimSpace(req.TeamName))
 	if err != nil {
+		if errors.Is(err, domain.ErrTeamNameTaken) {
+			return nil, domain.ErrTeamNameTaken
+		}
 		return nil, fmt.Errorf("failed to enter the season: %w", err)
 	}
 
@@ -914,6 +917,9 @@ func (s *FantasyService) SaveLineup(ctx context.Context, userID string, req dto.
 	}
 	if req.TeamName != "" && req.TeamName != team.Name {
 		if team, err = s.repo.GetOrCreateTeam(ctx, userID, season.ID, req.TeamName); err != nil {
+			if errors.Is(err, domain.ErrTeamNameTaken) {
+				return nil, domain.ErrTeamNameTaken
+			}
 			return nil, fmt.Errorf("failed to rename your team: %w", err)
 		}
 	}

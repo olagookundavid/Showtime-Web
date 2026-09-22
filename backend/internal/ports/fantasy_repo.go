@@ -947,6 +947,65 @@ func (r *FantasyRepository) GetOrCreateTeam(ctx context.Context, userID, seasonI
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
+	teamName = strings.TrimSpace(teamName)
+
+	// Check if this user already has a team in this season
+	var existingTeam domain.FantasyTeam
+	err := r.pool.QueryRow(ctx, `
+		SELECT id, user_id, season_id, name, total_points, created_at, updated_at
+		FROM fantasy_teams
+		WHERE user_id = $1 AND season_id = $2
+	`, userID, seasonID).Scan(
+		&existingTeam.ID, &existingTeam.UserID, &existingTeam.SeasonID, &existingTeam.Name, &existingTeam.TotalPoints, &existingTeam.CreatedAt, &existingTeam.UpdatedAt,
+	)
+
+	hasExisting := err == nil
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, fmt.Errorf("failed to query existing fantasy team: %w", err)
+	}
+
+	// If user already has a team and didn't supply a new name, or supplies the same name, return it
+	if hasExisting && (teamName == "" || strings.EqualFold(teamName, existingTeam.Name)) {
+		// If legacy "My Showtime Stars", upgrade to Name + Team
+		if strings.EqualFold(existingTeam.Name, "My Showtime Stars") {
+			var fullName string
+			_ = r.pool.QueryRow(ctx, `SELECT COALESCE(full_name, '') FROM users WHERE id = $1`, userID).Scan(&fullName)
+			fullName = strings.TrimSpace(fullName)
+			if fullName != "" {
+				teamName = fullName + " Team"
+			} else {
+				teamName = "Showtime Team"
+			}
+		} else {
+			return &existingTeam, nil
+		}
+	}
+
+	// For new teams or default fallback, resolve user's name: "<FullName> Team"
+	if teamName == "" || strings.EqualFold(teamName, "My Showtime Stars") {
+		var fullName string
+		_ = r.pool.QueryRow(ctx, `SELECT COALESCE(full_name, '') FROM users WHERE id = $1`, userID).Scan(&fullName)
+		fullName = strings.TrimSpace(fullName)
+		if fullName != "" {
+			teamName = fullName + " Team"
+		} else {
+			teamName = "Showtime Team"
+		}
+	}
+
+	// Ensure no two teams share the same name in this season (case-insensitive, trimmed)
+	var collisionUserID string
+	err = r.pool.QueryRow(ctx, `
+		SELECT user_id FROM fantasy_teams
+		WHERE season_id = $1 AND LOWER(TRIM(name)) = LOWER(TRIM($2)) AND user_id <> $3
+		LIMIT 1
+	`, seasonID, teamName, userID).Scan(&collisionUserID)
+	if err == nil {
+		return nil, domain.ErrTeamNameTaken
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return nil, fmt.Errorf("failed checking team name uniqueness: %w", err)
+	}
+
 	query := `
 		INSERT INTO fantasy_teams (user_id, season_id, name, bank)
 		-- A new manager starts with the whole season budget in the bank; the
@@ -957,10 +1016,13 @@ func (r *FantasyRepository) GetOrCreateTeam(ctx context.Context, userID, seasonI
 		RETURNING id, user_id, season_id, name, total_points, created_at, updated_at
 	`
 	var t domain.FantasyTeam
-	err := r.pool.QueryRow(ctx, query, userID, seasonID, teamName).Scan(
+	err = r.pool.QueryRow(ctx, query, userID, seasonID, teamName).Scan(
 		&t.ID, &t.UserID, &t.SeasonID, &t.Name, &t.TotalPoints, &t.CreatedAt, &t.UpdatedAt,
 	)
 	if err != nil {
+		if strings.Contains(err.Error(), "uix_fantasy_teams_season_name") || strings.Contains(err.Error(), "23505") {
+			return nil, domain.ErrTeamNameTaken
+		}
 		return nil, fmt.Errorf("failed to get or create fantasy team: %w", err)
 	}
 	return &t, nil
