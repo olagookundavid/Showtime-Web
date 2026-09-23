@@ -69,3 +69,6 @@ scripts/split_player_stats_by_role.py
 
 # One-off season price injection (hardcoded competition id) — run by hand.
 inject_opening_player_prices.sql
+
+# Local UI mockups (design references, not shipped)
+/Showtime_*_UI.html
