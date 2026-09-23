@@ -66,7 +66,7 @@ const formatDown = (p: GamePlay): string => {
 export const PlayByPlayTimeline = ({ matchId, isLive, showEmpty = false }: { matchId: string; isLive: boolean; showEmpty?: boolean }) => {
     const queryClient = useQueryClient();
 
-    const { data: plays = [] } = useQuery({
+    const { data: plays = [], isLoading } = useQuery({
         queryKey: ['publicMatchPlays', matchId],
         queryFn: () => getMatchPlays(matchId),
         enabled: !!matchId,
@@ -92,6 +92,31 @@ export const PlayByPlayTimeline = ({ matchId, isLive, showEmpty = false }: { mat
             es.close();
         };
     }, [matchId, isLive, queryClient]);
+
+    if (isLoading) {
+        if (!showEmpty) return null;
+        return (
+            <div className="bg-white dark:bg-gray-800/80 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/50 overflow-hidden animate-pulse">
+                <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-700/50">
+                    <div className="h-5 w-28 bg-gray-200 dark:bg-gray-700 rounded" />
+                </div>
+                <div className="divide-y divide-gray-100 dark:divide-gray-700/50">
+                    {[...Array(5)].map((_, i) => (
+                        <div key={i} className="px-4 md:px-6 py-4 flex items-start gap-3">
+                            <div className="flex flex-col gap-1.5 shrink-0 w-20">
+                                <div className="h-3 w-12 bg-gray-200 dark:bg-gray-700 rounded" />
+                                <div className="h-4 w-16 bg-gray-200 dark:bg-gray-700 rounded" />
+                            </div>
+                            <div className="flex-1 space-y-1.5">
+                                <div className="h-3.5 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
+                                <div className="h-3 bg-gray-100 dark:bg-gray-700/60 rounded w-1/2" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    }
 
     if (plays.length === 0) {
         // In a tab we show a friendly empty state; inline (stacked) usage stays invisible.
