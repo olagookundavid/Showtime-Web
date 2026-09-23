@@ -11,7 +11,6 @@ import {
     ChevronRightIcon,
     XMarkIcon,
     PencilSquareIcon,
-    TrashIcon,
 } from '@heroicons/react/24/outline';
 
 interface TeamInfo {
@@ -53,7 +52,7 @@ const POSITIONS = ['Defender', 'Receiver', 'Center', 'QB', 'Rusher', 'Allrounder
 const SECONDARY_POSITIONS = POSITIONS.filter(p => p !== 'Allrounder' && p !== '-');
 
 const emptyForm = {
-    name: '', position: '-', secondary_position: '', gender: '', jersey_number: '', email: '', image: '', bio: '', contract_length: '13',
+    name: '', position: '-', secondary_position: '', gender: '', jersey_number: '', email: '', image: '', bio: '',
 };
 
 const TeamHeadPlayers = () => {
@@ -125,17 +124,14 @@ const TeamHeadPlayers = () => {
             email: p.email || '',
             image: p.image || '',
             bio: p.bio || '',
-            contract_length: '13',
         });
         setShowModal(true);
     };
 
+    // The modal only ever edits. Managers cannot create or delete players — a new
+    // player joins through an approved account claim (see TeamHeadClaims).
     const handleSave = async () => {
-        if (!team) return;
-        if (!editing) {
-            toast.error('Direct player creation is disabled. Please contact league administration.');
-            return;
-        }
+        if (!team || !editing) return;
         if (form.secondary_position && form.secondary_position === form.position) {
             toast.error('Secondary position cannot be the same as primary position.');
             return;
@@ -152,7 +148,6 @@ const TeamHeadPlayers = () => {
                 image: form.image,
                 bio: form.bio,
                 team_id: team.id,
-                contract_length: parseInt(form.contract_length) || 13,
             };
             await api.put(`/team-head/players/${editing.id}`, payload);
             toast.success('Player updated successfully');
@@ -163,18 +158,6 @@ const TeamHeadPlayers = () => {
             toast.error(err.response?.data?.error || 'Failed to save player.');
         } finally {
             setSaving(false);
-        }
-    };
-
-    const handleDelete = async (id: string) => {
-        if (!confirm('Delete this player?')) return;
-        try {
-            await api.delete(`/team-head/players/${id}`);
-            toast.success('Player deleted successfully');
-            queryClient.invalidateQueries({ queryKey: ['teamHeadPlayers', team!.id] });
-            queryClient.invalidateQueries({ queryKey: ['teamRosterSummary', team!.id] });
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to delete player.');
         }
     };
 
@@ -330,7 +313,8 @@ const TeamHeadPlayers = () => {
             <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-3.5 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2.5 shadow-sm">
                 <span className="text-base leading-none">ℹ️</span>
                 <div>
-                    <span className="font-bold">Player Creation Policy:</span> Direct creation of player profiles is managed strictly by League Administration to prevent duplicate player entries. To onboard players, sign eligible athletes via <strong>Free Agency Contracts</strong> or submit an official <strong>Transfer Request</strong>.
+                    <span className="font-bold">Adding a new player:</span> New players join by requesting a place themselves. Share your team code from{' '}
+                    <Link to="/team-head/claims" className="font-bold underline">Account Claims</Link>; the player enters it at <span className="font-mono">/claim</span> and chooses <strong>“My name is not listed”</strong>. You confirm you know them, and the league office adds them to your squad. Players already in the league move through <strong>Free Agency</strong> or a <strong>Transfer Request</strong>.
                 </div>
             </div>
 
@@ -453,7 +437,7 @@ const TeamHeadPlayers = () => {
                             {debouncedSearch ? `No players matching "${debouncedSearch}"` : rosterTab === 'reserve' ? 'No players currently in reserve squad.' : 'No players on roster yet.'}
                         </p>
                         <p className="text-sm text-gray-400 mt-1">
-                            {debouncedSearch ? 'Try clearing your search query.' : rosterTab === 'reserve' ? 'You can move players from the main squad into reserves at any time.' : 'Sign free agents or submit a transfer request to add players.'}
+                            {debouncedSearch ? 'Try clearing your search query.' : rosterTab === 'reserve' ? 'You can move players from the main squad into reserves at any time.' : 'Share your team code from Account Claims so new players can request to join.'}
                         </p>
                         {debouncedSearch && (
                             <button
@@ -584,13 +568,6 @@ const TeamHeadPlayers = () => {
                                         <PencilSquareIcon className="w-4 h-4" />
                                         <span>Edit</span>
                                     </button>
-                                    <button
-                                        onClick={() => handleDelete(player.id)}
-                                        className="px-3 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
-                                    >
-                                        <TrashIcon className="w-4 h-4" />
-                                        <span>Delete</span>
-                                    </button>
                                 </div>
                             </div>
                         ))}
@@ -651,13 +628,13 @@ const TeamHeadPlayers = () => {
                 </div>
             )}
 
-            {/* Create/Edit Modal */}
+            {/* Edit Modal */}
             {showModal && (
                 <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={() => setShowModal(false)}>
                     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                         <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex items-center justify-between">
                             <h2 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white">
-                                {editing ? 'Edit Player' : 'Add Player'}
+                                Edit Player
                             </h2>
                             <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-xl font-bold p-1">✕</button>
                         </div>
@@ -678,13 +655,6 @@ const TeamHeadPlayers = () => {
                                     <input type="email" value={form.email} onChange={e => setField('email', e.target.value)}
                                         className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-3.5 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-sffl-red text-sm font-semibold" placeholder="player@team.com" />
                                 </div>
-                                {!editing && (
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Contract Length (Games) *</label>
-                                        <input type="number" min="1" value={form.contract_length} onChange={e => setField('contract_length', e.target.value)}
-                                            className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-3.5 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-sffl-red text-sm font-semibold" placeholder="Default 13" />
-                                    </div>
-                                )}
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
@@ -753,7 +723,7 @@ const TeamHeadPlayers = () => {
                             <button onClick={() => setShowModal(false)} className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 rounded-xl font-bold text-gray-700 dark:text-gray-200 transition-colors min-h-[44px] text-sm">Cancel</button>
                             <button onClick={handleSave} disabled={saving || !form.name.trim()}
                                 className="px-5 py-2.5 bg-sffl-red text-white font-bold rounded-xl hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-h-[44px] text-sm shadow-sm">
-                                {saving ? 'Saving...' : editing ? 'Update Player' : 'Add Player'}
+                                {saving ? 'Saving...' : 'Update Player'}
                             </button>
                         </div>
                     </div>

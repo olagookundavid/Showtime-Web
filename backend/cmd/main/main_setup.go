@@ -436,7 +436,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	windowService := services.NewTransferWindowService(windowRepo)
 	contractService := services.NewContractService(contractRepo, playerRepo, notifService, windowRepo)
 	transferService := services.NewTransferService(transferRepo, contractRepo, playerRepo, windowRepo, notifService, tmRepo)
-	claimService := services.NewClaimService(claimRepo, tmRepo, contractService, notifService, emailService, tokenMaker)
+	claimService := services.NewClaimService(claimRepo, tmRepo, notifService, emailService, tokenMaker)
 	commentService := services.NewCommentService(commentRepo, newsRepo, matchRepo)
 	discountService := services.NewDiscountService(discountRepo)
 

@@ -64,29 +64,26 @@ type IClaimService interface {
 }
 
 type ClaimService struct {
-	repo            ports.IClaimRepository
-	tmRepo          ports.ITeamManagerRepository
-	contractService IContractService
-	notifService    INotificationService
-	emailService    ports.EmailService
-	tokenMaker      token.Maker
+	repo         ports.IClaimRepository
+	tmRepo       ports.ITeamManagerRepository
+	notifService INotificationService
+	emailService ports.EmailService
+	tokenMaker   token.Maker
 }
 
 func NewClaimService(
 	repo ports.IClaimRepository,
 	tmRepo ports.ITeamManagerRepository,
-	contractService IContractService,
 	notifService INotificationService,
 	emailService ports.EmailService,
 	tokenMaker token.Maker,
 ) IClaimService {
 	return &ClaimService{
-		repo:            repo,
-		tmRepo:          tmRepo,
-		contractService: contractService,
-		notifService:    notifService,
-		emailService:    emailService,
-		tokenMaker:      tokenMaker,
+		repo:         repo,
+		tmRepo:       tmRepo,
+		notifService: notifService,
+		emailService: emailService,
+		tokenMaker:   tokenMaker,
 	}
 }
 
@@ -722,18 +719,12 @@ func (s *ClaimService) ApproveClaim(ctx context.Context, claimID string, r domai
 		override.SecondaryPosition = &trimmed
 	}
 
-	playerID, createdNew, err := s.repo.ApproveClaim(ctx, claimID, r.UserID, override)
-	if err != nil {
+	// For a new player this also checks the squad caps and issues their first contract,
+	// all in one transaction — a player can never end up rostered without the ACTIVE
+	// contract the team-sheet dropdowns key off. Existing roster players already hold
+	// one from the historical import.
+	if err := s.repo.ApproveClaim(ctx, claimID, r.UserID, override); err != nil {
 		return err
-	}
-
-	// A newly created player needs their first contract, or they are rostered but
-	// invisible to the team-sheet dropdowns, which key off an active contract. Existing
-	// players already hold one from the historical import.
-	if createdNew && s.contractService != nil {
-		if err := s.contractService.ProvisionInitialContract(ctx, playerID, claim.TeamID, r.UserID, nil); err != nil {
-			fmt.Printf("claim %s: player %s approved but initial contract could not be issued: %v\n", claimID, playerID, err)
-		}
 	}
 
 	// Name the body that actually decided, so the claimant can tell who to ask about it.

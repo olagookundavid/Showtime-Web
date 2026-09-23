@@ -2,6 +2,19 @@ package domain
 
 import "time"
 
+// The onboarding contract every new player starts on. They live in domain because two
+// paths issue it — ContractService.ProvisionInitialContract, and the claim approval
+// transaction in the claim repository — and the two must not drift.
+const (
+	// InitialContractMatches is the contract length every player is onboarded with.
+	// The historical import gave all existing players 10 matches from the current
+	// season, and newly created players get the same so the roster stays uniform.
+	InitialContractMatches = 10
+	// InitialContractPlayerValue is the transfer value a newly onboarded player starts at.
+	InitialContractPlayerValue int64 = 1000000
+	InitialContractNotes             = "Initial onboarding contract"
+)
+
 type Contract struct {
 	ID                string     `json:"id"`
 	PlayerID          string     `json:"player_id"`

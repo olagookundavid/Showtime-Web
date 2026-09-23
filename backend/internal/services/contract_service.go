@@ -11,11 +11,6 @@ import (
 	"showtime-backend/internal/ports"
 )
 
-// InitialContractMatches is the contract length every player is onboarded with. The
-// historical import gave all existing players 10 matches from the current season, and
-// newly created players get the same so the roster stays uniform.
-const InitialContractMatches = 10
-
 type IContractService interface {
 	IssueContract(ctx context.Context, managerUserID string, teamID string, req dto.IssueContractRequest) (*dto.ContractResponse, error)
 	ProvisionInitialContract(ctx context.Context, playerID, teamID, managerUserID string, contractLength *int) error
@@ -49,7 +44,7 @@ func NewContractService(repo ports.IContractRepository, playerRepo ports.PlayerR
 }
 
 // ProvisionInitialContract gives a newly onboarded player their first contract:
-// InitialContractMatches matches, ACTIVE immediately, counting from the team's current
+// domain.InitialContractMatches matches, ACTIVE immediately, counting from the team's current
 // finished-match total so the Model B display reads "played / played + 10".
 //
 // Deliberately NOT gated on the transfer window. A window governs transfers and
@@ -73,7 +68,7 @@ func (s *ContractService) ProvisionInitialContract(ctx context.Context, playerID
 		return nil
 	}
 
-	length := InitialContractMatches
+	length := domain.InitialContractMatches
 	if contractLength != nil && *contractLength > 0 {
 		length = *contractLength
 	}
@@ -89,9 +84,9 @@ func (s *ContractService) ProvisionInitialContract(ctx context.Context, playerID
 		Status:         "ACTIVE",
 		ContractLength: length,
 		MatchesAtStart: matchesAtStart,
-		PlayerValue:    1000000,
+		PlayerValue:    domain.InitialContractPlayerValue,
 		OfferedBy:      managerUserID,
-		Notes:          "Initial onboarding contract",
+		Notes:          domain.InitialContractNotes,
 	})
 }
 

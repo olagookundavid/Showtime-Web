@@ -62,7 +62,7 @@ type IClaimRepository interface {
 	GetClaimByID(ctx context.Context, id string) (*domain.PlayerClaim, error)
 	ListClaims(ctx context.Context, f ClaimFilter) ([]domain.PlayerClaim, int64, error)
 	GetClaimReviewContext(ctx context.Context, playerID string) (pastTeams []string, matchesPlayed int, err error)
-	ApproveClaim(ctx context.Context, claimID, reviewerID string, override domain.Player) (playerID string, createdNewPlayer bool, err error)
+	ApproveClaim(ctx context.Context, claimID, reviewerID string, override domain.Player) error
 	EndorseClaim(ctx context.Context, claimID, endorserID, endorsement, note string) error
 	ListAdminUserIDs(ctx context.Context) ([]string, error)
 	RejectClaim(ctx context.Context, claimID, reviewerID, reason string) error
@@ -546,17 +546,19 @@ func (r *PostgresClaimRepository) GetClaimReviewContext(ctx context.Context, pla
 
 // ApproveClaim is the only path that grants role = 'player' and sets players.user_id.
 //
-// Everything happens in one transaction: for a new-player request the players row is
-// created here (never at submit time, so the claim page cannot pollute the roster), and
-// in both cases the account is promoted, the player is linked and marked CLAIMED, and
-// the claim is stamped with who approved it.
+// Everything happens in one transaction: for a new-player request the players row and
+// its first contract are created here (never at submit time, so the claim page cannot
+// pollute the roster), and in both cases the account is promoted, the player is linked
+// and marked CLAIMED, and the claim is stamped with who approved it.
 //
-// Returns the player ID and whether a new players row was created, so the caller can
-// provision that player's first contract.
-func (r *PostgresClaimRepository) ApproveClaim(ctx context.Context, claimID, reviewerID string, override domain.Player) (string, bool, error) {
+// Because the claim is now the only way a player joins a team, this is also where the
+// squad caps are enforced — the same 25-main-player and 6-All-Rounder limits
+// PlayerService.CreatePlayer applies. Any refusal rolls the whole transaction back, so
+// the claim stays PENDING and can be approved once the manager has made room.
+func (r *PostgresClaimRepository) ApproveClaim(ctx context.Context, claimID, reviewerID string, override domain.Player) error {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
-		return "", false, err
+		return err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
@@ -566,27 +568,30 @@ func (r *PostgresClaimRepository) ApproveClaim(ctx context.Context, claimID, rev
 	)
 	c, err := scanClaim(lockedRow)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", false, errors.New("claim not found")
+		return errors.New("claim not found")
 	}
 	if err != nil {
-		return "", false, err
+		return err
 	}
 	claim = *c
 
 	if claim.Status != domain.ClaimStatusPending {
-		return "", false, fmt.Errorf("claim is no longer pending (current status: %s)", claim.Status)
+		return fmt.Errorf("claim is no longer pending (current status: %s)", claim.Status)
 	}
 	if claim.UserID == nil || *claim.UserID == "" {
-		return "", false, errors.New("claim has no linked account")
+		return errors.New("claim has no linked account")
 	}
 
-	createdNew := false
-	playerID := ""
+	// Serialise approvals per team. Without this, two claims approved at the same moment
+	// for a team at 24 main players would each count 24 and both be let in.
+	if _, err := tx.Exec(ctx, `SELECT 1 FROM teams WHERE id = $1 FOR UPDATE`, claim.TeamID); err != nil {
+		return err
+	}
 
 	if claim.IsNewPlayerRequest() {
 		name := firstNonEmpty(override.Name, claim.ProposedName)
 		if name == "" {
-			return "", false, errors.New("a name is required to create this player")
+			return errors.New("a name is required to create this player")
 		}
 		position := domain.NormalizePosition(firstNonEmpty(override.Position, claim.ProposedPosition))
 		jersey := override.JerseyNumber
@@ -599,10 +604,28 @@ func (r *PostgresClaimRepository) ApproveClaim(ctx context.Context, claimID, rev
 		// CreatePlayer stores it — one representation for "no secondary role"
 		// keeps the position filters, which COALESCE on it, honest.
 		var secondaryPos any
+		secondary := ""
 		if override.SecondaryPosition != nil && strings.TrimSpace(*override.SecondaryPosition) != "" {
-			secondaryPos = strings.TrimSpace(*override.SecondaryPosition)
+			secondary = strings.TrimSpace(*override.SecondaryPosition)
+			secondaryPos = secondary
 		}
 
+		// A new player joins the main squad, so they need a free main-squad spot.
+		mainCount, err := countMainPlayers(ctx, tx, claim.TeamID)
+		if err != nil {
+			return fmt.Errorf("could not check the team's squad size: %w", err)
+		}
+		if mainCount >= 25 {
+			return fmt.Errorf("cannot approve: the team already has %d main players (max 25). "+
+				"The team must move a player to the reserves or release one, then approve this request again", mainCount)
+		}
+		if domain.IsAllrounderRole(position) || domain.IsAllrounderRole(secondary) {
+			if err := checkAllrounderRoom(ctx, tx, claim.TeamID, ""); err != nil {
+				return err
+			}
+		}
+
+		var playerID string
 		err = tx.QueryRow(ctx, `
 			INSERT INTO players (name, jersey_number, position, secondary_position, team_id, email, user_id, claim_status)
 			VALUES ($1, NULLIF($2, 0), $3, $4, $5, $6, $7, $8)
@@ -610,24 +633,58 @@ func (r *PostgresClaimRepository) ApproveClaim(ctx context.Context, claimID, rev
 		`, name, jersey, position, secondaryPos, claim.TeamID, claim.ClaimedEmail, *claim.UserID,
 			domain.PlayerClaimStatusClaimed).Scan(&playerID)
 		if err != nil {
-			return "", false, fmt.Errorf("failed to create player: %w", err)
+			return fmt.Errorf("failed to create player: %w", err)
 		}
-		createdNew = true
 
 		if _, err := tx.Exec(ctx,
 			`UPDATE player_claims SET player_id = $1 WHERE id = $2`, playerID, claimID); err != nil {
-			return "", false, err
+			return err
+		}
+
+		// The first contract is issued inside this transaction, not afterwards. A player
+		// without an ACTIVE contract is rostered but missing from every team-sheet
+		// dropdown, and nobody is told — so if the contract cannot be written, the whole
+		// approval is refused and the claim stays pending. Mirrors
+		// ContractService.ProvisionInitialContract.
+		var matchesAtStart int
+		if err := tx.QueryRow(ctx, `
+			SELECT COUNT(*) FROM matches
+			WHERE (home_team_id = $1 OR away_team_id = $1) AND status = 'FINISHED'
+		`, claim.TeamID).Scan(&matchesAtStart); err != nil {
+			return fmt.Errorf("failed to read team finished match count: %w", err)
+		}
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO contracts (
+				player_id, team_id, status, contract_length, matches_at_start,
+				player_value, offered_by, offered_at, notes
+			) VALUES ($1, $2, 'ACTIVE', $3, $4, $5, NULLIF($6::text, '')::uuid, NOW(), $7)
+		`, playerID, claim.TeamID, domain.InitialContractMatches, matchesAtStart,
+			domain.InitialContractPlayerValue, reviewerID, domain.InitialContractNotes); err != nil {
+			return fmt.Errorf("failed to issue the player's first contract: %w", err)
 		}
 	} else {
-		playerID = *claim.PlayerID
+		playerID := *claim.PlayerID
 
 		var currentStatus string
 		if err := tx.QueryRow(ctx,
 			`SELECT claim_status FROM players WHERE id = $1 FOR UPDATE`, playerID).Scan(&currentStatus); err != nil {
-			return "", false, err
+			return err
 		}
 		if currentStatus == domain.PlayerClaimStatusClaimed {
-			return "", false, errors.New("this player has already been claimed")
+			return errors.New("this player has already been claimed")
+		}
+
+		// The player is already on the roster, so the main-squad count does not move.
+		// Only the approver's corrections can change anything, and the one that can
+		// breach a cap is making them an All-Rounder.
+		overrideSecondary := ""
+		if override.SecondaryPosition != nil {
+			overrideSecondary = *override.SecondaryPosition
+		}
+		if domain.IsAllrounderRole(override.Position) || domain.IsAllrounderRole(overrideSecondary) {
+			if err := checkAllrounderRoom(ctx, tx, claim.TeamID, playerID); err != nil {
+				return err
+			}
 		}
 
 		// secondary_position is the one field here that can be deliberately
@@ -658,7 +715,7 @@ func (r *PostgresClaimRepository) ApproveClaim(ctx context.Context, claimID, rev
 		`, *claim.UserID, claim.ClaimedEmail, override.Name, override.Position,
 			override.JerseyNumber, secondaryPos, domain.PlayerClaimStatusClaimed, playerID)
 		if err != nil {
-			return "", false, fmt.Errorf("failed to link player: %w", err)
+			return fmt.Errorf("failed to link player: %w", err)
 		}
 	}
 
@@ -668,7 +725,7 @@ func (r *PostgresClaimRepository) ApproveClaim(ctx context.Context, claimID, rev
 		UPDATE users SET role = 'player', phone = COALESCE(NULLIF($1, ''), phone), updated_at = NOW()
 		WHERE id = $2
 	`, claim.ClaimedPhone, *claim.UserID); err != nil {
-		return "", false, err
+		return err
 	}
 
 	if _, err := tx.Exec(ctx, `
@@ -676,13 +733,25 @@ func (r *PostgresClaimRepository) ApproveClaim(ctx context.Context, claimID, rev
 		SET status = $1, reviewed_by = NULLIF($2::text, '')::uuid, reviewed_at = NOW(), updated_at = NOW()
 		WHERE id = $3
 	`, domain.ClaimStatusApproved, reviewerID, claimID); err != nil {
-		return "", false, err
+		return err
 	}
 
-	if err := tx.Commit(ctx); err != nil {
-		return "", false, err
+	return tx.Commit(ctx)
+}
+
+// checkAllrounderRoom refuses an approval that would take the team past 6 All-Rounders,
+// the same cap PlayerService.CreatePlayer and UpdatePlayer apply. excludePlayerID leaves
+// out the player being claimed, whose own role is the one being changed.
+func checkAllrounderRoom(ctx context.Context, tx pgx.Tx, teamID, excludePlayerID string) error {
+	count, err := countAllrounders(ctx, tx, teamID, excludePlayerID)
+	if err != nil {
+		return fmt.Errorf("could not check the team's All-Rounder count: %w", err)
 	}
-	return playerID, createdNew, nil
+	if count >= 6 {
+		return fmt.Errorf("cannot approve as an All-Rounder: the team already has %d All-Rounders (max 6). "+
+			"Approve with a different role, or free up an All-Rounder spot first", count)
+	}
+	return nil
 }
 
 // RejectClaim marks the claim rejected and returns the player to the dropdown. The
