@@ -254,7 +254,8 @@ export const AdminMatches = () => {
                 feeds_match_id: formIsKnockout && form.feeds_match_id ? form.feeds_match_id : null,
                 feeds_slot: formIsKnockout && form.feeds_match_id ? form.feeds_slot : undefined,
                 second_leg_match_id: formIsKnockout && form.second_leg_match_id ? form.second_leg_match_id : null,
-                mvp_player_id: form.mvp_player_id ? form.mvp_player_id : null,
+                // '' clears the MVP; the API treats an omitted/null field as "keep".
+                mvp_player_id: form.mvp_player_id || '',
             };
             if (editingId) {
                 await updateMatch(editingId, payload);

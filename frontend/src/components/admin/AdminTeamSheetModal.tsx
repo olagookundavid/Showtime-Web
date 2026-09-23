@@ -215,6 +215,13 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
                 <div className="p-4 sm:p-5 pb-10 sm:pb-5 overflow-y-auto overscroll-contain flex-1 min-h-0 space-y-5">
                     {loadingSheet ? <div className="py-8"><Loader /></div> : (
                         <>
+                            {(activeTab === 'home' ? teamSheet?.home_team : teamSheet?.away_team)?.some(p => p.is_starter) && (
+                                <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl text-xs text-blue-800 dark:text-blue-300 flex items-center gap-2 font-medium">
+                                    <span className="text-sm">🛡️</span>
+                                    <span>This team has an active manager lineup. Starters and field positions are safely preserved when roster players are added or removed.</span>
+                                </div>
+                            )}
+
                             {/* ── Search / Add Player ── */}
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider">

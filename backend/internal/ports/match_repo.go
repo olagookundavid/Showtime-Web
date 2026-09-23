@@ -3,7 +3,9 @@ package ports
 import (
 	"context"
 	"fmt"
+	"log"
 	"showtime-backend/internal/domain"
+	"showtime-backend/internal/dto"
 	"sort"
 	"strconv"
 	"strings"
@@ -53,12 +55,13 @@ type MatchRepository interface {
 	RecalculateStandings(ctx context.Context, competitionID string) error
 
 	// Team Sheets
-	SaveTeamSheet(ctx context.Context, matchID, teamID string, playerIDs []string) error
+	SaveTeamSheet(ctx context.Context, matchID string, req dto.SaveTeamSheetRequest) error
 	GetTeamSheet(ctx context.Context, matchID string) (*domain.MatchTeamSheet, error)
 	IsPlayerOnTeamSheet(ctx context.Context, matchID, playerID string) (bool, error)
 	GetMatchDetail(ctx context.Context, matchID string) (*domain.MatchDetail, error)
 	GetMatchDaysByCompetition(ctx context.Context, competitionID string, page, limit int) ([]string, int, error)
 	GetEligiblePlayersForMatchDay(ctx context.Context, competitionID string, date string, page, limit int) ([]domain.Player, int, error)
+	CountFemalePlayers(ctx context.Context, playerIDs []string) (int, error)
 }
 
 type PostgresMatchRepository struct {
@@ -599,6 +602,13 @@ func (r *PostgresMatchRepository) UpdateMatch(ctx context.Context, match *domain
 		match.CompetitionID, match.HomeTeamID, match.AwayTeamID, match.Date, match.StartTime, match.Venue, match.Status, match.HomeScore, match.AwayScore, match.HighlightsURL, match.TicketURL,
 		match.Round, match.BracketPos, match.FeedsMatchID, match.FeedsSlot, match.SecondLegMatchID, mvpID, match.ID,
 	)
+	if err == nil {
+		// The match update itself succeeded; a badge sync failure is logged
+		// rather than reported, and the admin backfill repairs it.
+		if syncErr := r.syncMVPBadge(ctx, match.ID, match.MVPPlayerID, string(match.Status)); syncErr != nil {
+			log.Printf("[ERROR] match %s: sync MVP badge: %v", match.ID, syncErr)
+		}
+	}
 	return err
 }
 
@@ -609,7 +619,99 @@ func (r *PostgresMatchRepository) SetMatchMVP(ctx context.Context, matchID strin
 	}
 	query := `UPDATE matches SET mvp_player_id = NULLIF($1, '')::uuid, updated_at = NOW() WHERE id = $2`
 	_, err := r.db.Exec(ctx, query, pid, matchID)
+	if err == nil {
+		var status string
+		if statusErr := r.db.QueryRow(ctx, `SELECT status FROM matches WHERE id = $1`, matchID).Scan(&status); statusErr != nil {
+			log.Printf("[ERROR] match %s: load status for MVP badge sync: %v", matchID, statusErr)
+		} else if syncErr := r.syncMVPBadge(ctx, matchID, playerID, status); syncErr != nil {
+			log.Printf("[ERROR] match %s: sync MVP badge: %v", matchID, syncErr)
+		}
+	}
 	return err
+}
+
+// syncMVPBadge keeps the MVP award log in line with the match: one award for
+// the current MVP once the match is FINISHED, none otherwise. Counters of every
+// player touched are recounted from the award log. Runs in one transaction so a
+// failure leaves the previous state intact.
+func (r *PostgresMatchRepository) syncMVPBadge(ctx context.Context, matchID string, playerID *string, status string) error {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	var badgeID string
+	if err := tx.QueryRow(ctx, `SELECT id FROM badges WHERE code = 'MVP'`).Scan(&badgeID); err != nil {
+		return fmt.Errorf("load MVP badge: %w", err)
+	}
+
+	// 1. Everyone who currently holds an MVP award for this match needs a recount
+	rows, err := tx.Query(ctx, `SELECT player_id::text FROM player_badge_awards WHERE match_id = $1::uuid AND badge_id = $2::uuid`, matchID, badgeID)
+	if err != nil {
+		return fmt.Errorf("list MVP awards: %w", err)
+	}
+	affectedPlayers := make(map[string]bool)
+	for rows.Next() {
+		var pID string
+		if err := rows.Scan(&pID); err != nil {
+			rows.Close()
+			return err
+		}
+		affectedPlayers[pID] = true
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	targetMVP := ""
+	if playerID != nil {
+		targetMVP = strings.TrimSpace(*playerID)
+	}
+
+	if status != string(domain.MatchStatusFinished) || targetMVP == "" {
+		// Not finished (or MVP cleared): the match awards no MVP badge yet
+		if _, err := tx.Exec(ctx, `DELETE FROM player_badge_awards WHERE match_id = $1::uuid AND badge_id = $2::uuid`, matchID, badgeID); err != nil {
+			return fmt.Errorf("clear MVP awards: %w", err)
+		}
+	} else {
+		if _, err := tx.Exec(ctx, `DELETE FROM player_badge_awards WHERE match_id = $1::uuid AND badge_id = $2::uuid AND player_id != $3::uuid`, matchID, badgeID, targetMVP); err != nil {
+			return fmt.Errorf("remove previous MVP award: %w", err)
+		}
+		awardQ := `
+			INSERT INTO player_badge_awards (player_id, badge_id, match_id, competition_id, reason, count, created_at)
+			SELECT $1::uuid, $2::uuid, m.id, m.competition_id, 'Match MVP honor', 1, COALESCE((m.date + COALESCE(m.time, '00:00'::time))::timestamptz, NOW())
+			FROM matches m
+			WHERE m.id = $3::uuid
+			ON CONFLICT DO NOTHING
+		`
+		if _, err := tx.Exec(ctx, awardQ, targetMVP, badgeID, matchID); err != nil {
+			return fmt.Errorf("record MVP award: %w", err)
+		}
+		affectedPlayers[targetMVP] = true
+	}
+
+	// 2. Recount MVP badges for all affected players from player_badge_awards
+	syncQ := `
+		WITH award_summary AS (
+			SELECT COALESCE(SUM(count), 0) AS cnt, MAX(created_at) AS last_awarded
+			FROM player_badge_awards
+			WHERE player_id = $1::uuid AND badge_id = $2::uuid
+		)
+		INSERT INTO player_badges (player_id, badge_id, count, last_awarded_at, created_at, updated_at)
+		SELECT $1::uuid, $2::uuid, cnt, COALESCE(last_awarded, NOW()), NOW(), NOW()
+		FROM award_summary
+		ON CONFLICT (player_id, badge_id)
+		DO UPDATE SET count = EXCLUDED.count, last_awarded_at = EXCLUDED.last_awarded_at, updated_at = NOW()
+	`
+	for pid := range affectedPlayers {
+		if _, err := tx.Exec(ctx, syncQ, pid, badgeID); err != nil {
+			return fmt.Errorf("recount MVP badge for player %s: %w", pid, err)
+		}
+	}
+
+	return tx.Commit(ctx)
 }
 
 // SetMatchSlot writes (or clears) one team slot of a bracket match. Used by
@@ -970,31 +1072,82 @@ func (r *PostgresMatchRepository) RecalculateStandings(ctx context.Context, comp
 }
 
 // --- Team Sheets ---
-func (r *PostgresMatchRepository) SaveTeamSheet(ctx context.Context, matchID, teamID string, playerIDs []string) error {
+func (r *PostgresMatchRepository) SaveTeamSheet(ctx context.Context, matchID string, req dto.SaveTeamSheetRequest) error {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
 
-	// Idempotent: delete existing first
-	delQuery := `DELETE FROM match_team_sheets WHERE match_id = $1 AND team_id = $2`
-	if _, err := tx.Exec(ctx, delQuery, matchID, teamID); err != nil {
-		return err
+	teamID := req.TeamID
+
+	if len(req.Players) > 0 {
+		targetIDs := make([]string, 0, len(req.Players))
+		for _, p := range req.Players {
+			targetIDs = append(targetIDs, p.PlayerID)
+		}
+
+		// Delete players for this team who are no longer in the squad
+		delQuery := `DELETE FROM match_team_sheets WHERE match_id = $1 AND team_id = $2 AND NOT (player_id = ANY($3))`
+		if _, err := tx.Exec(ctx, delQuery, matchID, teamID, targetIDs); err != nil {
+			return err
+		}
+
+		for _, p := range req.Players {
+			insertQuery := `
+				INSERT INTO match_team_sheets (match_id, team_id, player_id, is_starter, starter_unit, position_slot, order_index)
+				SELECT $1, $2, pl.id, $3, $4, $5, $6 FROM players pl
+				WHERE pl.id = $7 AND pl.team_id = $2
+				  AND COALESCE(pl.status, 'active') = 'active'
+				ON CONFLICT (match_id, player_id) DO UPDATE SET
+					is_starter = EXCLUDED.is_starter,
+					starter_unit = EXCLUDED.starter_unit,
+					position_slot = EXCLUDED.position_slot,
+					order_index = EXCLUDED.order_index
+			`
+			if _, err := tx.Exec(ctx, insertQuery, matchID, teamID, p.IsStarter, p.StarterUnit, p.PositionSlot, p.OrderIndex, p.PlayerID); err != nil {
+				return err
+			}
+		}
+	} else if len(req.PlayerIDs) > 0 {
+		// Admin squad roster update: delete players no longer in squad
+		delQuery := `DELETE FROM match_team_sheets WHERE match_id = $1 AND team_id = $2 AND NOT (player_id = ANY($3))`
+		if _, err := tx.Exec(ctx, delQuery, matchID, teamID, req.PlayerIDs); err != nil {
+			return err
+		}
+
+		// Insert any newly added players without wiping existing starter assignments (DO NOTHING on conflict)
+		insertQuery := `
+			INSERT INTO match_team_sheets (match_id, team_id, player_id, is_starter)
+			SELECT $1, $2, pl.id, false FROM players pl
+			WHERE pl.id = ANY($3) AND pl.team_id = $2
+			  AND COALESCE(pl.status, 'active') = 'active'
+			ON CONFLICT (match_id, player_id) DO NOTHING
+		`
+		if _, err := tx.Exec(ctx, insertQuery, matchID, teamID, req.PlayerIDs); err != nil {
+			return err
+		}
+	} else {
+		delQuery := `DELETE FROM match_team_sheets WHERE match_id = $1 AND team_id = $2`
+		if _, err := tx.Exec(ctx, delQuery, matchID, teamID); err != nil {
+			return err
+		}
 	}
 
-	// Insert new (only for players currently belonging to teamID)
-	if len(playerIDs) > 0 {
-		insertQuery := `
-			INSERT INTO match_team_sheets (match_id, team_id, player_id)
-			SELECT $1, $2, p.id FROM players p
-			WHERE p.id = ANY($3) AND p.team_id = $2
-			  -- A deactivated player cannot be named on a new team sheet. Their
-			  -- existing sheets stay, which is how their history survives.
-			  AND COALESCE(p.status, 'active') = 'active'
-		`
-		if _, err := tx.Exec(ctx, insertQuery, matchID, teamID, playerIDs); err != nil {
+	// Update team coverage if provided (> 0)
+	if req.Coverage > 0 {
+		var homeID, awayID string
+		if err := tx.QueryRow(ctx, `SELECT COALESCE(home_team_id::text, ''), COALESCE(away_team_id::text, '') FROM matches WHERE id = $1`, matchID).Scan(&homeID, &awayID); err != nil {
 			return err
+		}
+		if teamID == homeID {
+			if _, err := tx.Exec(ctx, `UPDATE matches SET home_coverage = $1 WHERE id = $2`, req.Coverage, matchID); err != nil {
+				return err
+			}
+		} else if teamID == awayID {
+			if _, err := tx.Exec(ctx, `UPDATE matches SET away_coverage = $1 WHERE id = $2`, req.Coverage, matchID); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1003,9 +1156,10 @@ func (r *PostgresMatchRepository) SaveTeamSheet(ctx context.Context, matchID, te
 
 func (r *PostgresMatchRepository) GetTeamSheet(ctx context.Context, matchID string) (*domain.MatchTeamSheet, error) {
 	// We need to know which team is home and which is away to partition correctly.
-	matchQuery := `SELECT COALESCE(home_team_id::text, ''), COALESCE(away_team_id::text, '') FROM matches WHERE id = $1`
+	matchQuery := `SELECT COALESCE(home_team_id::text, ''), COALESCE(away_team_id::text, ''), COALESCE(home_coverage, 2), COALESCE(away_coverage, 2) FROM matches WHERE id = $1`
 	var homeTeamID, awayTeamID string
-	if err := r.db.QueryRow(ctx, matchQuery, matchID).Scan(&homeTeamID, &awayTeamID); err != nil {
+	var homeCoverage, awayCoverage int
+	if err := r.db.QueryRow(ctx, matchQuery, matchID).Scan(&homeTeamID, &awayTeamID, &homeCoverage, &awayCoverage); err != nil {
 		return nil, err
 	}
 
@@ -1018,6 +1172,7 @@ func (r *PostgresMatchRepository) GetTeamSheet(ctx context.Context, matchID stri
 	query := `
 		SELECT mts.team_id, p.id, COALESCE(p.name, ''), COALESCE(p.jersey_number, 0), COALESCE(p.position, '-'), p.secondary_position, COALESCE(p.gender, ''), p.image,
 			COALESCE(p.status, 'active'),
+			COALESCE(mts.is_starter, false), COALESCE(mts.starter_unit, ''), COALESCE(mts.position_slot, ''), COALESCE(mts.order_index, 0),
 			COALESCE(ps.receptions, 0), COALESCE(ps.receiving_tds, 0),
 			COALESCE(ps.extra_points_tds, 0), COALESCE(ps.drops, 0),
 			COALESCE(ps.flag_pulls, 0), COALESCE(ps.pass_deflections, 0),
@@ -1035,7 +1190,7 @@ func (r *PostgresMatchRepository) GetTeamSheet(ctx context.Context, matchID stri
 		JOIN players p ON mts.player_id = p.id
 		LEFT JOIN player_stats ps ON ps.player_id = p.id AND ps.match_id = mts.match_id
 		WHERE mts.match_id = $1
-		ORDER BY COALESCE(p.jersey_number, 999) ASC, p.name ASC
+		ORDER BY mts.is_starter DESC, mts.order_index ASC, COALESCE(p.jersey_number, 999) ASC, p.name ASC
 	`
 	rows, err := r.db.Query(ctx, query, matchID)
 	if err != nil {
@@ -1044,8 +1199,10 @@ func (r *PostgresMatchRepository) GetTeamSheet(ctx context.Context, matchID stri
 	defer rows.Close()
 
 	sheet := &domain.MatchTeamSheet{
-		HomeTeam: make([]domain.TeamSheetPlayer, 0),
-		AwayTeam: make([]domain.TeamSheetPlayer, 0),
+		HomeTeam:     make([]domain.TeamSheetPlayer, 0),
+		AwayTeam:     make([]domain.TeamSheetPlayer, 0),
+		HomeCoverage: homeCoverage,
+		AwayCoverage: awayCoverage,
 	}
 
 	for rows.Next() {
@@ -1056,6 +1213,7 @@ func (r *PostgresMatchRepository) GetTeamSheet(ctx context.Context, matchID stri
 		var line domain.RatingStatLine
 		if err := rows.Scan(&teamID, &p.PlayerID, &p.Name, &p.JerseyNumber, &p.Position, &p.SecondaryPosition, &p.Gender, &img,
 			&p.Status,
+			&p.IsStarter, &p.StarterUnit, &p.PositionSlot, &p.OrderIndex,
 			&line.Receptions, &line.ReceivingTDs, &line.ExtraPointTDs, &line.Drops,
 			&line.FlagPulls, &line.PassDeflections, &line.Interceptions, &line.DefensiveTDs,
 			&line.Safeties, &line.DefensiveXPTDs, &line.DefensiveSacks,
@@ -1231,4 +1389,14 @@ func (r *PostgresMatchRepository) GetEligiblePlayersForMatchDay(ctx context.Cont
 		players = append(players, p)
 	}
 	return players, total, nil
+}
+
+func (r *PostgresMatchRepository) CountFemalePlayers(ctx context.Context, playerIDs []string) (int, error) {
+	if len(playerIDs) == 0 {
+		return 0, nil
+	}
+	var count int
+	query := `SELECT COUNT(*) FROM players WHERE id = ANY($1::uuid[]) AND UPPER(COALESCE(gender, '')) = 'F'`
+	err := r.db.QueryRow(ctx, query, playerIDs).Scan(&count)
+	return count, err
 }

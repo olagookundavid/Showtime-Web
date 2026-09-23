@@ -10,6 +10,7 @@ import (
 	"showtime-backend/internal/domain"
 	"showtime-backend/internal/dto"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -180,6 +181,33 @@ func (r *PostgresPlayerRepository) GetPlayerByID(ctx context.Context, id string)
 	p.UserID = uid
 	p.Team.ID = p.TeamID
 	p.Tier = domain.CalculatePlayerTier(p.MVPCount)
+
+	// Load badges for player
+	badgeQuery := `
+		SELECT pb.id, pb.player_id, pb.badge_id, pb.count, pb.last_awarded_at,
+		       b.id, b.code, b.name, COALESCE(b.description, ''), COALESCE(b.icon, '🏆'),
+		       COALESCE(b.category, 'Honor'), COALESCE(b.color_scheme, 'gold'), b.is_system
+		FROM player_badges pb
+		JOIN badges b ON pb.badge_id = b.id
+		WHERE pb.player_id = $1 AND pb.count > 0
+		ORDER BY b.is_system DESC, pb.count DESC, pb.last_awarded_at DESC
+	`
+	bRows, bErr := r.db.Query(ctx, badgeQuery, id)
+	if bErr == nil {
+		for bRows.Next() {
+			var pb domain.PlayerBadge
+			var b domain.Badge
+			if err := bRows.Scan(
+				&pb.ID, &pb.PlayerID, &pb.BadgeID, &pb.Count, &pb.LastAwardedAt,
+				&b.ID, &b.Code, &b.Name, &b.Description, &b.Icon,
+				&b.Category, &b.ColorScheme, &b.IsSystem,
+			); err == nil {
+				pb.Badge = &b
+				p.Badges = append(p.Badges, pb)
+			}
+		}
+		bRows.Close()
+	}
 
 	return &p, nil
 }
@@ -484,7 +512,14 @@ func (r *PostgresPlayerRepository) GraduatePlayerFromReserve(ctx context.Context
 	return err
 }
 
-func (r *PostgresPlayerRepository) GetMainPlayerCount(ctx context.Context, teamID string) (int, error) {
+// rowQuerier is the single-row read that both *pgxpool.Pool and pgx.Tx offer. The squad
+// counts below take one so they can run standalone or inside a caller's transaction —
+// the claim approval checks the caps in the same transaction that inserts the player.
+type rowQuerier interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+func countMainPlayers(ctx context.Context, q rowQuerier, teamID string) (int, error) {
 	query := `
 		SELECT COUNT(*) FROM players p
 		WHERE p.team_id = $1
@@ -492,8 +527,28 @@ func (r *PostgresPlayerRepository) GetMainPlayerCount(ctx context.Context, teamI
 		  AND p.id NOT IN (SELECT player_id FROM team_reserves WHERE team_id = $1)
 	`
 	var count int
-	err := r.db.QueryRow(ctx, query, teamID).Scan(&count)
+	err := q.QueryRow(ctx, query, teamID).Scan(&count)
 	return count, err
+}
+
+func countAllrounders(ctx context.Context, q rowQuerier, teamID string, excludePlayerID string) (int, error) {
+	query := `
+		SELECT COUNT(*) FROM players p
+		WHERE p.team_id::text = $1
+		  AND COALESCE(p.status, 'active') = 'active'
+		  AND ($2 = '' OR p.id::text != $2)
+		  AND (
+		      UPPER(TRIM(COALESCE(p.position, ''))) IN ('ALLROUNDER', 'ALL-ROUNDER', 'ALL ROUNDER', 'AR')
+		      OR UPPER(TRIM(COALESCE(p.secondary_position, ''))) IN ('ALLROUNDER', 'ALL-ROUNDER', 'ALL ROUNDER', 'AR')
+		  )
+	`
+	var count int
+	err := q.QueryRow(ctx, query, teamID, excludePlayerID).Scan(&count)
+	return count, err
+}
+
+func (r *PostgresPlayerRepository) GetMainPlayerCount(ctx context.Context, teamID string) (int, error) {
+	return countMainPlayers(ctx, r.db, teamID)
 }
 
 func (r *PostgresPlayerRepository) GetReservePlayerCount(ctx context.Context, teamID string) (int, error) {
@@ -509,19 +564,7 @@ func (r *PostgresPlayerRepository) GetReservePlayerCount(ctx context.Context, te
 }
 
 func (r *PostgresPlayerRepository) GetTeamAllrounderCount(ctx context.Context, teamID string, excludePlayerID string) (int, error) {
-	query := `
-		SELECT COUNT(*) FROM players p
-		WHERE p.team_id::text = $1
-		  AND COALESCE(p.status, 'active') = 'active'
-		  AND ($2 = '' OR p.id::text != $2)
-		  AND (
-		      UPPER(TRIM(COALESCE(p.position, ''))) IN ('ALLROUNDER', 'ALL-ROUNDER', 'ALL ROUNDER', 'AR')
-		      OR UPPER(TRIM(COALESCE(p.secondary_position, ''))) IN ('ALLROUNDER', 'ALL-ROUNDER', 'ALL ROUNDER', 'AR')
-		  )
-	`
-	var count int
-	err := r.db.QueryRow(ctx, query, teamID, excludePlayerID).Scan(&count)
-	return count, err
+	return countAllrounders(ctx, r.db, teamID, excludePlayerID)
 }
 
 func (r *PostgresPlayerRepository) GetTeamRosterSummary(ctx context.Context, teamID string) (*dto.RosterSummaryResponse, error) {

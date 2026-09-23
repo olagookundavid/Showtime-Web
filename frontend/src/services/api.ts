@@ -494,6 +494,8 @@ export interface Match {
     second_leg_match_id?: string | null;
     pbp_locked?: boolean;
     mvp_player_id?: string | null;
+    home_coverage?: number;
+    away_coverage?: number;
 }
 
 export interface TeamSheetPlayer {
@@ -515,11 +517,17 @@ export interface TeamSheetPlayer {
      * this only marks them visually.
      */
     status?: string;
+    is_starter?: boolean;
+    starter_unit?: 'OFFENSE' | 'DEFENSE';
+    position_slot?: string;
+    order_index?: number;
 }
 
 export interface MatchTeamSheet {
     home_team: TeamSheetPlayer[];
     away_team: TeamSheetPlayer[];
+    home_coverage?: number;
+    away_coverage?: number;
 }
 
 export interface MatchDetail {
@@ -617,6 +625,7 @@ export interface Player {
     is_reserve?: boolean;
     mvp_count?: number;
     tier?: 'Superstar' | 'Star' | 'Starter' | 'Prospect' | string;
+    badges?: PlayerBadge[];
 }
 
 export interface RosterSummary {
@@ -775,7 +784,22 @@ export const deleteMatch = async (id: string) => {
 };
 
 // ─── Team Sheet Mutations ─────────────────────────────────────────────────────
-export const saveTeamSheet = async (matchId: string, payload: { team_id: string; player_ids: string[] }) => {
+export interface TeamSheetSlotPayload {
+    player_id: string;
+    is_starter: boolean;
+    starter_unit?: 'OFFENSE' | 'DEFENSE';
+    position_slot?: string;
+    order_index?: number;
+}
+
+export interface SaveTeamSheetPayload {
+    team_id: string;
+    player_ids?: string[];
+    players?: TeamSheetSlotPayload[];
+    coverage?: number;
+}
+
+export const saveTeamSheet = async (matchId: string, payload: SaveTeamSheetPayload) => {
     const response = await api.post(`/admin/matches/${matchId}/team-sheets`, payload);
     return response.data;
 };
@@ -783,6 +807,16 @@ export const saveTeamSheet = async (matchId: string, payload: { team_id: string;
 export const getAdminTeamSheet = async (matchId: string): Promise<MatchTeamSheet> => {
     const response = await api.get<{ data: MatchTeamSheet }>(`/admin/matches/${matchId}/team-sheets`);
     return response.data.data;
+};
+
+export const getTeamHeadTeamSheet = async (matchId: string): Promise<MatchTeamSheet> => {
+    const response = await api.get<{ data: MatchTeamSheet }>(`/team-head/matches/${matchId}/team-sheet`);
+    return response.data.data;
+};
+
+export const saveTeamHeadTeamSheet = async (matchId: string, payload: SaveTeamSheetPayload) => {
+    const response = await api.post(`/team-head/matches/${matchId}/team-sheet`, payload);
+    return response.data;
 };
 
 // ─── Bulk historical-data CSV import ──────────────────────────────────────────
@@ -3929,6 +3963,250 @@ export const fantasyAdminApi = {
         const res = await api.get<{ data: FantasyWallet }>(`/admin/fantasy/users/${userId}/wallet`);
         return res.data.data;
     },
+};
+
+// ─── Badges & Honors ──────────────────────────────────────────────────────────
+export interface Badge {
+    id: string;
+    code: string;
+    name: string;
+    description: string;
+    icon: string;
+    category: string;
+    color_scheme: string;
+    is_system: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface PlayerBadgeAward {
+    id: string;
+    player_id: string;
+    badge_id: string;
+    competition_id?: string;
+    competition_name?: string;
+    season_id?: string;
+    season?: string;
+    match_id?: string;
+    totw_id?: string;
+    reason: string;
+    awarded_by?: string;
+    created_at: string;
+    badge?: Badge;
+    player?: Player;
+    competition?: Competition;
+}
+
+export interface PlayerBadge {
+    id: string;
+    player_id: string;
+    badge_id: string;
+    code: string;
+    name: string;
+    description: string;
+    icon: string;
+    category: string;
+    color_scheme: string;
+    count: number;
+    last_awarded_at: string;
+    awards?: PlayerBadgeAward[];
+}
+
+export interface CreateBadgePayload {
+    code: string;
+    name: string;
+    description?: string;
+    icon?: string;
+    category?: string;
+    color_scheme?: string;
+}
+
+export interface UpdateBadgePayload {
+    name: string;
+    description?: string;
+    icon?: string;
+    category?: string;
+    color_scheme?: string;
+}
+
+export interface AwardBadgePayload {
+    player_id: string;
+    badge_id: string;
+    competition_id?: string;
+    season_id?: string;
+    season?: string;
+    event_day_id?: string;
+    match_id?: string;
+    reason?: string;
+    increment?: number;
+    count?: number;
+}
+
+export const getBadges = async (): Promise<Badge[]> => {
+    const res = await api.get<{ data: Badge[] }>('/badges');
+    return res.data.data;
+};
+
+export const getPlayerBadges = async (playerId: string): Promise<PlayerBadge[]> => {
+    const res = await api.get<{ data: PlayerBadge[] }>(`/badges/players/${playerId}`);
+    return res.data.data;
+};
+
+// Admin Badge APIs
+export const getAdminBadges = async (): Promise<Badge[]> => {
+    const res = await api.get<{ data: Badge[] }>('/admin/badges');
+    return res.data.data;
+};
+
+export const createAdminBadge = async (payload: CreateBadgePayload): Promise<Badge> => {
+    const res = await api.post<{ data: Badge }>('/admin/badges', payload);
+    return res.data.data;
+};
+
+export const updateAdminBadge = async (id: string, payload: UpdateBadgePayload): Promise<Badge> => {
+    const res = await api.put<{ data: Badge }>(`/admin/badges/${id}`, payload);
+    return res.data.data;
+};
+
+export const deleteAdminBadge = async (id: string): Promise<void> => {
+    await api.delete(`/admin/badges/${id}`);
+};
+
+export const awardAdminBadge = async (payload: AwardBadgePayload): Promise<PlayerBadge> => {
+    const res = await api.post<{ data: PlayerBadge }>('/admin/badges/award', payload);
+    return res.data.data;
+};
+
+export const deleteAdminBadgeAward = async (id: string): Promise<void> => {
+    await api.delete(`/admin/badges/awards/${id}`);
+};
+
+export const backfillMVPBadges = async (): Promise<{ message: string; updated_players: number }> => {
+    const res = await api.post<{ message: string; updated_players: number }>('/admin/badges/backfill-mvps');
+    return res.data;
+};
+
+export const getAdminBadgeAwards = async (params?: { badge_id?: string; player_id?: string; page?: number; limit?: number }): Promise<{ data: PlayerBadgeAward[]; total: number }> => {
+    const res = await api.get<{ data: PlayerBadgeAward[]; total: number }>('/admin/badges/awards', { params });
+    return res.data;
+};
+
+// ─── Team of the Week (TOTW) ──────────────────────────────────────────────────
+export interface TOTWPlayerSlot {
+    player_id: string;
+    slot_code: string;
+    position: string;
+    unit: 'Offence' | 'Defence';
+    coord_x?: string;
+    coord_y?: string;
+    rating: number;
+    stat1_value?: string;
+    stat1_label?: string;
+    stat2_value?: string;
+    stat2_label?: string;
+    stat3_value?: string;
+    stat3_label?: string;
+}
+
+export interface TOTWPlayer extends TOTWPlayerSlot {
+    id: string;
+    totw_id: string;
+    display_order: number;
+    player?: Player;
+}
+
+export interface TeamOfTheWeek {
+    id: string;
+    competition_id: string;
+    event_day_id?: string;
+    week_title: string;
+    headline: string;
+    sub_headline: string;
+    is_published: boolean;
+    published_at?: string;
+    created_at: string;
+    updated_at: string;
+    competition?: Competition;
+    players: TOTWPlayer[];
+}
+
+export interface TOTWListItem {
+    id: string;
+    competition_id: string;
+    event_day_id?: string;
+    week_title: string;
+    headline: string;
+    is_published: boolean;
+    published_at?: string;
+    created_at: string;
+}
+
+export interface SaveTOTWPayload {
+    competition_id: string;
+    event_day_id?: string;
+    week_title: string;
+    headline: string;
+    sub_headline?: string;
+    is_published: boolean;
+    players: TOTWPlayerSlot[];
+}
+
+export const getLatestTOTW = async (competitionId?: string): Promise<TeamOfTheWeek> => {
+    const res = await api.get<{ data: TeamOfTheWeek }>('/totw/latest', {
+        params: competitionId ? { competition_id: competitionId } : undefined,
+    });
+    return res.data.data;
+};
+
+export const getTOTWById = async (id: string): Promise<TeamOfTheWeek> => {
+    const res = await api.get<{ data: TeamOfTheWeek }>(`/totw/${id}`);
+    return res.data.data;
+};
+
+export const getTOTWArchive = async (competitionId?: string): Promise<TOTWListItem[]> => {
+    const res = await api.get<{ data: TOTWListItem[] }>('/totw/archive', {
+        params: competitionId ? { competition_id: competitionId } : undefined,
+    });
+    return res.data.data;
+};
+
+// Admin TOTW APIs
+export const getAdminTOTWs = async (competitionId?: string): Promise<TOTWListItem[]> => {
+    const res = await api.get<{ data: TOTWListItem[] }>('/admin/totw', {
+        params: competitionId ? { competition_id: competitionId } : undefined,
+    });
+    return res.data.data;
+};
+
+export const getAdminTOTWById = async (id: string): Promise<TeamOfTheWeek> => {
+    const res = await api.get<{ data: TeamOfTheWeek }>(`/admin/totw/${id}`);
+    return res.data.data;
+};
+
+export const createAdminTOTW = async (payload: SaveTOTWPayload): Promise<TeamOfTheWeek> => {
+    const res = await api.post<{ data: TeamOfTheWeek }>('/admin/totw', payload);
+    return res.data.data;
+};
+
+export const updateAdminTOTW = async (id: string, payload: SaveTOTWPayload): Promise<TeamOfTheWeek> => {
+    const res = await api.put<{ data: TeamOfTheWeek }>(`/admin/totw/${id}`, payload);
+    return res.data.data;
+};
+
+export const deleteAdminTOTW = async (id: string): Promise<void> => {
+    await api.delete(`/admin/totw/${id}`);
+};
+
+export const publishAdminTOTW = async (id: string, is_published: boolean): Promise<TeamOfTheWeek> => {
+    const res = await api.patch<{ data: TeamOfTheWeek }>(`/admin/totw/${id}/publish`, { is_published });
+    return res.data.data;
+};
+
+export const getAdminPlayerDayStats = async (playerId: string, eventDayId: string): Promise<Record<string, string>> => {
+    const res = await api.get<{ data: Record<string, string> }>('/admin/totw/player-stats', {
+        params: { player_id: playerId, event_day_id: eventDayId },
+    });
+    return res.data.data;
 };
 
 export default api;

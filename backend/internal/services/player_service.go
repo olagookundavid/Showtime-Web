@@ -109,6 +109,40 @@ func (s *PlayerService) GetPlayerByID(ctx context.Context, id string) (*dto.Play
 			Logo:      p.Team.Logo,
 		}
 	}
+
+	for _, pb := range p.Badges {
+		bResp := dto.PlayerBadgeResponse{
+			ID:            pb.ID,
+			PlayerID:      pb.PlayerID,
+			BadgeID:       pb.BadgeID,
+			Count:         pb.Count,
+			LastAwardedAt: pb.LastAwardedAt,
+		}
+		if pb.Badge != nil {
+			bResp.Code = pb.Badge.Code
+			bResp.Name = pb.Badge.Name
+			bResp.Description = pb.Badge.Description
+			bResp.Icon = pb.Badge.Icon
+			bResp.Category = pb.Badge.Category
+			bResp.ColorScheme = pb.Badge.ColorScheme
+		}
+		for _, a := range pb.Awards {
+			bResp.Awards = append(bResp.Awards, dto.PlayerBadgeAwardResponse{
+				ID:            a.ID,
+				PlayerID:      a.PlayerID,
+				BadgeID:       a.BadgeID,
+				CompetitionID: a.CompetitionID,
+				SeasonID:      a.SeasonID,
+				MatchID:       a.MatchID,
+				TOTWID:        a.TOTWID,
+				Reason:        a.Reason,
+				AwardedBy:     a.AwardedBy,
+				CreatedAt:     a.CreatedAt,
+			})
+		}
+		pr.Badges = append(pr.Badges, bResp)
+	}
+
 	return pr, nil
 }
 

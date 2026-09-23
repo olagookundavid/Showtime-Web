@@ -1,183 +1,16 @@
 import { useState, useMemo } from 'react';
-import { isDeletedPlayer, DELETED_TITLE } from '../../components/common/DeletedPlayer';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
-import { getMatchDetail, getPublicMatchStats, type TeamSheetPlayer } from '../../services/api';
+import { getMatchDetail, getPublicMatchStats } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { LightboxImage } from '../../components/ui';
 import { PlayByPlayTimeline } from '../../components/matches/PlayByPlayTimeline';
 import { PublicMatchStats } from '../../components/matches/PublicMatchStats';
 import { MatchSummaryTab, getUnifiedMatchMvp } from '../../components/matches/MatchSummaryTab';
+import { MatchTeamSheetTab } from '../../components/matches/MatchTeamSheetTab';
 import { CommentSection } from '../../components/comments/CommentSection';
 import { BackButton } from '../../components/common/BackButton';
-
 import { formatMatchTime, formatMatchDate } from '../../utils/dateUtils';
-
-// Right-side value on the Player Rating tab. Non-rateable position ('-')
-// shows '–'; a player with no qualifying activity (UNRATED status, null rating)
-// shows '–' too; otherwise show the rating value.
-function ratingLabel(p: TeamSheetPlayer): string {
-    if (p.position === '-') return '–';
-    if (p.rating_status === 'UNRATED' || p.rating == null) return '–';
-    return p.rating.toFixed(1);
-}
-
-// Jersey number shown next to the position. 0 means no number assigned → dash.
-function jerseyLabel(n: number): string {
-    return n === 0 ? '–' : `#${n}`;
-}
-
-type RatingSort = 'default' | 'high' | 'low';
-
-// Numeric value used to sort a player by rating. Non-rateable positions and
-// unrated players have no value (sink to the bottom).
-function ratingSortValue(p: TeamSheetPlayer): number | null {
-    if (p.position === '-') return null;
-    if (p.rating_status === 'UNRATED' || p.rating == null) return null;
-    return p.rating;
-}
-
-// Returns a rating-sorted copy of the roster. 'default' keeps the incoming order
-// (by jersey number). Non-rateable players always fall to the bottom.
-function sortByRating(players: TeamSheetPlayer[], mode: RatingSort): TeamSheetPlayer[] {
-    if (mode === 'default') return players;
-    return [...players].sort((a, b) => {
-        const av = ratingSortValue(a);
-        const bv = ratingSortValue(b);
-        if (av === null && bv === null) return 0;
-        if (av === null) return 1;
-        if (bv === null) return -1;
-        return mode === 'high' ? bv - av : av - bv;
-    });
-}
-
-const RATING_SORT_LABEL: Record<RatingSort, string> = {
-    default: '↕ By number',
-    high: '▼ Highest rated',
-    low: '▲ Lowest rated',
-};
-
-
-
-function TeamSheetRosterList({
-    sheet,
-    matchId,
-    competitionId,
-    matchDate,
-    ratingSort,
-    mvpPlayerId,
-}: {
-    sheet: TeamSheetPlayer[];
-    matchId: string;
-    competitionId?: string;
-    matchDate?: string;
-    ratingSort: RatingSort;
-    mvpPlayerId: string | null;
-}) {
-    if (sheet.length === 0) {
-        return <p className="text-gray-400 dark:text-gray-600 italic text-sm text-center py-4">No roster data</p>;
-    }
-
-    // Group players:
-    // 1. Rated (have a real rating — OFFICIAL, PROVISIONAL, or SINGLE_ROLE)
-    // 2. Unrated (rateable position but no qualifying stats this match)
-    // 3. Non-rateable ('-')
-    const isNonRateable = (p: TeamSheetPlayer) => p.position === '-';
-    const isUnrated = (p: TeamSheetPlayer) => !isNonRateable(p) && (p.rating_status === 'UNRATED' || p.rating == null);
-    const ratedPlayers = sheet.filter(p => !isNonRateable(p) && !isUnrated(p));
-    const baselinePlayers = sheet.filter(p => isUnrated(p));
-    const nonRateablePlayers = sheet.filter(p => isNonRateable(p));
-
-    const sortedRated = sortByRating(ratedPlayers, ratingSort);
-    const sortedBaseline = sortByRating(baselinePlayers, ratingSort);
-
-    const renderPlayerRow = (player: TeamSheetPlayer, isGreyedOut = false) => {
-        const isMvp = player.player_id === mvpPlayerId;
-        return (
-            <Link
-                key={player.player_id}
-                to={`/players/${player.player_id}?match=${matchId}&comp=${competitionId}&date=${matchDate?.split('T')[0]}`}
-                className={`flex items-center gap-3 p-2.5 rounded-xl transition-colors group ${
-                    isGreyedOut
-                        ? 'opacity-60 hover:opacity-100 hover:bg-gray-50 dark:hover:bg-gray-700/40'
-                        : 'hover:bg-gray-50 dark:hover:bg-gray-700/40'
-                }`}
-            >
-                {player.image ? (
-                    <LightboxImage 
-                        src={player.image} 
-                        alt={player.name} 
-                        thumbnailClassName="w-10 h-10 rounded-full flex-shrink-0 group-hover:scale-105 transition-transform shadow-sm" 
-                        imgClassName="w-full h-full object-cover"
-                    />
-                ) : (
-                    <div className="w-10 h-10 rounded-full bg-sffl-navy/10 dark:bg-white/10 flex items-center justify-center text-xs font-black text-sffl-navy dark:text-gray-400 flex-shrink-0">
-                        #{player.jersey_number}
-                    </div>
-                )}
-                <div className="flex-1 min-w-0">
-                    {/* Distinct from isGreyedOut, which means "unrated this match".
-                        A deleted player is struck through and explains itself on
-                        hover, so the two are not mistaken for each other. */}
-                    <div
-                        title={isDeletedPlayer(player) ? DELETED_TITLE : undefined}
-                        className={`font-bold text-sm truncate group-hover:text-sffl-red transition-colors ${
-                            isDeletedPlayer(player)
-                                ? 'text-gray-400 dark:text-gray-500 line-through decoration-1'
-                                : isGreyedOut ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'
-                        }`}
-                    >
-                        {player.name}
-                    </div>
-                    <div className="text-xs text-gray-400 font-semibold">{jerseyLabel(player.jersey_number)} · {player.position}</div>
-                </div>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {isMvp && <span className="text-amber-500 text-sm" title="Match MVP">⭐</span>}
-                    <span className={`text-sm font-black tabular-nums ${isGreyedOut ? 'text-gray-400 dark:text-gray-500' : 'text-sffl-navy dark:text-gray-200'}`}>
-                        {ratingLabel(player)}
-                    </span>
-                </div>
-            </Link>
-        );
-    };
-
-    return (
-        <div className="space-y-1">
-            {/* Above and Below 5.0 players */}
-            {sortedRated.map(p => renderPlayerRow(p, false))}
-
-            {/* Divider line & caveat for unrated players — only shown when
-                there are rated players above to separate them from the unrated */}
-            {ratedPlayers.length > 0 && (baselinePlayers.length > 0 || nonRateablePlayers.length > 0) && (
-                <div className="py-2.5">
-                    <div className="relative flex items-center justify-center">
-                        <div className="border-t border-gray-200 dark:border-gray-700 w-full" />
-                        <span className="bg-white dark:bg-gray-800 px-3 text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400 tracking-wider whitespace-nowrap">
-                            No qualifying stats recorded
-                        </span>
-                        <div className="border-t border-gray-200 dark:border-gray-700 w-full" />
-                    </div>
-                </div>
-            )}
-
-            {/* When ALL players are unrated (no one has a distinct rating yet),
-                still show the caveat as a standalone note */}
-            {ratedPlayers.length === 0 && (baselinePlayers.length > 0 || nonRateablePlayers.length > 0) && (
-                <div className="pt-1 pb-2.5">
-                    <span className="block text-center text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400 tracking-wider">
-                        No qualifying stats recorded
-                    </span>
-                </div>
-            )}
-
-            {/* Baseline 5.0 players (greyed out) */}
-            {sortedBaseline.map(p => renderPlayerRow(p, true))}
-
-            {/* Non-rateable players */}
-            {nonRateablePlayers.map(p => renderPlayerRow(p, true))}
-        </div>
-    );
-}
 
 export const MatchDetail = () => {
     const { id } = useParams<{ id: string }>();
@@ -205,8 +38,6 @@ export const MatchDetail = () => {
     const initialTab: MatchTab = (tabParam === 'summary' || tabParam === 'discussions' || tabParam === 'plays' || tabParam === 'stats' || tabParam === 'rating') ? tabParam : 'summary';
 
     const [activeTab, setActiveTab] = useState<MatchTab>(initialTab);
-    const [ratingSort, setRatingSort] = useState<RatingSort>('default');
-    const cycleRatingSort = () => setRatingSort(s => (s === 'default' ? 'high' : s === 'high' ? 'low' : 'default'));
 
     const { data: statsData } = useQuery({
         queryKey: ['publicMatchStatsCompare', id],
@@ -248,9 +79,6 @@ export const MatchDetail = () => {
     const homeTeam = match.home_team;
     const awayTeam = match.away_team;
     const isFinishedOrLive = match.status === 'FINISHED' || match.status === 'LIVE';
-    const homeSheet = team_sheet?.home_team ?? [];
-    const awaySheet = team_sheet?.away_team ?? [];
-    const hasTeamSheet = homeSheet.length > 0 || awaySheet.length > 0;
 
     const isBye = match.competition?.format === 'PLAYOFFS' &&
         ((match.home_team?.id && !match.away_team?.id && match.status === 'FINISHED') ||
@@ -430,7 +258,7 @@ export const MatchDetail = () => {
                     <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5 mb-6 text-center">
                         {([
                             ['summary', 'Summary'],
-                            ['rating', 'Player Rating'],
+                            ['rating', 'Team Sheets'],
                             ['plays', 'Play by Play'],
                             ['stats', 'Match Stats'],
                             ['discussions', 'Discussions'],
@@ -465,92 +293,9 @@ export const MatchDetail = () => {
                         <MatchSummaryTab match={match} teamSheet={team_sheet} />
                     )}
 
-                    {/* Tab 1: Player Rating (Roster) */}
+                    {/* Tab 1: Team Sheets (Interactive Pitch & Detailed Roster) */}
                     {activeTab === 'rating' && (
-                        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                            <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3">
-                                <h3 className="text-xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">Player Rating</h3>
-                                {hasTeamSheet && (
-                                    <div className="flex items-center gap-2 flex-shrink-0">
-                                        <span className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Sort</span>
-                                        <button
-                                            type="button"
-                                            onClick={cycleRatingSort}
-                                            className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-600 text-sffl-navy dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors tabular-nums"
-                                        >
-                                            {RATING_SORT_LABEL[ratingSort]}
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-
-                            {!hasTeamSheet ? (
-                                <div className="py-14 text-center">
-                                    <p className="text-gray-500 dark:text-gray-400 font-semibold text-sm">No team sheet announced for this match yet.</p>
-                                </div>
-                            ) : (() => {
-                                const mvpPlayerId = unifiedMvp?.playerId || null;
-                                return (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-200 dark:divide-gray-700">
-                                        {/* Home Sheet */}
-                                        <div className="p-5">
-                                            <div className="flex items-center gap-3 mb-4">
-                                                {homeTeam?.logo && (
-                                                    <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-gray-100 dark:ring-gray-700">
-                                                        <LightboxImage 
-                                                            src={homeTeam.logo} 
-                                                            alt={homeTeam.name} 
-                                                            thumbnailClassName="w-full h-full"
-                                                            imgClassName="w-full h-full object-cover" 
-                                                        />
-                                                    </div>
-                                                )}
-                                                <h4 className="font-black text-base text-sffl-navy dark:text-white truncate min-w-0">{homeTeam?.name}</h4>
-                                                <span className="text-xs bg-sffl-navy/10 dark:bg-white/10 text-sffl-navy dark:text-gray-300 font-bold px-2 py-0.5 rounded-full flex-shrink-0">
-                                                    {homeSheet.length}
-                                                </span>
-                                            </div>
-                                            <TeamSheetRosterList 
-                                                sheet={homeSheet} 
-                                                matchId={match.id} 
-                                                competitionId={match.competition?.id} 
-                                                matchDate={match.date} 
-                                                ratingSort={ratingSort} 
-                                                mvpPlayerId={mvpPlayerId}
-                                            />
-                                        </div>
-
-                                        {/* Away Sheet */}
-                                        <div className="p-5">
-                                            <div className="flex items-center gap-3 mb-4">
-                                                {awayTeam?.logo && (
-                                                    <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-gray-100 dark:ring-gray-700">
-                                                        <LightboxImage 
-                                                            src={awayTeam.logo} 
-                                                            alt={awayTeam.name} 
-                                                            thumbnailClassName="w-full h-full"
-                                                            imgClassName="w-full h-full object-cover" 
-                                                        />
-                                                    </div>
-                                                )}
-                                                <h4 className="font-black text-base text-sffl-navy dark:text-white truncate min-w-0">{awayTeam?.name}</h4>
-                                                <span className="text-xs bg-sffl-navy/10 dark:bg-white/10 text-sffl-navy dark:text-gray-300 font-bold px-2 py-0.5 rounded-full flex-shrink-0">
-                                                    {awaySheet.length}
-                                                </span>
-                                            </div>
-                                            <TeamSheetRosterList 
-                                                sheet={awaySheet} 
-                                                matchId={match.id} 
-                                                competitionId={match.competition?.id} 
-                                                matchDate={match.date} 
-                                                ratingSort={ratingSort} 
-                                                mvpPlayerId={mvpPlayerId}
-                                            />
-                                        </div>
-                                    </div>
-                                );
-                            })()}
-                        </div>
+                        <MatchTeamSheetTab match={match} teamSheet={team_sheet} mvpPlayerId={unifiedMvp?.playerId || null} />
                     )}
 
                     {/* Tab 2: Play-by-Play Timeline */}

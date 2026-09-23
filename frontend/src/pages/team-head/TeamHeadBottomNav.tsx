@@ -3,12 +3,14 @@ import {
     Squares2X2Icon,
     UserGroupIcon,
     TicketIcon,
-    Bars3Icon
+    Bars3Icon,
+    ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 import {
     Squares2X2Icon as SquaresSolid,
     UserGroupIcon as UsersSolid,
     TicketIcon as TicketSolid,
+    ClipboardDocumentListIcon as ClipboardSolid,
 } from '@heroicons/react/24/solid';
 
 interface TeamHeadBottomNavProps {
@@ -20,6 +22,7 @@ export const TeamHeadBottomNav = ({ onMoreClick }: TeamHeadBottomNavProps) => {
 
     const navItems = [
         { name: 'Home', path: '/team-head', exact: true, icon: Squares2X2Icon, solidIcon: SquaresSolid },
+        { name: 'Lineup', path: '/team-head/team-sheets', icon: ClipboardDocumentListIcon, solidIcon: ClipboardSolid },
         { name: 'Players', path: '/team-head/players', icon: UserGroupIcon, solidIcon: UsersSolid },
         { name: 'Tickets', path: '/team-head/tickets', icon: TicketIcon, solidIcon: TicketSolid },
     ];

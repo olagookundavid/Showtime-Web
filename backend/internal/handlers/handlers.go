@@ -35,6 +35,8 @@ type Handlers struct {
 	FantasyLeagueHandler        transport.IFantasyLeagueHandler
 	FantasySquadHandler         transport.IFantasySquadHandler
 	FantasyPayoutHandler        transport.IFantasyPayoutHandler
+	BadgeHandler                transport.IBadgeHandler
+	TOTWHandler                 transport.ITOTWHandler
 }
 
 func NewHandlers(
@@ -68,6 +70,8 @@ func NewHandlers(
 	fantasyLeagueHandler transport.IFantasyLeagueHandler,
 	fantasyPayoutHandler transport.IFantasyPayoutHandler,
 	fantasySquadHandler transport.IFantasySquadHandler,
+	badgeHandler transport.IBadgeHandler,
+	totwHandler transport.ITOTWHandler,
 ) Handlers {
 	return Handlers{
 		AuthHandler:                 authHandler,
@@ -100,5 +104,7 @@ func NewHandlers(
 		FantasyLeagueHandler:        fantasyLeagueHandler,
 		FantasySquadHandler:         fantasySquadHandler,
 		FantasyPayoutHandler:        fantasyPayoutHandler,
+		BadgeHandler:                badgeHandler,
+		TOTWHandler:                 totwHandler,
 	}
 }

@@ -1,12 +1,14 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
-import { getPlayerById, getPlayerStatById, getCompetitions, getStatDates, sortCompetitionsBySeason, dropdownCompetitionsFor } from '../../services/api';
+import { getPlayerById, getPlayerStatById, getCompetitions, getStatDates, sortCompetitionsBySeason, dropdownCompetitionsFor, type PlayerBadge } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { Spinner } from '../../components/ui';
 import { useSearchParams } from 'react-router-dom';
 import { SeasonStageTabs } from '../../components/common/SeasonStageTabs';
 import { getStatsForPosition } from '../../utils/positionStatsMatrix';
 import { BackButton } from '../../components/common/BackButton';
+import { XMarkIcon } from '@heroicons/react/24/outline';
 
 const StatCard = ({ label, value }: { label: string, value: number }) => {
     return (
@@ -20,6 +22,7 @@ const StatCard = ({ label, value }: { label: string, value: number }) => {
 export const PlayerDetail = () => {
     const { id } = useParams<{ id: string }>();
     const [searchParams, setSearchParams] = useSearchParams();
+    const [selectedBadge, setSelectedBadge] = useState<PlayerBadge | null>(null);
     
     const compId = searchParams.get('comp') || '';
     const matchDate = searchParams.get('date') || '';
@@ -148,12 +151,36 @@ export const PlayerDetail = () => {
                                 {(!player.tier || player.tier === 'Prospect') && '🌱'}
                                 <span>{player.tier || 'Prospect'} Tier</span>
                             </span>
-                            {/* Career MVPs Badge */}
-                            {(player.mvp_count ?? 0) > 0 && (
+                            {/* Badges & Honors */}
+                            {player.badges && player.badges.length > 0 ? (
+                                player.badges.map((b) => (
+                                    <button
+                                        key={b.id || b.badge_id}
+                                        type="button"
+                                        onClick={() => setSelectedBadge(b)}
+                                        className={`px-3 py-0.5 rounded-full text-xs font-black uppercase tracking-wider border flex items-center gap-1.5 shadow-sm transition-all hover:scale-105 cursor-pointer ${
+                                            b.color_scheme === 'gold'
+                                                ? 'bg-amber-400/25 text-amber-200 border-amber-400/50 hover:bg-amber-400/40'
+                                                : b.color_scheme === 'red'
+                                                ? 'bg-red-500/25 text-red-200 border-red-500/50 hover:bg-red-500/40'
+                                                : b.color_scheme === 'blue'
+                                                ? 'bg-blue-500/25 text-blue-200 border-blue-500/50 hover:bg-blue-500/40'
+                                                : 'bg-emerald-500/25 text-emerald-200 border-emerald-500/50 hover:bg-emerald-500/40'
+                                        }`}
+                                        title={`Click to view ${b.name} details`}
+                                    >
+                                        <span>{b.icon || '🏆'}</span>
+                                        <span>{b.name}</span>
+                                        <span className="bg-white/20 px-1.5 py-0.2 rounded-full text-[10px]">
+                                            ×{b.count}
+                                        </span>
+                                    </button>
+                                ))
+                            ) : (player.mvp_count ?? 0) > 0 ? (
                                 <span className="px-3 py-0.5 rounded-full text-xs font-black uppercase tracking-wider bg-yellow-400/30 text-yellow-200 border border-yellow-400/60 flex items-center gap-1 shadow-sm">
                                     🏆 {player.mvp_count} Career MVP{player.mvp_count === 1 ? '' : 's'}
                                 </span>
-                            )}
+                            ) : null}
                         </div>
                         {player.team?.id ? (
                             <Link
@@ -266,6 +293,29 @@ export const PlayerDetail = () => {
                     </div>
                 )}
             </div>
+
+            {/* Badge Detail Modal */}
+            {selectedBadge && (
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-2xl p-6 max-w-sm w-full shadow-2xl relative">
+                        <button
+                            type="button"
+                            onClick={() => setSelectedBadge(null)}
+                            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-white"
+                        >
+                            <XMarkIcon className="w-5 h-5" />
+                        </button>
+                        <div className="text-center">
+                            <span className="text-4xl block mb-2">{selectedBadge.icon || '🏆'}</span>
+                            <h3 className="text-xl font-black">{selectedBadge.name}</h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{selectedBadge.description}</p>
+                            <div className="mt-4 px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-xs font-black inline-block">
+                                Awarded: {selectedBadge.count} {selectedBadge.count === 1 ? 'time' : 'times'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

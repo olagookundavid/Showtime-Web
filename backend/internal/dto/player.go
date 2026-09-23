@@ -39,10 +39,11 @@ type PlayerResponse struct {
 	Email             string        `json:"email,omitempty"`
 	// "active" or "inactive". Clients render an inactive player greyed out --
 	// they are still searchable and still carry their history.
-	Status    string `json:"status,omitempty"`
-	IsReserve bool   `json:"is_reserve"`
-	MVPCount  int    `json:"mvp_count"`
-	Tier      string `json:"tier,omitempty"`
+	Status    string                `json:"status,omitempty"`
+	IsReserve bool                  `json:"is_reserve"`
+	MVPCount  int                   `json:"mvp_count"`
+	Tier      string                `json:"tier,omitempty"`
+	Badges    []PlayerBadgeResponse `json:"badges,omitempty"`
 }
 
 type RosterSummaryResponse struct {

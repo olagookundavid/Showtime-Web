@@ -93,6 +93,8 @@ type Match struct {
 	FeedsSlot        string  `json:"feeds_slot,omitempty"` // HOME | AWAY
 	SecondLegMatchID *string `json:"second_leg_match_id,omitempty"`
 	MVPPlayerID      *string `json:"mvp_player_id,omitempty"`
+	HomeCoverage     int     `json:"home_coverage,omitempty"`
+	AwayCoverage     int     `json:"away_coverage,omitempty"`
 
 	// Relations (Joined fields)
 	Competition *Competition `json:"competition,omitempty"`
@@ -122,10 +124,14 @@ type Standing struct {
 }
 
 type MatchTeamSheetEntry struct {
-	ID       string `json:"id" db:"id"`
-	MatchID  string `json:"match_id" db:"match_id"`
-	TeamID   string `json:"team_id" db:"team_id"`
-	PlayerID string `json:"player_id" db:"player_id"`
+	ID           string `json:"id" db:"id"`
+	MatchID      string `json:"match_id" db:"match_id"`
+	TeamID       string `json:"team_id" db:"team_id"`
+	PlayerID     string `json:"player_id" db:"player_id"`
+	IsStarter    bool   `json:"is_starter" db:"is_starter"`
+	StarterUnit  string `json:"starter_unit,omitempty" db:"starter_unit"`
+	PositionSlot string `json:"position_slot,omitempty" db:"position_slot"`
+	OrderIndex   int    `json:"order_index,omitempty" db:"order_index"`
 }
 
 // Enriched version returned to the public API
@@ -147,12 +153,18 @@ type TeamSheetPlayer struct {
 	// Status is "active" or "inactive". A player deleted after this sheet was
 	// named stays on it -- the appearance happened. Stat entry must still be
 	// possible for them, so this only marks them visually.
-	Status string `json:"status,omitempty"`
+	Status       string `json:"status,omitempty"`
+	IsStarter    bool   `json:"is_starter"`
+	StarterUnit  string `json:"starter_unit,omitempty"` // "OFFENSE" | "DEFENSE"
+	PositionSlot string `json:"position_slot,omitempty"` // "QB_M", "QB_F", "C", "WR1", "WR2", "WR3", "WR4", "RUSH", "DEF1", ...
+	OrderIndex   int    `json:"order_index,omitempty"`
 }
 
 type MatchTeamSheet struct {
-	HomeTeam []TeamSheetPlayer `json:"home_team"`
-	AwayTeam []TeamSheetPlayer `json:"away_team"`
+	HomeTeam     []TeamSheetPlayer `json:"home_team"`
+	AwayTeam     []TeamSheetPlayer `json:"away_team"`
+	HomeCoverage int               `json:"home_coverage,omitempty"`
+	AwayCoverage int               `json:"away_coverage,omitempty"`
 }
 
 type MatchDetail struct {

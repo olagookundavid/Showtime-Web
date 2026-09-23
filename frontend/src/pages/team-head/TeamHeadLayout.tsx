@@ -119,6 +119,12 @@ const TeamHeadLayout = () => {
                             <span>Players</span>
                         </div>
                     </Link>
+                    <Link to="/team-head/team-sheets" className={linkClass('/team-head/team-sheets')}>
+                        <div className="flex items-center gap-3 px-1">
+                            <span className="text-base">📋</span>
+                            <span>Team Sheets</span>
+                        </div>
+                    </Link>
                     <Link to="/team-head/contracts" className={linkClass('/team-head/contracts')}>
                         <div className="flex items-center gap-3 px-1">
                             <span className="text-base">📝</span>

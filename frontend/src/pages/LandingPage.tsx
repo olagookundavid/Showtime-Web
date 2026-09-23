@@ -3,6 +3,7 @@ import { LiveHero } from '../components/LiveHero';
 import { useLiveStream } from '../hooks/useLiveStream';
 import { ReliveCarousel } from '../components/ReliveCarousel';
 import { HeroCarousel } from '../components/HeroCarousel';
+import { TeamOfTheWeekModule } from '../components/totw/TeamOfTheWeekModule';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getNews } from '../services/api';
@@ -42,6 +43,11 @@ export const LandingPage = () => {
             {/* RELIVE - YouTube Playlist Video Carousel */}
             <section className="px-1">
                 <ReliveCarousel />
+            </section>
+
+            {/* Team of the Week Module */}
+            <section className="px-1">
+                <TeamOfTheWeekModule />
             </section>
 
             {/* Team News — moved immediately after the hero so news is the

@@ -379,7 +379,7 @@ func ExampleQueueProducer(log *logger.Logger) queue.MessagePublisher {
 
 // wireDependencies initializes and injects all dependencies (Repository -> Service -> Handler)
 // returning the fully assembled Handlers struct, the AuditService, and the TicketService.
-func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Logger) (handlers.Handlers, services.IAuditService, services.IAuthService, services.ITeamManagerService, *services.TicketService, ports.StorageService, services.IContractService, services.ITransferService, services.INotificationService, services.ITransferWindowService, services.IFantasyService) {
+func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Logger) (handlers.Handlers, services.IAuditService, services.IAuthService, services.ITeamManagerService, *services.TicketService, ports.StorageService, services.IContractService, services.ITransferService, services.INotificationService, services.ITransferWindowService, services.IFantasyService, services.IBadgeService, services.ITOTWService) {
 	// Infrastructure
 	auditRepo := ports.NewAuditRepository(pool)
 	authRepo := ports.NewAuthRepository(pool)
@@ -416,6 +416,10 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	fantasySquadRepo := ports.NewFantasySquadRepository(pool)
 	fantasyLeagueRepo := ports.NewFantasyLeagueRepository(pool)
 	fantasyPayoutRepo := ports.NewFantasyPayoutRepository(pool)
+
+	// Badge & TOTW Repositories
+	badgeRepo := ports.NewBadgeRepository(pool)
+	totwRepo := ports.NewTOTWRepository(pool)
 
 	// External Clients
 	paystackClient := services.NewPaystackClient()
@@ -504,6 +508,12 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 		services.NewFantasySquadService(fantasySquadRepo, fantasyRepo),
 	)
 
+	badgeService := services.NewBadgeService(badgeRepo)
+	totwService := services.NewTOTWService(totwRepo, badgeService)
+
+	badgeHandler := transport.NewBadgeHandler(badgeService)
+	totwHandler := transport.NewTOTWHandler(totwService)
+
 	h := handlers.NewHandlers(
 		authHandler, newsHandler, galleryHandler, matchHandler, playerHandler,
 		ticketHandler, tmHandler, analyticsHandler, tmAllocHandler, statsHandler,
@@ -512,6 +522,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 		contractHandler, transferHandler, notifHandler, appSettingHandler,
 		claimHandler, commentHandler, discountHandler, liveHandler,
 		fantasyHandler, fantasyLeagueHandler, fantasyPayoutHandler, fantasySquadHandler,
+		badgeHandler, totwHandler,
 	)
-	return h, auditService, authService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService, fantasyService
+	return h, auditService, authService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService, fantasyService, badgeService, totwService
 }

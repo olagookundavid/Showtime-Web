@@ -90,6 +90,8 @@ const AdminTransfers = lazy(() => import('./pages/admin/AdminTransfers'));
 const AdminTransferWindows = lazy(() => import('./pages/admin/AdminTransferWindows'));
 const AdminSettings = lazy(() => import('./pages/admin/AdminSettings').then(m => ({ default: m.AdminSettings })));
 const AdminFantasy = lazy(() => import('./pages/admin/AdminFantasy').then(m => ({ default: m.AdminFantasy })));
+const AdminTOTW = lazy(() => import('./pages/admin/AdminTOTW').then(m => ({ default: m.AdminTOTW })));
+const AdminBadges = lazy(() => import('./pages/admin/AdminBadges').then(m => ({ default: m.AdminBadges })));
 
 // Lazy load Team Head Pages
 const TeamHeadLayout = lazy(() => import('./pages/team-head/TeamHeadLayout'));
@@ -100,6 +102,7 @@ const TeamHeadTransfers = lazy(() => import('./pages/team-head/TeamHeadTransfers
 const TeamHeadBudget = lazy(() => import('./pages/team-head/TeamHeadBudget').then(m => ({ default: m.TeamHeadBudget })));
 const TeamTickets = lazy(() => import('./pages/team-head/TeamTickets'));
 const TeamHeadClaims = lazy(() => import('./pages/team-head/TeamHeadClaims'));
+const TeamHeadTeamSheets = lazy(() => import('./pages/team-head/TeamHeadTeamSheets'));
 
 // Lazy load Player Portal Pages
 const PlayerPortalLayout = lazy(() => import('./pages/player-portal/PlayerPortalLayout'));
@@ -262,6 +265,8 @@ function App() {
               <Route path="players" element={<AdminPlayers />} />
               <Route path="stats" element={<AdminStats />} />
               <Route path="standings" element={<AdminStandings />} />
+              <Route path="totw" element={<AdminTOTW />} />
+              <Route path="badges" element={<AdminBadges />} />
               <Route path="tickets" element={<AdminTickets />} />
               <Route path="referrals" element={<AdminReferrals />} />
               <Route path="administrator" element={<AdminGiftTicket />} />
@@ -289,6 +294,7 @@ function App() {
             }>
               <Route index element={<TeamHeadOverview />} />
               <Route path="players" element={<TeamHeadPlayers />} />
+              <Route path="team-sheets" element={<TeamHeadTeamSheets />} />
               <Route path="contracts" element={<TeamHeadContracts />} />
               <Route path="transfers" element={<TeamHeadTransfers />} />
               <Route path="budget" element={<TeamHeadBudget />} />

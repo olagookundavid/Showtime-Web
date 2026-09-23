@@ -51,6 +51,7 @@ type Player struct {
 	// Relations
 	Team        *Team               `json:"team,omitempty"`
 	TeamHistory []PlayerTeamHistory `json:"team_history,omitempty"`
+	Badges      []PlayerBadge       `json:"badges,omitempty"`
 }
 
 // CalculatePlayerTier assigns a career prestige tier based on verified Match MVP honors.

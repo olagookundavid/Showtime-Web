@@ -87,6 +87,8 @@ func Routes(app *api.Application) *gin.Engine {
 	SetupCommentRoutes(v1_api, app)
 	SetupDiscountRoutes(v1_api, app)
 	SetupFantasyRoutes(v1_api, app)
+	SetupTOTWRoutes(v1_api, app)
+	SetupBadgeRoutes(v1_api, app)
 	return r
 }
 
@@ -232,6 +234,34 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		seasonGroup.POST("/mvps", app.Handlers.SeasonHandler.CreateMVP)
 		seasonGroup.PUT("/mvps/:id", app.Handlers.SeasonHandler.UpdateMVP)
 		seasonGroup.DELETE("/mvps/:id", app.Handlers.SeasonHandler.DeleteMVP)
+	}
+
+	// Team of the Week — admin/app_admin managed
+	totwAdminGroup := adminRoutes.Group("/totw")
+	totwAdminGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
+	{
+		totwAdminGroup.GET("", app.Handlers.TOTWHandler.ListAllAdminTOTW)
+		totwAdminGroup.GET("/player-stats", app.Handlers.TOTWHandler.GetPlayerDayStats)
+		totwAdminGroup.GET("/:id", app.Handlers.TOTWHandler.GetTOTWByID)
+		totwAdminGroup.POST("", app.Handlers.TOTWHandler.CreateTOTW)
+		totwAdminGroup.PUT("/:id", app.Handlers.TOTWHandler.UpdateTOTW)
+		totwAdminGroup.DELETE("/:id", app.Handlers.TOTWHandler.DeleteTOTW)
+		totwAdminGroup.PATCH("/:id/publish", app.Handlers.TOTWHandler.PublishTOTW)
+	}
+
+	// Badges & Honors — admin/app_admin managed
+	badgesAdminGroup := adminRoutes.Group("/badges")
+	badgesAdminGroup.Use(middlewares.AdminOnlyMiddleware(app.AuthService))
+	{
+		badgesAdminGroup.GET("", app.Handlers.BadgeHandler.ListBadges)
+		badgesAdminGroup.GET("/awards", app.Handlers.BadgeHandler.ListAwards)
+		badgesAdminGroup.GET("/:id", app.Handlers.BadgeHandler.GetBadgeByID)
+		badgesAdminGroup.POST("", app.Handlers.BadgeHandler.CreateBadge)
+		badgesAdminGroup.PUT("/:id", app.Handlers.BadgeHandler.UpdateBadge)
+		badgesAdminGroup.DELETE("/:id", app.Handlers.BadgeHandler.DeleteBadge)
+		badgesAdminGroup.POST("/award", app.Handlers.BadgeHandler.AwardBadge)
+		badgesAdminGroup.DELETE("/awards/:id", app.Handlers.BadgeHandler.DeleteAward)
+		badgesAdminGroup.POST("/backfill-mvps", app.Handlers.BadgeHandler.BackfillMVPBadges)
 	}
 
 	inventoryGroup := adminRoutes.Group("/inventory")
@@ -441,13 +471,16 @@ func SetupTeamHeadRoutes(r *gin.RouterGroup, app *api.Application) {
 	// Get the team head's own team info
 	thRoutes.GET("/my-team", app.Handlers.TeamManagerHandler.GetMyTeam)
 
-	// Scoped player management (middleware injects team_id for team_heads)
+	// Scoped player management (middleware injects team_id for team_heads).
+	//
+	// Team managers cannot create, delete or restore players. A player joins a team only
+	// through an approved claim (see the claim routes below): the player asks with the
+	// team's code, the manager vouches, and approval creates the player, their account
+	// and their first contract together. Creating and deleting players directly is left
+	// to the league office under /admin/players.
 	thRoutes.GET("/players", app.Handlers.PlayerHandler.GetPlayers)
 	thRoutes.GET("/players/:id", app.Handlers.PlayerHandler.GetPlayerByID)
-	thRoutes.POST("/players", app.Handlers.PlayerHandler.CreatePlayer)
 	thRoutes.PUT("/players/:id", app.Handlers.PlayerHandler.UpdatePlayer)
-	thRoutes.DELETE("/players/:id", app.Handlers.PlayerHandler.DeletePlayer)
-	thRoutes.POST("/players/:id/restore", app.Handlers.PlayerHandler.RestorePlayer)
 	thRoutes.POST("/players/assign-jersey-numbers", app.Handlers.PlayerHandler.AssignRandomJerseyNumbers)
 	thRoutes.POST("/players/:id/move-to-reserve", app.Handlers.PlayerHandler.MoveToReserve)
 	thRoutes.POST("/players/:id/graduate", app.Handlers.PlayerHandler.GraduatePlayer)
@@ -475,6 +508,10 @@ func SetupTeamHeadRoutes(r *gin.RouterGroup, app *api.Application) {
 	thRoutes.GET("/claim-codes", app.Handlers.ClaimHandler.GetMyClaimCode)
 	thRoutes.POST("/claim-codes", app.Handlers.ClaimHandler.CreateClaimCode)
 	thRoutes.DELETE("/claim-codes/:id", app.Handlers.ClaimHandler.RevokeClaimCode)
+
+	// Match Team Sheets
+	thRoutes.GET("/matches/:id/team-sheet", app.Handlers.MatchHandler.GetAdminTeamSheet)
+	thRoutes.POST("/matches/:id/team-sheet", app.Handlers.MatchHandler.SaveTeamHeadTeamSheet)
 }
 
 func SetupAuthRoutes(r *gin.RouterGroup, app *api.Application) {
@@ -876,5 +913,23 @@ func SetupFantasyRoutes(r *gin.RouterGroup, app *api.Application) {
 		adminFantasy.GET("/owed", app.Handlers.FantasyPayoutHandler.AdminGetMoneyOwed)
 		adminFantasy.PUT("/payouts/:id/status", app.Handlers.FantasyPayoutHandler.AdminUpdatePayoutStatus)
 		adminFantasy.GET("/users/:id/wallet", app.Handlers.FantasyPayoutHandler.AdminGetUserWallet)
+	}
+}
+
+func SetupTOTWRoutes(r *gin.RouterGroup, app *api.Application) {
+	totwRoutes := r.Group("/totw")
+	{
+		totwRoutes.GET("/latest", app.Handlers.TOTWHandler.GetLatestPublishedTOTW)
+		totwRoutes.GET("/archive", app.Handlers.TOTWHandler.ListTOTWArchive)
+		totwRoutes.GET("/:id", app.Handlers.TOTWHandler.GetPublicTOTWByID)
+	}
+}
+
+func SetupBadgeRoutes(r *gin.RouterGroup, app *api.Application) {
+	badgeRoutes := r.Group("/badges")
+	{
+		badgeRoutes.GET("", app.Handlers.BadgeHandler.ListBadges)
+		badgeRoutes.GET("/:id", app.Handlers.BadgeHandler.GetBadgeByID)
+		badgeRoutes.GET("/players/:id", app.Handlers.BadgeHandler.GetPlayerBadges)
 	}
 }

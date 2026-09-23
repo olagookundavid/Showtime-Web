@@ -43,6 +43,7 @@ type IMatchHandler interface {
 	GetMatchDays(c *gin.Context)
 	GetEligiblePlayersForMatchDay(c *gin.Context)
 	SaveTeamSheet(c *gin.Context)
+	SaveTeamHeadTeamSheet(c *gin.Context)
 	GetAdminTeamSheet(c *gin.Context)
 }
 
@@ -862,7 +863,115 @@ func (h *MatchHandler) SaveTeamSheet(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.SaveTeamSheet(c.Request.Context(), matchID, req.TeamID, req.PlayerIDs); err != nil {
+	if err := h.service.SaveTeamSheet(c.Request.Context(), matchID, req); err != nil {
+		helpers.ServerErrorResponse(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Team sheet saved successfully"})
+}
+
+// SaveTeamHeadTeamSheet allows team heads (or admins) to save team sheets scoped to their managed team
+func (h *MatchHandler) SaveTeamHeadTeamSheet(c *gin.Context) {
+	matchID := c.Param("id")
+	var req dto.SaveTeamSheetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helpers.BadResponse(c, err.Error())
+		return
+	}
+
+	if scopedTeam, ok := c.Get("team_manager_team_id"); ok {
+		if s, isStr := scopedTeam.(string); isStr && s != "" {
+			req.TeamID = s
+		}
+	}
+
+	if req.TeamID == "" {
+		helpers.BadResponse(c, "Team ID is required")
+		return
+	}
+
+	// 1. Fetch match to verify existence, status and team participation
+	detail, err := h.service.GetMatchDetail(c.Request.Context(), matchID)
+	if err != nil || detail == nil {
+		helpers.BadResponse(c, "Match not found")
+		return
+	}
+	match := detail.Match
+
+	// 2. Manager's team must participate in this match
+	homeID := ""
+	if match.HomeTeam != nil {
+		homeID = match.HomeTeam.ID
+	}
+	awayID := ""
+	if match.AwayTeam != nil {
+		awayID = match.AwayTeam.ID
+	}
+	if homeID != req.TeamID && awayID != req.TeamID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Your team is not participating in this match"})
+		return
+	}
+
+	// 3. Reject modifications on finished matches
+	if match.Status == "FINISHED" {
+		helpers.BadResponse(c, "Cannot modify team sheet for a completed match")
+		return
+	}
+
+	// 4. Validate 25-player maximum squad cap
+	totalPlayers := len(req.Players)
+	if totalPlayers == 0 {
+		totalPlayers = len(req.PlayerIDs)
+	}
+	if totalPlayers > 25 {
+		helpers.BadResponse(c, "Match squad roster exceeds the maximum limit of 25 players")
+		return
+	}
+
+	// 5. Validate unique starters, 14 total starters (7 off / 7 def), and minimum 2 female starters
+	if len(req.Players) > 0 {
+		starterIDs := make(map[string]bool)
+		offStarters := 0
+		defStarters := 0
+		for _, p := range req.Players {
+			if p.IsStarter {
+				if starterIDs[p.PlayerID] {
+					helpers.BadResponse(c, "Duplicate starter in lineup; all starters must be unique individuals")
+					return
+				}
+				starterIDs[p.PlayerID] = true
+				if p.StarterUnit == "OFFENSE" {
+					offStarters++
+				} else if p.StarterUnit == "DEFENSE" {
+					defStarters++
+				}
+			}
+		}
+
+		if len(starterIDs) > 0 {
+			if offStarters != 7 || defStarters != 7 {
+				helpers.BadResponse(c, "Starting lineup must have exactly 14 starters (7 offense and 7 defense)")
+				return
+			}
+
+			// Validate at least 2 female starters
+			starterIDsList := make([]string, 0, len(starterIDs))
+			for id := range starterIDs {
+				starterIDsList = append(starterIDsList, id)
+			}
+			femaleCount, err := h.service.CountFemalePlayers(c.Request.Context(), starterIDsList)
+			if err != nil {
+				helpers.ServerErrorResponse(c, err)
+				return
+			}
+			if femaleCount < 2 {
+				helpers.BadResponse(c, "Starting lineup must include at least 2 female starters")
+				return
+			}
+		}
+	}
+
+	if err := h.service.SaveTeamSheet(c.Request.Context(), matchID, req); err != nil {
 		helpers.ServerErrorResponse(c, err)
 		return
 	}

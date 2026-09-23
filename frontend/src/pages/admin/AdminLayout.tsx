@@ -16,6 +16,8 @@ import {
     BuildingStorefrontIcon,
     GiftIcon,
     Cog6ToothIcon,
+    TrophyIcon,
+    SparklesIcon,
 } from '@heroicons/react/24/outline';
 
 export const AdminLayout = () => {
@@ -70,6 +72,8 @@ export const AdminLayout = () => {
         { name: 'Transfer Windows', path: '/admin/transfer-windows', icon: CalendarIcon },
         { name: 'Stats', path: '/admin/stats', icon: ChartBarIcon },
         { name: 'Standings', path: '/admin/standings', icon: ChartBarIcon },
+        { name: 'Team of the Week', path: '/admin/totw', icon: TrophyIcon },
+        { name: 'Badges & Honors', path: '/admin/badges', icon: SparklesIcon },
         { name: 'Tickets', path: '/admin/tickets', icon: TicketIcon },
         { name: 'Referrals', path: '/admin/referrals', icon: TicketIcon },
         { name: 'Event Days', path: '/admin/event-days', icon: CalendarIcon },

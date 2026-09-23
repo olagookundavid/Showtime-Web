@@ -51,6 +51,10 @@ const TeamHeadOverview = () => {
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-6">
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Quick Actions</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <a href="/team-head/team-sheets" className="block bg-sffl-red/10 hover:bg-sffl-red/15 border border-sffl-red/30 rounded-lg p-3 transition-colors">
+                            <span className="font-bold text-sffl-red text-sm">📋 Match Team Sheets</span>
+                            <p className="text-xs text-gray-500 mt-0.5">Set starting 14, defense cover & bench.</p>
+                        </a>
                         <a href="/team-head/players" className="block bg-sffl-red/5 hover:bg-sffl-red/10 border border-sffl-red/20 rounded-lg p-3 transition-colors">
                             <span className="font-bold text-sffl-red text-sm">🏃 Manage Roster</span>
                             <p className="text-xs text-gray-500 mt-0.5">View and manage your team's players.</p>

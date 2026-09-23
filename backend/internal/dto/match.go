@@ -137,9 +137,19 @@ type GenerateBracketRequest struct {
 }
 
 // --- Team Sheets ---
+type TeamSheetPlayerSlot struct {
+	PlayerID     string `json:"player_id"`
+	IsStarter    bool   `json:"is_starter"`
+	StarterUnit  string `json:"starter_unit"`  // "OFFENSE", "DEFENSE"
+	PositionSlot string `json:"position_slot"` // "QB_M", "QB_F", "C", "WR1", etc.
+	OrderIndex   int    `json:"order_index"`
+}
+
 type SaveTeamSheetRequest struct {
-	TeamID    string   `json:"team_id" binding:"required"`
-	PlayerIDs []string `json:"player_ids" binding:"required"`
+	TeamID    string                `json:"team_id" binding:"required"`
+	PlayerIDs []string              `json:"player_ids"`
+	Players   []TeamSheetPlayerSlot `json:"players"`
+	Coverage  int                   `json:"coverage"` // 1, 2, 3, 4
 }
 
 // --- Standings ---

@@ -37,11 +37,13 @@ type IMatchService interface {
 	DeleteTeam(ctx context.Context, id string) error
 	GenerateBracket(ctx context.Context, competitionID string, req dto.GenerateBracketRequest) error
 	ResetBracket(ctx context.Context, competitionID string) error
-	SaveTeamSheet(ctx context.Context, matchID, teamID string, playerIDs []string) error
+	SaveTeamSheet(ctx context.Context, matchID string, req dto.SaveTeamSheetRequest) error
 	GetTeamSheet(ctx context.Context, matchID string) (*domain.MatchTeamSheet, error)
 	GetMatchDetail(ctx context.Context, matchID string) (*domain.MatchDetail, error)
+	GetMatchByID(ctx context.Context, id string) (*domain.Match, error)
 	GetMatchDaysByCompetition(ctx context.Context, competitionID string, page, limit int) ([]string, int, error)
 	GetEligiblePlayersForMatchDay(ctx context.Context, competitionID string, date string, page, limit int) ([]domain.Player, int, error)
+	CountFemalePlayers(ctx context.Context, playerIDs []string) (int, error)
 }
 
 type MatchService struct {
@@ -660,6 +662,11 @@ func (s *MatchService) UpdateMatch(ctx context.Context, match *domain.Match) err
 	if match.SecondLegMatchID == nil {
 		match.SecondLegMatchID = existing.SecondLegMatchID
 	}
+	// Omitted keeps the MVP; an explicit "" clears it. Without this, any
+	// partial update dropped the MVP and, with it, the player's MVP award.
+	if match.MVPPlayerID == nil {
+		match.MVPPlayerID = existing.MVPPlayerID
+	}
 
 	completed, format, err := s.competitionState(ctx, match.CompetitionID)
 	if err != nil {
@@ -934,8 +941,8 @@ func (s *MatchService) DeleteCompetition(ctx context.Context, id string) error {
 	return s.repo.DeleteCompetition(ctx, id)
 }
 
-func (s *MatchService) SaveTeamSheet(ctx context.Context, matchID, teamID string, playerIDs []string) error {
-	return s.repo.SaveTeamSheet(ctx, matchID, teamID, playerIDs)
+func (s *MatchService) SaveTeamSheet(ctx context.Context, matchID string, req dto.SaveTeamSheetRequest) error {
+	return s.repo.SaveTeamSheet(ctx, matchID, req)
 }
 
 func (s *MatchService) GetTeamSheet(ctx context.Context, matchID string) (*domain.MatchTeamSheet, error) {
@@ -952,5 +959,13 @@ func (s *MatchService) GetMatchDaysByCompetition(ctx context.Context, competitio
 
 func (s *MatchService) GetEligiblePlayersForMatchDay(ctx context.Context, competitionID string, date string, page, limit int) ([]domain.Player, int, error) {
 	return s.repo.GetEligiblePlayersForMatchDay(ctx, competitionID, date, page, limit)
+}
+
+func (s *MatchService) GetMatchByID(ctx context.Context, id string) (*domain.Match, error) {
+	return s.repo.GetMatchByID(ctx, id)
+}
+
+func (s *MatchService) CountFemalePlayers(ctx context.Context, playerIDs []string) (int, error) {
+	return s.repo.CountFemalePlayers(ctx, playerIDs)
 }
 
