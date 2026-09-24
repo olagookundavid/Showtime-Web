@@ -1,6 +1,6 @@
 go 1.25.1
 
 use (
-	./pkg-common
 	./backend
+	./pkg-common
 )

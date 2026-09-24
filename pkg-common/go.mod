@@ -4,6 +4,7 @@ go 1.25.1
 
 require (
 	github.com/aead/chacha20poly1305 v0.0.0-20201124145622-1a5aba2a8b29
+	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-gonic/gin v1.11.0
 	github.com/o1egl/paseto v1.0.0
 	github.com/rabbitmq/amqp091-go v1.10.0
