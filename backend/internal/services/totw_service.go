@@ -291,6 +291,7 @@ func (s *TOTWService) mapToResponse(totw *domain.TeamOfTheWeek) *dto.TOTWRespons
 				Name:         p.Player.Name,
 				JerseyNumber: p.Player.JerseyNumber,
 				Position:     p.Player.Position,
+				Gender:       p.Player.Gender,
 				Image:        p.Player.Image,
 			}
 			if p.Player.Team != nil {
@@ -318,34 +319,34 @@ func normalizeTOTWSlot(slot string) string {
 // defaultCoordX provides coordinates for the Starting XIV matching Showtime_Team_of_the_Week_UI.html and AdminTOTW
 func defaultCoordX(slot string) string {
 	switch normalizeTOTWSlot(slot) {
-	case "S1", "DEF_S1":
+	case "DEF6", "DEF_6", "S1", "DEF_S1":
 		return "32%"
-	case "S2", "DEF_S2":
+	case "DEF7", "DEF_7", "S2", "DEF_S2":
 		return "68%"
-	case "R", "DEF_R", "RUSH", "RUSHER":
+	case "DEF1", "DEF_1", "R", "DEF_R", "RUSH", "RUSHER":
 		return "50%"
-	case "DEF1", "DEF_1":
-		return "18%"
 	case "DEF2", "DEF_2":
-		return "34%"
+		return "18%"
 	case "DEF3", "DEF_3":
-		return "66%"
+		return "34%"
 	case "DEF4", "DEF_4":
+		return "66%"
+	case "DEF5", "DEF_5":
 		return "82%"
-	case "C", "OFF_C", "CENTER":
+	case "OFF3", "OFF_3", "C", "OFF_C", "CENTER":
 		return "50%"
-	case "WR1", "WR_1", "OFF_WR1", "OFF_WR_1":
+	case "OFF4", "OFF_4", "WR1", "WR_1", "OFF_WR1", "OFF_WR_1":
 		return "14%"
-	case "WR2", "WR_2", "OFF_WR2", "OFF_WR_2":
+	case "OFF5", "OFF_5", "WR2", "WR_2", "OFF_WR2", "OFF_WR_2":
 		return "86%"
-	case "WR3", "WR_3", "OFF_WR3", "OFF_WR_3":
+	case "OFF6", "OFF_6", "WR3", "WR_3", "OFF_WR3", "OFF_WR_3":
 		return "28%"
-	case "WR4", "WR_4", "OFF_WR4", "OFF_WR_4":
+	case "OFF7", "OFF_7", "WR4", "WR_4", "OFF_WR4", "OFF_WR_4":
 		return "72%"
-	case "FQB", "OFF_FQB", "OFF_FQB_RB", "FEMALE_QB":
+	case "OFF1", "OFF_1", "FQB", "OFF_FQB", "OFF_FQB_RB", "FEMALE_QB":
 		return "32%"
-	case "QB", "OFF_QB", "MALE_QB":
-		return "50%"
+	case "OFF2", "OFF_2", "QB", "OFF_QB", "MALE_QB":
+		return "68%"
 	default:
 		return "50%"
 	}
@@ -354,33 +355,33 @@ func defaultCoordX(slot string) string {
 // defaultCoordY provides coordinates for the Starting XIV matching Showtime_Team_of_the_Week_UI.html and AdminTOTW
 func defaultCoordY(slot string) string {
 	switch normalizeTOTWSlot(slot) {
-	case "S1", "DEF_S1":
+	case "DEF6", "DEF_6", "S1", "DEF_S1":
 		return "20%"
-	case "S2", "DEF_S2":
+	case "DEF7", "DEF_7", "S2", "DEF_S2":
 		return "20%"
-	case "R", "DEF_R", "RUSH", "RUSHER":
+	case "DEF1", "DEF_1", "R", "DEF_R", "RUSH", "RUSHER":
 		return "44%"
-	case "DEF1", "DEF_1":
-		return "40%"
 	case "DEF2", "DEF_2":
-		return "38%"
+		return "40%"
 	case "DEF3", "DEF_3":
 		return "38%"
 	case "DEF4", "DEF_4":
+		return "38%"
+	case "DEF5", "DEF_5":
 		return "40%"
-	case "C", "OFF_C", "CENTER":
+	case "OFF3", "OFF_3", "C", "OFF_C", "CENTER":
 		return "68%"
-	case "WR1", "WR_1", "OFF_WR1", "OFF_WR_1":
+	case "OFF4", "OFF_4", "WR1", "WR_1", "OFF_WR1", "OFF_WR_1":
 		return "68%"
-	case "WR2", "WR_2", "OFF_WR2", "OFF_WR_2":
+	case "OFF5", "OFF_5", "WR2", "WR_2", "OFF_WR2", "OFF_WR_2":
 		return "68%"
-	case "WR3", "WR_3", "OFF_WR3", "OFF_WR_3":
+	case "OFF6", "OFF_6", "WR3", "WR_3", "OFF_WR3", "OFF_WR_3":
 		return "56%"
-	case "WR4", "WR_4", "OFF_WR4", "OFF_WR_4":
+	case "OFF7", "OFF_7", "WR4", "WR_4", "OFF_WR4", "OFF_WR_4":
 		return "56%"
-	case "FQB", "OFF_FQB", "OFF_FQB_RB", "FEMALE_QB":
+	case "OFF2", "OFF_2", "FQB", "OFF_FQB", "OFF_FQB_RB", "FEMALE_QB":
 		return "86%"
-	case "QB", "OFF_QB", "MALE_QB":
+	case "OFF1", "OFF_1", "QB", "OFF_QB", "MALE_QB":
 		return "86%"
 	default:
 		return "50%"

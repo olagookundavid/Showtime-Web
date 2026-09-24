@@ -198,6 +198,13 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                             const isSelected = idx === selectedIndex;
                             const isPlayerDef = p.unit === 'Defence';
                             const hasImage = Boolean(p.player?.image);
+                            // Ensure symmetrical equal spacing (32% and 68%) for backfield positions matching S1/S2
+                            let posX = p.coord_x || '50%';
+                            if ((p.slot_code === 'QB' || p.slot_code === 'OFF2') && (posX === '50%' || !p.coord_x)) {
+                                posX = '68%';
+                            } else if ((p.slot_code === 'FQB' || p.slot_code === 'OFF1') && !p.coord_x) {
+                                posX = '32%';
+                            }
 
                             return (
                                 <button
@@ -205,7 +212,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                                     type="button"
                                     onClick={() => setSelectedIndex(idx)}
                                     style={{
-                                        left: p.coord_x || '50%',
+                                        left: posX,
                                         top: p.coord_y || '50%',
                                     }}
                                     className={`absolute -translate-x-1/2 -translate-y-1/2 z-30 w-16 md:w-24 p-1 rounded-xl text-center transition-all duration-200 focus:outline-none group cursor-pointer ${
@@ -243,7 +250,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                                             isPlayerDef ? 'bg-[#C5E1FF] text-[#102844]' : 'bg-[#FFF8E9] text-[#102844]'
                                         }`}
                                     >
-                                        {p.position}
+                                        {p.slot_code || p.position}
                                     </span>
 
                                     {/* Player Name */}
@@ -329,8 +336,13 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                                             isDefensive ? 'bg-[#76BAFF] text-[#09223D]' : 'bg-sffl-red text-white'
                                         }`}
                                     >
-                                        {activePlayer.position}
+                                        {activePlayer.slot_code || activePlayer.position}
                                     </span>
+                                    {activePlayer.player?.position && (
+                                        <span className="text-[10px] md:text-xs font-bold text-gray-300">
+                                            • {activePlayer.player.position}
+                                        </span>
+                                    )}
                                     <span className="text-[10px] md:text-xs font-black uppercase tracking-wider text-[#A8BBD1]">
                                         {activePlayer.unit}
                                     </span>

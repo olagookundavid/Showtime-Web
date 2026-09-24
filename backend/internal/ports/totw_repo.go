@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"showtime-backend/internal/domain"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -77,6 +78,24 @@ func (r *PostgresTOTWRepository) CreateTOTW(ctx context.Context, totw *domain.Te
 		}
 	}
 
+	if totw.IsPublished {
+		countQuery := `
+			SELECT tp.unit, COALESCE(p.gender, '')
+			FROM team_of_the_week_players tp
+			JOIN players p ON tp.player_id = p.id
+			WHERE tp.totw_id = $1
+		`
+		cRows, err := tx.Query(ctx, countQuery, totw.ID)
+		if err != nil {
+			return nil, err
+		}
+		if err := checkFemaleQuota(cRows); err != nil {
+			cRows.Close()
+			return nil, err
+		}
+		cRows.Close()
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
@@ -146,6 +165,24 @@ func (r *PostgresTOTWRepository) UpdateTOTW(ctx context.Context, totw *domain.Te
 		}
 	}
 
+	if totw.IsPublished {
+		countQuery := `
+			SELECT tp.unit, COALESCE(p.gender, '')
+			FROM team_of_the_week_players tp
+			JOIN players p ON tp.player_id = p.id
+			WHERE tp.totw_id = $1
+		`
+		cRows, err := tx.Query(ctx, countQuery, totw.ID)
+		if err != nil {
+			return nil, err
+		}
+		if err := checkFemaleQuota(cRows); err != nil {
+			cRows.Close()
+			return nil, err
+		}
+		cRows.Close()
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
@@ -192,7 +229,8 @@ func (r *PostgresTOTWRepository) GetTOTWByID(ctx context.Context, id string) (*d
 		       tp.display_order, tp.created_at,
 		       p.id, p.name, COALESCE(p.jersey_number, 0), COALESCE(p.position, '-'),
 		       COALESCE(p.image, ''), COALESCE(p.team_id::text, ''),
-		       COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, '')
+		       COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
+		       COALESCE(p.gender, '')
 		FROM team_of_the_week_players tp
 		JOIN players p ON tp.player_id = p.id
 		LEFT JOIN teams t ON p.team_id = t.id
@@ -218,6 +256,7 @@ func (r *PostgresTOTWRepository) GetTOTWByID(ctx context.Context, id string) (*d
 			&tp.Player.ID, &tp.Player.Name, &tp.Player.JerseyNumber, &tp.Player.Position,
 			&tp.Player.Image, &tp.Player.TeamID,
 			&tp.Player.Team.Name, &tp.Player.Team.ShortName, &tp.Player.Team.Logo,
+			&tp.Player.Gender,
 		)
 		if err != nil {
 			return nil, err
@@ -308,7 +347,48 @@ func (r *PostgresTOTWRepository) ListTOTWArchive(ctx context.Context, competitio
 	return list, nil
 }
 
+func checkFemaleQuota(rows pgx.Rows) error {
+	var offFemales, defFemales int
+	for rows.Next() {
+		var unit, gender string
+		if err := rows.Scan(&unit, &gender); err == nil {
+			if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(gender)), "F") {
+				if strings.EqualFold(unit, "Offence") {
+					offFemales++
+				} else if strings.EqualFold(unit, "Defence") {
+					defFemales++
+				}
+			}
+		}
+	}
+	if offFemales < 3 {
+		return fmt.Errorf("cannot publish: offence requires at least 3 female players (found %d of 3)", offFemales)
+	}
+	if defFemales < 3 {
+		return fmt.Errorf("cannot publish: defence requires at least 3 female players (found %d of 3)", defFemales)
+	}
+	return nil
+}
+
 func (r *PostgresTOTWRepository) PublishTOTW(ctx context.Context, id string, isPublished bool) (*domain.TeamOfTheWeek, error) {
+	if isPublished {
+		countQuery := `
+			SELECT tp.unit, COALESCE(p.gender, '')
+			FROM team_of_the_week_players tp
+			JOIN players p ON tp.player_id = p.id
+			WHERE tp.totw_id = $1
+		`
+		cRows, err := r.db.Query(ctx, countQuery, id)
+		if err != nil {
+			return nil, err
+		}
+		if err := checkFemaleQuota(cRows); err != nil {
+			cRows.Close()
+			return nil, err
+		}
+		cRows.Close()
+	}
+
 	var pubAt *time.Time
 	if isPublished {
 		now := time.Now()

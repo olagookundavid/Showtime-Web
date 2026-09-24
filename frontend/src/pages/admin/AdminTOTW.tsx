@@ -48,21 +48,12 @@ export interface TOTWSlotDef {
     default_stat3_label: string;
 }
 
+export const isFemale = (gender?: string): boolean => {
+    return (gender || '').trim().toUpperCase().startsWith('F');
+};
+
 export const DEFAULT_TOTW_SLOTS: TOTWSlotDef[] = [
     // Offence (7) - Line of scrimmage at 50%, players behind it
-    {
-        slot_code: 'QB',
-        position: 'QB',
-        unit: 'Offence',
-        label: 'Primary Quarterback',
-        coord_x: '50%',
-        coord_y: '86%',
-        unit_x: '50%',
-        unit_y: '78%',
-        default_stat1_label: 'Pass TD',
-        default_stat2_label: 'Pass Yds',
-        default_stat3_label: 'Cmp %',
-    },
     {
         slot_code: 'FQB',
         position: 'FQB/RB',
@@ -75,6 +66,19 @@ export const DEFAULT_TOTW_SLOTS: TOTWSlotDef[] = [
         default_stat1_label: 'Rush Yds',
         default_stat2_label: 'Rush TD',
         default_stat3_label: 'Catches',
+    },
+    {
+        slot_code: 'QB',
+        position: 'QB',
+        unit: 'Offence',
+        label: 'Primary Quarterback',
+        coord_x: '68%',
+        coord_y: '86%',
+        unit_x: '68%',
+        unit_y: '78%',
+        default_stat1_label: 'Pass TD',
+        default_stat2_label: 'Pass Yds',
+        default_stat3_label: 'Cmp %',
     },
     {
         slot_code: 'C',
@@ -243,56 +247,93 @@ export const normalizeSlotCode = (code: string | undefined): string => {
     if (!code) return '';
     const clean = code.trim().toUpperCase().replace(/[- ]/g, '_');
     const map: Record<string, string> = {
+        // Offence
         QB: 'QB',
         OFF_QB: 'QB',
         MALE_QB: 'QB',
+        OFF2: 'QB',
+        OFF_2: 'QB',
+
         FQB: 'FQB',
         OFF_FQB: 'FQB',
         FEMALE_QB: 'FQB',
         OFF_FQB_RB: 'FQB',
         RB: 'FQB',
+        OFF1: 'FQB',
+        OFF_1: 'FQB',
+
         C: 'C',
-        CENTER: 'C',
         OFF_C: 'C',
+        CENTER: 'C',
+        OFF3: 'C',
+        OFF_3: 'C',
+
         WR1: 'WR1',
         WR_1: 'WR1',
         OFF_WR1: 'WR1',
         OFF_WR_1: 'WR1',
+        OFF4: 'WR1',
+        OFF_4: 'WR1',
+
         WR2: 'WR2',
         WR_2: 'WR2',
         OFF_WR2: 'WR2',
         OFF_WR_2: 'WR2',
+        OFF5: 'WR2',
+        OFF_5: 'WR2',
+
         WR3: 'WR3',
         WR_3: 'WR3',
         OFF_WR3: 'WR3',
         OFF_WR_3: 'WR3',
+        OFF6: 'WR3',
+        OFF_6: 'WR3',
+
         WR4: 'WR4',
         WR_4: 'WR4',
         OFF_WR4: 'WR4',
         OFF_WR_4: 'WR4',
+        OFF7: 'WR4',
+        OFF_7: 'WR4',
+
+        // Defence
         R: 'R',
         RUSH: 'R',
         RUSHER: 'R',
         DEF_R: 'R',
         DEF_RUSH: 'R',
+
         DEF1: 'DEF1',
         DEF_1: 'DEF1',
         DEF_UNDER_1: 'DEF1',
-        DEF2: 'DEF2',
+        DEF2: 'DEF1', // legacy migration support
+
+        DEF2_ACTUAL: 'DEF2',
         DEF_2: 'DEF2',
         DEF_UNDER_2: 'DEF2',
-        DEF3: 'DEF3',
+        DEF3: 'DEF2', // legacy migration support
+
+        DEF3_ACTUAL: 'DEF3',
         DEF_3: 'DEF3',
         DEF_UNDER_3: 'DEF3',
-        DEF4: 'DEF4',
+        DEF4: 'DEF3', // legacy migration support
+
+        DEF4_ACTUAL: 'DEF4',
         DEF_4: 'DEF4',
         DEF_UNDER_4: 'DEF4',
+        DEF5: 'DEF4', // legacy migration support
+
         S1: 'S1',
         DEF_S1: 'S1',
         S_1: 'S1',
+        DEF6: 'S1',
+        DEF_6: 'S1',
+
         S2: 'S2',
         DEF_S2: 'S2',
         S_2: 'S2',
+        DEF7: 'S2',
+        DEF_7: 'S2',
     };
     return map[clean] || clean;
 };
@@ -345,6 +386,7 @@ interface SlotFormData extends TOTWPlayerSlot {
     player_name?: string;
     player_image?: string;
     player_jersey?: number;
+    player_gender?: string;
     team_name?: string;
     unit_x?: string;
     unit_y?: string;
@@ -392,7 +434,7 @@ export const AdminTOTW = () => {
         }))
     );
 
-    // Player picker modal state
+    // Player picker modal state (Default to slot position tab with ALL and Women available)
     const [pickingSlotIndex, setPickingSlotIndex] = useState<number | null>(null);
     const [playerSearchQuery, setPlayerSearchQuery] = useState<string>('');
     const [positionFilter, setPositionFilter] = useState<string>('ALL');
@@ -417,39 +459,66 @@ export const AdminTOTW = () => {
     // Players list for picker
     const { data: playersData, isLoading: loadingPlayers } = useQuery({
         queryKey: ['adminPlayersForPicker', playerSearchQuery],
-        queryFn: () => getPlayers(undefined, 1, 150, playerSearchQuery || undefined),
+        queryFn: () => getPlayers(undefined, 1, 200, playerSearchQuery || undefined),
     });
     const availablePlayers: Player[] = playersData?.data || [];
 
-    // Filter available players by position tab inside modal
+    // Optional quick filter tabs in picker modal
     const filteredAvailablePlayers = useMemo(() => {
-        if (positionFilter === 'ALL') return availablePlayers;
-        return availablePlayers.filter((p) => {
-            const pos = (p.position || '').toUpperCase();
-            const sec = (p.secondary_position || '').toUpperCase();
-            if (positionFilter === 'QB') {
+        let list = availablePlayers;
+        if (positionFilter === 'FEMALE') {
+            list = list.filter((p) => isFemale(p.gender));
+        } else if (positionFilter === 'QB') {
+            list = list.filter((p) => {
+                const pos = (p.position || '').toUpperCase();
+                const sec = (p.secondary_position || '').toUpperCase();
                 return pos === 'QB' || sec === 'QB';
-            }
-            if (positionFilter === 'WR') {
+            });
+        } else if (positionFilter === 'WR') {
+            list = list.filter((p) => {
+                const pos = (p.position || '').toUpperCase();
+                const sec = (p.secondary_position || '').toUpperCase();
                 return pos === 'WR' || pos === 'RECEIVER' || sec === 'WR' || sec === 'RECEIVER';
-            }
-            if (positionFilter === 'C') {
+            });
+        } else if (positionFilter === 'C') {
+            list = list.filter((p) => {
+                const pos = (p.position || '').toUpperCase();
+                const sec = (p.secondary_position || '').toUpperCase();
                 return pos === 'C' || pos === 'CENTER' || sec === 'C' || sec === 'CENTER';
-            }
-            if (positionFilter === 'RUSH') {
+            });
+        } else if (positionFilter === 'RUSH') {
+            list = list.filter((p) => {
+                const pos = (p.position || '').toUpperCase();
+                const sec = (p.secondary_position || '').toUpperCase();
                 return pos === 'R' || pos === 'RUSH' || pos === 'RUSHER' || sec === 'RUSH' || sec === 'RUSHER';
-            }
-            if (positionFilter === 'DEF') {
-                return pos === 'DEF' || pos === 'DEFENDER' || sec === 'DEF' || sec === 'DEFENDER';
-            }
-            if (positionFilter === 'S') {
+            });
+        } else if (positionFilter === 'DEF') {
+            list = list.filter((p) => {
+                const pos = (p.position || '').toUpperCase();
+                const sec = (p.secondary_position || '').toUpperCase();
+                return pos === 'DEF' || pos === 'DEFENDER' || sec === 'DEF' || sec === 'DEFENDER' || pos === 'DB' || pos === 'CB' || pos === 'LB';
+            });
+        } else if (positionFilter === 'S') {
+            list = list.filter((p) => {
+                const pos = (p.position || '').toUpperCase();
+                const sec = (p.secondary_position || '').toUpperCase();
                 return pos === 'S' || pos === 'SAFETY' || sec === 'S' || sec === 'SAFETY';
-            }
-            return true;
-        });
+            });
+        }
+        return list;
     }, [availablePlayers, positionFilter]);
 
-    // Assigned players count
+    // Helper to retrieve slot player's gender
+    const getSlotGender = (slot: SlotFormData): string => {
+        if (slot.player_gender) return slot.player_gender;
+        if (slot.player_id) {
+            const found = availablePlayers.find((p) => p.id === slot.player_id);
+            if (found?.gender) return found.gender;
+        }
+        return '';
+    };
+
+    // Assigned players counts
     const filledCount = useMemo(() => slots.filter((s) => s.player_id.trim() !== '').length, [slots]);
     const filledOffenceCount = useMemo(
         () => slots.filter((s) => s.unit === 'Offence' && s.player_id.trim() !== '').length,
@@ -459,6 +528,18 @@ export const AdminTOTW = () => {
         () => slots.filter((s) => s.unit === 'Defence' && s.player_id.trim() !== '').length,
         [slots]
     );
+
+    // Female quota counts (3 females required in Offence and 3 females required in Defence)
+    const offenseFemalesCount = useMemo(
+        () => slots.filter((s) => s.unit === 'Offence' && s.player_id && isFemale(getSlotGender(s))).length,
+        [slots, availablePlayers]
+    );
+    const defenseFemalesCount = useMemo(
+        () => slots.filter((s) => s.unit === 'Defence' && s.player_id && isFemale(getSlotGender(s))).length,
+        [slots, availablePlayers]
+    );
+    const offenseFemalesValid = offenseFemalesCount >= 3;
+    const defenseFemalesValid = defenseFemalesCount >= 3;
 
     // Active slot being inspected
     const activeSlot = slots[selectedSlotIndex] || slots[0];
@@ -537,7 +618,7 @@ export const AdminTOTW = () => {
 
     /**
      * Edit existing TOTW:
-     * Robust 2-pass mapping prevents duplicate players and maps every player to their pitch slot.
+     * Maps loaded players to canonical OFF1..OFF7 and DEF1..DEF7 slots without duplication.
      */
     const handleEditTOTW = async (id: string) => {
         try {
@@ -552,7 +633,7 @@ export const AdminTOTW = () => {
             setFormIsPublished(fullTotw.is_published);
             setPitchTab('all');
 
-            // Initialize 14 canonical default slots
+            // Initialize 14 canonical default slots (OFF1..OFF7, DEF1..DEF7)
             const newSlots: SlotFormData[] = DEFAULT_TOTW_SLOTS.map((defaultSlot) => ({
                 player_id: '',
                 slot_code: defaultSlot.slot_code,
@@ -576,7 +657,7 @@ export const AdminTOTW = () => {
                 const assignedPlayerIds = new Set<string>();
                 const filledSlotIndices = new Set<number>();
 
-                // Pass 1: Match by exact normalized slot_code
+                // Pass 1: Match by exact normalized slot_code (supports OFF1..OFF7, DEF1..DEF7 and legacy QB/WR/etc.)
                 for (const p of fullTotw.players) {
                     if (!p.player_id || assignedPlayerIds.has(p.player_id)) continue;
                     const normCode = normalizeSlotCode(p.slot_code);
@@ -590,11 +671,11 @@ export const AdminTOTW = () => {
                         newSlots[slotIdx] = {
                             player_id: p.player_id,
                             slot_code: defSlot.slot_code,
-                            position: p.position || defSlot.position,
+                            position: defSlot.position,
                             unit: (p.unit as 'Offence' | 'Defence') || defSlot.unit,
                             label: defSlot.label,
-                            coord_x: p.coord_x || defSlot.coord_x,
-                            coord_y: p.coord_y || defSlot.coord_y,
+                            coord_x: defSlot.coord_x,
+                            coord_y: defSlot.coord_y,
                             unit_x: defSlot.unit_x,
                             unit_y: defSlot.unit_y,
                             rating: p.rating || 9.0,
@@ -607,20 +688,17 @@ export const AdminTOTW = () => {
                             player_name: p.player?.name,
                             player_image: p.player?.image,
                             player_jersey: p.player?.jersey_number,
+                            player_gender: p.player?.gender,
                             team_name: p.player?.team?.name,
                         };
                     }
                 }
 
-                // Pass 2: Legacy fallback for any players not matched by slot_code
+                // Pass 2: Fallback for any leftover players, matching by unit into remaining unfilled slots
                 for (const p of fullTotw.players) {
                     if (!p.player_id || assignedPlayerIds.has(p.player_id)) continue;
-                    // Find first empty slot matching unit and position
                     const slotIdx = newSlots.findIndex(
-                        (s, idx) =>
-                            !filledSlotIndices.has(idx) &&
-                            s.unit === p.unit &&
-                            (s.position === p.position || s.slot_code.startsWith(p.position))
+                        (s, idx) => !filledSlotIndices.has(idx) && s.unit === p.unit
                     );
                     if (slotIdx !== -1) {
                         filledSlotIndices.add(slotIdx);
@@ -629,11 +707,11 @@ export const AdminTOTW = () => {
                         newSlots[slotIdx] = {
                             player_id: p.player_id,
                             slot_code: defSlot.slot_code,
-                            position: p.position || defSlot.position,
+                            position: defSlot.position,
                             unit: (p.unit as 'Offence' | 'Defence') || defSlot.unit,
                             label: defSlot.label,
-                            coord_x: p.coord_x || defSlot.coord_x,
-                            coord_y: p.coord_y || defSlot.coord_y,
+                            coord_x: defSlot.coord_x,
+                            coord_y: defSlot.coord_y,
                             unit_x: defSlot.unit_x,
                             unit_y: defSlot.unit_y,
                             rating: p.rating || 9.0,
@@ -646,6 +724,7 @@ export const AdminTOTW = () => {
                             player_name: p.player?.name,
                             player_image: p.player?.image,
                             player_jersey: p.player?.jersey_number,
+                            player_gender: p.player?.gender,
                             team_name: p.player?.team?.name,
                         };
                     }
@@ -661,15 +740,16 @@ export const AdminTOTW = () => {
     };
 
     /**
-     * Open player picker modal for a given slot index
+     * Open player picker modal for any slot index
      */
     const handleOpenPicker = (slotIndex: number) => {
         setPickingSlotIndex(slotIndex);
         setPlayerSearchQuery('');
         const slot = slots[slotIndex];
-        // Set initial position filter to match the slot
         if (slot) {
-            if (slot.slot_code === 'QB' || slot.slot_code === 'FQB') {
+            if (slot.slot_code === 'FQB') {
+                setPositionFilter('FEMALE');
+            } else if (slot.slot_code === 'QB') {
                 setPositionFilter('QB');
             } else if (slot.slot_code.startsWith('WR')) {
                 setPositionFilter('WR');
@@ -691,12 +771,13 @@ export const AdminTOTW = () => {
 
     /**
      * Assigns a player to a slot.
-     * If the player is already assigned elsewhere in this TOTW, the other slot is cleared to prevent duplicates.
+     * Enforces the single rule: the same player cannot be chosen twice on the board.
+     * If the player was in another slot, they are unassigned from that slot automatically.
      */
     const handleSelectPlayer = async (slotIndex: number, player: Player) => {
         setSlots((prev) => {
             const copy = [...prev];
-            // Clear other slot if this player was already assigned elsewhere
+            // Clear player from any other slot on the board so no duplicate can exist
             const otherIdx = copy.findIndex((s, idx) => idx !== slotIndex && s.player_id === player.id);
             if (otherIdx !== -1) {
                 copy[otherIdx] = {
@@ -705,6 +786,7 @@ export const AdminTOTW = () => {
                     player_name: undefined,
                     player_image: undefined,
                     player_jersey: undefined,
+                    player_gender: undefined,
                     team_name: undefined,
                     stat1_value: '',
                     stat2_value: '',
@@ -717,6 +799,7 @@ export const AdminTOTW = () => {
                 player_name: player.name,
                 player_image: player.image,
                 player_jersey: player.jersey_number,
+                player_gender: player.gender,
                 team_name: player.team?.name,
             };
             return copy;
@@ -726,7 +809,7 @@ export const AdminTOTW = () => {
         setPickingSlotIndex(null);
         setPlayerSearchQuery('');
 
-        // If an event day is selected, immediately autofill box score stats for speed
+        // If an event day is selected, autofill day stats
         if (formEventDayId) {
             try {
                 const stats = await getAdminPlayerDayStats(player.id, formEventDayId);
@@ -892,6 +975,63 @@ export const AdminTOTW = () => {
             return;
         }
 
+        // Strict validation: The same player cannot be chosen twice on the board
+        const playerIds = validSlots.map((s) => s.player_id);
+        const uniqueIds = new Set(playerIds);
+        if (uniqueIds.size !== playerIds.length) {
+            setStatusMessage({
+                type: 'error',
+                text: 'A player cannot be chosen twice on the Team of the Week board.',
+            });
+            return;
+        }
+
+        // Female quota validation: At least 3 female players in Offence and at least 3 female players in Defence
+        const offFilled = validSlots.filter((s) => s.unit === 'Offence');
+        const defFilled = validSlots.filter((s) => s.unit === 'Defence');
+        const offFemales = offFilled.filter((s) => isFemale(getSlotGender(s))).length;
+        const defFemales = defFilled.filter((s) => isFemale(getSlotGender(s))).length;
+
+        if (formIsPublished) {
+            if (validSlots.length < 14) {
+                setStatusMessage({
+                    type: 'error',
+                    text: 'Cannot publish incomplete Team of the Week: all 14 starting positions must be filled.',
+                });
+                return;
+            }
+            if (offFemales < 3) {
+                setStatusMessage({
+                    type: 'error',
+                    text: `Cannot publish: Offence requires at least 3 female players (currently has ${offFemales} of 3).`,
+                });
+                return;
+            }
+            if (defFemales < 3) {
+                setStatusMessage({
+                    type: 'error',
+                    text: `Cannot publish: Defence requires at least 3 female players (currently has ${defFemales} of 3).`,
+                });
+                return;
+            }
+        } else {
+            // In draft mode: if unit is complete, enforce female quota
+            if (offFilled.length === 7 && offFemales < 3) {
+                setStatusMessage({
+                    type: 'error',
+                    text: `Offence requires at least 3 female players (currently has ${offFemales} of 3).`,
+                });
+                return;
+            }
+            if (defFilled.length === 7 && defFemales < 3) {
+                setStatusMessage({
+                    type: 'error',
+                    text: `Defence requires at least 3 female players (currently has ${defFemales} of 3).`,
+                });
+                return;
+            }
+        }
+
         const payload = {
             competition_id: formCompId,
             event_day_id: formEventDayId || undefined,
@@ -953,7 +1093,7 @@ export const AdminTOTW = () => {
                 <div>
                     <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">TEAM OF THE WEEK</h1>
                     <p className="text-gray-300 mt-1 text-sm md:text-base">
-                        Manage Starting XIV selections, match ratings, and player honours after each game day
+                        Manage Starting XIV selections (OFF 1–7 & DEF 1–7), ratings, and player honours
                     </p>
                 </div>
                 {!isEditing && (
@@ -1162,7 +1302,7 @@ export const AdminTOTW = () => {
                                     {editingTotwId ? 'Edit Team of the Week' : 'Create Team of the Week'}
                                 </h2>
                                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    Click any position on the pitch to assign or update players
+                                    Click any slot on the pitch to assign any player (OFF 1–7 & DEF 1–7)
                                 </p>
                             </div>
                         </div>
@@ -1324,8 +1464,44 @@ export const AdminTOTW = () => {
                                 </button>
                             </div>
 
-                            {/* Batch Action Buttons */}
-                            <div className="flex items-center gap-2">
+                            {/* Batch Action Buttons & Female Quota Badges */}
+                            <div className="flex flex-wrap items-center gap-2">
+                                {/* Offence Female Quota */}
+                                <div
+                                    className={`flex items-center gap-1.5 px-3 py-1 rounded-xl border text-xs font-bold transition-colors ${
+                                        offenseFemalesValid
+                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                                            : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+                                    }`}
+                                    title="Offence requires at least 3 female players"
+                                >
+                                    <span>Offence ♀:</span>
+                                    <span className="font-black">{offenseFemalesCount}/3</span>
+                                    {offenseFemalesValid ? (
+                                        <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                                    ) : (
+                                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-black">NEED 3</span>
+                                    )}
+                                </div>
+
+                                {/* Defence Female Quota */}
+                                <div
+                                    className={`flex items-center gap-1.5 px-3 py-1 rounded-xl border text-xs font-bold transition-colors ${
+                                        defenseFemalesValid
+                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                                            : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+                                    }`}
+                                    title="Defence requires at least 3 female players"
+                                >
+                                    <span>Defence ♀:</span>
+                                    <span className="font-black">{defenseFemalesCount}/3</span>
+                                    {defenseFemalesValid ? (
+                                        <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                                    ) : (
+                                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-black">NEED 3</span>
+                                    )}
+                                </div>
+
                                 <span className="text-xs font-black uppercase tracking-wider px-3 py-1.5 rounded-xl border bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-600">
                                     {filledCount} / 14 Starters
                                 </span>
@@ -1383,7 +1559,7 @@ export const AdminTOTW = () => {
                                 </>
                             )}
 
-                            {/* 14 Interactive Position Nodes on Pitch */}
+                            {/* 14 Interactive Position Nodes on Pitch: OFF 1-7 & DEF 1-7 */}
                             {visibleSlots.map((slot) => {
                                 const isSelected = selectedSlotIndex === slot.index;
                                 const isOccupied = Boolean(slot.player_id);
@@ -1433,7 +1609,7 @@ export const AdminTOTW = () => {
                                                                     isDef ? 'bg-blue-600' : 'bg-red-600'
                                                                 }`}
                                                             >
-                                                                {slot.player_jersey ? `#${slot.player_jersey}` : slot.position}
+                                                                {slot.player_jersey ? `#${slot.player_jersey}` : slot.slot_code}
                                                             </div>
                                                         )}
 
@@ -1445,11 +1621,14 @@ export const AdminTOTW = () => {
 
                                                         {/* Slot code badge on top left */}
                                                         <span
-                                                            className={`absolute -top-1 -left-1 px-1.5 py-0.2 rounded-full text-[8px] font-black text-white border border-white/50 shadow-sm ${
+                                                            className={`absolute -top-1 -left-1 px-1.5 py-0.2 rounded-full text-[8px] font-black text-white border border-white/50 shadow-sm flex items-center gap-0.5 ${
                                                                 isDef ? 'bg-blue-700' : 'bg-sffl-red'
                                                             }`}
                                                         >
-                                                            {slot.slot_code}
+                                                            <span>{slot.slot_code}</span>
+                                                            {isFemale(getSlotGender(slot)) && (
+                                                                <span className="text-yellow-300 text-[9px] leading-none" title="Female Player (Counts towards Quota)">♀</span>
+                                                            )}
                                                         </span>
                                                     </div>
 
@@ -1504,7 +1683,7 @@ export const AdminTOTW = () => {
                                                     + {slot.slot_code}
                                                 </span>
                                                 <span className="text-[8px] font-bold text-amber-300 uppercase tracking-widest leading-none">
-                                                    {slot.position}
+                                                    {slot.unit}
                                                 </span>
                                             </button>
                                         )}
@@ -1517,7 +1696,7 @@ export const AdminTOTW = () => {
                         <div className="space-y-1.5 pt-2">
                             <div className="flex items-center justify-between text-xs font-bold text-gray-500 dark:text-gray-400">
                                 <span>Starting XIV Position Navigator</span>
-                                <span>Click any position to inspect & edit</span>
+                                <span>Click any slot to inspect & edit</span>
                             </div>
                             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
                                 {slots.map((s, idx) => {
@@ -1541,9 +1720,19 @@ export const AdminTOTW = () => {
                                             />
                                             <span className="font-black">{s.slot_code}</span>
                                             {isFilled && (
-                                                <span className="text-[10px] opacity-80 max-w-[70px] truncate hidden sm:inline">
-                                                    {s.player_name}
-                                                </span>
+                                                <>
+                                                    <span className="text-[10px] opacity-80 max-w-[70px] truncate hidden sm:inline">
+                                                        {s.player_name}
+                                                    </span>
+                                                    {isFemale(getSlotGender(s)) && (
+                                                        <span
+                                                            title="Female player (Counts towards quota)"
+                                                            className="text-[10px] font-black text-amber-500 dark:text-amber-400"
+                                                        >
+                                                            ♀
+                                                        </span>
+                                                    )}
+                                                </>
                                             )}
                                         </button>
                                     );
@@ -1564,7 +1753,7 @@ export const AdminTOTW = () => {
                                             {activeSlot.unit}
                                         </span>
                                         <h4 className="text-base font-black text-sffl-navy dark:text-white">
-                                            Slot: {activeSlot.slot_code} — {activeSlot.label || activeSlot.position}
+                                            Slot: {activeSlot.slot_code} ({activeSlot.label || activeSlot.unit})
                                         </h4>
                                     </div>
 
@@ -1617,11 +1806,22 @@ export const AdminTOTW = () => {
                                                     )}
                                                 </div>
                                                 <div>
-                                                    <div className="text-lg font-black text-sffl-navy dark:text-white">
-                                                        {activeSlot.player_name}
+                                                    <div className="text-lg font-black text-sffl-navy dark:text-white flex items-center gap-2">
+                                                        <span>{activeSlot.player_name}</span>
+                                                        {isFemale(getSlotGender(activeSlot)) ? (
+                                                            <span className="text-xs font-black px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
+                                                                ♀ Female (Quota)
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600">
+                                                                ♂ Male
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <div className="text-xs font-bold text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                                                        <span className="text-sffl-red">{activeSlot.position}</span>
+                                                        <span className="text-sffl-red font-black">
+                                                            {activeSlot.slot_code}
+                                                        </span>
                                                         <span>•</span>
                                                         <span>{activeSlot.team_name || 'Free Agent'}</span>
                                                         {activeSlot.player_jersey && (
@@ -1799,10 +1999,10 @@ export const AdminTOTW = () => {
                                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 text-center sm:text-left bg-white dark:bg-gray-800">
                                         <div>
                                             <h5 className="font-black text-base text-sffl-navy dark:text-white">
-                                                Position Unassigned: {activeSlot.slot_code} ({activeSlot.position})
+                                                Position Unassigned: {activeSlot.slot_code} ({activeSlot.label || activeSlot.unit})
                                             </h5>
                                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                                Click to select a player for this Starting XIV spot.
+                                                Click to select any player from the roster for this Starting XIV spot.
                                             </p>
                                         </div>
                                         <button
@@ -1842,7 +2042,7 @@ export const AdminTOTW = () => {
                 </div>
             )}
 
-            {/* ── PLAYER PICKER MODAL ─────────────────────────────────────── */}
+            {/* ── PLAYER PICKER MODAL (NO RESTRICTIONS) ────────────────────── */}
             {pickingSlotIndex !== null && (
                 <div
                     className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
@@ -1856,11 +2056,10 @@ export const AdminTOTW = () => {
                         <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
                             <div>
                                 <h3 className="text-lg font-black text-sffl-navy dark:text-white">
-                                    Assign: {slots[pickingSlotIndex]?.slot_code} (
-                                    {slots[pickingSlotIndex]?.position})
+                                    Assign Player: {slots[pickingSlotIndex]?.slot_code} ({slots[pickingSlotIndex]?.unit})
                                 </h3>
                                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    Select an eligible player from the roster
+                                    Select any player from the roster at admin discretion
                                 </p>
                             </div>
                             <button
@@ -1871,7 +2070,7 @@ export const AdminTOTW = () => {
                             </button>
                         </div>
 
-                        {/* Search & Position Filters */}
+                        {/* Search & Optional Filters */}
                         <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 space-y-3">
                             <div className="relative">
                                 <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
@@ -1885,10 +2084,11 @@ export const AdminTOTW = () => {
                                 />
                             </div>
 
-                            {/* Position Chips */}
+                            {/* Position Chips for convenience */}
                             <div className="flex flex-wrap gap-1.5 text-xs font-black">
                                 {[
                                     { key: 'ALL', label: 'All Players' },
+                                    { key: 'FEMALE', label: 'Women (Quota ♀)' },
                                     { key: 'QB', label: 'QBs' },
                                     { key: 'WR', label: 'Receivers' },
                                     { key: 'C', label: 'Centers' },
@@ -1922,7 +2122,7 @@ export const AdminTOTW = () => {
                                 </div>
                             ) : (
                                 filteredAvailablePlayers.map((player) => {
-                                    // Check if this player is currently assigned anywhere in this TOTW
+                                    // Check if this player is currently assigned anywhere on the board
                                     const assignedSlot = slots.find((s) => s.player_id === player.id);
                                     const isAssignedToThisSlot =
                                         pickingSlotIndex !== null &&
@@ -1965,9 +2165,14 @@ export const AdminTOTW = () => {
                                                         )}
                                                     </div>
                                                     <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                                                        <span className="font-bold text-sffl-red">
+                                                        <span className="font-bold text-gray-600 dark:text-gray-300">
                                                             {player.position}
                                                         </span>
+                                                        {isFemale(player.gender) && (
+                                                            <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
+                                                                ♀ Female
+                                                            </span>
+                                                        )}
                                                         {player.team?.name && <span>• {player.team.name}</span>}
                                                         {player.jersey_number && (
                                                             <span>• #{player.jersey_number}</span>
@@ -1979,7 +2184,7 @@ export const AdminTOTW = () => {
                                                 {isAssignedToThisSlot
                                                     ? 'Selected ✓'
                                                     : assignedSlot
-                                                    ? 'Swap Position →'
+                                                    ? `Move to ${slots[pickingSlotIndex]?.slot_code} →`
                                                     : 'Select →'}
                                             </span>
                                         </button>
