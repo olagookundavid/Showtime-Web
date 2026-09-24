@@ -743,7 +743,7 @@ export const AdminBadges = () => {
                             <button
                                 type="button"
                                 onClick={() => saveBadgeMutation.mutate()}
-                                disabled={!badgeForm.name.trim() || !badgeForm.icon.trim() || (!editingBadge && !badgeForm.code.trim())}
+                                disabled={!badgeForm.name.trim() || !(badgeForm.icon || '').trim() || (!editingBadge && !badgeForm.code.trim())}
                                 className="px-5 py-2 bg-sffl-red hover:bg-[#A52323] text-white text-xs font-bold uppercase tracking-wider rounded-lg shadow-md cursor-pointer disabled:opacity-50"
                             >
                                 {editingBadge ? 'Save Changes' : 'Create Badge'}
