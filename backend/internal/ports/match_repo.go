@@ -2,6 +2,7 @@ package ports
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"showtime-backend/internal/domain"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -1072,6 +1074,28 @@ func (r *PostgresMatchRepository) RecalculateStandings(ctx context.Context, comp
 }
 
 // --- Team Sheets ---
+
+// checkNoReservePlayers returns domain.ErrPlayerOnReserveTeam (wrapped with the
+// offending player's name) if any of playerIDs is on teamID's reserve list;
+// only main 25-man squad players may be added to a match team sheet.
+func checkNoReservePlayers(ctx context.Context, tx pgx.Tx, teamID string, playerIDs []string) error {
+	const checkReserveQ = `
+		SELECT p.name FROM team_reserves tr
+		JOIN players p ON tr.player_id = p.id
+		WHERE tr.team_id = $1 AND tr.player_id = ANY($2::uuid[])
+		LIMIT 1
+	`
+	var reservePlayerName string
+	err := tx.QueryRow(ctx, checkReserveQ, teamID, playerIDs).Scan(&reservePlayerName)
+	if err == nil {
+		return fmt.Errorf("player %s: %w", reservePlayerName, domain.ErrPlayerOnReserveTeam)
+	}
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	return err
+}
+
 func (r *PostgresMatchRepository) SaveTeamSheet(ctx context.Context, matchID string, req dto.SaveTeamSheetRequest) error {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -1085,6 +1109,10 @@ func (r *PostgresMatchRepository) SaveTeamSheet(ctx context.Context, matchID str
 		targetIDs := make([]string, 0, len(req.Players))
 		for _, p := range req.Players {
 			targetIDs = append(targetIDs, p.PlayerID)
+		}
+
+		if err := checkNoReservePlayers(ctx, tx, teamID, targetIDs); err != nil {
+			return err
 		}
 
 		// Delete players for this team who are no longer in the squad
@@ -1110,6 +1138,10 @@ func (r *PostgresMatchRepository) SaveTeamSheet(ctx context.Context, matchID str
 			}
 		}
 	} else if len(req.PlayerIDs) > 0 {
+		if err := checkNoReservePlayers(ctx, tx, teamID, req.PlayerIDs); err != nil {
+			return err
+		}
+
 		// Admin squad roster update: delete players no longer in squad
 		delQuery := `DELETE FROM match_team_sheets WHERE match_id = $1 AND team_id = $2 AND NOT (player_id = ANY($3))`
 		if _, err := tx.Exec(ctx, delQuery, matchID, teamID, req.PlayerIDs); err != nil {

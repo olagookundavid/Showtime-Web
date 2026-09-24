@@ -1,8 +1,14 @@
 package domain
 
 import (
+	"errors"
 	"time"
 )
+
+// ErrPlayerOnReserveTeam is returned when a team sheet save includes a player
+// who is on the team's reserve list; only main 25-man squad players may be
+// added to a match team sheet.
+var ErrPlayerOnReserveTeam = errors.New("player is on the reserve team; only main 25-man squad players can be added to the team sheet")
 
 type CompetitionFormat string
 

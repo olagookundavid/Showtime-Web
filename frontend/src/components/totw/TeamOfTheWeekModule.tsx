@@ -7,11 +7,26 @@ import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 interface TeamOfTheWeekModuleProps {
     competitionId?: string;
     className?: string;
+    totwId?: string;
+    showArchiveLink?: boolean;
+    onSelectEdition?: (id: string) => void;
 }
 
-export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({ competitionId, className = '' }) => {
-    const [selectedTotwId, setSelectedTotwId] = useState<string | null>(null);
+export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
+    competitionId,
+    className = '',
+    totwId,
+    showArchiveLink = false,
+    onSelectEdition,
+}) => {
+    const [selectedTotwId, setSelectedTotwId] = useState<string | null>(totwId || null);
     const [selectedIndex, setSelectedIndex] = useState<number>(0);
+
+    // Keep internal selected ID in sync with the external totwId prop, including
+    // when it becomes undefined (e.g. the parent's filter has no active edition)
+    useEffect(() => {
+        setSelectedTotwId(totwId || null);
+    }, [totwId]);
 
     // Fetch archive editions for dropdown selector
     const { data: archive = [] } = useQuery({
@@ -82,10 +97,22 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({ compet
                     </div>
 
                     <div className="flex items-center gap-2">
+                        {showArchiveLink && (
+                            <Link
+                                to="/totw"
+                                className="inline-flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-white/20 transition-all hover:scale-[1.02] shadow-sm shrink-0"
+                            >
+                                <span>Browse Archive</span>
+                                <ChevronRightIcon className="w-3.5 h-3.5" />
+                            </Link>
+                        )}
                         {archive.length > 1 && (
                             <select
                                 value={totw.id}
-                                onChange={(e) => setSelectedTotwId(e.target.value)}
+                                onChange={(e) => {
+                                    setSelectedTotwId(e.target.value);
+                                    onSelectEdition?.(e.target.value);
+                                }}
                                 className="bg-[#112D4E] text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-white/20 focus:outline-none focus:border-sffl-red"
                                 aria-label="Select Gameday"
                             >

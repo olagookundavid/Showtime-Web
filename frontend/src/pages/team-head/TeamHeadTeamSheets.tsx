@@ -144,7 +144,7 @@ export const TeamHeadTeamSheets = () => {
         enabled: !!selectedMatchId,
     });
 
-    // ── Full Club Roster for this manager's team ──────────────────────────────
+    // ── Main Club Roster for this manager's team (25-man squad, no reserves) ──
     const { data: clubPlayersData, isLoading: rosterLoading } = useQuery({
         queryKey: ['teamHeadSquadPlayers', team?.id],
         queryFn: async () => {
@@ -152,6 +152,7 @@ export const TeamHeadTeamSheets = () => {
                 params: {
                     team_id: team!.id,
                     limit: 100,
+                    roster_status: 'main',
                 },
             });
             return (res.data?.data || []) as ClubPlayer[];
@@ -160,7 +161,7 @@ export const TeamHeadTeamSheets = () => {
     });
 
     const clubPlayers: ClubPlayer[] = useMemo(() => {
-        return (clubPlayersData || []).filter(p => p.status !== 'inactive');
+        return (clubPlayersData || []).filter(p => p.status !== 'inactive' && !p.is_reserve);
     }, [clubPlayersData]);
 
     // ── Local Lineup State ───────────────────────────────────────────────────

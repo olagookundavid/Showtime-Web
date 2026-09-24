@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     getAdminTOTWs,
@@ -27,41 +27,277 @@ import {
     MagnifyingGlassIcon,
     XMarkIcon,
     SparklesIcon,
-    EyeIcon,
+    UserPlusIcon,
+    ChevronLeftIcon,
+    ChevronRightIcon,
+    ArrowsRightLeftIcon,
 } from '@heroicons/react/24/outline';
 
-export const DEFAULT_TOTW_SLOTS: Array<{
+export interface TOTWSlotDef {
     slot_code: string;
     position: string;
     unit: 'Offence' | 'Defence';
+    label: string;
     coord_x: string;
     coord_y: string;
+    // Coordinates when focused on specific unit
+    unit_x: string;
+    unit_y: string;
     default_stat1_label: string;
     default_stat2_label: string;
     default_stat3_label: string;
-}> = [
-    // Offence (7)
-    { slot_code: 'QB', position: 'QB', unit: 'Offence', coord_x: '50%', coord_y: '86%', default_stat1_label: 'Pass TD', default_stat2_label: 'Pass Yds', default_stat3_label: 'Cmp %' },
-    { slot_code: 'FQB', position: 'FQB/RB', unit: 'Offence', coord_x: '32%', coord_y: '86%', default_stat1_label: 'Rush Yds', default_stat2_label: 'Rush TD', default_stat3_label: 'Catches' },
-    { slot_code: 'C', position: 'C', unit: 'Offence', coord_x: '50%', coord_y: '68%', default_stat1_label: 'Catches', default_stat2_label: 'Rec Yds', default_stat3_label: 'Rec TD' },
-    { slot_code: 'WR1', position: 'WR', unit: 'Offence', coord_x: '14%', coord_y: '68%', default_stat1_label: 'Catches', default_stat2_label: 'Rec Yds', default_stat3_label: 'Rec TD' },
-    { slot_code: 'WR2', position: 'WR', unit: 'Offence', coord_x: '86%', coord_y: '68%', default_stat1_label: 'Catches', default_stat2_label: 'Rec Yds', default_stat3_label: 'Rec TD' },
-    { slot_code: 'WR3', position: 'WR', unit: 'Offence', coord_x: '28%', coord_y: '56%', default_stat1_label: 'Catches', default_stat2_label: 'Rec Yds', default_stat3_label: 'Rec TD' },
-    { slot_code: 'WR4', position: 'WR', unit: 'Offence', coord_x: '72%', coord_y: '56%', default_stat1_label: 'Catches', default_stat2_label: 'Rec Yds', default_stat3_label: 'Rec TD' },
-    // Defence (7)
-    { slot_code: 'R', position: 'R', unit: 'Defence', coord_x: '50%', coord_y: '44%', default_stat1_label: 'Sacks', default_stat2_label: 'Flag Pulls', default_stat3_label: 'Pass Def' },
-    { slot_code: 'DEF1', position: 'DEF', unit: 'Defence', coord_x: '18%', coord_y: '40%', default_stat1_label: 'Flag Pulls', default_stat2_label: 'Pass Def', default_stat3_label: 'Int' },
-    { slot_code: 'DEF2', position: 'DEF', unit: 'Defence', coord_x: '34%', coord_y: '38%', default_stat1_label: 'Flag Pulls', default_stat2_label: 'Pass Def', default_stat3_label: 'Int' },
-    { slot_code: 'DEF3', position: 'DEF', unit: 'Defence', coord_x: '66%', coord_y: '38%', default_stat1_label: 'Flag Pulls', default_stat2_label: 'Pass Def', default_stat3_label: 'Int' },
-    { slot_code: 'DEF4', position: 'DEF', unit: 'Defence', coord_x: '82%', coord_y: '40%', default_stat1_label: 'Flag Pulls', default_stat2_label: 'Pass Def', default_stat3_label: 'Int' },
-    { slot_code: 'S1', position: 'S', unit: 'Defence', coord_x: '32%', coord_y: '20%', default_stat1_label: 'Int', default_stat2_label: 'Flag Pulls', default_stat3_label: 'Pass Def' },
-    { slot_code: 'S2', position: 'S', unit: 'Defence', coord_x: '68%', coord_y: '20%', default_stat1_label: 'Int', default_stat2_label: 'Flag Pulls', default_stat3_label: 'Pass Def' },
+}
+
+export const DEFAULT_TOTW_SLOTS: TOTWSlotDef[] = [
+    // Offence (7) - Line of scrimmage at 50%, players behind it
+    {
+        slot_code: 'QB',
+        position: 'QB',
+        unit: 'Offence',
+        label: 'Primary Quarterback',
+        coord_x: '50%',
+        coord_y: '86%',
+        unit_x: '50%',
+        unit_y: '78%',
+        default_stat1_label: 'Pass TD',
+        default_stat2_label: 'Pass Yds',
+        default_stat3_label: 'Cmp %',
+    },
+    {
+        slot_code: 'FQB',
+        position: 'FQB/RB',
+        unit: 'Offence',
+        label: 'Female QB / Running Back',
+        coord_x: '32%',
+        coord_y: '86%',
+        unit_x: '32%',
+        unit_y: '78%',
+        default_stat1_label: 'Rush Yds',
+        default_stat2_label: 'Rush TD',
+        default_stat3_label: 'Catches',
+    },
+    {
+        slot_code: 'C',
+        position: 'C',
+        unit: 'Offence',
+        label: 'Center (Snapper)',
+        coord_x: '50%',
+        coord_y: '68%',
+        unit_x: '50%',
+        unit_y: '50%',
+        default_stat1_label: 'Catches',
+        default_stat2_label: 'Rec Yds',
+        default_stat3_label: 'Rec TD',
+    },
+    {
+        slot_code: 'WR1',
+        position: 'WR',
+        unit: 'Offence',
+        label: 'Wide Receiver 1 (Split End)',
+        coord_x: '14%',
+        coord_y: '68%',
+        unit_x: '15%',
+        unit_y: '50%',
+        default_stat1_label: 'Catches',
+        default_stat2_label: 'Rec Yds',
+        default_stat3_label: 'Rec TD',
+    },
+    {
+        slot_code: 'WR2',
+        position: 'WR',
+        unit: 'Offence',
+        label: 'Wide Receiver 2 (Flanker)',
+        coord_x: '86%',
+        coord_y: '68%',
+        unit_x: '85%',
+        unit_y: '50%',
+        default_stat1_label: 'Catches',
+        default_stat2_label: 'Rec Yds',
+        default_stat3_label: 'Rec TD',
+    },
+    {
+        slot_code: 'WR3',
+        position: 'WR',
+        unit: 'Offence',
+        label: 'Wide Receiver 3 (Slot Left)',
+        coord_x: '28%',
+        coord_y: '56%',
+        unit_x: '30%',
+        unit_y: '26%',
+        default_stat1_label: 'Catches',
+        default_stat2_label: 'Rec Yds',
+        default_stat3_label: 'Rec TD',
+    },
+    {
+        slot_code: 'WR4',
+        position: 'WR',
+        unit: 'Offence',
+        label: 'Wide Receiver 4 (Slot Right)',
+        coord_x: '72%',
+        coord_y: '56%',
+        unit_x: '70%',
+        unit_y: '26%',
+        default_stat1_label: 'Catches',
+        default_stat2_label: 'Rec Yds',
+        default_stat3_label: 'Rec TD',
+    },
+
+    // Defence (7) - Line of scrimmage at 50%, players in front of it
+    {
+        slot_code: 'R',
+        position: 'R',
+        unit: 'Defence',
+        label: 'Pass Rusher',
+        coord_x: '50%',
+        coord_y: '44%',
+        unit_x: '50%',
+        unit_y: '74%',
+        default_stat1_label: 'Sacks',
+        default_stat2_label: 'Flag Pulls',
+        default_stat3_label: 'Pass Def',
+    },
+    {
+        slot_code: 'DEF1',
+        position: 'DEF',
+        unit: 'Defence',
+        label: 'Cornerback / Defender 1',
+        coord_x: '18%',
+        coord_y: '40%',
+        unit_x: '18%',
+        unit_y: '50%',
+        default_stat1_label: 'Flag Pulls',
+        default_stat2_label: 'Pass Def',
+        default_stat3_label: 'Int',
+    },
+    {
+        slot_code: 'DEF2',
+        position: 'DEF',
+        unit: 'Defence',
+        label: 'Inside Defender 2',
+        coord_x: '34%',
+        coord_y: '38%',
+        unit_x: '36%',
+        unit_y: '46%',
+        default_stat1_label: 'Flag Pulls',
+        default_stat2_label: 'Pass Def',
+        default_stat3_label: 'Int',
+    },
+    {
+        slot_code: 'DEF3',
+        position: 'DEF',
+        unit: 'Defence',
+        label: 'Inside Defender 3',
+        coord_x: '66%',
+        coord_y: '38%',
+        unit_x: '64%',
+        unit_y: '46%',
+        default_stat1_label: 'Flag Pulls',
+        default_stat2_label: 'Pass Def',
+        default_stat3_label: 'Int',
+    },
+    {
+        slot_code: 'DEF4',
+        position: 'DEF',
+        unit: 'Defence',
+        label: 'Cornerback / Defender 4',
+        coord_x: '82%',
+        coord_y: '40%',
+        unit_x: '82%',
+        unit_y: '50%',
+        default_stat1_label: 'Flag Pulls',
+        default_stat2_label: 'Pass Def',
+        default_stat3_label: 'Int',
+    },
+    {
+        slot_code: 'S1',
+        position: 'S',
+        unit: 'Defence',
+        label: 'Free Safety 1',
+        coord_x: '32%',
+        coord_y: '20%',
+        unit_x: '32%',
+        unit_y: '22%',
+        default_stat1_label: 'Int',
+        default_stat2_label: 'Flag Pulls',
+        default_stat3_label: 'Pass Def',
+    },
+    {
+        slot_code: 'S2',
+        position: 'S',
+        unit: 'Defence',
+        label: 'Strong Safety 2',
+        coord_x: '68%',
+        coord_y: '20%',
+        unit_x: '68%',
+        unit_y: '22%',
+        default_stat1_label: 'Int',
+        default_stat2_label: 'Flag Pulls',
+        default_stat3_label: 'Pass Def',
+    },
 ];
 
-// Maps a stat label (as shown on the TOTW card) to the key returned by
-// /admin/totw/player-stats. Autofill fills each stat by its label, so the value
-// always matches what the card says. 'Tackles' is kept for editions saved before
-// the labels were renamed — in flag football a tackle is a flag pull.
+/**
+ * Normalizes any slot code alias to canonical DEFAULT_TOTW_SLOTS code
+ */
+export const normalizeSlotCode = (code: string | undefined): string => {
+    if (!code) return '';
+    const clean = code.trim().toUpperCase().replace(/[- ]/g, '_');
+    const map: Record<string, string> = {
+        QB: 'QB',
+        OFF_QB: 'QB',
+        MALE_QB: 'QB',
+        FQB: 'FQB',
+        OFF_FQB: 'FQB',
+        FEMALE_QB: 'FQB',
+        OFF_FQB_RB: 'FQB',
+        RB: 'FQB',
+        C: 'C',
+        CENTER: 'C',
+        OFF_C: 'C',
+        WR1: 'WR1',
+        WR_1: 'WR1',
+        OFF_WR1: 'WR1',
+        OFF_WR_1: 'WR1',
+        WR2: 'WR2',
+        WR_2: 'WR2',
+        OFF_WR2: 'WR2',
+        OFF_WR_2: 'WR2',
+        WR3: 'WR3',
+        WR_3: 'WR3',
+        OFF_WR3: 'WR3',
+        OFF_WR_3: 'WR3',
+        WR4: 'WR4',
+        WR_4: 'WR4',
+        OFF_WR4: 'WR4',
+        OFF_WR_4: 'WR4',
+        R: 'R',
+        RUSH: 'R',
+        RUSHER: 'R',
+        DEF_R: 'R',
+        DEF_RUSH: 'R',
+        DEF1: 'DEF1',
+        DEF_1: 'DEF1',
+        DEF_UNDER_1: 'DEF1',
+        DEF2: 'DEF2',
+        DEF_2: 'DEF2',
+        DEF_UNDER_2: 'DEF2',
+        DEF3: 'DEF3',
+        DEF_3: 'DEF3',
+        DEF_UNDER_3: 'DEF3',
+        DEF4: 'DEF4',
+        DEF_4: 'DEF4',
+        DEF_UNDER_4: 'DEF4',
+        S1: 'S1',
+        DEF_S1: 'S1',
+        S_1: 'S1',
+        S2: 'S2',
+        DEF_S2: 'S2',
+        S_2: 'S2',
+    };
+    return map[clean] || clean;
+};
+
+// Maps stat labels to keys returned by /admin/totw/player-stats
 const STAT_LABEL_KEYS: Record<string, string> = {
     'pass td': 'pass_td',
     'pass yds': 'pass_yards',
@@ -79,12 +315,17 @@ const STAT_LABEL_KEYS: Record<string, string> = {
     'int': 'interceptions',
 };
 
-// Returns the slot with stat values (and rating, when one was computed) filled
-// from a day-stats response. Stats whose label has no known key are left as-is.
-function applyDayStats<T extends { rating: number; stat1_label?: string; stat1_value?: string; stat2_label?: string; stat2_value?: string; stat3_label?: string; stat3_value?: string }>(
-    slot: T,
-    stats: Record<string, string>,
-): T {
+function applyDayStats<
+    T extends {
+        rating: number;
+        stat1_label?: string;
+        stat1_value?: string;
+        stat2_label?: string;
+        stat2_value?: string;
+        stat3_label?: string;
+        stat3_value?: string;
+    }
+>(slot: T, stats: Record<string, string>): T {
     const valueFor = (label: string | undefined, current: string | undefined) => {
         const key = STAT_LABEL_KEYS[(label || '').trim().toLowerCase()];
         return key && stats[key] !== undefined ? stats[key] : current;
@@ -100,10 +341,13 @@ function applyDayStats<T extends { rating: number; stat1_label?: string; stat1_v
 }
 
 interface SlotFormData extends TOTWPlayerSlot {
+    label?: string;
     player_name?: string;
     player_image?: string;
     player_jersey?: number;
     team_name?: string;
+    unit_x?: string;
+    unit_y?: string;
 }
 
 export const AdminTOTW = () => {
@@ -115,21 +359,29 @@ export const AdminTOTW = () => {
     const [editingTotwId, setEditingTotwId] = useState<string | null>(null);
     const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-    // Form state
+    // Form metadata state
     const [formCompId, setFormCompId] = useState<string>('');
     const [formEventDayId, setFormEventDayId] = useState<string>('');
     const [formWeekTitle, setFormWeekTitle] = useState<string>('');
     const [formHeadline, setFormHeadline] = useState<string>('TEAM OF THE WEEK');
     const [formSubHeadline, setFormSubHeadline] = useState<string>('Starting XIV honors for top performers');
     const [formIsPublished, setFormIsPublished] = useState<boolean>(false);
+
+    // Pitch & Slot State
+    const [pitchTab, setPitchTab] = useState<'all' | 'offence' | 'defence'>('all');
+    const [selectedSlotIndex, setSelectedSlotIndex] = useState<number>(0);
+
     const [slots, setSlots] = useState<SlotFormData[]>(() =>
         DEFAULT_TOTW_SLOTS.map((s) => ({
             player_id: '',
             slot_code: s.slot_code,
             position: s.position,
             unit: s.unit,
+            label: s.label,
             coord_x: s.coord_x,
             coord_y: s.coord_y,
+            unit_x: s.unit_x,
+            unit_y: s.unit_y,
             rating: 9.0,
             stat1_label: s.default_stat1_label,
             stat1_value: '',
@@ -143,7 +395,7 @@ export const AdminTOTW = () => {
     // Player picker modal state
     const [pickingSlotIndex, setPickingSlotIndex] = useState<number | null>(null);
     const [playerSearchQuery, setPlayerSearchQuery] = useState<string>('');
-    const [previewMode, setPreviewMode] = useState<boolean>(false);
+    const [positionFilter, setPositionFilter] = useState<string>('ALL');
 
     // Queries
     const { data: competitionsData } = useQuery({
@@ -165,9 +417,51 @@ export const AdminTOTW = () => {
     // Players list for picker
     const { data: playersData, isLoading: loadingPlayers } = useQuery({
         queryKey: ['adminPlayersForPicker', playerSearchQuery],
-        queryFn: () => getPlayers(undefined, 1, 60, playerSearchQuery || undefined),
+        queryFn: () => getPlayers(undefined, 1, 150, playerSearchQuery || undefined),
     });
     const availablePlayers: Player[] = playersData?.data || [];
+
+    // Filter available players by position tab inside modal
+    const filteredAvailablePlayers = useMemo(() => {
+        if (positionFilter === 'ALL') return availablePlayers;
+        return availablePlayers.filter((p) => {
+            const pos = (p.position || '').toUpperCase();
+            const sec = (p.secondary_position || '').toUpperCase();
+            if (positionFilter === 'QB') {
+                return pos === 'QB' || sec === 'QB';
+            }
+            if (positionFilter === 'WR') {
+                return pos === 'WR' || pos === 'RECEIVER' || sec === 'WR' || sec === 'RECEIVER';
+            }
+            if (positionFilter === 'C') {
+                return pos === 'C' || pos === 'CENTER' || sec === 'C' || sec === 'CENTER';
+            }
+            if (positionFilter === 'RUSH') {
+                return pos === 'R' || pos === 'RUSH' || pos === 'RUSHER' || sec === 'RUSH' || sec === 'RUSHER';
+            }
+            if (positionFilter === 'DEF') {
+                return pos === 'DEF' || pos === 'DEFENDER' || sec === 'DEF' || sec === 'DEFENDER';
+            }
+            if (positionFilter === 'S') {
+                return pos === 'S' || pos === 'SAFETY' || sec === 'S' || sec === 'SAFETY';
+            }
+            return true;
+        });
+    }, [availablePlayers, positionFilter]);
+
+    // Assigned players count
+    const filledCount = useMemo(() => slots.filter((s) => s.player_id.trim() !== '').length, [slots]);
+    const filledOffenceCount = useMemo(
+        () => slots.filter((s) => s.unit === 'Offence' && s.player_id.trim() !== '').length,
+        [slots]
+    );
+    const filledDefenceCount = useMemo(
+        () => slots.filter((s) => s.unit === 'Defence' && s.player_id.trim() !== '').length,
+        [slots]
+    );
+
+    // Active slot being inspected
+    const activeSlot = slots[selectedSlotIndex] || slots[0];
 
     // Mutations
     const deleteMutation = useMutation({
@@ -179,7 +473,10 @@ export const AdminTOTW = () => {
             queryClient.invalidateQueries({ queryKey: ['totwArchive'] });
         },
         onError: (err: any) => {
-            setStatusMessage({ type: 'error', text: err?.response?.data?.error || 'Failed to delete Team of the Week.' });
+            setStatusMessage({
+                type: 'error',
+                text: err?.response?.data?.error || 'Failed to delete Team of the Week.',
+            });
         },
     });
 
@@ -196,7 +493,10 @@ export const AdminTOTW = () => {
             queryClient.invalidateQueries({ queryKey: ['totwArchive'] });
         },
         onError: (err: any) => {
-            setStatusMessage({ type: 'error', text: err?.response?.data?.error || 'Failed to toggle publish status.' });
+            setStatusMessage({
+                type: 'error',
+                text: err?.response?.data?.error || 'Failed to toggle publish status.',
+            });
         },
     });
 
@@ -210,14 +510,19 @@ export const AdminTOTW = () => {
         setFormHeadline('TEAM OF THE WEEK');
         setFormSubHeadline('Starting XIV honors for top performers');
         setFormIsPublished(false);
+        setPitchTab('all');
+        setSelectedSlotIndex(0);
         setSlots(
             DEFAULT_TOTW_SLOTS.map((s) => ({
                 player_id: '',
                 slot_code: s.slot_code,
                 position: s.position,
                 unit: s.unit,
+                label: s.label,
                 coord_x: s.coord_x,
                 coord_y: s.coord_y,
+                unit_x: s.unit_x,
+                unit_y: s.unit_y,
                 rating: 9.0,
                 stat1_label: s.default_stat1_label,
                 stat1_value: '',
@@ -230,6 +535,10 @@ export const AdminTOTW = () => {
         setStatusMessage(null);
     };
 
+    /**
+     * Edit existing TOTW:
+     * Robust 2-pass mapping prevents duplicate players and maps every player to their pitch slot.
+     */
     const handleEditTOTW = async (id: string) => {
         try {
             setStatusMessage(null);
@@ -241,60 +550,167 @@ export const AdminTOTW = () => {
             setFormHeadline(fullTotw.headline || 'TEAM OF THE WEEK');
             setFormSubHeadline(fullTotw.sub_headline || '');
             setFormIsPublished(fullTotw.is_published);
+            setPitchTab('all');
 
-            // Map loaded players onto the 14 default slots
-            const newSlots: SlotFormData[] = DEFAULT_TOTW_SLOTS.map((defaultSlot) => {
-                const found = fullTotw.players?.find(
-                    (p) => p.slot_code === defaultSlot.slot_code || p.position === defaultSlot.position
-                );
-                if (found) {
-                    return {
-                        player_id: found.player_id,
-                        slot_code: found.slot_code || defaultSlot.slot_code,
-                        position: found.position || defaultSlot.position,
-                        unit: (found.unit as 'Offence' | 'Defence') || defaultSlot.unit,
-                        coord_x: found.coord_x || defaultSlot.coord_x,
-                        coord_y: found.coord_y || defaultSlot.coord_y,
-                        rating: found.rating || 9.0,
-                        stat1_label: found.stat1_label || defaultSlot.default_stat1_label,
-                        stat1_value: found.stat1_value || '',
-                        stat2_label: found.stat2_label || defaultSlot.default_stat2_label,
-                        stat2_value: found.stat2_value || '',
-                        stat3_label: found.stat3_label || defaultSlot.default_stat3_label,
-                        stat3_value: found.stat3_value || '',
-                        player_name: found.player?.name,
-                        player_image: found.player?.image,
-                        player_jersey: found.player?.jersey_number,
-                        team_name: found.player?.team?.name,
-                    };
+            // Initialize 14 canonical default slots
+            const newSlots: SlotFormData[] = DEFAULT_TOTW_SLOTS.map((defaultSlot) => ({
+                player_id: '',
+                slot_code: defaultSlot.slot_code,
+                position: defaultSlot.position,
+                unit: defaultSlot.unit,
+                label: defaultSlot.label,
+                coord_x: defaultSlot.coord_x,
+                coord_y: defaultSlot.coord_y,
+                unit_x: defaultSlot.unit_x,
+                unit_y: defaultSlot.unit_y,
+                rating: 9.0,
+                stat1_label: defaultSlot.default_stat1_label,
+                stat1_value: '',
+                stat2_label: defaultSlot.default_stat2_label,
+                stat2_value: '',
+                stat3_label: defaultSlot.default_stat3_label,
+                stat3_value: '',
+            }));
+
+            if (fullTotw.players && fullTotw.players.length > 0) {
+                const assignedPlayerIds = new Set<string>();
+                const filledSlotIndices = new Set<number>();
+
+                // Pass 1: Match by exact normalized slot_code
+                for (const p of fullTotw.players) {
+                    if (!p.player_id || assignedPlayerIds.has(p.player_id)) continue;
+                    const normCode = normalizeSlotCode(p.slot_code);
+                    const slotIdx = newSlots.findIndex(
+                        (s, idx) => !filledSlotIndices.has(idx) && s.slot_code === normCode
+                    );
+                    if (slotIdx !== -1) {
+                        filledSlotIndices.add(slotIdx);
+                        assignedPlayerIds.add(p.player_id);
+                        const defSlot = DEFAULT_TOTW_SLOTS[slotIdx];
+                        newSlots[slotIdx] = {
+                            player_id: p.player_id,
+                            slot_code: defSlot.slot_code,
+                            position: p.position || defSlot.position,
+                            unit: (p.unit as 'Offence' | 'Defence') || defSlot.unit,
+                            label: defSlot.label,
+                            coord_x: p.coord_x || defSlot.coord_x,
+                            coord_y: p.coord_y || defSlot.coord_y,
+                            unit_x: defSlot.unit_x,
+                            unit_y: defSlot.unit_y,
+                            rating: p.rating || 9.0,
+                            stat1_label: p.stat1_label || defSlot.default_stat1_label,
+                            stat1_value: p.stat1_value || '',
+                            stat2_label: p.stat2_label || defSlot.default_stat2_label,
+                            stat2_value: p.stat2_value || '',
+                            stat3_label: p.stat3_label || defSlot.default_stat3_label,
+                            stat3_value: p.stat3_value || '',
+                            player_name: p.player?.name,
+                            player_image: p.player?.image,
+                            player_jersey: p.player?.jersey_number,
+                            team_name: p.player?.team?.name,
+                        };
+                    }
                 }
-                return {
-                    player_id: '',
-                    slot_code: defaultSlot.slot_code,
-                    position: defaultSlot.position,
-                    unit: defaultSlot.unit,
-                    coord_x: defaultSlot.coord_x,
-                    coord_y: defaultSlot.coord_y,
-                    rating: 9.0,
-                    stat1_label: defaultSlot.default_stat1_label,
-                    stat1_value: '',
-                    stat2_label: defaultSlot.default_stat2_label,
-                    stat2_value: '',
-                    stat3_label: defaultSlot.default_stat3_label,
-                    stat3_value: '',
-                };
-            });
+
+                // Pass 2: Legacy fallback for any players not matched by slot_code
+                for (const p of fullTotw.players) {
+                    if (!p.player_id || assignedPlayerIds.has(p.player_id)) continue;
+                    // Find first empty slot matching unit and position
+                    const slotIdx = newSlots.findIndex(
+                        (s, idx) =>
+                            !filledSlotIndices.has(idx) &&
+                            s.unit === p.unit &&
+                            (s.position === p.position || s.slot_code.startsWith(p.position))
+                    );
+                    if (slotIdx !== -1) {
+                        filledSlotIndices.add(slotIdx);
+                        assignedPlayerIds.add(p.player_id);
+                        const defSlot = DEFAULT_TOTW_SLOTS[slotIdx];
+                        newSlots[slotIdx] = {
+                            player_id: p.player_id,
+                            slot_code: defSlot.slot_code,
+                            position: p.position || defSlot.position,
+                            unit: (p.unit as 'Offence' | 'Defence') || defSlot.unit,
+                            label: defSlot.label,
+                            coord_x: p.coord_x || defSlot.coord_x,
+                            coord_y: p.coord_y || defSlot.coord_y,
+                            unit_x: defSlot.unit_x,
+                            unit_y: defSlot.unit_y,
+                            rating: p.rating || 9.0,
+                            stat1_label: p.stat1_label || defSlot.default_stat1_label,
+                            stat1_value: p.stat1_value || '',
+                            stat2_label: p.stat2_label || defSlot.default_stat2_label,
+                            stat2_value: p.stat2_value || '',
+                            stat3_label: p.stat3_label || defSlot.default_stat3_label,
+                            stat3_value: p.stat3_value || '',
+                            player_name: p.player?.name,
+                            player_image: p.player?.image,
+                            player_jersey: p.player?.jersey_number,
+                            team_name: p.player?.team?.name,
+                        };
+                    }
+                }
+            }
 
             setSlots(newSlots);
+            setSelectedSlotIndex(0);
             setIsEditing(true);
         } catch (err: any) {
             setStatusMessage({ type: 'error', text: 'Failed to load Team of the Week details.' });
         }
     };
 
-    const handleSelectPlayer = (slotIndex: number, player: Player) => {
+    /**
+     * Open player picker modal for a given slot index
+     */
+    const handleOpenPicker = (slotIndex: number) => {
+        setPickingSlotIndex(slotIndex);
+        setPlayerSearchQuery('');
+        const slot = slots[slotIndex];
+        // Set initial position filter to match the slot
+        if (slot) {
+            if (slot.slot_code === 'QB' || slot.slot_code === 'FQB') {
+                setPositionFilter('QB');
+            } else if (slot.slot_code.startsWith('WR')) {
+                setPositionFilter('WR');
+            } else if (slot.slot_code === 'C') {
+                setPositionFilter('C');
+            } else if (slot.slot_code === 'R') {
+                setPositionFilter('RUSH');
+            } else if (slot.slot_code.startsWith('DEF')) {
+                setPositionFilter('DEF');
+            } else if (slot.slot_code.startsWith('S')) {
+                setPositionFilter('S');
+            } else {
+                setPositionFilter('ALL');
+            }
+        } else {
+            setPositionFilter('ALL');
+        }
+    };
+
+    /**
+     * Assigns a player to a slot.
+     * If the player is already assigned elsewhere in this TOTW, the other slot is cleared to prevent duplicates.
+     */
+    const handleSelectPlayer = async (slotIndex: number, player: Player) => {
         setSlots((prev) => {
             const copy = [...prev];
+            // Clear other slot if this player was already assigned elsewhere
+            const otherIdx = copy.findIndex((s, idx) => idx !== slotIndex && s.player_id === player.id);
+            if (otherIdx !== -1) {
+                copy[otherIdx] = {
+                    ...copy[otherIdx],
+                    player_id: '',
+                    player_name: undefined,
+                    player_image: undefined,
+                    player_jersey: undefined,
+                    team_name: undefined,
+                    stat1_value: '',
+                    stat2_value: '',
+                    stat3_value: '',
+                };
+            }
             copy[slotIndex] = {
                 ...copy[slotIndex],
                 player_id: player.id,
@@ -305,10 +721,31 @@ export const AdminTOTW = () => {
             };
             return copy;
         });
+
+        setSelectedSlotIndex(slotIndex);
         setPickingSlotIndex(null);
         setPlayerSearchQuery('');
+
+        // If an event day is selected, immediately autofill box score stats for speed
+        if (formEventDayId) {
+            try {
+                const stats = await getAdminPlayerDayStats(player.id, formEventDayId);
+                if (stats && Object.keys(stats).length > 0) {
+                    setSlots((prev) => {
+                        const copy = [...prev];
+                        copy[slotIndex] = applyDayStats(copy[slotIndex], stats);
+                        return copy;
+                    });
+                }
+            } catch (e) {
+                // Non-blocking
+            }
+        }
     };
 
+    /**
+     * Unassign a slot
+     */
     const handleClearSlotPlayer = (slotIndex: number) => {
         setSlots((prev) => {
             const copy = [...prev];
@@ -325,6 +762,34 @@ export const AdminTOTW = () => {
             };
             return copy;
         });
+    };
+
+    /**
+     * Clear all slots
+     */
+    const handleClearAllSlots = () => {
+        if (!confirm('Are you sure you want to clear all 14 positions?')) return;
+        setSlots(
+            DEFAULT_TOTW_SLOTS.map((s) => ({
+                player_id: '',
+                slot_code: s.slot_code,
+                position: s.position,
+                unit: s.unit,
+                label: s.label,
+                coord_x: s.coord_x,
+                coord_y: s.coord_y,
+                unit_x: s.unit_x,
+                unit_y: s.unit_y,
+                rating: 9.0,
+                stat1_label: s.default_stat1_label,
+                stat1_value: '',
+                stat2_label: s.default_stat2_label,
+                stat2_value: '',
+                stat3_label: s.default_stat3_label,
+                stat3_value: '',
+            }))
+        );
+        setSelectedSlotIndex(0);
     };
 
     const handleSlotChange = (slotIndex: number, field: keyof SlotFormData, value: any) => {
@@ -361,6 +826,10 @@ export const AdminTOTW = () => {
                 const copy = [...prev];
                 copy[slotIndex] = applyDayStats(copy[slotIndex], stats);
                 return copy;
+            });
+            setStatusMessage({
+                type: 'success',
+                text: `Updated match statistics for ${slot.player_name || slot.slot_code}.`,
             });
         } catch (err: any) {
             alert('Could not retrieve player statistics for this Event Day.');
@@ -402,7 +871,7 @@ export const AdminTOTW = () => {
 
         setStatusMessage({
             type: 'success',
-            text: `Autofilled statistics for ${updated} of ${filledSlots.length} players.`,
+            text: `Autofilled statistics for ${updated} of ${filledSlots.length} assigned players.`,
         });
     };
 
@@ -467,6 +936,15 @@ export const AdminTOTW = () => {
             });
         }
     };
+
+    // Filter slots according to active pitch tab
+    const visibleSlots = useMemo(() => {
+        return slots.map((s, idx) => ({ ...s, index: idx })).filter((s) => {
+            if (pitchTab === 'offence') return s.unit === 'Offence';
+            if (pitchTab === 'defence') return s.unit === 'Defence';
+            return true;
+        });
+    }, [slots, pitchTab]);
 
     return (
         <div className="space-y-6 md:space-y-8 animate-fade-in pb-16">
@@ -675,27 +1153,35 @@ export const AdminTOTW = () => {
                                     setIsEditing(false);
                                     setEditingTotwId(null);
                                 }}
-                                className="px-3 py-1.5 text-xs font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer"
+                                className="px-3.5 py-2 text-xs font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-xl hover:bg-gray-200 transition-colors cursor-pointer"
                             >
                                 ← Back to Editions
                             </button>
-                            <h2 className="text-xl font-black text-sffl-navy dark:text-white">
-                                {editingTotwId ? 'Edit Team of the Week' : 'Create Team of the Week'}
-                            </h2>
+                            <div>
+                                <h2 className="text-xl md:text-2xl font-black text-sffl-navy dark:text-white">
+                                    {editingTotwId ? 'Edit Team of the Week' : 'Create Team of the Week'}
+                                </h2>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    Click any position on the pitch to assign or update players
+                                </p>
+                            </div>
                         </div>
+
                         <div className="flex items-center gap-3">
                             <button
                                 type="button"
-                                onClick={() => setPreviewMode(!previewMode)}
-                                className="px-4 py-2 text-xs font-bold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+                                onClick={() => {
+                                    setIsEditing(false);
+                                    setEditingTotwId(null);
+                                }}
+                                className="px-4 py-2.5 bg-white hover:bg-gray-50 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 text-xs font-bold rounded-xl transition-colors cursor-pointer"
                             >
-                                <EyeIcon className="w-4 h-4" />
-                                <span>{previewMode ? 'Hide Preview' : 'Live Field Preview'}</span>
+                                Cancel
                             </button>
                             <button
                                 type="button"
                                 onClick={handleSave}
-                                className="px-6 py-2.5 bg-sffl-red hover:bg-[#A52323] text-white text-xs font-black uppercase tracking-wider rounded-lg shadow-md transition-colors cursor-pointer"
+                                className="px-6 py-2.5 bg-sffl-red hover:bg-[#A52323] text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md transition-colors cursor-pointer"
                             >
                                 {editingTotwId ? 'Save Changes' : 'Create & Save'}
                             </button>
@@ -727,7 +1213,7 @@ export const AdminTOTW = () => {
                             </div>
                             <div>
                                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1">
-                                    Linked Event Day (Optional)
+                                    Linked Event Day (For Stat Autofill)
                                 </label>
                                 <select
                                     value={formEventDayId}
@@ -797,404 +1283,540 @@ export const AdminTOTW = () => {
                         </div>
                     </div>
 
-                    {/* Live Preview (Toggleable) */}
-                    {previewMode && (
-                        <div className="bg-[#07182E] p-6 rounded-2xl border border-white/20 text-white space-y-4">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-lg font-black italic tracking-wide text-white flex items-center gap-2">
-                                    <span>🏟️ LIVE PITCH FORMATION PREVIEW</span>
-                                </h3>
-                                <span className="text-xs text-gray-300 font-bold">Starting XIV Formation</span>
-                            </div>
-                            <div className="relative aspect-[16/10] max-h-[480px] w-full max-w-[800px] mx-auto rounded-xl overflow-hidden border border-white/20 shadow-inner bg-gradient-to-b from-[#1b5e20] via-[#2e7d32] to-[#1b5e20]">
-                                {/* Line of scrimmage */}
-                                <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-yellow-300/80 -translate-y-1/2 z-0" />
-                                {slots.map((s) => (
-                                    <div
-                                        key={s.slot_code}
-                                        style={{ left: s.coord_x, top: s.coord_y }}
-                                        className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center text-center z-10"
-                                    >
-                                        <div
-                                            className={`w-9 h-9 md:w-11 md:h-11 rounded-full border-2 flex items-center justify-center font-black text-xs shadow-md overflow-hidden ${
-                                                s.unit === 'Offence'
-                                                    ? 'bg-red-600 border-red-300 text-white'
-                                                    : 'bg-blue-600 border-blue-300 text-white'
-                                            }`}
-                                        >
-                                            {s.player_image ? (
-                                                <img
-                                                    src={s.player_image}
-                                                    alt={s.player_name}
-                                                    className="w-full h-full object-cover object-top"
-                                                />
-                                            ) : (
-                                                <span>{s.player_jersey ? `#${s.player_jersey}` : s.position}</span>
-                                            )}
-                                        </div>
-                                        <span className="text-[9px] font-black text-white bg-black/70 px-1.5 py-0.5 rounded mt-0.5 max-w-[80px] truncate">
-                                            {s.player_name || `[${s.slot_code}]`}
-                                        </span>
-                                        <span className="text-[8px] font-bold text-yellow-300 bg-black/60 px-1 rounded">
-                                            ★ {s.rating}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Starting XIV Slots Header & Batch Actions */}
-                    <div className="flex flex-wrap items-center justify-between gap-4 bg-gray-50 dark:bg-gray-800/80 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
-                        <div>
-                            <h3 className="text-base font-black text-sffl-navy dark:text-white uppercase tracking-tight">
-                                Starting XIV Position Roster (14 Slots)
-                            </h3>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                                7 Offensive slots and 7 Defensive slots with match ratings & box-score highlights
-                            </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            {formEventDayId && (
+                    {/* ── THE INTERACTIVE PITCH UI BUILDER ───────────────────────── */}
+                    <div className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl border border-gray-200 dark:border-gray-700 p-4 md:p-6 shadow-sm space-y-4">
+                        {/* Pitch Controls Bar */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-gray-100 dark:border-gray-700">
+                            {/* View Switcher Tabs */}
+                            <div className="flex items-center bg-gray-100 dark:bg-gray-700/60 p-1 rounded-xl">
                                 <button
                                     type="button"
-                                    onClick={handleAutofillAll}
-                                    className="px-3.5 py-2 bg-sffl-navy hover:bg-sffl-navy/90 text-white text-xs font-bold rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer"
+                                    onClick={() => setPitchTab('all')}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-tight transition-all cursor-pointer ${
+                                        pitchTab === 'all'
+                                            ? 'bg-sffl-navy text-white shadow-sm'
+                                            : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'
+                                    }`}
                                 >
-                                    <SparklesIcon className="w-4 h-4 text-yellow-300" />
-                                    <span>Autofill All Day Stats</span>
+                                    🏟️ Full Pitch (14)
                                 </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setPitchTab('offence')}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-tight transition-all cursor-pointer ${
+                                        pitchTab === 'offence'
+                                            ? 'bg-sffl-navy text-white shadow-sm'
+                                            : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'
+                                    }`}
+                                >
+                                    ⚔️ Offence ({filledOffenceCount}/7)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setPitchTab('defence')}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-tight transition-all cursor-pointer ${
+                                        pitchTab === 'defence'
+                                            ? 'bg-sffl-navy text-white shadow-sm'
+                                            : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'
+                                    }`}
+                                >
+                                    🛡️ Defence ({filledDefenceCount}/7)
+                                </button>
+                            </div>
+
+                            {/* Batch Action Buttons */}
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-black uppercase tracking-wider px-3 py-1.5 rounded-xl border bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-600">
+                                    {filledCount} / 14 Starters
+                                </span>
+                                {formEventDayId && (
+                                    <button
+                                        type="button"
+                                        onClick={handleAutofillAll}
+                                        className="px-3.5 py-1.5 bg-sffl-navy hover:bg-sffl-navy/90 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                                    >
+                                        <SparklesIcon className="w-4 h-4 text-yellow-300" />
+                                        <span>Autofill All Stats</span>
+                                    </button>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={handleClearAllSlots}
+                                    className="px-3 py-1.5 text-xs font-bold text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+                                >
+                                    Clear Lineup
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Interactive Pitch Canvas */}
+                        <div
+                            className="relative w-full h-[620px] md:h-[700px] rounded-2xl overflow-hidden border-2 border-emerald-500/30 shadow-2xl select-none"
+                            style={{
+                                background: `repeating-linear-gradient(to bottom, transparent 0, transparent calc(20% - 1px), rgba(229, 243, 220, 0.12) calc(20% - 1px), rgba(229, 243, 220, 0.12) 20%),
+                                             repeating-linear-gradient(to bottom, #174C3A 0, #174C3A 20%, #134332 20%, #134332 40%)`,
+                                boxShadow: 'inset 0 0 100px rgba(0, 20, 12, 0.85)',
+                            }}
+                            role="group"
+                            aria-label="Team of the Week Formation Pitch"
+                        >
+                            {/* Sidelines & Markings */}
+                            <div className="absolute top-[10%] bottom-[10%] left-[3%] right-[3%] border border-white/20 rounded-lg pointer-events-none" />
+
+                            {/* Top Endzone */}
+                            <div className="absolute top-0 left-0 right-0 h-[10%] flex items-center justify-center text-white/25 bg-[#0C2D28]/80 border-b border-white/20 font-black italic tracking-[0.25em] text-lg md:text-2xl pointer-events-none">
+                                {pitchTab === 'offence' ? 'END ZONE' : 'DEFENCE'}
+                            </div>
+
+                            {/* Bottom Endzone */}
+                            <div className="absolute bottom-0 left-0 right-0 h-[10%] flex items-center justify-center text-white/25 bg-[#0C2D28]/80 border-t border-white/20 font-black italic tracking-[0.25em] text-lg md:text-2xl pointer-events-none">
+                                {pitchTab === 'defence' ? 'LINE OF SCRIMMAGE' : 'OFFENCE'}
+                            </div>
+
+                            {/* Line of Scrimmage (visible in full pitch view) */}
+                            {pitchTab === 'all' && (
+                                <>
+                                    <div className="absolute top-1/2 left-[2%] right-[2%] border-t-2 border-dashed border-yellow-300/70 -translate-y-1/2 z-10 pointer-events-none" />
+                                    <span className="absolute top-1/2 right-[4%] -translate-y-1/2 z-20 px-2 py-0.5 rounded bg-yellow-300/90 text-sffl-navy text-[8px] md:text-[9px] font-black tracking-wider uppercase shadow-xs pointer-events-none">
+                                        Line of Scrimmage
+                                    </span>
+                                </>
                             )}
-                        </div>
-                    </div>
 
-                    {/* Slots Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Offence Unit (7 slots) */}
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-2 px-1">
-                                <span className="w-2.5 h-2.5 rounded-full bg-sffl-red" />
-                                <h4 className="text-sm font-black uppercase tracking-wider text-sffl-navy dark:text-white">
-                                    Offence (7 Slots)
-                                </h4>
-                            </div>
-                            {slots
-                                .map((s, idx) => ({ ...s, index: idx }))
-                                .filter((s) => s.unit === 'Offence')
-                                .map((slot) => (
+                            {/* 14 Interactive Position Nodes on Pitch */}
+                            {visibleSlots.map((slot) => {
+                                const isSelected = selectedSlotIndex === slot.index;
+                                const isOccupied = Boolean(slot.player_id);
+                                const isDef = slot.unit === 'Defence';
+
+                                // Choose coordinates based on current tab
+                                const posX = pitchTab === 'all' ? slot.coord_x : slot.unit_x || slot.coord_x;
+                                const posY = pitchTab === 'all' ? slot.coord_y : slot.unit_y || slot.coord_y;
+
+                                return (
                                     <div
                                         key={slot.slot_code}
-                                        className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xs space-y-3"
+                                        style={{ left: posX, top: posY }}
+                                        className="absolute -translate-x-1/2 -translate-y-1/2 text-center z-20"
                                     >
-                                        {/* Slot top info */}
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <span className="px-2 py-0.5 rounded text-xs font-black bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">
-                                                    {slot.slot_code}
-                                                </span>
-                                                <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
-                                                    Position: {slot.position}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                {slot.player_id && formEventDayId && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleAutofillSlot(slot.index)}
-                                                        title="Autofill stats from match day"
-                                                        className="text-[11px] font-bold text-sffl-red hover:underline flex items-center gap-1 cursor-pointer"
-                                                    >
-                                                        <SparklesIcon className="w-3.5 h-3.5" />
-                                                        <span>Auto Stats</span>
-                                                    </button>
-                                                )}
-                                                {slot.player_id && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleClearSlotPlayer(slot.index)}
-                                                        className="text-xs text-gray-400 hover:text-red-500 cursor-pointer"
-                                                        title="Remove player"
-                                                    >
-                                                        Clear
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* Player Picker / Info */}
-                                        <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-700/50 p-2.5 rounded-lg border border-gray-100 dark:border-gray-600/50">
-                                            {slot.player_id ? (
-                                                <div className="flex items-center justify-between w-full">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-600 overflow-hidden shrink-0 border border-gray-300 dark:border-gray-500">
-                                                            {slot.player_image ? (
-                                                                <img
-                                                                    src={slot.player_image}
-                                                                    alt={slot.player_name}
-                                                                    className="w-full h-full object-cover object-top"
-                                                                />
-                                                            ) : (
-                                                                <div className="w-full h-full flex items-center justify-center font-black text-xs text-gray-500">
-                                                                    #{slot.player_jersey || '?'}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        <div>
-                                                            <div className="font-black text-sm text-sffl-navy dark:text-white">
-                                                                {slot.player_name}
-                                                            </div>
-                                                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                                                                {slot.team_name || 'Free Agent'}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setPickingSlotIndex(slot.index)}
-                                                        className="px-2.5 py-1 text-xs font-bold text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-100 cursor-pointer"
-                                                    >
-                                                        Change
-                                                    </button>
-                                                </div>
-                                            ) : (
+                                        {isOccupied ? (
+                                            /* Occupied Position Node */
+                                            <div className="relative group">
                                                 <button
                                                     type="button"
-                                                    onClick={() => setPickingSlotIndex(slot.index)}
-                                                    className="w-full py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-xs font-bold text-gray-500 hover:text-sffl-red hover:border-sffl-red flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                                                    onClick={() => setSelectedSlotIndex(slot.index)}
+                                                    className={`cursor-pointer transition-all duration-200 focus:outline-none flex flex-col items-center ${
+                                                        isSelected
+                                                            ? 'scale-110 z-30 drop-shadow-2xl'
+                                                            : 'hover:scale-105 active:scale-95 opacity-95 hover:opacity-100'
+                                                    }`}
                                                 >
-                                                    <PlusIcon className="w-4 h-4" />
-                                                    <span>Assign Player to {slot.slot_code}</span>
+                                                    {/* Avatar Ring */}
+                                                    <div
+                                                        className={`relative w-12 h-12 md:w-14 md:h-14 rounded-full p-0.5 transition-all ${
+                                                            isSelected
+                                                                ? 'ring-4 ring-yellow-400 shadow-xl'
+                                                                : isDef
+                                                                ? 'ring-2 ring-blue-400 shadow-lg'
+                                                                : 'ring-2 ring-sffl-red shadow-lg'
+                                                        }`}
+                                                    >
+                                                        {slot.player_image ? (
+                                                            <img
+                                                                src={slot.player_image}
+                                                                alt={slot.player_name || 'Player'}
+                                                                className="w-full h-full rounded-full object-cover object-top bg-gray-200"
+                                                            />
+                                                        ) : (
+                                                            <div
+                                                                className={`w-full h-full rounded-full flex items-center justify-center font-black text-xs md:text-sm text-white ${
+                                                                    isDef ? 'bg-blue-600' : 'bg-red-600'
+                                                                }`}
+                                                            >
+                                                                {slot.player_jersey ? `#${slot.player_jersey}` : slot.position}
+                                                            </div>
+                                                        )}
+
+                                                        {/* Rating badge on bottom right */}
+                                                        <span className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-full bg-sffl-navy text-amber-300 font-black text-[9px] border border-white/60 shadow-sm flex items-center gap-0.5">
+                                                            <span>★</span>
+                                                            <span>{slot.rating}</span>
+                                                        </span>
+
+                                                        {/* Slot code badge on top left */}
+                                                        <span
+                                                            className={`absolute -top-1 -left-1 px-1.5 py-0.2 rounded-full text-[8px] font-black text-white border border-white/50 shadow-sm ${
+                                                                isDef ? 'bg-blue-700' : 'bg-sffl-red'
+                                                            }`}
+                                                        >
+                                                            {slot.slot_code}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Player Name Badge */}
+                                                    <div className="mt-1 max-w-[85px] md:max-w-[105px]">
+                                                        <div className="truncate px-1.5 py-0.5 rounded bg-black/85 text-white font-black text-[10px] md:text-xs leading-tight shadow-sm">
+                                                            {slot.player_name || 'Assigned'}
+                                                        </div>
+                                                        {slot.team_name && (
+                                                            <div className="truncate text-[8px] md:text-[9px] font-bold text-gray-300/90 mt-0.2">
+                                                                {slot.team_name}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </button>
+
+                                                {/* Clear Button (Top Right Corner) */}
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleClearSlotPlayer(slot.index);
+                                                    }}
+                                                    className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center shadow-md transition-opacity opacity-0 group-hover:opacity-100 cursor-pointer"
+                                                    title="Remove player from slot"
+                                                >
+                                                    <XMarkIcon className="w-3.5 h-3.5 stroke-[2.5]" />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            /* Empty Position Pin */
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedSlotIndex(slot.index);
+                                                    handleOpenPicker(slot.index);
+                                                }}
+                                                className={`cursor-pointer group flex flex-col items-center focus:outline-none transition-transform ${
+                                                    isSelected ? 'scale-110' : 'hover:scale-105 active:scale-95'
+                                                }`}
+                                            >
+                                                <div
+                                                    className={`w-11 h-11 md:w-13 md:h-13 rounded-full border-2 border-dashed flex flex-col items-center justify-center shadow-lg transition-colors ${
+                                                        isSelected
+                                                            ? 'border-yellow-400 bg-yellow-400/20 text-yellow-300'
+                                                            : 'border-white/60 group-hover:border-white bg-black/35 group-hover:bg-black/60 text-white/90'
+                                                    }`}
+                                                >
+                                                    <UserPlusIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                                </div>
+                                                <span className="text-[10px] md:text-xs font-black text-white drop-shadow mt-1 block max-w-[85px] truncate">
+                                                    + {slot.slot_code}
+                                                </span>
+                                                <span className="text-[8px] font-bold text-amber-300 uppercase tracking-widest leading-none">
+                                                    {slot.position}
+                                                </span>
+                                            </button>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Quick 14-Slot Navigation Strip */}
+                        <div className="space-y-1.5 pt-2">
+                            <div className="flex items-center justify-between text-xs font-bold text-gray-500 dark:text-gray-400">
+                                <span>Starting XIV Position Navigator</span>
+                                <span>Click any position to inspect & edit</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+                                {slots.map((s, idx) => {
+                                    const isSelected = selectedSlotIndex === idx;
+                                    const isFilled = Boolean(s.player_id);
+                                    return (
+                                        <button
+                                            key={s.slot_code}
+                                            type="button"
+                                            onClick={() => setSelectedSlotIndex(idx)}
+                                            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                                                isSelected
+                                                    ? 'bg-sffl-navy text-white shadow-sm ring-2 ring-sffl-red'
+                                                    : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
+                                            }`}
+                                        >
+                                            <span
+                                                className={`w-2 h-2 rounded-full ${
+                                                    isFilled ? 'bg-emerald-500' : 'bg-gray-400'
+                                                }`}
+                                            />
+                                            <span className="font-black">{s.slot_code}</span>
+                                            {isFilled && (
+                                                <span className="text-[10px] opacity-80 max-w-[70px] truncate hidden sm:inline">
+                                                    {s.player_name}
+                                                </span>
                                             )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* ── SELECTED SLOT INSPECTOR & QUICK EDITOR CARD ───────── */}
+                        {activeSlot && (
+                            <div className="bg-gray-50 dark:bg-gray-750 p-4 md:p-6 rounded-xl border border-gray-200 dark:border-gray-700 space-y-4 shadow-sm animate-fade-in">
+                                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 dark:border-gray-700 pb-3">
+                                    <div className="flex items-center gap-2">
+                                        <span
+                                            className={`px-2.5 py-1 rounded-md text-xs font-black uppercase text-white ${
+                                                activeSlot.unit === 'Offence' ? 'bg-sffl-red' : 'bg-blue-600'
+                                            }`}
+                                        >
+                                            {activeSlot.unit}
+                                        </span>
+                                        <h4 className="text-base font-black text-sffl-navy dark:text-white">
+                                            Slot: {activeSlot.slot_code} — {activeSlot.label || activeSlot.position}
+                                        </h4>
+                                    </div>
+
+                                    {/* Slot Carousel / Navigation */}
+                                    <div className="flex items-center gap-1.5">
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setSelectedSlotIndex(
+                                                    (selectedSlotIndex - 1 + slots.length) % slots.length
+                                                )
+                                            }
+                                            className="p-1.5 rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                                            title="Previous slot"
+                                        >
+                                            <ChevronLeftIcon className="w-4 h-4" />
+                                        </button>
+                                        <span className="text-xs font-bold text-gray-500 dark:text-gray-400 px-2">
+                                            {selectedSlotIndex + 1} of 14
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setSelectedSlotIndex((selectedSlotIndex + 1) % slots.length)
+                                            }
+                                            className="p-1.5 rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
+                                            title="Next slot"
+                                        >
+                                            <ChevronRightIcon className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {activeSlot.player_id ? (
+                                    <div className="space-y-4">
+                                        {/* Player Summary Row */}
+                                        <div className="flex flex-wrap items-center justify-between gap-4 bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
+                                            <div className="flex items-center gap-3.5">
+                                                <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden border border-gray-300 dark:border-gray-600 shrink-0">
+                                                    {activeSlot.player_image ? (
+                                                        <img
+                                                            src={activeSlot.player_image}
+                                                            alt={activeSlot.player_name || 'Player'}
+                                                            className="w-full h-full object-cover object-top"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center font-black text-sm text-gray-500">
+                                                            #{activeSlot.player_jersey || '?'}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <div className="text-lg font-black text-sffl-navy dark:text-white">
+                                                        {activeSlot.player_name}
+                                                    </div>
+                                                    <div className="text-xs font-bold text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                                                        <span className="text-sffl-red">{activeSlot.position}</span>
+                                                        <span>•</span>
+                                                        <span>{activeSlot.team_name || 'Free Agent'}</span>
+                                                        {activeSlot.player_jersey && (
+                                                            <>
+                                                                <span>•</span>
+                                                                <span>#{activeSlot.player_jersey}</span>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Action Buttons */}
+                                            <div className="flex items-center gap-2">
+                                                {formEventDayId && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleAutofillSlot(selectedSlotIndex)}
+                                                        className="px-3 py-1.5 bg-sffl-navy hover:bg-sffl-navy/90 text-white text-xs font-bold rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer"
+                                                    >
+                                                        <SparklesIcon className="w-4 h-4 text-yellow-300" />
+                                                        <span>Autofill Stats</span>
+                                                    </button>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleOpenPicker(selectedSlotIndex)}
+                                                    className="px-3 py-1.5 bg-white hover:bg-gray-50 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 text-xs font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                                                >
+                                                    <ArrowsRightLeftIcon className="w-3.5 h-3.5" />
+                                                    <span>Change Player</span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleClearSlotPlayer(selectedSlotIndex)}
+                                                    className="px-2.5 py-1.5 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors cursor-pointer"
+                                                >
+                                                    Remove
+                                                </button>
+                                            </div>
                                         </div>
 
-                                        {/* Rating & 3 Stats Row */}
-                                        <div className="grid grid-cols-4 gap-2 pt-1">
+                                        {/* Match Rating & 3 Stats Row */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
+                                            {/* Rating */}
                                             <div>
-                                                <label className="block text-[10px] font-black uppercase text-gray-500 dark:text-gray-400 mb-0.5">
-                                                    Rating (★)
+                                                <label className="block text-[11px] font-black uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1">
+                                                    Match Rating (★)
                                                 </label>
                                                 <input
                                                     type="number"
                                                     step="0.1"
                                                     min="5"
                                                     max="10"
-                                                    value={slot.rating}
+                                                    value={activeSlot.rating}
                                                     onChange={(e) =>
-                                                        handleSlotChange(slot.index, 'rating', parseFloat(e.target.value) || 0)
+                                                        handleSlotChange(
+                                                            selectedSlotIndex,
+                                                            'rating',
+                                                            parseFloat(e.target.value) || 0
+                                                        )
                                                     }
-                                                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded px-2 py-1 text-xs font-black text-center"
+                                                    className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm font-black text-center focus:ring-2 focus:ring-sffl-red outline-none"
                                                 />
                                             </div>
-                                            <div>
-                                                <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-0.5 truncate">
-                                                    {slot.stat1_label || 'Stat 1'}
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    value={slot.stat1_value || ''}
-                                                    onChange={(e) =>
-                                                        handleSlotChange(slot.index, 'stat1_value', e.target.value)
-                                                    }
-                                                    placeholder="0"
-                                                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded px-2 py-1 text-xs font-bold text-center"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-0.5 truncate">
-                                                    {slot.stat2_label || 'Stat 2'}
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    value={slot.stat2_value || ''}
-                                                    onChange={(e) =>
-                                                        handleSlotChange(slot.index, 'stat2_value', e.target.value)
-                                                    }
-                                                    placeholder="0"
-                                                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded px-2 py-1 text-xs font-bold text-center"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-0.5 truncate">
-                                                    {slot.stat3_label || 'Stat 3'}
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    value={slot.stat3_value || ''}
-                                                    onChange={(e) =>
-                                                        handleSlotChange(slot.index, 'stat3_value', e.target.value)
-                                                    }
-                                                    placeholder="0"
-                                                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded px-2 py-1 text-xs font-bold text-center"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                        </div>
 
-                        {/* Defence Unit (7 slots) */}
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-2 px-1">
-                                <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
-                                <h4 className="text-sm font-black uppercase tracking-wider text-sffl-navy dark:text-white">
-                                    Defence (7 Slots)
-                                </h4>
-                            </div>
-                            {slots
-                                .map((s, idx) => ({ ...s, index: idx }))
-                                .filter((s) => s.unit === 'Defence')
-                                .map((slot) => (
-                                    <div
-                                        key={slot.slot_code}
-                                        className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xs space-y-3"
-                                    >
-                                        {/* Slot top info */}
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <span className="px-2 py-0.5 rounded text-xs font-black bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                                                    {slot.slot_code}
-                                                </span>
-                                                <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
-                                                    Position: {slot.position}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                {slot.player_id && formEventDayId && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleAutofillSlot(slot.index)}
-                                                        title="Autofill stats from match day"
-                                                        className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
-                                                    >
-                                                        <SparklesIcon className="w-3.5 h-3.5" />
-                                                        <span>Auto Stats</span>
-                                                    </button>
-                                                )}
-                                                {slot.player_id && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleClearSlotPlayer(slot.index)}
-                                                        className="text-xs text-gray-400 hover:text-red-500 cursor-pointer"
-                                                        title="Remove player"
-                                                    >
-                                                        Clear
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* Player Picker / Info */}
-                                        <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-700/50 p-2.5 rounded-lg border border-gray-100 dark:border-gray-600/50">
-                                            {slot.player_id ? (
-                                                <div className="flex items-center justify-between w-full">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-600 overflow-hidden shrink-0 border border-gray-300 dark:border-gray-500">
-                                                            {slot.player_image ? (
-                                                                <img
-                                                                    src={slot.player_image}
-                                                                    alt={slot.player_name}
-                                                                    className="w-full h-full object-cover object-top"
-                                                                />
-                                                            ) : (
-                                                                <div className="w-full h-full flex items-center justify-center font-black text-xs text-gray-500">
-                                                                    #{slot.player_jersey || '?'}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        <div>
-                                                            <div className="font-black text-sm text-sffl-navy dark:text-white">
-                                                                {slot.player_name}
-                                                            </div>
-                                                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                                                                {slot.team_name || 'Free Agent'}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setPickingSlotIndex(slot.index)}
-                                                        className="px-2.5 py-1 text-xs font-bold text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-100 cursor-pointer"
-                                                    >
-                                                        Change
-                                                    </button>
+                                            {/* Stat 1 */}
+                                            <div>
+                                                <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1 truncate">
+                                                    Stat 1: {activeSlot.stat1_label || 'Value'}
+                                                </label>
+                                                <div className="flex gap-1.5">
+                                                    <input
+                                                        type="text"
+                                                        value={activeSlot.stat1_label || ''}
+                                                        onChange={(e) =>
+                                                            handleSlotChange(
+                                                                selectedSlotIndex,
+                                                                'stat1_label',
+                                                                e.target.value
+                                                            )
+                                                        }
+                                                        placeholder="Label"
+                                                        className="w-1/2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-lg px-2 py-2 text-xs font-bold"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={activeSlot.stat1_value || ''}
+                                                        onChange={(e) =>
+                                                            handleSlotChange(
+                                                                selectedSlotIndex,
+                                                                'stat1_value',
+                                                                e.target.value
+                                                            )
+                                                        }
+                                                        placeholder="0"
+                                                        className="w-1/2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-2 py-2 text-sm font-black text-center focus:ring-2 focus:ring-sffl-red outline-none"
+                                                    />
                                                 </div>
-                                            ) : (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setPickingSlotIndex(slot.index)}
-                                                    className="w-full py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-xs font-bold text-gray-500 hover:text-blue-500 hover:border-blue-500 flex items-center justify-center gap-2 cursor-pointer transition-colors"
-                                                >
-                                                    <PlusIcon className="w-4 h-4" />
-                                                    <span>Assign Player to {slot.slot_code}</span>
-                                                </button>
-                                            )}
-                                        </div>
+                                            </div>
 
-                                        {/* Rating & 3 Stats Row */}
-                                        <div className="grid grid-cols-4 gap-2 pt-1">
+                                            {/* Stat 2 */}
                                             <div>
-                                                <label className="block text-[10px] font-black uppercase text-gray-500 dark:text-gray-400 mb-0.5">
-                                                    Rating (★)
+                                                <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1 truncate">
+                                                    Stat 2: {activeSlot.stat2_label || 'Value'}
                                                 </label>
-                                                <input
-                                                    type="number"
-                                                    step="0.1"
-                                                    min="5"
-                                                    max="10"
-                                                    value={slot.rating}
-                                                    onChange={(e) =>
-                                                        handleSlotChange(slot.index, 'rating', parseFloat(e.target.value) || 0)
-                                                    }
-                                                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded px-2 py-1 text-xs font-black text-center"
-                                                />
+                                                <div className="flex gap-1.5">
+                                                    <input
+                                                        type="text"
+                                                        value={activeSlot.stat2_label || ''}
+                                                        onChange={(e) =>
+                                                            handleSlotChange(
+                                                                selectedSlotIndex,
+                                                                'stat2_label',
+                                                                e.target.value
+                                                            )
+                                                        }
+                                                        placeholder="Label"
+                                                        className="w-1/2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-lg px-2 py-2 text-xs font-bold"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={activeSlot.stat2_value || ''}
+                                                        onChange={(e) =>
+                                                            handleSlotChange(
+                                                                selectedSlotIndex,
+                                                                'stat2_value',
+                                                                e.target.value
+                                                            )
+                                                        }
+                                                        placeholder="0"
+                                                        className="w-1/2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-2 py-2 text-sm font-black text-center focus:ring-2 focus:ring-sffl-red outline-none"
+                                                    />
+                                                </div>
                                             </div>
+
+                                            {/* Stat 3 */}
                                             <div>
-                                                <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-0.5 truncate">
-                                                    {slot.stat1_label || 'Stat 1'}
+                                                <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1 truncate">
+                                                    Stat 3: {activeSlot.stat3_label || 'Value'}
                                                 </label>
-                                                <input
-                                                    type="text"
-                                                    value={slot.stat1_value || ''}
-                                                    onChange={(e) =>
-                                                        handleSlotChange(slot.index, 'stat1_value', e.target.value)
-                                                    }
-                                                    placeholder="0"
-                                                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded px-2 py-1 text-xs font-bold text-center"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-0.5 truncate">
-                                                    {slot.stat2_label || 'Stat 2'}
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    value={slot.stat2_value || ''}
-                                                    onChange={(e) =>
-                                                        handleSlotChange(slot.index, 'stat2_value', e.target.value)
-                                                    }
-                                                    placeholder="0"
-                                                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded px-2 py-1 text-xs font-bold text-center"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-0.5 truncate">
-                                                    {slot.stat3_label || 'Stat 3'}
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    value={slot.stat3_value || ''}
-                                                    onChange={(e) =>
-                                                        handleSlotChange(slot.index, 'stat3_value', e.target.value)
-                                                    }
-                                                    placeholder="0"
-                                                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded px-2 py-1 text-xs font-bold text-center"
-                                                />
+                                                <div className="flex gap-1.5">
+                                                    <input
+                                                        type="text"
+                                                        value={activeSlot.stat3_label || ''}
+                                                        onChange={(e) =>
+                                                            handleSlotChange(
+                                                                selectedSlotIndex,
+                                                                'stat3_label',
+                                                                e.target.value
+                                                            )
+                                                        }
+                                                        placeholder="Label"
+                                                        className="w-1/2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-lg px-2 py-2 text-xs font-bold"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={activeSlot.stat3_value || ''}
+                                                        onChange={(e) =>
+                                                            handleSlotChange(
+                                                                selectedSlotIndex,
+                                                                'stat3_value',
+                                                                e.target.value
+                                                            )
+                                                        }
+                                                        placeholder="0"
+                                                        className="w-1/2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-2 py-2 text-sm font-black text-center focus:ring-2 focus:ring-sffl-red outline-none"
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                ))}
-                        </div>
+                                ) : (
+                                    /* Empty slot call to action */
+                                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 text-center sm:text-left bg-white dark:bg-gray-800">
+                                        <div>
+                                            <h5 className="font-black text-base text-sffl-navy dark:text-white">
+                                                Position Unassigned: {activeSlot.slot_code} ({activeSlot.position})
+                                            </h5>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                                Click to select a player for this Starting XIV spot.
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleOpenPicker(selectedSlotIndex)}
+                                            className="px-5 py-2.5 bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-2 cursor-pointer shrink-0"
+                                        >
+                                            <UserPlusIcon className="w-4 h-4" />
+                                            <span>Assign Player to {activeSlot.slot_code}</span>
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Bottom Save Action Bar */}
@@ -1205,14 +1827,14 @@ export const AdminTOTW = () => {
                                 setIsEditing(false);
                                 setEditingTotwId(null);
                             }}
-                            className="px-5 py-2.5 bg-white hover:bg-gray-50 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                            className="px-5 py-2.5 bg-white hover:bg-gray-50 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 text-xs font-bold rounded-xl transition-colors cursor-pointer"
                         >
                             Cancel
                         </button>
                         <button
                             type="button"
                             onClick={handleSave}
-                            className="px-6 py-2.5 bg-sffl-red hover:bg-[#A52323] text-white text-xs font-black uppercase tracking-wider rounded-lg shadow-md transition-colors cursor-pointer"
+                            className="px-6 py-2.5 bg-sffl-red hover:bg-[#A52323] text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md transition-colors cursor-pointer"
                         >
                             {editingTotwId ? 'Save Changes' : 'Create & Save'}
                         </button>
@@ -1227,16 +1849,18 @@ export const AdminTOTW = () => {
                     onClick={() => setPickingSlotIndex(null)}
                 >
                     <div
-                        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]"
+                        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[85vh]"
                         onClick={(e) => e.stopPropagation()}
                     >
+                        {/* Modal Header */}
                         <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
                             <div>
                                 <h3 className="text-lg font-black text-sffl-navy dark:text-white">
-                                    Assign Player: {slots[pickingSlotIndex]?.slot_code} ({slots[pickingSlotIndex]?.position})
+                                    Assign: {slots[pickingSlotIndex]?.slot_code} (
+                                    {slots[pickingSlotIndex]?.position})
                                 </h3>
                                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    Select a player from the league roster
+                                    Select an eligible player from the roster
                                 </p>
                             </div>
                             <button
@@ -1247,18 +1871,44 @@ export const AdminTOTW = () => {
                             </button>
                         </div>
 
-                        {/* Search input */}
-                        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                        {/* Search & Position Filters */}
+                        <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 space-y-3">
                             <div className="relative">
                                 <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
                                 <input
                                     type="text"
-                                    placeholder="Search player by name..."
+                                    placeholder="Search by player name or jersey #..."
                                     value={playerSearchQuery}
                                     onChange={(e) => setPlayerSearchQuery(e.target.value)}
-                                    className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl pl-10 pr-4 py-2 text-sm font-bold focus:ring-2 focus:ring-sffl-red outline-none"
+                                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl pl-10 pr-4 py-2 text-sm font-bold focus:ring-2 focus:ring-sffl-red outline-none"
                                     autoFocus
                                 />
+                            </div>
+
+                            {/* Position Chips */}
+                            <div className="flex flex-wrap gap-1.5 text-xs font-black">
+                                {[
+                                    { key: 'ALL', label: 'All Players' },
+                                    { key: 'QB', label: 'QBs' },
+                                    { key: 'WR', label: 'Receivers' },
+                                    { key: 'C', label: 'Centers' },
+                                    { key: 'RUSH', label: 'Rushers' },
+                                    { key: 'DEF', label: 'Defenders' },
+                                    { key: 'S', label: 'Safeties' },
+                                ].map((tab) => (
+                                    <button
+                                        key={tab.key}
+                                        type="button"
+                                        onClick={() => setPositionFilter(tab.key)}
+                                        className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                                            positionFilter === tab.key
+                                                ? 'bg-sffl-red text-white shadow-sm'
+                                                : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600'
+                                        }`}
+                                    >
+                                        {tab.label}
+                                    </button>
+                                ))}
                             </div>
                         </div>
 
@@ -1266,48 +1916,75 @@ export const AdminTOTW = () => {
                         <div className="p-4 overflow-y-auto flex-1 divide-y divide-gray-100 dark:divide-gray-700/50 space-y-1">
                             {loadingPlayers ? (
                                 <Loader />
-                            ) : availablePlayers.length === 0 ? (
+                            ) : filteredAvailablePlayers.length === 0 ? (
                                 <div className="text-center py-8 text-xs font-bold text-gray-400">
-                                    No players found matching "{playerSearchQuery}"
+                                    No players found matching your criteria.
                                 </div>
                             ) : (
-                                availablePlayers.map((player) => (
-                                    <button
-                                        key={player.id}
-                                        type="button"
-                                        onClick={() => handleSelectPlayer(pickingSlotIndex, player)}
-                                        className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/60 transition-colors text-left group cursor-pointer"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden border border-gray-200 dark:border-gray-600 shrink-0">
-                                                {player.image ? (
-                                                    <img
-                                                        src={player.image}
-                                                        alt={player.name}
-                                                        className="w-full h-full object-cover object-top"
-                                                    />
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center text-xs font-black text-gray-400">
-                                                        #{player.jersey_number || '?'}
+                                filteredAvailablePlayers.map((player) => {
+                                    // Check if this player is currently assigned anywhere in this TOTW
+                                    const assignedSlot = slots.find((s) => s.player_id === player.id);
+                                    const isAssignedToThisSlot =
+                                        pickingSlotIndex !== null &&
+                                        slots[pickingSlotIndex]?.player_id === player.id;
+
+                                    return (
+                                        <button
+                                            key={player.id}
+                                            type="button"
+                                            onClick={() => handleSelectPlayer(pickingSlotIndex, player)}
+                                            className={`w-full flex items-center justify-between p-3 rounded-xl transition-colors text-left group cursor-pointer ${
+                                                isAssignedToThisSlot
+                                                    ? 'bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800'
+                                                    : 'hover:bg-gray-50 dark:hover:bg-gray-700/60'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden border border-gray-200 dark:border-gray-600 shrink-0">
+                                                    {player.image ? (
+                                                        <img
+                                                            src={player.image}
+                                                            alt={player.name}
+                                                            className="w-full h-full object-cover object-top"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-xs font-black text-gray-400">
+                                                            #{player.jersey_number || '?'}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <div className="font-black text-sm text-sffl-navy dark:text-white group-hover:text-sffl-red transition-colors flex items-center gap-2">
+                                                        <span>{player.name}</span>
+                                                        {assignedSlot && (
+                                                            <span className="text-[10px] px-1.5 py-0.2 rounded font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+                                                                {isAssignedToThisSlot
+                                                                    ? 'Current'
+                                                                    : `In ${assignedSlot.slot_code}`}
+                                                            </span>
+                                                        )}
                                                     </div>
-                                                )}
-                                            </div>
-                                            <div>
-                                                <div className="font-black text-sm text-sffl-navy dark:text-white group-hover:text-sffl-red transition-colors">
-                                                    {player.name}
+                                                    <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                                                        <span className="font-bold text-sffl-red">
+                                                            {player.position}
+                                                        </span>
+                                                        {player.team?.name && <span>• {player.team.name}</span>}
+                                                        {player.jersey_number && (
+                                                            <span>• #{player.jersey_number}</span>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                                                    <span className="font-bold text-sffl-red">{player.position}</span>
-                                                    {player.team?.name && <span>• {player.team.name}</span>}
-                                                    {player.jersey_number && <span>• #{player.jersey_number}</span>}
-                                                </div>
                                             </div>
-                                        </div>
-                                        <span className="text-xs font-black text-sffl-red opacity-0 group-hover:opacity-100 transition-opacity">
-                                            Select →
-                                        </span>
-                                    </button>
-                                ))
+                                            <span className="text-xs font-black text-sffl-red opacity-0 group-hover:opacity-100 transition-opacity">
+                                                {isAssignedToThisSlot
+                                                    ? 'Selected ✓'
+                                                    : assignedSlot
+                                                    ? 'Swap Position →'
+                                                    : 'Select →'}
+                                            </span>
+                                        </button>
+                                    );
+                                })
                             )}
                         </div>
                     </div>

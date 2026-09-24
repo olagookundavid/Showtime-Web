@@ -4133,9 +4133,12 @@ export interface TeamOfTheWeek {
 export interface TOTWListItem {
     id: string;
     competition_id: string;
+    competition_name?: string;
+    competition_logo?: string;
     event_day_id?: string;
     week_title: string;
     headline: string;
+    sub_headline?: string;
     is_published: boolean;
     published_at?: string;
     created_at: string;

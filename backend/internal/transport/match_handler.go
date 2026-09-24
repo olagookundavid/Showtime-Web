@@ -864,6 +864,10 @@ func (h *MatchHandler) SaveTeamSheet(c *gin.Context) {
 	}
 
 	if err := h.service.SaveTeamSheet(c.Request.Context(), matchID, req); err != nil {
+		if errors.Is(err, domain.ErrPlayerOnReserveTeam) {
+			helpers.BadResponse(c, err.Error())
+			return
+		}
 		helpers.ServerErrorResponse(c, err)
 		return
 	}
@@ -972,6 +976,10 @@ func (h *MatchHandler) SaveTeamHeadTeamSheet(c *gin.Context) {
 	}
 
 	if err := h.service.SaveTeamSheet(c.Request.Context(), matchID, req); err != nil {
+		if errors.Is(err, domain.ErrPlayerOnReserveTeam) {
+			helpers.BadResponse(c, err.Error())
+			return
+		}
 		helpers.ServerErrorResponse(c, err)
 		return
 	}

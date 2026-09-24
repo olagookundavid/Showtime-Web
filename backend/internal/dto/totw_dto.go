@@ -64,12 +64,15 @@ type TOTWResponse struct {
 }
 
 type TOTWListItemResponse struct {
-	ID            string     `json:"id"`
-	CompetitionID string     `json:"competition_id"`
-	EventDayID    *string    `json:"event_day_id,omitempty"`
-	WeekTitle     string     `json:"week_title"`
-	Headline      string     `json:"headline"`
-	IsPublished   bool       `json:"is_published"`
-	PublishedAt   *time.Time `json:"published_at,omitempty"`
-	CreatedAt     time.Time  `json:"created_at"`
+	ID              string     `json:"id"`
+	CompetitionID   string     `json:"competition_id"`
+	CompetitionName string     `json:"competition_name,omitempty"`
+	CompetitionLogo string     `json:"competition_logo,omitempty"`
+	EventDayID      *string    `json:"event_day_id,omitempty"`
+	WeekTitle       string     `json:"week_title"`
+	Headline        string     `json:"headline"`
+	SubHeadline     string     `json:"sub_headline,omitempty"`
+	IsPublished     bool       `json:"is_published"`
+	PublishedAt     *time.Time `json:"published_at,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
 }

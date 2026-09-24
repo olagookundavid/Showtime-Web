@@ -29,6 +29,7 @@ const FantasyLeagueConfirm = lazy(() => import('./pages/fantasy/FantasyLeagueCon
 const FantasyLeaderboard = lazy(() => import('./pages/fantasy/FantasyLeaderboard').then(m => ({ default: m.FantasyLeaderboard })));
 const FantasyWallet = lazy(() => import('./pages/fantasy/FantasyWallet').then(m => ({ default: m.FantasyWallet })));
 const FantasyAnalytics = lazy(() => import('./pages/fantasy/FantasyAnalytics').then(m => ({ default: m.FantasyAnalytics })));
+const TeamOfTheWeekPage = lazy(() => import('./pages/totw/TeamOfTheWeekPage').then(m => ({ default: m.TeamOfTheWeekPage })));
 
 
 import { AboutShowtimeFlag } from './pages/about/AboutShowtimeFlag';
@@ -169,6 +170,9 @@ function App() {
               <Route path="/matches/:id" element={<MatchDetail />} />
               <Route path="/standings" element={<StandingsPage />} />
               <Route path="/stats" element={<StatsPage />} />
+              <Route path="/totw" element={<TeamOfTheWeekPage />} />
+              <Route path="/totw/:id" element={<TeamOfTheWeekPage />} />
+              <Route path="/team-of-the-week" element={<Navigate to="/totw" replace />} />
               <Route path="/news" element={<NewsList />} />
               <Route path="/news/:slug" element={<NewsDetail />} />
               {/* <Route path="/gallery" element={<GalleryPage />} /> */}

@@ -29,6 +29,7 @@ export const Footer = () => {
                 <div className="flex flex-col space-y-1 md:space-y-2">
                     <h4 className="font-bold uppercase text-sffl-red text-xs md:text-base mb-1 md:mb-2 tracking-widest">About</h4>
                     <Link to="/about/showtime-flag" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">About Showtime</Link>
+                    <Link to="/totw" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Team of the Week</Link>
                     <Link to="/about/our-team" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Our Team</Link>
                     <Link to="/about/arena" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Showtime Arena</Link>
                     <Link to="/about/education" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Education</Link>

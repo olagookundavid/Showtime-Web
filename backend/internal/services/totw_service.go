@@ -198,15 +198,23 @@ func (s *TOTWService) ListTOTWArchive(ctx context.Context, competitionID string,
 
 	res := make([]dto.TOTWListItemResponse, len(list))
 	for i, item := range list {
+		var compName, compLogo string
+		if item.Competition != nil {
+			compName = item.Competition.Name
+			compLogo = item.Competition.Logo
+		}
 		res[i] = dto.TOTWListItemResponse{
-			ID:            item.ID,
-			CompetitionID: item.CompetitionID,
-			EventDayID:    item.EventDayID,
-			WeekTitle:     item.WeekTitle,
-			Headline:      item.Headline,
-			IsPublished:   item.IsPublished,
-			PublishedAt:   item.PublishedAt,
-			CreatedAt:     item.CreatedAt,
+			ID:              item.ID,
+			CompetitionID:   item.CompetitionID,
+			CompetitionName: compName,
+			CompetitionLogo: compLogo,
+			EventDayID:      item.EventDayID,
+			WeekTitle:       item.WeekTitle,
+			Headline:        item.Headline,
+			SubHeadline:     item.SubHeadline,
+			IsPublished:     item.IsPublished,
+			PublishedAt:     item.PublishedAt,
+			CreatedAt:       item.CreatedAt,
 		}
 	}
 	return res, nil

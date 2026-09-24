@@ -85,13 +85,13 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
     const activeTeamId = activeTab === 'home' ? match.home_team?.id : match.away_team?.id;
     const activeSelected = activeTab === 'home' ? selectedHomePlayers : selectedAwayPlayers;
 
-    // Players currently on the active team (for the bottom checklist)
+    // Players currently on the active team (for the bottom checklist — main 25-man squad only)
     const { data: activeTeamPlayersData } = useQuery({
-        queryKey: ['players', activeTeamId],
-        queryFn: () => getPlayers(activeTeamId, 1, 200),
+        queryKey: ['players', activeTeamId, 'main'],
+        queryFn: () => getPlayers(activeTeamId, 1, 200, undefined, 'main'),
         enabled: !!activeTeamId,
     });
-    const activeTeamPlayers: Player[] = activeTeamPlayersData?.data || [];
+    const activeTeamPlayers: Player[] = (activeTeamPlayersData?.data || []).filter(p => !p.is_reserve);
 
     const addToSelected = useCallback((id: string) => {
         if (activeTab === 'home') {
@@ -176,7 +176,7 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
             queryClient.invalidateQueries({ queryKey: ['adminTeamSheet', match.id] });
         },
         onError: (err: any) => {
-            toast.error(err.response?.data?.message || err.response?.data?.error || 'Failed to save');
+            toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to save');
         },
     });
 

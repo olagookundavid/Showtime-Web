@@ -47,7 +47,7 @@ export const LandingPage = () => {
 
             {/* Team of the Week Module */}
             <section className="px-1">
-                <TeamOfTheWeekModule />
+                <TeamOfTheWeekModule showArchiveLink={true} />
             </section>
 
             {/* Team News — moved immediately after the hero so news is the
