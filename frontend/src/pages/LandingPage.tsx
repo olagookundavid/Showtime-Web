@@ -127,7 +127,7 @@ export const LandingPage = () => {
       <section className="px-2 md:px-0">
         <div className="max-w-2xl mx-auto">
           {/* Commissioner's Note */}
-          <div className="bg-sffl-navy dark:bg-gray-800 text-white p-6 md:p-8 rounded-2xl shadow-xl border border-transparent dark:border-gray-700 flex flex-col h-full relative overflow-hidden group min-h-[320px]">
+          <div className="bg-sffl-navy dark:bg-gray-800 text-white p-6 md:p-8 rounded-2xl shadow-xl border border-transparent dark:border-gray-700 flex flex-col h-full relative overflow-hidden group min-h-80">
             {/* Commissioner background image */}
             <div className="absolute inset-0 z-0 overflow-hidden">
               <img
@@ -135,7 +135,7 @@ export const LandingPage = () => {
                 alt="Adebare Adejumo - League Commissioner"
                 className="w-full h-full object-cover object-top filter brightness-90 group-hover:scale-105 transition-transform duration-700 opacity-40 dark:opacity-30"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-sffl-navy via-sffl-navy/85 to-sffl-navy/70 dark:from-gray-900 dark:via-gray-900/90 dark:to-gray-900/75"></div>
+              <div className="absolute inset-0 bg-linear-to-t from-sffl-navy via-sffl-navy/85 to-sffl-navy/70 dark:from-gray-900 dark:via-gray-900/90 dark:to-gray-900/75"></div>
             </div>
 
             <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/4 w-32 h-32 bg-sffl-red/10 rounded-full blur-2xl group-hover:bg-sffl-red/20 transition-all duration-700 z-10"></div>
