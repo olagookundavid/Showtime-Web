@@ -390,6 +390,7 @@ interface SlotFormData extends TOTWPlayerSlot {
     team_name?: string;
     unit_x?: string;
     unit_y?: string;
+    is_player_of_the_week?: boolean;
 }
 
 export const AdminTOTW = () => {
@@ -431,6 +432,7 @@ export const AdminTOTW = () => {
             stat2_value: '',
             stat3_label: s.default_stat3_label,
             stat3_value: '',
+            is_player_of_the_week: false,
         }))
     );
 
@@ -611,6 +613,7 @@ export const AdminTOTW = () => {
                 stat2_value: '',
                 stat3_label: s.default_stat3_label,
                 stat3_value: '',
+                is_player_of_the_week: false,
             }))
         );
         setStatusMessage(null);
@@ -651,6 +654,7 @@ export const AdminTOTW = () => {
                 stat2_value: '',
                 stat3_label: defaultSlot.default_stat3_label,
                 stat3_value: '',
+                is_player_of_the_week: false,
             }));
 
             if (fullTotw.players && fullTotw.players.length > 0) {
@@ -685,6 +689,10 @@ export const AdminTOTW = () => {
                             stat2_value: p.stat2_value || '',
                             stat3_label: p.stat3_label || defSlot.default_stat3_label,
                             stat3_value: p.stat3_value || '',
+                            is_player_of_the_week: Boolean(
+                                p.is_player_of_the_week ||
+                                (fullTotw.player_of_the_week_id && fullTotw.player_of_the_week_id === p.player_id)
+                            ),
                             player_name: p.player?.name,
                             player_image: p.player?.image,
                             player_jersey: p.player?.jersey_number,
@@ -721,6 +729,10 @@ export const AdminTOTW = () => {
                             stat2_value: p.stat2_value || '',
                             stat3_label: p.stat3_label || defSlot.default_stat3_label,
                             stat3_value: p.stat3_value || '',
+                            is_player_of_the_week: Boolean(
+                                p.is_player_of_the_week ||
+                                (fullTotw.player_of_the_week_id && fullTotw.player_of_the_week_id === p.player_id)
+                            ),
                             player_name: p.player?.name,
                             player_image: p.player?.image,
                             player_jersey: p.player?.jersey_number,
@@ -791,6 +803,7 @@ export const AdminTOTW = () => {
                     stat1_value: '',
                     stat2_value: '',
                     stat3_value: '',
+                    is_player_of_the_week: false,
                 };
             }
             copy[slotIndex] = {
@@ -842,6 +855,7 @@ export const AdminTOTW = () => {
                 stat1_value: '',
                 stat2_value: '',
                 stat3_value: '',
+                is_player_of_the_week: false,
             };
             return copy;
         });
@@ -870,9 +884,30 @@ export const AdminTOTW = () => {
                 stat2_value: '',
                 stat3_label: s.default_stat3_label,
                 stat3_value: '',
+                is_player_of_the_week: false,
             }))
         );
         setSelectedSlotIndex(0);
+    };
+
+    /**
+     * Toggles Player of the Week designation for a given slot.
+     * Enforces the rule: exactly one player can be Player of the Week per edition.
+     */
+    const handleTogglePlayerOfTheWeek = (slotIndex: number) => {
+        const targetSlot = slots[slotIndex];
+        if (!targetSlot || !targetSlot.player_id) {
+            alert('Please assign a player to this position before designating them as Player of the Week.');
+            return;
+        }
+
+        setSlots((prev) => {
+            const wasPOTW = Boolean(prev[slotIndex].is_player_of_the_week);
+            return prev.map((s, i) => ({
+                ...s,
+                is_player_of_the_week: !wasPOTW && i === slotIndex,
+            }));
+        });
     };
 
     const handleSlotChange = (slotIndex: number, field: keyof SlotFormData, value: any) => {
@@ -1032,9 +1067,11 @@ export const AdminTOTW = () => {
             }
         }
 
+        const potwSlot = validSlots.find((s) => s.is_player_of_the_week);
         const payload = {
             competition_id: formCompId,
             event_day_id: formEventDayId || undefined,
+            player_of_the_week_id: potwSlot ? potwSlot.player_id : undefined,
             week_title: formWeekTitle.trim(),
             headline: formHeadline.trim() || 'TEAM OF THE WEEK',
             sub_headline: formSubHeadline.trim(),
@@ -1053,6 +1090,7 @@ export const AdminTOTW = () => {
                 stat2_value: s.stat2_value || '0',
                 stat3_label: s.stat3_label || 'Stat 3',
                 stat3_value: s.stat3_value || '0',
+                is_player_of_the_week: Boolean(s.is_player_of_the_week),
             })),
         };
 
@@ -1578,6 +1616,13 @@ export const AdminTOTW = () => {
                                         {isOccupied ? (
                                             /* Occupied Position Node */
                                             <div className="relative group">
+                                                {/* Player of the Week Star Badge floating atop */}
+                                                {slot.is_player_of_the_week && (
+                                                    <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-40 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 text-sffl-navy font-black text-[8px] md:text-[9px] uppercase tracking-wider shadow-lg border border-white flex items-center gap-0.5 whitespace-nowrap animate-bounce-slow">
+                                                        <span>⭐</span>
+                                                        <span>POTW</span>
+                                                    </div>
+                                                )}
                                                 <button
                                                     type="button"
                                                     onClick={() => setSelectedSlotIndex(slot.index)}
@@ -1590,7 +1635,9 @@ export const AdminTOTW = () => {
                                                     {/* Avatar Ring */}
                                                     <div
                                                         className={`relative w-12 h-12 md:w-14 md:h-14 rounded-full p-0.5 transition-all ${
-                                                            isSelected
+                                                            slot.is_player_of_the_week
+                                                                ? 'ring-4 ring-amber-400 shadow-xl shadow-amber-400/50'
+                                                                : isSelected
                                                                 ? 'ring-4 ring-yellow-400 shadow-xl'
                                                                 : isDef
                                                                 ? 'ring-2 ring-blue-400 shadow-lg'
@@ -1709,16 +1756,29 @@ export const AdminTOTW = () => {
                                             onClick={() => setSelectedSlotIndex(idx)}
                                             className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ${
                                                 isSelected
-                                                    ? 'bg-sffl-navy text-white shadow-sm ring-2 ring-sffl-red'
+                                                    ? s.is_player_of_the_week
+                                                        ? 'bg-sffl-navy text-white shadow-sm ring-2 ring-amber-400'
+                                                        : 'bg-sffl-navy text-white shadow-sm ring-2 ring-sffl-red'
+                                                    : s.is_player_of_the_week
+                                                    ? 'bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/40 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700'
                                                     : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
                                             }`}
                                         >
                                             <span
                                                 className={`w-2 h-2 rounded-full ${
-                                                    isFilled ? 'bg-emerald-500' : 'bg-gray-400'
+                                                    s.is_player_of_the_week
+                                                        ? 'bg-amber-400'
+                                                        : isFilled
+                                                        ? 'bg-emerald-500'
+                                                        : 'bg-gray-400'
                                                 }`}
                                             />
                                             <span className="font-black">{s.slot_code}</span>
+                                            {s.is_player_of_the_week && (
+                                                <span title="Player of the Week" className="text-xs leading-none">
+                                                    ⭐
+                                                </span>
+                                            )}
                                             {isFilled && (
                                                 <>
                                                     <span className="text-[10px] opacity-80 max-w-[70px] truncate hidden sm:inline">
@@ -1752,8 +1812,14 @@ export const AdminTOTW = () => {
                                         >
                                             {activeSlot.unit}
                                         </span>
-                                        <h4 className="text-base font-black text-sffl-navy dark:text-white">
-                                            Slot: {activeSlot.slot_code} ({activeSlot.label || activeSlot.unit})
+                                        <h4 className="text-base font-black text-sffl-navy dark:text-white flex items-center gap-2">
+                                            <span>Slot: {activeSlot.slot_code} ({activeSlot.label || activeSlot.unit})</span>
+                                            {activeSlot.is_player_of_the_week && (
+                                                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-700 text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                                                    <span>⭐</span>
+                                                    <span>Player of the Week</span>
+                                                </span>
+                                            )}
                                         </h4>
                                     </div>
 
@@ -1808,6 +1874,12 @@ export const AdminTOTW = () => {
                                                 <div>
                                                     <div className="text-lg font-black text-sffl-navy dark:text-white flex items-center gap-2">
                                                         <span>{activeSlot.player_name}</span>
+                                                        {activeSlot.is_player_of_the_week && (
+                                                            <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-yellow-300 text-sffl-navy border border-amber-200 shadow-sm flex items-center gap-1">
+                                                                <span>⭐</span>
+                                                                <span>POTW</span>
+                                                            </span>
+                                                        )}
                                                         {isFemale(getSlotGender(activeSlot)) ? (
                                                             <span className="text-xs font-black px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
                                                                 ♀ Female (Quota)
@@ -1836,6 +1908,25 @@ export const AdminTOTW = () => {
 
                                             {/* Action Buttons */}
                                             <div className="flex items-center gap-2">
+                                                {/* Player of the Week Toggle */}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleTogglePlayerOfTheWeek(selectedSlotIndex)}
+                                                    className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-sm cursor-pointer ${
+                                                        activeSlot.is_player_of_the_week
+                                                            ? 'bg-amber-400 hover:bg-amber-500 text-sffl-navy border border-amber-300 ring-2 ring-amber-400/50 shadow-amber-400/30'
+                                                            : 'bg-white hover:bg-amber-50 text-gray-700 hover:text-amber-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 border border-gray-300 dark:border-gray-600'
+                                                    }`}
+                                                    title={
+                                                        activeSlot.is_player_of_the_week
+                                                            ? 'Remove Player of the Week designation'
+                                                            : 'Designate as Player of the Week'
+                                                    }
+                                                >
+                                                    <span className="text-sm">⭐</span>
+                                                    <span>{activeSlot.is_player_of_the_week ? 'Player of the Week' : 'Make POTW'}</span>
+                                                </button>
+
                                                 {formEventDayId && (
                                                     <button
                                                         type="button"

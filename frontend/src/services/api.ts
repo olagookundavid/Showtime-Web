@@ -4106,6 +4106,7 @@ export interface TOTWPlayerSlot {
     stat2_label?: string;
     stat3_value?: string;
     stat3_label?: string;
+    is_player_of_the_week?: boolean;
 }
 
 export interface TOTWPlayer extends TOTWPlayerSlot {
@@ -4119,6 +4120,7 @@ export interface TeamOfTheWeek {
     id: string;
     competition_id: string;
     event_day_id?: string;
+    player_of_the_week_id?: string;
     week_title: string;
     headline: string;
     sub_headline: string;
@@ -4136,6 +4138,7 @@ export interface TOTWListItem {
     competition_name?: string;
     competition_logo?: string;
     event_day_id?: string;
+    player_of_the_week_id?: string;
     week_title: string;
     headline: string;
     sub_headline?: string;
@@ -4147,6 +4150,7 @@ export interface TOTWListItem {
 export interface SaveTOTWPayload {
     competition_id: string;
     event_day_id?: string;
+    player_of_the_week_id?: string;
     week_title: string;
     headline: string;
     sub_headline?: string;

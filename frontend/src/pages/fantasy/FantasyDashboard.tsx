@@ -28,6 +28,7 @@ import {
     type LeaderboardEntry,
 } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
+import { formatStatDecimal } from '../../utils/formatters';
 import { useAuth } from '../../contexts/AuthContext';
 import { FantasyBackLink } from '../../components/fantasy/FantasyBackLink';
 import { FantasyPitch } from '../../components/fantasy/FantasyPitch';
@@ -147,7 +148,7 @@ function LeaderboardRow({
                 </div>
             </div>
             <p className="text-sm font-black text-sffl-red shrink-0">
-                {num(entry?.total_points).toFixed(2)} pts
+                {formatStatDecimal(num(entry?.total_points), 2)} pts
             </p>
         </div>
     );
@@ -531,7 +532,7 @@ export function FantasyDashboard() {
                             {gameweek ? `Gameweek ${gameweek.number} Points` : 'Gameweek Points'}
                         </span>
                         <span className="text-3xl md:text-4xl font-black text-white leading-tight">
-                            {num(team?.gameweek_points).toFixed(2)}
+                            {formatStatDecimal(num(team?.gameweek_points), 2)}
                         </span>
                         <span className="block text-xs text-gray-300 font-bold mt-0.5">This match day</span>
                     </div>
@@ -541,7 +542,7 @@ export function FantasyDashboard() {
                             Season Total
                         </span>
                         <span className="text-3xl md:text-4xl font-black text-emerald-400 leading-tight">
-                            {num(team?.total_points).toFixed(2)}
+                            {formatStatDecimal(num(team?.total_points), 2)}
                         </span>
                         <span className="block text-xs text-gray-300 font-bold mt-0.5">All gameweeks</span>
                     </div>

@@ -20,6 +20,8 @@ import {
     type Player,
 } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
+import { ImageUploadField } from '../../components/ui/ImageUploadField';
+import { BadgeImage, isBadgeImageUrl } from '../../components/common/BadgeImage';
 import {
     PlusIcon,
     TrashIcon,
@@ -32,7 +34,6 @@ import {
     SparklesIcon,
 } from '@heroicons/react/24/outline';
 
-const EMOJI_PRESETS = ['🏆', '⭐', '👑', '🛡️', '⚡', '🎯', '🔥', '🚀', '🧤', '👟', '💎', '🏅'];
 const COLOR_SCHEMES = [
     { value: 'gold', label: 'Gold (Amber)', bg: 'bg-amber-400/20 text-amber-500 border-amber-400/40' },
     { value: 'red', label: 'Showtime Red', bg: 'bg-red-500/20 text-red-500 border-red-500/40' },
@@ -225,7 +226,7 @@ export const AdminBadges = () => {
             code: '',
             name: '',
             description: '',
-            icon: '🏆',
+            icon: '',
             color_scheme: 'gold',
             category: 'Honors',
         });
@@ -238,7 +239,7 @@ export const AdminBadges = () => {
             code: badge.code,
             name: badge.name,
             description: badge.description || '',
-            icon: badge.icon || '🏆',
+            icon: badge.icon || '',
             color_scheme: badge.color_scheme || 'gold',
             category: badge.category || 'Honors',
         });
@@ -406,9 +407,9 @@ export const AdminBadges = () => {
                                     <div>
                                         <div className="flex items-start justify-between gap-3 mb-3">
                                             <div className="flex items-center gap-3">
-                                                <span className="text-3xl p-2.5 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 shadow-inner">
-                                                    {b.icon || '🏆'}
-                                                </span>
+                                                <div className="w-14 h-14 p-2 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 shadow-inner flex items-center justify-center shrink-0">
+                                                    <BadgeImage icon={b.icon} name={b.name} className="w-10 h-10 text-3xl" />
+                                                </div>
                                                 <div>
                                                     <h3 className="font-black text-base text-sffl-navy dark:text-white leading-tight">
                                                         {b.name}
@@ -546,7 +547,7 @@ export const AdminBadges = () => {
                                             </td>
                                             <td className="py-4 px-6">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-xl">{award.badge?.icon || '🏆'}</span>
+                                                    <BadgeImage icon={award.badge?.icon} name={award.badge?.name} className="w-6 h-6 text-xl" />
                                                     <span className="font-bold text-gray-900 dark:text-white">
                                                         {award.badge?.name || 'Badge'}
                                                     </span>
@@ -675,34 +676,29 @@ export const AdminBadges = () => {
                                 </select>
                             </div>
 
-                            <div>
-                                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1">
-                                    Icon Emoji
-                                </label>
-                                <div className="flex items-center gap-2 mb-2">
-                                    <input
-                                        type="text"
-                                        value={badgeForm.icon}
-                                        onChange={(e) => setBadgeForm((p) => ({ ...p, icon: e.target.value }))}
-                                        className="w-16 text-center text-2xl bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-1.5 outline-none focus:ring-2 focus:ring-sffl-red"
-                                    />
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                        {EMOJI_PRESETS.map((emoji) => (
-                                            <button
-                                                key={emoji}
-                                                type="button"
-                                                onClick={() => setBadgeForm((p) => ({ ...p, icon: emoji }))}
-                                                className={`p-1.5 text-lg rounded-lg border hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer ${
-                                                    badgeForm.icon === emoji
-                                                        ? 'border-sffl-red bg-red-50 dark:bg-red-950/40'
-                                                        : 'border-transparent'
-                                                }`}
-                                            >
-                                                {emoji}
-                                            </button>
-                                        ))}
+                            <div className="space-y-2">
+                                <ImageUploadField
+                                    label="Badge Image (R2) *"
+                                    value={badgeForm.icon || ''}
+                                    onChange={(url) => setBadgeForm((p) => ({ ...p, icon: url }))}
+                                    folder="badges"
+                                    helperText="Upload a crisp square badge emblem (PNG, WebP, SVG with transparent background recommended)"
+                                />
+                                {badgeForm.icon && (
+                                    <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600">
+                                        <div className="w-12 h-12 p-1.5 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 flex items-center justify-center shrink-0 shadow-xs">
+                                            <BadgeImage icon={badgeForm.icon} name="Preview" className="w-full h-full text-2xl" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate font-mono">
+                                                {badgeForm.icon}
+                                            </div>
+                                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1 mt-0.5">
+                                                <span>✓</span> Badge emblem uploaded to R2
+                                            </span>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
 
                             <div>
@@ -747,7 +743,7 @@ export const AdminBadges = () => {
                             <button
                                 type="button"
                                 onClick={() => saveBadgeMutation.mutate()}
-                                disabled={!badgeForm.name.trim() || (!editingBadge && !badgeForm.code.trim())}
+                                disabled={!badgeForm.name.trim() || !badgeForm.icon.trim() || (!editingBadge && !badgeForm.code.trim())}
                                 className="px-5 py-2 bg-sffl-red hover:bg-[#A52323] text-white text-xs font-bold uppercase tracking-wider rounded-lg shadow-md cursor-pointer disabled:opacity-50"
                             >
                                 {editingBadge ? 'Save Changes' : 'Create Badge'}
@@ -873,12 +869,34 @@ export const AdminBadges = () => {
                                     className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-sffl-red"
                                 >
                                     <option value="">Select Badge</option>
-                                    {badges.map((b) => (
-                                        <option key={b.id} value={b.id}>
-                                            {b.icon} {b.name} ({b.code})
-                                        </option>
-                                    ))}
+                                    {badges.map((b) => {
+                                        const isImg = isBadgeImageUrl(b.icon);
+                                        return (
+                                            <option key={b.id} value={b.id}>
+                                                {isImg ? '🏷️' : b.icon || '🏆'} {b.name} ({b.code})
+                                            </option>
+                                        );
+                                    })}
                                 </select>
+                                {badges.find((b) => b.id === awardBadgeId) && (
+                                    <div className="flex items-center gap-2.5 p-2.5 bg-gray-50 dark:bg-gray-700/40 rounded-xl border border-gray-200 dark:border-gray-600 mt-2">
+                                        <div className="w-10 h-10 p-1 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 flex items-center justify-center shrink-0 shadow-xs">
+                                            <BadgeImage
+                                                icon={badges.find((b) => b.id === awardBadgeId)?.icon}
+                                                name={badges.find((b) => b.id === awardBadgeId)?.name}
+                                                className="w-full h-full text-xl"
+                                            />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="text-xs font-black text-sffl-navy dark:text-white">
+                                                {badges.find((b) => b.id === awardBadgeId)?.name}
+                                            </div>
+                                            <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                                                {badges.find((b) => b.id === awardBadgeId)?.description || 'No description'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Context: Competition & Season */}

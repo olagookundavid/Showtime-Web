@@ -46,12 +46,12 @@ func (r *PostgresTOTWRepository) CreateTOTW(ctx context.Context, totw *domain.Te
 	}
 
 	query := `
-		INSERT INTO team_of_the_week (competition_id, event_day_id, week_title, headline, sub_headline, is_published, published_at, created_by, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+		INSERT INTO team_of_the_week (competition_id, event_day_id, player_of_the_week_id, week_title, headline, sub_headline, is_published, published_at, created_by, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
 		RETURNING id, created_at, updated_at
 	`
 	err = tx.QueryRow(ctx, query,
-		totw.CompetitionID, totw.EventDayID, totw.WeekTitle, totw.Headline,
+		totw.CompetitionID, totw.EventDayID, totw.PlayerOfTheWeekID, totw.WeekTitle, totw.Headline,
 		totw.SubHeadline, totw.IsPublished, pubAt, totw.CreatedBy,
 	).Scan(&totw.ID, &totw.CreatedAt, &totw.UpdatedAt)
 	if err != nil {
@@ -65,13 +65,13 @@ func (r *PostgresTOTWRepository) CreateTOTW(ctx context.Context, totw *domain.Te
 			INSERT INTO team_of_the_week_players (
 				totw_id, player_id, slot_code, position, unit, coord_x, coord_y,
 				rating, stat1_value, stat1_label, stat2_value, stat2_label,
-				stat3_value, stat3_label, display_order, created_at
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW())
+				stat3_value, stat3_label, is_player_of_the_week, display_order, created_at
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW())
 		`
 		_, err := tx.Exec(ctx, insertPlayer,
 			totw.ID, p.PlayerID, p.SlotCode, p.Position, p.Unit, p.CoordX, p.CoordY,
 			p.Rating, p.Stat1Value, p.Stat1Label, p.Stat2Value, p.Stat2Label,
-			p.Stat3Value, p.Stat3Label, i,
+			p.Stat3Value, p.Stat3Label, p.IsPlayerOfTheWeek, i,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to insert totw player %s (%s): %w", p.SlotCode, p.PlayerID, err)
@@ -128,13 +128,13 @@ func (r *PostgresTOTWRepository) UpdateTOTW(ctx context.Context, totw *domain.Te
 
 	updateHeader := `
 		UPDATE team_of_the_week
-		SET competition_id = $1, event_day_id = $2, week_title = $3, headline = $4,
-		    sub_headline = $5, is_published = $6, published_at = $7, updated_at = NOW()
-		WHERE id = $8
+		SET competition_id = $1, event_day_id = $2, player_of_the_week_id = $3, week_title = $4, headline = $5,
+		    sub_headline = $6, is_published = $7, published_at = $8, updated_at = NOW()
+		WHERE id = $9
 		RETURNING updated_at
 	`
 	err = tx.QueryRow(ctx, updateHeader,
-		totw.CompetitionID, totw.EventDayID, totw.WeekTitle, totw.Headline,
+		totw.CompetitionID, totw.EventDayID, totw.PlayerOfTheWeekID, totw.WeekTitle, totw.Headline,
 		totw.SubHeadline, totw.IsPublished, pubAt, totw.ID,
 	).Scan(&totw.UpdatedAt)
 	if err != nil {
@@ -152,13 +152,13 @@ func (r *PostgresTOTWRepository) UpdateTOTW(ctx context.Context, totw *domain.Te
 			INSERT INTO team_of_the_week_players (
 				totw_id, player_id, slot_code, position, unit, coord_x, coord_y,
 				rating, stat1_value, stat1_label, stat2_value, stat2_label,
-				stat3_value, stat3_label, display_order, created_at
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW())
+				stat3_value, stat3_label, is_player_of_the_week, display_order, created_at
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW())
 		`
 		_, err := tx.Exec(ctx, insertPlayer,
 			totw.ID, p.PlayerID, p.SlotCode, p.Position, p.Unit, p.CoordX, p.CoordY,
 			p.Rating, p.Stat1Value, p.Stat1Label, p.Stat2Value, p.Stat2Label,
-			p.Stat3Value, p.Stat3Label, i,
+			p.Stat3Value, p.Stat3Label, p.IsPlayerOfTheWeek, i,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to update totw player %s: %w", p.SlotCode, err)
@@ -197,7 +197,7 @@ func (r *PostgresTOTWRepository) DeleteTOTW(ctx context.Context, id string) erro
 
 func (r *PostgresTOTWRepository) GetTOTWByID(ctx context.Context, id string) (*domain.TeamOfTheWeek, error) {
 	query := `
-		SELECT totw.id, totw.competition_id, totw.event_day_id::text, totw.week_title,
+		SELECT totw.id, totw.competition_id, totw.event_day_id::text, totw.player_of_the_week_id::text, totw.week_title,
 		       totw.headline, totw.sub_headline, totw.is_published, totw.published_at,
 		       totw.created_by::text, totw.created_at, totw.updated_at,
 		       c.id, c.name, COALESCE(c.logo, '')
@@ -208,7 +208,7 @@ func (r *PostgresTOTWRepository) GetTOTWByID(ctx context.Context, id string) (*d
 	var totw domain.TeamOfTheWeek
 	totw.Competition = &domain.Competition{}
 	err := r.db.QueryRow(ctx, query, id).Scan(
-		&totw.ID, &totw.CompetitionID, &totw.EventDayID, &totw.WeekTitle,
+		&totw.ID, &totw.CompetitionID, &totw.EventDayID, &totw.PlayerOfTheWeekID, &totw.WeekTitle,
 		&totw.Headline, &totw.SubHeadline, &totw.IsPublished, &totw.PublishedAt,
 		&totw.CreatedBy, &totw.CreatedAt, &totw.UpdatedAt,
 		&totw.Competition.ID, &totw.Competition.Name, &totw.Competition.Logo,
@@ -226,7 +226,7 @@ func (r *PostgresTOTWRepository) GetTOTWByID(ctx context.Context, id string) (*d
 		       COALESCE(tp.stat1_value, ''), COALESCE(tp.stat1_label, ''),
 		       COALESCE(tp.stat2_value, ''), COALESCE(tp.stat2_label, ''),
 		       COALESCE(tp.stat3_value, ''), COALESCE(tp.stat3_label, ''),
-		       tp.display_order, tp.created_at,
+		       tp.is_player_of_the_week, tp.display_order, tp.created_at,
 		       p.id, p.name, COALESCE(p.jersey_number, 0), COALESCE(p.position, '-'),
 		       COALESCE(p.image, ''), COALESCE(p.team_id::text, ''),
 		       COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
@@ -252,7 +252,7 @@ func (r *PostgresTOTWRepository) GetTOTWByID(ctx context.Context, id string) (*d
 			&tp.CoordX, &tp.CoordY, &tp.Rating,
 			&tp.Stat1Value, &tp.Stat1Label, &tp.Stat2Value, &tp.Stat2Label,
 			&tp.Stat3Value, &tp.Stat3Label,
-			&tp.DisplayOrder, &tp.CreatedAt,
+			&tp.IsPlayerOfTheWeek, &tp.DisplayOrder, &tp.CreatedAt,
 			&tp.Player.ID, &tp.Player.Name, &tp.Player.JerseyNumber, &tp.Player.Position,
 			&tp.Player.Image, &tp.Player.TeamID,
 			&tp.Player.Team.Name, &tp.Player.Team.ShortName, &tp.Player.Team.Logo,
@@ -312,7 +312,7 @@ func (r *PostgresTOTWRepository) ListTOTWArchive(ctx context.Context, competitio
 	}
 
 	query := fmt.Sprintf(`
-		SELECT totw.id, totw.competition_id, totw.event_day_id::text, totw.week_title,
+		SELECT totw.id, totw.competition_id, totw.event_day_id::text, totw.player_of_the_week_id::text, totw.week_title,
 		       totw.headline, totw.sub_headline, totw.is_published, totw.published_at,
 		       totw.created_at, totw.updated_at,
 		       c.id, c.name, COALESCE(c.logo, '')
@@ -333,7 +333,7 @@ func (r *PostgresTOTWRepository) ListTOTWArchive(ctx context.Context, competitio
 		var totw domain.TeamOfTheWeek
 		totw.Competition = &domain.Competition{}
 		err := rows.Scan(
-			&totw.ID, &totw.CompetitionID, &totw.EventDayID, &totw.WeekTitle,
+			&totw.ID, &totw.CompetitionID, &totw.EventDayID, &totw.PlayerOfTheWeekID, &totw.WeekTitle,
 			&totw.Headline, &totw.SubHeadline, &totw.IsPublished, &totw.PublishedAt,
 			&totw.CreatedAt, &totw.UpdatedAt,
 			&totw.Competition.ID, &totw.Competition.Name, &totw.Competition.Logo,

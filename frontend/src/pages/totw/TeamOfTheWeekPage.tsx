@@ -279,9 +279,20 @@ export const TeamOfTheWeekPage: React.FC = () => {
                                     <div>
                                         {/* Top Meta Strip */}
                                         <div className="flex items-center justify-between gap-2 mb-3">
-                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-black uppercase tracking-wider bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
-                                                {edition.competition_name || 'Showtime League'}
-                                            </span>
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-black uppercase tracking-wider bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                                                    {edition.competition_name || 'Showtime League'}
+                                                </span>
+                                                {edition.player_of_the_week_id && (
+                                                    <span
+                                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+                                                        title="Includes Player of the Week honor"
+                                                    >
+                                                        <span>⭐</span>
+                                                        <span>POTW</span>
+                                                    </span>
+                                                )}
+                                            </div>
                                             {edition.published_at && (
                                                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400">
                                                     <CalendarDaysIcon className="w-3.5 h-3.5" />

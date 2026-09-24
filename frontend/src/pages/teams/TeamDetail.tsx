@@ -13,6 +13,7 @@ import {
 } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
 import { BackButton } from '../../components/common/BackButton';
+import { formatStatNumber } from '../../utils/formatters';
 
 // Team Hub — lightweight navigation page for a single team. Header shows the
 // team's current standing snapshot; the 4 quick-links route into the global
@@ -152,10 +153,10 @@ export const TeamDetail = () => {
                                     #{teamStanding.position}
                                 </span>
                                 <span className="text-[10px] md:text-xs bg-white/10 text-white font-bold uppercase tracking-wider px-3 py-1 rounded-full">
-                                    {teamStanding.won}W · {teamStanding.drawn}D · {teamStanding.lost}L
+                                    {formatStatNumber(teamStanding.won)}W · {formatStatNumber(teamStanding.drawn)}D · {formatStatNumber(teamStanding.lost)}L
                                 </span>
                                 <span className="text-[10px] md:text-xs bg-white/10 text-white font-bold uppercase tracking-wider px-3 py-1 rounded-full">
-                                    {teamStanding.goals_for} PF · {teamStanding.goals_against} PA
+                                    {formatStatNumber(teamStanding.goals_for)} PF · {formatStatNumber(teamStanding.goals_against)} PA
                                 </span>
                             </div>
                         )}

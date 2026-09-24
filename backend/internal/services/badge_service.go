@@ -276,38 +276,70 @@ func (s *BadgeService) SyncTOTWBadges(ctx context.Context, totw *domain.TeamOfTh
 		return err
 	}
 
-	affectedPlayers := make(map[string]bool)
+	potwBadge, err := s.badgeRepo.GetBadgeByCode(ctx, "POTW")
+	if err != nil {
+		log.Printf("[ERROR] totw badges: fetch potw badge: %v", err)
+	}
+
+	affectedTOTWPlayers := make(map[string]bool)
+	affectedPOTWPlayers := make(map[string]bool)
+
+	// Determine POTW player ID
+	var currentPOTWID string
+	if totw.PlayerOfTheWeekID != nil && *totw.PlayerOfTheWeekID != "" {
+		currentPOTWID = *totw.PlayerOfTheWeekID
+	} else {
+		for _, tp := range totw.Players {
+			if tp.IsPlayerOfTheWeek {
+				currentPOTWID = tp.PlayerID
+				break
+			}
+		}
+	}
 
 	if !totw.IsPublished {
-		// If unpublished: remove all awards associated with this totw edition
-		removedIDs, err := s.badgeRepo.DeleteTOTWAwards(ctx, totw.ID, nil)
+		// 1. Remove all TOTW awards for this edition
+		removedTOTW, err := s.badgeRepo.DeleteTOTWBadgesByID(ctx, totw.ID, totwBadge.ID, nil)
 		if err != nil {
-			log.Printf("[ERROR] totw badges: remove awards for unpublished totw %s: %v", totw.ID, err)
+			log.Printf("[ERROR] totw badges: remove totw awards for unpublished totw %s: %v", totw.ID, err)
 		}
-		for _, pid := range removedIDs {
-			affectedPlayers[pid] = true
+		for _, pid := range removedTOTW {
+			affectedTOTWPlayers[pid] = true
 		}
 		for _, tp := range totw.Players {
-			affectedPlayers[tp.PlayerID] = true
+			affectedTOTWPlayers[tp.PlayerID] = true
+		}
+
+		// 2. Remove all POTW awards for this edition
+		if potwBadge != nil {
+			removedPOTW, err := s.badgeRepo.DeleteTOTWBadgesByID(ctx, totw.ID, potwBadge.ID, nil)
+			if err != nil {
+				log.Printf("[ERROR] totw badges: remove potw awards for unpublished totw %s: %v", totw.ID, err)
+			}
+			for _, pid := range removedPOTW {
+				affectedPOTWPlayers[pid] = true
+			}
+		}
+		if currentPOTWID != "" {
+			affectedPOTWPlayers[currentPOTWID] = true
 		}
 	} else {
-		// If published:
+		// Published:
+		// 1. TOTW badges
 		currentIDs := make([]string, len(totw.Players))
 		for i, tp := range totw.Players {
 			currentIDs[i] = tp.PlayerID
-			affectedPlayers[tp.PlayerID] = true
+			affectedTOTWPlayers[tp.PlayerID] = true
 		}
 
-		// Remove awards for players who were removed from this TOTW
-		removedIDs, err := s.badgeRepo.DeleteTOTWAwards(ctx, totw.ID, currentIDs)
+		removedTOTW, err := s.badgeRepo.DeleteTOTWBadgesByID(ctx, totw.ID, totwBadge.ID, currentIDs)
 		if err != nil {
 			log.Printf("[ERROR] totw badges: remove awards for dropped players in totw %s: %v", totw.ID, err)
 		}
-		for _, pid := range removedIDs {
-			affectedPlayers[pid] = true
+		for _, pid := range removedTOTW {
+			affectedTOTWPlayers[pid] = true
 		}
 
-		// Ensure award exists for all current players
 		for _, tp := range totw.Players {
 			award := &domain.PlayerBadgeAward{
 				PlayerID:      tp.PlayerID,
@@ -321,12 +353,55 @@ func (s *BadgeService) SyncTOTWBadges(ctx context.Context, totw *domain.TeamOfTh
 				log.Printf("[ERROR] totw badges: award player %s for totw %s: %v", tp.PlayerID, totw.ID, err)
 			}
 		}
+
+		// 2. POTW badge
+		if potwBadge != nil {
+			if currentPOTWID != "" {
+				affectedPOTWPlayers[currentPOTWID] = true
+				// Delete any POTW awards on this totw except for currentPOTWID
+				removedPOTW, err := s.badgeRepo.DeleteTOTWBadgesByID(ctx, totw.ID, potwBadge.ID, []string{currentPOTWID})
+				if err != nil {
+					log.Printf("[ERROR] totw badges: clean old potw for totw %s: %v", totw.ID, err)
+				}
+				for _, pid := range removedPOTW {
+					affectedPOTWPlayers[pid] = true
+				}
+
+				award := &domain.PlayerBadgeAward{
+					PlayerID:      currentPOTWID,
+					BadgeID:       potwBadge.ID,
+					CompetitionID: &totw.CompetitionID,
+					TOTWID:        &totw.ID,
+					Reason:        fmt.Sprintf("Player of the Week (%s)", totw.WeekTitle),
+					AwardedBy:     totw.CreatedBy,
+				}
+				if err := s.badgeRepo.EnsureTOTWAward(ctx, award); err != nil {
+					log.Printf("[ERROR] totw badges: award POTW %s for totw %s: %v", currentPOTWID, totw.ID, err)
+				}
+			} else {
+				// No player designated as POTW, clear any existing POTW awards for this TOTW
+				removedPOTW, err := s.badgeRepo.DeleteTOTWBadgesByID(ctx, totw.ID, potwBadge.ID, nil)
+				if err != nil {
+					log.Printf("[ERROR] totw badges: clean unassigned potw for totw %s: %v", totw.ID, err)
+				}
+				for _, pid := range removedPOTW {
+					affectedPOTWPlayers[pid] = true
+				}
+			}
+		}
 	}
 
-	// Recount badge counts for all affected players
-	for pid := range affectedPlayers {
-		if err := s.badgeRepo.SyncTOTWBadgeForPlayer(ctx, pid); err != nil {
-			log.Printf("[ERROR] totw badges: recount player %s: %v", pid, err)
+	// Recount TOTW badge counts
+	for pid := range affectedTOTWPlayers {
+		if err := s.badgeRepo.SyncBadgeCountForPlayer(ctx, pid, "TOTW"); err != nil {
+			log.Printf("[ERROR] totw badges: recount totw for player %s: %v", pid, err)
+		}
+	}
+
+	// Recount POTW badge counts
+	for pid := range affectedPOTWPlayers {
+		if err := s.badgeRepo.SyncBadgeCountForPlayer(ctx, pid, "POTW"); err != nil {
+			log.Printf("[ERROR] totw badges: recount potw for player %s: %v", pid, err)
 		}
 	}
 
@@ -339,8 +414,11 @@ func (s *BadgeService) HandleTOTWDeleted(ctx context.Context, totwID string) err
 		return err
 	}
 	for _, pid := range removedIDs {
-		if err := s.badgeRepo.SyncTOTWBadgeForPlayer(ctx, pid); err != nil {
-			log.Printf("[ERROR] totw badges: recount player %s after totw %s delete: %v", pid, totwID, err)
+		if err := s.badgeRepo.SyncBadgeCountForPlayer(ctx, pid, "TOTW"); err != nil {
+			log.Printf("[ERROR] totw badges: recount totw player %s after totw %s delete: %v", pid, totwID, err)
+		}
+		if err := s.badgeRepo.SyncBadgeCountForPlayer(ctx, pid, "POTW"); err != nil {
+			log.Printf("[ERROR] totw badges: recount potw player %s after totw %s delete: %v", pid, totwID, err)
 		}
 	}
 	return nil

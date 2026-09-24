@@ -4,6 +4,7 @@ import type { PlayerStat, TeamStat } from '../../services/api';
 import { Link } from 'react-router-dom';
 import { LightboxImage, Spinner } from '../ui';
 import { normalizePosition, ALL_STAT_DEFINITIONS, POSITION_STAT_KEYS } from '../../utils/positionStatsMatrix';
+import { formatStatNumber } from '../../utils/formatters';
 
 interface StatsTableProps {
     type: 'players' | 'teams';
@@ -258,7 +259,8 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                                 {/* Stat values — rendered from visibleStatCols so header/body stay in sync */}
                                 {visibleStatCols.map((col, i) => {
                                     const isLast = i === visibleStatCols.length - 1;
-                                    const value = col.key === 'apps' ? (row.apps || '-') : ((row as Record<string, number>)[col.key] ?? 0);
+                                    const rawVal = col.key === 'apps' ? (row.apps || '-') : ((row as Record<string, number>)[col.key] ?? 0);
+                                    const value = typeof rawVal === 'number' ? formatStatNumber(rawVal) : rawVal;
                                     return (
                                         <td
                                             key={col.key}

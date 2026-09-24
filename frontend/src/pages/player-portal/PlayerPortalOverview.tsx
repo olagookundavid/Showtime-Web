@@ -91,7 +91,7 @@ export const PlayerPortalOverview: React.FC = () => {
                                 <div className="grid grid-cols-2 gap-2 text-sm bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl">
                                     <div>
                                         <span className="text-xs text-gray-400 block">Length</span>
-                                        <span className="font-bold text-gray-900 dark:text-white">{c.contract_length} Team Matches</span>
+                                        <span className="font-bold text-gray-900 dark:text-white">{c.contract_length?.toLocaleString()} Team Matches</span>
                                     </div>
                                     <div>
                                         <span className="text-xs text-gray-400 block">Player Value</span>
@@ -144,17 +144,17 @@ export const PlayerPortalOverview: React.FC = () => {
 
                         <div className="space-y-1">
                             <span className="text-xs text-gray-400 font-semibold uppercase">Contract Length</span>
-                            <p className="text-xl font-black text-gray-900 dark:text-white">{activeContract.contract_length} matches</p>
+                            <p className="text-xl font-black text-gray-900 dark:text-white">{activeContract.contract_length?.toLocaleString()} matches</p>
                         </div>
 
                         <div className="space-y-1">
                             <span className="text-xs text-gray-400 font-semibold uppercase">Matches Played</span>
-                            <p className="text-xl font-black text-gray-900 dark:text-white">{activeContract.matches_played} matches</p>
+                            <p className="text-xl font-black text-gray-900 dark:text-white">{activeContract.matches_played?.toLocaleString()} matches</p>
                         </div>
 
                         <div className="space-y-1">
                             <span className="text-xs text-gray-400 font-semibold uppercase">Remaining</span>
-                            <p className="text-xl font-black text-green-600 dark:text-green-400">{activeContract.matches_remaining} matches</p>
+                            <p className="text-xl font-black text-green-600 dark:text-green-400">{activeContract.matches_remaining?.toLocaleString()} matches</p>
                         </div>
                     </div>
                 ) : (

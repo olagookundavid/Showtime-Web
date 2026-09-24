@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { Standing } from '../../services/api';
 import { LightboxImage } from '../ui';
+import { formatStatNumber } from '../../utils/formatters';
 
 interface StandingsTableProps {
     standings: Standing[];
@@ -178,14 +179,14 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({ standings, isCom
                                             )}
                                         </div>
                                     </td>
-                                <td className="px-2.5 py-3 md:px-4 md:py-4 text-center text-gray-700 dark:text-gray-200">{standing.played}</td>
-                                <td className="px-2.5 py-3 md:px-4 md:py-4 text-center text-gray-700 dark:text-gray-200">{standing.won}</td>
-                                <td className="px-2.5 py-3 md:px-4 md:py-4 text-center text-gray-700 dark:text-gray-200">{standing.drawn}</td>
-                                <td className="px-2.5 py-3 md:px-4 md:py-4 text-center text-gray-700 dark:text-gray-200">{standing.lost}</td>
-                                <td className="px-2.5 py-3 md:px-4 md:py-4 text-center text-gray-700 dark:text-gray-200">{standing.goals_for}</td>
-                                <td className="px-2.5 py-3 md:px-4 md:py-4 text-center text-gray-700 dark:text-gray-200">{standing.goals_against}</td>
+                                <td className="px-2.5 py-3 md:px-4 md:py-4 text-center text-gray-700 dark:text-gray-200">{formatStatNumber(standing.played)}</td>
+                                <td className="px-2.5 py-3 md:px-4 md:py-4 text-center text-gray-700 dark:text-gray-200">{formatStatNumber(standing.won)}</td>
+                                <td className="px-2.5 py-3 md:px-4 md:py-4 text-center text-gray-700 dark:text-gray-200">{formatStatNumber(standing.drawn)}</td>
+                                <td className="px-2.5 py-3 md:px-4 md:py-4 text-center text-gray-700 dark:text-gray-200">{formatStatNumber(standing.lost)}</td>
+                                <td className="px-2.5 py-3 md:px-4 md:py-4 text-center text-gray-700 dark:text-gray-200">{formatStatNumber(standing.goals_for)}</td>
+                                <td className="px-2.5 py-3 md:px-4 md:py-4 text-center text-gray-700 dark:text-gray-200">{formatStatNumber(standing.goals_against)}</td>
                                 <td className="px-2.5 py-3 md:px-4 md:py-4 text-center font-bold text-gray-800 dark:text-gray-100">
-                                    {standing.goal_diff > 0 ? `+${standing.goal_diff}` : standing.goal_diff}
+                                    {standing.goal_diff > 0 ? `+${formatStatNumber(standing.goal_diff)}` : formatStatNumber(standing.goal_diff)}
                                 </td>
                                 <td className="px-2.5 py-3 md:px-4 md:py-4 text-center font-semibold text-gray-800 dark:text-gray-100">
                                     {standing.pct != null ? `${standing.pct}%` : '-'}

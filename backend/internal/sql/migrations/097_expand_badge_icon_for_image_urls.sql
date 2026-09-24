@@ -1,0 +1,10 @@
+-- +goose Up
+-- Migration 097: Expand badge icon column to TEXT for R2 image URLs
+ALTER TABLE badges ALTER COLUMN icon TYPE TEXT;
+ALTER TABLE badges ALTER COLUMN icon DROP DEFAULT;
+ALTER TABLE badges ALTER COLUMN icon DROP NOT NULL;
+
+-- +goose Down
+ALTER TABLE badges ALTER COLUMN icon TYPE VARCHAR(100);
+ALTER TABLE badges ALTER COLUMN icon SET DEFAULT '🏆';
+ALTER TABLE badges ALTER COLUMN icon SET NOT NULL;

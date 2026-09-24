@@ -20,8 +20,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useFantasyLeaderboard, num, rankBadgeClass, OVERALL } from '../../hooks/useFantasyLeaderboard';
 import { FantasyTeamModal } from '../../components/fantasy/FantasyTeamModal';
 import { BackButton } from '../../components/common/BackButton';
+import { formatStatDecimal } from '../../utils/formatters';
 
-const pts = (v: number | null | undefined): string => num(v).toFixed(2);
+const pts = (v: number | null | undefined): string => formatStatDecimal(num(v), 2);
 
 export function FantasyLeaderboard() {
     const { user } = useAuth();

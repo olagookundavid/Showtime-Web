@@ -3,6 +3,13 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { getLatestTOTW, getTOTWArchive, getTOTWById, type TeamOfTheWeek, type TOTWPlayer } from '../../services/api';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { formatStatNumber } from '../../utils/formatters';
+
+const isPlayerOfTheWeek = (totw: TeamOfTheWeek, player: TOTWPlayer): boolean =>
+    Boolean(
+        player.is_player_of_the_week ||
+        (totw.player_of_the_week_id && player.player_id && totw.player_of_the_week_id === player.player_id)
+    );
 
 interface TeamOfTheWeekModuleProps {
     competitionId?: string;
@@ -66,6 +73,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
     const players: TOTWPlayer[] = totw.players;
     const activePlayer: TOTWPlayer = players[selectedIndex] || players[0];
     const isDefensive = activePlayer.unit === 'Defence';
+    const isActivePOTW = isPlayerOfTheWeek(totw, activePlayer);
 
     const handlePrev = () => {
         setSelectedIndex((prev) => (prev - 1 + players.length) % players.length);
@@ -198,6 +206,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                             const isSelected = idx === selectedIndex;
                             const isPlayerDef = p.unit === 'Defence';
                             const hasImage = Boolean(p.player?.image);
+                            const isPOTW = isPlayerOfTheWeek(totw, p);
                             // Ensure symmetrical equal spacing (32% and 68%) for backfield positions matching S1/S2
                             let posX = p.coord_x || '50%';
                             if ((p.slot_code === 'QB' || p.slot_code === 'OFF2') && (posX === '50%' || !p.coord_x)) {
@@ -219,13 +228,25 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                                         isSelected ? 'scale-110 z-40' : 'hover:scale-105 opacity-90 hover:opacity-100'
                                     }`}
                                     aria-pressed={isSelected}
-                                    aria-label={`${p.position} ${p.player?.name || 'Player'}`}
+                                    aria-label={`${p.position} ${p.player?.name || 'Player'}${isPOTW ? ' (Player of the Week)' : ''}`}
                                 >
+                                    {/* Floating POTW Star Badge */}
+                                    {isPOTW && (
+                                        <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-40 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-sffl-navy text-[8px] md:text-[9px] font-black uppercase tracking-wider shadow-lg border border-white flex items-center gap-0.5 whitespace-nowrap animate-pulse">
+                                            <span>⭐</span>
+                                            <span>POTW</span>
+                                        </div>
+                                    )}
+
                                     {/* Avatar circle */}
                                     <div
                                         className={`relative w-10 h-10 md:w-12 md:h-12 mx-auto rounded-full border-2 overflow-hidden shadow-lg transition-all duration-200 ${
                                             isSelected
-                                                ? 'border-white ring-4 ring-[#F4CA67] ring-offset-2 ring-offset-black/50 shadow-amber-400/40'
+                                                ? isPOTW
+                                                    ? 'border-yellow-200 ring-4 ring-amber-400 ring-offset-2 ring-offset-black/50 shadow-amber-400/60'
+                                                    : 'border-white ring-4 ring-[#F4CA67] ring-offset-2 ring-offset-black/50 shadow-amber-400/40'
+                                                : isPOTW
+                                                ? 'border-amber-300 ring-3 ring-amber-400/90 ring-offset-1 ring-offset-black/40 shadow-lg shadow-amber-400/50 bg-gradient-to-br from-amber-500 to-amber-700'
                                                 : isPlayerDef
                                                 ? 'border-blue-300/80 bg-gradient-to-br from-[#98CDFD] to-[#35699E]'
                                                 : 'border-red-300/80 bg-gradient-to-br from-[#F46756] to-[#B82C34]'
@@ -247,10 +268,14 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                                     {/* Position pill */}
                                     <span
                                         className={`inline-block px-1.5 py-0.5 mt-1 rounded text-[8px] md:text-[9px] font-black uppercase leading-tight shadow-xs ${
-                                            isPlayerDef ? 'bg-[#C5E1FF] text-[#102844]' : 'bg-[#FFF8E9] text-[#102844]'
+                                            isPOTW
+                                                ? 'bg-gradient-to-r from-amber-300 to-yellow-400 text-sffl-navy border border-amber-500/40'
+                                                : isPlayerDef
+                                                ? 'bg-[#C5E1FF] text-[#102844]'
+                                                : 'bg-[#FFF8E9] text-[#102844]'
                                         }`}
                                     >
-                                        {p.slot_code || p.position}
+                                        {isPOTW ? `⭐ ${p.slot_code || p.position}` : (p.slot_code || p.position)}
                                     </span>
 
                                     {/* Player Name */}
@@ -302,18 +327,40 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                             {/* Visual Avatar column */}
                             <div
                                 className={`relative flex items-center justify-center p-4 ${
-                                    isDefensive
+                                    isActivePOTW
+                                        ? 'bg-radial from-amber-600/35 via-[#1a2b47] to-[#0e1e36]'
+                                        : isDefensive
                                         ? 'bg-radial from-[#315C89] via-[#183C63] to-[#102B4B]'
                                         : 'bg-radial from-[#9D4646] via-[#6E3038] to-[#3D2634]'
                                 }`}
                             >
                                 {/* Rating Badge */}
-                                <div className="absolute top-2 left-2 md:top-3 md:left-3 w-9 h-9 md:w-11 md:h-11 rounded-full bg-[#F4CA67] text-[#172237] font-black text-xs md:text-sm flex items-center justify-center shadow-lg border border-yellow-200">
+                                <div
+                                    className={`absolute top-2 left-2 md:top-3 md:left-3 w-9 h-9 md:w-11 md:h-11 rounded-full font-black text-xs md:text-sm flex items-center justify-center shadow-lg border ${
+                                        isActivePOTW
+                                            ? 'bg-gradient-to-br from-amber-300 to-yellow-400 text-sffl-navy border-amber-200 ring-2 ring-amber-400/80'
+                                            : 'bg-[#F4CA67] text-[#172237] border-yellow-200'
+                                    }`}
+                                >
                                     {activePlayer.rating ? Number(activePlayer.rating).toFixed(1) : '8.5'}
                                 </div>
 
+                                {/* Floating POTW Badge Stamp */}
+                                {isActivePOTW && (
+                                    <div className="absolute top-2 right-2 md:top-3 md:right-3 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-yellow-300 text-sffl-navy text-[9px] md:text-[10px] font-black uppercase tracking-wider shadow-md border border-white flex items-center gap-1">
+                                        <span>⭐</span>
+                                        <span>POTW</span>
+                                    </div>
+                                )}
+
                                 {/* Avatar */}
-                                <div className="w-20 h-24 md:w-28 md:h-34 rounded-2xl overflow-hidden bg-slate-800 border-2 border-white/20 shadow-2xl flex items-center justify-center">
+                                <div
+                                    className={`w-20 h-24 md:w-28 md:h-34 rounded-2xl overflow-hidden bg-slate-800 border-2 shadow-2xl flex items-center justify-center ${
+                                        isActivePOTW
+                                            ? 'border-amber-400 ring-2 ring-amber-300/60 shadow-amber-400/30'
+                                            : 'border-white/20'
+                                    }`}
+                                >
                                     {activePlayer.player?.image ? (
                                         <img
                                             src={activePlayer.player.image}
@@ -330,10 +377,21 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
 
                             {/* Details column */}
                             <div className="p-4 md:p-5 flex flex-col justify-center min-w-0">
+                                {isActivePOTW && (
+                                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500/25 via-yellow-400/20 to-amber-500/25 border border-amber-400/60 text-amber-300 font-black text-[10px] md:text-xs uppercase tracking-wider shadow-sm mb-2 w-fit animate-pulse">
+                                        <span className="text-xs md:text-sm">⭐</span>
+                                        <span>PLAYER OF THE WEEK</span>
+                                    </div>
+                                )}
+
                                 <div className="flex items-center gap-2">
                                     <span
                                         className={`px-2.5 py-0.5 rounded text-[10px] md:text-xs font-black uppercase tracking-wider ${
-                                            isDefensive ? 'bg-[#76BAFF] text-[#09223D]' : 'bg-sffl-red text-white'
+                                            isActivePOTW
+                                                ? 'bg-gradient-to-r from-amber-400 to-yellow-400 text-sffl-navy font-black'
+                                                : isDefensive
+                                                ? 'bg-[#76BAFF] text-[#09223D]'
+                                                : 'bg-sffl-red text-white'
                                         }`}
                                     >
                                         {activePlayer.slot_code || activePlayer.position}
@@ -369,7 +427,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                                 <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-white/10">
                                     <div className="bg-[#06182D]/70 p-2 md:p-2.5 rounded-lg border border-white/10 text-center">
                                         <div className="text-sm md:text-lg font-black text-white leading-tight">
-                                            {activePlayer.stat1_value || '—'}
+                                            {activePlayer.stat1_value ? formatStatNumber(activePlayer.stat1_value) : '—'}
                                         </div>
                                         <div className="text-[8px] md:text-[9px] font-black uppercase text-[#8FA4BC] tracking-wider mt-0.5 truncate">
                                             {activePlayer.stat1_label || 'Stat 1'}
@@ -377,7 +435,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                                     </div>
                                     <div className="bg-[#06182D]/70 p-2 md:p-2.5 rounded-lg border border-white/10 text-center">
                                         <div className="text-sm md:text-lg font-black text-white leading-tight">
-                                            {activePlayer.stat2_value || '—'}
+                                            {activePlayer.stat2_value ? formatStatNumber(activePlayer.stat2_value) : '—'}
                                         </div>
                                         <div className="text-[8px] md:text-[9px] font-black uppercase text-[#8FA4BC] tracking-wider mt-0.5 truncate">
                                             {activePlayer.stat2_label || 'Stat 2'}
@@ -385,7 +443,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                                     </div>
                                     <div className="bg-[#06182D]/70 p-2 md:p-2.5 rounded-lg border border-white/10 text-center">
                                         <div className="text-sm md:text-lg font-black text-white leading-tight">
-                                            {activePlayer.stat3_value || '—'}
+                                            {activePlayer.stat3_value ? formatStatNumber(activePlayer.stat3_value) : '—'}
                                         </div>
                                         <div className="text-[8px] md:text-[9px] font-black uppercase text-[#8FA4BC] tracking-wider mt-0.5 truncate">
                                             {activePlayer.stat3_label || 'Stat 3'}
@@ -408,18 +466,27 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
 
                     {/* Pagination Dots */}
                     <div className="flex flex-wrap items-center justify-center gap-1.5 mt-4">
-                        {players.map((p, idx) => (
-                            <button
-                                key={p.id || idx}
-                                type="button"
-                                onClick={() => setSelectedIndex(idx)}
-                                className={`h-1.5 rounded-full transition-all duration-200 cursor-pointer ${
-                                    idx === selectedIndex ? 'w-6 bg-[#F4CA67]' : 'w-2 bg-[#42607E] hover:bg-gray-400'
-                                }`}
-                                aria-label={`Select ${p.player?.name || 'player'}`}
-                                aria-pressed={idx === selectedIndex}
-                            />
-                        ))}
+                        {players.map((p, idx) => {
+                            const isPlayerPOTW = isPlayerOfTheWeek(totw, p);
+                            return (
+                                <button
+                                    key={p.id || idx}
+                                    type="button"
+                                    onClick={() => setSelectedIndex(idx)}
+                                    className={`h-1.5 rounded-full transition-all duration-200 cursor-pointer ${
+                                        idx === selectedIndex
+                                            ? isPlayerPOTW
+                                                ? 'w-7 bg-amber-400 ring-1 ring-amber-300'
+                                                : 'w-6 bg-[#F4CA67]'
+                                            : isPlayerPOTW
+                                            ? 'w-3 bg-amber-400/80'
+                                            : 'w-2 bg-[#42607E] hover:bg-gray-400'
+                                    }`}
+                                    aria-label={`Select ${p.player?.name || 'player'}${isPlayerPOTW ? ' (Player of the Week)' : ''}`}
+                                    aria-pressed={idx === selectedIndex}
+                                />
+                            );
+                        })}
                     </div>
                 </div>
             </div>

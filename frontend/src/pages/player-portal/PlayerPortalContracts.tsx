@@ -103,8 +103,8 @@ export const PlayerPortalContracts: React.FC = () => {
                                                 {c.status}
                                             </span>
                                         </td>
-                                        <td className="p-4 text-gray-600 dark:text-gray-300 font-medium">{c.contract_length} matches</td>
-                                        <td className="p-4 font-mono font-bold text-gray-900 dark:text-white">{c.matches_played}</td>
+                                        <td className="p-4 text-gray-600 dark:text-gray-300 font-medium">{c.contract_length?.toLocaleString()} matches</td>
+                                        <td className="p-4 font-mono font-bold text-gray-900 dark:text-white">{c.matches_played?.toLocaleString()}</td>
                                         <td className="p-4 font-bold text-gray-900 dark:text-white">{c.player_value.toLocaleString()} pts</td>
                                         <td className="p-4 text-gray-400 text-xs">{new Date(c.offered_at).toLocaleDateString()}</td>
                                         <td className="p-4 text-xs text-gray-500">{c.termination_reason || c.notes || '-'}</td>

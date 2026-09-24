@@ -12,6 +12,7 @@ import {
 } from '../../services/api';
 import { LightboxImage } from '../ui';
 import { Spinner } from '../ui/Spinner';
+import { formatStatNumber, formatStatDecimal } from '../../utils/formatters';
 
 // Calibrated SFFL Fantasy scoring arithmetic (domain.FantasyWeights)
 export function calculatePlayerFantasyPoints(s: PlayerStat): number {
@@ -86,14 +87,14 @@ export function getUnifiedMatchMvp(
             const rating = sheetEntry?.rating ?? null;
             const statParts: string[] = [];
             if (pStat) {
-                if (pStat.passing_tds) statParts.push(`${pStat.passing_tds} Pass TD`);
-                if (pStat.passing_yards) statParts.push(`${pStat.passing_yards} Pass Yds`);
-                if (pStat.receiving_tds) statParts.push(`${pStat.receiving_tds} Rec TD`);
-                if (pStat.receiving_yards) statParts.push(`${pStat.receiving_yards} Rec Yds`);
-                if (pStat.rushing_tds) statParts.push(`${pStat.rushing_tds} Rush TD`);
-                if (pStat.flag_pulls) statParts.push(`${pStat.flag_pulls} Pulls`);
-                if (pStat.interceptions) statParts.push(`${pStat.interceptions} INT`);
-                if (pStat.def_sacks) statParts.push(`${pStat.def_sacks} Sacks`);
+                if (pStat.passing_tds) statParts.push(`${formatStatNumber(pStat.passing_tds)} Pass TD`);
+                if (pStat.passing_yards) statParts.push(`${formatStatNumber(pStat.passing_yards)} Pass Yds`);
+                if (pStat.receiving_tds) statParts.push(`${formatStatNumber(pStat.receiving_tds)} Rec TD`);
+                if (pStat.receiving_yards) statParts.push(`${formatStatNumber(pStat.receiving_yards)} Rec Yds`);
+                if (pStat.rushing_tds) statParts.push(`${formatStatNumber(pStat.rushing_tds)} Rush TD`);
+                if (pStat.flag_pulls) statParts.push(`${formatStatNumber(pStat.flag_pulls)} Pulls`);
+                if (pStat.interceptions) statParts.push(`${formatStatNumber(pStat.interceptions)} INT`);
+                if (pStat.def_sacks) statParts.push(`${formatStatNumber(pStat.def_sacks)} Sacks`);
             } else if (rating) {
                 statParts.push(`Match Rating ${rating.toFixed(1)}`);
             }
@@ -217,14 +218,14 @@ export function getUnifiedMatchMvp(
     const p = best.pStat;
     const statParts: string[] = [];
     if (p) {
-        if (p.passing_tds) statParts.push(`${p.passing_tds} Pass TD`);
-        if (p.passing_yards) statParts.push(`${p.passing_yards} Pass Yds`);
-        if (p.receiving_tds) statParts.push(`${p.receiving_tds} Rec TD`);
-        if (p.receiving_yards) statParts.push(`${p.receiving_yards} Rec Yds`);
-        if (p.rushing_tds) statParts.push(`${p.rushing_tds} Rush TD`);
-        if (p.flag_pulls) statParts.push(`${p.flag_pulls} Pulls`);
-        if (p.interceptions) statParts.push(`${p.interceptions} INT`);
-        if (p.def_sacks) statParts.push(`${p.def_sacks} Sacks`);
+        if (p.passing_tds) statParts.push(`${formatStatNumber(p.passing_tds)} Pass TD`);
+        if (p.passing_yards) statParts.push(`${formatStatNumber(p.passing_yards)} Pass Yds`);
+        if (p.receiving_tds) statParts.push(`${formatStatNumber(p.receiving_tds)} Rec TD`);
+        if (p.receiving_yards) statParts.push(`${formatStatNumber(p.receiving_yards)} Rec Yds`);
+        if (p.rushing_tds) statParts.push(`${formatStatNumber(p.rushing_tds)} Rush TD`);
+        if (p.flag_pulls) statParts.push(`${formatStatNumber(p.flag_pulls)} Pulls`);
+        if (p.interceptions) statParts.push(`${formatStatNumber(p.interceptions)} INT`);
+        if (p.def_sacks) statParts.push(`${formatStatNumber(p.def_sacks)} Sacks`);
     } else if (best.rating) {
         statParts.push(`Match Rating ${best.rating.toFixed(1)}`);
     }
@@ -481,13 +482,13 @@ export const MatchSummaryTab = ({ match, teamSheet = { home_team: [], away_team:
             <div className="py-2.5 border-b border-gray-100 dark:border-gray-700/60 last:border-0">
                 <div className="flex items-center justify-between text-xs mb-1.5 px-1">
                     <span className="font-black tabular-nums text-sffl-navy dark:text-gray-100 w-12 text-left">
-                        {homeVal}
+                        {typeof homeVal === 'number' ? formatStatNumber(homeVal) : homeVal}
                     </span>
                     <span className="font-semibold text-gray-600 dark:text-gray-300 text-center flex-1 px-2 text-[11px] md:text-xs">
                         {label}
                     </span>
                     <span className="font-black tabular-nums text-sffl-red dark:text-red-400 w-12 text-right">
-                        {awayVal}
+                        {typeof awayVal === 'number' ? formatStatNumber(awayVal) : awayVal}
                     </span>
                 </div>
                 <div className="h-1.5 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden flex">
@@ -685,7 +686,7 @@ export const MatchSummaryTab = ({ match, teamSheet = { home_team: [], away_team:
                                             </div>
                                         </div>
                                         <div className="text-right flex-shrink-0 ml-2 font-black text-xs text-amber-600 dark:text-amber-400 tabular-nums">
-                                            {tp.fp.toFixed(1)} <span className="text-[9px] font-normal text-gray-400">FP</span>
+                                            {formatStatDecimal(tp.fp, 1)} <span className="text-[9px] font-normal text-gray-400">FP</span>
                                         </div>
                                     </Link>
                                 ))
@@ -829,16 +830,16 @@ export const MatchSummaryTab = ({ match, teamSheet = { home_team: [], away_team:
                                                     </span>
                                                 </td>
                                                 <td className="py-3 px-3 text-center tabular-nums text-gray-700 dark:text-gray-300">
-                                                    {p.passing_attempts > 0 ? `${p.completed_passes}/${p.passing_attempts}` : p.receptions > 0 ? `${p.receptions} REC` : '-'}
+                                                    {p.passing_attempts > 0 ? `${formatStatNumber(p.completed_passes)}/${formatStatNumber(p.passing_attempts)}` : p.receptions > 0 ? `${formatStatNumber(p.receptions)} REC` : '-'}
                                                 </td>
                                                 <td className="py-3 px-3 text-center tabular-nums text-gray-700 dark:text-gray-300">
-                                                    {(p.passing_yards || 0) + (p.receiving_yards || 0) + (p.rushing_yards || 0)}
+                                                    {formatStatNumber((p.passing_yards || 0) + (p.receiving_yards || 0) + (p.rushing_yards || 0))}
                                                 </td>
                                                 <td className="py-3 px-3 text-center tabular-nums font-bold text-sffl-navy dark:text-white">
-                                                    {(p.passing_tds || 0) + (p.receiving_tds || 0) + (p.rushing_tds || 0)}
+                                                    {formatStatNumber((p.passing_tds || 0) + (p.receiving_tds || 0) + (p.rushing_tds || 0))}
                                                 </td>
                                                 <td className="py-3 px-4 text-right tabular-nums font-black text-amber-600 dark:text-amber-400">
-                                                    {p.fp.toFixed(1)}
+                                                    {formatStatDecimal(p.fp, 1)}
                                                 </td>
                                             </tr>
                                         ))
@@ -889,16 +890,16 @@ export const MatchSummaryTab = ({ match, teamSheet = { home_team: [], away_team:
                                                     </span>
                                                 </td>
                                                 <td className="py-3 px-3 text-center tabular-nums text-gray-700 dark:text-gray-300">
-                                                    {p.flag_pulls || 0}
+                                                    {formatStatNumber(p.flag_pulls || 0)}
                                                 </td>
                                                 <td className="py-3 px-3 text-center tabular-nums text-gray-700 dark:text-gray-300">
-                                                    {(p.pass_deflections || 0) + (p.batted_down_passes || 0)}
+                                                    {formatStatNumber((p.pass_deflections || 0) + (p.batted_down_passes || 0))}
                                                 </td>
                                                 <td className="py-3 px-3 text-center tabular-nums font-bold text-sffl-navy dark:text-white">
-                                                    {p.interceptions || 0}
+                                                    {formatStatNumber(p.interceptions || 0)}
                                                 </td>
                                                 <td className="py-3 px-4 text-right tabular-nums font-black text-amber-600 dark:text-amber-400">
-                                                    {p.fp.toFixed(1)}
+                                                    {formatStatDecimal(p.fp, 1)}
                                                 </td>
                                             </tr>
                                         ))

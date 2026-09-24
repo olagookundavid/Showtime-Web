@@ -23,8 +23,9 @@ type BadgeRepository interface {
 	DeleteAward(ctx context.Context, awardID string) error
 	SyncPlayerMVPBadge(ctx context.Context, playerID string) error
 	BackfillAllMVPBadges(ctx context.Context) (int, error)
-	SyncTOTWBadgeForPlayer(ctx context.Context, playerID string) error
+	SyncBadgeCountForPlayer(ctx context.Context, playerID string, badgeCode string) error
 	DeleteTOTWAwards(ctx context.Context, totwID string, exceptPlayerIDs []string) ([]string, error)
+	DeleteTOTWBadgesByID(ctx context.Context, totwID string, badgeID string, exceptPlayerIDs []string) ([]string, error)
 	EnsureTOTWAward(ctx context.Context, award *domain.PlayerBadgeAward) error
 	ListAwards(ctx context.Context, badgeID string, playerID string, limit, offset int) ([]domain.PlayerBadgeAward, int64, error)
 }
@@ -410,8 +411,8 @@ func (r *PostgresBadgeRepository) BackfillAllMVPBadges(ctx context.Context) (int
 	return int(tag.RowsAffected()), nil
 }
 
-func (r *PostgresBadgeRepository) SyncTOTWBadgeForPlayer(ctx context.Context, playerID string) error {
-	badge, err := r.GetBadgeByCode(ctx, "TOTW")
+func (r *PostgresBadgeRepository) SyncBadgeCountForPlayer(ctx context.Context, playerID string, badgeCode string) error {
+	badge, err := r.GetBadgeByCode(ctx, badgeCode)
 	if err != nil {
 		return err
 	}
@@ -473,6 +474,40 @@ func (r *PostgresBadgeRepository) DeleteTOTWAwards(ctx context.Context, totwID s
 		_, err = r.db.Exec(ctx, `DELETE FROM player_badge_awards WHERE totw_id = $1 AND NOT (player_id = ANY($2::uuid[]))`, totwID, exceptPlayerIDs)
 	} else {
 		_, err = r.db.Exec(ctx, `DELETE FROM player_badge_awards WHERE totw_id = $1`, totwID)
+	}
+	return affected, err
+}
+
+func (r *PostgresBadgeRepository) DeleteTOTWBadgesByID(ctx context.Context, totwID string, badgeID string, exceptPlayerIDs []string) ([]string, error) {
+	var query string
+	var args []any
+	args = append(args, totwID, badgeID)
+
+	if len(exceptPlayerIDs) > 0 {
+		query = `SELECT DISTINCT player_id::text FROM player_badge_awards WHERE totw_id = $1 AND badge_id = $2 AND NOT (player_id = ANY($3::uuid[]))`
+		args = append(args, exceptPlayerIDs)
+	} else {
+		query = `SELECT DISTINCT player_id::text FROM player_badge_awards WHERE totw_id = $1 AND badge_id = $2`
+	}
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var affected []string
+	for rows.Next() {
+		var pID string
+		if err := rows.Scan(&pID); err == nil {
+			affected = append(affected, pID)
+		}
+	}
+
+	if len(exceptPlayerIDs) > 0 {
+		_, err = r.db.Exec(ctx, `DELETE FROM player_badge_awards WHERE totw_id = $1 AND badge_id = $2 AND NOT (player_id = ANY($3::uuid[]))`, totwID, badgeID, exceptPlayerIDs)
+	} else {
+		_, err = r.db.Exec(ctx, `DELETE FROM player_badge_awards WHERE totw_id = $1 AND badge_id = $2`, totwID, badgeID)
 	}
 	return affected, err
 }

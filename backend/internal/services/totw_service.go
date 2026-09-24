@@ -40,14 +40,29 @@ func (s *TOTWService) CreateTOTW(ctx context.Context, req dto.SaveTOTWRequest, c
 		subHeadline = "Offence & defence lineup"
 	}
 
+	var potwID *string
+	if req.PlayerOfTheWeekID != nil && strings.TrimSpace(*req.PlayerOfTheWeekID) != "" {
+		cleaned := strings.TrimSpace(*req.PlayerOfTheWeekID)
+		potwID = &cleaned
+	} else {
+		for _, p := range req.Players {
+			if p.IsPlayerOfTheWeek && strings.TrimSpace(p.PlayerID) != "" {
+				cleaned := strings.TrimSpace(p.PlayerID)
+				potwID = &cleaned
+				break
+			}
+		}
+	}
+
 	totw := &domain.TeamOfTheWeek{
-		CompetitionID: req.CompetitionID,
-		EventDayID:    req.EventDayID,
-		WeekTitle:     strings.TrimSpace(req.WeekTitle),
-		Headline:      strings.TrimSpace(req.Headline),
-		SubHeadline:   subHeadline,
-		IsPublished:   req.IsPublished,
-		CreatedBy:     createdBy,
+		CompetitionID:     req.CompetitionID,
+		EventDayID:        req.EventDayID,
+		PlayerOfTheWeekID: potwID,
+		WeekTitle:         strings.TrimSpace(req.WeekTitle),
+		Headline:          strings.TrimSpace(req.Headline),
+		SubHeadline:       subHeadline,
+		IsPublished:       req.IsPublished,
+		CreatedBy:         createdBy,
 	}
 
 	players := make([]domain.TOTWPlayer, len(req.Players))
@@ -65,21 +80,27 @@ func (s *TOTWService) CreateTOTW(ctx context.Context, req dto.SaveTOTWRequest, c
 			coordY = defaultCoordY(p.SlotCode)
 		}
 
+		isPOTW := false
+		if potwID != nil && *potwID == strings.TrimSpace(p.PlayerID) {
+			isPOTW = true
+		}
+
 		players[i] = domain.TOTWPlayer{
-			PlayerID:     p.PlayerID,
-			SlotCode:     p.SlotCode,
-			Position:     p.Position,
-			Unit:         p.Unit,
-			CoordX:       coordX,
-			CoordY:       coordY,
-			Rating:       rating,
-			Stat1Value:   p.Stat1Value,
-			Stat1Label:   p.Stat1Label,
-			Stat2Value:   p.Stat2Value,
-			Stat2Label:   p.Stat2Label,
-			Stat3Value:   p.Stat3Value,
-			Stat3Label:   p.Stat3Label,
-			DisplayOrder: i,
+			PlayerID:          p.PlayerID,
+			SlotCode:          p.SlotCode,
+			Position:          p.Position,
+			Unit:              p.Unit,
+			CoordX:            coordX,
+			CoordY:            coordY,
+			Rating:            rating,
+			Stat1Value:        p.Stat1Value,
+			Stat1Label:        p.Stat1Label,
+			Stat2Value:        p.Stat2Value,
+			Stat2Label:        p.Stat2Label,
+			Stat3Value:        p.Stat3Value,
+			Stat3Label:        p.Stat3Label,
+			IsPlayerOfTheWeek: isPOTW,
+			DisplayOrder:      i,
 		}
 	}
 
@@ -107,14 +128,29 @@ func (s *TOTWService) UpdateTOTW(ctx context.Context, id string, req dto.SaveTOT
 		subHeadline = "Offence & defence lineup"
 	}
 
+	var potwID *string
+	if req.PlayerOfTheWeekID != nil && strings.TrimSpace(*req.PlayerOfTheWeekID) != "" {
+		cleaned := strings.TrimSpace(*req.PlayerOfTheWeekID)
+		potwID = &cleaned
+	} else {
+		for _, p := range req.Players {
+			if p.IsPlayerOfTheWeek && strings.TrimSpace(p.PlayerID) != "" {
+				cleaned := strings.TrimSpace(p.PlayerID)
+				potwID = &cleaned
+				break
+			}
+		}
+	}
+
 	totw := &domain.TeamOfTheWeek{
-		ID:            id,
-		CompetitionID: req.CompetitionID,
-		EventDayID:    req.EventDayID,
-		WeekTitle:     strings.TrimSpace(req.WeekTitle),
-		Headline:      strings.TrimSpace(req.Headline),
-		SubHeadline:   subHeadline,
-		IsPublished:   req.IsPublished,
+		ID:                id,
+		CompetitionID:     req.CompetitionID,
+		EventDayID:        req.EventDayID,
+		PlayerOfTheWeekID: potwID,
+		WeekTitle:         strings.TrimSpace(req.WeekTitle),
+		Headline:          strings.TrimSpace(req.Headline),
+		SubHeadline:       subHeadline,
+		IsPublished:       req.IsPublished,
 	}
 
 	players := make([]domain.TOTWPlayer, len(req.Players))
@@ -132,22 +168,28 @@ func (s *TOTWService) UpdateTOTW(ctx context.Context, id string, req dto.SaveTOT
 			coordY = defaultCoordY(p.SlotCode)
 		}
 
+		isPOTW := false
+		if potwID != nil && *potwID == strings.TrimSpace(p.PlayerID) {
+			isPOTW = true
+		}
+
 		players[i] = domain.TOTWPlayer{
-			TOTWID:       id,
-			PlayerID:     p.PlayerID,
-			SlotCode:     p.SlotCode,
-			Position:     p.Position,
-			Unit:         p.Unit,
-			CoordX:       coordX,
-			CoordY:       coordY,
-			Rating:       rating,
-			Stat1Value:   p.Stat1Value,
-			Stat1Label:   p.Stat1Label,
-			Stat2Value:   p.Stat2Value,
-			Stat2Label:   p.Stat2Label,
-			Stat3Value:   p.Stat3Value,
-			Stat3Label:   p.Stat3Label,
-			DisplayOrder: i,
+			TOTWID:            id,
+			PlayerID:          p.PlayerID,
+			SlotCode:          p.SlotCode,
+			Position:          p.Position,
+			Unit:              p.Unit,
+			CoordX:            coordX,
+			CoordY:            coordY,
+			Rating:            rating,
+			Stat1Value:        p.Stat1Value,
+			Stat1Label:        p.Stat1Label,
+			Stat2Value:        p.Stat2Value,
+			Stat2Label:        p.Stat2Label,
+			Stat3Value:        p.Stat3Value,
+			Stat3Label:        p.Stat3Label,
+			IsPlayerOfTheWeek: isPOTW,
+			DisplayOrder:      i,
 		}
 	}
 
@@ -204,17 +246,18 @@ func (s *TOTWService) ListTOTWArchive(ctx context.Context, competitionID string,
 			compLogo = item.Competition.Logo
 		}
 		res[i] = dto.TOTWListItemResponse{
-			ID:              item.ID,
-			CompetitionID:   item.CompetitionID,
-			CompetitionName: compName,
-			CompetitionLogo: compLogo,
-			EventDayID:      item.EventDayID,
-			WeekTitle:       item.WeekTitle,
-			Headline:        item.Headline,
-			SubHeadline:     item.SubHeadline,
-			IsPublished:     item.IsPublished,
-			PublishedAt:     item.PublishedAt,
-			CreatedAt:       item.CreatedAt,
+			ID:                item.ID,
+			CompetitionID:     item.CompetitionID,
+			CompetitionName:   compName,
+			CompetitionLogo:   compLogo,
+			EventDayID:        item.EventDayID,
+			PlayerOfTheWeekID: item.PlayerOfTheWeekID,
+			WeekTitle:         item.WeekTitle,
+			Headline:          item.Headline,
+			SubHeadline:       item.SubHeadline,
+			IsPublished:       item.IsPublished,
+			PublishedAt:       item.PublishedAt,
+			CreatedAt:         item.CreatedAt,
 		}
 	}
 	return res, nil
@@ -245,16 +288,17 @@ func (s *TOTWService) mapToResponse(totw *domain.TeamOfTheWeek) *dto.TOTWRespons
 	}
 
 	resp := &dto.TOTWResponse{
-		ID:            totw.ID,
-		CompetitionID: totw.CompetitionID,
-		EventDayID:    totw.EventDayID,
-		WeekTitle:     totw.WeekTitle,
-		Headline:      totw.Headline,
-		SubHeadline:   totw.SubHeadline,
-		IsPublished:   totw.IsPublished,
-		PublishedAt:   totw.PublishedAt,
-		CreatedAt:     totw.CreatedAt,
-		UpdatedAt:     totw.UpdatedAt,
+		ID:                totw.ID,
+		CompetitionID:     totw.CompetitionID,
+		EventDayID:        totw.EventDayID,
+		PlayerOfTheWeekID: totw.PlayerOfTheWeekID,
+		WeekTitle:         totw.WeekTitle,
+		Headline:          totw.Headline,
+		SubHeadline:       totw.SubHeadline,
+		IsPublished:       totw.IsPublished,
+		PublishedAt:       totw.PublishedAt,
+		CreatedAt:         totw.CreatedAt,
+		UpdatedAt:         totw.UpdatedAt,
 	}
 
 	if totw.Competition != nil {
@@ -268,22 +312,23 @@ func (s *TOTWService) mapToResponse(totw *domain.TeamOfTheWeek) *dto.TOTWRespons
 	resp.Players = make([]dto.TOTWPlayerResponse, len(totw.Players))
 	for i, p := range totw.Players {
 		pResp := dto.TOTWPlayerResponse{
-			ID:           p.ID,
-			TOTWID:       p.TOTWID,
-			PlayerID:     p.PlayerID,
-			SlotCode:     p.SlotCode,
-			Position:     p.Position,
-			Unit:         p.Unit,
-			CoordX:       p.CoordX,
-			CoordY:       p.CoordY,
-			Rating:       p.Rating,
-			Stat1Value:   p.Stat1Value,
-			Stat1Label:   p.Stat1Label,
-			Stat2Value:   p.Stat2Value,
-			Stat2Label:   p.Stat2Label,
-			Stat3Value:   p.Stat3Value,
-			Stat3Label:   p.Stat3Label,
-			DisplayOrder: p.DisplayOrder,
+			ID:                p.ID,
+			TOTWID:            p.TOTWID,
+			PlayerID:          p.PlayerID,
+			SlotCode:          p.SlotCode,
+			Position:          p.Position,
+			Unit:              p.Unit,
+			CoordX:            p.CoordX,
+			CoordY:            p.CoordY,
+			Rating:            p.Rating,
+			Stat1Value:        p.Stat1Value,
+			Stat1Label:        p.Stat1Label,
+			Stat2Value:        p.Stat2Value,
+			Stat2Label:        p.Stat2Label,
+			Stat3Value:        p.Stat3Value,
+			Stat3Label:        p.Stat3Label,
+			IsPlayerOfTheWeek: p.IsPlayerOfTheWeek,
+			DisplayOrder:      p.DisplayOrder,
 		}
 		if p.Player != nil {
 			pResp.Player = &dto.PlayerResponse{

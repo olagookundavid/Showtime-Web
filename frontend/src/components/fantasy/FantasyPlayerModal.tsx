@@ -11,6 +11,7 @@ import {
     fantasyApi,
     formatFantasyPrice,
 } from '../../services/api';
+import { formatStatDecimal, formatStatNumber } from '../../utils/formatters';
 
 export interface FantasyPlayerModalData {
     playerId: string;
@@ -192,7 +193,7 @@ export function FantasyPlayerModal({ isOpen, onClose, player }: FantasyPlayerMod
                                 GW Points
                             </span>
                             <span className="text-lg font-black text-sffl-red mt-0.5 block">
-                                {typeof player.points === 'number' ? `${player.points.toFixed(1)} pts` : '—'}
+                                {typeof player.points === 'number' ? `${formatStatDecimal(player.points, 1)} pts` : '—'}
                             </span>
                         </div>
 
@@ -201,7 +202,7 @@ export function FantasyPlayerModal({ isOpen, onClose, player }: FantasyPlayerMod
                                 Total Points
                             </span>
                             <span className="text-lg font-black text-gray-900 dark:text-white mt-0.5 block">
-                                {typeof player.totalPoints === 'number' ? `${player.totalPoints.toFixed(1)} pts` : '—'}
+                                {typeof player.totalPoints === 'number' ? `${formatStatDecimal(player.totalPoints, 1)} pts` : '—'}
                             </span>
                         </div>
 
@@ -238,17 +239,17 @@ export function FantasyPlayerModal({ isOpen, onClose, player }: FantasyPlayerMod
                                     {breakdown.offensive_total !== 0 && (
                                         <div>
                                             <span className="text-[10px] font-black uppercase text-sffl-red block mb-1">
-                                                Offense (+{breakdown.offensive_total.toFixed(1)} pts)
+                                                Offense (+{formatStatDecimal(breakdown.offensive_total, 1)} pts)
                                             </span>
                                             <div className="grid grid-cols-2 gap-1.5 text-[11px] text-gray-600 dark:text-gray-300">
-                                                {breakdown.passing_tds_pts > 0 && <div>Passing TDs: +{breakdown.passing_tds_pts}</div>}
-                                                {breakdown.passing_yards_pts > 0 && <div>Passing Yds: +{breakdown.passing_yards_pts.toFixed(1)}</div>}
-                                                {breakdown.rushing_tds_pts > 0 && <div>Rushing TDs: +{breakdown.rushing_tds_pts}</div>}
-                                                {breakdown.receiving_tds_pts > 0 && <div>Receiving TDs: +{breakdown.receiving_tds_pts}</div>}
-                                                {breakdown.receptions_pts > 0 && <div>Receptions: +{breakdown.receptions_pts}</div>}
-                                                {breakdown.xp_good_pts > 0 && <div>Extra Points: +{breakdown.xp_good_pts}</div>}
-                                                {breakdown.interceptions_thrown_pts < 0 && <div className="text-red-500">INT Thrown: {breakdown.interceptions_thrown_pts}</div>}
-                                                {breakdown.qb_sacks_pts < 0 && <div className="text-red-500">QB Sacks: {breakdown.qb_sacks_pts}</div>}
+                                                {breakdown.passing_tds_pts > 0 && <div>Passing TDs: +{formatStatNumber(breakdown.passing_tds_pts)}</div>}
+                                                {breakdown.passing_yards_pts > 0 && <div>Passing Yds: +{formatStatDecimal(breakdown.passing_yards_pts, 1)}</div>}
+                                                {breakdown.rushing_tds_pts > 0 && <div>Rushing TDs: +{formatStatNumber(breakdown.rushing_tds_pts)}</div>}
+                                                {breakdown.receiving_tds_pts > 0 && <div>Receiving TDs: +{formatStatNumber(breakdown.receiving_tds_pts)}</div>}
+                                                {breakdown.receptions_pts > 0 && <div>Receptions: +{formatStatNumber(breakdown.receptions_pts)}</div>}
+                                                {breakdown.xp_good_pts > 0 && <div>Extra Points: +{formatStatNumber(breakdown.xp_good_pts)}</div>}
+                                                {breakdown.interceptions_thrown_pts < 0 && <div className="text-red-500">INT Thrown: {formatStatNumber(breakdown.interceptions_thrown_pts)}</div>}
+                                                {breakdown.qb_sacks_pts < 0 && <div className="text-red-500">QB Sacks: {formatStatNumber(breakdown.qb_sacks_pts)}</div>}
                                             </div>
                                         </div>
                                     )}
@@ -257,22 +258,22 @@ export function FantasyPlayerModal({ isOpen, onClose, player }: FantasyPlayerMod
                                     {breakdown.defensive_total !== 0 && (
                                         <div>
                                             <span className="text-[10px] font-black uppercase text-[#7fbbfa] block mb-1">
-                                                Defense (+{breakdown.defensive_total.toFixed(1)} pts)
+                                                Defense (+{formatStatDecimal(breakdown.defensive_total, 1)} pts)
                                             </span>
                                             <div className="grid grid-cols-2 gap-1.5 text-[11px] text-gray-600 dark:text-gray-300">
-                                                {breakdown.flag_pulls_pts > 0 && <div>Flag Pulls: +{breakdown.flag_pulls_pts.toFixed(1)}</div>}
-                                                {breakdown.def_sacks_pts > 0 && <div>Sacks: +{breakdown.def_sacks_pts}</div>}
-                                                {breakdown.interceptions_pts > 0 && <div>Interceptions: +{breakdown.interceptions_pts}</div>}
-                                                {breakdown.pass_deflections_pts > 0 && <div>Deflections: +{breakdown.pass_deflections_pts.toFixed(1)}</div>}
-                                                {breakdown.defensive_tds_pts > 0 && <div>Defensive TDs: +{breakdown.defensive_tds_pts}</div>}
-                                                {breakdown.safety_pts > 0 && <div>Safeties: +{breakdown.safety_pts}</div>}
+                                                {breakdown.flag_pulls_pts > 0 && <div>Flag Pulls: +{formatStatDecimal(breakdown.flag_pulls_pts, 1)}</div>}
+                                                {breakdown.def_sacks_pts > 0 && <div>Sacks: +{formatStatNumber(breakdown.def_sacks_pts)}</div>}
+                                                {breakdown.interceptions_pts > 0 && <div>Interceptions: +{formatStatNumber(breakdown.interceptions_pts)}</div>}
+                                                {breakdown.pass_deflections_pts > 0 && <div>Deflections: +{formatStatDecimal(breakdown.pass_deflections_pts, 1)}</div>}
+                                                {breakdown.defensive_tds_pts > 0 && <div>Defensive TDs: +{formatStatNumber(breakdown.defensive_tds_pts)}</div>}
+                                                {breakdown.safety_pts > 0 && <div>Safeties: +{formatStatNumber(breakdown.safety_pts)}</div>}
                                             </div>
                                         </div>
                                     )}
 
                                     <div className="pt-2 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center font-black">
                                         <span>Net Match Score</span>
-                                        <span className="text-sffl-red text-sm">{breakdown.net_total.toFixed(1)} pts</span>
+                                        <span className="text-sffl-red text-sm">{formatStatDecimal(breakdown.net_total, 1)} pts</span>
                                     </div>
                                 </div>
                             ) : (

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import type { Standing } from '../../services/api';
+import { formatStatNumber } from '../../utils/formatters';
 
 interface MatchStandingsTableProps {
     standings: Standing[];
@@ -103,9 +104,9 @@ export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({ standi
                                             </span>
                                         )}
                                     </td>
-                                    <td className="px-1 py-2 md:px-4 md:py-4 text-center text-gray-700 dark:text-gray-200">{standing.played}</td>
+                                    <td className="px-1 py-2 md:px-4 md:py-4 text-center text-gray-700 dark:text-gray-200">{formatStatNumber(standing.played)}</td>
                                     <td className="px-1 py-2 md:px-4 md:py-4 text-center font-bold text-gray-800 dark:text-gray-100">
-                                        {standing.goal_diff > 0 ? `+${standing.goal_diff}` : standing.goal_diff}
+                                        {standing.goal_diff > 0 ? `+${formatStatNumber(standing.goal_diff)}` : formatStatNumber(standing.goal_diff)}
                                     </td>
                                     <td className="px-1 py-2 md:px-4 md:py-4 text-center font-semibold text-gray-800 dark:text-gray-100">
                                         {standing.pct != null ? `${standing.pct}%` : '-'}

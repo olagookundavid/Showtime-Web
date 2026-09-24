@@ -31,6 +31,7 @@ import {
     type SquadPlayer,
     formatFantasyPrice,
 } from '../../services/api';
+import { formatStatNumber } from '../../utils/formatters';
 import { useAuth } from '../../contexts/AuthContext';
 import { getDefaultTeamName } from './FantasyHub';
 import { Loader } from '../../components/ui/Loader';
@@ -1802,7 +1803,7 @@ export function FantasySquadBuilder() {
                                                             <>
                                                                 <span className="text-gray-300 dark:text-gray-600">·</span>
                                                                 <span className={`text-[11px] ${marketSort === 'points' ? 'font-black text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                                                                    {p.total_points.toFixed(0)} pts
+                                                                    {formatStatNumber(Math.round(p.total_points))} pts
                                                                 </span>
                                                             </>
                                                         )}
@@ -2007,7 +2008,7 @@ export function FantasySquadBuilder() {
                                                         <>
                                                             <span className="text-gray-300 dark:text-gray-600">·</span>
                                                             <span className={`text-[11px] ${marketSort === 'points' ? 'font-black text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                                                                {p.total_points.toFixed(0)} pts
+                                                                {formatStatNumber(Math.round(p.total_points))} pts
                                                             </span>
                                                         </>
                                                     )}
