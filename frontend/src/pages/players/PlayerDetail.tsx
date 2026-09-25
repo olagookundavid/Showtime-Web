@@ -605,13 +605,18 @@ export const PlayerDetail = () => {
                         key={statDef.key}
                         className="p-3.5 sm:p-4 md:px-6 flex items-center justify-between hover:bg-gray-50/80 dark:hover:bg-gray-700/40 transition-colors"
                       >
-                        <div className="min-w-0">
-                          <span className="font-bold text-xs sm:text-sm md:text-base text-gray-900 dark:text-white truncate block">
-                            {statDef.label}
-                          </span>
-                          <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-400 block">
-                            {statDef.category}
-                          </span>
+                        <div className="flex items-center gap-3 min-w-0 pr-3">
+                          {/* <span className="px-2 py-1 rounded-md text-[10px] md:text-xs font-black uppercase tracking-wider bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 shrink-0">
+                            {statDef.shortLabel}
+                          </span> */}
+                          <div className="min-w-0">
+                            <span className="font-bold text-xs sm:text-sm md:text-base text-gray-900 dark:text-white truncate block">
+                              {statDef.label}
+                            </span>
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-400 block">
+                              {statDef.category}
+                            </span>
+                          </div>
                         </div>
                         <div className="text-xl sm:text-2xl md:text-3xl font-black text-sffl-navy dark:text-white tabular-nums tracking-tight shrink-0">
                           {formatStatNumber(val)}
