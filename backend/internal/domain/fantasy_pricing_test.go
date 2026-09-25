@@ -74,12 +74,44 @@ func TestPriceSeason(t *testing.T) {
 		}
 	})
 
-	t.Run("under the appearance threshold everyone sits at the floor", func(t *testing.T) {
+	t.Run("under the appearance threshold with no price on file sits at the floor", func(t *testing.T) {
 		short := PriceSeason([]PricingInput{
 			{PlayerID: "one_great_game", Position: "Receiver", Games: 1, Points: 40},
 		})
 		if !short[0].AtFloor || short[0].Price != PriceFloor {
-			t.Errorf("a %d-game player must be priced at the floor, got %.2f", 1, short[0].Price)
+			t.Errorf("a never-priced %d-game player must be priced at the floor, got %.2f", 1, short[0].Price)
+		}
+	})
+
+	// The regression this guards: a player below the appearance threshold used
+	// to be re-targeted at the floor on every reprice regardless of what they
+	// already cost, so a real ₦9.0m seeded price got walked down by the
+	// movement cap starting from gameweek one — well before the "first two
+	// reprices move nothing" guarantee the model is meant to hold. Below the
+	// threshold, "not enough evidence" has to mean held, not floored.
+	t.Run("under the appearance threshold with a real price on file, it is held", func(t *testing.T) {
+		got := PriceSeason([]PricingInput{
+			// Zero points from one game would price near the floor on the
+			// performance path — proof this is the appearance gate holding
+			// them, not a coincidentally-matching performance price.
+			{PlayerID: "seeded", Position: "Receiver", Games: 1, Points: 0, PreviousPrice: 9.0},
+		})
+		if got[0].Price != 9.0 {
+			t.Errorf("expected the seeded price 9.00 to be held untouched, got %.2f", got[0].Price)
+		}
+		if got[0].MovementLimited {
+			t.Error("held is not the same as capped — nothing should have been targeted to cap in the first place")
+		}
+	})
+
+	// The other direction: also frozen, not nudged up, so a below-threshold
+	// player cannot be farmed by fabricating an early good game either.
+	t.Run("under the appearance threshold, a hot start does not raise the price early", func(t *testing.T) {
+		got := PriceSeason([]PricingInput{
+			{PlayerID: "hot_start", Position: "Receiver", Games: 1, Points: 40, PreviousPrice: 5.0},
+		})
+		if got[0].Price != 5.0 {
+			t.Errorf("expected the price held at 5.00 until the threshold clears, got %.2f", got[0].Price)
 		}
 	})
 
@@ -124,7 +156,7 @@ func TestMovementCap(t *testing.T) {
 
 	t.Run("a fall is capped", func(t *testing.T) {
 		got := PriceSeason([]PricingInput{
-			{PlayerID: "faller", Position: "QB", Games: 1, Points: 0, PreviousPrice: 11.0},
+			{PlayerID: "faller", Position: "QB", Games: 9, Points: 0, PreviousPrice: 11.0},
 		})
 		if got[0].Price < 11.0-MaxPriceMovePerGameweek {
 			t.Errorf("a fall from 11.00 must stop at %.2f, got %.2f", 11.0-MaxPriceMovePerGameweek, got[0].Price)

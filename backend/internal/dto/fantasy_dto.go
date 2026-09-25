@@ -357,3 +357,28 @@ type AdminOverridePriceRequest struct {
 	Price *float64 `json:"price" binding:"omitempty,min=3,max=12.5"`
 	Reset bool     `json:"reset"`
 }
+
+// ─── Player Price History DTOs ──────────────────────────────────────────────
+
+type PlayerPriceHistoryItem struct {
+	GameweekID       *string   `json:"gameweek_id,omitempty"`
+	GameweekNumber   int       `json:"gameweek_number"`
+	GameweekLabel    string    `json:"gameweek_label"`
+	Price            float64   `json:"price"`
+	CalculatedPrice  float64   `json:"calculated_price"`
+	Change           float64   `json:"change"`
+	PercentageChange float64   `json:"percentage_change"`
+	Rating           float64   `json:"rating"`
+	IsOverridden     bool      `json:"is_overridden"`
+	CreatedAt        time.Time `json:"created_at"`
+}
+
+type PlayerPriceHistoryResponse struct {
+	PlayerID     string                   `json:"player_id"`
+	PlayerName   string                   `json:"player_name"`
+	CurrentPrice float64                  `json:"current_price"`
+	BasePrice    float64                  `json:"base_price"`
+	TotalChange  float64                  `json:"total_change"`
+	History      []PlayerPriceHistoryItem `json:"history"`
+}
+

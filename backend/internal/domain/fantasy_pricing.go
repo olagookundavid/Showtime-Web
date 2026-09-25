@@ -37,8 +37,11 @@ const (
 	AvailabilityWeight = 0.15
 
 	// MinPricingAppearances is the sample below which no performance price is
-	// assigned. Fewer games than this and the player sits at the floor: unknown,
-	// and therefore cheap, rather than unknown and priced as average.
+	// assigned. Fewer games than this and the player is held at whatever they
+	// already cost — a never-priced player defaults to the floor (unknown, and
+	// therefore cheap, rather than unknown and priced as average), but an
+	// existing price is left alone rather than walked toward the floor before
+	// there is any evidence to justify moving it at all.
 	MinPricingAppearances = 3
 	// FullSeasonAppearances is the games count that counts as full availability.
 	FullSeasonAppearances = 9
@@ -149,11 +152,25 @@ func PriceSeason(inputs []PricingInput) []PricedPlayer {
 		}
 
 		if in.Games < MinPricingAppearances {
-			// Not enough evidence to price on. The floor is the honest answer:
-			// cheap because unknown, which makes them a punt rather than dead
-			// money at mid-price.
-			p.AtFloor = true
-			p.Price = PriceFloor
+			// Not enough evidence to price on. "Not enough evidence" has to mean
+			// held, not walked toward the floor: a player who already has a real
+			// price — seeded from ratings, or published by an earlier reprice —
+			// keeps it exactly until they clear the threshold. Targeting the
+			// floor here instead would drag a genuine ₦9.0m opening price down
+			// by the movement cap every single gameweek before their first
+			// three appearances, which is precisely the "first two reprices
+			// move nothing" guarantee this model is supposed to hold generally,
+			// not only when every opening price already happens to sit at the
+			// floor.
+			//
+			// The floor is still the honest answer for a player with no price
+			// on file at all — cheap because unknown, rather than dead money at
+			// mid-price — which is exactly what a zero PreviousPrice means.
+			if in.PreviousPrice > 0 {
+				p.Price = in.PreviousPrice
+			} else {
+				p.Price = PriceFloor
+			}
 		} else {
 			p.Percentile = percentileOf(eligibleByPosition[in.Position], p.PointsPerGame)
 			p.Availability = math.Min(1, float64(in.Games)/FullSeasonAppearances)
@@ -162,6 +179,11 @@ func PriceSeason(inputs []PricingInput) []PricedPlayer {
 		}
 
 		p.Price, p.MovementLimited = applyMovementCap(p.Price, in.PreviousPrice)
+		// AtFloor reports where the price landed, not which branch produced it —
+		// a well-evidenced player whose form has cooled can walk down onto the
+		// floor via the movement cap too, and that is just as much "at the
+		// floor" as a never-priced one starting there.
+		p.AtFloor = p.Price == PriceFloor
 		out = append(out, p)
 	}
 	return out

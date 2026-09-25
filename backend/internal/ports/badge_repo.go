@@ -352,24 +352,32 @@ func (r *PostgresBadgeRepository) BackfillAllMVPBadges(ctx context.Context) (int
 		return 0, err
 	}
 
-	// 1. Remove stale MVP awards first (match not FINISHED, or the player is no
-	// longer its MVP) so a match never holds two MVP awards.
+	// 1. Remove stale MVP awards first:
+	// - match is not FINISHED
+	// - or mvp_player_id is NULL
+	// - or mvp_player_id does not match player_id
+	// - or match date is not from 2026 (only 2026 match MVPs get the badge)
 	cleanupQuery := `
 		DELETE FROM player_badge_awards pba
 		USING matches m
 		WHERE pba.badge_id = $1 AND pba.match_id = m.id
-		  AND (m.status != 'FINISHED' OR m.mvp_player_id IS NULL OR m.mvp_player_id != pba.player_id)
+		  AND (m.status != 'FINISHED' 
+		       OR m.mvp_player_id IS NULL 
+		       OR m.mvp_player_id != pba.player_id
+		       OR EXTRACT(YEAR FROM m.date) != 2026)
 	`
 	if _, err := r.db.Exec(ctx, cleanupQuery, badge.ID); err != nil {
 		return 0, fmt.Errorf("clean up stale MVP awards: %w", err)
 	}
 
-	// 2. Backfill awards for all finished matches with mvp_player_id
+	// 2. Backfill awards for all finished matches from year 2026 with mvp_player_id
 	awardQuery := `
 		INSERT INTO player_badge_awards (player_id, badge_id, match_id, competition_id, reason, count, created_at)
 		SELECT m.mvp_player_id, $1, m.id, m.competition_id, 'Match MVP honor', 1, COALESCE((m.date + COALESCE(m.time, '00:00'::time))::timestamptz, NOW())
 		FROM matches m
-		WHERE m.mvp_player_id IS NOT NULL AND m.status = 'FINISHED'
+		WHERE m.mvp_player_id IS NOT NULL 
+		  AND m.status = 'FINISHED'
+		  AND EXTRACT(YEAR FROM m.date) = 2026
 		ON CONFLICT DO NOTHING
 	`
 	if _, err := r.db.Exec(ctx, awardQuery, badge.ID); err != nil {

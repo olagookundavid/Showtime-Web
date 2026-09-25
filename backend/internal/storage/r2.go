@@ -48,7 +48,9 @@ func NewR2StorageService() (ports.StorageService, error) {
 		return nil, fmt.Errorf("failed to load R2 config: %w", err)
 	}
 
-	client := s3.NewFromConfig(cfg)
+	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		o.UsePathStyle = true
+	})
 
 	return &R2StorageService{
 		client:        client,

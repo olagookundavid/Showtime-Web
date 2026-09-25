@@ -12,6 +12,7 @@ import {
 import { 
     fantasyApi, 
     fantasySeasonApi,
+    fantasySquadApi,
     type FantasyLineupPick,
     formatFantasyPrice,
 } from '../../services/api';
@@ -58,6 +59,13 @@ export function FantasyMyTeam() {
         queryKey: ['myFantasyLineup', season?.id, selectedGWId],
         queryFn: () => (season?.id && selectedGWId ? fantasyApi.getMyLineup(season.id, selectedGWId) : Promise.resolve(null)),
         enabled: !!season?.id && !!selectedGWId,
+    });
+
+    // Fetch Squad to show accurate bank & squad values
+    const { data: mySquad } = useQuery({
+        queryKey: ['fantasySquad', season?.id],
+        queryFn: () => (season?.id ? fantasySquadApi.getSquad(season.id) : Promise.resolve(null)),
+        enabled: !!season?.id,
     });
 
     // Points Breakdown Drawer State
@@ -166,23 +174,23 @@ export function FantasyMyTeam() {
                     </div>
                 </div>
 
-                {/* Points & Budget Strip */}
+                {/* Points & Financial Strip */}
                 <div className="mt-6 pt-6 border-t border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="p-3 bg-white/10 rounded-xl">
                         <span className="text-[10px] uppercase font-bold text-gray-300 block">Gameweek Score</span>
                         <span className="text-2xl font-black text-yellow-400">{lineup.points.toFixed(2)} pts</span>
                     </div>
                     <div className="p-3 bg-white/10 rounded-xl">
-                        <span className="text-[10px] uppercase font-bold text-gray-300 block">Total Spent</span>
-                        <span className="text-2xl font-black text-white">{formatFantasyPrice(lineup.total_spent)}</span>
+                        <span className="text-[10px] uppercase font-bold text-gray-300 block">In the Bank</span>
+                        <span className="text-2xl font-black text-yellow-400">{formatFantasyPrice(mySquad?.bank ?? 0)}</span>
                     </div>
                     <div className="p-3 bg-white/10 rounded-xl">
-                        <span className="text-[10px] uppercase font-bold text-gray-300 block">Remaining Cap</span>
-                        <span className="text-2xl font-black text-gray-200">{formatFantasyPrice(lineup.remaining_budget)}</span>
+                        <span className="text-[10px] uppercase font-bold text-gray-300 block">Squad Value</span>
+                        <span className="text-2xl font-black text-emerald-400">{formatFantasyPrice(mySquad?.squad_value ?? lineup.total_spent)}</span>
                     </div>
                     <div className="p-3 bg-white/10 rounded-xl">
-                        <span className="text-[10px] uppercase font-bold text-gray-300 block">Roster Spots</span>
-                        <span className="text-2xl font-black text-emerald-400">14 / 14 Starters</span>
+                        <span className="text-[10px] uppercase font-bold text-gray-300 block">Club Value</span>
+                        <span className="text-2xl font-black text-white">{formatFantasyPrice((mySquad?.bank ?? 0) + (mySquad?.squad_value ?? lineup.total_spent))}</span>
                     </div>
                 </div>
             </div>

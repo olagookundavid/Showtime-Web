@@ -62,6 +62,7 @@ type IFantasyRepository interface {
 	GetOverriddenPrices(ctx context.Context, seasonID string) (map[string]float64, error)
 	ListPlayerPricesForAdmin(ctx context.Context, seasonID string, search, position, teamID, overrideStatus string, page, limit int) ([]dto.AdminPlayerPriceItem, int, error)
 	OverridePlayerPrice(ctx context.Context, seasonID, playerID string, price *float64, reset bool) (*dto.AdminPlayerPriceItem, error)
+	GetPlayerPriceHistory(ctx context.Context, seasonID, playerID string) (*dto.PlayerPriceHistoryResponse, error)
 	ListPlayerMarket(ctx context.Context, seasonID string, positions []string, gender, teamID, search, sortBy string, page, limit int) ([]dto.FantasyPlayerListItem, int, error)
 	// GetSeasonRatingLines aggregates every rateable player's season-to-date
 	// stat totals for a competition, so prices can be recomputed from ratings.
@@ -2028,6 +2029,107 @@ func (r *FantasyRepository) OverridePlayerPrice(ctx context.Context, seasonID, p
 	}
 
 	return &item, nil
+}
+
+func (r *FantasyRepository) GetPlayerPriceHistory(ctx context.Context, seasonID, playerID string) (*dto.PlayerPriceHistoryResponse, error) {
+	var playerName string
+	err := r.pool.QueryRow(ctx, "SELECT name FROM players WHERE id = $1", playerID).Scan(&playerName)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errors.New("player not found")
+		}
+		return nil, fmt.Errorf("failed to fetch player: %w", err)
+	}
+
+	query := `
+		SELECT 
+			fpp.gameweek_id,
+			COALESCE(fg.number, 0) AS gw_number,
+			fpp.price,
+			COALESCE(fpp.calculated_price, fpp.price) AS calculated_price,
+			COALESCE(fpp.rating, 5.00) AS rating,
+			COALESCE(fpp.is_overridden, false) AS is_overridden,
+			fpp.created_at
+		FROM fantasy_player_prices fpp
+		LEFT JOIN fantasy_gameweeks fg ON fg.id = fpp.gameweek_id
+		WHERE fpp.player_id = $1 AND fpp.season_id = $2
+		ORDER BY COALESCE(fg.number, 0) ASC, fpp.created_at ASC
+	`
+	rows, err := r.pool.Query(ctx, query, playerID, seasonID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch player price history: %w", err)
+	}
+	defer rows.Close()
+
+	var rawHistory []dto.PlayerPriceHistoryItem
+	var prevPrice float64
+	hasPrev := false
+
+	for rows.Next() {
+		var item dto.PlayerPriceHistoryItem
+		var gwID *string
+		var gwNumber int
+
+		if err := rows.Scan(
+			&gwID,
+			&gwNumber,
+			&item.Price,
+			&item.CalculatedPrice,
+			&item.Rating,
+			&item.IsOverridden,
+			&item.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan price history row: %w", err)
+		}
+
+		item.GameweekID = gwID
+		item.GameweekNumber = gwNumber
+		if gwNumber == 0 || gwID == nil {
+			item.GameweekLabel = "Opening Price"
+		} else {
+			item.GameweekLabel = fmt.Sprintf("Gameweek %d", gwNumber)
+		}
+
+		if !hasPrev {
+			item.Change = 0
+			item.PercentageChange = 0
+			prevPrice = item.Price
+			hasPrev = true
+		} else {
+			diff := item.Price - prevPrice
+			item.Change = math.Round(diff*100) / 100
+			if prevPrice > 0 {
+				pct := (diff / prevPrice) * 100
+				item.PercentageChange = math.Round(pct*10) / 10
+			}
+			prevPrice = item.Price
+		}
+
+		rawHistory = append(rawHistory, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error reading price history: %w", err)
+	}
+
+	resp := &dto.PlayerPriceHistoryResponse{
+		PlayerID:   playerID,
+		PlayerName: playerName,
+		History:    []dto.PlayerPriceHistoryItem{},
+	}
+
+	if len(rawHistory) > 0 {
+		resp.BasePrice = rawHistory[0].Price
+		resp.CurrentPrice = rawHistory[len(rawHistory)-1].Price
+		resp.TotalChange = math.Round((resp.CurrentPrice-resp.BasePrice)*100) / 100
+
+		// Reverse to newest-first order for UI consumption
+		for i := len(rawHistory) - 1; i >= 0; i-- {
+			resp.History = append(resp.History, rawHistory[i])
+		}
+	}
+
+	return resp, nil
 }
 
 // ─── Gameweek scheduling ──────────────────────────────────────────────────────

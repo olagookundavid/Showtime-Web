@@ -818,6 +818,7 @@ func SetupFantasyRoutes(r *gin.RouterGroup, app *api.Application) {
 		fantasyRoutes.GET("/season/:id/gameweeks", app.Handlers.FantasyHandler.GetGameweeks)
 		fantasyRoutes.GET("/season/:id/market", app.Handlers.FantasyHandler.ListPlayerMarket)
 		fantasyRoutes.GET("/players/:id/gameweek/:gwId/breakdown", app.Handlers.FantasyHandler.GetPlayerBreakdown)
+		fantasyRoutes.GET("/players/:id/price-history", app.Handlers.FantasyHandler.GetPlayerPriceHistory)
 		fantasyRoutes.GET("/leagues/public", app.Handlers.FantasyLeagueHandler.ListPublicLeagues)
 		// Optional auth so a signed-in viewer's own rank comes back with the
 		// table; anonymous visitors still get the public standings.

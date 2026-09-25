@@ -41,6 +41,120 @@ const COLOR_SCHEMES = [
     { value: 'green', label: 'Emerald Green', bg: 'bg-emerald-500/20 text-emerald-500 border-emerald-500/40' },
 ];
 
+export interface OfficialBadgePreset {
+    code: string;
+    name: string;
+    filename: string;
+    imageUrl: string;
+    localUrl: string;
+    category: string;
+    color_scheme: string;
+    description: string;
+}
+
+export const OFFICIAL_BADGE_PRESETS: OfficialBadgePreset[] = [
+    {
+        code: 'MVP',
+        name: 'Game MVP',
+        filename: 'game-mvp.png',
+        imageUrl: 'https://cdn.sffl.football/badges/game-mvp.png',
+        localUrl: '/badges/game-mvp.png',
+        category: 'Honors',
+        color_scheme: 'gold',
+        description: 'Awarded to the most valuable player of an official match',
+    },
+    {
+        code: 'POTW',
+        name: 'Player of the Week',
+        filename: 'player-of-the-week.png',
+        imageUrl: 'https://cdn.sffl.football/badges/player-of-the-week.png',
+        localUrl: '/badges/player-of-the-week.png',
+        category: 'Honors',
+        color_scheme: 'gold',
+        description: 'Selected as the standout Player of the Week in the Showtime Team of the Week',
+    },
+    {
+        code: 'TOTW',
+        name: 'Team of the Week',
+        filename: 'team-of-the-week.png',
+        imageUrl: 'https://cdn.sffl.football/badges/team-of-the-week.png',
+        localUrl: '/badges/team-of-the-week.png',
+        category: 'Honors',
+        color_scheme: 'red',
+        description: 'Selected as one of the top 14 players of the gameday Starting XIV',
+    },
+    {
+        code: 'TOTS',
+        name: 'Team of the Season',
+        filename: 'team-of-the-season.png',
+        imageUrl: 'https://cdn.sffl.football/badges/team-of-the-season.png',
+        localUrl: '/badges/team-of-the-season.png',
+        category: 'Honors',
+        color_scheme: 'gold',
+        description: 'Selected in the prestigious Showtime Team of the Season roster',
+    },
+    {
+        code: 'DPOY',
+        name: 'Best Defender',
+        filename: 'best-defender.png',
+        imageUrl: 'https://cdn.sffl.football/badges/best-defender.png',
+        localUrl: '/badges/best-defender.png',
+        category: 'Defence',
+        color_scheme: 'blue',
+        description: 'Honoring the premier defensive playmaker of the season',
+    },
+    {
+        code: 'OPOY',
+        name: 'Best Receiver',
+        filename: 'best-receiver.png',
+        imageUrl: 'https://cdn.sffl.football/badges/best-receiver.png',
+        localUrl: '/badges/best-receiver.png',
+        category: 'Offence',
+        color_scheme: 'red',
+        description: 'Honoring the most outstanding pass-catcher and scoring receiver of the season',
+    },
+    {
+        code: 'BEST_RUSHER',
+        name: 'Best Rusher',
+        filename: 'best-rusher.png',
+        imageUrl: 'https://cdn.sffl.football/badges/best-rusher.png',
+        localUrl: '/badges/best-rusher.png',
+        category: 'Defence',
+        color_scheme: 'red',
+        description: 'Awarded to the fiercest defensive pass rusher of the season',
+    },
+    {
+        code: 'BEST_CENTER',
+        name: 'Best Center',
+        filename: 'best-center.png',
+        imageUrl: 'https://cdn.sffl.football/badges/best-center.png',
+        localUrl: '/badges/best-center.png',
+        category: 'Offence',
+        color_scheme: 'blue',
+        description: 'Awarded to the premier offensive lineman / center of the season',
+    },
+    {
+        code: 'ROOKIE_OF_THE_SEASON',
+        name: 'Rookie of the Season',
+        filename: 'rookie-of-the-season.png',
+        imageUrl: 'https://cdn.sffl.football/badges/rookie-of-the-season.png',
+        localUrl: '/badges/rookie-of-the-season.png',
+        category: 'Honors',
+        color_scheme: 'gold',
+        description: 'Awarded to the most outstanding newcomer across the league',
+    },
+    {
+        code: 'TOURNAMENT_MVP',
+        name: 'Tournament MVP',
+        filename: 'tournament-mvp.png',
+        imageUrl: 'https://cdn.sffl.football/badges/tournament-mvp.png',
+        localUrl: '/badges/tournament-mvp.png',
+        category: 'Honors',
+        color_scheme: 'gold',
+        description: 'Awarded to the most valuable player across tournament knockout championship play',
+    },
+];
+
 // Awards rebuilt from their source (match MVP, published TOTW) can't be revoked
 // here — the next sync would bring them back. The backend refuses them too.
 const isAutomaticAward = (award: PlayerBadgeAward) =>
@@ -60,7 +174,7 @@ export const AdminBadges = () => {
         code: '',
         name: '',
         description: '',
-        icon: '🏆',
+        icon: '',
         color_scheme: 'gold',
         category: 'Honors',
     });
@@ -275,16 +389,16 @@ export const AdminBadges = () => {
                     <button
                         type="button"
                         onClick={() => {
-                            if (confirm('Backfill all historical match MVPs into player badge profiles?')) {
+                            if (confirm('Backfill all 2026 match MVPs into player badge profiles? Only matches from 2026 will receive the MVP badge.')) {
                                 backfillMutation.mutate();
                             }
                         }}
                         disabled={backfillMutation.isPending}
                         className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                        title="Scan past matches and award MVP badges to players"
+                        title="Scan finished 2026 matches and award MVP badges to players"
                     >
                         <SparklesIcon className="w-4 h-4" />
-                        <span>{backfillMutation.isPending ? 'Backfilling…' : 'Backfill Career MVPs'}</span>
+                        <span>{backfillMutation.isPending ? 'Backfilling…' : 'Backfill 2026 MVPs'}</span>
                     </button>
                     <button
                         type="button"
@@ -611,13 +725,18 @@ export const AdminBadges = () => {
                     onClick={() => setShowBadgeModal(false)}
                 >
                     <div
-                        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+                        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                            <h3 className="text-lg font-black text-sffl-navy dark:text-white">
-                                {editingBadge ? 'Edit Badge' : 'Create Custom Badge'}
-                            </h3>
+                        <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between shrink-0">
+                            <div>
+                                <h3 className="text-lg font-black text-sffl-navy dark:text-white">
+                                    {editingBadge ? 'Edit Badge' : 'Create Badge'}
+                                </h3>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                    Select an official Showtime badge design or upload custom artwork
+                                </p>
+                            </div>
                             <button
                                 onClick={() => setShowBadgeModal(false)}
                                 className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg cursor-pointer"
@@ -625,97 +744,177 @@ export const AdminBadges = () => {
                                 <XMarkIcon className="w-5 h-5" />
                             </button>
                         </div>
-                        <div className="p-5 space-y-4">
-                            {!editingBadge && (
-                                <div>
-                                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1">
-                                        Badge Code (Unique ID) *
-                                    </label>
-                                    <input
-                                        type="text"
-                                        placeholder="e.g. PLAYOFF_CHAMPION"
-                                        value={badgeForm.code}
-                                        onChange={(e) =>
-                                            setBadgeForm((p) => ({
-                                                ...p,
-                                                code: e.target.value.toUpperCase().replace(/\s+/g, '_'),
-                                            }))
-                                        }
-                                        className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm font-bold font-mono outline-none focus:ring-2 focus:ring-sffl-red"
-                                    />
-                                </div>
-                            )}
 
-                            <div>
-                                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1">
-                                    Badge Name *
-                                </label>
-                                <input
-                                    type="text"
-                                    placeholder="e.g. Playoff Champion"
-                                    value={badgeForm.name}
-                                    onChange={(e) => setBadgeForm((p) => ({ ...p, name: e.target.value }))}
-                                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-sffl-red"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1">
-                                    Category
-                                </label>
-                                <select
-                                    value={badgeForm.category}
-                                    onChange={(e) => setBadgeForm((p) => ({ ...p, category: e.target.value }))}
-                                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-sffl-red"
-                                >
-                                    <option value="Honors">Honors</option>
-                                    <option value="Offence">Offence</option>
-                                    <option value="Defence">Defence</option>
-                                    <option value="Milestone">Milestone</option>
-                                    <option value="Special">Special Award</option>
-                                </select>
-                            </div>
-
+                        <div className="p-5 md:p-6 space-y-5 overflow-y-auto flex-1">
+                            {/* ── Official Badge Presets Gallery ──────────────── */}
                             <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                                        Official Showtime Badges (Click to Select) *
+                                    </label>
+                                    <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                                        10 official emblems
+                                    </span>
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 p-3 rounded-xl bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 max-h-56 overflow-y-auto">
+                                    {OFFICIAL_BADGE_PRESETS.map((preset) => {
+                                        const isSelected =
+                                            badgeForm.icon === preset.imageUrl ||
+                                            badgeForm.icon === preset.localUrl ||
+                                            badgeForm.icon?.endsWith(preset.filename);
+                                        return (
+                                            <button
+                                                key={preset.code}
+                                                type="button"
+                                                onClick={() => {
+                                                    setBadgeForm((p) => ({
+                                                        ...p,
+                                                        icon: preset.imageUrl,
+                                                        name: !editingBadge || !p.name ? preset.name : p.name,
+                                                        code: !editingBadge && !p.code ? preset.code : p.code,
+                                                        category: preset.category,
+                                                        color_scheme: preset.color_scheme,
+                                                        description: !p.description ? preset.description : p.description,
+                                                    }));
+                                                }}
+                                                className={`group relative p-2.5 rounded-xl border flex flex-col items-center text-center transition-all cursor-pointer ${
+                                                    isSelected
+                                                        ? 'bg-amber-500/15 border-amber-500 ring-2 ring-amber-400/50 shadow-md'
+                                                        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-amber-400 hover:scale-[1.02]'
+                                                }`}
+                                            >
+                                                <div className="w-12 h-12 flex items-center justify-center p-1">
+                                                    <img
+                                                        src={preset.localUrl}
+                                                        alt={preset.name}
+                                                        className="w-full h-full object-contain drop-shadow-xs"
+                                                        onError={(e) => {
+                                                            (e.currentTarget as HTMLImageElement).src = preset.imageUrl;
+                                                        }}
+                                                    />
+                                                </div>
+                                                <span className="mt-1.5 text-[10px] font-black leading-tight text-gray-900 dark:text-gray-100 line-clamp-2">
+                                                    {preset.name}
+                                                </span>
+                                                {isSelected && (
+                                                    <div className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-amber-500 text-sffl-navy flex items-center justify-center text-[10px] font-black shadow-xs">
+                                                        ✓
+                                                    </div>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* ── Active Emblem Preview & Custom Upload ───────── */}
+                            <div className="space-y-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+                                {badgeForm.icon ? (
+                                    <div className="flex items-center gap-3 p-3 bg-amber-500/10 dark:bg-amber-500/5 rounded-xl border border-amber-400/40">
+                                        <div className="w-14 h-14 p-1 rounded-xl bg-white dark:bg-gray-800 border border-amber-400/50 flex items-center justify-center shrink-0 shadow-sm">
+                                            <BadgeImage icon={badgeForm.icon} name="Preview" className="w-full h-full text-2xl" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs font-black text-gray-900 dark:text-white truncate">
+                                                    {badgeForm.name || 'Selected Badge'}
+                                                </span>
+                                                <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-400/20 text-amber-700 dark:text-amber-300">
+                                                    Active Artwork
+                                                </span>
+                                            </div>
+                                            <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate font-mono mt-0.5">
+                                                {badgeForm.icon}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="p-3 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 text-center text-xs text-gray-500 dark:text-gray-400">
+                                        No emblem selected. Click one of the official badges above or upload custom artwork below.
+                                    </div>
+                                )}
+
                                 <ImageUploadField
-                                    label="Badge Image (R2) *"
+                                    label="Or Upload Custom Badge Artwork to R2"
                                     value={badgeForm.icon || ''}
                                     onChange={(url) => setBadgeForm((p) => ({ ...p, icon: url }))}
                                     folder="badges"
                                     helperText="Upload a crisp square badge emblem (PNG, WebP, SVG with transparent background recommended)"
                                 />
-                                {badgeForm.icon && (
-                                    <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600">
-                                        <div className="w-12 h-12 p-1.5 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 flex items-center justify-center shrink-0 shadow-xs">
-                                            <BadgeImage icon={badgeForm.icon} name="Preview" className="w-full h-full text-2xl" />
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <div className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate font-mono">
-                                                {badgeForm.icon}
-                                            </div>
-                                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1 mt-0.5">
-                                                <span>✓</span> Badge emblem uploaded to R2
-                                            </span>
-                                        </div>
-                                    </div>
-                                )}
                             </div>
 
-                            <div>
-                                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1">
-                                    Color Theme
-                                </label>
-                                <select
-                                    value={badgeForm.color_scheme}
-                                    onChange={(e) => setBadgeForm((p) => ({ ...p, color_scheme: e.target.value }))}
-                                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-sffl-red"
-                                >
-                                    {COLOR_SCHEMES.map((cs) => (
-                                        <option key={cs.value} value={cs.value}>
-                                            {cs.label}
-                                        </option>
-                                    ))}
-                                </select>
+                            {/* ── Badge Metadata ─────────────────────────────── */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+                                {!editingBadge && (
+                                    <div>
+                                        <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1">
+                                            Badge Code (Unique ID) *
+                                        </label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. GAME_MVP"
+                                            value={badgeForm.code}
+                                            onChange={(e) =>
+                                                setBadgeForm((p) => ({
+                                                    ...p,
+                                                    code: e.target.value.toUpperCase().replace(/\s+/g, '_'),
+                                                }))
+                                            }
+                                            className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm font-bold font-mono outline-none focus:ring-2 focus:ring-sffl-red"
+                                        />
+                                    </div>
+                                )}
+
+                                <div>
+                                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1">
+                                        Badge Name *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. Game MVP"
+                                        value={badgeForm.name}
+                                        onChange={(e) => setBadgeForm((p) => ({ ...p, name: e.target.value }))}
+                                        className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-sffl-red"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1">
+                                        Category
+                                    </label>
+                                    <select
+                                        value={badgeForm.category}
+                                        onChange={(e) => setBadgeForm((p) => ({ ...p, category: e.target.value }))}
+                                        className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-sffl-red"
+                                    >
+                                        <option value="Honors">Honors</option>
+                                        <option value="Match Honor">Match Honor</option>
+                                        <option value="Weekly Honor">Weekly Honor</option>
+                                        <option value="Season Honor">Season Honor</option>
+                                        <option value="Tournament Honor">Tournament Honor</option>
+                                        <option value="Offence">Offence</option>
+                                        <option value="Defence">Defence</option>
+                                        <option value="Milestone">Milestone</option>
+                                        <option value="Special">Special Award</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-1">
+                                        Color Theme
+                                    </label>
+                                    <select
+                                        value={badgeForm.color_scheme}
+                                        onChange={(e) => setBadgeForm((p) => ({ ...p, color_scheme: e.target.value }))}
+                                        className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-sffl-red"
+                                    >
+                                        {COLOR_SCHEMES.map((cs) => (
+                                            <option key={cs.value} value={cs.value}>
+                                                {cs.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
 
                             <div>
@@ -723,7 +922,7 @@ export const AdminBadges = () => {
                                     Description
                                 </label>
                                 <textarea
-                                    rows={3}
+                                    rows={2}
                                     placeholder="Describe the criteria or achievement required for this honor..."
                                     value={badgeForm.description}
                                     onChange={(e) => setBadgeForm((p) => ({ ...p, description: e.target.value }))}
