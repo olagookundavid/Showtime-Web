@@ -12,6 +12,7 @@ import {
   type Match,
   type TeamSheetPlayer,
   type BulkRecomputeResult,
+  type UpsertPlayerStatPayload,
 } from "../../services/api";
 import {
   ArrowPathIcon,
@@ -195,7 +196,7 @@ export const AdminStats = () => {
         ...Object.fromEntries(
           STAT_FIELDS.map((f) => [f.key, parseInt(form[f.key]) || 0]),
         ),
-      };
+      } as UpsertPlayerStatPayload;
 
       await upsertPlayerStat(payload);
       toast.success("Stats recorded successfully!");
