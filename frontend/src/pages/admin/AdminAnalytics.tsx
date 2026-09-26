@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Loader } from '../../components/ui/Loader';
+import { DataTable, type Column } from '../../components/ui/DataTable';
 import { getAdminAnalytics, type TicketResponse } from '../../services/api';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -15,6 +16,51 @@ const formatNaira = (amount: number) => {
     }).format(amount);
 };
 
+// Axis ticks stay short (1.2K, ₦3.4M) so the plot keeps its width on a phone.
+const compactNumber = new Intl.NumberFormat('en-NG', { notation: 'compact' });
+const compactNaira = new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', notation: 'compact' });
+
+// A stable empty list, so the table isn't handed a fresh array on every render.
+const NO_SALES: TicketResponse[] = [];
+
+// No dependencies, so the columns live here rather than in a useMemo.
+const SALES_COLUMNS: Column<TicketResponse>[] = [
+    {
+        header: 'Event',
+        cell: (sale) => (
+            <span className="font-bold text-sffl-navy dark:text-white">{sale.event_title || '—'}</span>
+        ),
+    },
+    {
+        header: 'Tier',
+        cell: (sale) => (
+            <span className="text-sm font-bold bg-gray-100 dark:bg-gray-600 dark:text-gray-200 px-2 py-1 rounded">
+                {sale.tier_name || '—'}
+            </span>
+        ),
+    },
+    { header: 'Qty', align: 'center', cell: (sale) => sale.quantity },
+    {
+        header: 'Amount',
+        align: 'right',
+        sortable: true,
+        sortValue: (sale) => sale.total_amount,
+        cell: (sale) => <span className="font-bold text-green-600">{formatNaira(sale.total_amount)}</span>,
+    },
+    {
+        header: 'Purchaser',
+        cell: (sale) => <span className="text-sm text-gray-600 dark:text-gray-400 break-all">{sale.email}</span>,
+    },
+    {
+        header: 'Time',
+        sortable: true,
+        sortValue: (sale) => sale.created_at,
+        cell: (sale) => (
+            <span className="text-xs text-gray-500 dark:text-gray-400">{new Date(sale.created_at).toLocaleString()}</span>
+        ),
+    },
+];
+
 export const AdminAnalytics = () => {
     const { isDarkMode } = useTheme();
     const {
@@ -29,7 +75,9 @@ export const AdminAnalytics = () => {
         }
     });
 
-    const error = queryError ? (queryError as any).response?.data?.error || 'Failed to load analytics data' : '';
+    const error = queryError
+        ? (queryError as { response?: { data?: { error?: string } } }).response?.data?.error || 'Failed to load analytics data'
+        : '';
 
     if (loading) {
         return <Loader />;
@@ -46,8 +94,8 @@ export const AdminAnalytics = () => {
     const {
         users_by_role = {},
         sales_by_tier = [],
-        recent_sales = []
     } = analytics || {};
+    const recentSales = analytics?.recent_sales ?? NO_SALES;
 
     const usersPieData = Object.entries(users_by_role).map(([role, count]) => ({
         name: role.toUpperCase(),
@@ -55,20 +103,20 @@ export const AdminAnalytics = () => {
     }));
 
     return (
-        <div className="space-y-8 animate-fade-in">
+        <div className="space-y-6 sm:space-y-8 animate-fade-in">
             {/* Header */}
             <div>
-                <h1 className="text-4xl font-black text-sffl-navy dark:text-white mb-2">Analytics</h1>
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-sffl-navy dark:text-white mb-2">Analytics</h1>
                 <p className="text-gray-600 dark:text-gray-400">Deep dive into platform data and user metrics.</p>
             </div>
 
             {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
                 {/* Users By Role Pie Chart */}
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border-gray-200 dark:border-gray-700 border">
+                <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-md border-gray-200 dark:border-gray-700 border min-w-0">
                     <h2 className="text-xl font-black text-sffl-navy dark:text-white mb-4">Users Breakdown</h2>
                     {usersPieData.length === 0 ? (
-                        <div className="h-64 flex items-center justify-center text-gray-400 dark:text-gray-500 italic bg-gray-50 dark:bg-gray-700/50 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-600">
+                        <div className="h-64 flex items-center justify-center text-center p-4 text-gray-400 dark:text-gray-500 italic bg-gray-50 dark:bg-gray-700/50 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-600">
                             No user data available to chart
                         </div>
                     ) : (
@@ -97,19 +145,31 @@ export const AdminAnalytics = () => {
                 </div>
 
                 {/* Sales By Tier Bar Chart */}
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border-gray-200 dark:border-gray-700 border">
+                <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-md border-gray-200 dark:border-gray-700 border min-w-0">
                     <h2 className="text-xl font-black text-sffl-navy dark:text-white mb-4">Ticket Sales by Tier</h2>
                     {sales_by_tier.length === 0 ? (
-                        <div className="h-64 flex items-center justify-center text-gray-400 dark:text-gray-500 italic bg-gray-50 dark:bg-gray-700/50 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-600">
+                        <div className="h-64 flex items-center justify-center text-center p-4 text-gray-400 dark:text-gray-500 italic bg-gray-50 dark:bg-gray-700/50 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-600">
                             No sales data available to chart
                         </div>
                     ) : (
                         <div className="h-64">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={sales_by_tier} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                <BarChart data={sales_by_tier} margin={{ top: 20, right: 0, left: 0, bottom: 5 }}>
                                     <XAxis dataKey="tier_name" tick={{ fill: isDarkMode ? '#9ca3af' : '#6b7280', fontSize: 12 }} />
-                                    <YAxis yAxisId="left" orientation="left" stroke={isDarkMode ? '#e2e8f0' : '#0f172a'} />
-                                    <YAxis yAxisId="right" orientation="right" stroke={isDarkMode ? '#EF5350' : '#C62828'} />
+                                    <YAxis
+                                        yAxisId="left"
+                                        orientation="left"
+                                        width={40}
+                                        tickFormatter={(v: number) => compactNumber.format(v)}
+                                        stroke={isDarkMode ? '#e2e8f0' : '#0f172a'}
+                                    />
+                                    <YAxis
+                                        yAxisId="right"
+                                        orientation="right"
+                                        width={56}
+                                        tickFormatter={(v: number) => compactNaira.format(v)}
+                                        stroke={isDarkMode ? '#EF5350' : '#C62828'}
+                                    />
                                     <Tooltip
                                         formatter={(value, name) => {
                                             if (name === 'Revenue') return [formatNaira(value as number), 'Revenue'];
@@ -129,56 +189,20 @@ export const AdminAnalytics = () => {
             </div>
 
             {/* Recent Sales Table */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border-gray-200 dark:border-gray-700 border">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl font-black text-sffl-navy dark:text-white">Recent Ticket Sales</h2>
-                </div>
-
-                {recent_sales.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500 dark:text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
-                        No recent ticket sales found.
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead>
-                                <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
-                                    <th className="p-3 font-semibold text-gray-600 dark:text-gray-300">Event</th>
-                                    <th className="p-3 font-semibold text-gray-600 dark:text-gray-300">Tier / Qty</th>
-                                    <th className="p-3 font-semibold text-gray-600 dark:text-gray-300">Amount</th>
-                                    <th className="p-3 font-semibold text-gray-600 dark:text-gray-300">Purchaser</th>
-                                    <th className="p-3 font-semibold text-gray-600 dark:text-gray-300">Time</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {recent_sales.map((sale: TicketResponse) => (
-                                    <tr key={sale.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
-                                        <td className="p-3">
-                                            <div className="font-bold text-sffl-navy dark:text-white">{sale.event_title}</div>
-                                        </td>
-                                        <td className="p-3">
-                                            <div className="text-sm dark:text-gray-300">
-                                                <span className="font-bold bg-gray-100 dark:bg-gray-600 px-2 py-1 rounded">{sale.tier_name}</span> x {sale.quantity}
-                                            </div>
-                                        </td>
-                                        <td className="p-3 font-bold text-green-600">
-                                            {formatNaira(sale.total_amount)}
-                                        </td>
-                                        <td className="p-3 text-sm text-gray-600 dark:text-gray-400">
-                                            {sale.email}
-                                        </td>
-                                        <td className="p-3 text-xs text-gray-400 dark:text-gray-500">
-                                            {new Date(sale.created_at).toLocaleString()}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 sm:p-6 border-gray-200 dark:border-gray-700 border">
+                <h2 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white mb-4">Recent Ticket Sales</h2>
+                {/* The API sends at most the 10 latest sales, so there is nothing to page. */}
+                <DataTable
+                    data={recentSales}
+                    columns={SALES_COLUMNS}
+                    searchable={false}
+                    paginated={false}
+                    getRowId={(sale) => sale.id}
+                    emptyMessage="No recent ticket sales found."
+                />
             </div>
 
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border-t-4 border-sffl-navy dark:border-blue-500">
+            <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-md border-t-4 border-sffl-navy dark:border-blue-500">
                 <h3 className="text-lg font-bold text-gray-700 dark:text-gray-200 mb-2">More Analytics Coming Soon...</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                     This dedicated page will host all future Analytics and Insights for the app.

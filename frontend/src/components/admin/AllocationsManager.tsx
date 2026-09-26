@@ -1,12 +1,27 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { adminGetAllocations, adminCreateOrUpdateAllocation, adminDeleteAllocation, getTeams } from '../../services/api';
+import toast from 'react-hot-toast';
+import { TicketIcon, TrashIcon } from '@heroicons/react/24/outline';
+import {
+    adminGetAllocations,
+    adminCreateOrUpdateAllocation,
+    adminDeleteAllocation,
+    getTeams,
+    type TeamTicketAllocation,
+} from '../../services/api';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { ConfirmSummary } from '../ui/ConfirmSummary';
+import { Spinner } from '../ui/Spinner';
+import { getApiErrorMessage } from '../../utils/apiError';
+
+type PendingAction = { kind: 'save' } | { kind: 'delete'; allocation: TeamTicketAllocation };
 
 export const AllocationsManager = ({ eventDayId, eventDayTitle }: { eventDayId: string, eventDayTitle: string }) => {
     const queryClient = useQueryClient();
     const [teamId, setTeamId] = useState('');
     const [allocatedCount, setAllocatedCount] = useState('');
-    const [isSaving, setIsSaving] = useState(false);
+    const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+    const [busy, setBusy] = useState(false);
 
     const { data: allocations = [], isLoading: loadingAllocations } = useQuery({
         queryKey: ['adminAllocations', eventDayId],
@@ -19,53 +34,101 @@ export const AllocationsManager = ({ eventDayId, eventDayTitle }: { eventDayId: 
     });
     const teams = teamsData?.data || [];
 
-    const handleSave = async () => {
-        if (!teamId || !allocatedCount) return;
-        setIsSaving(true);
+    const count = parseInt(allocatedCount, 10);
+    const teamName = teams.find(t => t.id === teamId)?.name;
+    const existing = allocations.find(a => a.team_id === teamId);
+
+    const requestSave = () => {
+        if (!teamId) return;
+        if (!Number.isFinite(count) || count < 1) {
+            toast.error('Enter a ticket count of at least 1');
+            return;
+        }
+        setPendingAction({ kind: 'save' });
+    };
+
+    const confirmPendingAction = async () => {
+        if (!pendingAction) return;
+        setBusy(true);
         try {
-            await adminCreateOrUpdateAllocation({
-                event_day_id: eventDayId,
-                team_id: teamId,
-                allocated_count: parseInt(allocatedCount)
-            });
-            setTeamId('');
-            setAllocatedCount('');
+            if (pendingAction.kind === 'save') {
+                await adminCreateOrUpdateAllocation({
+                    event_day_id: eventDayId,
+                    team_id: teamId,
+                    allocated_count: count,
+                });
+                setTeamId('');
+                setAllocatedCount('');
+                toast.success('Allocation saved');
+            } else {
+                await adminDeleteAllocation(pendingAction.allocation.id);
+                toast.success('Allocation revoked');
+            }
             queryClient.invalidateQueries({ queryKey: ['adminAllocations', eventDayId] });
-        } catch (err: any) {
-            alert(err.response?.data?.error || 'Failed to save allocation');
+        } catch (err) {
+            toast.error(getApiErrorMessage(err, pendingAction.kind === 'save' ? 'Failed to save allocation' : 'Failed to delete allocation'));
         } finally {
-            setIsSaving(false);
+            setBusy(false);
+            setPendingAction(null);
         }
     };
 
-    const handleDelete = async (id: string, teamName: string) => {
-        if (!confirm(`Revoke allocation for ${teamName}?`)) return;
-        try {
-            await adminDeleteAllocation(id);
-            queryClient.invalidateQueries({ queryKey: ['adminAllocations', eventDayId] });
-        } catch (err: any) {
-            alert(err.response?.data?.error || 'Failed to delete allocation');
+    const dialog = pendingAction?.kind === 'delete'
+        ? {
+            title: 'Revoke this allocation?',
+            description: undefined,
+            confirmLabel: 'Revoke Allocation',
+            tone: 'warning' as const,
+            icon: TrashIcon,
+            body: (
+                <ConfirmSummary rows={[
+                    ['Event', eventDayTitle],
+                    ['Team', pendingAction.allocation.team_name || 'Unknown Team'],
+                    ['Tickets', String(pendingAction.allocation.allocated_count)],
+                ]} />
+            ),
         }
-    };
+        : {
+            title: 'Set this allocation?',
+            description: existing ? `This replaces the team's current allocation of ${existing.allocated_count} tickets.` : undefined,
+            confirmLabel: 'Set Allocation',
+            tone: 'info' as const,
+            icon: TicketIcon,
+            body: (
+                <ConfirmSummary rows={[
+                    ['Event', eventDayTitle],
+                    ['Team', teamName],
+                    ['Tickets', allocatedCount],
+                ]} />
+            ),
+        };
 
     return (
         <div className="mt-4 p-4 bg-purple-50 dark:bg-gray-700/50 rounded-lg border border-purple-200 dark:border-gray-600">
-            <h4 className="font-bold text-sffl-navy dark:text-white mb-4">🎟️ Team Allocations for {eventDayTitle}</h4>
+            <h4 className="flex items-center gap-1.5 font-bold text-sffl-navy dark:text-white mb-4 min-w-0">
+                <TicketIcon className="w-5 h-5 shrink-0" aria-hidden="true" />
+                <span className="min-w-0 wrap-break-word">Team Allocations for {eventDayTitle}</span>
+            </h4>
 
             {loadingAllocations ? (
-                <p className="text-sm text-gray-500">Loading allocations...</p>
+                <Spinner label="Loading allocations" className="py-6" size="sm" />
             ) : (
                 <div className="space-y-4">
                     {allocations.length > 0 ? (
-                        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                             {allocations.map(a => (
-                                <div key={a.id} className="bg-white dark:bg-gray-700 p-3 rounded-md shadow-sm border border-gray-100 dark:border-gray-600 flex justify-between items-center">
-                                    <div>
-                                        <p className="font-bold text-sm dark:text-white">{a.team_name || 'Unknown Team'}</p>
+                                <div key={a.id} className="bg-white dark:bg-gray-700 p-3 rounded-md shadow-sm border border-gray-100 dark:border-gray-600 flex justify-between items-center gap-2">
+                                    <div className="min-w-0">
+                                        <p className="font-bold text-sm dark:text-white truncate">{a.team_name || 'Unknown Team'}</p>
                                         <p className="text-xs text-gray-500">{a.allocated_count} Tickets Allocated</p>
                                     </div>
-                                    <button onClick={() => handleDelete(a.id, a.team_name || '')} className="text-red-500 hover:text-red-700 p-2 min-h-[44px] min-w-[44px] transition-all duration-300 hover:scale-[1.02] active:scale-95 flex flex-col justify-center items-center">
-                                        🗑️
+                                    <button
+                                        type="button"
+                                        onClick={() => setPendingAction({ kind: 'delete', allocation: a })}
+                                        aria-label={`Revoke allocation for ${a.team_name || 'this team'}`}
+                                        className="shrink-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg min-h-11 min-w-11 flex justify-center items-center transition-colors"
+                                    >
+                                        <TrashIcon className="w-5 h-5" aria-hidden="true" />
                                     </button>
                                 </div>
                             ))}
@@ -79,11 +142,12 @@ export const AllocationsManager = ({ eventDayId, eventDayTitle }: { eventDayId: 
                         <select
                             value={teamId}
                             onChange={e => setTeamId(e.target.value)}
-                            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-600 text-gray-900 dark:text-white text-sm flex-1 min-h-[44px] z-50"
+                            aria-label="Team"
+                            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-600 text-gray-900 dark:text-white text-sm w-full sm:flex-1 min-w-0 min-h-11"
                         >
-                            <option value="" className="truncate">Select a Team...</option>
+                            <option value="">Select a team</option>
                             {teams.map(t => (
-                                <option key={t.id} value={t.id} className="truncate">{t.name}</option>
+                                <option key={t.id} value={t.id}>{t.name}</option>
                             ))}
                         </select>
                         <input
@@ -92,18 +156,33 @@ export const AllocationsManager = ({ eventDayId, eventDayTitle }: { eventDayId: 
                             value={allocatedCount}
                             onChange={e => setAllocatedCount(e.target.value)}
                             placeholder="Ticket Count"
-                            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-600 text-gray-900 dark:text-white text-sm w-32 min-h-[44px]"
+                            aria-label="Ticket count"
+                            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-600 text-gray-900 dark:text-white text-sm w-full sm:w-32 min-h-11"
                         />
                         <button
-                            onClick={handleSave}
-                            disabled={isSaving || !teamId || !allocatedCount}
-                            className="bg-sffl-navy text-white px-4 py-2 min-h-[44px] rounded-lg text-sm font-bold shadow hover:bg-blue-900 disabled:opacity-50 transition-all duration-300 hover:scale-[1.02] active:scale-95"
+                            type="button"
+                            onClick={requestSave}
+                            disabled={busy || !teamId || !allocatedCount}
+                            className="bg-sffl-navy text-white px-4 py-2 min-h-11 rounded-lg text-sm font-bold shadow hover:bg-blue-900 disabled:opacity-50 transition-all duration-300 hover:scale-[1.02] active:scale-95"
                         >
-                            {isSaving ? 'Saving...' : 'Set Allocation'}
+                            Set Allocation
                         </button>
                     </div>
                 </div>
             )}
+
+            <ConfirmDialog
+                open={pendingAction !== null}
+                title={dialog.title}
+                description={dialog.description}
+                body={dialog.body}
+                confirmLabel={dialog.confirmLabel}
+                tone={dialog.tone}
+                icon={dialog.icon}
+                pending={busy}
+                onConfirm={confirmPendingAction}
+                onCancel={() => setPendingAction(null)}
+            />
         </div>
     );
 };

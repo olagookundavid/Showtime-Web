@@ -2,7 +2,10 @@ import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { AdminBottomNav } from "./AdminBottomNav";
+import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import {
+  ArrowLeftIcon,
+  ArrowRightOnRectangleIcon,
   XMarkIcon,
   ChartBarIcon,
   ShieldCheckIcon,
@@ -25,6 +28,7 @@ export const AdminLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
 
   // Prevent body scroll when sidebar is open on mobile
   useEffect(() => {
@@ -45,7 +49,7 @@ export const AdminLayout = () => {
         : location.pathname.startsWith(path);
 
     const baseClass =
-      "block px-3 py-1.5 md:px-4 md:py-2.5 min-h-[36px] md:min-h-[44px] text-[10px] md:text-base rounded-lg transition-all duration-300 font-bold";
+      "flex items-center px-4 py-2.5 min-h-11 text-base rounded-lg transition-all duration-300 font-bold";
     const activeClass = "bg-sffl-red text-white";
     const inactiveClass =
       "text-gray-300 hover:bg-sffl-red/70 hover:text-white dark:hover:bg-gray-700 dark:text-gray-300";
@@ -54,6 +58,7 @@ export const AdminLayout = () => {
   };
 
   const handleLogout = () => {
+    setConfirmLogout(false);
     logout();
     navigate("/");
   };
@@ -176,7 +181,7 @@ export const AdminLayout = () => {
         <div className="flex items-center gap-3">
           <Link
             to="/"
-            className="text-sm font-bold bg-white/10 px-4 py-2 rounded-xl active:scale-95 transition-transform uppercase"
+            className="inline-flex items-center min-h-11 text-sm font-bold bg-white/10 px-4 rounded-xl active:scale-95 transition-transform uppercase"
           >
             Back to App
           </Link>
@@ -189,15 +194,8 @@ export const AdminLayout = () => {
         onClick={() => setIsSidebarOpen(false)}
       />
 
-      {/* Sidebar (Desktop Only or Drawer on More) */}
-      <aside
-        className={`
-                fixed inset-y-0 left-0 z-50 w-55 lg:w-64 transform transition-transform duration-300 ease-out
-                lg:relative lg:translate-x-0
-                ${isSidebarOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"}
-                shrink-0 bg-sffl-navy dark:bg-gray-800 text-white flex flex-col h-full
-            `}
-      >
+      {/* Sidebar (desktop). On phones the "More" drawer below is the menu. */}
+      <aside className="hidden lg:flex lg:relative w-64 shrink-0 bg-sffl-navy dark:bg-gray-800 text-white flex-col h-full">
         <div className="p-3 md:p-6 border-b border-sffl-navy-light dark:border-gray-700 flex justify-between items-start">
           <div className="w-full">
             <h1 className="text-base md:text-2xl font-black italic">
@@ -212,9 +210,10 @@ export const AdminLayout = () => {
               </p>
               <Link
                 to="/"
-                className="text-[10px] md:text-xs font-bold bg-white/10 hover:bg-white/20 px-2 md:px-3 py-1.5 md:py-2 min-h-8 md:min-h-11 flex items-center justify-center rounded-lg text-gray-300 hover:text-white transition-all ml-2 whitespace-nowrap"
+                className="text-xs font-bold bg-white/10 hover:bg-white/20 px-3 min-h-11 inline-flex items-center justify-center gap-1 rounded-lg text-gray-300 hover:text-white transition-all ml-2 whitespace-nowrap"
               >
-                ← App
+                <ArrowLeftIcon className="w-4 h-4" aria-hidden="true" />
+                App
               </Link>
             </div>
           </div>
@@ -235,16 +234,18 @@ export const AdminLayout = () => {
 
         <div className="p-3 md:p-4 border-t border-sffl-navy-light dark:border-gray-700 space-y-3">
           <button
-            onClick={handleLogout}
-            className="w-full px-4 py-2 md:py-3 min-h-10 md:min-h-11 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-xs md:text-base transition-all duration-300 hover:scale-[1.02] active:scale-95"
+            type="button"
+            onClick={() => setConfirmLogout(true)}
+            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 min-h-11 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-base transition-all duration-300 hover:scale-[1.02] active:scale-95"
           >
+            <ArrowRightOnRectangleIcon className="w-5 h-5" aria-hidden="true" />
             Logout
           </button>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full min-w-0 p-2 lg:p-8 pt-22 lg:pt-8 overflow-y-auto overscroll-y-none bg-transparent pb-[calc(9rem+2*env(safe-area-inset-bottom,0px))] lg:pb-8 relative z-10">
+      <main className="flex-1 w-full min-w-0 p-4 lg:p-8 pt-22 lg:pt-8 overflow-y-auto overscroll-y-none bg-transparent pb-[calc(9rem+2*env(safe-area-inset-bottom,0px))] lg:pb-8 relative z-10">
         <Outlet />
       </main>
 
@@ -260,10 +261,12 @@ export const AdminLayout = () => {
             Admin Menu
           </span>
           <button
+            type="button"
             onClick={() => setIsSidebarOpen(false)}
-            className="text-gray-400"
+            aria-label="Close menu"
+            className="min-h-11 min-w-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/10"
           >
-            <XMarkIcon className="w-6 h-6" />
+            <XMarkIcon className="w-6 h-6" aria-hidden="true" />
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-2 space-y-1 pb-[calc(8rem+2*env(safe-area-inset-bottom,0px))]">
@@ -283,7 +286,7 @@ export const AdminLayout = () => {
                     : "text-gray-400 hover:text-white hover:bg-white/5"
                 }`}
               >
-                <link.icon className="w-5 h-5 shrink-0" />
+                <link.icon className="w-5 h-5 shrink-0" aria-hidden="true" />
                 {link.name}
               </Link>
             );
@@ -291,13 +294,26 @@ export const AdminLayout = () => {
         </div>
         <div className="p-4 border-t border-white/10">
           <button
-            onClick={handleLogout}
-            className="w-full py-3 bg-red-600/20 hover:bg-red-600 text-white rounded-xl font-black transition-all text-xs uppercase tracking-widest"
+            type="button"
+            onClick={() => setConfirmLogout(true)}
+            className="w-full inline-flex items-center justify-center gap-2 py-3 min-h-11 bg-red-600/20 hover:bg-red-600 text-white rounded-xl font-black transition-all text-xs uppercase tracking-widest"
           >
+            <ArrowRightOnRectangleIcon className="w-4 h-4" aria-hidden="true" />
             Logout
           </button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmLogout}
+        title="Log out?"
+        description="You will need to sign in again to use the admin panel."
+        confirmLabel="Log out"
+        tone="info"
+        icon={ArrowRightOnRectangleIcon}
+        onConfirm={handleLogout}
+        onCancel={() => setConfirmLogout(false)}
+      />
     </div>
   );
 };

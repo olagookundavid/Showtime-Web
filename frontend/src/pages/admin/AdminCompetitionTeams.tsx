@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import { ArrowLeftIcon, PlusIcon, TrashIcon, UserPlusIcon } from '@heroicons/react/24/outline';
 import {
     getCompetitions,
     getTeamsByCompetition,
@@ -11,7 +12,12 @@ import {
     type Team,
 } from '../../services/api';
 import { Loader } from '../../components/ui/Loader';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { LightboxImage } from '../../components/ui';
+
+// Adding and removing a team both go through the confirm dialog first.
+type PendingAction = { kind: 'add'; team: Team } | { kind: 'remove'; team: Team };
 
 export const AdminCompetitionTeams = () => {
     const { id } = useParams<{ id: string }>();
@@ -19,6 +25,7 @@ export const AdminCompetitionTeams = () => {
     const [selectedTeamId, setSelectedTeamId] = useState('');
     const [adding, setAdding] = useState(false);
     const [removingId, setRemovingId] = useState<string | null>(null);
+    const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
 
     // Fetch competition details (use a distinct key to avoid colliding with
     // AdminCompetitions which uses 'adminCompetitions' + getAdminCompetitions)
@@ -56,17 +63,17 @@ export const AdminCompetitionTeams = () => {
     const enrolledIds = new Set(enrolledTeams.map(t => t.id));
     const availableTeams = allTeams.filter(t => !enrolledIds.has(t.id));
 
-    const handleAddTeam = async () => {
-        if (!selectedTeamId || !id) return;
+    const handleAddTeam = async (teamId: string) => {
+        if (!teamId || !id) return;
         setAdding(true);
         try {
-            await addTeamToCompetition(id, selectedTeamId);
+            await addTeamToCompetition(id, teamId);
             toast.success('Team added to competition');
             setSelectedTeamId('');
             queryClient.invalidateQueries({ queryKey: ['competitionTeams', id] });
             queryClient.invalidateQueries({ queryKey: ['publicCompetitions'] });
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to add team');
+        } catch (err: unknown) {
+            toast.error(err instanceof Error ? err.message : 'Failed to add team');
         } finally {
             setAdding(false);
         }
@@ -80,45 +87,57 @@ export const AdminCompetitionTeams = () => {
             toast.success(`Removed ${teamName} from competition`);
             queryClient.invalidateQueries({ queryKey: ['competitionTeams', id] });
             queryClient.invalidateQueries({ queryKey: ['publicCompetitions'] });
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Cannot remove team');
+        } catch (err: unknown) {
+            toast.error(err instanceof Error ? err.message : 'Cannot remove team');
         } finally {
             setRemovingId(null);
         }
     };
 
+    // Runs once the admin confirms. The handlers report their own errors, so the
+    // dialog always closes afterwards.
+    const confirmPendingAction = async () => {
+        if (!pendingAction) return;
+        if (pendingAction.kind === 'add') await handleAddTeam(pendingAction.team.id);
+        else await handleRemoveTeam(pendingAction.team.id, pendingAction.team.name);
+        setPendingAction(null);
+    };
+
     if (loadingComp || loadingCompTeams || loadingAllTeams) return <Loader />;
 
+    const competitionName = competition?.name || 'this competition';
+    const selectedTeam = availableTeams.find(t => t.id === selectedTeamId);
+
     return (
-        <div className="space-y-6 max-w-4xl mx-auto pb-36 md:pb-12">
+        <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between gap-4">
-                <div>
-                    <Link to="/admin/competitions" className="text-xs font-bold text-sffl-red hover:underline block mb-1">
-                        ← Back to Competitions
-                    </Link>
-                    <h1 className="text-2xl md:text-3xl font-black text-sffl-navy dark:text-white uppercase tracking-tight flex items-center gap-3">
-                        {competition?.logo && (
-                            <img src={competition.logo} alt={competition.name} className="w-8 h-8 object-contain" />
-                        )}
-                        {competition?.name || 'Competition'} Teams
-                    </h1>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Only enrolled teams appear in match scheduling and standings for this competition.
-                    </p>
-                </div>
+            <div className="min-w-0">
+                <Link to="/admin/competitions" className="inline-flex items-center gap-1 min-h-11 text-xs font-bold text-sffl-red hover:underline">
+                    <ArrowLeftIcon className="w-4 h-4" aria-hidden="true" />
+                    Back to Competitions
+                </Link>
+                <h1 className="text-2xl md:text-3xl font-black text-sffl-navy dark:text-white uppercase tracking-tight flex items-center gap-3 wrap-break-word">
+                    {competition?.logo && (
+                        <img src={competition.logo} alt={competition.name} className="w-8 h-8 shrink-0 object-contain" />
+                    )}
+                    <span className="min-w-0">{competition?.name || 'Competition'} Teams</span>
+                </h1>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Only enrolled teams appear in match scheduling and standings for this competition.
+                </p>
             </div>
 
             {/* Add Team Card */}
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 space-y-4">
+            <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 space-y-4">
                 <h2 className="text-base font-bold text-gray-900 dark:text-white uppercase tracking-wider">
                     Add Team to Competition
                 </h2>
-                <div className="flex flex-col sm:flex-row items-center gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                     <select
+                        aria-label="Team to add"
                         value={selectedTeamId}
                         onChange={e => setSelectedTeamId(e.target.value)}
-                        className="flex-1 w-full min-h-[44px] bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm font-semibold text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none"
+                        className="flex-1 min-w-0 w-full min-h-11 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm font-semibold text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none"
                     >
                         <option value="">Select a team to add…</option>
                         {availableTeams.map(t => (
@@ -128,11 +147,13 @@ export const AdminCompetitionTeams = () => {
                         ))}
                     </select>
                     <button
-                        onClick={handleAddTeam}
-                        disabled={!selectedTeamId || adding}
-                        className="w-full sm:w-auto px-6 py-2.5 min-h-[44px] bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:bg-red-700 disabled:opacity-50 transition-all whitespace-nowrap"
+                        type="button"
+                        onClick={() => selectedTeam && setPendingAction({ kind: 'add', team: selectedTeam })}
+                        disabled={!selectedTeam || adding}
+                        className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-6 py-2.5 min-h-11 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:bg-red-700 disabled:opacity-50 transition-all whitespace-nowrap"
                     >
-                        {adding ? 'Adding…' : '+ Add Team'}
+                        <PlusIcon className="w-4 h-4" aria-hidden="true" />
+                        Add Team
                     </button>
                 </div>
                 {availableTeams.length === 0 && (
@@ -155,8 +176,8 @@ export const AdminCompetitionTeams = () => {
                 ) : (
                     <div className="divide-y divide-gray-100 dark:divide-gray-700">
                         {enrolledTeams.map(team => (
-                            <div key={team.id} className="p-4 flex items-center justify-between gap-4 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                                <div className="flex items-center gap-3">
+                            <div key={team.id} className="p-3 sm:p-4 flex items-center justify-between gap-3 sm:gap-4 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                                <div className="flex items-center gap-3 min-w-0">
                                     {team.logo ? (
                                         <LightboxImage
                                             src={team.logo}
@@ -164,27 +185,49 @@ export const AdminCompetitionTeams = () => {
                                             thumbnailClassName="w-10 h-10 object-contain rounded-lg p-0.5 bg-gray-50 border border-gray-100"
                                         />
                                     ) : (
-                                        <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center font-black text-xs text-gray-500">
+                                        <div className="shrink-0 w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center font-black text-xs text-gray-500">
                                             {team.short_name?.slice(0, 2)}
                                         </div>
                                     )}
-                                    <div>
-                                        <div className="font-bold text-sm text-gray-900 dark:text-gray-100">{team.name}</div>
-                                        <div className="text-xs text-gray-400 font-semibold">{team.short_name}</div>
+                                    <div className="min-w-0">
+                                        <div className="font-bold text-sm text-gray-900 dark:text-gray-100 wrap-break-word">{team.name}</div>
+                                        <div className="text-xs text-gray-400 font-semibold truncate">{team.short_name}</div>
                                     </div>
                                 </div>
                                 <button
-                                    onClick={() => handleRemoveTeam(team.id, team.name)}
+                                    type="button"
+                                    onClick={() => setPendingAction({ kind: 'remove', team })}
                                     disabled={removingId === team.id}
-                                    className="px-3 py-1.5 min-h-[36px] bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 font-bold text-xs rounded-lg transition-colors disabled:opacity-50"
+                                    className="shrink-0 px-3 py-1.5 min-h-11 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 font-bold text-xs rounded-lg transition-colors disabled:opacity-50"
                                 >
-                                    {removingId === team.id ? 'Removing…' : 'Remove'}
+                                    Remove
                                 </button>
                             </div>
                         ))}
                     </div>
                 )}
             </div>
+
+            <ConfirmDialog
+                open={pendingAction !== null}
+                title={pendingAction?.kind === 'remove' ? 'Remove this team from the competition?' : 'Add this team to the competition?'}
+                description={pendingAction?.kind === 'remove'
+                    ? 'It will no longer appear in match scheduling or standings for this competition.'
+                    : 'It will appear in match scheduling and standings for this competition.'}
+                body={pendingAction && (
+                    <ConfirmSummary rows={[
+                        ['Team', pendingAction.team.name],
+                        ['Short name', pendingAction.team.short_name],
+                        ['Competition', competitionName],
+                    ]} />
+                )}
+                confirmLabel={pendingAction?.kind === 'remove' ? 'Remove Team' : 'Add Team'}
+                tone={pendingAction?.kind === 'remove' ? 'warning' : 'info'}
+                icon={pendingAction?.kind === 'remove' ? TrashIcon : UserPlusIcon}
+                pending={adding || removingId !== null}
+                onConfirm={confirmPendingAction}
+                onCancel={() => setPendingAction(null)}
+            />
         </div>
     );
 };

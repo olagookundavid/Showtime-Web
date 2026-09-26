@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import { useDebounced } from '../../hooks/useDebounced';
 import {
+    ArrowRightIcon,
     PlusIcon,
     PencilSquareIcon,
     TrashIcon,
@@ -15,6 +17,10 @@ import {
     type DiscountCode,
     type DiscountTarget,
 } from '../../services/api';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { ConfirmSummary } from '../ui/ConfirmSummary';
+import { Spinner } from '../ui/Spinner';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 type ItemDraft = {
     entity_type: 'product' | 'ticket_tier';
@@ -48,6 +54,11 @@ const emptyForm: FormState = {
     items: [],
 };
 
+type PendingAction = { kind: 'save' } | { kind: 'delete'; code: DiscountCode };
+
+const fieldClass = 'w-full min-h-11 px-3.5 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sffl-red';
+const iconButtonClass = 'min-h-11 min-w-11 flex items-center justify-center rounded-lg text-gray-400 transition-colors';
+
 const AUDIENCE_LABEL: Record<DiscountAudience, string> = {
     all: 'Everyone',
     authenticated: 'Signed-in only',
@@ -71,7 +82,8 @@ export const DiscountCodesPanel = () => {
     const [form, setForm] = useState<FormState>(emptyForm);
     const [formError, setFormError] = useState('');
     const [targetSearch, setTargetSearch] = useState('');
-    const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+    // Every write waits here for the confirm dialog
+    const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
 
     const { data: codes = [], isLoading } = useQuery({
         queryKey: ['discountCodes'],
@@ -110,20 +122,26 @@ export const DiscountCodesPanel = () => {
             return editing ? discountsApi.update(editing.id, payload) : discountsApi.create(payload);
         },
         onSuccess: () => {
+            toast.success(editing ? 'Discount code updated.' : 'Discount code created.');
             invalidate();
             closeEditor();
         },
-        onError: (err: any) => {
-            setFormError(err.response?.data?.error || 'Could not save this code');
+        onError: (err: unknown) => {
+            toast.error(getApiErrorMessage(err, 'Could not save this code'));
         },
+        onSettled: () => setPendingAction(null),
     });
 
     const deleteMutation = useMutation({
         mutationFn: discountsApi.remove,
         onSuccess: () => {
+            toast.success('Discount code deleted.');
             invalidate();
-            setDeleteConfirm(null);
         },
+        onError: (err: unknown) => {
+            toast.error(getApiErrorMessage(err, 'Could not delete this code'));
+        },
+        onSettled: () => setPendingAction(null),
     });
 
     const openCreate = () => {
@@ -232,7 +250,13 @@ export const DiscountCodesPanel = () => {
             setFormError('Pick an expiry date, or turn the expiry off.');
             return;
         }
-        saveMutation.mutate();
+        setPendingAction({ kind: 'save' });
+    };
+
+    const confirmPendingAction = () => {
+        if (!pendingAction) return;
+        if (pendingAction.kind === 'save') saveMutation.mutate();
+        else deleteMutation.mutate(pendingAction.code.id);
     };
 
     const statusOf = (c: DiscountCode): { label: string; tone: string } => {
@@ -252,21 +276,20 @@ export const DiscountCodesPanel = () => {
                     </p>
                 </div>
                 <button
+                    type="button"
                     onClick={openCreate}
-                    className="inline-flex items-center justify-center gap-2 bg-sffl-red hover:bg-red-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-colors"
+                    className="inline-flex items-center justify-center gap-2 min-h-11 bg-sffl-red hover:bg-red-700 text-white font-bold px-4 rounded-xl text-xs uppercase tracking-wider transition-colors"
                 >
-                    <PlusIcon className="w-4 h-4" />
+                    <PlusIcon className="w-4 h-4" aria-hidden="true" />
                     New Code
                 </button>
             </div>
 
             {isLoading ? (
-                <div className="py-16 flex justify-center">
-                    <div className="w-8 h-8 border-4 border-sffl-red border-t-transparent rounded-full animate-spin" />
-                </div>
+                <Spinner label="Loading discount codes" className="py-16" />
             ) : codes.length === 0 ? (
-                <div className="bg-white dark:bg-gray-800 rounded-2xl p-12 text-center border border-gray-200 dark:border-gray-700">
-                    <TagIcon className="w-10 h-10 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+                <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 sm:p-12 text-center border border-gray-200 dark:border-gray-700">
+                    <TagIcon className="w-10 h-10 mx-auto text-gray-300 dark:text-gray-600 mb-3" aria-hidden="true" />
                     <p className="font-bold text-gray-700 dark:text-gray-300">No discount codes yet</p>
                     <p className="text-xs text-gray-400 mt-1">
                         Create one to give money off specific products or ticket tiers.
@@ -279,7 +302,7 @@ export const DiscountCodesPanel = () => {
                         return (
                             <div
                                 key={c.id}
-                                className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 space-y-4"
+                                className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 sm:p-5 space-y-4"
                             >
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
@@ -295,20 +318,22 @@ export const DiscountCodesPanel = () => {
                                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{c.description}</p>
                                         )}
                                     </div>
-                                    <div className="flex items-center gap-1 flex-shrink-0">
+                                    <div className="flex items-center gap-1 shrink-0 -my-2 -mr-2">
                                         <button
+                                            type="button"
                                             onClick={() => openEdit(c)}
-                                            className="p-1.5 text-gray-400 hover:text-sffl-navy dark:hover:text-white rounded-lg transition-colors"
-                                            title="Edit"
+                                            className={`${iconButtonClass} hover:text-sffl-navy dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700`}
+                                            aria-label={`Edit ${c.code}`}
                                         >
-                                            <PencilSquareIcon className="w-4 h-4" />
+                                            <PencilSquareIcon className="w-5 h-5" aria-hidden="true" />
                                         </button>
                                         <button
-                                            onClick={() => setDeleteConfirm(c.id)}
-                                            className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg transition-colors"
-                                            title="Delete"
+                                            type="button"
+                                            onClick={() => setPendingAction({ kind: 'delete', code: c })}
+                                            className={`${iconButtonClass} hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20`}
+                                            aria-label={`Delete ${c.code}`}
                                         >
-                                            <TrashIcon className="w-4 h-4" />
+                                            <TrashIcon className="w-5 h-5" aria-hidden="true" />
                                         </button>
                                     </div>
                                 </div>
@@ -364,28 +389,6 @@ export const DiscountCodesPanel = () => {
                                     </ul>
                                 </div>
 
-                                {deleteConfirm === c.id && (
-                                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 space-y-2">
-                                        <p className="text-xs font-bold text-red-700 dark:text-red-300">
-                                            Delete {c.code}? Its redemption history goes too.
-                                        </p>
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={() => setDeleteConfirm(null)}
-                                                className="flex-1 bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-200 font-bold rounded-lg text-xs py-2"
-                                            >
-                                                Keep
-                                            </button>
-                                            <button
-                                                onClick={() => deleteMutation.mutate(c.id)}
-                                                disabled={deleteMutation.isPending}
-                                                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg text-xs py-2 disabled:opacity-50"
-                                            >
-                                                Delete
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                         );
                     })}
@@ -393,17 +396,19 @@ export const DiscountCodesPanel = () => {
             )}
 
             {showEditor && (
-                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={closeEditor}>
+                <div className="fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={closeEditor}>
                     <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-3xl max-h-[calc(100dvh-2rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
-                            <h3 className="text-lg font-black text-sffl-navy dark:text-white">
+                        <div className="flex items-center justify-between gap-3 p-4 sm:p-5 border-b border-gray-100 dark:border-gray-700 shrink-0">
+                            <h3 className="text-lg font-black text-sffl-navy dark:text-white min-w-0 wrap-break-word">
                                 {editing ? `Edit ${editing.code}` : 'New Discount Code'}
                             </h3>
                             <button
+                                type="button"
                                 onClick={closeEditor}
-                                className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-white rounded-lg"
+                                aria-label="Close"
+                                className={`${iconButtonClass} shrink-0 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700`}
                             >
-                                <XMarkIcon className="w-5 h-5" />
+                                <XMarkIcon className="w-5 h-5" aria-hidden="true" />
                             </button>
                         </div>
 
@@ -417,7 +422,7 @@ export const DiscountCodesPanel = () => {
                                         value={form.code}
                                         onChange={e => setForm(p => ({ ...p, code: e.target.value.toUpperCase() }))}
                                         placeholder="SHOWTIME10"
-                                        className="w-full px-3.5 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl text-sm font-mono uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-sffl-red"
+                                        className={`${fieldClass} font-mono uppercase tracking-wider`}
                                     />
                                     <p className="text-[11px] text-gray-400 mt-1">
                                         Customers can type it in any case.
@@ -431,14 +436,14 @@ export const DiscountCodesPanel = () => {
                                         value={form.description}
                                         onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
                                         placeholder="Launch week promo"
-                                        className="w-full px-3.5 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sffl-red"
+                                        className={fieldClass}
                                     />
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-2">
-                                    <label className="flex items-center gap-2 text-xs font-bold text-gray-600 dark:text-gray-300 uppercase">
+                                    <label className="flex items-center gap-2 min-h-11 text-xs font-bold text-gray-600 dark:text-gray-300 uppercase cursor-pointer">
                                         <input
                                             type="checkbox"
                                             checked={form.limitUses}
@@ -454,12 +459,12 @@ export const DiscountCodesPanel = () => {
                                         onChange={e => setForm(p => ({ ...p, maxUses: e.target.value }))}
                                         disabled={!form.limitUses}
                                         placeholder="Unlimited"
-                                        className="w-full px-3.5 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sffl-red disabled:opacity-50"
+                                        className={`${fieldClass} disabled:opacity-50`}
                                     />
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="flex items-center gap-2 text-xs font-bold text-gray-600 dark:text-gray-300 uppercase">
+                                    <label className="flex items-center gap-2 min-h-11 text-xs font-bold text-gray-600 dark:text-gray-300 uppercase cursor-pointer">
                                         <input
                                             type="checkbox"
                                             checked={form.hasExpiry}
@@ -473,7 +478,7 @@ export const DiscountCodesPanel = () => {
                                         value={form.expiresAt}
                                         onChange={e => setForm(p => ({ ...p, expiresAt: e.target.value }))}
                                         disabled={!form.hasExpiry}
-                                        className="w-full px-3.5 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sffl-red disabled:opacity-50"
+                                        className={`${fieldClass} disabled:opacity-50`}
                                     />
                                 </div>
 
@@ -484,7 +489,7 @@ export const DiscountCodesPanel = () => {
                                     <select
                                         value={form.audience}
                                         onChange={e => setForm(p => ({ ...p, audience: e.target.value as DiscountAudience }))}
-                                        className="w-full px-3.5 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sffl-red"
+                                        className={fieldClass}
                                     >
                                         <option value="all">Everyone (guests + signed in)</option>
                                         <option value="authenticated">Signed-in customers only</option>
@@ -493,8 +498,8 @@ export const DiscountCodesPanel = () => {
                                 </div>
                             </div>
 
-                            <label className="flex items-center justify-between p-3.5 bg-gray-50 dark:bg-gray-700/40 rounded-xl border border-gray-200 dark:border-gray-600 cursor-pointer">
-                                <div>
+                            <label className="flex items-center justify-between gap-4 p-3.5 bg-gray-50 dark:bg-gray-700/40 rounded-xl border border-gray-200 dark:border-gray-600 cursor-pointer">
+                                <div className="min-w-0">
                                     <span className="block text-sm font-bold text-gray-800 dark:text-white">Active</span>
                                     <span className="text-xs text-gray-500 dark:text-gray-400">
                                         Turn off to pause the code without deleting it.
@@ -504,7 +509,7 @@ export const DiscountCodesPanel = () => {
                                     type="checkbox"
                                     checked={form.isActive}
                                     onChange={e => setForm(p => ({ ...p, isActive: e.target.checked }))}
-                                    className="w-5 h-5 accent-sffl-red"
+                                    className="w-5 h-5 shrink-0 accent-sffl-red"
                                 />
                             </label>
 
@@ -529,9 +534,9 @@ export const DiscountCodesPanel = () => {
                                             return (
                                                 <div
                                                     key={key}
-                                                    className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/40 rounded-xl border border-gray-200 dark:border-gray-600"
+                                                    className="flex flex-wrap items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/40 rounded-xl border border-gray-200 dark:border-gray-600"
                                                 >
-                                                    <div className="min-w-0 flex-1">
+                                                    <div className="min-w-40 flex-1">
                                                         <p className="text-sm font-bold text-gray-800 dark:text-white truncate">
                                                             {i.name}
                                                         </p>
@@ -539,13 +544,15 @@ export const DiscountCodesPanel = () => {
                                                             {i.entity_type === 'ticket_tier' ? 'Ticket tier' : 'Product'} ·
                                                             ₦{i.price.toLocaleString()}
                                                             {off > 0 && (
-                                                                <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                                                                    {' '}→ ₦{after.toLocaleString()}
+                                                                <span className="inline-flex items-center gap-1 ml-1 text-emerald-600 dark:text-emerald-400 font-bold">
+                                                                    <ArrowRightIcon className="w-3 h-3" aria-hidden="true" />
+                                                                    <span className="sr-only">after discount</span>
+                                                                    ₦{after.toLocaleString()}
                                                                 </span>
                                                             )}
                                                         </p>
                                                     </div>
-                                                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                    <div className="flex items-center gap-1.5 shrink-0">
                                                         <span className="text-xs font-bold text-gray-400">₦</span>
                                                         <input
                                                             type="number"
@@ -553,14 +560,16 @@ export const DiscountCodesPanel = () => {
                                                             value={i.amount_off}
                                                             onChange={e => setItemAmount(key, e.target.value)}
                                                             placeholder="0"
-                                                            className="w-24 px-2.5 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-sffl-red"
+                                                            aria-label={`Amount off ${i.name}`}
+                                                            className="w-24 min-h-11 px-2.5 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-sffl-red"
                                                         />
                                                         <button
+                                                            type="button"
                                                             onClick={() => removeTarget(key)}
-                                                            className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg"
-                                                            title="Remove"
+                                                            className={`${iconButtonClass} hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20`}
+                                                            aria-label={`Remove ${i.name}`}
                                                         >
-                                                            <XMarkIcon className="w-4 h-4" />
+                                                            <XMarkIcon className="w-4 h-4" aria-hidden="true" />
                                                         </button>
                                                     </div>
                                                 </div>
@@ -571,29 +580,33 @@ export const DiscountCodesPanel = () => {
 
                                 <div className="border border-gray-200 dark:border-gray-600 rounded-xl overflow-hidden">
                                     <div className="relative border-b border-gray-100 dark:border-gray-700">
-                                        <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                        <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden="true" />
                                         <input
                                             value={targetSearch}
                                             onChange={e => setTargetSearch(e.target.value)}
-                                            placeholder="Search products and ticket tiers to add..."
-                                            className="w-full pl-9 pr-3 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none"
+                                            placeholder="Search products and ticket tiers to add"
+                                            aria-label="Search products and ticket tiers"
+                                            className="w-full min-h-11 pl-9 pr-3 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none"
                                         />
                                     </div>
                                     <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
                                         {availableTargets.length === 0 ? (
-                                            <p className="px-3 py-4 text-xs text-gray-400 text-center">
-                                                {targetsLoading
-                                                    ? 'Searching...'
-                                                    : debouncedTargetSearch
-                                                      ? `Nothing matches "${debouncedTargetSearch}".`
-                                                      : 'Nothing left to add.'}
-                                            </p>
+                                            targetsLoading ? (
+                                                <Spinner label="Searching" size="sm" className="py-4" />
+                                            ) : (
+                                                <p className="px-3 py-4 text-xs text-gray-400 text-center">
+                                                    {debouncedTargetSearch
+                                                        ? `Nothing matches "${debouncedTargetSearch}".`
+                                                        : 'Nothing left to add.'}
+                                                </p>
+                                            )
                                         ) : (
                                             availableTargets.map(t => (
                                                 <button
                                                     key={`${t.entity_type}:${t.entity_id}`}
+                                                    type="button"
                                                     onClick={() => addTarget(t)}
-                                                    className="w-full flex items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                                                    className="w-full min-h-11 flex items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                                                 >
                                                     <span className="text-sm text-gray-700 dark:text-gray-200 truncate">
                                                         {t.name}
@@ -620,24 +633,56 @@ export const DiscountCodesPanel = () => {
                             )}
                         </div>
 
-                        <div className="flex gap-3 p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-gray-50 dark:bg-gray-800/90">
+                        <div className="flex flex-col-reverse sm:flex-row gap-3 p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 shrink-0 bg-gray-50 dark:bg-gray-800/90">
                             <button
+                                type="button"
                                 onClick={closeEditor}
-                                className="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold py-3 rounded-xl text-sm transition-colors border border-gray-200 dark:border-gray-600"
+                                className="flex-1 min-h-11 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold py-3 rounded-xl text-sm transition-colors border border-gray-200 dark:border-gray-600"
                             >
                                 Cancel
                             </button>
                             <button
+                                type="button"
                                 onClick={handleSave}
                                 disabled={saveMutation.isPending}
-                                className="flex-[2] bg-sffl-red hover:bg-red-700 text-white font-bold py-3 rounded-xl text-sm transition-colors disabled:opacity-50 shadow-sm"
+                                className="flex-2 min-h-11 bg-sffl-red hover:bg-red-700 text-white font-bold py-3 rounded-xl text-sm transition-colors disabled:opacity-50 shadow-sm"
                             >
-                                {saveMutation.isPending ? 'Saving...' : editing ? 'Save Changes' : 'Create Code'}
+                                {editing ? 'Save Changes' : 'Create Code'}
                             </button>
                         </div>
                     </div>
                 </div>
             )}
+
+            <ConfirmDialog
+                open={pendingAction !== null}
+                title={pendingAction?.kind === 'delete'
+                    ? `Delete ${pendingAction.code.code}?`
+                    : editing ? `Save changes to ${editing.code}?` : 'Create this discount code?'}
+                description={pendingAction?.kind === 'delete' ? 'Its redemption history goes too. This cannot be undone.' : undefined}
+                confirmLabel={pendingAction?.kind === 'delete' ? 'Delete Code' : editing ? 'Save Changes' : 'Create Code'}
+                tone={pendingAction?.kind === 'delete' ? 'warning' : 'info'}
+                icon={pendingAction?.kind === 'delete' ? TrashIcon : TagIcon}
+                pending={saveMutation.isPending || deleteMutation.isPending}
+                onConfirm={confirmPendingAction}
+                onCancel={() => setPendingAction(null)}
+                body={pendingAction?.kind === 'delete' ? (
+                    <ConfirmSummary rows={[
+                        ['Code', pendingAction.code.code],
+                        ['Used', `${pendingAction.code.used_count}${pendingAction.code.max_uses != null ? ` / ${pendingAction.code.max_uses}` : ''}`],
+                        ['Applies to', `${pendingAction.code.items.length} item${pendingAction.code.items.length === 1 ? '' : 's'}`],
+                    ]} />
+                ) : (
+                    <ConfirmSummary rows={[
+                        ['Code', form.code.trim()],
+                        ['Who can use it', AUDIENCE_LABEL[form.audience]],
+                        ['Uses', form.limitUses && form.maxUses ? form.maxUses : 'Unlimited'],
+                        ['Expires', form.hasExpiry && form.expiresAt ? new Date(form.expiresAt).toLocaleString() : 'Never'],
+                        ['Applies to', `${form.items.length} item${form.items.length === 1 ? '' : 's'}`],
+                        ['Status', form.isActive ? 'Active' : 'Paused'],
+                    ]} />
+                )}
+            />
         </div>
     );
 };

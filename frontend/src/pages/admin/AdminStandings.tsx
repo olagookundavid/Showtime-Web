@@ -1,15 +1,20 @@
-import { Loader } from '../../components/ui/Loader';
 import { LightboxImage } from '../../components/ui';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import { LockClosedIcon, TrashIcon } from '@heroicons/react/24/outline';
 import {
     getStandings, getCompetitions,
     deleteStanding,
     type Standing, type Competition,
 } from '../../services/api';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
+import { DataTable, type Column } from '../../components/ui/DataTable';
+import { RowActions } from '../../components/ui/RowActions';
 
-
+// A stable empty list, so the table isn't handed a fresh array on every render.
+const NO_STANDINGS: Standing[] = [];
 
 export const AdminStandings = () => {
     const queryClient = useQueryClient();
@@ -28,8 +33,6 @@ export const AdminStandings = () => {
         }
     }, [compsData, selectedComp]);
 
-
-
     const { data: standingsData, isLoading: loadingStandings } = useQuery({
         queryKey: ['adminStandings', selectedComp],
         queryFn: () => getStandings(selectedComp),
@@ -39,132 +42,157 @@ export const AdminStandings = () => {
     const competitions: Competition[] = (compsData?.data || []).filter(c => c.status !== 'inactive');
     const selectedCompData = competitions.find(c => c.id === selectedComp);
     const isCompleted = selectedCompData?.status === 'completed';
-    const standings: Standing[] = Array.isArray(standingsData) ? standingsData : [];
+    const standings: Standing[] = Array.isArray(standingsData) ? standingsData : NO_STANDINGS;
     const loading = loadingComps || (!!selectedComp && loadingStandings);
-    const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-
-
-
-
-
-
-
-
+    // Deleting a standing asks first.
+    const [pendingDelete, setPendingDelete] = useState<Standing | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
     const handleDelete = async (id: string) => {
+        setDeleting(true);
         try {
             await deleteStanding(id);
             queryClient.invalidateQueries({ queryKey: ['adminStandings', selectedComp] });
-            setDeleteConfirm(null);
             toast.success('Standing deleted successfully');
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error(err);
-            toast.error(err.response?.data?.message || err.response?.data?.error || 'Failed to delete standing');
+            const response = (err as { response?: { data?: { message?: string; error?: string } } }).response;
+            toast.error(response?.data?.message || response?.data?.error || 'Failed to delete standing');
+        } finally {
+            setDeleting(false);
         }
     };
 
+    // Runs once the admin confirms. handleDelete reports its own errors, so the
+    // dialog always closes afterwards.
+    const confirmDelete = async () => {
+        if (!pendingDelete) return;
+        await handleDelete(pendingDelete.id);
+        setPendingDelete(null);
+    };
 
+    const columns = useMemo<Column<Standing>[]>(() => {
+        // The numeric columns are all the same shape, so they are built from one helper.
+        const stat = (header: string, value: (s: Standing) => string | number): Column<Standing> => ({
+            header,
+            align: 'center',
+            cell: (s) => <span className="text-sm dark:text-gray-300">{value(s)}</span>,
+        });
+        return [
+            {
+                // The position sits inside the Team cell, because the first column stays frozen
+                // when the table scrolls sideways and a frozen position alone names no team.
+                header: 'Team',
+                cell: (s) => (
+                    <div className="flex items-center gap-3">
+                        <span className="w-5 shrink-0 text-center font-black text-sffl-navy dark:text-white">{s.position}</span>
+                        {s.team?.logo && (
+                            <LightboxImage
+                                src={s.team.logo}
+                                alt={s.team?.name}
+                                thumbnailClassName="w-6 h-6 object-contain rounded-md shrink-0"
+                            />
+                        )}
+                        <span className="font-semibold text-sm text-gray-900 dark:text-white wrap-break-word">{s.team?.name || '—'}</span>
+                    </div>
+                ),
+            },
+            stat('P', (s) => s.played ?? 0),
+            stat('W', (s) => s.won ?? 0),
+            stat('D', (s) => s.drawn ?? 0),
+            stat('L', (s) => s.lost ?? 0),
+            stat('PF', (s) => s.goals_for ?? 0),
+            stat('PA', (s) => s.goals_against ?? 0),
+            {
+                header: 'PD',
+                align: 'center',
+                cell: (s) => <span className="text-sm font-semibold dark:text-gray-300">{(s.goal_diff ?? 0) > 0 ? '+' : ''}{s.goal_diff ?? 0}</span>,
+            },
+            stat('PCT', (s) => s.pct != null ? `${s.pct}%` : '—'),
+            {
+                header: 'L5',
+                align: 'center',
+                cell: (s) => (
+                    <div className="flex justify-center gap-1 text-xs font-mono dark:text-gray-300">
+                        {s.l5 ? s.l5.split('').filter(c => c !== '-').map((res, i) => (
+                            <span key={i} title={res} className={`w-5 h-5 flex items-center justify-center rounded text-[10px] font-bold ${res === 'W' ? 'bg-green-500 text-white' : res === 'D' ? 'bg-yellow-400 text-gray-900' : res === 'L' ? 'bg-red-500 text-white' : 'bg-gray-200 dark:bg-gray-600 text-gray-500'}`}>
+                                {res}
+                            </span>
+                        )) : '—'}
+                    </div>
+                ),
+            },
+            {
+                header: 'Actions',
+                align: 'right',
+                cell: (s) => (
+                    <RowActions
+                        label={`Actions for ${s.team?.name || 'team'}`}
+                        actions={[{
+                            label: 'Delete',
+                            icon: TrashIcon,
+                            danger: true,
+                            disabled: isCompleted,
+                            hint: isCompleted ? 'Competition is completed' : undefined,
+                            onSelect: () => setPendingDelete(s),
+                        }]}
+                    />
+                ),
+            },
+        ];
+    }, [isCompleted]);
 
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <h1 className="text-3xl font-black text-sffl-navy dark:text-white">Standings Management</h1>
+                <h1 className="text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white">Standings Management</h1>
                 <div className="flex items-center gap-3 w-full sm:w-auto">
-                    <select value={selectedComp} onChange={e => setSelectedComp(e.target.value)} className="w-full sm:min-w-[280px] border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-[44px] z-50 font-semibold text-sm">
+                    <select
+                        aria-label="Competition"
+                        value={selectedComp}
+                        onChange={e => setSelectedComp(e.target.value)}
+                        className="w-full sm:w-72 max-w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 min-h-11 z-50 font-semibold text-sm"
+                    >
                         {competitions.map(c => <option key={c.id} value={c.id} className="truncate">{c.name}</option>)}
                     </select>
                 </div>
             </div>
-            
+
             {isCompleted && (
                 <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 rounded-xl p-4 flex items-center gap-3 text-amber-800 dark:text-amber-400 font-bold text-sm">
-                    <span>🔒</span>
+                    <LockClosedIcon className="w-5 h-5 shrink-0" aria-hidden="true" />
                     <span>Season Completed. Standings are locked and cannot be modified.</span>
                 </div>
             )}
 
-            {loading ? (
-                <Loader />
-            ) : (
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-x-auto border border-gray-200 dark:border-gray-700">
-                    <table className="w-full text-left min-w-[800px]">
-                        <thead className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
-                            <tr>
-                                <th className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase w-12">Pos</th>
-                                <th className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Team</th>
-                                <th className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase text-center">P</th>
-                                <th className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase text-center">W</th>
-                                <th className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase text-center">D</th>
-                                <th className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase text-center">L</th>
-                                <th className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase text-center">PF</th>
-                                <th className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase text-center">PA</th>
-                                <th className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase text-center">PD</th>
-                                <th className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase text-center">PCT</th>
-                                <th className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase text-center">L5</th>
-                                <th className="px-4 py-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                            {standings.map(s => (
-                                <tr key={s.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
-                                    <td className="px-4 py-3 font-black text-sffl-navy dark:text-white">{s.position}</td>
-                                    <td className="px-4 py-3">
-                                        <div className="flex items-center gap-3">
-                                            {s.team?.logo && (
-                                                <LightboxImage 
-                                                    src={s.team.logo} 
-                                                    alt={s.team?.name} 
-                                                    thumbnailClassName="w-6 h-6 object-contain rounded-md" 
-                                                />
-                                            )}
-                                            <span className="font-semibold text-sm text-gray-900 dark:text-white">{s.team?.name || '—'}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3 text-center text-sm dark:text-gray-300">{s.played ?? 0}</td>
-                                    <td className="px-4 py-3 text-center text-sm dark:text-gray-300">{s.won ?? 0}</td>
-                                    <td className="px-4 py-3 text-center text-sm dark:text-gray-300">{s.drawn ?? 0}</td>
-                                    <td className="px-4 py-3 text-center text-sm dark:text-gray-300">{s.lost ?? 0}</td>
-                                    <td className="px-4 py-3 text-center text-sm dark:text-gray-300">{s.goals_for ?? 0}</td>
-                                    <td className="px-4 py-3 text-center text-sm dark:text-gray-300">{s.goals_against ?? 0}</td>
-                                    <td className="px-4 py-3 text-center text-sm font-semibold dark:text-gray-300">{(s.goal_diff ?? 0) > 0 ? '+' : ''}{s.goal_diff ?? 0}</td>
-                                    <td className="px-4 py-3 text-center text-sm dark:text-gray-300">{s.pct != null ? `${s.pct}%` : '-'}</td>
-                                    <td className="px-4 py-3 text-center text-xs font-mono dark:text-gray-300">
-                                        <div className="flex justify-center gap-1">
-                                            {s.l5 ? s.l5.split('').filter(c => c !== '-').map((res, i) => (
-                                                <span key={i} title={res} className={`w-5 h-5 flex items-center justify-center rounded text-[10px] font-bold ${res === 'W' ? 'bg-green-500 text-white' : res === 'D' ? 'bg-yellow-400 text-gray-900' : res === 'L' ? 'bg-red-500 text-white' : 'bg-gray-200 dark:bg-gray-600 text-gray-500'}`}>
-                                                    {res}
-                                                </span>
-                                            )) : '-'}
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3 text-right space-x-2">
-                                        {!isCompleted ? (
-                                            <button onClick={() => setDeleteConfirm(s.id)} className="text-red-600 hover:text-red-800 dark:text-red-400 font-bold text-sm">Delete</button>
-                                        ) : (
-                                            <span className="text-gray-400 dark:text-gray-600 text-xs font-semibold">Locked</span>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                            {standings.length === 0 && <tr><td colSpan={12} className="px-4 py-12 text-center text-gray-400 dark:text-gray-500">No standings data for this competition</td></tr>}
-                        </tbody>
-                    </table>
-                </div>
-            )}
+            <DataTable
+                data={standings}
+                columns={columns}
+                searchable={false}
+                paginated={false}
+                loading={loading}
+                getRowId={(s) => s.id}
+                emptyMessage="No standings data for this competition"
+            />
 
-
-            {deleteConfirm && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4" data-dialog onClick={() => setDeleteConfirm(null)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl max-w-sm w-full border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
-                        <h3 className="text-lg font-bold text-sffl-navy dark:text-white mb-2">Delete Standing?</h3>
-                        <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm">This action cannot be undone.</p>
-                        <div className="flex justify-end gap-3">
-                            <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">Cancel</button>
-                            <button onClick={() => handleDelete(deleteConfirm)} className="px-4 py-2 min-h-[44px] bg-red-600 text-white font-bold text-sm rounded-lg hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">Delete</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ConfirmDialog
+                open={pendingDelete !== null}
+                title="Delete this standing?"
+                description="This action cannot be undone."
+                body={pendingDelete && (
+                    <ConfirmSummary rows={[
+                        ['Team', pendingDelete.team?.name],
+                        ['Position', String(pendingDelete.position)],
+                        ['Competition', selectedCompData?.name],
+                    ]} />
+                )}
+                confirmLabel="Delete Standing"
+                tone="warning"
+                icon={TrashIcon}
+                pending={deleting}
+                onConfirm={confirmDelete}
+                onCancel={() => setPendingDelete(null)}
+            />
         </div>
     );
 };

@@ -1,298 +1,427 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { adminTransfersApi, contractsApi, type ContractData } from '../../services/api';
-import toast from 'react-hot-toast';
+import React, { useState, useEffect, useMemo } from "react";
+import { isAxiosError } from "axios";
 import {
-    ChevronDownIcon,
-    CheckBadgeIcon,
-    XCircleIcon,
-    ClockIcon,
-    NoSymbolIcon,
-    ArrowPathIcon,
-} from '@heroicons/react/24/outline';
+  adminTransfersApi,
+  contractsApi,
+  type ContractData,
+} from "../../services/api";
+import toast from "react-hot-toast";
+import {
+  CheckBadgeIcon,
+  XCircleIcon,
+  ClockIcon,
+  NoSymbolIcon,
+} from "@heroicons/react/24/outline";
+import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
+import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
+import { DataTable, type Column } from "../../components/ui/DataTable";
+import { RowActions } from "../../components/ui/RowActions";
 
-// Status options for the admin override dropdown
+// Status options for the admin override actions
 const OVERRIDE_STATUSES = [
-    { value: 'EXPIRED', label: 'Mark Expired', icon: ClockIcon, color: 'text-orange-600 dark:text-orange-400' },
-    { value: 'TERMINATED', label: 'Terminate', icon: XCircleIcon, color: 'text-red-600 dark:text-red-400' },
-    { value: 'REJECTED', label: 'Reject', icon: NoSymbolIcon, color: 'text-gray-600 dark:text-gray-400' },
-    { value: 'CANCELLED', label: 'Cancel', icon: NoSymbolIcon, color: 'text-gray-600 dark:text-gray-400' },
+  {
+    value: "EXPIRED",
+    label: "Mark Expired",
+    title: "Mark this contract as expired?",
+    confirmLabel: "Mark Expired",
+    icon: ClockIcon,
+    danger: false,
+  },
+  {
+    value: "TERMINATED",
+    label: "Terminate",
+    title: "Terminate this contract?",
+    confirmLabel: "Terminate Contract",
+    icon: XCircleIcon,
+    danger: true,
+  },
+  {
+    value: "REJECTED",
+    label: "Reject",
+    title: "Reject this contract?",
+    confirmLabel: "Reject Contract",
+    icon: NoSymbolIcon,
+    danger: true,
+  },
+  {
+    value: "CANCELLED",
+    label: "Cancel",
+    title: "Cancel this contract?",
+    confirmLabel: "Cancel Contract",
+    icon: NoSymbolIcon,
+    danger: true,
+  },
 ];
 
+// Force-accepting and every status override go through the confirm dialog first.
+type PendingAction =
+  | { kind: "forceAccept"; contract: ContractData }
+  | { kind: "override"; contract: ContractData; status: string };
+
+const statusBadgeClass = (status: string): string => {
+  switch (status) {
+    case "ACTIVE":
+      return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+    case "PENDING":
+      return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
+    case "EXPIRED":
+      return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400";
+    case "TERMINATED":
+      return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+    default:
+      return "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300";
+  }
+};
+
+const filterClass =
+  "w-full sm:w-auto px-3 py-2 min-h-11 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-sffl-red";
+
+const getApiErrorMessage = (error: unknown, fallback: string): string => {
+  if (isAxiosError(error)) {
+    const data: unknown = error.response?.data;
+    if (
+      typeof data === "object" &&
+      data !== null &&
+      "error" in data &&
+      typeof data.error === "string"
+    ) {
+      return data.error;
+    }
+  }
+  return fallback;
+};
+
 export const AdminContracts: React.FC = () => {
-    const [contracts, setContracts] = useState<ContractData[]>([]);
-    const [loading, setLoading] = useState<boolean>(true);
-    const [page, setPage] = useState<number>(1);
-    const [limit, setLimit] = useState<number>(25);
-    const [statusFilter, setStatusFilter] = useState<string>('');
-    const [search, setSearch] = useState<string>('');
-    const [total, setTotal] = useState<number>(0);
-    const [totalPages, setTotalPages] = useState<number>(1);
+  const [contracts, setContracts] = useState<ContractData[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [page, setPage] = useState<number>(1);
+  const [limit, setLimit] = useState<number>(25);
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [search, setSearch] = useState<string>("");
+  const [total, setTotal] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(1);
 
-    // Dropdown menu state
-    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-    const [forceAccepting, setForceAccepting] = useState<string | null>(null);
-    const menuRef = useRef<HTMLDivElement>(null);
+  // The action sheet for one contract, then the confirm step for the action picked.
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(
+    null,
+  );
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
 
-    // Close dropdown when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (e: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-                setOpenMenuId(null);
-            }
+  const fetchContracts = async () => {
+    setLoading(true);
+    try {
+      const res = await contractsApi.getTeamContracts({
+        status: statusFilter || undefined,
+        search: search || undefined,
+        page,
+        limit,
+      });
+      setContracts(res.data || []);
+      setTotal(res.total || 0);
+      setTotalPages(res.total_pages || 1);
+    } catch {
+      toast.error("Failed to load contracts");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchContracts();
+  }, [page, limit, statusFilter, search]);
+
+  const handleOverride = async (contractId: string, newStatus: string) => {
+    try {
+      await adminTransfersApi.overrideContract(
+        contractId,
+        newStatus,
+        reason.trim() || undefined,
+      );
+      toast.success(`Contract status updated to ${newStatus}`);
+      fetchContracts();
+    } catch (err: unknown) {
+      toast.error(
+        getApiErrorMessage(err, "Failed to override contract status"),
+      );
+    }
+  };
+
+  const handleForceAccept = async (contractId: string) => {
+    try {
+      const result = await adminTransfersApi.forceAcceptContract(contractId);
+      toast.success(result.message || "Contract force-accepted successfully");
+      fetchContracts();
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, "Failed to force-accept contract"));
+    }
+  };
+
+  // Runs once the admin confirms. The handlers report their own errors, so the
+  // dialog always closes afterwards.
+  const confirmPendingAction = async () => {
+    if (!pendingAction) return;
+    setBusy(true);
+    try {
+      if (pendingAction.kind === "forceAccept")
+        await handleForceAccept(pendingAction.contract.id);
+      else
+        await handleOverride(pendingAction.contract.id, pendingAction.status);
+    } finally {
+      setBusy(false);
+    }
+    setPendingAction(null);
+  };
+
+  const columns = useMemo<Column<ContractData>[]>(
+    () => [
+      {
+        header: "Player",
+        cell: (c) => (
+          <span className="font-bold text-gray-900 dark:text-white">
+            {c.player?.name || "Unknown Player"}
+          </span>
+        ),
+      },
+      {
+        header: "Team",
+        cell: (c) => (
+          <span className="font-semibold text-gray-700 dark:text-gray-300">
+            {c.team?.name || "Unassigned"}
+          </span>
+        ),
+      },
+      {
+        header: "Status",
+        cell: (c) => (
+          <span
+            className={`px-2.5 py-1 rounded-md text-xs font-bold ${statusBadgeClass(c.status)}`}
+          >
+            {c.status}
+          </span>
+        ),
+      },
+      {
+        header: "Played / Total",
+        cell: (c) => (
+          <span className="font-mono">
+            {c.matches_played} / {c.contract_length}
+          </span>
+        ),
+      },
+      {
+        header: "Value",
+        cell: (c) => (
+          <span className="font-bold">
+            {c.player_value.toLocaleString()} pts
+          </span>
+        ),
+      },
+      {
+        header: "Offered At",
+        cell: (c) => (
+          <span className="text-xs text-gray-400">
+            {new Date(c.offered_at).toLocaleDateString()}
+          </span>
+        ),
+      },
+      {
+        header: "Notes",
+        cell: (c) => (
+          <span
+            className="block wrap-break-word md:max-w-48 md:truncate text-xs text-gray-500 dark:text-gray-400"
+            title={c.notes || c.termination_reason || ""}
+          >
+            {c.termination_reason ? (
+              <span className="text-red-500 font-semibold">
+                {c.termination_reason}
+              </span>
+            ) : (
+              c.notes || "—"
+            )}
+          </span>
+        ),
+      },
+      {
+        header: "Actions",
+        align: "right",
+        cell: (c) => {
+          // Clears the reason from any earlier override before the dialog opens.
+          const pick = (action: PendingAction) => {
+            setReason("");
+            setPendingAction(action);
+          };
+          return (
+            <RowActions
+              label={`Actions for ${c.player?.name || "this contract"}`}
+              actions={[
+                ...(c.status === "PENDING"
+                  ? [
+                      {
+                        label: "Force Accept",
+                        icon: CheckBadgeIcon,
+                        hint: "Activate without player approval",
+                        onSelect: () => pick({ kind: "forceAccept", contract: c }),
+                      },
+                    ]
+                  : []),
+                ...OVERRIDE_STATUSES.filter((s) => s.value !== c.status).map((s) => ({
+                  label: s.label,
+                  icon: s.icon,
+                  danger: s.danger,
+                  onSelect: () => pick({ kind: "override", contract: c, status: s.value }),
+                })),
+              ]}
+            />
+          );
+        },
+      },
+    ],
+    [],
+  );
+
+  const pendingStatus =
+    pendingAction?.kind === "override"
+      ? OVERRIDE_STATUSES.find((s) => s.value === pendingAction.status)
+      : undefined;
+
+  const dialog =
+    pendingAction?.kind === "override" && pendingStatus
+      ? {
+          title: pendingStatus.title,
+          description: undefined,
+          confirmLabel: pendingStatus.confirmLabel,
+          tone: "warning" as const,
+          icon: pendingStatus.icon,
+          body: (
+            <div className="space-y-3">
+              <ConfirmSummary
+                rows={[
+                  [
+                    "Player",
+                    pendingAction.contract.player?.name || "Unknown Player",
+                  ],
+                  ["Team", pendingAction.contract.team?.name || "Unassigned"],
+                  ["Now", pendingAction.contract.status],
+                  ["Change to", pendingAction.status],
+                ]}
+              />
+              <label className="block">
+                <span className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
+                  Reason (optional)
+                </span>
+                <input
+                  type="text"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Why is the status changing?"
+                  className="w-full min-h-11 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sffl-red"
+                />
+              </label>
+            </div>
+          ),
+        }
+      : {
+          title: "Force-accept this contract?",
+          description:
+            "This immediately activates the contract and assigns the player to the team, even if they have not claimed their account. It is recorded in the audit log with your admin name.",
+          confirmLabel: "Force Accept",
+          tone: "warning" as const,
+          icon: CheckBadgeIcon,
+          body:
+            pendingAction?.kind === "forceAccept" ? (
+              <ConfirmSummary
+                rows={[
+                  [
+                    "Player",
+                    pendingAction.contract.player?.name || "Unknown Player",
+                  ],
+                  ["Team", pendingAction.contract.team?.name || "Unassigned"],
+                ]}
+              />
+            ) : null,
         };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
 
-    const fetchContracts = async () => {
-        setLoading(true);
-        try {
-            const res = await contractsApi.getTeamContracts({
-                status: statusFilter || undefined,
-                search: search || undefined,
-                page,
-                limit,
-            });
-            setContracts(res.data || []);
-            setTotal(res.total || 0);
-            setTotalPages(res.total_pages || 1);
-        } catch {
-            toast.error('Failed to load contracts');
-        } finally {
-            setLoading(false);
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">
+          Admin Contract Oversight
+        </h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Global audit, filtering, and status management for all player
+          contracts.
+        </p>
+      </div>
+
+      <DataTable
+        data={contracts}
+        columns={columns}
+        searchPlaceholder="Search player or team..."
+        itemsPerPage={limit}
+        serverPage={page}
+        totalServerPages={totalPages}
+        onPageChange={setPage}
+        onSearchSubmit={(term) => {
+          setSearch(term);
+          setPage(1);
+        }}
+        loading={loading}
+        getRowId={(c) => c.id}
+        emptyMessage="No contract records match your filter criteria."
+        headerActions={
+          <>
+            <select
+              aria-label="Contract status"
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPage(1);
+              }}
+              className={filterClass}
+            >
+              <option value="">All Statuses</option>
+              <option value="ACTIVE">ACTIVE</option>
+              <option value="PENDING">PENDING</option>
+              <option value="EXPIRED">EXPIRED</option>
+              <option value="TERMINATED">TERMINATED</option>
+              <option value="CANCELLED">CANCELLED</option>
+            </select>
+            <select
+              aria-label="Contracts per page"
+              value={limit}
+              onChange={(e) => {
+                setLimit(Number(e.target.value));
+                setPage(1);
+              }}
+              className={filterClass}
+            >
+              <option value={10}>10 per page</option>
+              <option value={25}>25 per page</option>
+              <option value={50}>50 per page</option>
+              <option value={100}>100 per page</option>
+            </select>
+            <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
+              {total.toLocaleString()} total contract{total === 1 ? "" : "s"}
+            </span>
+          </>
         }
-    };
+      />
 
-    useEffect(() => {
-        fetchContracts();
-    }, [page, limit, statusFilter, search]);
-
-    const handleOverride = async (contractId: string, newStatus: string) => {
-        const reason = window.prompt(`Reason for changing status to ${newStatus}? (optional)`);
-        try {
-            await adminTransfersApi.overrideContract(contractId, newStatus, reason || undefined);
-            toast.success(`Contract status updated to ${newStatus}`);
-            setOpenMenuId(null);
-            fetchContracts();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to override contract status');
-        }
-    };
-
-    const handleForceAccept = async (contractId: string, playerName: string) => {
-        const confirmed = window.confirm(
-            `⚠️ Force-Accept Contract\n\nThis will immediately activate the contract for "${playerName}" and assign them to the team — even if the player hasn't claimed their account.\n\nThis action will be recorded in the audit log with your admin name.\n\nProceed?`
-        );
-        if (!confirmed) return;
-
-        setForceAccepting(contractId);
-        try {
-            const result = await adminTransfersApi.forceAcceptContract(contractId);
-            toast.success(result.message || 'Contract force-accepted successfully');
-            setOpenMenuId(null);
-            fetchContracts();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to force-accept contract');
-        } finally {
-            setForceAccepting(null);
-        }
-    };
-
-    const statusBadgeClass = (status: string): string => {
-        switch (status) {
-            case 'ACTIVE': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
-            case 'PENDING': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
-            case 'EXPIRED': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
-            case 'TERMINATED': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
-            default: return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300';
-        }
-    };
-
-    return (
-        <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">Admin Contract Oversight</h1>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Global audit, filtering, and status management for all player contracts.</p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3">
-                    <input
-                        type="text"
-                        placeholder="Search player or team..."
-                        value={search}
-                        onChange={e => {
-                            setSearch(e.target.value);
-                            setPage(1);
-                        }}
-                        className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-medium text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sffl-red"
-                    />
-
-                    <select
-                        value={statusFilter}
-                        onChange={e => {
-                            setStatusFilter(e.target.value);
-                            setPage(1);
-                        }}
-                        className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-sffl-red"
-                    >
-                        <option value="">All Statuses</option>
-                        <option value="ACTIVE">ACTIVE</option>
-                        <option value="PENDING">PENDING</option>
-                        <option value="EXPIRED">EXPIRED</option>
-                        <option value="TERMINATED">TERMINATED</option>
-                        <option value="CANCELLED">CANCELLED</option>
-                    </select>
-
-                    <select
-                        value={limit}
-                        onChange={e => {
-                            setLimit(Number(e.target.value));
-                            setPage(1);
-                        }}
-                        className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-sffl-red"
-                    >
-                        <option value={10}>10 per page</option>
-                        <option value={25}>25 per page</option>
-                        <option value={50}>50 per page</option>
-                        <option value={100}>100 per page</option>
-                    </select>
-                </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-                {loading ? (
-                    <div className="p-12 text-center text-gray-400">Loading contracts...</div>
-                ) : contracts.length === 0 ? (
-                    <div className="p-12 text-center text-gray-400">No contract records match your filter criteria.</div>
-                ) : (
-                    <div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-gray-50 dark:bg-gray-700/50 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                                        <th className="p-4">Player</th>
-                                        <th className="p-4">Team</th>
-                                        <th className="p-4">Status</th>
-                                        <th className="p-4">Played / Total</th>
-                                        <th className="p-4">Value</th>
-                                        <th className="p-4">Offered At</th>
-                                        <th className="p-4">Notes</th>
-                                        <th className="p-4 text-right">Admin Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100 dark:divide-gray-700 text-sm">
-                                    {contracts.map(c => (
-                                        <tr key={c.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30">
-                                            <td className="p-4 font-bold text-gray-900 dark:text-white">{c.player?.name || 'Unknown Player'}</td>
-                                            <td className="p-4 font-semibold text-gray-700 dark:text-gray-300">{c.team?.name || 'Unassigned'}</td>
-                                            <td className="p-4">
-                                                <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${statusBadgeClass(c.status)}`}>
-                                                    {c.status}
-                                                </span>
-                                            </td>
-                                            <td className="p-4 font-mono">{c.matches_played} / {c.contract_length}</td>
-                                            <td className="p-4 font-bold">{c.player_value.toLocaleString()} pts</td>
-                                            <td className="p-4 text-xs text-gray-400">{new Date(c.offered_at).toLocaleDateString()}</td>
-                                            <td className="p-4 text-xs text-gray-500 dark:text-gray-400 max-w-[200px] truncate" title={c.notes || c.termination_reason || ''}>
-                                                {c.termination_reason && (
-                                                    <span className="text-red-500 font-semibold">{c.termination_reason}</span>
-                                                )}
-                                                {!c.termination_reason && c.notes && (
-                                                    <span>{c.notes}</span>
-                                                )}
-                                            </td>
-                                            <td className="p-4 text-right">
-                                                <div className="relative inline-block" ref={openMenuId === c.id ? menuRef : undefined}>
-                                                    <button
-                                                        onClick={() => setOpenMenuId(openMenuId === c.id ? null : c.id)}
-                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-xs font-bold rounded-lg transition-colors"
-                                                    >
-                                                        Actions
-                                                        <ChevronDownIcon className="w-3.5 h-3.5" />
-                                                    </button>
-
-                                                    {openMenuId === c.id && (
-                                                        <div className="absolute right-0 mt-1 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl z-50 py-1.5 animate-in fade-in slide-in-from-top-1">
-                                                            {/* Force Accept — only for PENDING contracts */}
-                                                            {c.status === 'PENDING' && (
-                                                                <>
-                                                                    <button
-                                                                        onClick={() => handleForceAccept(c.id, c.player?.name || 'Unknown')}
-                                                                        disabled={forceAccepting === c.id}
-                                                                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-left text-sm font-bold text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 disabled:opacity-50 transition-colors"
-                                                                    >
-                                                                        {forceAccepting === c.id ? (
-                                                                            <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                                                                        ) : (
-                                                                            <CheckBadgeIcon className="w-4 h-4" />
-                                                                        )}
-                                                                        <div>
-                                                                            <span>{forceAccepting === c.id ? 'Activating...' : 'Force Accept'}</span>
-                                                                            <p className="text-[10px] font-normal text-green-600/70 dark:text-green-400/60 mt-0.5">
-                                                                                Activate without player approval
-                                                                            </p>
-                                                                        </div>
-                                                                    </button>
-                                                                    <div className="mx-3 my-1 border-t border-gray-100 dark:border-gray-700" />
-                                                                </>
-                                                            )}
-
-                                                            {/* Override status options */}
-                                                            {OVERRIDE_STATUSES
-                                                                .filter(s => s.value !== c.status)
-                                                                .map(s => (
-                                                                    <button
-                                                                        key={s.value}
-                                                                        onClick={() => handleOverride(c.id, s.value)}
-                                                                        className={`w-full flex items-center gap-2.5 px-4 py-2 text-left text-sm font-semibold ${s.color} hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors`}
-                                                                    >
-                                                                        <s.icon className="w-4 h-4" />
-                                                                        {s.label}
-                                                                    </button>
-                                                                ))
-                                                            }
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {/* Pagination Footer */}
-                        <div className="p-4 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-gray-500">
-                            <div>
-                                Showing <span className="font-bold text-gray-900 dark:text-white">{contracts.length > 0 ? (page - 1) * limit + 1 : 0}</span> to <span className="font-bold text-gray-900 dark:text-white">{Math.min(page * limit, total)}</span> of <span className="font-bold text-gray-900 dark:text-white">{total}</span> total contracts
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                                    disabled={page <= 1}
-                                    className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg font-bold disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                                >
-                                    ← Previous
-                                </button>
-                                <span className="font-bold text-gray-700 dark:text-gray-300 px-2">
-                                    Page {page} of {totalPages}
-                                </span>
-                                <button
-                                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                                    disabled={page >= totalPages}
-                                    className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg font-bold disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                                >
-                                    Next →
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
+      <ConfirmDialog
+        open={pendingAction !== null}
+        title={dialog.title}
+        description={dialog.description}
+        body={dialog.body}
+        confirmLabel={dialog.confirmLabel}
+        tone={dialog.tone}
+        icon={dialog.icon}
+        pending={busy}
+        onConfirm={confirmPendingAction}
+        onCancel={() => setPendingAction(null)}
+      />
+    </div>
+  );
 };
 
 export default AdminContracts;

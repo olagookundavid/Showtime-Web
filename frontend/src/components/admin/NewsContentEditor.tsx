@@ -1,7 +1,10 @@
 import { useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import { ArrowPathIcon, NewspaperIcon, PhotoIcon, PlayCircleIcon, UserIcon } from '@heroicons/react/24/outline';
 import { getTeams, getPlayers, getNews } from '../../services/api';
+import { FootballIcon } from '../icons/FootballIcon';
+import { Spinner } from '../ui/Spinner';
 import { useImageUpload } from '../../hooks/useImageUpload';
 import { parseYouTubeId, parseNewsRefUrl } from '../../utils/newsContent';
 
@@ -105,7 +108,7 @@ export const NewsContentEditor = ({ value, onChange, rows = 10 }: NewsContentEdi
     const insertPendingImage = () => {
         if (!pendingImage) return;
         // [ ] and | are tag syntax — keep them out of captions.
-        const caption = captionInput.replace(/[\[\]|]/g, '').trim();
+        const caption = captionInput.replace(/[[\]|]/g, '').trim();
         insertAtCursor(`[image:${pendingImage}${caption ? `|${caption}` : ''}]`, true);
         setPendingImage(null);
         setCaptionInput('');
@@ -143,7 +146,10 @@ export const NewsContentEditor = ({ value, onChange, rows = 10 }: NewsContentEdi
         setPanel(null);
     };
 
-    const toolbarBtn = 'px-2.5 py-1.5 text-xs font-bold rounded-md border transition disabled:opacity-50';
+    const toolbarBtn = 'inline-flex items-center gap-1.5 px-3 min-h-11 text-xs font-bold rounded-md border transition disabled:opacity-50';
+    const panelInput = 'min-w-0 min-h-11 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-1.5 text-sm';
+    const primaryBtn = 'shrink-0 px-3 min-h-11 bg-sffl-red text-white text-xs font-bold rounded-lg hover:bg-red-700 transition';
+    const pickerRow = 'w-full min-h-11 flex items-center gap-2 px-2 py-1.5 text-left text-sm text-gray-900 dark:text-white hover:bg-white dark:hover:bg-gray-600 rounded transition';
     const inactive = 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600';
     const active = 'border-sffl-red text-sffl-red bg-sffl-red/10';
 
@@ -153,41 +159,45 @@ export const NewsContentEditor = ({ value, onChange, rows = 10 }: NewsContentEdi
             <div className="flex flex-wrap items-center gap-2">
                 <input type="file" ref={fileInputRef} onChange={handleImagePick} accept="image/*,.heic,.heif" className="hidden" />
                 <button type="button" disabled={isUploading} onClick={() => { setPanel(null); fileInputRef.current?.click(); }} className={`${toolbarBtn} ${inactive}`}>
-                    {isUploading ? `Uploading… ${progress}%` : '📷 Insert Image'}
+                    {isUploading ? (
+                        <><ArrowPathIcon className="w-4 h-4 animate-spin" aria-hidden="true" /> Uploading {progress}%</>
+                    ) : (
+                        <><PhotoIcon className="w-4 h-4" aria-hidden="true" /> Insert Image</>
+                    )}
                 </button>
                 <button type="button" onClick={() => setPanel(panel === 'youtube' ? null : 'youtube')} className={`${toolbarBtn} ${panel === 'youtube' ? active : inactive}`}>
-                    ▶ Insert YouTube
+                    <PlayCircleIcon className="w-4 h-4" aria-hidden="true" /> Insert YouTube
                 </button>
                 <button type="button" onClick={() => setPanel(panel === 'news' ? null : 'news')} className={`${toolbarBtn} ${panel === 'news' ? active : inactive}`}>
-                    📰 Reference News Link
+                    <NewspaperIcon className="w-4 h-4" aria-hidden="true" /> Reference News Link
                 </button>
                 <button type="button" onClick={() => setPanel(panel === 'team' ? null : 'team')} className={`${toolbarBtn} ${panel === 'team' ? active : inactive}`}>
-                    🏈 Tag Team
+                    <FootballIcon className="w-4 h-4" aria-hidden="true" /> Tag Team
                 </button>
                 <button type="button" onClick={() => setPanel(panel === 'player' ? null : 'player')} className={`${toolbarBtn} ${panel === 'player' ? active : inactive}`}>
-                    👤 Tag Player
+                    <UserIcon className="w-4 h-4" aria-hidden="true" /> Tag Player
                 </button>
             </div>
 
             {/* Caption panel for a just-uploaded image */}
             {pendingImage && (
-                <div className="flex gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/50">
-                    <img src={pendingImage} alt="Uploaded preview" className="w-20 h-20 rounded-lg object-cover flex-shrink-0" />
-                    <div className="flex-1 space-y-2">
+                <div className="flex flex-col sm:flex-row gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+                    <img src={pendingImage} alt="Uploaded preview" className="w-20 h-20 rounded-lg object-cover shrink-0" />
+                    <div className="flex-1 min-w-0 space-y-2">
                         <input
                             type="text"
                             value={captionInput}
                             onChange={e => setCaptionInput(e.target.value)}
                             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); insertPendingImage(); } }}
                             placeholder="Caption (optional) — e.g. Jones celebrates the TD"
-                            className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-1.5 text-sm"
+                            className={`${panelInput} w-full`}
                             autoFocus
                         />
-                        <div className="flex gap-2">
-                            <button type="button" onClick={insertPendingImage} className="px-3 py-1.5 bg-sffl-red text-white text-xs font-bold rounded-lg hover:bg-red-700 transition">
+                        <div className="flex flex-wrap gap-2">
+                            <button type="button" onClick={insertPendingImage} className={primaryBtn}>
                                 Insert Image
                             </button>
-                            <button type="button" onClick={cancelPendingImage} className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition">
+                            <button type="button" onClick={cancelPendingImage} className="px-3 min-h-11 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition">
                                 Cancel
                             </button>
                         </div>
@@ -204,10 +214,11 @@ export const NewsContentEditor = ({ value, onChange, rows = 10 }: NewsContentEdi
                         onChange={e => setYoutubeInput(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleYoutubeInsert(); } }}
                         placeholder="https://www.youtube.com/watch?v=..."
-                        className="flex-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-1.5 text-sm"
+                        aria-label="YouTube link"
+                        className={`${panelInput} flex-1`}
                         autoFocus
                     />
-                    <button type="button" onClick={handleYoutubeInsert} className="px-3 py-1.5 bg-sffl-red text-white text-xs font-bold rounded-lg hover:bg-red-700 transition">
+                    <button type="button" onClick={handleYoutubeInsert} className={primaryBtn}>
                         Insert
                     </button>
                 </div>
@@ -227,17 +238,18 @@ export const NewsContentEditor = ({ value, onChange, rows = 10 }: NewsContentEdi
                                 onChange={e => setNewsUrlInput(e.target.value)}
                                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleNewsUrlInsert(); } }}
                                 placeholder="e.g. https://go.com/news/123 or /news/article-slug"
-                                className="flex-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-1.5 text-sm"
+                                aria-label="News link URL"
+                                className={`${panelInput} flex-1`}
                                 autoFocus
                             />
-                            <button type="button" onClick={handleNewsUrlInsert} className="px-3 py-1.5 bg-sffl-red text-white text-xs font-bold rounded-lg hover:bg-red-700 transition">
+                            <button type="button" onClick={handleNewsUrlInsert} className={primaryBtn}>
                                 Insert URL
                             </button>
                         </div>
                     </div>
 
                     <div className="pt-2 border-t border-gray-200 dark:border-gray-600 space-y-2">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <label className="text-xs font-bold text-gray-700 dark:text-gray-300">
                                 Or select an internal article:
                             </label>
@@ -245,13 +257,14 @@ export const NewsContentEditor = ({ value, onChange, rows = 10 }: NewsContentEdi
                                 type="text"
                                 value={newsSearch}
                                 onChange={e => setNewsSearch(e.target.value)}
-                                placeholder="Filter internal news..."
-                                className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md px-2 py-0.5 text-xs w-48"
+                                placeholder="Filter internal news"
+                                aria-label="Filter internal news"
+                                className={`${panelInput} w-full sm:w-48 text-xs`}
                             />
                         </div>
                         <div className="max-h-36 overflow-y-auto divide-y divide-gray-200 dark:divide-gray-600 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800">
                             {loadingNews && (
-                                <p className="text-xs text-gray-500 dark:text-gray-400 p-2">Loading articles…</p>
+                                <Spinner label="Loading articles" size="sm" className="py-3" />
                             )}
                             {newsList.map(n => (
                                 <button
@@ -262,10 +275,10 @@ export const NewsContentEditor = ({ value, onChange, rows = 10 }: NewsContentEdi
                                         setPanel(null);
                                         setNewsSearch('');
                                     }}
-                                    className="w-full flex items-center justify-between p-2 text-left text-xs text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                                    className="w-full min-h-11 flex items-center justify-between gap-2 p-2 text-left text-xs text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition"
                                 >
-                                    <span className="font-semibold truncate max-w-[80%]">{n.title}</span>
-                                    <span className="text-[10px] text-gray-400 truncate font-mono">/news/{n.slug}</span>
+                                    <span className="font-semibold truncate min-w-0">{n.title}</span>
+                                    <span className="text-[10px] text-gray-400 truncate font-mono shrink-0 max-w-[40%]">/news/{n.slug}</span>
                                 </button>
                             ))}
                             {!loadingNews && newsList.length === 0 && (
@@ -283,22 +296,23 @@ export const NewsContentEditor = ({ value, onChange, rows = 10 }: NewsContentEdi
                         type="text"
                         value={panel === 'team' ? teamSearch : playerSearch}
                         onChange={e => (panel === 'team' ? setTeamSearch(e.target.value) : setPlayerSearch(e.target.value))}
-                        placeholder={panel === 'team' ? 'Search teams…' : 'Search players by name or position…'}
-                        className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-1.5 text-sm"
+                        placeholder={panel === 'team' ? 'Search teams' : 'Search players by name or position'}
+                        aria-label={panel === 'team' ? 'Search teams' : 'Search players'}
+                        className={`${panelInput} w-full`}
                         autoFocus
                     />
                     <div className="max-h-40 overflow-y-auto divide-y divide-gray-200 dark:divide-gray-600">
                         {(panel === 'team' ? loadingTeams : loadingPlayers) && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 py-2">Loading…</p>
+                            <Spinner label={panel === 'team' ? 'Loading teams' : 'Loading players'} size="sm" className="py-3" />
                         )}
                         {panel === 'team' && teams.map(t => (
                             <button
                                 key={t.id}
                                 type="button"
                                 onClick={() => { insertAtCursor(`[team:${t.id}|${t.name}]`, false); setPanel(null); setTeamSearch(''); }}
-                                className="w-full flex items-center gap-2 px-2 py-1.5 text-left text-sm text-gray-900 dark:text-white hover:bg-white dark:hover:bg-gray-600 rounded transition"
+                                className={pickerRow}
                             >
-                                {t.logo && <img src={t.logo} alt="" className="w-5 h-5 rounded-full object-cover" />}
+                                {t.logo && <img src={t.logo} alt="" className="w-5 h-5 rounded-full object-cover shrink-0" />}
                                 <span className="font-semibold">{t.name}</span>
                                 {t.short_name && <span className="text-xs text-gray-500 dark:text-gray-400">({t.short_name})</span>}
                             </button>
@@ -311,7 +325,7 @@ export const NewsContentEditor = ({ value, onChange, rows = 10 }: NewsContentEdi
                                 key={p.id}
                                 type="button"
                                 onClick={() => { insertAtCursor(`[player:${p.id}|${p.name}]`, false); setPanel(null); setPlayerSearch(''); }}
-                                className="w-full flex items-center gap-2 px-2 py-1.5 text-left text-sm text-gray-900 dark:text-white hover:bg-white dark:hover:bg-gray-600 rounded transition"
+                                className={`${pickerRow} flex-wrap`}
                             >
                                 <span className="font-semibold">{p.name}</span>
                                 <span className="text-xs text-gray-500 dark:text-gray-400">

@@ -4,11 +4,20 @@ import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
+    ArrowPathIcon,
+    ClipboardDocumentListIcon,
+    PlusIcon,
+    ShieldCheckIcon,
+    UserPlusIcon,
+    XMarkIcon,
+} from '@heroicons/react/24/outline';
+import {
     getAdminTeamSheet, getPlayers, saveTeamSheet,
     createPlayer,
     type Match, type Player, type TeamSheetPlayer,
 } from '../../services/api';
-import { Loader } from '../ui/Loader';
+import { Spinner } from '../ui/Spinner';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 
 interface AdminTeamSheetModalProps {
     match: Match;
@@ -27,6 +36,13 @@ const POSITIONS = ['Defender', 'Receiver', 'Center', 'QB', 'Rusher', 'Allrounder
 
 const emptyQuickAdd: QuickAddForm = { name: '', position: '', jersey_number: '' };
 
+// Saving, creating a player, and adding an off-roster player all go through the confirm dialog first.
+type PendingAction = { kind: 'save' } | { kind: 'create' } | { kind: 'offRoster'; player: Player };
+
+const inputClass = 'w-full min-h-11 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none';
+
+const playerCount = (n: number) => `${n} player${n !== 1 ? 's' : ''}`;
+
 export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps) => {
     const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState<'home' | 'away'>('home');
@@ -42,8 +58,7 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
     const [showQuickAdd, setShowQuickAdd] = useState(false);
     const [quickAdd, setQuickAdd] = useState<QuickAddForm>(emptyQuickAdd);
 
-    // Team-change confirmation
-    const [pendingPlayer, setPendingPlayer] = useState<Player | null>(null);
+    const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
 
     // Off-roster players we've added in this session — used to display chip names
     // for players whose global team is not the active team (historical entry).
@@ -83,6 +98,7 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
 
     // ── Roster state helpers ─────────────────────────────────────────────────
     const activeTeamId = activeTab === 'home' ? match.home_team?.id : match.away_team?.id;
+    const activeTeamName = activeTab === 'home' ? match.home_team?.name : match.away_team?.name;
     const activeSelected = activeTab === 'home' ? selectedHomePlayers : selectedAwayPlayers;
 
     // Players currently on the active team (for the bottom checklist — main 25-man squad only)
@@ -135,13 +151,20 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
         },
     });
 
+    // Validation runs before the confirm dialog opens, so it never asks about a player that can't be created.
+    const requestCreate = () => {
+        if (!quickAdd.name.trim()) return toast.error('Name is required');
+        if (!quickAdd.position) return toast.error('Position is required');
+        setPendingAction({ kind: 'create' });
+    };
+
     // ── Confirm add for an off-roster player ─────────────────────────────────
     // Historical entry: we keep the player's current team record intact and only
     // record that they played on the active team in THIS match (via match_team_sheets.team_id).
     const confirmAddOffRosterPlayer = (player: Player) => {
         setExtraPlayers(prev => ({ ...prev, [player.id]: player }));
         addToSelected(player.id);
-        setPendingPlayer(null);
+        setPendingAction(null);
         setSearchQuery('');
         setShowDropdown(false);
         toast.success(`${player.name} added to this match's sheet`);
@@ -157,7 +180,7 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
             return;
         }
         // Different team — confirm so the admin knows what they're doing
-        setPendingPlayer(player);
+        setPendingAction({ kind: 'offRoster', player });
     };
 
     // ── Save BOTH team sheets in one shot ───────────────────────────────────
@@ -180,274 +203,344 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
         },
     });
 
+    // Runs once the admin confirms. The mutations report their own errors, so
+    // the dialog closes when the request settles either way.
+    const closeDialog = () => setPendingAction(null);
+    const confirmPendingAction = () => {
+        if (!pendingAction) return;
+        if (pendingAction.kind === 'offRoster') confirmAddOffRosterPlayer(pendingAction.player);
+        else if (pendingAction.kind === 'create') createMutation.mutate(quickAdd, { onSettled: closeDialog });
+        else saveBothMutation.mutate(undefined, { onSettled: closeDialog });
+    };
+
     const selectedCount = activeSelected.length;
 
-    return createPortal(
-        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={onClose}>
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[calc(100dvh-5rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+    const dialog = pendingAction?.kind === 'save'
+        ? {
+            title: 'Save both team sheets?',
+            description: 'This replaces the saved sheets for this match.',
+            confirmLabel: 'Save Sheets',
+            icon: ClipboardDocumentListIcon,
+            pending: saveBothMutation.isPending,
+        }
+        : pendingAction?.kind === 'create'
+            ? {
+                title: 'Create this player?',
+                description: `Creates a new player on ${activeTeamName || 'this team'} and adds them to this match's sheet.`,
+                confirmLabel: 'Create Player',
+                icon: UserPlusIcon,
+                pending: createMutation.isPending,
+            }
+            : {
+                title: 'Add off-roster player?',
+                description: undefined,
+                confirmLabel: 'Add to This Match',
+                icon: UserPlusIcon,
+                pending: false,
+            };
 
-                {/* Header */}
-                <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-between items-start">
-                    <div>
-                        <h2 className="text-2xl font-black text-sffl-navy dark:text-white">Team Sheet</h2>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                            {match.home_team?.short_name} vs {match.away_team?.short_name} · {match.date?.split('T')[0]}
-                        </p>
-                    </div>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 mt-1">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
-                </div>
+    const summaryClass = 'grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 rounded-lg bg-gray-50 dark:bg-gray-700/50 p-3';
+    const dialogBody = pendingAction?.kind === 'save' ? (
+        <dl className={summaryClass}>
+            <dt className="text-gray-500 dark:text-gray-400">{match.home_team?.name || 'Home'}</dt>
+            <dd className="font-bold dark:text-white">{playerCount(selectedHomePlayers.length)}</dd>
+            <dt className="text-gray-500 dark:text-gray-400">{match.away_team?.name || 'Away'}</dt>
+            <dd className="font-bold dark:text-white">{playerCount(selectedAwayPlayers.length)}</dd>
+        </dl>
+    ) : pendingAction?.kind === 'create' ? (
+        <dl className={summaryClass}>
+            <dt className="text-gray-500 dark:text-gray-400">Name</dt>
+            <dd className="min-w-0 wrap-break-word font-bold dark:text-white">{quickAdd.name.trim()}</dd>
+            <dt className="text-gray-500 dark:text-gray-400">Position</dt>
+            <dd className="dark:text-white">{quickAdd.position === '-' ? 'No Role / Unassigned' : quickAdd.position}</dd>
+            <dt className="text-gray-500 dark:text-gray-400">Jersey</dt>
+            <dd className="dark:text-white">{quickAdd.jersey_number ? `#${quickAdd.jersey_number}` : '—'}</dd>
+        </dl>
+    ) : pendingAction?.kind === 'offRoster' ? (
+        <div className="space-y-2">
+            <p>
+                <strong className="text-gray-900 dark:text-white">{pendingAction.player.name}</strong> is currently rostered on{' '}
+                <strong className="text-sffl-red">{pendingAction.player.team?.name || 'another team'}</strong>.
+            </p>
+            <p>
+                They'll be recorded as playing for <strong className="text-gray-900 dark:text-white">{activeTeamName}</strong> in this match only. Their current roster stays intact.
+            </p>
+        </div>
+    ) : null;
 
-                {/* Tabs */}
-                <div className="flex border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-                    {(['home', 'away'] as const).map(tab => (
-                        <button
-                            key={tab}
-                            onClick={() => { setActiveTab(tab); setSearchQuery(''); setShowQuickAdd(false); setShowDropdown(false); }}
-                            className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === tab ? 'border-sffl-red text-sffl-red' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
-                        >
-                            {tab === 'home' ? match.home_team?.name : match.away_team?.name}
-                        </button>
-                    ))}
-                </div>
+    return (
+        <>
+            {createPortal(
+                <div className="fixed inset-0 z-100 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={onClose}>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[calc(100dvh-5rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
 
-                <div className="p-4 sm:p-5 pb-10 sm:pb-5 overflow-y-auto overscroll-contain flex-1 min-h-0 space-y-5">
-                    {loadingSheet ? <div className="py-8"><Loader /></div> : (
-                        <>
-                            {(activeTab === 'home' ? teamSheet?.home_team : teamSheet?.away_team)?.some(p => p.is_starter) && (
-                                <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl text-xs text-blue-800 dark:text-blue-300 flex items-center gap-2 font-medium">
-                                    <span className="text-sm">🛡️</span>
-                                    <span>This team has an active manager lineup. Starters and field positions are safely preserved when roster players are added or removed.</span>
-                                </div>
-                            )}
+                        {/* Header */}
+                        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 shrink-0 flex justify-between items-start gap-3">
+                            <div className="min-w-0">
+                                <h2 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white">Team Sheet</h2>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 wrap-break-word">
+                                    {match.home_team?.short_name} vs {match.away_team?.short_name} · {match.date?.split('T')[0]}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                aria-label="Close"
+                                className="shrink-0 min-h-11 min-w-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                            >
+                                <XMarkIcon className="w-6 h-6" aria-hidden="true" />
+                            </button>
+                        </div>
 
-                            {/* ── Search / Add Player ── */}
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider">
-                                    Add Player to Roster
-                                </label>
-                                <div ref={searchRef} className="relative">
-                                    <input
-                                        type="text"
-                                        value={searchQuery}
-                                        onChange={e => { setSearchQuery(e.target.value); setShowDropdown(true); setShowQuickAdd(false); }}
-                                        onFocus={() => searchQuery.length >= 2 && setShowDropdown(true)}
-                                        placeholder="Search by player name…"
-                                        className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-transparent outline-none"
-                                    />
+                        {/* Tabs */}
+                        <div className="flex border-b border-gray-200 dark:border-gray-700 shrink-0">
+                            {(['home', 'away'] as const).map(tab => (
+                                <button
+                                    key={tab}
+                                    type="button"
+                                    onClick={() => { setActiveTab(tab); setSearchQuery(''); setShowQuickAdd(false); setShowDropdown(false); }}
+                                    className={`flex-1 min-w-0 truncate px-2 py-3 min-h-11 text-sm font-bold border-b-2 transition-colors ${activeTab === tab ? 'border-sffl-red text-sffl-red' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                                >
+                                    {tab === 'home' ? match.home_team?.name : match.away_team?.name}
+                                </button>
+                            ))}
+                        </div>
 
-                                    {/* Search Dropdown */}
-                                    {showDropdown && searchQuery.trim().length >= 2 && (
-                                        <div className="absolute z-20 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden">
-                                            {searching ? (
-                                                <div className="p-3 text-center text-xs text-gray-500">Searching…</div>
-                                            ) : foundPlayers.length > 0 ? (
-                                                <ul className="divide-y divide-gray-100 dark:divide-gray-700 max-h-52 overflow-y-auto">
-                                                    {foundPlayers.map(p => (
-                                                        <li key={p.id}>
+                        <div className="p-4 sm:p-5 pb-10 sm:pb-5 overflow-y-auto overscroll-contain flex-1 min-h-0 space-y-5">
+                            {loadingSheet ? <Spinner /> : (
+                                <>
+                                    {(activeTab === 'home' ? teamSheet?.home_team : teamSheet?.away_team)?.some(p => p.is_starter) && (
+                                        <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl text-xs text-blue-800 dark:text-blue-300 flex items-center gap-2 font-medium">
+                                            <ShieldCheckIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                                            <span>This team has an active manager lineup. Starters and field positions are safely preserved when roster players are added or removed.</span>
+                                        </div>
+                                    )}
+
+                                    {/* ── Search / Add Player ── */}
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider">
+                                            Add Player to Roster
+                                        </label>
+                                        <div ref={searchRef} className="relative">
+                                            <input
+                                                type="text"
+                                                value={searchQuery}
+                                                onChange={e => { setSearchQuery(e.target.value); setShowDropdown(true); setShowQuickAdd(false); }}
+                                                onFocus={() => searchQuery.length >= 2 && setShowDropdown(true)}
+                                                placeholder="Search by player name…"
+                                                className="w-full min-h-11 border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red focus:border-transparent outline-none"
+                                            />
+
+                                            {/* Search Dropdown */}
+                                            {showDropdown && searchQuery.trim().length >= 2 && (
+                                                <div className="absolute z-20 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden">
+                                                    {searching ? (
+                                                        <div className="p-3 flex items-center justify-center gap-1.5 text-xs text-gray-500">
+                                                            <ArrowPathIcon className="w-4 h-4 animate-spin" aria-hidden="true" />
+                                                            Searching
+                                                        </div>
+                                                    ) : foundPlayers.length > 0 ? (
+                                                        <ul className="divide-y divide-gray-100 dark:divide-gray-700 max-h-52 overflow-y-auto">
+                                                            {foundPlayers.map(p => (
+                                                                <li key={p.id}>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleSelectFromSearch(p)}
+                                                                        disabled={isDeletedPlayer(p)}
+                                                                        title={isDeletedPlayer(p) ? DELETED_TITLE : undefined}
+                                                                        className={`w-full text-left px-4 py-2.5 transition-colors ${
+                                                                            isDeletedPlayer(p)
+                                                                                ? 'opacity-50 cursor-not-allowed'
+                                                                                : 'hover:bg-gray-50 dark:hover:bg-gray-700/60'
+                                                                        }`}
+                                                                    >
+                                                                        <div className="font-semibold text-sm text-gray-900 dark:text-white flex justify-between items-center gap-2">
+                                                                            <span className={`min-w-0 truncate ${isDeletedPlayer(p) ? 'line-through decoration-1' : ''}`}>{p.name} <span className="text-gray-400 font-normal">#{p.jersey_number}</span></span>
+                                                                            <span className={`shrink-0 max-w-[45%] truncate text-xs px-2 py-0.5 rounded-full font-bold ${p.team?.id === activeTeamId ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'}`}>
+                                                                                {p.team?.name || 'No Team'}
+                                                                            </span>
+                                                                        </div>
+                                                                        <div className="text-xs text-gray-500 mt-0.5">{p.position}</div>
+                                                                    </button>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    ) : (
+                                                        <div className="p-4 text-center">
+                                                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 wrap-break-word">No player found for "{searchQuery}"</p>
                                                             <button
-                                                                onClick={() => handleSelectFromSearch(p)}
-                                                                disabled={isDeletedPlayer(p)}
-                                                                title={isDeletedPlayer(p) ? DELETED_TITLE : undefined}
-                                                                className={`w-full text-left px-4 py-2.5 transition-colors ${
-                                                                    isDeletedPlayer(p)
-                                                                        ? 'opacity-50 cursor-not-allowed'
-                                                                        : 'hover:bg-gray-50 dark:hover:bg-gray-700/60'
-                                                                }`}
+                                                                type="button"
+                                                                onClick={() => { setShowQuickAdd(true); setShowDropdown(false); setQuickAdd({ ...emptyQuickAdd, name: searchQuery }); }}
+                                                                className="inline-flex items-center gap-1.5 min-h-11 px-2 text-sm font-bold text-sffl-red hover:underline"
                                                             >
-                                                                <div className="font-semibold text-sm text-gray-900 dark:text-white flex justify-between items-center">
-                                                                    <span className={isDeletedPlayer(p) ? 'line-through decoration-1' : ''}>{p.name} <span className="text-gray-400 font-normal">#{p.jersey_number}</span></span>
-                                                                    <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${p.team?.id === activeTeamId ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'}`}>
-                                                                        {p.team?.name || 'No Team'}
-                                                                    </span>
-                                                                </div>
-                                                                <div className="text-xs text-gray-500 mt-0.5">{p.position}</div>
+                                                                <PlusIcon className="w-4 h-4" aria-hidden="true" />
+                                                                Create new player
                                                             </button>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            ) : (
-                                                <div className="p-4 text-center">
-                                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">No player found for "{searchQuery}"</p>
-                                                    <button
-                                                        onClick={() => { setShowQuickAdd(true); setShowDropdown(false); setQuickAdd({ ...emptyQuickAdd, name: searchQuery }); }}
-                                                        className="text-sm font-bold text-sffl-red hover:underline"
-                                                    >
-                                                        + Create new player
-                                                    </button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
-                                    )}
-                                </div>
 
-                                {/* Quick-add form */}
-                                {showQuickAdd && (
-                                    <div className="mt-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800/40 space-y-3">
-                                        <p className="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider">New Player — Quick Add</p>
-                                        <div className="grid grid-cols-3 gap-2">
-                                            <input
-                                                type="text"
-                                                value={quickAdd.name}
-                                                onChange={e => setQuickAdd(f => ({ ...f, name: e.target.value }))}
-                                                placeholder="Full name *"
-                                                className="col-span-3 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none"
-                                            />
-                                            <select
-                                                value={quickAdd.position}
-                                                onChange={e => setQuickAdd(f => ({ ...f, position: e.target.value }))}
-                                                className="col-span-2 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none"
-                                            >
-                                                <option value="">Position *</option>
-                                                {POSITIONS.map(pos => <option key={pos} value={pos}>{pos === '-' ? '- (No Role / Unassigned)' : pos}</option>)}
-                                            </select>
-                                            <input
-                                                type="number"
-                                                value={quickAdd.jersey_number}
-                                                onChange={e => setQuickAdd(f => ({ ...f, jersey_number: e.target.value }))}
-                                                placeholder="# Jersey"
-                                                className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none"
-                                            />
-                                        </div>
-                                        <div className="flex gap-2 justify-end">
-                                            <button
-                                                onClick={() => { setShowQuickAdd(false); setSearchQuery(''); }}
-                                                className="px-3 py-1.5 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg transition-colors"
-                                            >
-                                                Cancel
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    if (!quickAdd.name.trim()) return toast.error('Name is required');
-                                                    if (!quickAdd.position) return toast.error('Position is required');
-                                                    createMutation.mutate(quickAdd);
-                                                }}
-                                                disabled={createMutation.isPending}
-                                                className="px-4 py-1.5 text-sm font-bold bg-sffl-navy text-white rounded-lg hover:bg-sffl-navy-light transition-colors disabled:opacity-50"
-                                            >
-                                                {createMutation.isPending ? 'Creating…' : 'Create & Add'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* ── Currently selected chips ── */}
-                            {activeSelected.length > 0 && (
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider">
-                                        On Sheet ({selectedCount})
-                                    </label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {activeSelected.map(pid => {
-                                            const p = activeTeamPlayers.find(pl => pl.id === pid) ||
-                                                extraPlayers[pid] ||
-                                                (teamSheet?.home_team.find(p => p.player_id === pid) || teamSheet?.away_team.find(p => p.player_id === pid)) as TeamSheetPlayer | undefined;
-                                            const name = (p as any)?.name || pid.slice(0, 8);
-                                            return (
-                                                <span key={pid} className="inline-flex items-center gap-1 bg-sffl-navy/10 dark:bg-sffl-navy/30 text-sffl-navy dark:text-white text-xs font-bold px-3 py-1.5 rounded-full">
-                                                    {name}
-                                                    <button onClick={() => togglePlayer(pid)} className="ml-1 text-gray-400 hover:text-red-500">×</button>
-                                                </span>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* ── Team roster checklist ── */}
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider">
-                                    {activeTab === 'home' ? match.home_team?.name : match.away_team?.name} Roster
-                                </label>
-                                {activeTeamPlayers.length === 0 ? (
-                                    <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">No players registered for this team yet.</p>
-                                ) : (
-                                    <div className="space-y-1.5">
-                                        {activeTeamPlayers.map(player => (
-                                            <label
-                                                key={player.id}
-                                                title={isDeletedPlayer(player) ? DELETED_TITLE : undefined}
-                                                className={`flex items-center gap-3 p-3 rounded-xl border border-gray-100 dark:border-gray-700 transition-colors ${
-                                                    isDeletedPlayer(player)
-                                                        ? 'opacity-50 cursor-not-allowed'
-                                                        : 'hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer'
-                                                }`}
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={activeSelected.includes(player.id)}
-                                                    onChange={() => togglePlayer(player.id)}
-                                                    disabled={isDeletedPlayer(player)}
-                                                    className="w-4 h-4 text-sffl-red rounded border-gray-300 focus:ring-sffl-red dark:border-gray-600 disabled:cursor-not-allowed"
-                                                />
-                                                <div className={`flex-1 font-semibold text-sm ${
-                                                    isDeletedPlayer(player)
-                                                        ? 'text-gray-400 dark:text-gray-500 line-through decoration-1'
-                                                        : 'text-gray-800 dark:text-gray-200'
-                                                }`}>
-                                                    {player.name}
+                                        {/* Quick-add form */}
+                                        {showQuickAdd && (
+                                            <div className="mt-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800/40 space-y-3">
+                                                <p className="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider">New Player — Quick Add</p>
+                                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                                    <input
+                                                        type="text"
+                                                        value={quickAdd.name}
+                                                        onChange={e => setQuickAdd(f => ({ ...f, name: e.target.value }))}
+                                                        placeholder="Full name *"
+                                                        className={`sm:col-span-3 ${inputClass}`}
+                                                    />
+                                                    <select
+                                                        value={quickAdd.position}
+                                                        onChange={e => setQuickAdd(f => ({ ...f, position: e.target.value }))}
+                                                        className={`sm:col-span-2 ${inputClass}`}
+                                                    >
+                                                        <option value="">Position *</option>
+                                                        {POSITIONS.map(pos => <option key={pos} value={pos}>{pos === '-' ? '- (No Role / Unassigned)' : pos}</option>)}
+                                                    </select>
+                                                    <input
+                                                        type="number"
+                                                        value={quickAdd.jersey_number}
+                                                        onChange={e => setQuickAdd(f => ({ ...f, jersey_number: e.target.value }))}
+                                                        placeholder="# Jersey"
+                                                        className={inputClass}
+                                                    />
                                                 </div>
-                                                <span className="text-xs text-gray-400 font-semibold">#{player.jersey_number} · {player.position}</span>
-                                            </label>
-                                        ))}
+                                                <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => { setShowQuickAdd(false); setSearchQuery(''); }}
+                                                        className="px-3 py-1.5 min-h-11 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg transition-colors"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={requestCreate}
+                                                        disabled={createMutation.isPending}
+                                                        className="px-4 py-1.5 min-h-11 text-sm font-bold bg-sffl-navy text-white rounded-lg hover:bg-sffl-navy-light transition-colors disabled:opacity-50"
+                                                    >
+                                                        Create & Add
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-                                )}
+
+                                    {/* ── Currently selected chips ── */}
+                                    {activeSelected.length > 0 && (
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider">
+                                                On Sheet ({selectedCount})
+                                            </label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {activeSelected.map(pid => {
+                                                    const p = activeTeamPlayers.find(pl => pl.id === pid) ||
+                                                        extraPlayers[pid] ||
+                                                        (teamSheet?.home_team.find(p => p.player_id === pid) || teamSheet?.away_team.find(p => p.player_id === pid)) as TeamSheetPlayer | undefined;
+                                                    const name = (p as any)?.name || pid.slice(0, 8);
+                                                    return (
+                                                        <span key={pid} className="inline-flex items-center min-h-11 pl-3 bg-sffl-navy/10 dark:bg-sffl-navy/30 text-sffl-navy dark:text-white text-xs font-bold rounded-full">
+                                                            {name}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => togglePlayer(pid)}
+                                                                aria-label={`Remove ${name}`}
+                                                                className="min-h-11 min-w-11 flex items-center justify-center rounded-full text-gray-400 hover:text-red-500"
+                                                            >
+                                                                <XMarkIcon className="w-4 h-4" aria-hidden="true" />
+                                                            </button>
+                                                        </span>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* ── Team roster checklist ── */}
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider">
+                                            {activeTeamName} Roster
+                                        </label>
+                                        {activeTeamPlayers.length === 0 ? (
+                                            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">No players registered for this team yet.</p>
+                                        ) : (
+                                            <div className="space-y-1.5">
+                                                {activeTeamPlayers.map(player => (
+                                                    <label
+                                                        key={player.id}
+                                                        title={isDeletedPlayer(player) ? DELETED_TITLE : undefined}
+                                                        className={`flex items-center gap-3 p-3 rounded-xl border border-gray-100 dark:border-gray-700 transition-colors ${
+                                                            isDeletedPlayer(player)
+                                                                ? 'opacity-50 cursor-not-allowed'
+                                                                : 'hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer'
+                                                        }`}
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={activeSelected.includes(player.id)}
+                                                            onChange={() => togglePlayer(player.id)}
+                                                            disabled={isDeletedPlayer(player)}
+                                                            className="w-4 h-4 shrink-0 text-sffl-red rounded border-gray-300 focus:ring-sffl-red dark:border-gray-600 disabled:cursor-not-allowed"
+                                                        />
+                                                        <div className={`flex-1 min-w-0 wrap-break-word font-semibold text-sm ${
+                                                            isDeletedPlayer(player)
+                                                                ? 'text-gray-400 dark:text-gray-500 line-through decoration-1'
+                                                                : 'text-gray-800 dark:text-gray-200'
+                                                        }`}>
+                                                            {player.name}
+                                                        </div>
+                                                        <span className="shrink-0 text-xs text-gray-400 font-semibold">#{player.jersey_number} · {player.position}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-4 border-t border-gray-200 dark:border-gray-700 shrink-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:pb-4">
+                            <div className="flex gap-4 sm:flex-col sm:gap-0.5 text-xs text-gray-500 dark:text-gray-400 font-semibold">
+                                <div>Home: {playerCount(selectedHomePlayers.length)}</div>
+                                <div>Away: {playerCount(selectedAwayPlayers.length)}</div>
                             </div>
-                        </>
-                    )}
-                </div>
-
-                {/* Footer */}
-                <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:pb-4">
-                    <div className="text-xs text-gray-500 dark:text-gray-400 font-semibold space-y-0.5">
-                        <div>🏠 Home: {selectedHomePlayers.length} player{selectedHomePlayers.length !== 1 ? 's' : ''}</div>
-                        <div>✈️ Away: {selectedAwayPlayers.length} player{selectedAwayPlayers.length !== 1 ? 's' : ''}</div>
-                    </div>
-                    <div className="flex gap-2">
-                        <button onClick={onClose} className="px-4 py-2 min-h-[40px] border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 transition-all">Close</button>
-                        <button
-                            onClick={() => saveBothMutation.mutate()}
-                            disabled={saveBothMutation.isPending || loadingSheet}
-                            className="px-5 py-2 min-h-[40px] bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:bg-red-700 transition-all disabled:opacity-50"
-                        >
-                            {saveBothMutation.isPending ? 'Saving…' : 'Save Both Sheets'}
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* ── Off-Roster Confirmation Modal ── */}
-            {pendingPlayer && (
-                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[110] p-4" data-dialog onClick={() => setPendingPlayer(null)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
-                        <h3 className="text-lg font-black text-sffl-navy dark:text-white mb-2">Add Off-Roster Player?</h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                            <strong className="text-gray-900 dark:text-white">{pendingPlayer.name}</strong> is currently rostered on{' '}
-                            <strong className="text-sffl-red">{pendingPlayer.team?.name || 'another team'}</strong>.
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-5">
-                            They'll be recorded as playing for <strong className="text-gray-900 dark:text-white">{activeTab === 'home' ? match.home_team?.name : match.away_team?.name}</strong> in this match only. Their current roster stays intact.
-                        </p>
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setPendingPlayer(null)}
-                                className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={() => confirmAddOffRosterPlayer(pendingPlayer)}
-                                className="flex-1 px-4 py-2.5 bg-sffl-red text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-colors"
-                            >
-                                Add to This Match
-                            </button>
+                            <div className="flex gap-2">
+                                <button type="button" onClick={onClose} className="px-4 py-2 min-h-11 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 transition-all">Close</button>
+                                <button
+                                    type="button"
+                                    onClick={() => setPendingAction({ kind: 'save' })}
+                                    disabled={saveBothMutation.isPending || loadingSheet}
+                                    className="flex-1 sm:flex-none px-5 py-2 min-h-11 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:bg-red-700 transition-all disabled:opacity-50"
+                                >
+                                    Save Both Sheets
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
-        </div>,
-        document.body
+
+            {/* Outside the overlay: portal clicks bubble through the React tree, so
+                inside it a backdrop click would also close the whole team sheet. */}
+            <ConfirmDialog
+                open={pendingAction !== null}
+                title={dialog.title}
+                description={dialog.description}
+                body={dialogBody}
+                confirmLabel={dialog.confirmLabel}
+                tone="info"
+                icon={dialog.icon}
+                pending={dialog.pending}
+                onConfirm={confirmPendingAction}
+                onCancel={closeDialog}
+            />
+        </>
     );
 };

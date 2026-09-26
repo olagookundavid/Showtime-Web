@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { ArrowPathIcon, UserPlusIcon } from '@heroicons/react/24/outline';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { claimApi, type ClaimablePlayerData, type VerifyClaimCodeData } from '../../services/api';
 
 /**
@@ -23,9 +26,14 @@ const NOT_LISTED = '__NOT_LISTED__';
 // not something a self-service claimant should pick).
 const CLAIM_POSITIONS = ['QB', 'Receiver', 'Center', 'Defender', 'Rusher', 'Allrounder'];
 
+const fieldClass = 'w-full min-h-11 px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white';
+const smallFieldClass = 'w-full min-h-11 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm';
+
 export const ClaimAccountPage: React.FC = () => {
     const [step, setStep] = useState<Step>('code');
     const [submitting, setSubmitting] = useState(false);
+    // Submitting the claim creates the account, so it asks first.
+    const [confirmOpen, setConfirmOpen] = useState(false);
 
     const [code, setCode] = useState('');
     const [team, setTeam] = useState<VerifyClaimCodeData | null>(null);
@@ -85,7 +93,8 @@ export const ClaimAccountPage: React.FC = () => {
         setStep('account');
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    // Runs before the confirm dialog opens, so it never asks about a claim that can't be sent.
+    const requestSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
         if (password !== confirmPassword) {
@@ -96,7 +105,10 @@ export const ClaimAccountPage: React.FC = () => {
             toast.error('Password must be at least 8 characters, including a number and a symbol.');
             return;
         }
+        setConfirmOpen(true);
+    };
 
+    const handleSubmit = async () => {
         setSubmitting(true);
         try {
             const res = await claimApi.submit({
@@ -117,16 +129,17 @@ export const ClaimAccountPage: React.FC = () => {
 
             // Full reload so AuthProvider re-probes the session and picks up the new
             // player_pending role before the status screen renders.
+            // The dialog stays in its pending state until the page unloads, so it never flashes shut.
             window.location.assign('/claim/status');
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Could not submit your claim. Please try again.');
-        } finally {
             setSubmitting(false);
+            setConfirmOpen(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-10 px-4">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 sm:py-10 px-4">
             <div className="max-w-lg mx-auto">
                 <div className="text-center mb-8">
                     <h1 className="text-2xl font-black text-gray-900 dark:text-white">Claim your player account</h1>
@@ -153,7 +166,7 @@ export const ClaimAccountPage: React.FC = () => {
                     ))}
                 </ol>
 
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
                     {step === 'code' && (
                         <form onSubmit={handleVerifyCode} className="space-y-4">
                             <div>
@@ -166,7 +179,7 @@ export const ClaimAccountPage: React.FC = () => {
                                     onChange={e => setCode(e.target.value.toUpperCase())}
                                     placeholder="e.g. A7KD92QP"
                                     autoComplete="off"
-                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-mono tracking-widest uppercase focus:outline-none focus:ring-2 focus:ring-sffl-red"
+                                    className={`${fieldClass} font-mono tracking-widest uppercase focus:outline-none focus:ring-2 focus:ring-sffl-red`}
                                 />
                                 <p className="mt-2 text-xs text-gray-400">
                                     Do not have a code? Ask your team manager for it.
@@ -175,9 +188,10 @@ export const ClaimAccountPage: React.FC = () => {
                             <button
                                 type="submit"
                                 disabled={submitting || !code.trim()}
-                                className="w-full py-3 bg-sffl-red hover:bg-red-700 disabled:opacity-50 text-white font-bold rounded-lg transition-colors"
+                                className="w-full inline-flex items-center justify-center gap-2 py-3 min-h-11 bg-sffl-red hover:bg-red-700 disabled:opacity-50 text-white font-bold rounded-lg transition-colors"
                             >
-                                {submitting ? 'Checking…' : 'Continue'}
+                                {submitting && <ArrowPathIcon className="w-4 h-4 animate-spin" aria-hidden="true" />}
+                                {submitting ? 'Checking' : 'Continue'}
                             </button>
                         </form>
                     )}
@@ -186,10 +200,10 @@ export const ClaimAccountPage: React.FC = () => {
                         <div className="space-y-4">
                             <div className="flex items-center gap-3 pb-4 border-b border-gray-100 dark:border-gray-700">
                                 {team.team_logo && (
-                                    <img src={team.team_logo} alt={team.team_name} className="w-10 h-10 object-contain" />
+                                    <img src={team.team_logo} alt={team.team_name} className="w-10 h-10 shrink-0 object-contain" />
                                 )}
-                                <div>
-                                    <div className="font-bold text-gray-900 dark:text-white">{team.team_name}</div>
+                                <div className="min-w-0">
+                                    <div className="font-bold text-gray-900 dark:text-white wrap-break-word">{team.team_name}</div>
                                     <div className="text-xs text-gray-400">
                                         {team.players.length} player{team.players.length === 1 ? '' : 's'} available to claim
                                     </div>
@@ -203,7 +217,7 @@ export const ClaimAccountPage: React.FC = () => {
                                 <select
                                     value={selectedPlayerId}
                                     onChange={e => setSelectedPlayerId(e.target.value)}
-                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sffl-red"
+                                    className={`${fieldClass} focus:outline-none focus:ring-2 focus:ring-sffl-red`}
                                 >
                                     <option value="">Select your name…</option>
                                     {team.players.map(p => (
@@ -238,10 +252,10 @@ export const ClaimAccountPage: React.FC = () => {
                                             type="text"
                                             value={fullName}
                                             onChange={e => setFullName(e.target.value)}
-                                            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm"
+                                            className={smallFieldClass}
                                         />
                                     </div>
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div>
                                             <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
                                                 Jersey number
@@ -250,7 +264,7 @@ export const ClaimAccountPage: React.FC = () => {
                                                 type="number"
                                                 value={jerseyNumber}
                                                 onChange={e => setJerseyNumber(e.target.value)}
-                                                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm"
+                                                className={smallFieldClass}
                                             />
                                         </div>
                                         <div>
@@ -260,7 +274,7 @@ export const ClaimAccountPage: React.FC = () => {
                                             <select
                                                 value={position}
                                                 onChange={e => setPosition(e.target.value)}
-                                                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm"
+                                                className={smallFieldClass}
                                             >
                                                 <option value="">Select position…</option>
                                                 {CLAIM_POSITIONS.map(pos => (
@@ -274,14 +288,16 @@ export const ClaimAccountPage: React.FC = () => {
 
                             <div className="flex gap-3">
                                 <button
+                                    type="button"
                                     onClick={() => setStep('code')}
-                                    className="px-4 py-3 text-sm font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                                    className="px-4 py-3 min-h-11 text-sm font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
                                 >
                                     Back
                                 </button>
                                 <button
+                                    type="button"
                                     onClick={handleContinueFromPlayer}
-                                    className="flex-1 py-3 bg-sffl-red hover:bg-red-700 text-white font-bold rounded-lg transition-colors"
+                                    className="flex-1 py-3 min-h-11 bg-sffl-red hover:bg-red-700 text-white font-bold rounded-lg transition-colors"
                                 >
                                     Continue
                                 </button>
@@ -290,8 +306,8 @@ export const ClaimAccountPage: React.FC = () => {
                     )}
 
                     {step === 'account' && (
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <div className="p-3 rounded-lg bg-sffl-navy/5 dark:bg-blue-900/20 text-sm">
+                        <form onSubmit={requestSubmit} className="space-y-4">
+                            <div className="p-3 rounded-lg bg-sffl-navy/5 dark:bg-blue-900/20 text-sm wrap-break-word">
                                 <span className="text-gray-500 dark:text-gray-400">Claiming as </span>
                                 <span className="font-bold text-gray-900 dark:text-white">
                                     {selectedPlayer?.name || fullName}
@@ -309,7 +325,7 @@ export const ClaimAccountPage: React.FC = () => {
                                     value={email}
                                     onChange={e => setEmail(e.target.value)}
                                     autoComplete="email"
-                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                                    className={fieldClass}
                                 />
                             </div>
 
@@ -322,7 +338,7 @@ export const ClaimAccountPage: React.FC = () => {
                                     value={phone}
                                     onChange={e => setPhone(e.target.value)}
                                     autoComplete="tel"
-                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                                    className={fieldClass}
                                 />
                                 <p className="mt-1 text-xs text-gray-400">
                                     Helps your manager recognise you.
@@ -339,7 +355,7 @@ export const ClaimAccountPage: React.FC = () => {
                                     value={password}
                                     onChange={e => setPassword(e.target.value)}
                                     autoComplete="new-password"
-                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                                    className={fieldClass}
                                 />
                                 <p className="mt-1 text-xs text-gray-400">
                                     At least 8 characters, with a number and a symbol.
@@ -356,7 +372,7 @@ export const ClaimAccountPage: React.FC = () => {
                                     value={confirmPassword}
                                     onChange={e => setConfirmPassword(e.target.value)}
                                     autoComplete="new-password"
-                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                                    className={fieldClass}
                                 />
                             </div>
 
@@ -364,16 +380,16 @@ export const ClaimAccountPage: React.FC = () => {
                                 <button
                                     type="button"
                                     onClick={() => setStep('player')}
-                                    className="px-4 py-3 text-sm font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                                    className="px-4 py-3 min-h-11 text-sm font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
                                 >
                                     Back
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={submitting}
-                                    className="flex-1 py-3 bg-sffl-red hover:bg-red-700 disabled:opacity-50 text-white font-bold rounded-lg transition-colors"
+                                    className="flex-1 py-3 min-h-11 bg-sffl-red hover:bg-red-700 disabled:opacity-50 text-white font-bold rounded-lg transition-colors"
                                 >
-                                    {submitting ? 'Submitting…' : 'Claim my account'}
+                                    Claim my account
                                 </button>
                             </div>
                         </form>
@@ -381,9 +397,38 @@ export const ClaimAccountPage: React.FC = () => {
                 </div>
 
                 <p className="mt-6 text-center text-xs text-gray-400">
-                    Already claimed your account? <Link to="/login" className="font-bold text-sffl-red hover:underline">Sign in</Link>
+                    Already claimed your account? <Link to="/login" className="inline-flex items-center min-h-11 font-bold text-sffl-red hover:underline">Sign in</Link>
                 </p>
             </div>
+
+            {/* Outside the form, so the dialog's buttons can never submit it. */}
+            <ConfirmDialog
+                open={confirmOpen}
+                title="Submit your claim?"
+                description={isNotListed
+                    ? 'Because you are not on the roster, the league office decides this one after your manager confirms they know you. It usually takes a little longer than a normal claim.'
+                    : 'Your team manager confirms it is really you before your account goes live.'}
+                body={(
+                    <ConfirmSummary rows={[
+                        ['Name', selectedPlayer?.name || fullName.trim()],
+                        ['Team', team?.team_name],
+                        ...(isNotListed
+                            ? [
+                                ['Jersey', jerseyNumber ? `#${jerseyNumber}` : undefined] as [string, string | undefined],
+                                ['Position', position || undefined] as [string, string | undefined],
+                            ]
+                            : []),
+                        ['Email', email.trim()],
+                        ['Phone', phone.trim()],
+                    ]} />
+                )}
+                confirmLabel="Submit Claim"
+                tone="info"
+                icon={UserPlusIcon}
+                pending={submitting}
+                onConfirm={handleSubmit}
+                onCancel={() => setConfirmOpen(false)}
+            />
         </div>
     );
 };

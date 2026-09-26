@@ -1,8 +1,13 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { GiftIcon, ClipboardIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { GiftIcon, ClipboardIcon, CheckIcon, CheckCircleIcon, MinusIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { getAllEventDays, giftTicket, type EventDayResponse, type TicketResponse } from '../../services/api';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
+import { getApiErrorMessage } from '../../utils/apiError';
+
+const MAX_QUANTITY = 10;
 
 export const AdminGiftTicket = () => {
     const { data: eventDays = [], isLoading } = useQuery({
@@ -16,6 +21,7 @@ export const AdminGiftTicket = () => {
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
     const [quantity, setQuantity] = useState(1);
+    const [confirming, setConfirming] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [issued, setIssued] = useState<TicketResponse | null>(null);
     const [copied, setCopied] = useState(false);
@@ -33,6 +39,7 @@ export const AdminGiftTicket = () => {
 
     const selectedEventDay: EventDayResponse | undefined = eventDays.find((e) => e.id === eventDayId);
     const tiers = selectedEventDay?.tiers || [];
+    const selectedTier = tiers.find((t) => t.id === tierId);
 
     const resetForm = () => {
         setName('');
@@ -42,11 +49,15 @@ export const AdminGiftTicket = () => {
         setTierId('');
     };
 
-    const handleSubmit = async () => {
+    const requestGift = () => {
         if (!eventDayId || !tierId || !name.trim() || !email.trim()) {
             toast.error('Event, tier, recipient name and email are required');
             return;
         }
+        setConfirming(true);
+    };
+
+    const handleSubmit = async () => {
         setSubmitting(true);
         setIssued(null);
         try {
@@ -61,30 +72,33 @@ export const AdminGiftTicket = () => {
             setIssued(result);
             toast.success(`Ticket gifted to ${result.email} — confirmation email sent`);
             resetForm();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to gift ticket');
+        } catch (err) {
+            toast.error(getApiErrorMessage(err, 'Failed to gift ticket'));
         } finally {
             setSubmitting(false);
+            setConfirming(false);
         }
     };
 
     const inputClass =
-        'w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none';
+        'w-full min-h-11 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none';
     const labelClass = 'block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2';
+    const stepperClass =
+        'min-h-11 min-w-11 flex items-center justify-center bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-white rounded-lg disabled:opacity-40';
 
     return (
-        <div className="max-w-2xl mx-auto">
+        <div>
             <div className="flex items-center gap-3 mb-2">
-                <div className="bg-sffl-red/10 text-sffl-red p-2 rounded-xl">
-                    <GiftIcon className="w-7 h-7" />
+                <div className="bg-sffl-red/10 text-sffl-red p-2 rounded-xl shrink-0">
+                    <GiftIcon className="w-7 h-7" aria-hidden="true" />
                 </div>
-                <div>
+                <div className="min-w-0">
                     <h1 className="text-2xl md:text-3xl font-black italic text-gray-900 dark:text-white">Administrator</h1>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Gift a complimentary ticket without payment</p>
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow p-5 md:p-7 mt-5 space-y-5">
+            <div className="max-w-2xl bg-white dark:bg-gray-800 rounded-2xl shadow p-4 sm:p-5 md:p-7 mt-5 space-y-5">
                 {/* Event Day */}
                 <div>
                     <label className={labelClass}>Event Day</label>
@@ -97,7 +111,7 @@ export const AdminGiftTicket = () => {
                         className={inputClass}
                         disabled={isLoading}
                     >
-                        <option value="">{isLoading ? 'Loading…' : 'Select an event day'}</option>
+                        <option value="">{isLoading ? 'Loading event days' : 'Select an event day'}</option>
                         {eventDays.map((ed) => (
                             <option key={ed.id} value={ed.id}>
                                 {ed.title} — {new Date(ed.date).toLocaleDateString()}
@@ -160,7 +174,7 @@ export const AdminGiftTicket = () => {
                         type="tel"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
-                        placeholder="e.g. +234..."
+                        placeholder="e.g. +234 801 234 5678"
                         className={inputClass}
                     />
                 </div>
@@ -172,51 +186,81 @@ export const AdminGiftTicket = () => {
                         <button
                             type="button"
                             onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                            className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-white w-10 h-10 rounded-lg font-bold text-lg"
-                        >−</button>
-                        <span className="font-bold text-xl w-12 text-center dark:text-white">{quantity}</span>
+                            disabled={quantity <= 1}
+                            aria-label="Decrease quantity"
+                            className={stepperClass}
+                        >
+                            <MinusIcon className="w-5 h-5" aria-hidden="true" />
+                        </button>
+                        <span className="font-bold text-xl w-12 text-center dark:text-white" aria-live="polite">{quantity}</span>
                         <button
                             type="button"
-                            onClick={() => setQuantity(Math.min(10, quantity + 1))}
-                            className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-white w-10 h-10 rounded-lg font-bold text-lg"
-                        >+</button>
+                            onClick={() => setQuantity(Math.min(MAX_QUANTITY, quantity + 1))}
+                            disabled={quantity >= MAX_QUANTITY}
+                            aria-label="Increase quantity"
+                            className={stepperClass}
+                        >
+                            <PlusIcon className="w-5 h-5" aria-hidden="true" />
+                        </button>
                     </div>
                 </div>
 
                 <button
-                    onClick={handleSubmit}
+                    type="button"
+                    onClick={requestGift}
                     disabled={submitting || !eventDayId || !tierId || !name.trim() || !email.trim()}
-                    className="w-full bg-sffl-red hover:bg-[#A52323] text-white font-bold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="w-full min-h-11 bg-sffl-red hover:bg-[#A52323] text-white font-bold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                    {submitting ? (
-                        <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Issuing…</>
-                    ) : (
-                        <>🎁 Gift Ticket</>
-                    )}
+                    <GiftIcon className="w-5 h-5" aria-hidden="true" />
+                    Gift Ticket
                 </button>
 
                 {issued && (
                     <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-4 text-sm">
-                        <p className="font-bold text-green-700 dark:text-green-400">Ticket issued 🎉</p>
-                        <p className="text-gray-700 dark:text-gray-300 mt-1">
+                        <p className="inline-flex items-center gap-1.5 font-bold text-green-700 dark:text-green-400">
+                            <CheckCircleIcon className="w-5 h-5" aria-hidden="true" />
+                            Ticket issued
+                        </p>
+                        <p className="text-gray-700 dark:text-gray-300 mt-1 wrap-break-word">
                             Sent to <span className="font-semibold">{issued.email}</span>.
                         </p>
-                        <div className="flex items-center gap-2 mt-3">
-                            <code className="font-mono font-bold text-base bg-white dark:bg-gray-900 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2 text-gray-900 dark:text-white select-all">
+                        <div className="flex flex-wrap items-center gap-2 mt-3">
+                            <code className="font-mono font-bold text-base bg-white dark:bg-gray-900 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2 text-gray-900 dark:text-white select-all break-all">
                                 {issued.ticket_code}
                             </code>
                             <button
                                 type="button"
                                 onClick={handleCopyCode}
-                                className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white font-bold px-3 py-2 rounded-lg transition"
+                                className="inline-flex items-center gap-1.5 min-h-11 bg-green-600 hover:bg-green-700 text-white font-bold px-4 rounded-lg transition"
                             >
-                                {copied ? <CheckIcon className="w-4 h-4" /> : <ClipboardIcon className="w-4 h-4" />}
+                                {copied ? <CheckIcon className="w-4 h-4" aria-hidden="true" /> : <ClipboardIcon className="w-4 h-4" aria-hidden="true" />}
                                 {copied ? 'Copied' : 'Copy'}
                             </button>
                         </div>
                     </div>
                 )}
             </div>
+
+            <ConfirmDialog
+                open={confirming}
+                title="Gift this ticket?"
+                description="The ticket is issued without payment and emailed to the recipient straight away."
+                confirmLabel="Gift Ticket"
+                tone="success"
+                icon={GiftIcon}
+                pending={submitting}
+                onConfirm={handleSubmit}
+                onCancel={() => setConfirming(false)}
+                body={
+                    <ConfirmSummary rows={[
+                        ['Event', selectedEventDay?.title],
+                        ['Tier', selectedTier?.name],
+                        ['Recipient', name.trim()],
+                        ['Email', email.trim()],
+                        ['Quantity', String(quantity)],
+                    ]} />
+                }
+            />
         </div>
     );
 };

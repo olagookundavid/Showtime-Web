@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import { ArrowRightIcon, ArrowUturnLeftIcon, PlusIcon, TrophyIcon } from '@heroicons/react/24/outline';
 import { resetBracket, type Match } from '../../services/api';
 import { buildBracketColumns, winnerSide, championOf, ChampionCard } from '../matches/BracketView';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { FootballIcon } from '../icons/FootballIcon';
 
 /**
  * Admin bracket experience for KNOCKOUT competitions:
@@ -17,7 +20,7 @@ interface AdminKnockoutBracketProps {
     isCompleted: boolean;
     onAdd: (stage?: string) => void;
     onEdit: (m: Match) => void;
-    onDelete: (id: string) => void;
+    onDelete: (m: Match) => void;
     onTeamSheet: (m: Match) => void;
 }
 
@@ -62,25 +65,27 @@ const TeamLine = ({ m, side }: { m: Match; side: 'HOME' | 'AWAY' }) => {
 export const AdminKnockoutBracket = ({ competitionId, matches, isCompleted, onAdd, onEdit, onDelete, onTeamSheet }: AdminKnockoutBracketProps) => {
     const queryClient = useQueryClient();
     const [resetting, setResetting] = useState(false);
+    const [confirmReset, setConfirmReset] = useState(false);
 
     if (matches.length === 0) {
         if (isCompleted) {
             return (
-                <div className="bg-white dark:bg-gray-800 p-12 rounded-xl text-center shadow-sm">
+                <div className="bg-white dark:bg-gray-800 p-8 sm:p-12 rounded-xl text-center shadow-sm">
                     <p className="text-gray-500 font-semibold">This competition is completed and has no bracket.</p>
                 </div>
             );
         }
         return (
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-8 md:p-12 text-center space-y-5">
-                <div className="text-5xl">🏈</div>
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-6 sm:p-8 md:p-12 text-center space-y-5">
+                <FootballIcon className="w-12 h-12 mx-auto text-sffl-red" aria-hidden="true" />
                 <h3 className="text-lg font-black text-sffl-navy dark:text-white uppercase">Build the playoff bracket</h3>
                 <div className="max-w-md mx-auto text-sm text-gray-500 dark:text-gray-400 text-center space-y-2">
                     <p>Create matches, set Home/Away teams, and tag each stage (Wildcard, Playoff 1, Playoff 2, Bowl).</p>
                 </div>
                 <div className="flex justify-center gap-3">
-                    <button onClick={() => onAdd()} className="px-5 py-2.5 min-h-[44px] bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">
-                        + Add Matches
+                    <button type="button" onClick={() => onAdd()} className="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 min-h-11 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95">
+                        <PlusIcon className="w-4 h-4" aria-hidden="true" />
+                        Add Matches
                     </button>
                 </div>
             </div>
@@ -91,8 +96,8 @@ export const AdminKnockoutBracket = ({ competitionId, matches, isCompleted, onAd
     const byId = new Map(matches.map(m => [m.id, m]));
     const champion = championOf(matches);
 
+    // Runs once the admin confirms. Errors are toasted, and the dialog closes either way.
     const handleReset = async () => {
-        if (!confirm('Reset the bracket? ALL matches in this competition (and any stats recorded on them) will be deleted, and you will set the bracket up again from scratch.')) return;
         setResetting(true);
         try {
             await resetBracket(competitionId);
@@ -104,21 +109,24 @@ export const AdminKnockoutBracket = ({ competitionId, matches, isCompleted, onAd
             toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to reset bracket');
         }
         setResetting(false);
+        setConfirmReset(false);
     };
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <p className="text-xs text-gray-400 dark:text-gray-500 font-semibold">
                     Matches are grouped by their <span className="font-black">stage</span>. Add games to any stage and set Home/Away and scores via <span className="font-black">Edit / Score</span>.
                 </p>
                 {!isCompleted && (
                     <button
-                        onClick={handleReset}
+                        type="button"
+                        onClick={() => setConfirmReset(true)}
                         disabled={resetting}
-                        className="px-3 py-1.5 min-h-[36px] whitespace-nowrap bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400 text-xs font-bold rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors disabled:opacity-50"
+                        className="self-start sm:self-auto shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-2 min-h-11 whitespace-nowrap bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400 text-xs font-bold rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors disabled:opacity-50"
                     >
-                        {resetting ? 'Resetting…' : '↺ Reset Bracket'}
+                        <ArrowUturnLeftIcon className="w-4 h-4" aria-hidden="true" />
+                        Reset Bracket
                     </button>
                 )}
             </div>
@@ -129,8 +137,9 @@ export const AdminKnockoutBracket = ({ competitionId, matches, isCompleted, onAd
                         const isLast = i === columns.length - 1;
                         return (
                             <div key={col.title} className="flex flex-col w-72">
-                                <div className={`text-center text-[10px] md:text-xs font-black uppercase tracking-widest mb-3 py-1.5 rounded-lg ${isLast ? 'bg-sffl-red text-white' : 'bg-sffl-navy text-white'}`}>
-                                    {isLast ? `🏆 ${col.title}` : col.title.startsWith('Playoffs') ? 'Playoffs' : col.title}
+                                <div className={`flex items-center justify-center gap-1.5 text-[10px] md:text-xs font-black uppercase tracking-widest mb-3 py-1.5 rounded-lg ${isLast ? 'bg-sffl-red text-white' : 'bg-sffl-navy text-white'}`}>
+                                    {isLast && <TrophyIcon className="w-4 h-4" aria-hidden="true" />}
+                                    {isLast ? col.title : col.title.startsWith('Playoffs') ? 'Playoffs' : col.title}
                                 </div>
                                 <div className="flex flex-col justify-around flex-1 gap-3">
                                     {col.matches.map(m => {
@@ -152,18 +161,24 @@ export const AdminKnockoutBracket = ({ competitionId, matches, isCompleted, onAd
                                                 </div>
                                                 <div className="px-3 pb-2">
                                                     {m.feeds_match_id ? (
-                                                        <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500">
-                                                            Winner → {target ? `${target.round || 'next round'} (${m.feeds_slot === 'AWAY' ? 'away' : 'home'})` : 'next round'}
+                                                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-gray-400 dark:text-gray-500">
+                                                            Winner
+                                                            <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
+                                                            <span className="sr-only">advances to</span>
+                                                            {target ? `${target.round || 'next round'} (${m.feeds_slot === 'AWAY' ? 'away' : 'home'})` : 'next round'}
                                                         </span>
                                                     ) : isLast ? (
-                                                        <span className="text-[10px] font-bold text-sffl-red">🏆 Championship game</span>
+                                                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-sffl-red">
+                                                            <TrophyIcon className="w-4 h-4" aria-hidden="true" />
+                                                            Championship game
+                                                        </span>
                                                     ) : null}
                                                 </div>
                                                 {!isCompleted && (
                                                     <div className="flex border-t border-gray-100 dark:border-gray-700 divide-x divide-gray-100 dark:divide-gray-700">
-                                                        <button onClick={() => onEdit(m)} className="flex-1 py-2 text-[10px] font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">Edit / Score</button>
-                                                        <button onClick={() => onTeamSheet(m)} className="flex-1 py-2 text-[10px] font-bold text-sffl-navy dark:text-gray-200 hover:bg-sffl-navy/5 dark:hover:bg-gray-700 transition-colors">Sheet</button>
-                                                        <button onClick={() => onDelete(m.id)} className="flex-1 py-2 text-[10px] font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors">Del</button>
+                                                        <button type="button" onClick={() => onEdit(m)} className="flex-1 min-h-11 text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">Edit / Score</button>
+                                                        <button type="button" onClick={() => onTeamSheet(m)} className="flex-1 min-h-11 text-xs font-bold text-sffl-navy dark:text-gray-200 hover:bg-sffl-navy/5 dark:hover:bg-gray-700 transition-colors">Sheet</button>
+                                                        <button type="button" onClick={() => onDelete(m)} className="flex-1 min-h-11 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors">Delete</button>
                                                     </div>
                                                 )}
                                             </div>
@@ -171,10 +186,12 @@ export const AdminKnockoutBracket = ({ competitionId, matches, isCompleted, onAd
                                     })}
                                     {!isCompleted && (
                                         <button
+                                            type="button"
                                             onClick={() => onAdd(STAGE_FOR_TITLE[col.title])}
-                                            className="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl py-2.5 text-[11px] font-bold text-gray-400 dark:text-gray-500 hover:border-sffl-red hover:text-sffl-red transition-colors"
+                                            className="inline-flex items-center justify-center gap-1.5 min-h-11 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl py-2.5 text-[11px] font-bold text-gray-400 dark:text-gray-500 hover:border-sffl-red hover:text-sffl-red transition-colors"
                                         >
-                                            + Add to {col.title.startsWith('Playoffs') ? 'Playoffs' : col.title}
+                                            <PlusIcon className="w-4 h-4" aria-hidden="true" />
+                                            Add to {col.title.startsWith('Playoffs') ? 'Playoffs' : col.title}
                                         </button>
                                     )}
                                 </div>
@@ -184,6 +201,18 @@ export const AdminKnockoutBracket = ({ competitionId, matches, isCompleted, onAd
                     {champion && <ChampionCard team={champion} />}
                 </div>
             </div>
+
+            <ConfirmDialog
+                open={confirmReset}
+                title="Reset the bracket?"
+                description="Every match in this competition, and any stats recorded on them, will be deleted. You will set the bracket up again from scratch."
+                confirmLabel="Reset Bracket"
+                tone="warning"
+                icon={ArrowUturnLeftIcon}
+                pending={resetting}
+                onConfirm={handleReset}
+                onCancel={() => setConfirmReset(false)}
+            />
         </div>
     );
 };

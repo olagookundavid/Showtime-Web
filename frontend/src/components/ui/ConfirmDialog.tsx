@@ -11,6 +11,8 @@ type Props = {
     confirmLabel: string;
     tone?: Tone;
     icon?: React.ComponentType<{ className?: string }>;
+    /** Width of the dialog. Leave it at 'md' unless the body needs room, e.g. a table. */
+    maxWidth?: 'md' | 'lg' | 'xl' | '2xl';
     pending?: boolean;
     onConfirm: () => void;
     onCancel: () => void;
@@ -45,6 +47,7 @@ export const ConfirmDialog = ({
     confirmLabel,
     tone = 'warning',
     icon: Icon = ExclamationTriangleIcon,
+    maxWidth = 'md',
     pending = false,
     onConfirm,
     onCancel,
@@ -55,7 +58,7 @@ export const ConfirmDialog = ({
     };
 
     return (
-        <Modal open={open} onClose={dismiss} maxWidth="md">
+        <Modal open={open} onClose={dismiss} maxWidth={maxWidth}>
             <div className="flex items-start gap-3">
                 <div className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${styles.badge}`}>
                     <Icon className="w-5 h-5" />

@@ -1,5 +1,6 @@
-import { Loader } from "../../components/ui/Loader";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
+import { DataTable, type Column } from "../../components/ui/DataTable";
+import { RowActions, type RowAction } from "../../components/ui/RowActions";
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
@@ -8,8 +9,6 @@ import {
   BoltIcon,
   CheckBadgeIcon,
   CheckCircleIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   EnvelopeIcon,
   ExclamationCircleIcon,
   HashtagIcon,
@@ -65,6 +64,9 @@ const formatEventDate = (date: string) =>
 const eventDayLabel = (ed: EventDayResponse) =>
   `${ed.title} — ${formatEventDate(ed.date)}`;
 
+// A stable empty list, so the table isn't handed a fresh array on every render.
+const NO_TICKETS: TicketResponse[] = [];
+
 // Every key action goes through a confirm dialog first.
 const ACTIONS = {
   checkin: {
@@ -93,6 +95,34 @@ const ACTIONS = {
 } as const;
 
 type TicketAction = keyof typeof ACTIONS;
+
+const statusColor = (status: string) => {
+  switch (status) {
+    case "PAID":
+      return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+    case "PENDING":
+      return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
+    case "USED":
+      return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+    case "FAILED":
+      return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+    default:
+      return "bg-gray-100 text-gray-600";
+  }
+};
+
+// The backend only fills event_date on the code lookup; the table and email
+// search send the placeholder "0001-01-01". So trust the loaded game day
+// first, and skip that placeholder. If the date is unknown, leave the
+// actions on and let the backend decide.
+const isPastGameDay = (
+  t: TicketResponse,
+  eventDayById: Map<string, EventDayResponse>,
+  today: string,
+) => {
+  const date = eventDayById.get(t.event_day_id)?.date ?? t.event_date;
+  return !!date && !date.startsWith("0001") && date < today;
+};
 
 const TicketSummary = ({
   t,
@@ -130,6 +160,78 @@ const TicketSummary = ({
     )}
   </dl>
 );
+
+// Defined at module level so it keeps its identity between renders. Every
+// row gets the same three-dot menu; what is in it depends on the ticket status.
+const TicketActions = ({
+  ticket: t,
+  loading,
+  pastGameDay,
+  onAction,
+}: {
+  ticket: TicketResponse;
+  loading: boolean;
+  pastGameDay: boolean;
+  onAction: (kind: TicketAction, ticket: TicketResponse) => void;
+}) => {
+  // Past game days keep the actions listed but inert, with the reason shown.
+  const blocked = loading || pastGameDay;
+  const hint = pastGameDay ? "Game day has passed" : undefined;
+
+  const actions: RowAction[] =
+    t.status === "PAID"
+      ? [
+          {
+            label: "Check In",
+            icon: CheckCircleIcon,
+            disabled: blocked,
+            hint,
+            onSelect: () => onAction("checkin", t),
+          },
+        ]
+      : t.status === "PENDING"
+        ? [
+            {
+              label: "Verify payment",
+              icon: ShieldCheckIcon,
+              disabled: blocked,
+              hint: hint ?? "Checks the payment with Paystack",
+              onSelect: () => onAction("verify", t),
+            },
+            {
+              label: "Force check-in",
+              icon: BoltIcon,
+              danger: true,
+              disabled: blocked,
+              hint: hint ?? "Verifies payment first, then checks in",
+              onSelect: () => onAction("force", t),
+            },
+          ]
+        : t.status === "USED"
+          ? [
+              {
+                label: "Checked in",
+                icon: CheckBadgeIcon,
+                disabled: true,
+                hint: "This ticket has already been used.",
+              },
+            ]
+          : [
+              {
+                label: "No actions",
+                icon: CheckBadgeIcon,
+                disabled: true,
+                hint: `This ticket is ${t.status.toLowerCase()}.`,
+              },
+            ];
+
+  return (
+    <RowActions
+      label={`Actions for ticket ${t.ticket_code || t.email}`}
+      actions={actions}
+    />
+  );
+};
 
 export const AdminTickets = () => {
   const { user } = useAuth();
@@ -181,7 +283,7 @@ export const AdminTickets = () => {
     enabled: !loadingEventDays,
   });
 
-  const tickets: TicketResponse[] = ticketsData?.data ?? [];
+  const tickets = ticketsData?.data ?? NO_TICKETS;
   const totalPages = ticketsData?.total_pages || 1;
   const loading = loadingEventDays || loadingTickets;
 
@@ -305,133 +407,84 @@ export const AdminTickets = () => {
     setPendingAction(null);
   };
 
-  const statusColor = (status: string) => {
-    switch (status) {
-      case "PAID":
-        return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
-      case "PENDING":
-        return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
-      case "USED":
-        return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
-      case "FAILED":
-        return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
-      default:
-        return "bg-gray-100 text-gray-600";
-    }
-  };
-
-  // The backend only fills event_date on the code lookup; the table and email
-  // search send the placeholder "0001-01-01". So trust the loaded game day
-  // first, and skip that placeholder. If the date is unknown, leave the
-  // actions on and let the backend decide.
-  const isPastGameDay = (t: TicketResponse) => {
-    const date = eventDayById.get(t.event_day_id)?.date ?? t.event_date;
-    return !!date && !date.startsWith("0001") && date < today;
-  };
-
-  const ActionButtons = ({ t }: { t: TicketResponse }) => {
-    const isLoading = actionLoading === t.id;
-    const pastGameDay = isPastGameDay(t);
-    const spinner = (
-      <ArrowPathIcon className="w-4 h-4 animate-spin" aria-hidden="true" />
-    );
-    // Past game days keep the button visible but grayed out and inert.
-    const buttonClass = (color: string) =>
-      `inline-flex items-center justify-center gap-1.5 px-3 py-2 min-h-11 rounded-lg text-xs font-bold transition-all duration-300 ${
-        pastGameDay
-          ? "bg-gray-200 text-gray-400 dark:bg-gray-700 dark:text-gray-500 cursor-not-allowed"
-          : `${color} text-white hover:scale-[1.02] active:scale-95 disabled:opacity-50`
-      }`;
-    const pastTitle = "Game day has passed";
-
-    if (t.status === "USED") {
-      return (
-        <span className="inline-flex items-center gap-1 text-xs text-blue-500 font-semibold">
-          <CheckBadgeIcon className="w-4 h-4" aria-hidden="true" />
-          Checked In
-        </span>
-      );
-    }
-
-    if (t.status === "PAID") {
-      return (
-        <button
-          onClick={() => setPendingAction({ kind: "checkin", ticket: t })}
-          disabled={isLoading || pastGameDay}
-          className={buttonClass("bg-green-600 hover:bg-green-700")}
-          title={pastGameDay ? pastTitle : undefined}
-        >
-          {isLoading ? (
-            spinner
-          ) : (
-            <CheckCircleIcon className="w-4 h-4" aria-hidden="true" />
-          )}
-          Check In
-        </button>
-      );
-    }
-
-    if (t.status === "PENDING") {
-      return (
-        <div className="flex justify-center gap-1.5">
-          <button
-            onClick={() => setPendingAction({ kind: "verify", ticket: t })}
-            disabled={isLoading || pastGameDay}
-            className={buttonClass(
-              "bg-blue-600 hover:bg-blue-700 shadow-sm hover:shadow-md",
-            )}
-            title={pastGameDay ? pastTitle : "Verify payment with Paystack"}
+  // One column list drives both tables (search results and the main list).
+  const ticketColumns = useMemo<Column<TicketResponse>[]>(
+    () => [
+      {
+        header: "Code",
+        cell: (t) => (
+          <span className="font-mono font-bold text-sffl-navy dark:text-white">
+            {t.ticket_code || "—"}
+          </span>
+        ),
+      },
+      { header: "Event", cell: (t) => t.event_title || "—" },
+      { header: "Tier", cell: (t) => t.tier_name || "—" },
+      { header: "Name", cell: (t) => t.name || "—" },
+      { header: "Email", cell: (t) => t.email },
+      {
+        header: "Phone",
+        cell: (t) => t.phone || "—",
+        className:
+          "px-4 py-3 text-sm text-gray-900 dark:text-gray-300 whitespace-nowrap",
+      },
+      { header: "Qty", align: "center", cell: (t) => t.quantity },
+      {
+        header: "Amount",
+        align: "right",
+        cell: (t) => (
+          <span className="font-semibold dark:text-white">
+            ₦{t.total_amount?.toLocaleString()}
+          </span>
+        ),
+      },
+      {
+        header: "Status",
+        align: "center",
+        cell: (t) => (
+          <span
+            className={`px-2 py-1 rounded-full text-xs font-bold ${statusColor(t.status)}`}
           >
-            {isLoading ? (
-              spinner
-            ) : (
-              <ShieldCheckIcon className="w-4 h-4" aria-hidden="true" />
-            )}
-            Verify
-          </button>
-          <button
-            onClick={() => setPendingAction({ kind: "force", ticket: t })}
-            disabled={isLoading || pastGameDay}
-            className={buttonClass(
-              "bg-orange-600 hover:bg-orange-700 shadow-sm hover:shadow-md",
-            )}
-            title={
-              pastGameDay
-                ? pastTitle
-                : "Force check-in (verifies payment first)"
-            }
-          >
-            {isLoading ? (
-              spinner
-            ) : (
-              <BoltIcon className="w-4 h-4" aria-hidden="true" />
-            )}
-            Force
-          </button>
-        </div>
-      );
-    }
-
-    return <span className="text-xs text-gray-400">—</span>;
-  };
+            {t.status}
+          </span>
+        ),
+      },
+      {
+        header: "Actions",
+        align: "right",
+        cell: (t) => (
+          <TicketActions
+            ticket={t}
+            loading={actionLoading === t.id}
+            pastGameDay={isPastGameDay(t, eventDayById, today)}
+            onAction={(kind, ticket) => setPendingAction({ kind, ticket })}
+          />
+        ),
+      },
+    ],
+    [actionLoading, eventDayById, today],
+  );
 
   const action = pendingAction ? ACTIONS[pendingAction.kind] : null;
 
+  const filterSelectClass =
+    "w-full sm:w-auto max-w-full px-3 py-2 min-h-11 border text-sm border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white";
+
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-black text-sffl-navy dark:text-white">
+      <h1 className="text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white">
         Ticket Management
       </h1>
 
       {/* ── Search / Check-in Section ─────────────────────────────────── */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 sm:p-6 border border-gray-100 dark:border-gray-700">
         <h2 className="flex items-center gap-2 text-lg font-bold text-sffl-navy dark:text-white mb-4">
           <MagnifyingGlassIcon className="w-5 h-5" aria-hidden="true" />
           Ticket Search & Check-in
         </h2>
 
         {/* Search Mode Toggle */}
-        <div className="flex gap-2 mb-3">
+        <div className="flex flex-wrap gap-2 mb-3">
           <button
             onClick={() => {
               setSearchMode("code");
@@ -439,7 +492,7 @@ export const AdminTickets = () => {
               setSearchResults([]);
               setSearchError("");
             }}
-            className={`inline-flex items-center gap-2 px-4 py-2 min-h-11 rounded-lg shadow-sm hover:shadow-md text-sm font-bold transition-all duration-300 hover:scale-[1.02] active:scale-95 ${searchMode === "code" ? "bg-sffl-navy text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200"}`}
+            className={`inline-flex items-center gap-2 whitespace-nowrap px-4 py-2 min-h-11 rounded-lg shadow-sm hover:shadow-md text-sm font-bold transition-all duration-300 hover:scale-[1.02] active:scale-95 ${searchMode === "code" ? "bg-sffl-navy text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200"}`}
           >
             <HashtagIcon className="w-4 h-4" aria-hidden="true" />
             Search by Code
@@ -451,7 +504,7 @@ export const AdminTickets = () => {
               setSearchResults([]);
               setSearchError("");
             }}
-            className={`inline-flex items-center gap-2 px-4 py-2 min-h-11 rounded-lg shadow-sm hover:shadow-md text-sm font-bold transition-all duration-300 hover:scale-[1.02] active:scale-95 ${searchMode === "email" ? "bg-sffl-navy text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200"}`}
+            className={`inline-flex items-center gap-2 whitespace-nowrap px-4 py-2 min-h-11 rounded-lg shadow-sm hover:shadow-md text-sm font-bold transition-all duration-300 hover:scale-[1.02] active:scale-95 ${searchMode === "email" ? "bg-sffl-navy text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200"}`}
           >
             <EnvelopeIcon className="w-4 h-4" aria-hidden="true" />
             Search by Email
@@ -460,7 +513,7 @@ export const AdminTickets = () => {
 
         {/* Search Input */}
         <div className="flex gap-3">
-          <div className="relative flex-1">
+          <div className="relative flex-1 min-w-0">
             <input
               type={searchMode === "email" ? "email" : "text"}
               value={searchQuery}
@@ -481,7 +534,7 @@ export const AdminTickets = () => {
                   setSearchQuery("");
                   setSearchResults([]);
                 }}
-                className="absolute right-0 top-0 h-full px-3 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-all duration-300 hover:scale-[1.02] active:scale-95"
+                className="absolute right-0 top-0 h-full min-w-11 px-3 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-all duration-300 hover:scale-[1.02] active:scale-95"
               >
                 <XMarkIcon className="w-4 h-4" aria-hidden="true" />
               </button>
@@ -490,9 +543,15 @@ export const AdminTickets = () => {
           <button
             onClick={handleSearch}
             disabled={searching || !searchQuery.trim()}
-            className="bg-sffl-navy text-white text-xs px-4 py-2 min-h-11 rounded-lg shadow-sm hover:shadow-md font-bold hover:bg-blue-900 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-1.5 bg-sffl-navy text-white text-xs px-4 py-2 min-h-11 rounded-lg shadow-sm hover:shadow-md font-bold hover:bg-blue-900 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50"
           >
-            {searching ? "Searching..." : "Search"}
+            {searching && (
+              <ArrowPathIcon
+                className="w-4 h-4 animate-spin"
+                aria-hidden="true"
+              />
+            )}
+            {searching ? "Searching" : "Search"}
           </button>
         </div>
 
@@ -513,231 +572,77 @@ export const AdminTickets = () => {
               {searchResults.length} ticket{searchResults.length > 1 ? "s" : ""}{" "}
               found
             </h3>
-            <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-600">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 uppercase text-xs">
-                  <tr>
-                    <th className="px-4 py-2 text-left">Code</th>
-                    <th className="px-4 py-2 text-left">Event</th>
-                    <th className="px-4 py-2 text-left">Tier</th>
-                    <th className="px-4 py-2 text-left">Name</th>
-                    <th className="px-4 py-2 text-left">Email</th>
-                    <th className="px-4 py-2 text-left">Phone</th>
-                    <th className="px-4 py-2 text-center">Qty</th>
-                    <th className="px-4 py-2 text-right">Amount</th>
-                    <th className="px-4 py-2 text-center">Status</th>
-                    <th className="px-4 py-2 text-center">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                  {searchResults.map((t) => (
-                    <tr
-                      key={t.id}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                    >
-                      <td className="px-4 py-3 font-mono font-bold text-sffl-navy dark:text-white text-sm">
-                        {t.ticket_code || "—"}
-                      </td>
-                      <td className="px-4 py-3 dark:text-gray-300 text-sm">
-                        {t.event_title || "—"}
-                      </td>
-                      <td className="px-4 py-3 dark:text-gray-300 text-sm">
-                        {t.tier_name || "—"}
-                      </td>
-                      <td className="px-4 py-3 dark:text-gray-300 text-sm">
-                        {t.name || "—"}
-                      </td>
-                      <td className="px-4 py-3 dark:text-gray-300 text-sm">
-                        {t.email}
-                      </td>
-                      <td className="px-4 py-3 dark:text-gray-300 text-sm whitespace-nowrap">
-                        {t.phone || "—"}
-                      </td>
-                      <td className="px-4 py-3 text-center dark:text-gray-300">
-                        {t.quantity}
-                      </td>
-                      <td className="px-4 py-3 text-right font-semibold dark:text-white">
-                        ₦{t.total_amount?.toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-bold ${statusColor(t.status)}`}
-                        >
-                          {t.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <ActionButtons t={t} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <DataTable
+              data={searchResults}
+              columns={ticketColumns}
+              searchable={false}
+              paginated={false}
+              getRowId={(t) => t.id}
+            />
           </div>
         )}
       </div>
 
       {/* ── All Tickets Table ─────────────────────────────────────────── */}
-
-      {/* Filters */}
-      <div className="flex flex-wrap gap-4">
-        <select
-          value={selectedEventDay}
-          onChange={(e) => {
-            setFilterEventDay(e.target.value);
-            setPage(1);
-          }}
-          className="px-3 py-2 min-h-11 max-w-full z-50 border mb-2 text-sm border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-        >
-          {isAdmin && <option value="">All game days</option>}
-          {upcoming.length > 0 && (
-            <optgroup label="Upcoming">
-              {upcoming.map((ed) => (
-                <option key={ed.id} value={ed.id} className="truncate">
-                  {eventDayLabel(ed)}
-                </option>
-              ))}
-            </optgroup>
-          )}
-          {past.length > 0 && (
-            <optgroup label="Past">
-              {past.map((ed) => (
-                <option key={ed.id} value={ed.id} className="truncate">
-                  {eventDayLabel(ed)}
-                </option>
-              ))}
-            </optgroup>
-          )}
-        </select>
-        <select
-          value={filterStatus}
-          onChange={(e) => {
-            setFilterStatus(e.target.value);
-            setPage(1);
-          }}
-          className="px-3 py-2 min-h-11 z-50 border mb-2 text-sm border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-        >
-          <option value="" className="truncate">
-            All Statuses
-          </option>
-          <option value="PENDING" className="truncate">
-            Pending
-          </option>
-          <option value="PAID" className="truncate">
-            Paid
-          </option>
-          <option value="USED" className="truncate">
-            Used
-          </option>
-          <option value="FAILED" className="truncate">
-            Failed
-          </option>
-        </select>
-      </div>
-
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-100 dark:border-gray-700">
-        {loading ? (
-          <Loader />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 uppercase text-xs">
-                <tr>
-                  <th className="px-4 py-3 text-left">Code</th>
-                  <th className="px-4 py-3 text-left">Event</th>
-                  <th className="px-4 py-3 text-left">Tier</th>
-                  <th className="px-4 py-3 text-left">Name</th>
-                  <th className="px-4 py-3 text-left">Email</th>
-                  <th className="px-4 py-3 text-left">Phone</th>
-                  <th className="px-4 py-3 text-center">Qty</th>
-                  <th className="px-4 py-3 text-right">Amount</th>
-                  <th className="px-4 py-3 text-center">Status</th>
-                  <th className="px-4 py-3 text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                {tickets.length > 0 ? (
-                  tickets.map((t) => (
-                    <tr
-                      key={t.id}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                    >
-                      <td className="px-4 py-3 font-mono font-bold text-sffl-navy dark:text-white text-sm">
-                        {t.ticket_code || "—"}
-                      </td>
-                      <td className="px-4 py-3 dark:text-gray-300 text-sm">
-                        {t.event_title || "—"}
-                      </td>
-                      <td className="px-4 py-3 dark:text-gray-300 text-sm">
-                        {t.tier_name || "—"}
-                      </td>
-                      <td className="px-4 py-3 dark:text-gray-300 text-sm">
-                        {t.name || "—"}
-                      </td>
-                      <td className="px-4 py-3 dark:text-gray-300 text-sm">
-                        {t.email}
-                      </td>
-                      <td className="px-4 py-3 dark:text-gray-300 text-sm whitespace-nowrap">
-                        {t.phone || "—"}
-                      </td>
-                      <td className="px-4 py-3 text-center dark:text-gray-300">
-                        {t.quantity}
-                      </td>
-                      <td className="px-4 py-3 text-right font-semibold dark:text-white">
-                        ₦{t.total_amount?.toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-bold ${statusColor(t.status)}`}
-                        >
-                          {t.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <ActionButtons t={t} />
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={10}
-                      className="px-4 py-12 text-center text-gray-400"
-                    >
-                      No tickets found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between p-4 border-t dark:border-gray-700">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="inline-flex items-center gap-1 px-4 py-2 min-h-11 rounded-lg text-xs font-bold text-gray-700 dark:text-gray-300 disabled:opacity-30 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
+      <DataTable
+        data={tickets}
+        columns={ticketColumns}
+        searchable={false}
+        serverPage={page}
+        totalServerPages={totalPages}
+        onPageChange={setPage}
+        loading={loading}
+        getRowId={(t) => t.id}
+        emptyMessage="No tickets found"
+        headerActions={
+          <>
+            <select
+              value={selectedEventDay}
+              onChange={(e) => {
+                setFilterEventDay(e.target.value);
+                setPage(1);
+              }}
+              aria-label="Game day"
+              className={filterSelectClass}
             >
-              <ChevronLeftIcon className="w-4 h-4" aria-hidden="true" />
-              Prev
-            </button>
-            <span className="text-xs text-gray-500">
-              Page {page} of {totalPages}
-            </span>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="inline-flex items-center gap-1 px-4 py-2 min-h-11 rounded-lg text-xs font-bold text-gray-700 dark:text-gray-300 disabled:opacity-30 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
+              {isAdmin && <option value="">All game days</option>}
+              {upcoming.length > 0 && (
+                <optgroup label="Upcoming">
+                  {upcoming.map((ed) => (
+                    <option key={ed.id} value={ed.id}>
+                      {eventDayLabel(ed)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {past.length > 0 && (
+                <optgroup label="Past">
+                  {past.map((ed) => (
+                    <option key={ed.id} value={ed.id}>
+                      {eventDayLabel(ed)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+            <select
+              value={filterStatus}
+              onChange={(e) => {
+                setFilterStatus(e.target.value);
+                setPage(1);
+              }}
+              aria-label="Ticket status"
+              className={filterSelectClass}
             >
-              Next
-              <ChevronRightIcon className="w-4 h-4" aria-hidden="true" />
-            </button>
-          </div>
-        )}
-      </div>
+              <option value="">All Statuses</option>
+              <option value="PENDING">Pending</option>
+              <option value="PAID">Paid</option>
+              <option value="USED">Used</option>
+              <option value="FAILED">Failed</option>
+            </select>
+          </>
+        }
+      />
 
       <ConfirmDialog
         open={pendingAction !== null}
