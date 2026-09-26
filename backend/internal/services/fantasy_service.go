@@ -1268,7 +1268,6 @@ func (s *FantasyService) ComputeGameweekScores(ctx context.Context, gameweekID s
 	calc := domain.FantasyWeights{}
 	type matchScore struct {
 		matchID   string
-		points    float64
 		breakdown domain.FantasyPointsBreakdown
 	}
 	scoresByPlayer := make(map[string][]matchScore, len(stats))
@@ -1276,7 +1275,6 @@ func (s *FantasyService) ComputeGameweekScores(ctx context.Context, gameweekID s
 		b := calc.Calculate(st)
 		scoresByPlayer[st.PlayerID] = append(scoresByPlayer[st.PlayerID], matchScore{
 			matchID:   st.MatchID,
-			points:    b.NetTotal,
 			breakdown: b,
 		})
 	}
@@ -1293,15 +1291,26 @@ func (s *FantasyService) ComputeGameweekScores(ctx context.Context, gameweekID s
 
 		for _, pick := range lineup.Picks {
 			var playerTotal float64
+			// The lineup lock snapshots All-Rounder status so a later position
+			// edit can't retroactively change an already-scored gameweek; only
+			// picks locked before that snapshot existed (nil) fall back to the
+			// player's live position.
+			var isAR bool
+			if pick.IsAllrounderAtLock != nil {
+				isAR = *pick.IsAllrounderAtLock
+			} else {
+				isAR = pick.Player != nil && domain.IsAllrounderPlayer(pick.Player.Position, pick.Player.SecondaryPosition)
+			}
 			for _, ms := range scoresByPlayer[pick.PlayerID] {
-				playerTotal += ms.points
+				pts, scopedBreakdown := ms.breakdown.ForSlot(pick.Slot, isAR)
+				playerTotal += pts
 				pointsLog = append(pointsLog, domain.FantasyGWPoints{
 					TeamID:     lineup.TeamID,
 					GameweekID: gw.ID,
 					PlayerID:   pick.PlayerID,
 					MatchID:    ms.matchID,
-					Points:     ms.points,
-					Breakdown:  ms.breakdown,
+					Points:     pts,
+					Breakdown:  scopedBreakdown,
 				})
 			}
 			pickPoints[pick.PlayerID] = playerTotal

@@ -1505,7 +1505,28 @@ func (r *FantasyRepository) LockLineupsForGameweek(ctx context.Context, gameweek
 		return fmt.Errorf("failed to clean gw points for partial lineups: %w", err)
 	}
 
-	// 4. Promote only complete (14 picks) DRAFT lineups to LOCKED
+	// 4. Snapshot each pick's All-Rounder status from the player's position as
+	// it stands right now, before it is frozen by the promotion below. Once
+	// locked, scoring must keep using this snapshot rather than the player's
+	// live position, or a later position edit would retroactively change an
+	// already-scored gameweek on the next re-finalize.
+	if _, err := tx.Exec(ctx, `
+		UPDATE fantasy_lineup_picks flp
+		SET is_allrounder_at_lock = (
+			UPPER(TRIM(COALESCE(p.position, ''))) IN ('ALLROUNDER', 'ALL-ROUNDER', 'ALL ROUNDER', 'AR')
+			OR UPPER(TRIM(COALESCE(p.secondary_position, ''))) IN ('ALLROUNDER', 'ALL-ROUNDER', 'ALL ROUNDER', 'AR')
+		)
+		FROM fantasy_lineups fl, players p
+		WHERE flp.lineup_id = fl.id
+		  AND p.id = flp.player_id
+		  AND fl.gameweek_id = $1
+		  AND fl.status = 'DRAFT'
+		  AND (SELECT COUNT(*) FROM fantasy_lineup_picks x WHERE x.lineup_id = fl.id) = 14
+	`, gameweekID); err != nil {
+		return fmt.Errorf("failed to snapshot all-rounder status at lock: %w", err)
+	}
+
+	// 5. Promote only complete (14 picks) DRAFT lineups to LOCKED
 	if _, err := tx.Exec(ctx, `
 		UPDATE fantasy_lineups fl
 		SET status = 'LOCKED', locked_at = NOW(), updated_at = NOW()
@@ -1601,9 +1622,11 @@ func (r *FantasyRepository) GetLockedLineupsForGameweek(ctx context.Context, gam
 	}
 
 	picksQuery := `
-		SELECT flp.id, flp.lineup_id, flp.player_id, flp.slot, flp.purchase_price, flp.points, flp.created_at
+		SELECT flp.id, flp.lineup_id, flp.player_id, flp.slot, flp.purchase_price, flp.points, flp.created_at,
+		       flp.is_allrounder_at_lock, COALESCE(p.position, ''), p.secondary_position
 		FROM fantasy_lineup_picks flp
 		JOIN fantasy_lineups fl ON flp.lineup_id = fl.id
+		LEFT JOIN players p ON flp.player_id = p.id
 		WHERE fl.gameweek_id = $1 AND fl.status = 'LOCKED'
 	`
 	pickRows, err := r.pool.Query(ctx, picksQuery, gameweekID)
@@ -1614,8 +1637,18 @@ func (r *FantasyRepository) GetLockedLineupsForGameweek(ctx context.Context, gam
 
 	for pickRows.Next() {
 		var p domain.FantasyLineupPick
-		if err := pickRows.Scan(&p.ID, &p.LineupID, &p.PlayerID, &p.Slot, &p.PurchasePrice, &p.Points, &p.CreatedAt); err != nil {
+		var pos string
+		var secPos *string
+		if err := pickRows.Scan(
+			&p.ID, &p.LineupID, &p.PlayerID, &p.Slot, &p.PurchasePrice, &p.Points, &p.CreatedAt,
+			&p.IsAllrounderAtLock, &pos, &secPos,
+		); err != nil {
 			return nil, err
+		}
+		p.Player = &domain.Player{
+			ID:                p.PlayerID,
+			Position:          pos,
+			SecondaryPosition: secPos,
 		}
 		if idx, ok := byID[p.LineupID]; ok {
 			lineups[idx].Picks = append(lineups[idx].Picks, p)
