@@ -3,6 +3,7 @@ package ports
 import (
 	"context"
 	"fmt"
+	"log"
 	"math/rand"
 	"strconv"
 	"time"
@@ -233,9 +234,16 @@ func (r *PostgresPlayerRepository) CreatePlayer(ctx context.Context, player *dom
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULLIF($10, ''))
 		RETURNING id, created_at, updated_at
 	`
-	return r.db.QueryRow(ctx, query,
+	err := r.db.QueryRow(ctx, query,
 		player.Name, player.JerseyNumber, player.Position, secPosVal, player.TeamID, player.Bio, player.Image, player.Email, player.UserID, player.Gender,
 	).Scan(&player.ID, &player.CreatedAt, &player.UpdatedAt)
+	if err != nil {
+		return err
+	}
+	if player.TeamID != "" {
+		r.ensureFantasyPrice(ctx, player.ID, player.TeamID)
+	}
+	return nil
 }
 
 func (r *PostgresPlayerRepository) UpdatePlayer(ctx context.Context, player *domain.Player) error {
@@ -272,7 +280,13 @@ func (r *PostgresPlayerRepository) UpdatePlayer(ctx context.Context, player *dom
 		player.Name, player.JerseyNumber, player.Position, secPosVal, player.TeamID, player.Bio, player.Image, player.Email, player.UserID, player.Gender,
 		player.ID,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	if player.TeamID != "" {
+		r.ensureFantasyPrice(ctx, player.ID, player.TeamID)
+	}
+	return nil
 }
 
 // DeletePlayer deactivates a player rather than removing the row.
@@ -305,8 +319,13 @@ func (r *PostgresPlayerRepository) RestorePlayer(ctx context.Context, id string)
 		   SET status = 'active',
 		       deactivated_at = NULL,
 		       updated_at = NOW()
-		 WHERE id = $1`
-	_, err := r.db.Exec(ctx, query, id)
+		 WHERE id = $1
+		 RETURNING COALESCE(team_id::text, '')`
+	var teamID string
+	err := r.db.QueryRow(ctx, query, id).Scan(&teamID)
+	if err == nil && teamID != "" {
+		r.ensureFantasyPrice(ctx, id, teamID)
+	}
 	return err
 }
 
@@ -509,6 +528,9 @@ func (r *PostgresPlayerRepository) GraduatePlayerFromReserve(ctx context.Context
 
 	// 3. Remove from reserves
 	_, err = r.db.Exec(ctx, `DELETE FROM team_reserves WHERE team_id = $1 AND player_id = $2`, teamID, playerID)
+	if err == nil {
+		r.ensureFantasyPrice(ctx, playerID, teamID)
+	}
 	return err
 }
 
@@ -594,5 +616,36 @@ func (r *PostgresPlayerRepository) GetTeamRosterSummary(ctx context.Context, tea
 func (r *PostgresPlayerRepository) RemovePlayerFromReserves(ctx context.Context, playerID string) error {
 	_, err := r.db.Exec(ctx, `DELETE FROM team_reserves WHERE player_id = $1`, playerID)
 	return err
+}
+
+// ensureFantasyPrice ensures any active player in an active team gets a ₦3.0m base price on fantasy.
+// While the PostgreSQL trigger handles this in production, this application-level helper ensures it is also
+// guaranteed across test environments or direct executions.
+func (r *PostgresPlayerRepository) ensureFantasyPrice(ctx context.Context, playerID, teamID string) {
+	if teamID == "" {
+		return
+	}
+	_, err := r.db.Exec(ctx, `
+		INSERT INTO fantasy_player_prices (
+			season_id, player_id, gameweek_id, base_price, rating, price, calculated_price, is_overridden
+		)
+		SELECT fs.id, $1::uuid, NULL, 3.00, 5.00, 3.00, 3.00, false
+		FROM fantasy_seasons fs
+		JOIN teams t ON t.id = $2::uuid
+		JOIN players p ON p.id = $1::uuid
+		WHERE fs.status IN ('ACTIVE', 'DRAFT')
+		  AND COALESCE(t.status, 'active') = 'active'
+		  AND COALESCE(p.status, 'active') = 'active'
+		  AND NOT EXISTS (SELECT 1 FROM team_reserves tr WHERE tr.player_id = $1::uuid)
+		  AND (
+			  fs.competition_id IS NULL
+			  OR NOT EXISTS (SELECT 1 FROM competition_teams ct WHERE ct.competition_id = fs.competition_id)
+			  OR EXISTS (SELECT 1 FROM competition_teams ct WHERE ct.competition_id = fs.competition_id AND ct.team_id = $2::uuid)
+		  )
+		ON CONFLICT (season_id, player_id) WHERE gameweek_id IS NULL DO NOTHING;
+	`, playerID, teamID)
+	if err != nil {
+		log.Printf("[ERROR] ensureFantasyPrice: seed base price for player %s: %v", playerID, err)
+	}
 }
 

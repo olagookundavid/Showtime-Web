@@ -912,7 +912,24 @@ func (r *FantasyRepository) GetSeasonRatingLines(ctx context.Context, competitio
 		       COALESCE(SUM(ps.uncatchable_passes), 0), COALESCE(SUM(ps.thrown_away_passes), 0),
 		       COALESCE(SUM(ps.batted_down_passes), 0), COALESCE(SUM(ps.xp_good), 0)
 		FROM players p
+		JOIN teams t ON p.team_id = t.id
 		LEFT JOIN player_stats ps ON ps.player_id = p.id AND ps.competition_id = $1
+		WHERE p.team_id IS NOT NULL
+		  AND COALESCE(t.status, 'active') = 'active'
+		  AND COALESCE(p.status, 'active') = 'active'
+		  AND NOT EXISTS (
+		      SELECT 1 FROM team_reserves tr WHERE tr.player_id = p.id
+		  )
+		  AND (
+		      NOT EXISTS (
+		          SELECT 1 FROM competition_teams ct
+		          WHERE ct.competition_id = $1
+		      )
+		      OR EXISTS (
+		          SELECT 1 FROM competition_teams ct
+		          WHERE ct.competition_id = $1 AND ct.team_id = t.id
+		      )
+		  )
 		GROUP BY p.id, COALESCE(p.position, '-')
 	`
 	rows, err := r.pool.Query(ctx, query, competitionID)
@@ -1175,7 +1192,7 @@ func (r *FantasyRepository) RecalculateAllTeamTotalsInSeason(ctx context.Context
 // GetLineupCandidates loads everything lineup validation needs about a set of
 // players — rating category, gender, club and the price in force for this
 // gameweek — in a single query. Price falls back from the gameweek snapshot to
-// the season's opening price to the 10.00 SC base.
+// the season's opening price to the 3.00 base.
 func (r *FantasyRepository) GetLineupCandidates(ctx context.Context, seasonID, gameweekID string, playerIDs []string) (map[string]domain.LineupCandidate, error) {
 	if len(playerIDs) == 0 {
 		return map[string]domain.LineupCandidate{}, nil
@@ -1186,7 +1203,7 @@ func (r *FantasyRepository) GetLineupCandidates(ctx context.Context, seasonID, g
 
 	query := `
 		SELECT p.id, p.name, COALESCE(p.position, '-'), COALESCE(p.gender, 'M'), COALESCE(p.team_id::text, ''),
-		       COALESCE(gwp.price, openp.price, 10.00)
+		       COALESCE(gwp.price, openp.price, 3.00)
 		FROM players p
 		JOIN teams t ON p.team_id = t.id
 		LEFT JOIN fantasy_player_prices gwp
@@ -1199,6 +1216,9 @@ func (r *FantasyRepository) GetLineupCandidates(ctx context.Context, seasonID, g
 		  -- Deactivated players (migration 088) keep their history but cannot be
 		  -- signed, picked or fielded again.
 		  AND COALESCE(p.status, 'active') = 'active'
+		  AND NOT EXISTS (
+		      SELECT 1 FROM team_reserves tr WHERE tr.player_id = p.id
+		  )
 	`
 	rows, err := r.pool.Query(ctx, query, seasonID, gameweekID, playerIDs)
 	if err != nil {
@@ -1735,6 +1755,11 @@ func (r *FantasyRepository) GetSeasonPricingLines(ctx context.Context, seasonID,
 		       COALESCE(SUM(ps.defensive_tds), 0), COALESCE(SUM(ps.safety), 0),
 		       COALESCE(SUM(ps.qb_sacks), 0), COALESCE(SUM(ps.def_sacks), 0),
 		       COALESCE(SUM(ps.defensive_xp_tds), 0), COALESCE(SUM(ps.bad_snaps), 0),
+		       -- 0 here (not 3.00) is load-bearing: it is the "no price row
+		       -- yet" sentinel applyMovementCap and PriceSeason's floor branch
+		       -- both key off of (domain/fantasy_pricing.go) to decide a price
+		       -- has nowhere to travel from, so it isn't clamped to a fake
+		       -- previous price the player never actually held.
 		       COALESCE((
 		           SELECT pp.price FROM fantasy_player_prices pp
 		           WHERE pp.player_id = p.id AND pp.season_id = $1
@@ -1742,7 +1767,24 @@ func (r *FantasyRepository) GetSeasonPricingLines(ctx context.Context, seasonID,
 		           LIMIT 1
 		       ), 0)
 		FROM players p
+		JOIN teams t ON p.team_id = t.id
 		LEFT JOIN player_stats ps ON ps.player_id = p.id AND ps.competition_id = $2
+		WHERE p.team_id IS NOT NULL
+		  AND COALESCE(t.status, 'active') = 'active'
+		  AND COALESCE(p.status, 'active') = 'active'
+		  AND NOT EXISTS (
+		      SELECT 1 FROM team_reserves tr WHERE tr.player_id = p.id
+		  )
+		  AND (
+		      NOT EXISTS (
+		          SELECT 1 FROM competition_teams ct
+		          WHERE ct.competition_id = $2
+		      )
+		      OR EXISTS (
+		          SELECT 1 FROM competition_teams ct
+		          WHERE ct.competition_id = $2 AND ct.team_id = t.id
+		      )
+		  )
 		GROUP BY p.id, COALESCE(p.position, '-')
 	`
 	rows, err := r.pool.Query(ctx, query, seasonID, competitionID)
@@ -1823,6 +1865,9 @@ func (r *FantasyRepository) ListPlayerPricesForAdmin(ctx context.Context, season
 		  -- Deactivated players (migration 088) keep their history but cannot be
 		  -- signed, picked or fielded again.
 		  AND COALESCE(p.status, 'active') = 'active'
+		  AND NOT EXISTS (
+		      SELECT 1 FROM team_reserves tr WHERE tr.player_id = p.id
+		  )
 		  AND (
 		      NOT EXISTS (
 		          SELECT 1 FROM competition_teams ct
@@ -1871,12 +1916,10 @@ func (r *FantasyRepository) ListPlayerPricesForAdmin(ctx context.Context, season
 	selectQuery := `
 		SELECT p.id, p.name, COALESCE(p.image, ''), COALESCE(p.position, '-'), COALESCE(p.gender, 'M'),
 		       COALESCE(t.id::text, ''), COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
-		       -- 0 means "no price row yet", the same signal ListPlayerMarket
-		       -- gives. Defaulting to a number instead would show the admin a
-		       -- price nothing in the system actually holds. 5.00 for rating is
-		       -- different: that is the engine's own default for an unrated
-		       -- player (see repriceSeason), so it is the real value.
-		       COALESCE(fpp.price, 0), fpp.calculated_price, COALESCE(fpp.is_overridden, false),
+		       -- Default to 3.00 (the base floor) for any eligible active player,
+		       -- so newly registered players immediately reflect the 3.00 baseline
+		       -- on fantasy.
+		       COALESCE(fpp.price, 3.00), COALESCE(fpp.calculated_price, fpp.price, 3.00), COALESCE(fpp.is_overridden, false),
 		       COALESCE(fpp.rating, 5.00)
 	` + baseQuery + orderClause + fmt.Sprintf(" LIMIT $%d OFFSET $%d", argIdx, argIdx+1)
 	args = append(args, limit, offset)
@@ -1993,12 +2036,12 @@ func (r *FantasyRepository) OverridePlayerPrice(ctx context.Context, seasonID, p
 	rowQuery := `
 		SELECT p.id, p.name, COALESCE(p.image, ''), COALESCE(p.position, '-'), COALESCE(p.gender, 'M'),
 		       COALESCE(t.id::text, ''), COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
-		       -- 0 means "no price row yet", the same signal ListPlayerMarket
-		       -- gives. Defaulting to a number instead would show the admin a
-		       -- price nothing in the system actually holds. 5.00 for rating is
-		       -- different: that is the engine's own default for an unrated
+		       -- Default to 3.00 (the base floor) for any player without a price
+		       -- row yet, matching the baseline every eligible active player is
+		       -- otherwise guaranteed by migration 101 / ensureFantasyPrice.
+		       -- 5.00 for rating is the engine's own default for an unrated
 		       -- player (see repriceSeason), so it is the real value.
-		       COALESCE(fpp.price, 0), fpp.calculated_price, COALESCE(fpp.is_overridden, false),
+		       COALESCE(fpp.price, 3.00), COALESCE(fpp.calculated_price, fpp.price, 3.00), COALESCE(fpp.is_overridden, false),
 		       COALESCE(fpp.rating, 5.00)
 		FROM players p
 		JOIN teams t ON p.team_id = t.id
@@ -2447,7 +2490,7 @@ func (r *FantasyRepository) GetGameweekAnalytics(ctx context.Context, seasonID, 
 	mostOwnedQuery := `
 		SELECT p.id, p.name, COALESCE(p.image, ''), COALESCE(p.position, '-'), COALESCE(p.gender, 'M'),
 		       COALESCE(t.id::text, ''), COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
-		       COALESCE(pp.price, 10.00)::float8,
+		       COALESCE(pp.price, 3.00)::float8,
 		       COUNT(flp.player_id) as ownership_count,
 		       COALESCE(MAX(flp.points), 0)::float8 as player_points
 		FROM fantasy_lineup_picks flp
@@ -2492,7 +2535,7 @@ func (r *FantasyRepository) GetGameweekAnalytics(ctx context.Context, seasonID, 
 	topScorersQuery := `
 		SELECT p.id, p.name, COALESCE(p.image, ''), COALESCE(p.position, '-'), COALESCE(p.gender, 'M'),
 		       COALESCE(t.id::text, ''), COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
-		       COALESCE(pp.price, 10.00)::float8,
+		       COALESCE(pp.price, 3.00)::float8,
 		       COALESCE(gp.pts, 0.0)::float8 as total_pts
 		FROM (
 			SELECT player_id, SUM(points) as pts
@@ -2535,7 +2578,7 @@ func (r *FantasyRepository) GetGameweekAnalytics(ctx context.Context, seasonID, 
 		fallbackQuery := `
 			SELECT p.id, p.name, COALESCE(p.image, ''), COALESCE(p.position, '-'), COALESCE(p.gender, 'M'),
 			       COALESCE(t.id::text, ''), COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
-			       COALESCE(pp.price, 10.00)::float8,
+			       COALESCE(pp.price, 3.00)::float8,
 			       COALESCE(MAX(flp.points), 0)::float8 as points
 			FROM fantasy_lineup_picks flp
 			JOIN fantasy_lineups fl ON fl.id = flp.lineup_id

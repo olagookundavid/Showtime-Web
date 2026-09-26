@@ -128,7 +128,7 @@ func (r *FantasySquadRepository) GetMarketPlayer(ctx context.Context, seasonID, 
 		           WHERE pp.player_id = p.id AND pp.season_id = $1
 		           ORDER BY (pp.gameweek_id IS NULL), pp.created_at DESC
 		           LIMIT 1
-		       ), 0),
+		       ), 3.00),
 		       COALESCE(p.team_id::text, ''),
 		       COALESCE(t.status, 'active'),
 		       COALESCE(p.status, 'active'),
