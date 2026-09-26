@@ -2,12 +2,12 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect, useId, useRef } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
-import { AdminBottomNav } from "./AdminBottomNav";
-import { AdminBrand } from "./AdminBrand";
-import { AdminClock } from "./AdminClock";
-import { AdminNavLinks } from "./AdminNavLinks";
-import { AdminUserMenu } from "./AdminUserMenu";
-import { adminSectionsFor } from "./adminNav";
+import { AdminBottomNav } from "../../components/admin/AdminBottomNav";
+import { AdminBrand } from "../../components/admin/AdminBrand";
+import { AdminClock } from "../../components/admin/AdminClock";
+import { AdminNavLinks } from "../../components/admin/AdminNavLinks";
+import { AdminUserMenu } from "../../components/admin/AdminUserMenu";
+import { adminSectionsFor } from "../../components/admin/adminNav";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import {
   ArrowRightOnRectangleIcon,
