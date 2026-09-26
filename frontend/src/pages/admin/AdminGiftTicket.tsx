@@ -6,6 +6,7 @@ import { getAllEventDays, giftTicket, type EventDayResponse, type TicketResponse
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
 
 const MAX_QUANTITY = 10;
 
@@ -88,17 +89,13 @@ export const AdminGiftTicket = () => {
 
     return (
         <div>
-            <div className="flex items-center gap-3 mb-2">
-                <div className="bg-sffl-red/10 text-sffl-red p-2 rounded-xl shrink-0">
-                    <GiftIcon className="w-7 h-7" aria-hidden="true" />
-                </div>
-                <div className="min-w-0">
-                    <h1 className="text-2xl md:text-3xl font-black italic text-gray-900 dark:text-white">Administrator</h1>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Gift a complimentary ticket without payment</p>
-                </div>
-            </div>
+            <AdminPageHeader
+                title="Administrator"
+                subtitle="Gift a complimentary ticket without payment."
+                className="mb-6"
+            />
 
-            <div className="max-w-2xl bg-white dark:bg-gray-800 rounded-2xl shadow p-4 sm:p-5 md:p-7 mt-5 space-y-5">
+            <div className="max-w-2xl bg-white dark:bg-gray-800 rounded-2xl shadow p-4 sm:p-5 md:p-7 space-y-5">
                 {/* Event Day */}
                 <div>
                     <label className={labelClass}>Event Day</label>

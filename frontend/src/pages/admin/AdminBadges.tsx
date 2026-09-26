@@ -39,6 +39,7 @@ import {
   GiftIcon,
   SparklesIcon,
 } from "@heroicons/react/24/outline";
+import { AdminPageHeader } from "../../components/admin/AdminPageHeader";
 
 const COLOR_SCHEMES = [
   {
@@ -74,7 +75,7 @@ export interface OfficialBadgePreset {
   description: string;
 }
 
-export const OFFICIAL_BADGE_PRESETS: OfficialBadgePreset[] = [
+const OFFICIAL_BADGE_PRESETS: OfficialBadgePreset[] = [
   {
     code: "MVP",
     name: "Game MVP",
@@ -263,6 +264,8 @@ export const AdminBadges = () => {
     queryKey: ["adminBadges"],
     queryFn: getAdminBadges,
   });
+
+  const NO_AWARDS: PlayerBadgeAward[] = [];
 
   const { data: awardsResult, isLoading: loadingAwards } = useQuery({
     queryKey: ["adminBadgeAwards"],
@@ -647,58 +650,44 @@ export const AdminBadges = () => {
 
   return (
     <div className="space-y-6 md:space-y-8 animate-fade-in pb-16">
-      {/* Header Banner following DESIGN_SYSTEM.md */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-sffl-navy text-white p-4 sm:p-6 md:p-8 rounded-xl md:rounded-2xl shadow-xl gap-4">
-        <div className="min-w-0">
-          <h1 className="text-2xl sm:text-3xl md:text-5xl font-black italic tracking-tighter">
-            BADGES & HONORS
-          </h1>
-          <p className="text-gray-300 mt-1 text-sm md:text-base">
-            Manage player accolades, MVP counters, Team of the Week/Season
-            badges, and custom league honors
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            type="button"
-            onClick={() => {
-              if (
-                confirm(
-                  "Backfill all 2026 match MVPs into player badge profiles? Only matches from 2026 will receive the MVP badge.",
-                )
-              ) {
-                backfillMutation.mutate();
-              }
-            }}
-            disabled={backfillMutation.isPending}
-            className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-            title="Scan finished 2026 matches and award MVP badges to players"
-          >
-            <SparklesIcon className="w-4 h-4" />
-            <span>
-              {backfillMutation.isPending
-                ? "Backfilling…"
-                : "Backfill 2026 MVPs"}
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => openAwardModal()}
-            className="px-4 min-h-11 bg-white hover:bg-gray-100 text-sffl-navy font-black text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
-          >
-            <GiftIcon className="w-4 h-4 text-sffl-red" aria-hidden="true" />
-            <span>Award Badge</span>
-          </button>
-          <button
-            type="button"
-            onClick={openCreateBadge}
-            className="px-4 min-h-11 bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
-          >
-            <PlusIcon className="w-4 h-4 stroke-[2.5]" aria-hidden="true" />
-            <span>Create Badge</span>
-          </button>
-        </div>
-      </div>
+      <AdminPageHeader
+        title="Badges & Honors"
+        subtitle="Manage player accolades, MVP counters, Team of the Week/Season badges, and custom league honors."
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => setPendingAction({ kind: "backfill" })}
+              disabled={busy}
+              className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              title="Scan finished 2026 matches and award MVP badges to players"
+            >
+              <SparklesIcon className="w-4 h-4" />
+              <span>
+                {busy && pendingAction?.kind === "backfill"
+                  ? "Backfilling…"
+                  : "Backfill 2026 MVPs"}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => openAwardModal()}
+              className="px-4 min-h-11 bg-white hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-sffl-navy dark:text-white border border-gray-300 dark:border-gray-600 font-black text-xs uppercase tracking-wider rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+            >
+              <GiftIcon className="w-4 h-4 text-sffl-red" aria-hidden="true" />
+              <span>Award Badge</span>
+            </button>
+            <button
+              type="button"
+              onClick={openCreateBadge}
+              className="px-4 min-h-11 bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+            >
+              <PlusIcon className="w-4 h-4 stroke-[2.5]" aria-hidden="true" />
+              <span>Create Badge</span>
+            </button>
+          </>
+        }
+      />
 
       {/* Accolade Overview Stats Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

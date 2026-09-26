@@ -31,6 +31,7 @@ import {
   type ManagerCandidate,
 } from "../../services/api";
 import { ImageUploadField, LightboxImage } from "../../components/ui";
+import { AdminPageHeader } from "../../components/admin/AdminPageHeader";
 
 interface Team {
   id: string;
@@ -407,19 +408,20 @@ const AdminTeams = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h1 className="text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white">
-          Teams
-        </h1>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 bg-sffl-red text-white text-sm font-bold min-h-11 rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
-        >
-          <PlusIcon className="w-4 h-4" aria-hidden="true" />
-          Add Team
-        </button>
-      </div>
+      <AdminPageHeader
+        title="Teams"
+        subtitle="Create and manage every team in the league."
+        actions={
+          <button
+            type="button"
+            onClick={openCreate}
+            className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 bg-sffl-red text-white text-sm font-bold min-h-11 rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
+          >
+            <PlusIcon className="w-4 h-4" aria-hidden="true" />
+            Add Team
+          </button>
+        }
+      />
 
       {/* Filter Bar & Status Tabs */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">

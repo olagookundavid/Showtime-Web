@@ -116,7 +116,10 @@ export const AdminBottomNav = ({ onMoreClick }: AdminBottomNavProps) => {
   };
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-[calc(3.5rem+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)] bg-sffl-navy border-t border-gray-700 flex items-center justify-around px-1 z-50 shadow-2xl">
+    <nav
+      aria-label="Admin shortcuts"
+      className="lg:hidden fixed bottom-0 left-0 right-0 h-[calc(3.5rem+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)] bg-white dark:bg-sffl-navy border-t border-gray-200 dark:border-gray-700 flex items-center justify-around px-1 z-50 shadow-2xl transition-colors"
+    >
       {navItems.map((item) => {
         const active = isActive(item);
         const Icon = active ? item.solidIcon : item.icon;
@@ -125,11 +128,12 @@ export const AdminBottomNav = ({ onMoreClick }: AdminBottomNavProps) => {
           <Link
             key={item.name}
             to={item.path}
+            aria-current={active ? "page" : undefined}
             className={`flex flex-col items-center justify-center w-full h-14 py-1 transition-colors ${
-              active ? "text-sffl-red" : "text-gray-400"
+              active ? "text-sffl-red" : "text-gray-500 dark:text-gray-400"
             }`}
           >
-            <Icon className="w-5 h-5 mb-0.5 shrink-0" />
+            <Icon className="w-5 h-5 mb-0.5 shrink-0" aria-hidden="true" />
             <span className="text-[10px] font-bold leading-none uppercase">
               {item.name}
             </span>
@@ -138,10 +142,12 @@ export const AdminBottomNav = ({ onMoreClick }: AdminBottomNavProps) => {
       })}
 
       <button
+        type="button"
         onClick={onMoreClick}
-        className="flex flex-col items-center justify-center w-full h-14 py-1 text-gray-400"
+        aria-label="More admin pages"
+        className="flex flex-col items-center justify-center w-full h-14 py-1 text-gray-500 dark:text-gray-400 transition-colors"
       >
-        <Bars3Icon className="w-5 h-5 mb-0.5 shrink-0" />
+        <Bars3Icon className="w-5 h-5 mb-0.5 shrink-0" aria-hidden="true" />
         <span className="text-[10px] font-bold leading-none uppercase">
           More
         </span>

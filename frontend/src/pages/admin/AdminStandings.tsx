@@ -12,6 +12,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { DataTable, type Column } from '../../components/ui/DataTable';
 import { RowActions } from '../../components/ui/RowActions';
+import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
 
 // A stable empty list, so the table isn't handed a fresh array on every render.
 const NO_STANDINGS: Standing[] = [];
@@ -144,9 +145,10 @@ export const AdminStandings = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <h1 className="text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white">Standings Management</h1>
-                <div className="flex items-center gap-3 w-full sm:w-auto">
+            <AdminPageHeader
+                title="Standings"
+                subtitle="Review and adjust the league table for each competition."
+                actions={
                     <select
                         aria-label="Competition"
                         value={selectedComp}
@@ -155,8 +157,8 @@ export const AdminStandings = () => {
                     >
                         {competitions.map(c => <option key={c.id} value={c.id} className="truncate">{c.name}</option>)}
                     </select>
-                </div>
-            </div>
+                }
+            />
 
             {isCompleted && (
                 <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 rounded-xl p-4 flex items-center gap-3 text-amber-800 dark:text-amber-400 font-bold text-sm">

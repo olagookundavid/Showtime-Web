@@ -33,6 +33,7 @@ import {
   ALL_STAT_DEFINITIONS,
   getStatsForPosition,
 } from "../../utils/positionStatsMatrix";
+import { AdminPageHeader } from "../../components/admin/AdminPageHeader";
 
 const STAT_FIELDS = ALL_STAT_DEFINITIONS.filter((s) => !s.teamOnly);
 
@@ -293,16 +294,10 @@ export const AdminStats = () => {
   );
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white">
-            Stats Entry
-          </h1>
-          <p className="text-gray-500 text-sm mt-1">
-            Select match context to record player stats
-          </p>
-        </div>
-      </div>
+      <AdminPageHeader
+        title="Stats"
+        subtitle="Select match context to record player stats."
+      />
 
       {/* Context Selectors */}
       <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 grid grid-cols-1 md:grid-cols-3 gap-4">

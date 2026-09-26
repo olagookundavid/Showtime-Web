@@ -24,6 +24,7 @@ import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { NewsContentEditor } from '../../components/admin/NewsContentEditor';
 import { parseYouTubeId, youTubeThumbnailUrl } from '../../utils/newsContent';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
 
 interface ArticleForm {
     title: string; excerpt: string; content: string;
@@ -216,17 +217,20 @@ export const AdminNews = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <h1 className="text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white">News Management</h1>
-                <button
-                    type="button"
-                    onClick={openCreate}
-                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 min-h-11 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
-                >
-                    <PlusIcon className="w-4 h-4" aria-hidden="true" />
-                    Add Article
-                </button>
-            </div>
+            <AdminPageHeader
+                title="News"
+                subtitle="Write, publish and manage news articles."
+                actions={
+                    <button
+                        type="button"
+                        onClick={openCreate}
+                        className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 min-h-11 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
+                    >
+                        <PlusIcon className="w-4 h-4" aria-hidden="true" />
+                        Add Article
+                    </button>
+                }
+            />
 
             <DataTable
                 data={articles}

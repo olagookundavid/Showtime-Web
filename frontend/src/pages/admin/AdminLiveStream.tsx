@@ -14,6 +14,7 @@ import { Loader } from '../../components/ui/Loader';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
 
 type Mode = 'auto' | 'on' | 'off' | 'video';
 
@@ -59,7 +60,10 @@ export const AdminLiveStream = () => {
 
     return (
         <div className="space-y-8 pb-36 md:pb-12">
-            <Header />
+            <AdminPageHeader
+                title="Live Stream"
+                subtitle="Control what visitors see at the top of the homepage: live stream, featured video or carousel."
+            />
             <StatusCards status={status} />
             {/* Keying on the saved values makes the form re-seed itself whenever
                 the server state actually changes, which avoids syncing props
@@ -72,22 +76,6 @@ export const AdminLiveStream = () => {
         </div>
     );
 };
-
-const Header = () => (
-    <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl p-4 sm:p-6 md:p-8 rounded-3xl shadow-xl border border-gray-200/80 dark:border-gray-700/80">
-        <div className="flex items-center gap-3 mb-2 min-w-0">
-            <div className="p-2.5 bg-sffl-red/10 text-sffl-red rounded-xl shrink-0">
-                <SignalIcon className="w-7 h-7" aria-hidden="true" />
-            </div>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-sffl-navy dark:text-white uppercase wrap-break-word min-w-0">
-                Homepage Hero & Live Stream
-            </h1>
-        </div>
-        <p className="text-sm md:text-base text-gray-600 dark:text-gray-300 max-w-3xl">
-            Controls what visitors see at the top of the homepage: automatic stream detection, forced live stream, a featured YouTube video, or the standard carousel slides.
-        </p>
-    </div>
-);
 
 const StatusCards = ({ status }: { status: AdminLiveStatus }) => {
     const queryClient = useQueryClient();

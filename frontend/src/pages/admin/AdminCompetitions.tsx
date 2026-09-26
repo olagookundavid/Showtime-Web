@@ -30,6 +30,7 @@ import {
   type Team,
 } from "../../services/api";
 import { ImageUploadField, LightboxImage } from "../../components/ui";
+import { AdminPageHeader } from "../../components/admin/AdminPageHeader";
 
 interface Competition {
   id: string;
@@ -292,19 +293,20 @@ const AdminCompetitions = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h1 className="text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white">
-          Competitions
-        </h1>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 min-h-11 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
-        >
-          <PlusIcon className="w-4 h-4" aria-hidden="true" />
-          Add Competition
-        </button>
-      </div>
+      <AdminPageHeader
+        title="Competitions"
+        subtitle="Create competitions and choose which teams are enrolled in each."
+        actions={
+          <button
+            type="button"
+            onClick={openCreate}
+            className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 min-h-11 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
+          >
+            <PlusIcon className="w-4 h-4" aria-hidden="true" />
+            Add Competition
+          </button>
+        }
+      />
 
       {/* Search bar */}
       <div className="flex gap-2 w-full md:w-auto">

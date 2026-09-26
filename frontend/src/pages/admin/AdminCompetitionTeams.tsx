@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { ArrowLeftIcon, PlusIcon, TrashIcon, UserPlusIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, TrashIcon, UserPlusIcon } from '@heroicons/react/24/outline';
 import {
     getCompetitions,
     getTeamsByCompetition,
@@ -15,6 +15,7 @@ import { Loader } from '../../components/ui/Loader';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { LightboxImage } from '../../components/ui';
+import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
 
 // Adding and removing a team both go through the confirm dialog first.
 type PendingAction = { kind: 'add'; team: Team } | { kind: 'remove'; team: Team };
@@ -110,22 +111,18 @@ export const AdminCompetitionTeams = () => {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
-            <div className="min-w-0">
-                <Link to="/admin/competitions" className="inline-flex items-center gap-1 min-h-11 text-xs font-bold text-sffl-red hover:underline">
-                    <ArrowLeftIcon className="w-4 h-4" aria-hidden="true" />
-                    Back to Competitions
-                </Link>
-                <h1 className="text-2xl md:text-3xl font-black text-sffl-navy dark:text-white uppercase tracking-tight flex items-center gap-3 wrap-break-word">
-                    {competition?.logo && (
-                        <img src={competition.logo} alt={competition.name} className="w-8 h-8 shrink-0 object-contain" />
-                    )}
-                    <span className="min-w-0">{competition?.name || 'Competition'} Teams</span>
-                </h1>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Only enrolled teams appear in match scheduling and standings for this competition.
-                </p>
-            </div>
+            <AdminPageHeader
+                back={{ to: '/admin/competitions', label: 'Back to Competitions' }}
+                title={
+                    <span className="flex items-center gap-3">
+                        {competition?.logo && (
+                            <img src={competition.logo} alt={competition.name} className="w-8 h-8 shrink-0 object-contain" />
+                        )}
+                        <span className="min-w-0">{competition?.name || 'Competition'} Teams</span>
+                    </span>
+                }
+                subtitle="Only enrolled teams appear in match scheduling and standings for this competition."
+            />
 
             {/* Add Team Card */}
             <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 space-y-4">

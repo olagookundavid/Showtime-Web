@@ -59,6 +59,7 @@ import { RunnerIcon } from "../../components/icons/RunnerIcon";
 import { useAuth } from "../../contexts/AuthContext";
 import { getPlayStatAccruals } from "../../utils/statAccrualDeriver";
 import { formatMatchDate, formatMatchTime } from "../../utils/dateUtils";
+import { AdminPageHeader } from "../../components/admin/AdminPageHeader";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1935,16 +1936,10 @@ export const AdminPlayByPlay = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-black text-sffl-navy dark:text-white">
-          Play-by-Play Entry
-        </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Log each play by picking players from the team sheet. The stats engine
-          and scoring come in a later step — for now this records the game
-          story.
-        </p>
-      </div>
+      <AdminPageHeader
+        title="Play by Play"
+        subtitle="Log each play by picking players from the team sheet."
+      />
       {/* Competition + match picker */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
         <div className="mb-4">

@@ -36,6 +36,7 @@ import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { DiscountCodesPanel } from '../../components/admin/DiscountCodesPanel';
 import { useImageUpload } from '../../hooks/useImageUpload';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
 
 type Tab = 'PRODUCTS' | 'ORDERS' | 'DISCOUNTS';
 
@@ -584,25 +585,22 @@ export const AdminStore = () => {
 
     return (
         <div className="space-y-6 pb-36 md:pb-12">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="min-w-0">
-                    <h1 className="text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white">Online Store Manager</h1>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        Manage e-commerce products, variants, image assets, and order fulfillment.
-                    </p>
-                </div>
-                {activeTab === 'PRODUCTS' && (
-                    <button
-                        type="button"
-                        onClick={handleOpenCreate}
-                        className="inline-flex items-center justify-center gap-1.5 bg-sffl-red hover:bg-red-700 text-white px-6 min-h-11 rounded-2xl font-black tracking-wider text-xs uppercase shadow-lg transition-all hover:scale-[1.02] active:scale-95"
-                    >
-                        <PlusIcon className="w-4 h-4" aria-hidden="true" />
-                        Create Product
-                    </button>
-                )}
-            </div>
+            <AdminPageHeader
+                title="Online Store"
+                subtitle="Manage e-commerce products, variants, image assets, and order fulfillment."
+                actions={
+                    activeTab === 'PRODUCTS' && (
+                        <button
+                            type="button"
+                            onClick={handleOpenCreate}
+                            className="inline-flex items-center justify-center gap-1.5 bg-sffl-red hover:bg-red-700 text-white px-6 min-h-11 rounded-2xl font-black tracking-wider text-xs uppercase shadow-lg transition-all hover:scale-[1.02] active:scale-95"
+                        >
+                            <PlusIcon className="w-4 h-4" aria-hidden="true" />
+                            Create Product
+                        </button>
+                    )
+                }
+            />
 
             {/* Tabs */}
             <div className="flex overflow-x-auto whitespace-nowrap border-b border-gray-200 dark:border-gray-700 gap-2">

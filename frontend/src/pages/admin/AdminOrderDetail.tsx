@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
@@ -21,6 +21,7 @@ import { Loader } from '../../components/ui/Loader';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
 
 type PendingAction = 'verify' | 'shipped' | 'delivered' | 'cancel';
 
@@ -42,7 +43,6 @@ const actionButton = 'w-full inline-flex items-center justify-center gap-2 min-h
 
 export const AdminOrderDetail = () => {
     const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
     const queryClient = useQueryClient();
 
     const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
@@ -152,43 +152,31 @@ export const AdminOrderDetail = () => {
 
     return (
         <div className="space-y-6 pb-36 md:pb-12">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="space-y-1 min-w-0">
-                    <button
-                        type="button"
-                        onClick={() => navigate('/admin/store')}
-                        className="inline-flex items-center gap-1.5 min-h-11 text-xs font-black uppercase tracking-wider text-sffl-red hover:underline"
-                    >
-                        <ArrowLeftIcon className="w-4 h-4" aria-hidden="true" />
-                        Back to Orders
-                    </button>
-                    <h1 className="text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white wrap-break-word">
-                        Order <span className="font-mono text-sffl-red">{order.order_reference}</span>
-                    </h1>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Placed {new Date(order.created_at).toLocaleString()}
-                    </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                    <span className={`text-[11px] font-black px-3 py-1.5 rounded-full uppercase tracking-wider ${
-                        order.payment_status === 'paid'
-                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                            : order.payment_status === 'failed'
+            <AdminPageHeader
+                back={{ to: '/admin/store', label: 'Back to Orders' }}
+                title={<>Order <span className="font-mono text-sffl-red">{order.order_reference}</span></>}
+                subtitle={`Placed ${new Date(order.created_at).toLocaleString()}`}
+                actions={
+                    <>
+                        <span className={`text-[11px] font-black px-3 py-1.5 rounded-full uppercase tracking-wider ${
+                            order.payment_status === 'paid'
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                : order.payment_status === 'failed'
+                                    ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                    : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                        }`}>
+                            Payment: {order.payment_status}
+                        </span>
+                        <span className={`text-[11px] font-black px-3 py-1.5 rounded-full uppercase tracking-wider ${
+                            order.fulfillment_status === 'cancelled'
                                 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                    }`}>
-                        Payment: {order.payment_status}
-                    </span>
-                    <span className={`text-[11px] font-black px-3 py-1.5 rounded-full uppercase tracking-wider ${
-                        order.fulfillment_status === 'cancelled'
-                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                            : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                    }`}>
-                        Fulfillment: {order.fulfillment_status}
-                    </span>
-                </div>
-            </div>
+                                : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                        }`}>
+                            Fulfillment: {order.fulfillment_status}
+                        </span>
+                    </>
+                }
+            />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Customer + Shipping */}

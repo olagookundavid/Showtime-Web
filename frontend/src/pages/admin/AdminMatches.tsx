@@ -34,6 +34,7 @@ import { AdminTeamSheetModal } from "../../components/admin/AdminTeamSheetModal"
 import { AdminKnockoutBracket } from "../../components/admin/AdminKnockoutBracket";
 import { KNOCKOUT_STAGES } from "../../components/matches/BracketView";
 import { formatMatchDate, formatMatchTime } from "../../utils/dateUtils";
+import { AdminPageHeader } from "../../components/admin/AdminPageHeader";
 
 interface FormData {
   competition_id: string;
@@ -697,41 +698,10 @@ export const AdminMatches = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header with filter */}
-      <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
-        <h1 className="text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white">
-          Match Management
-        </h1>
-        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 w-full xl:w-auto">
-          {!isKnockout && (
-            <form onSubmit={handleSearchSubmit} className="w-full sm:w-auto">
-              <input
-                type="text"
-                aria-label="Search matches"
-                placeholder="Search matches..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full sm:w-64 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 min-h-11 z-50 font-semibold text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              />
-            </form>
-          )}
-          {isKnockout && (
-            <span className="self-start sm:self-auto px-2.5 py-1.5 rounded-lg bg-sffl-navy/10 text-sffl-navy dark:bg-gray-700 dark:text-gray-200 text-xs font-black uppercase tracking-wider">
-              Knockout Bracket
-            </span>
-          )}
-          <select
-            aria-label="Competition"
-            value={filterComp}
-            onChange={(e) => handleFilterChange(e.target.value)}
-            className="w-full sm:w-auto max-w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 min-h-11 z-50 font-semibold text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          >
-            {competitions.map((c) => (
-              <option key={c.id} value={c.id} className="truncate">
-                {c.name}
-              </option>
-            ))}
-          </select>
+      <AdminPageHeader
+        title="Matches"
+        subtitle="Schedule fixtures, enter scores and manage results for each competition."
+        actions={
           <button
             type="button"
             onClick={() => openCreate()}
@@ -741,7 +711,40 @@ export const AdminMatches = () => {
             <PlusIcon className="w-4 h-4" aria-hidden="true" />
             Add Match
           </button>
-        </div>
+        }
+      />
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
+        {!isKnockout && (
+          <form onSubmit={handleSearchSubmit} className="w-full sm:w-auto">
+            <input
+              type="text"
+              aria-label="Search matches"
+              placeholder="Search matches..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full sm:w-64 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 min-h-11 z-50 font-semibold text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+          </form>
+        )}
+        {isKnockout && (
+          <span className="self-start sm:self-auto px-2.5 py-1.5 rounded-lg bg-sffl-navy/10 text-sffl-navy dark:bg-gray-700 dark:text-gray-200 text-xs font-black uppercase tracking-wider">
+            Knockout Bracket
+          </span>
+        )}
+        <select
+          aria-label="Competition"
+          value={filterComp}
+          onChange={(e) => handleFilterChange(e.target.value)}
+          className="w-full sm:w-auto max-w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 min-h-11 z-50 font-semibold text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+        >
+          {competitions.map((c) => (
+            <option key={c.id} value={c.id} className="truncate">
+              {c.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {isCompleted && (

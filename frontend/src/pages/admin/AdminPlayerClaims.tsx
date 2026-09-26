@@ -14,6 +14,7 @@ import { RowActions } from '../../components/ui/RowActions';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
 
 const NO_CLAIMS: PlayerClaimData[] = [];
 const NO_CODES: ClaimCodeData[] = [];
@@ -339,26 +340,21 @@ export const AdminPlayerClaims: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="min-w-0">
-                    <h1 className="text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">
-                        Player Account Claims
-                    </h1>
-                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        Team managers review their own squads. Use this to oversee every team and to undo a
-                        wrong approval.
-                    </p>
-                </div>
-                <button
-                    type="button"
-                    onClick={() => setShowCodes(v => !v)}
-                    aria-pressed={showCodes}
-                    className="inline-flex items-center gap-1.5 px-4 min-h-11 bg-sffl-navy/10 hover:bg-sffl-navy/20 text-sffl-navy dark:text-blue-400 text-sm font-bold rounded-lg"
-                >
-                    <UserCircleIcon className="w-4 h-4" aria-hidden="true" />
-                    {showCodes ? 'Hide claim codes' : 'Show claim codes'}
-                </button>
-            </div>
+            <AdminPageHeader
+                title="Account Claims"
+                subtitle="Team managers review their own squads. Use this to oversee every team and to undo a wrong approval."
+                actions={
+                    <button
+                        type="button"
+                        onClick={() => setShowCodes(v => !v)}
+                        aria-pressed={showCodes}
+                        className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 min-h-11 bg-sffl-navy/10 hover:bg-sffl-navy/20 text-sffl-navy dark:text-blue-400 text-sm font-bold rounded-lg"
+                    >
+                        <UserCircleIcon className="w-4 h-4" aria-hidden="true" />
+                        {showCodes ? 'Hide claim codes' : 'Show claim codes'}
+                    </button>
+                }
+            />
 
             {showCodes && (
                 <DataTable

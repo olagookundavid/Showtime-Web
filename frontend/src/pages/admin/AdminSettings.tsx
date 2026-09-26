@@ -4,6 +4,7 @@ import { useFont } from '../../contexts/FontContext';
 import { CheckCircleIcon, ArrowPathIcon, SparklesIcon, SwatchIcon } from '@heroicons/react/24/outline';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
+import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
 
 type PendingAction = { kind: 'set'; fontId: string; fontName: string; category: string } | { kind: 'reset' };
 
@@ -73,23 +74,10 @@ export const AdminSettings = () => {
 
     return (
         <div className="space-y-8 pb-36 md:pb-12">
-            {/* Page Header */}
-            <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl p-4 sm:p-6 md:p-8 rounded-3xl shadow-xl border border-gray-200/80 dark:border-gray-700/80 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                <div className="min-w-0">
-                    <div className="flex items-center gap-3 mb-2 min-w-0">
-                        <div className="p-2.5 bg-sffl-red/10 text-sffl-red rounded-xl shrink-0">
-                            <SwatchIcon className="w-7 h-7" aria-hidden="true" />
-                        </div>
-                        <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-sffl-navy dark:text-white uppercase wrap-break-word min-w-0">
-                            App Settings & Typography
-                        </h1>
-                    </div>
-                    <p className="text-sm md:text-base text-gray-600 dark:text-gray-300 max-w-2xl">
-                        Customize global, app-wide display settings. Changing the typography updates every page, component, table, and header instantly across the entire platform.
-                    </p>
-                </div>
-
-                <div className="flex items-center gap-3 w-full md:w-auto">
+            <AdminPageHeader
+                title="App Settings"
+                subtitle="Choose the app-wide font. It changes every page for every visitor."
+                actions={
                     <button
                         type="button"
                         onClick={() => setPendingAction({ kind: 'reset' })}
@@ -99,8 +87,8 @@ export const AdminSettings = () => {
                         <ArrowPathIcon className="w-4 h-4" aria-hidden="true" />
                         Reset to Georgia
                     </button>
-                </div>
-            </div>
+                }
+            />
 
             {/* Current Active Font Banner */}
             <div className="bg-linear-to-r from-sffl-navy via-sffl-navy/95 to-sffl-red text-white p-4 sm:p-6 md:p-8 rounded-3xl shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border border-white/10">

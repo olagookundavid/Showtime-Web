@@ -12,6 +12,7 @@ import {
 import { Loader } from '../../components/ui/Loader';
 import { FootballIcon } from '../../components/icons/FootballIcon';
 import { getAdminAnalytics } from '../../services/api';
+import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
 
 // Simple Nigerian Naira formatter
 const formatNaira = (amount: number) => {
@@ -111,10 +112,10 @@ export const Dashboard = () => {
     return (
         <div className="space-y-6 sm:space-y-8 animate-fade-in">
             {/* Header */}
-            <div>
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-sffl-navy dark:text-white mb-2">Dashboard</h1>
-                <p className="text-gray-600 dark:text-gray-400">Welcome back! Here's a quick overview of SFFL performance.</p>
-            </div>
+            <AdminPageHeader
+                title="Dashboard"
+                subtitle="Welcome back! Here's a quick overview of SFFL performance."
+            />
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">

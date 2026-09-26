@@ -44,6 +44,7 @@ import {
   EyeSlashIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon } from "@heroicons/react/24/solid";
+import { AdminPageHeader } from "../../components/admin/AdminPageHeader";
 
 interface TOTWSlotDef {
   slot_code: string;
@@ -1337,27 +1338,21 @@ export const AdminTOTW = () => {
 
   return (
     <div className="space-y-6 md:space-y-8 animate-fade-in pb-16">
-      {/* Header Banner following DESIGN_SYSTEM.md */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-sffl-navy text-white p-4 sm:p-6 md:p-8 rounded-xl md:rounded-2xl shadow-xl gap-4">
-        <div className="min-w-0">
-          <h1 className="text-2xl sm:text-3xl md:text-5xl font-black italic tracking-tighter">
-            TEAM OF THE WEEK
-          </h1>
-          <p className="text-gray-300 mt-1 text-sm md:text-base">
-            Manage Starting XIV selections (OFF 1–7 & DEF 1–7), ratings, and
-            player honours
-          </p>
-        </div>
-        {!isEditing && (
-          <button
-            onClick={handleNewTOTW}
-            className="shrink-0 px-5 min-h-11 bg-sffl-red hover:bg-[#A52323] text-white font-black text-sm uppercase tracking-wider rounded-xl shadow-lg transition-transform active:scale-95 flex items-center gap-2 cursor-pointer"
-          >
-            <PlusIcon className="w-5 h-5 stroke-[2.5]" aria-hidden="true" />
-            <span>Create New Edition</span>
-          </button>
-        )}
-      </div>
+      <AdminPageHeader
+        title="Team of the Week"
+        subtitle="Manage Starting XIV selections (OFF 1–7 & DEF 1–7), ratings, and player honours."
+        actions={
+          !isEditing && (
+            <button
+              onClick={handleNewTOTW}
+              className="shrink-0 px-5 min-h-11 bg-sffl-red hover:bg-[#A52323] text-white font-black text-sm uppercase tracking-wider rounded-xl shadow-lg transition-transform active:scale-95 flex items-center gap-2 cursor-pointer"
+            >
+              <PlusIcon className="w-5 h-5 stroke-[2.5]" aria-hidden="true" />
+              <span>Create New Edition</span>
+            </button>
+          )
+        }
+      />
 
       {!isEditing ? (
         /* ── LIST VIEW ────────────────────────────────────────────── */

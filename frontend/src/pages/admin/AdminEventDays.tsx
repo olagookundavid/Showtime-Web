@@ -32,6 +32,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { useDebounced } from '../../hooks/useDebounced';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
 
 type EventDayPayload = Parameters<typeof updateEventDay>[1];
 type TierPayload = Parameters<typeof updateTicketTier>[2];
@@ -661,22 +662,22 @@ export const AdminEventDays = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="min-w-0">
-                    <h1 className="text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white">Event Days & Ticketing</h1>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Manage event dates, venues, ticket tiers, and allocations</p>
-                </div>
-                <button
-                    onClick={() => setShowCreateForm(!showCreateForm)}
-                    className="shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2 min-h-11 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 cursor-pointer"
-                >
-                    {showCreateForm ? (
-                        <><XMarkIcon className="w-4 h-4" aria-hidden="true" /> Cancel</>
-                    ) : (
-                        <><PlusIcon className="w-4 h-4" aria-hidden="true" /> New Event Day</>
-                    )}
-                </button>
-            </div>
+            <AdminPageHeader
+                title="Event Days"
+                subtitle="Manage event dates, venues, ticket tiers, and allocations."
+                actions={
+                    <button
+                        onClick={() => setShowCreateForm(!showCreateForm)}
+                        className="shrink-0 inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 min-h-11 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 cursor-pointer"
+                    >
+                        {showCreateForm ? (
+                            <><XMarkIcon className="w-4 h-4" aria-hidden="true" /> Cancel</>
+                        ) : (
+                            <><PlusIcon className="w-4 h-4" aria-hidden="true" /> New Event Day</>
+                        )}
+                    </button>
+                }
+            />
 
             {/* Create Event Day Form */}
             {showCreateForm && (

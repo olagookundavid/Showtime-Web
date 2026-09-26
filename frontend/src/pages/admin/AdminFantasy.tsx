@@ -55,6 +55,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { Pagination } from '../../components/ui/Pagination';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
 
 /** `datetime-local` gives a local wall-clock string; the API wants RFC3339. */
 const toRFC3339 = (localValue: string): string => new Date(localValue).toISOString();
@@ -324,15 +325,10 @@ export function AdminFantasy() {
 
     return (
         <div className="space-y-6 text-gray-900 dark:text-white">
-            {/* Header */}
-            <div className="border-b border-gray-200 dark:border-gray-700 pb-5">
-                <h1 className="text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white flex items-center gap-2">
-                    <TrophyIcon className="w-6 h-6 text-sffl-red shrink-0" aria-hidden="true" /> Fantasy League Operations
-                </h1>
-                <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    Every fantasy season you run, and the manual payout queue that spans all of them.
-                </p>
-            </div>
+            <AdminPageHeader
+                title="Fantasy"
+                subtitle="Every fantasy season you run, and the manual payout queue that spans all of them."
+            />
 
             {/* Top-level tab bar */}
             <TabBar tabs={TOP_TABS} active={topTab} onChange={setTopTab} />

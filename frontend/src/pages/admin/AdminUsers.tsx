@@ -8,6 +8,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { getAdminUsers, updateUserRole, updateUserInfo } from '../../services/api';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
 
 interface UserResponse {
     id: string;
@@ -209,32 +210,32 @@ const AdminUsers = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="min-w-0">
-                    <h1 className="text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white">User Management</h1>
-                    <p className="text-gray-600 dark:text-gray-400">Search users and manage roles & info.</p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                    <label htmlFor="roleFilterSelect" className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Filter Role:</label>
-                    <select
-                        id="roleFilterSelect"
-                        value={roleFilter}
-                        onChange={(e) => {
-                            setRoleFilter(e.target.value);
-                            setPage(1);
-                        }}
-                        className="border border-gray-300 dark:border-gray-600 rounded-xl px-3 py-2 text-sm font-bold bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red min-h-11"
-                    >
-                        <option value="">All Roles</option>
-                        <option value="admin">Admin</option>
-                        <option value="team_head">Team Head</option>
-                        <option value="player">Player</option>
-                        <option value="referee">Referee</option>
-                        <option value="stats">Stats</option>
-                        <option value="user">User</option>
-                    </select>
-                </div>
-            </div>
+            <AdminPageHeader
+                title="Users"
+                subtitle="Search users and manage roles & info."
+                actions={
+                    <>
+                        <label htmlFor="roleFilterSelect" className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Filter Role:</label>
+                        <select
+                            id="roleFilterSelect"
+                            value={roleFilter}
+                            onChange={(e) => {
+                                setRoleFilter(e.target.value);
+                                setPage(1);
+                            }}
+                            className="border border-gray-300 dark:border-gray-600 rounded-xl px-3 py-2 text-sm font-bold bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red min-h-11"
+                        >
+                            <option value="">All Roles</option>
+                            <option value="admin">Admin</option>
+                            <option value="team_head">Team Head</option>
+                            <option value="player">Player</option>
+                            <option value="referee">Referee</option>
+                            <option value="stats">Stats</option>
+                            <option value="user">User</option>
+                        </select>
+                    </>
+                }
+            />
 
             {/* Error State */}
             {error && (

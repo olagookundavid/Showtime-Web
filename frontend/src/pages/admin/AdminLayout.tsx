@@ -1,34 +1,48 @@
-import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { useState, useEffect, useId, useRef } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import { useTheme } from "../../contexts/ThemeContext";
 import { AdminBottomNav } from "./AdminBottomNav";
+import { AdminBrand } from "./AdminBrand";
+import { AdminClock } from "./AdminClock";
+import { AdminNavLinks } from "./AdminNavLinks";
+import { AdminUserMenu } from "./AdminUserMenu";
+import { adminSectionsFor } from "./adminNav";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import {
-  ArrowLeftIcon,
   ArrowRightOnRectangleIcon,
+  Bars3Icon,
+  ChevronLeftIcon,
+  MoonIcon,
+  SunIcon,
   XMarkIcon,
-  ChartBarIcon,
-  ShieldCheckIcon,
-  UserGroupIcon,
-  PhotoIcon,
-  SignalIcon,
-  UsersIcon,
-  CalendarIcon,
-  TicketIcon,
-  NewspaperIcon,
-  BuildingStorefrontIcon,
-  GiftIcon,
-  Cog6ToothIcon,
-  TrophyIcon,
-  SparklesIcon,
 } from "@heroicons/react/24/outline";
+
+const COLLAPSED_KEY = "sffl_admin_sidebar_collapsed";
+
+const readCollapsed = () => {
+  try {
+    return localStorage.getItem(COLLAPSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+
+const iconButtonClass =
+  "inline-flex items-center justify-center shrink-0 min-h-11 min-w-11 rounded-lg text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/10 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sffl-red/40";
 
 export const AdminLayout = () => {
   const { user, logout } = useAuth();
+  const { isDarkMode, toggleDarkMode } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
+  // Phone drawer. On desktop the sidebar is always there and only collapses.
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(readCollapsed);
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const drawerId = useId();
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
 
   // Prevent body scroll when sidebar is open on mobile
   useEffect(() => {
@@ -42,19 +56,36 @@ export const AdminLayout = () => {
     };
   }, [isSidebarOpen]);
 
-  const linkClass = (path: string) => {
-    const isActive =
-      path === "/admin"
-        ? location.pathname === "/admin" || location.pathname === "/admin/"
-        : location.pathname.startsWith(path);
+  // While the drawer is open: focus its close button and let Escape close it.
+  // When it closes, focus goes back to whatever opened it.
+  useEffect(() => {
+    if (!isSidebarOpen) return;
+    const opener = openerRef.current;
+    closeButtonRef.current?.focus({ preventScroll: true });
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsSidebarOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      opener?.focus({ preventScroll: true });
+    };
+  }, [isSidebarOpen]);
 
-    const baseClass =
-      "flex items-center px-4 py-2.5 min-h-11 text-base rounded-lg transition-all duration-300 font-bold";
-    const activeClass = "bg-sffl-red text-white";
-    const inactiveClass =
-      "text-gray-300 hover:bg-sffl-red/70 hover:text-white dark:hover:bg-gray-700 dark:text-gray-300";
+  const openDrawer = () => {
+    openerRef.current = document.activeElement as HTMLElement | null;
+    setIsSidebarOpen(true);
+  };
+  const closeDrawer = () => setIsSidebarOpen(false);
 
-    return `${baseClass} ${isActive ? activeClass : inactiveClass}`;
+  const toggleCollapsed = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    try {
+      localStorage.setItem(COLLAPSED_KEY, next ? "1" : "0");
+    } catch {
+      // Storage unavailable: the sidebar just won't remember the choice.
+    }
   };
 
   const handleLogout = () => {
@@ -63,83 +94,8 @@ export const AdminLayout = () => {
     navigate("/");
   };
 
-  const allLinks = [
-    { name: "Dashboard", path: "/admin", icon: ChartBarIcon },
-    { name: "Analytics", path: "/admin/analytics", icon: ChartBarIcon },
-    { name: "Matches", path: "/admin/matches", icon: CalendarIcon },
-    { name: "Play by Play", path: "/admin/play-by-play", icon: CalendarIcon },
-    { name: "Teams", path: "/admin/teams", icon: ShieldCheckIcon },
-    {
-      name: "Competitions",
-      path: "/admin/competitions",
-      icon: ShieldCheckIcon,
-    },
-    { name: "Players", path: "/admin/players", icon: UserGroupIcon },
-    { name: "Account Claims", path: "/admin/player-claims", icon: UsersIcon },
-    { name: "Contracts", path: "/admin/contracts", icon: UserGroupIcon },
-    { name: "Transfers", path: "/admin/transfers", icon: UserGroupIcon },
-    {
-      name: "Transfer Windows",
-      path: "/admin/transfer-windows",
-      icon: CalendarIcon,
-    },
-    { name: "Stats", path: "/admin/stats", icon: ChartBarIcon },
-    { name: "Standings", path: "/admin/standings", icon: ChartBarIcon },
-    { name: "Team of the Week", path: "/admin/totw", icon: TrophyIcon },
-    { name: "Badges & Honors", path: "/admin/badges", icon: SparklesIcon },
-    { name: "Tickets", path: "/admin/tickets", icon: TicketIcon },
-    { name: "Referrals", path: "/admin/referrals", icon: TicketIcon },
-    { name: "Event Days", path: "/admin/event-days", icon: CalendarIcon },
-    { name: "News", path: "/admin/news", icon: NewspaperIcon },
-    // { name: 'Gallery', path: '/admin/gallery', icon: PhotoIcon },
-    { name: "Hero Slides", path: "/admin/hero-slides", icon: PhotoIcon },
-    { name: "Live Stream", path: "/admin/live-stream", icon: SignalIcon },
-    { name: "Users", path: "/admin/users", icon: UsersIcon },
-    {
-      name: "Inventory",
-      path: "/admin/inventory",
-      icon: BuildingStorefrontIcon,
-    },
-    {
-      name: "Online Store",
-      path: "/admin/store",
-      icon: BuildingStorefrontIcon,
-    },
-    { name: "Fantasy", path: "/admin/fantasy", icon: ShieldCheckIcon },
-    { name: "App Settings", path: "/admin/settings", icon: Cog6ToothIcon },
-    { name: "Administrator", path: "/admin/administrator", icon: GiftIcon },
-  ];
-
-  const adminLinks = (() => {
-    if (!user) return [];
-    // app_admin is the superuser: sees everything, including the Administrator (gift) section.
-    if (user.role === "app_admin") return allLinks;
-    // admin sees everything an app_admin does EXCEPT Administrator (gift ticket) —
-    // that section alone stays app_admin-only.
-    if (user.role === "admin")
-      return allLinks.filter((l) => l.name !== "Administrator");
-    if (user.role === "ticketer")
-      return allLinks.filter((l) => ["Tickets", "Referrals"].includes(l.name));
-
-    if (user.role === "referee")
-      return allLinks.filter((l) =>
-        [
-          "Matches",
-          "Play by Play",
-          "Standings",
-          "Stats",
-          "Players",
-          "Teams",
-        ].includes(l.name),
-      );
-    if (user.role === "stats")
-      return allLinks.filter((l) =>
-        ["Matches", "Play by Play", "Standings", "Stats", "Teams"].includes(
-          l.name,
-        ),
-      );
-    return [];
-  })();
+  const sections = adminSectionsFor(user?.role);
+  const homePath = sections[0]?.links[0]?.path ?? "/admin";
 
   // Redirect users away from Dashboard if they lack permission
   useEffect(() => {
@@ -157,7 +113,10 @@ export const AdminLayout = () => {
   }, [user, location.pathname, navigate]);
 
   return (
-    <div className={`h-screen flex overflow-hidden bg-transparent w-full`}>
+    <div
+      data-admin-shell
+      className="h-dvh flex overflow-hidden bg-transparent w-full"
+    >
       {/* Global Background - Atmospheric version */}
       <div className="fixed inset-0 -z-50 bg-slate-200 dark:bg-black">
         <div
@@ -171,137 +130,127 @@ export const AdminLayout = () => {
         {/* Vignette for depth */}
         <div className="absolute inset-0 [background:radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.05)_100%)] dark:[background:radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)]" />
       </div>
-      {/* Mobile Admin Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-20 bg-sffl-navy text-white flex items-center justify-between px-4 z-30 shadow-md border-b border-sffl-red/30">
-        <div className="flex items-center gap-3">
-          <span className="font-black italic text-2xl tracking-tighter uppercase leading-none">
-            ADMIN <span className="text-sffl-red">MODULE</span>
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link
-            to="/"
-            className="inline-flex items-center min-h-11 text-sm font-bold bg-white/10 px-4 rounded-xl active:scale-95 transition-transform uppercase"
-          >
-            Back to App
-          </Link>
-        </div>
-      </div>
 
-      {/* Mobile Overlay Background */}
-      <div
-        className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300 ${isSidebarOpen ? "opacity-100 visible" : "opacity-0 invisible pointer-events-none"}`}
-        onClick={() => setIsSidebarOpen(false)}
-      />
-
-      {/* Sidebar (desktop). On phones the "More" drawer below is the menu. */}
-      <aside className="hidden lg:flex lg:relative w-64 shrink-0 bg-sffl-navy dark:bg-gray-800 text-white flex-col h-full">
-        <div className="p-3 md:p-6 border-b border-sffl-navy-light dark:border-gray-700 flex justify-between items-start">
-          <div className="w-full">
-            <h1 className="text-base md:text-2xl font-black italic">
-              ADMIN PANEL
-            </h1>
-            <div className="flex items-center justify-between mt-2">
-              <p
-                className="text-xs md:text-sm text-gray-400 truncate max-w-32.5"
-                title={user?.name}
-              >
-                {user?.name}
-              </p>
-              <Link
-                to="/"
-                className="text-xs font-bold bg-white/10 hover:bg-white/20 px-3 min-h-11 inline-flex items-center justify-center gap-1 rounded-lg text-gray-300 hover:text-white transition-all ml-2 whitespace-nowrap"
-              >
-                <ArrowLeftIcon className="w-4 h-4" aria-hidden="true" />
-                App
-              </Link>
-            </div>
-          </div>
+      {/* Sidebar (desktop). Only the link list scrolls; the brand block stays put.
+          On phones the drawer below is the menu. */}
+      <aside
+        className={`hidden lg:flex relative z-20 shrink-0 flex-col h-full bg-white dark:bg-sffl-navy border-r border-gray-200 dark:border-white/10 shadow-sm transition-[width,background-color,border-color] duration-300 motion-reduce:transition-none ${
+          collapsed ? "w-20" : "w-64"
+        }`}
+      >
+        <div
+          className={`h-18 shrink-0 flex items-center overflow-hidden border-b-2 border-sffl-red ${
+            collapsed ? "justify-center px-2" : "px-5"
+          }`}
+        >
+          <AdminBrand to={homePath} collapsed={collapsed} />
         </div>
 
-        <nav className="flex-1 p-3 md:p-4 space-y-1 overflow-y-auto font-medium">
-          {adminLinks.map((link) => (
-            <Link
-              key={link.path}
-              to={link.path}
-              onClick={() => setIsSidebarOpen(false)}
-              className={linkClass(link.path)}
-            >
-              {link.name}
-            </Link>
-          ))}
-        </nav>
+        <AdminNavLinks sections={sections} collapsed={collapsed} />
 
-        <div className="p-3 md:p-4 border-t border-sffl-navy-light dark:border-gray-700 space-y-3">
-          <button
-            type="button"
-            onClick={() => setConfirmLogout(true)}
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 min-h-11 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-base transition-all duration-300 hover:scale-[1.02] active:scale-95"
-          >
-            <ArrowRightOnRectangleIcon className="w-5 h-5" aria-hidden="true" />
-            Logout
-          </button>
-        </div>
+        {/* Straddles the sidebar's right edge, just below the brand block. The
+            before: layer stretches the hit area to 44px around the 28px circle. */}
+        <button
+          type="button"
+          onClick={toggleCollapsed}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-expanded={!collapsed}
+          className="absolute top-22 -right-3.5 z-10 w-7 h-7 rounded-full flex items-center justify-center bg-white border border-gray-200 text-gray-600 shadow hover:text-sffl-red dark:bg-sffl-navy dark:border-white/20 dark:text-gray-200 dark:hover:text-white transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sffl-red/60 before:absolute before:-inset-2"
+        >
+          <ChevronLeftIcon
+            className={`w-4 h-4 transition-transform duration-300 motion-reduce:transition-none ${
+              collapsed ? "rotate-180" : ""
+            }`}
+            aria-hidden="true"
+          />
+        </button>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 w-full min-w-0 p-4 lg:p-8 pt-22 lg:pt-8 overflow-y-auto overscroll-y-none bg-transparent pb-[calc(9rem+2*env(safe-area-inset-bottom,0px))] lg:pb-8 relative z-10">
-        <Outlet />
-      </main>
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Top bar */}
+        <header className="relative z-30 shrink-0 h-16 lg:h-18 flex items-center gap-1 px-2 sm:px-4 lg:px-6 bg-white dark:bg-sffl-navy border-b-2 border-sffl-red shadow-sm transition-colors">
+          <div className="lg:hidden flex items-center gap-1 min-w-0">
+            <button
+              type="button"
+              onClick={openDrawer}
+              aria-label="Open menu"
+              aria-expanded={isSidebarOpen}
+              aria-controls={drawerId}
+              className={iconButtonClass}
+            >
+              <Bars3Icon className="w-6 h-6" aria-hidden="true" />
+            </button>
+            <AdminBrand to={homePath} compact />
+          </div>
 
-      {/* Admin Bottom Nav */}
-      <AdminBottomNav onMoreClick={() => setIsSidebarOpen(true)} />
+          <div className="flex-1" />
 
-      {/* Admin "More" Drawer Mobile */}
-      <div
-        className={`fixed inset-y-0 left-0 z-50 w-65 transform transition-transform duration-300 ease-out flex flex-col bg-sffl-navy lg:hidden ${isSidebarOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"}`}
-      >
-        <div className="p-4 border-b border-white/10 flex items-center justify-between">
-          <span className="font-black italic text-white tracking-widest uppercase text-sm">
-            Admin Menu
-          </span>
+          <AdminClock className="hidden md:flex" />
+          <div
+            aria-hidden="true"
+            className="hidden md:block h-8 w-px mx-2 lg:mx-3 bg-gray-200 dark:bg-white/15"
+          />
           <button
             type="button"
-            onClick={() => setIsSidebarOpen(false)}
+            onClick={toggleDarkMode}
+            aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+            title={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+            className={iconButtonClass}
+          >
+            {isDarkMode ? (
+              <SunIcon className="w-5 h-5" aria-hidden="true" />
+            ) : (
+              <MoonIcon className="w-5 h-5" aria-hidden="true" />
+            )}
+          </button>
+          <AdminUserMenu onLogout={() => setConfirmLogout(true)} />
+        </header>
+
+        {/* Main Content Area */}
+        <main className="flex-1 min-h-0 w-full p-4 lg:p-8 overflow-y-auto overscroll-y-none bg-transparent pb-[calc(9rem+2*env(safe-area-inset-bottom,0px))] lg:pb-8 relative z-10">
+          <Outlet />
+        </main>
+      </div>
+
+      {/* Admin Bottom Nav */}
+      <AdminBottomNav onMoreClick={openDrawer} />
+
+      {/* Phone drawer overlay */}
+      <div
+        aria-hidden="true"
+        onClick={closeDrawer}
+        className={`fixed inset-0 z-60 bg-black/50 backdrop-blur-sm lg:hidden transition-opacity duration-300 ${
+          isSidebarOpen ? "opacity-100" : "opacity-0 invisible pointer-events-none"
+        }`}
+      />
+
+      {/* Phone drawer. It is a dialog only while open: index.css hides the
+          bottom nav whenever any [role="dialog"] is on the page, and this
+          element stays mounted (off-screen) so it can slide. Closed, it is
+          inert, so its off-screen links can't be tabbed to. */}
+      <div
+        id={drawerId}
+        role={isSidebarOpen ? "dialog" : undefined}
+        aria-modal={isSidebarOpen || undefined}
+        aria-label={isSidebarOpen ? "Admin menu" : undefined}
+        inert={!isSidebarOpen}
+        className={`fixed inset-y-0 left-0 z-60 w-72 max-w-[85vw] flex flex-col bg-white dark:bg-sffl-navy shadow-2xl lg:hidden transition-transform duration-300 ease-out motion-reduce:transition-none ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="h-16 shrink-0 flex items-center justify-between gap-2 pl-4 pr-2 border-b-2 border-sffl-red">
+          <AdminBrand to={homePath} onClick={closeDrawer} />
+          <button
+            ref={closeButtonRef}
+            type="button"
+            onClick={closeDrawer}
             aria-label="Close menu"
-            className="min-h-11 min-w-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-white/10"
+            className={iconButtonClass}
           >
             <XMarkIcon className="w-6 h-6" aria-hidden="true" />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-2 space-y-1 pb-[calc(8rem+2*env(safe-area-inset-bottom,0px))]">
-          {adminLinks.map((link) => {
-            const active =
-              location.pathname === link.path ||
-              (link.path !== "/admin" &&
-                location.pathname.startsWith(link.path));
-            return (
-              <Link
-                key={link.path}
-                to={link.path}
-                onClick={() => setIsSidebarOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-colors ${
-                  active
-                    ? "bg-sffl-red text-white shadow-lg"
-                    : "text-gray-400 hover:text-white hover:bg-white/5"
-                }`}
-              >
-                <link.icon className="w-5 h-5 shrink-0" aria-hidden="true" />
-                {link.name}
-              </Link>
-            );
-          })}
-        </div>
-        <div className="p-4 border-t border-white/10">
-          <button
-            type="button"
-            onClick={() => setConfirmLogout(true)}
-            className="w-full inline-flex items-center justify-center gap-2 py-3 min-h-11 bg-red-600/20 hover:bg-red-600 text-white rounded-xl font-black transition-all text-xs uppercase tracking-widest"
-          >
-            <ArrowRightOnRectangleIcon className="w-4 h-4" aria-hidden="true" />
-            Logout
-          </button>
-        </div>
+        <AdminNavLinks sections={sections} onNavigate={closeDrawer} />
       </div>
 
       <ConfirmDialog

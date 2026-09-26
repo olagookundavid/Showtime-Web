@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { adminListReferrals, type ReferralStatsResponse } from '../../services/api';
 import { DataTable, type Column } from '../../components/ui/DataTable';
+import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
 
 const PAGE_SIZE = 10;
 const NO_ROWS: ReferralStatsResponse[] = [];
@@ -80,16 +81,15 @@ export const AdminReferrals = () => {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
-            <div>
-                <h1 className="text-2xl md:text-3xl font-black italic tracking-tighter text-sffl-navy dark:text-white">
-                    TICKET REFERRERS
-                </h1>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Monitor, search, and manage user referral codes, tickets sold, and total revenue.
-                    {data && ` ${totalItems} referrer${totalItems === 1 ? '' : 's'}${search ? ` matching "${search}"` : ''}.`}
-                </p>
-            </div>
+            <AdminPageHeader
+                title="Referrals"
+                subtitle={
+                    <>
+                        Monitor, search, and manage user referral codes, tickets sold, and total revenue.
+                        {data && ` ${totalItems} referrer${totalItems === 1 ? '' : 's'}${search ? ` matching "${search}"` : ''}.`}
+                    </>
+                }
+            />
 
             {/* Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -34,6 +34,7 @@ import {
   DeletedPlayerName,
   deletedRowClass,
 } from "../../components/common/DeletedPlayer";
+import { AdminPageHeader } from "../../components/admin/AdminPageHeader";
 
 interface FormData {
   name: string;
@@ -597,68 +598,10 @@ export const AdminPlayers = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
-        <h1 className="text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white">
-          Player Management
-        </h1>
-        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 w-full xl:w-auto">
-          <select
-            aria-label="Team"
-            value={filterTeam}
-            onChange={(e) => handleFilterChange(e.target.value)}
-            className={filterClass}
-          >
-            <option value="" className="truncate">
-              All Teams
-            </option>
-            <option value="FREE_AGENT" className="truncate">
-              Free Agents (no active contract)
-            </option>
-            {teams.map((t) => (
-              <option key={t.id} value={t.id} className="truncate">
-                {t.name}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label="Squad"
-            value={rosterStatus}
-            onChange={(e) => {
-              setRosterStatus(e.target.value as "main" | "reserve" | "all");
-              setPage(1);
-            }}
-            className={filterClass}
-          >
-            <option value="all">All Squads</option>
-            <option value="main">Main Squad Only</option>
-            <option value="reserve">Reserves Only</option>
-          </select>
-          <div className="flex items-center justify-between sm:justify-start gap-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 min-h-11">
-            <label
-              htmlFor="limitSelectInput"
-              className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
-            >
-              Limit:
-            </label>
-            <select
-              id="limitSelectInput"
-              value={limit}
-              onChange={(e) => {
-                setLimit(Number(e.target.value));
-                setPage(1);
-              }}
-              className="bg-transparent font-bold text-sm text-gray-900 dark:text-white focus:outline-none cursor-pointer min-h-11"
-            >
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-              <option value={200}>200</option>
-              <option value={500}>500</option>
-              <option value={800}>800</option>
-              <option value={1000}>1000</option>
-            </select>
-          </div>
+      <AdminPageHeader
+        title="Players"
+        subtitle="Manage player profiles, positions and team assignments."
+        actions={
           <button
             type="button"
             onClick={openCreate}
@@ -667,6 +610,67 @@ export const AdminPlayers = () => {
             <PlusIcon className="w-4 h-4" aria-hidden="true" />
             Add Player
           </button>
+        }
+      />
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
+        <select
+          aria-label="Team"
+          value={filterTeam}
+          onChange={(e) => handleFilterChange(e.target.value)}
+          className={filterClass}
+        >
+          <option value="" className="truncate">
+            All Teams
+          </option>
+          <option value="FREE_AGENT" className="truncate">
+            Free Agents (no active contract)
+          </option>
+          {teams.map((t) => (
+            <option key={t.id} value={t.id} className="truncate">
+              {t.name}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Squad"
+          value={rosterStatus}
+          onChange={(e) => {
+            setRosterStatus(e.target.value as "main" | "reserve" | "all");
+            setPage(1);
+          }}
+          className={filterClass}
+        >
+          <option value="all">All Squads</option>
+          <option value="main">Main Squad Only</option>
+          <option value="reserve">Reserves Only</option>
+        </select>
+        <div className="flex items-center justify-between sm:justify-start gap-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 min-h-11">
+          <label
+            htmlFor="limitSelectInput"
+            className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+          >
+            Limit:
+          </label>
+          <select
+            id="limitSelectInput"
+            value={limit}
+            onChange={(e) => {
+              setLimit(Number(e.target.value));
+              setPage(1);
+            }}
+            className="bg-transparent font-bold text-sm text-gray-900 dark:text-white focus:outline-none cursor-pointer min-h-11"
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+            <option value={200}>200</option>
+            <option value={500}>500</option>
+            <option value={800}>800</option>
+            <option value={1000}>1000</option>
+          </select>
         </div>
       </div>
 

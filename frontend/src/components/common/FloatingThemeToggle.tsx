@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { MoonIcon, SunIcon } from "@heroicons/react/24/solid";
 import { useTheme } from "../../contexts/ThemeContext";
 
 // Keeps the toggle inside the viewport and, on the breakpoints where the fixed
@@ -14,29 +15,30 @@ const clampPosition = (pos: { x: number; y: number }) => {
   };
 };
 
+// Saved position, read once on mount.
+const loadPosition = () => {
+  try {
+    const savedPos = localStorage.getItem("sffl_toggle_pos");
+    if (savedPos) {
+      const parsed = JSON.parse(savedPos);
+      if (typeof parsed.x === "number" && typeof parsed.y === "number") {
+        return clampPosition(parsed);
+      }
+    }
+  } catch (e) {
+    console.error("Failed to parse toggle position", e);
+  }
+  return { x: 2, y: 92 }; // Default position: top-right corner
+};
+
 export const FloatingThemeToggle = () => {
   const { isDarkMode, toggleDarkMode } = useTheme();
-  const [position, setPosition] = useState({ x: 2, y: 92 }); // Default position: top-right corner
+  const [position, setPosition] = useState(loadPosition);
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef<HTMLButtonElement>(null);
   const dragStartRef = useRef({ x: 0, y: 0 });
   const posStartRef = useRef({ x: 0, y: 0 });
   const hasMovedRef = useRef(false);
-
-  // Load saved position
-  useEffect(() => {
-    const savedPos = localStorage.getItem("sffl_toggle_pos");
-    if (savedPos) {
-      try {
-        const parsed = JSON.parse(savedPos);
-        if (typeof parsed.x === "number" && typeof parsed.y === "number") {
-          setPosition(clampPosition(parsed));
-        }
-      } catch (e) {
-        console.error("Failed to parse toggle position", e);
-      }
-    }
-  }, []);
 
   // Re-clamp when the viewport changes. Crossing the lg breakpoint — rotating a
   // tablet, or dragging a desktop window narrow — brings the fixed bottom nav
@@ -118,6 +120,9 @@ export const FloatingThemeToggle = () => {
   return (
     <button
       ref={dragRef}
+      // The admin shell has its own theme button in its top bar, so index.css
+      // hides this one there.
+      data-floating-theme-toggle
       onClick={handleClick}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -135,25 +140,9 @@ export const FloatingThemeToggle = () => {
       aria-label="Toggle dark mode"
     >
       {isDarkMode ? (
-        <svg
-          className="w-6 h-6 flex-shrink-0"
-          fill="currentColor"
-          viewBox="0 0 20 20"
-        >
-          <path
-            fillRule="evenodd"
-            d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"
-            clipRule="evenodd"
-          />
-        </svg>
+        <SunIcon className="w-6 h-6 shrink-0" aria-hidden="true" />
       ) : (
-        <svg
-          className="w-6 h-6 flex-shrink-0"
-          fill="currentColor"
-          viewBox="0 0 20 20"
-        >
-          <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-        </svg>
+        <MoonIcon className="w-6 h-6 shrink-0" aria-hidden="true" />
       )}
     </button>
   );

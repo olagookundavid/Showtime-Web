@@ -23,6 +23,7 @@ import { ImageUploadField } from '../../components/ui';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
 
 // Mirrors the backend's MaxHeroSlides constant. Keep these in sync — the
 // server is the source of truth (it returns a 400 if exceeded), but matching
@@ -230,25 +231,27 @@ export const AdminHeroSlides = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="min-w-0">
-                    <h1 className="text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white">Homepage Carousel</h1>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            <AdminPageHeader
+                title="Hero Slides"
+                subtitle={
+                    <>
                         Up to {MAX_SLIDES} slides. {sortedSlides.length}/{MAX_SLIDES} used.
                         Each slide can link to a page or URL of your choice.
-                    </p>
-                </div>
-                <button
-                    type="button"
-                    onClick={openCreate}
-                    disabled={atCap}
-                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 min-h-11 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
-                    title={atCap ? `Limit of ${MAX_SLIDES} reached — delete a slide to add another` : 'Add a new slide'}
-                >
-                    <PlusIcon className="w-4 h-4" aria-hidden="true" />
-                    Add Slide
-                </button>
-            </div>
+                    </>
+                }
+                actions={
+                    <button
+                        type="button"
+                        onClick={openCreate}
+                        disabled={atCap}
+                        className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 min-h-11 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+                        title={atCap ? `Limit of ${MAX_SLIDES} reached — delete a slide to add another` : 'Add a new slide'}
+                    >
+                        <PlusIcon className="w-4 h-4" aria-hidden="true" />
+                        Add Slide
+                    </button>
+                }
+            />
 
             {isLoading ? (
                 <Loader />
