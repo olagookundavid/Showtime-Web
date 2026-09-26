@@ -11,7 +11,9 @@ import {
     ChevronRightIcon,
     XMarkIcon,
     PencilSquareIcon,
+    ArrowTrendingUpIcon,
 } from '@heroicons/react/24/outline';
+import { PlayerPriceHistoryModal } from '../../components/fantasy/PlayerPriceHistoryModal';
 
 interface TeamInfo {
     id: string;
@@ -110,6 +112,7 @@ const TeamHeadPlayers = () => {
     // Modal States
     const [showModal, setShowModal] = useState(false);
     const [editing, setEditing] = useState<Player | null>(null);
+    const [priceHistoryPlayer, setPriceHistoryPlayer] = useState<Player | null>(null);
     const [form, setForm] = useState(emptyForm);
     const [saving, setSaving] = useState(false);
 
@@ -568,6 +571,14 @@ const TeamHeadPlayers = () => {
                                         <PencilSquareIcon className="w-4 h-4" />
                                         <span>Edit</span>
                                     </button>
+                                    <button
+                                        onClick={() => setPriceHistoryPlayer(player)}
+                                        title="View Fantasy Price History"
+                                        className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+                                    >
+                                        <ArrowTrendingUpIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                                        <span>Price History</span>
+                                    </button>
                                 </div>
                             </div>
                         ))}
@@ -728,6 +739,18 @@ const TeamHeadPlayers = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {priceHistoryPlayer && (
+                <PlayerPriceHistoryModal
+                    isOpen={!!priceHistoryPlayer}
+                    onClose={() => setPriceHistoryPlayer(null)}
+                    playerId={priceHistoryPlayer.id}
+                    playerName={priceHistoryPlayer.name}
+                    playerImage={priceHistoryPlayer.image}
+                    position={priceHistoryPlayer.position}
+                    teamName={team?.name}
+                />
             )}
         </div>
     );

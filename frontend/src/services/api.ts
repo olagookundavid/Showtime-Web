@@ -3112,6 +3112,28 @@ export interface PlayerGWBreakdownResponse {
     breakdown: PointsBreakdown;
 }
 
+export interface PlayerPriceHistoryItem {
+    gameweek_id?: string;
+    gameweek_number: number;
+    gameweek_label: string;
+    price: number;
+    calculated_price: number;
+    change: number;
+    percentage_change: number;
+    rating: number;
+    is_overridden: boolean;
+    created_at: string;
+}
+
+export interface PlayerPriceHistoryResponse {
+    player_id: string;
+    player_name: string;
+    current_price: number;
+    base_price: number;
+    total_change: number;
+    history: PlayerPriceHistoryItem[];
+}
+
 export interface FantasyLeague {
     id: string;
     season_id: string;
@@ -3194,6 +3216,13 @@ export const fantasyApi = {
     getPlayerBreakdown: async (playerId: string, gwId: string): Promise<PlayerGWBreakdownResponse> => {
         const res = await api.get<{ data: PlayerGWBreakdownResponse }>(
             `/fantasy/players/${playerId}/gameweek/${gwId}/breakdown`
+        );
+        return res.data.data;
+    },
+    getPlayerPriceHistory: async (playerId: string, seasonId?: string): Promise<PlayerPriceHistoryResponse> => {
+        const res = await api.get<{ data: PlayerPriceHistoryResponse }>(
+            `/fantasy/players/${playerId}/price-history`,
+            { params: seasonId ? { season_id: seasonId } : undefined }
         );
         return res.data.data;
     },

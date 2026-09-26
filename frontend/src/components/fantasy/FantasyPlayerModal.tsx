@@ -6,6 +6,9 @@ import {
     ArrowTopRightOnSquareIcon,
     SparklesIcon,
     UserIcon,
+    ArrowTrendingUpIcon,
+    ScaleIcon,
+    BoltIcon,
 } from '@heroicons/react/24/outline';
 import {
     fantasyApi,
@@ -90,6 +93,13 @@ export function FantasyPlayerModal({ isOpen, onClose, player }: FantasyPlayerMod
         queryKey: ['playerFantasyBreakdown', player?.playerId, player?.gameweekId],
         queryFn: () => (player?.playerId && player?.gameweekId ? fantasyApi.getPlayerBreakdown(player.playerId, player.gameweekId) : null),
         enabled: isOpen && Boolean(player?.playerId) && Boolean(player?.gameweekId),
+        staleTime: 30000,
+    });
+
+    const { data: priceHistoryData, isLoading: loadingPriceHistory } = useQuery({
+        queryKey: ['playerPriceHistory', player?.playerId],
+        queryFn: () => (player?.playerId ? fantasyApi.getPlayerPriceHistory(player.playerId) : null),
+        enabled: isOpen && Boolean(player?.playerId),
         staleTime: 30000,
     });
 
@@ -178,9 +188,20 @@ export function FantasyPlayerModal({ isOpen, onClose, player }: FantasyPlayerMod
                             <span className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 block">
                                 Fantasy Price
                             </span>
-                            <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">
-                                {formatFantasyPrice(price)}
-                            </span>
+                            <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">
+                                    {formatFantasyPrice(price)}
+                                </span>
+                                {priceHistoryData && priceHistoryData.total_change !== 0 && (
+                                    <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${
+                                        priceHistoryData.total_change > 0
+                                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                                            : 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800'
+                                    }`}>
+                                        {priceHistoryData.total_change > 0 ? '+' : ''}{formatFantasyPrice(priceHistoryData.total_change)}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -283,6 +304,86 @@ export function FantasyPlayerModal({ isOpen, onClose, player }: FantasyPlayerMod
                             )}
                         </div>
                     )}
+
+                    {/* Price History Section */}
+                    <div className="rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden bg-gray-50 dark:bg-gray-800/60 p-4">
+                        <div className="flex items-center justify-between mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
+                            <h4 className="text-xs font-black uppercase tracking-wider text-sffl-navy dark:text-white flex items-center gap-1.5">
+                                <ArrowTrendingUpIcon className="w-4 h-4 text-emerald-500" />
+                                Price Movement History
+                            </h4>
+                            {priceHistoryData && priceHistoryData.total_change !== 0 && (
+                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                                    priceHistoryData.total_change > 0
+                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                                        : 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800'
+                                }`}>
+                                    {priceHistoryData.total_change > 0 ? '+' : ''}{formatFantasyPrice(priceHistoryData.total_change)} overall
+                                </span>
+                            )}
+                        </div>
+
+                        {loadingPriceHistory ? (
+                            <p className="text-xs text-gray-500 py-3 text-center">Loading price history...</p>
+                        ) : priceHistoryData?.history && priceHistoryData.history.length > 0 ? (
+                            <div className="space-y-2">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left text-xs">
+                                        <thead className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase border-b border-gray-200 dark:border-gray-700">
+                                            <tr>
+                                                <th className="pb-1.5 font-bold">Event</th>
+                                                <th className="pb-1.5 font-bold">Price</th>
+                                                <th className="pb-1.5 font-bold">Change</th>
+                                                <th className="pb-1.5 font-bold text-right">Method</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
+                                            {priceHistoryData.history.map((row, idx) => (
+                                                <tr key={row.gameweek_id || `hist-${idx}`} className="text-[11px]">
+                                                    <td className="py-1.5 font-bold text-gray-900 dark:text-white">
+                                                        {row.gameweek_label}
+                                                    </td>
+                                                    <td className="py-1.5 font-black text-gray-900 dark:text-white">
+                                                        {formatFantasyPrice(row.price)}
+                                                    </td>
+                                                    <td className="py-1.5">
+                                                        {row.gameweek_number === 0 ? (
+                                                            <span className="text-gray-400 text-[10px]">Base</span>
+                                                        ) : row.change > 0 ? (
+                                                            <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                                                                +{formatFantasyPrice(row.change)}
+                                                            </span>
+                                                        ) : row.change < 0 ? (
+                                                            <span className="text-red-600 dark:text-red-400 font-bold">
+                                                                {formatFantasyPrice(row.change)}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-gray-400">0.0m</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="py-1.5 text-right">
+                                                        {row.is_overridden ? (
+                                                            <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase text-amber-600 dark:text-amber-400">
+                                                                <ScaleIcon className="w-3 h-3" /> Committee
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase text-gray-500 dark:text-gray-400">
+                                                                <BoltIcon className="w-3 h-3 text-yellow-500" /> Form
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="text-xs text-gray-500 py-2 text-center">
+                                Initial price set. No weekly adjustments yet.
+                            </p>
+                        )}
+                    </div>
                 </div>
 
                 {/* Footer Actions */}

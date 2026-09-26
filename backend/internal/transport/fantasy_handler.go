@@ -19,6 +19,7 @@ type IFantasyHandler interface {
 	GetGameweeks(c *gin.Context)
 	ListPlayerMarket(c *gin.Context)
 	GetPlayerBreakdown(c *gin.Context)
+	GetPlayerPriceHistory(c *gin.Context)
 	EnterSeason(c *gin.Context)
 	GetDashboard(c *gin.Context)
 	SaveLineup(c *gin.Context)
@@ -129,6 +130,23 @@ func (h *FantasyHandler) GetPlayerBreakdown(c *gin.Context) {
 	// an error: it answers with empty data so the client shows "no stats yet"
 	// instead of retrying a request that will never succeed.
 	c.JSON(http.StatusOK, gin.H{"data": breakdown})
+}
+
+func (h *FantasyHandler) GetPlayerPriceHistory(c *gin.Context) {
+	playerID := c.Param("id")
+	seasonID := c.Query("season_id")
+
+	history, err := h.service.GetPlayerPriceHistory(c.Request.Context(), seasonID, playerID)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": history})
 }
 
 // EnterSeason signs the manager up for a season — the deliberate opt-in that

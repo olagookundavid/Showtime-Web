@@ -469,7 +469,7 @@ export function FantasySquadBuilder() {
         }
         const slotEligibilityValid = ineligibleSlot === null;
 
-        const isValid = slotsFilled && budgetValid && offenseFemalesValid && defenseFemalesValid
+        const isValid = slotsFilled && offenseFemalesValid && defenseFemalesValid
             && clubLimitValid && clubsActiveValid && duplicatePlayerValid && slotEligibilityValid
             && defenseAllroundersValid;
 
@@ -530,13 +530,6 @@ export function FantasySquadBuilder() {
             detail: calculations.defenseAllroundersValid
                 ? `${calculations.defenseAllrounders} of 1`
                 : `${calculations.defenseAllrounders} selected (max 1)`,
-        },
-        {
-            ok: calculations.budgetValid,
-            label: 'Within the salary cap',
-            detail: calculations.budgetValid
-                ? `${formatFantasyPrice(calculations.remainingBudget)} left`
-                : `${formatFantasyPrice(Math.abs(calculations.remainingBudget))} over`,
         },
         {
             ok: calculations.clubLimitValid,
@@ -1052,14 +1045,21 @@ export function FantasySquadBuilder() {
 
                 {/* Financial Strip */}
                 {mySquad && (
-                    <div className="mt-6 pt-6 border-t border-white/10 grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="mt-6 pt-6 border-t border-white/10 grid grid-cols-2 lg:grid-cols-5 gap-3">
                         <div className="p-4 bg-white/10 rounded-xl">
                             <span className="text-[10px] uppercase font-black tracking-wider text-gray-300 block">In the bank</span>
                             <span className="text-2xl md:text-3xl font-black text-yellow-400">{formatFantasyPrice(mySquad.bank)}</span>
+                            <span className="text-[11px] text-gray-300 block mt-0.5 font-medium">Liquid transfer cash</span>
                         </div>
                         <div className="p-4 bg-white/10 rounded-xl">
                             <span className="text-[10px] uppercase font-black tracking-wider text-gray-300 block">Squad value</span>
                             <span className="text-2xl md:text-3xl font-black text-emerald-400">{formatFantasyPrice(mySquad.squad_value)}</span>
+                            <span className="text-[11px] text-gray-300 block mt-0.5 font-medium">Current market worth</span>
+                        </div>
+                        <div className="p-4 bg-white/10 rounded-xl">
+                            <span className="text-[10px] uppercase font-black tracking-wider text-gray-300 block">Club value</span>
+                            <span className="text-2xl md:text-3xl font-black text-white">{formatFantasyPrice(mySquad.bank + mySquad.squad_value)}</span>
+                            <span className="text-[11px] text-gray-300 block mt-0.5 font-medium">Total club assets</span>
                         </div>
                         <div className="p-4 bg-white/10 rounded-xl">
                             <span className="text-[10px] uppercase font-black tracking-wider text-gray-300 block">Starting 14</span>
@@ -1067,6 +1067,7 @@ export function FantasySquadBuilder() {
                                 {calculations.filledCount}
                                 <span className="text-sm text-gray-300 font-bold"> / 14</span>
                             </span>
+                            <span className="text-[11px] text-gray-300 block mt-0.5 font-medium">Starters selected</span>
                         </div>
                         <div className="p-4 bg-white/10 rounded-xl">
                             <span className="text-[10px] uppercase font-black tracking-wider text-gray-300 block">Bench / Reserves</span>
@@ -1074,25 +1075,14 @@ export function FantasySquadBuilder() {
                                 {benchPlayers.length}
                                 <span className="text-sm text-gray-300 font-bold"> / {(mySquad.squad_max || 19) - 14}</span>
                             </span>
+                            <span className="text-[11px] text-gray-300 block mt-0.5 font-medium">Squad depth</span>
                         </div>
                     </div>
                 )}
             </div>
 
             {/* Invariant Validation Strips */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                {/* Budget */}
-                <div className={`p-3.5 rounded-xl border shadow-sm flex items-center justify-between ${calculations.budgetValid
-                        ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white'
-                        : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400'
-                    }`}>
-                    <div>
-                        <span className="text-[10px] text-gray-500 dark:text-gray-400 block uppercase font-bold">Remaining Cap</span>
-                        <span className="font-black text-base md:text-lg">{formatFantasyPrice(calculations.remainingBudget)}</span>
-                    </div>
-                    {calculations.budgetValid ? <CheckCircleIcon className="w-5 h-5 text-emerald-500" /> : <ExclamationCircleIcon className="w-5 h-5 text-red-500" />}
-                </div>
-
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {/* Starters */}
                 <div className={`p-3.5 rounded-xl border shadow-sm flex items-center justify-between ${calculations.slotsFilled
                         ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white'
@@ -1560,10 +1550,9 @@ export function FantasySquadBuilder() {
                                             {activeModalSlot.requiredGender === 'F' ? 'Women only' : 'Men only'}
                                         </span>
                                     )}
-                                    {/* The budget belongs next to the choice it constrains, not on
-                                        the page behind the dialog where it cannot be seen. */}
+                                    {/* Liquid transfer funds available for signing players */}
                                     <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
-                                        {formatFantasyPrice(calculations.remainingBudget)} left
+                                        {formatFantasyPrice(mySquad?.bank ?? 0)} in bank
                                     </span>
                                 </div>
                             </div>

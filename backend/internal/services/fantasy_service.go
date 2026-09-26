@@ -48,6 +48,7 @@ type IFantasyService interface {
 	GetTeamLineup(ctx context.Context, requestingUserID, teamID, gameweekID string) (*dto.FantasyTeamLineupDetailResponse, error)
 	GetGameweekReport(ctx context.Context, seasonID, gameweekID string) (*dto.GameweekReportResponse, error)
 	GetPlayerBreakdown(ctx context.Context, playerID, gameweekID string) (*dto.PlayerGWBreakdownResponse, error)
+	GetPlayerPriceHistory(ctx context.Context, seasonID, playerID string) (*dto.PlayerPriceHistoryResponse, error)
 
 	// Core Engine
 	ComputeGameweekScores(ctx context.Context, gameweekID string) error
@@ -1224,6 +1225,21 @@ func (s *FantasyService) GetPlayerBreakdown(ctx context.Context, playerID, gamew
 		Points:     total.NetTotal,
 		Breakdown:  total,
 	}, nil
+}
+
+func (s *FantasyService) GetPlayerPriceHistory(ctx context.Context, seasonID, playerID string) (*dto.PlayerPriceHistoryResponse, error) {
+	if seasonID == "" {
+		activeSeason, err := s.repo.GetActiveSeason(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if activeSeason == nil {
+			return nil, errors.New("no active fantasy season found")
+		}
+		seasonID = activeSeason.ID
+	}
+
+	return s.repo.GetPlayerPriceHistory(ctx, seasonID, playerID)
 }
 
 // ─── Scoring Engine ───────────────────────────────────────────────────────────
