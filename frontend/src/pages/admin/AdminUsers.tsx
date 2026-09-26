@@ -8,7 +8,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { getAdminUsers, updateUserRole, updateUserInfo } from '../../services/api';
 import { getApiErrorMessage } from '../../utils/apiError';
-import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
+import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 
 interface UserResponse {
     id: string;
@@ -210,7 +210,7 @@ const AdminUsers = () => {
 
     return (
         <div className="space-y-6">
-            <AdminPageHeader
+            <DashboardPageHeader
                 title="Users"
                 subtitle="Search users and manage roles & info."
                 actions={

@@ -1,13 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { BellIcon } from '@heroicons/react/24/outline';
 import { notificationsApi, type NotificationData } from '../../services/api';
 import toast from 'react-hot-toast';
+import { Spinner } from '../ui/Spinner';
 
+/**
+ * The top-bar bell: an unread count, and a dropdown of the latest notifications.
+ * Opening one marks it read. Marking read needs no confirm (frontend/CLAUDE.md §2).
+ * On phones the dropdown spans the screen under the top bar so it can't run off
+ * the edge; from 640px up it hangs under the bell.
+ */
 export const NotificationBell: React.FC = () => {
     const [unreadCount, setUnreadCount] = useState<number>(0);
     const [notifications, setNotifications] = useState<NotificationData[]>([]);
     const [isOpen, setIsOpen] = useState<boolean>(false);
     const [loading, setLoading] = useState<boolean>(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const triggerRef = useRef<HTMLButtonElement>(null);
 
     const fetchUnread = async () => {
         try {
@@ -23,7 +32,7 @@ export const NotificationBell: React.FC = () => {
         try {
             const res = await notificationsApi.getAll({ limit: 10 });
             setNotifications(res.data || []);
-        } catch (err: any) {
+        } catch {
             toast.error('Failed to load notifications');
         } finally {
             setLoading(false);
@@ -42,16 +51,26 @@ export const NotificationBell: React.FC = () => {
         }
     }, [isOpen]);
 
-    // Close on click outside
+    // Close on an outside tap, or on Escape (focus goes back to the bell).
     useEffect(() => {
+        if (!isOpen) return;
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
                 setIsOpen(false);
             }
         };
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape') return;
+            setIsOpen(false);
+            triggerRef.current?.focus();
+        };
         document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isOpen]);
 
     const handleMarkAsRead = async (id: string) => {
         try {
@@ -75,27 +94,32 @@ export const NotificationBell: React.FC = () => {
     };
 
     return (
-        <div className="relative inline-block text-left" ref={dropdownRef}>
+        <div className="sm:relative shrink-0" ref={dropdownRef}>
             <button
+                ref={triggerRef}
                 id="notification-bell-btn"
+                type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="relative p-2 text-gray-600 dark:text-gray-300 hover:text-sffl-red dark:hover:text-sffl-red transition-colors focus:outline-none"
-                aria-label="Notifications"
+                aria-haspopup="true"
+                aria-expanded={isOpen}
+                aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : 'Notifications'}
+                className="relative inline-flex items-center justify-center min-h-11 min-w-11 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-sffl-red dark:text-gray-300 dark:hover:bg-white/10 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sffl-red/40"
             >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
+                <BellIcon className="w-5 h-5" aria-hidden="true" />
                 {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-sffl-red rounded-full animate-pulse">
+                    <span
+                        aria-hidden="true"
+                        className="absolute top-1 right-0.5 inline-flex items-center justify-center min-w-4.5 px-1 py-0.5 text-[10px] font-bold leading-none text-white bg-sffl-red rounded-full animate-pulse"
+                    >
                         {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
                 )}
             </button>
 
             {isOpen && (
-                <div className="origin-top-right absolute right-0 mt-2 w-80 sm:w-96 rounded-xl shadow-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 z-50 overflow-hidden backdrop-blur-md">
-                    <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/50">
-                        <div className="flex items-center gap-2">
+                <div className="fixed inset-x-2 top-17 sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 rounded-xl shadow-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 z-50 overflow-hidden">
+                    <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-between gap-x-2 bg-gray-50/50 dark:bg-gray-800/50">
+                        <div className="flex items-center gap-2 min-h-11">
                             <h3 className="font-bold text-gray-900 dark:text-white">Notifications</h3>
                             {unreadCount > 0 && (
                                 <span className="px-2 py-0.5 text-xs font-semibold bg-sffl-red/10 text-sffl-red rounded-full">
@@ -105,36 +129,38 @@ export const NotificationBell: React.FC = () => {
                         </div>
                         {unreadCount > 0 && (
                             <button
+                                type="button"
                                 onClick={handleMarkAllRead}
-                                className="text-xs text-sffl-red hover:underline font-medium"
+                                className="min-h-11 px-2 -mr-2 text-xs text-sffl-red hover:underline font-medium"
                             >
                                 Mark all read
                             </button>
                         )}
                     </div>
 
-                    <div className="max-h-80 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700/50">
+                    <div className="max-h-[min(20rem,calc(100dvh-10rem))] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700/50">
                         {loading ? (
-                            <div className="p-6 text-center text-gray-400 text-sm">Loading notifications...</div>
+                            <Spinner label="Loading notifications" size="sm" className="py-6" />
                         ) : notifications.length === 0 ? (
                             <div className="p-6 text-center text-gray-400 text-sm">No notifications yet.</div>
                         ) : (
                             notifications.map(n => (
-                                <div
+                                <button
                                     key={n.id}
+                                    type="button"
                                     onClick={() => !n.is_read && handleMarkAsRead(n.id)}
-                                    className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors cursor-pointer ${
+                                    className={`block w-full text-left p-4 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors outline-none focus-visible:bg-gray-50 dark:focus-visible:bg-gray-700/40 ${
                                         !n.is_read ? 'bg-sffl-red/5 dark:bg-sffl-red/10' : ''
                                     }`}
                                 >
-                                    <div className="flex items-start justify-between gap-2">
-                                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white">{n.title}</h4>
+                                    <span className="flex items-start justify-between gap-2">
+                                        <span className="min-w-0 text-sm font-semibold text-gray-900 dark:text-white wrap-break-word">{n.title}</span>
                                         <span className="text-[10px] text-gray-400 whitespace-nowrap">
                                             {new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </span>
-                                    </div>
-                                    <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 leading-relaxed">{n.message}</p>
-                                </div>
+                                    </span>
+                                    <span className="block text-xs text-gray-600 dark:text-gray-300 mt-1 leading-relaxed wrap-break-word">{n.message}</span>
+                                </button>
                             ))
                         )}
                     </div>

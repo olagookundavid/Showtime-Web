@@ -16,7 +16,7 @@ import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
 import { DataTable, type Column } from "../../components/ui/DataTable";
 import { RowActions } from "../../components/ui/RowActions";
-import { AdminPageHeader } from "../../components/admin/AdminPageHeader";
+import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
 
 // Status options for the admin override actions
 const OVERRIDE_STATUSES = [
@@ -345,7 +345,7 @@ export const AdminContracts: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <AdminPageHeader
+      <DashboardPageHeader
         title="Contracts"
         subtitle="Global audit, filtering, and status management for all player contracts."
       />

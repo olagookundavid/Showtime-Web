@@ -15,7 +15,7 @@ import { Loader } from '../../components/ui/Loader';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { LightboxImage } from '../../components/ui';
-import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
+import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 
 // Adding and removing a team both go through the confirm dialog first.
 type PendingAction = { kind: 'add'; team: Team } | { kind: 'remove'; team: Team };
@@ -111,7 +111,7 @@ export const AdminCompetitionTeams = () => {
 
     return (
         <div className="space-y-6">
-            <AdminPageHeader
+            <DashboardPageHeader
                 back={{ to: '/admin/competitions', label: 'Back to Competitions' }}
                 title={
                     <span className="flex items-center gap-3">

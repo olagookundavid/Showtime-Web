@@ -31,7 +31,7 @@ import {
   type ManagerCandidate,
 } from "../../services/api";
 import { ImageUploadField, LightboxImage } from "../../components/ui";
-import { AdminPageHeader } from "../../components/admin/AdminPageHeader";
+import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
 
 interface Team {
   id: string;
@@ -408,7 +408,7 @@ const AdminTeams = () => {
 
   return (
     <div className="space-y-6">
-      <AdminPageHeader
+      <DashboardPageHeader
         title="Teams"
         subtitle="Create and manage every team in the league."
         actions={

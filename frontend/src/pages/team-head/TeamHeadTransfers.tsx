@@ -1,9 +1,86 @@
-import React, { useState, useEffect } from 'react';
-import { transfersApi, contractsApi, getTeams, type TransferData, type TeamBudgetData, type TransferWindowData, type ContractData, type Team } from '../../services/api';
+import React, { useState, useEffect, useMemo } from 'react';
+import { transfersApi, contractsApi, getTeams, type TransferData, type TransferBidData, type TeamBudgetData, type TransferWindowData, type ContractData, type Team } from '../../services/api';
 import toast from 'react-hot-toast';
+import {
+    ArrowsRightLeftIcon,
+    BanknotesIcon,
+    ChatBubbleLeftEllipsisIcon,
+    CheckCircleIcon,
+    ClockIcon,
+    LockClosedIcon,
+    LockOpenIcon,
+    PaperAirplaneIcon,
+    TagIcon,
+    UserPlusIcon,
+    XCircleIcon,
+} from '@heroicons/react/24/outline';
+import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import { DataTable, type Column } from '../../components/ui/DataTable';
+import { RowActions, type RowAction } from '../../components/ui/RowActions';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
+import { Modal } from '../../components/ui/Modal';
+import { Spinner } from '../../components/ui/Spinner';
+import { getApiErrorMessage } from '../../utils/apiError';
+
+type Tab = 'market' | 'my-listings' | 'incoming' | 'outgoing';
+
+type PendingAction =
+    | { kind: 'bid'; listing: TransferData; value: number }
+    | { kind: 'list'; contract: ContractData; price: number }
+    | { kind: 'directSale'; contract: ContractData; team: Team; price: number }
+    | { kind: 'request'; team: Team; player: { id: string; name: string; position: string } }
+    | { kind: 'bidResponse'; listing: TransferData; bid: TransferBidData; accept: boolean }
+    /** `terms`: accepting the revised terms on our own request. `withdraw`: rejecting our own request. */
+    | { kind: 'respond'; transfer: TransferData; accept: boolean; terms?: boolean; withdraw?: boolean }
+    | { kind: 'review'; transfer: TransferData };
+
+const pts = (n?: number) => (n ? `${n.toLocaleString()} pts` : undefined);
+const playerName = (t: TransferData) => t.player?.name || 'Player';
+
+const tabClass = (active: boolean) =>
+    `min-h-11 px-4 sm:px-6 text-sm font-bold border-b-2 whitespace-nowrap transition-colors ${
+        active
+            ? 'border-sffl-red text-sffl-red'
+            : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+    }`;
+
+const fieldClass =
+    'w-full min-h-11 px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-semibold disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-sffl-red';
+const labelClass = 'block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1';
+const cancelButtonClass =
+    'flex-1 min-h-11 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold text-sm rounded-lg transition-colors border border-gray-200 dark:border-gray-600';
+const submitButtonClass =
+    'flex-1 min-h-11 bg-sffl-red hover:bg-red-700 text-white font-bold text-sm rounded-lg transition-colors disabled:opacity-50 shadow-sm';
+const headerButtonClass =
+    'inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 min-h-11 text-white font-bold text-sm rounded-lg shadow-md transition-colors';
+
+const FormButtons = ({ onCancel, onSubmit, disabled, label }: { onCancel: () => void; onSubmit: () => void; disabled?: boolean; label: string }) => (
+    <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
+        <button type="button" onClick={onCancel} className={cancelButtonClass}>Cancel</button>
+        <button type="button" onClick={onSubmit} disabled={disabled} className={submitButtonClass}>{label}</button>
+    </div>
+);
+
+const PlayerCell = ({ t }: { t: TransferData }) => (
+    <div className="min-w-0">
+        <div className="font-semibold text-gray-900 dark:text-white wrap-break-word">{playerName(t)}</div>
+        {t.player?.position && <div className="text-xs text-gray-400">{t.player.position}</div>}
+    </div>
+);
+
+const TypeBadge = ({ t }: { t: TransferData }) => (
+    <span className="px-2 py-0.5 bg-sffl-navy/10 text-sffl-navy dark:text-blue-300 text-xs font-bold rounded whitespace-nowrap">{t.type}</span>
+);
+
+const StatusBadge = ({ status }: { status: string }) => (
+    <span className="px-2.5 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-bold rounded-full whitespace-nowrap">
+        {status}
+    </span>
+);
 
 export const TeamHeadTransfers: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<'market' | 'my-listings' | 'incoming' | 'outgoing'>('market');
+    const [activeTab, setActiveTab] = useState<Tab>('market');
     const [marketListings, setMarketListings] = useState<TransferData[]>([]);
     const [teamTransfers, setTeamTransfers] = useState<TransferData[]>([]);
     const [budget, setBudget] = useState<TeamBudgetData | null>(null);
@@ -11,32 +88,33 @@ export const TeamHeadTransfers: React.FC = () => {
     const [myContracts, setMyContracts] = useState<ContractData[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
 
-    // Bidding state
+    // Bidding form
     const [selectedListing, setSelectedListing] = useState<TransferData | null>(null);
     const [bidValue, setBidValue] = useState<number>(1000000);
-    const [submittingBid, setSubmittingBid] = useState<boolean>(false);
 
-    // Listing player state
+    // Listing form
     const [showListModal, setShowListModal] = useState<boolean>(false);
     const [selectedContract, setSelectedContract] = useState<ContractData | null>(null);
     const [askingPrice, setAskingPrice] = useState<number>(1000000);
-    const [submittingListing, setSubmittingListing] = useState<boolean>(false);
 
-    // Direct Sale state
+    // Direct Sale form
     const [showDirectSaleModal, setShowDirectSaleModal] = useState<boolean>(false);
     const [directSaleTargetTeamId, setDirectSaleTargetTeamId] = useState<string>('');
     const [directSalePrice, setDirectSalePrice] = useState<number>(1000000);
-    const [submittingDirectSale, setSubmittingDirectSale] = useState<boolean>(false);
 
-    // Transfer Request state
+    // Transfer Request form
     const [showRequestModal, setShowRequestModal] = useState<boolean>(false);
     const [requestTargetTeamId, setRequestTargetTeamId] = useState<string>('');
     const [requestPlayerId, setRequestPlayerId] = useState<string>('');
     const [requestPrice, setRequestPrice] = useState<number>(1000000);
-    const [submittingRequest, setSubmittingRequest] = useState<boolean>(false);
 
     const [allTeams, setAllTeams] = useState<Team[]>([]);
     const [targetTeamPlayers, setTargetTeamPlayers] = useState<{ id: string; name: string; position: string }[]>([]);
+
+    // Every write waits here for the confirm dialog.
+    const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+    const [reviewNotes, setReviewNotes] = useState('');
+    const [busy, setBusy] = useState(false);
 
     const fetchData = async () => {
         setLoading(true);
@@ -55,8 +133,8 @@ export const TeamHeadTransfers: React.FC = () => {
                 const tRes = await transfersApi.getTeamTransfers({ limit: 100 });
                 setTeamTransfers(tRes.data || []);
             }
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to fetch transfer data');
+        } catch (err) {
+            toast.error(getApiErrorMessage(err, 'Failed to fetch transfer data'));
         } finally {
             setLoading(false);
         }
@@ -64,6 +142,7 @@ export const TeamHeadTransfers: React.FC = () => {
 
     useEffect(() => {
         fetchData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab]);
 
     const handleFetchContractsForListing = async () => {
@@ -93,28 +172,6 @@ export const TeamHeadTransfers: React.FC = () => {
         }
     };
 
-    const handleCreateDirectSale = async () => {
-        if (!selectedContract || !directSaleTargetTeamId) {
-            toast.error('Please select both a player and target team');
-            return;
-        }
-        setSubmittingDirectSale(true);
-        try {
-            await transfersApi.createDirectSale({
-                player_id: selectedContract.player_id,
-                to_team_id: directSaleTargetTeamId,
-                price: directSalePrice,
-            });
-            toast.success('Direct sale proposal submitted successfully');
-            setShowDirectSaleModal(false);
-            fetchData();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to create direct sale proposal');
-        } finally {
-            setSubmittingDirectSale(false);
-        }
-    };
-
     const handleOpenRequestModal = async () => {
         try {
             const tRes = await getTeams(1, 100);
@@ -130,6 +187,7 @@ export const TeamHeadTransfers: React.FC = () => {
 
     const handleSelectTargetTeamForRequest = async (teamId: string) => {
         setRequestTargetTeamId(teamId);
+        setRequestPlayerId('');
         if (!teamId) {
             setTargetTeamPlayers([]);
             return;
@@ -147,244 +205,425 @@ export const TeamHeadTransfers: React.FC = () => {
         }
     };
 
-    const handleCreateRequest = async () => {
-        if (!requestPlayerId || !requestTargetTeamId) {
+    // ── Form submits: check the form, then ask for confirmation ──
+    const submitBid = () => {
+        if (!selectedListing) return;
+        if (!(bidValue > 0)) {
+            toast.error('Enter a bid amount.');
+            return;
+        }
+        setPendingAction({ kind: 'bid', listing: selectedListing, value: bidValue });
+    };
+
+    const submitListing = () => {
+        if (!selectedContract) return;
+        if (!(askingPrice >= 0)) {
+            toast.error('Enter an asking price.');
+            return;
+        }
+        setPendingAction({ kind: 'list', contract: selectedContract, price: askingPrice });
+    };
+
+    const submitDirectSale = () => {
+        const team = allTeams.find(tm => tm.id === directSaleTargetTeamId);
+        if (!selectedContract || !team) {
+            toast.error('Please select both a player and target team');
+            return;
+        }
+        if (!(directSalePrice >= 0)) {
+            toast.error('Enter the agreed sale price.');
+            return;
+        }
+        setPendingAction({ kind: 'directSale', contract: selectedContract, team, price: directSalePrice });
+    };
+
+    const submitRequest = () => {
+        const team = allTeams.find(tm => tm.id === requestTargetTeamId);
+        const player = targetTeamPlayers.find(p => p.id === requestPlayerId);
+        if (!team || !player) {
             toast.error('Please select a target team and player');
             return;
         }
-        setSubmittingRequest(true);
+        setPendingAction({ kind: 'request', team, player });
+    };
+
+    const confirmPendingAction = async () => {
+        const action = pendingAction;
+        if (!action) return;
+        if (action.kind === 'review' && !reviewNotes.trim()) {
+            toast.error('Add your review notes or counter-terms.');
+            return;
+        }
+        setBusy(true);
         try {
-            await transfersApi.createRequest({
-                player_id: requestPlayerId,
-                to_team_id: requestTargetTeamId,
-            });
-            toast.success('Transfer request submitted successfully');
-            setShowRequestModal(false);
+            switch (action.kind) {
+                case 'bid':
+                    await transfersApi.placeBid(action.listing.id, { bid_value: action.value });
+                    toast.success('Bid placed successfully!');
+                    setSelectedListing(null);
+                    break;
+                case 'list':
+                    await transfersApi.createListing({ player_id: action.contract.player_id, asking_price: action.price });
+                    toast.success('Player listed on transfer market');
+                    setShowListModal(false);
+                    break;
+                case 'directSale':
+                    await transfersApi.createDirectSale({ player_id: action.contract.player_id, to_team_id: action.team.id, price: action.price });
+                    toast.success('Direct sale proposal submitted successfully');
+                    setShowDirectSaleModal(false);
+                    break;
+                case 'request':
+                    await transfersApi.createRequest({ player_id: action.player.id, to_team_id: action.team.id });
+                    toast.success('Transfer request submitted successfully');
+                    setShowRequestModal(false);
+                    break;
+                case 'bidResponse':
+                    await transfersApi.respondToBid(action.listing.id, action.bid.id, action.accept ? 'accept' : 'reject');
+                    toast.success(action.accept ? 'Bid accepted successfully' : 'Bid rejected successfully');
+                    break;
+                case 'respond':
+                    await transfersApi.respond(action.transfer.id, { action: action.accept ? 'accept' : 'reject', notes: '' });
+                    toast.success(action.accept ? 'Transfer request accepted' : action.withdraw ? 'Transfer request withdrawn' : 'Transfer request rejected');
+                    break;
+                case 'review':
+                    await transfersApi.respond(action.transfer.id, { action: 'review', notes: reviewNotes.trim() });
+                    toast.success('Transfer request sent back for review');
+                    break;
+            }
             fetchData();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to submit transfer request');
+        } catch (err) {
+            const fallback = {
+                bid: 'Failed to place bid',
+                list: 'Failed to list player',
+                directSale: 'Failed to create direct sale proposal',
+                request: 'Failed to submit transfer request',
+                bidResponse: 'Failed to respond to bid',
+                respond: 'Failed to respond to transfer',
+                review: 'Failed to respond to transfer',
+            }[action.kind];
+            toast.error(getApiErrorMessage(err, fallback));
         } finally {
-            setSubmittingRequest(false);
-        }
-    };
-
-    const handleListPlayer = async () => {
-        if (!selectedContract) return;
-        setSubmittingListing(true);
-        try {
-            await transfersApi.createListing({
-                player_id: selectedContract.player_id,
-                asking_price: askingPrice,
-            });
-            toast.success('Player listed on transfer market');
-            setShowListModal(false);
-            fetchData();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to list player');
-        } finally {
-            setSubmittingListing(false);
-        }
-    };
-
-    const handlePlaceBid = async () => {
-        if (!selectedListing) return;
-        setSubmittingBid(true);
-        try {
-            await transfersApi.placeBid(selectedListing.id, { bid_value: bidValue });
-            toast.success('Bid placed successfully!');
-            setSelectedListing(null);
-            fetchData();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to place bid');
-        } finally {
-            setSubmittingBid(false);
-        }
-    };
-
-    const handleRespondToBid = async (transferId: string, bidId: string, action: 'accept' | 'reject') => {
-        if (action === 'accept' && !window.confirm('Accepting this bid will transfer your player and complete the sale. Proceed?')) return;
-        try {
-            await transfersApi.respondToBid(transferId, bidId, action);
-            toast.success(`Bid ${action}ed successfully`);
-            fetchData();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to respond to bid');
-        }
-    };
-
-    const handleRespondToTransfer = async (transferId: string, action: 'accept' | 'reject' | 'review') => {
-        let notes = '';
-        if (action === 'review') {
-            notes = window.prompt('Enter review notes or requested counter-terms:') || '';
-            if (!notes) return;
-        }
-
-        try {
-            await transfersApi.respond(transferId, { action, notes });
-            toast.success(`Transfer request ${action}ed`);
-            fetchData();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to respond to transfer');
+            setBusy(false);
+            setPendingAction(null);
         }
     };
 
     const currentTeamId = budget?.team_id;
 
-    const incomingTransfers = teamTransfers.filter(t => 
+    const incomingTransfers = useMemo(() => teamTransfers.filter(t =>
         (t.status === 'PENDING' || t.status === 'REVIEW') && t.to_team?.id === currentTeamId
-    );
-    const outgoingTransfers = teamTransfers.filter(t => 
+    ), [teamTransfers, currentTeamId]);
+    const outgoingTransfers = useMemo(() => teamTransfers.filter(t =>
         (t.status === 'PENDING' || t.status === 'REVIEW') && t.from_team?.id === currentTeamId && t.type !== 'LISTING'
-    );
-    const myListings = teamTransfers.filter(t => 
+    ), [teamTransfers, currentTeamId]);
+    const myListings = useMemo(() => teamTransfers.filter(t =>
         t.type === 'LISTING' && t.from_team?.id === currentTeamId
-    );
+    ), [teamTransfers, currentTeamId]);
+
+    const incomingColumns = useMemo<Column<TransferData>[]>(() => [
+        { header: 'Player', sortable: true, sortValue: playerName, cell: (t) => <PlayerCell t={t} /> },
+        { header: 'Type', cell: (t) => <TypeBadge t={t} /> },
+        { header: 'From Club', cell: (t) => <span className="font-semibold text-gray-700 dark:text-gray-300">{t.from_team?.name || '—'}</span> },
+        { header: 'Offered Value', cell: (t) => <span className="font-bold whitespace-nowrap">{pts(t.asking_price) || '—'}</span> },
+        { header: 'Status', cell: (t) => <StatusBadge status={t.status} /> },
+        {
+            header: 'Actions',
+            align: 'right',
+            // Once we have sent a request back for review the ball is in the
+            // requesting club's court, so we only watch from here.
+            cell: (t) => (
+                <RowActions
+                    label={`Actions for ${playerName(t)}`}
+                    actions={
+                        t.status === 'REVIEW'
+                            ? [{ label: 'No actions', icon: ClockIcon, disabled: true, hint: `Awaiting ${t.from_team?.name || 'the requesting club'}.` }]
+                            : [
+                                { label: 'Accept', icon: CheckCircleIcon, onSelect: () => setPendingAction({ kind: 'respond', transfer: t, accept: true }) },
+                                ...(t.type === 'REQUEST'
+                                    ? [{
+                                        label: 'Request review',
+                                        icon: ChatBubbleLeftEllipsisIcon,
+                                        onSelect: () => {
+                                            setReviewNotes('');
+                                            setPendingAction({ kind: 'review', transfer: t });
+                                        },
+                                    }]
+                                    : []),
+                                { label: 'Reject', icon: XCircleIcon, danger: true, onSelect: () => setPendingAction({ kind: 'respond', transfer: t, accept: false }) },
+                            ]
+                    }
+                />
+            ),
+        },
+    ], []);
+
+    const outgoingColumns = useMemo<Column<TransferData>[]>(() => [
+        { header: 'Player', sortable: true, sortValue: playerName, cell: (t) => <PlayerCell t={t} /> },
+        { header: 'Type', cell: (t) => <TypeBadge t={t} /> },
+        { header: 'Target Club', cell: (t) => <span className="font-semibold text-gray-700 dark:text-gray-300">{t.to_team?.name || 'Open Market'}</span> },
+        { header: 'Offered Value', cell: (t) => <span className="font-bold whitespace-nowrap">{pts(t.asking_price) || 'N/A'}</span> },
+        {
+            header: 'Status',
+            cell: (t) => (
+                <div className="space-y-1.5">
+                    <StatusBadge status={t.status} />
+                    {t.status === 'REVIEW' && t.review_notes && (
+                        <p className="text-xs p-2 max-w-xs bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-700 dark:text-amber-400 wrap-break-word">
+                            <span className="font-bold">Their review:</span> {t.review_notes}
+                        </p>
+                    )}
+                </div>
+            ),
+        },
+        {
+            header: 'Actions',
+            align: 'right',
+            // A request sent back for review is ours to settle: the rules
+            // allow us to accept or reject the revised terms, nothing else.
+            cell: (t) => {
+                const actions: RowAction[] = t.status === 'REVIEW' && t.type === 'REQUEST'
+                    ? [
+                        { label: 'Accept terms', icon: CheckCircleIcon, onSelect: () => setPendingAction({ kind: 'respond', transfer: t, accept: true, terms: true }) },
+                        { label: 'Withdraw', icon: XCircleIcon, danger: true, onSelect: () => setPendingAction({ kind: 'respond', transfer: t, accept: false, withdraw: true }) },
+                    ]
+                    : [{ label: 'No actions', icon: ClockIcon, disabled: true, hint: 'Waiting on the other club.' }];
+                return <RowActions label={`Actions for ${playerName(t)}`} actions={actions} />;
+            },
+        },
+    ], []);
+
+    const dialog = (() => {
+        switch (pendingAction?.kind) {
+            case 'bid': {
+                const { listing, value } = pendingAction;
+                return {
+                    title: `Bid ${value.toLocaleString()} pts for ${playerName(listing)}?`,
+                    description: 'The selling club decides whether to accept it.',
+                    confirmLabel: 'Place Bid',
+                    tone: 'info' as const,
+                    icon: BanknotesIcon,
+                    body: <ConfirmSummary rows={[
+                        ['Player', playerName(listing)],
+                        ['Selling club', listing.from_team?.name],
+                        ['Asking price', pts(listing.asking_price)],
+                        ['Your bid', pts(value)],
+                    ]} />,
+                };
+            }
+            case 'list': {
+                const { contract, price } = pendingAction;
+                return {
+                    title: `List ${contract.player?.name || 'this player'} on the transfer market?`,
+                    description: 'Other clubs can bid on them while the window is open.',
+                    confirmLabel: 'Publish Listing',
+                    tone: 'info' as const,
+                    icon: TagIcon,
+                    body: <ConfirmSummary rows={[['Player', contract.player?.name], ['Position', contract.player?.position], ['Asking price', `${price.toLocaleString()} pts`]]} />,
+                };
+            }
+            case 'directSale': {
+                const { contract, team, price } = pendingAction;
+                return {
+                    title: `Propose selling ${contract.player?.name || 'this player'} to ${team.name}?`,
+                    description: `${team.name} accepts or rejects the proposal.`,
+                    confirmLabel: 'Submit Proposal',
+                    tone: 'info' as const,
+                    icon: ArrowsRightLeftIcon,
+                    body: <ConfirmSummary rows={[['Player', contract.player?.name], ['Buyer', team.name], ['Price', `${price.toLocaleString()} pts`]]} />,
+                };
+            }
+            case 'request': {
+                const { team, player } = pendingAction;
+                return {
+                    title: `Request ${player.name} from ${team.name}?`,
+                    description: `${team.name} accepts, rejects or sends it back for review.`,
+                    confirmLabel: 'Send Request',
+                    tone: 'info' as const,
+                    icon: PaperAirplaneIcon,
+                    body: <ConfirmSummary rows={[['Player', player.name], ['Position', player.position], ['Club', team.name]]} />,
+                };
+            }
+            case 'bidResponse': {
+                const { listing, bid, accept } = pendingAction;
+                const club = bid.bidder_team?.name || 'this club';
+                return {
+                    title: accept ? `Accept ${club}'s bid for ${playerName(listing)}?` : `Reject ${club}'s bid?`,
+                    description: accept ? 'Your player moves to their club and the sale completes.' : undefined,
+                    confirmLabel: accept ? 'Accept Bid' : 'Reject Bid',
+                    tone: accept ? 'success' as const : 'warning' as const,
+                    icon: accept ? CheckCircleIcon : XCircleIcon,
+                    body: <ConfirmSummary rows={[['Player', playerName(listing)], ['Bidder', bid.bidder_team?.name], ['Bid', pts(bid.bid_value)]]} />,
+                };
+            }
+            case 'review': {
+                const { transfer } = pendingAction;
+                return {
+                    title: `Send the request for ${playerName(transfer)} back for review?`,
+                    description: `${transfer.from_team?.name || 'The requesting club'} sees your notes and accepts or withdraws.`,
+                    confirmLabel: 'Request Review',
+                    tone: 'info' as const,
+                    icon: ChatBubbleLeftEllipsisIcon,
+                    body: (
+                        <div className="space-y-3">
+                            <ConfirmSummary rows={[['Player', playerName(transfer)], ['From', transfer.from_team?.name]]} />
+                            <label className="block">
+                                <span className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
+                                    Review notes or counter-terms <span className="text-sffl-red">*</span>
+                                </span>
+                                <textarea
+                                    value={reviewNotes}
+                                    onChange={e => setReviewNotes(e.target.value)}
+                                    rows={3}
+                                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sffl-red"
+                                />
+                            </label>
+                        </div>
+                    ),
+                };
+            }
+            default: {
+                const action = pendingAction;
+                const t = action?.transfer;
+                const name = t ? playerName(t) : 'this player';
+                const accept = !!action?.accept;
+                return {
+                    title: accept
+                        ? action?.terms ? `Accept the revised terms for ${name}?` : `Accept the transfer of ${name}?`
+                        : action?.withdraw ? `Withdraw your request for ${name}?` : `Reject the transfer of ${name}?`,
+                    description: accept ? 'The player moves once the transfer completes.' : undefined,
+                    confirmLabel: accept ? (action?.terms ? 'Accept Terms' : 'Accept') : action?.withdraw ? 'Withdraw' : 'Reject',
+                    tone: accept ? 'success' as const : 'warning' as const,
+                    icon: accept ? CheckCircleIcon : XCircleIcon,
+                    body: t ? (
+                        <ConfirmSummary rows={[
+                            ['Player', name],
+                            ['Type', t.type],
+                            ['From', t.from_team?.name],
+                            ['To', t.to_team?.name || 'Open Market'],
+                            ['Value', pts(t.asking_price)],
+                        ]} />
+                    ) : undefined,
+                };
+            }
+        }
+    })();
+
+    // A form's Escape and backdrop leave it alone while its confirm is up.
+    const closeUnlessConfirming = (close: () => void) => () => {
+        if (!pendingAction) close();
+    };
+
+    const windowCloses = windowStatus.data?.closes_at ? ` (closes ${new Date(windowStatus.data.closes_at).toLocaleDateString()})` : '';
 
     return (
         <div className="space-y-6">
+            <DashboardPageHeader
+                title="Transfer Market"
+                subtitle="Trade, list and bid on players across the league."
+                actions={windowStatus.is_open && (
+                    <>
+                        <button type="button" onClick={handleFetchContractsForListing} className={`${headerButtonClass} bg-sffl-red hover:bg-sffl-red/90`}>
+                            <TagIcon className="w-4 h-4" aria-hidden="true" />
+                            List Player for Sale
+                        </button>
+                        <button type="button" onClick={handleOpenDirectSaleModal} className={`${headerButtonClass} bg-sffl-navy hover:bg-sffl-navy/90`}>
+                            <ArrowsRightLeftIcon className="w-4 h-4" aria-hidden="true" />
+                            Direct Sale to Team
+                        </button>
+                        <button type="button" onClick={handleOpenRequestModal} className={`${headerButtonClass} bg-gray-900 hover:bg-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600`}>
+                            <UserPlusIcon className="w-4 h-4" aria-hidden="true" />
+                            Request Player Transfer
+                        </button>
+                    </>
+                )}
+            />
+
             {/* Window Status Banner */}
-            <div className={`p-4 rounded-xl shadow-sm border flex items-center justify-between ${
+            <div className={`p-4 rounded-xl shadow-sm border flex items-start gap-3 ${
                 windowStatus.is_open
                     ? 'bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-400'
                     : 'bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400'
             }`}>
-                <div className="flex items-center gap-3">
-                    <span className="text-xl">{windowStatus.is_open ? '🔓' : '🔒'}</span>
-                    <div>
-                        <h4 className="font-bold text-sm uppercase tracking-wide">
-                            Transfer Window Status: {windowStatus.is_open ? 'OPEN' : 'CLOSED'}
-                        </h4>
-                        <p className="text-xs opacity-80">
-                            {windowStatus.is_open
-                                ? `Active window: ${windowStatus.data?.name || 'Current Window'} (closes ${new Date(windowStatus.data?.closes_at || '').toLocaleDateString()})`
-                                : 'The transfer window is currently closed. Buying, trading, and listing players are blocked until the next window opens.'}
-                        </p>
-                    </div>
+                {windowStatus.is_open
+                    ? <LockOpenIcon className="w-5 h-5 shrink-0 mt-0.5" aria-hidden="true" />
+                    : <LockClosedIcon className="w-5 h-5 shrink-0 mt-0.5" aria-hidden="true" />}
+                <div className="min-w-0">
+                    <h2 className="font-bold text-sm">
+                        Transfer window {windowStatus.is_open ? 'open' : 'closed'}
+                    </h2>
+                    <p className="text-xs opacity-80">
+                        {windowStatus.is_open
+                            ? `Active window: ${windowStatus.data?.name || 'Current Window'}${windowCloses}`
+                            : 'The transfer window is currently closed. Buying, trading, and listing players are blocked until the next window opens.'}
+                    </p>
                 </div>
             </div>
 
-            {/* Budget Header Card */}
+            {/* Budget Card */}
             {budget && (
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row items-center justify-between gap-6">
-                    <div className="space-y-1">
-                        <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Team Budget Standing</span>
-                        <div className="flex items-baseline gap-3">
-                            <span className="text-3xl font-black text-gray-900 dark:text-white">{budget.remaining.toLocaleString()} pts</span>
+                <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6">
+                    <div className="space-y-1 min-w-0">
+                        <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Team Budget</span>
+                        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                            <span className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white">{budget.remaining.toLocaleString()} pts</span>
                             <span className="text-xs font-semibold text-gray-500">remaining of {budget.total_budget.toLocaleString()} pts</span>
                         </div>
                     </div>
 
-                    <div className="w-full sm:w-64 bg-gray-100 dark:bg-gray-700 h-3 rounded-full overflow-hidden">
+                    <div className="w-full sm:w-64 bg-gray-100 dark:bg-gray-700 h-3 rounded-full overflow-hidden shrink-0">
                         <div
                             className="bg-sffl-red h-full transition-all duration-500"
-                            style={{ width: `${Math.min(100, (budget.spent / budget.total_budget) * 100)}%` }}
+                            style={{ width: `${budget.total_budget > 0 ? Math.min(100, (budget.spent / budget.total_budget) * 100) : 100}%` }}
                         />
                     </div>
                 </div>
             )}
 
-            {/* Page Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">Transfer Hub</h1>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Trade, list, and bid on players across the league.</p>
-                </div>
-
-                {windowStatus.is_open && (
-                    <div className="flex flex-wrap gap-2">
-                        <button
-                            onClick={handleFetchContractsForListing}
-                            className="inline-flex items-center justify-center px-4 py-2.5 bg-sffl-red hover:bg-sffl-red/90 text-white font-bold text-sm rounded-xl shadow-md transition-colors"
-                        >
-                            + List Player for Sale
-                        </button>
-                        <button
-                            onClick={handleOpenDirectSaleModal}
-                            className="inline-flex items-center justify-center px-4 py-2.5 bg-sffl-navy hover:bg-sffl-navy/90 text-white font-bold text-sm rounded-xl shadow-md transition-colors"
-                        >
-                            + Direct Sale to Team
-                        </button>
-                        <button
-                            onClick={handleOpenRequestModal}
-                            className="inline-flex items-center justify-center px-4 py-2.5 bg-gray-900 hover:bg-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 text-white font-bold text-sm rounded-xl shadow-md transition-colors"
-                        >
-                            + Request Player Transfer
-                        </button>
-                    </div>
-                )}
-            </div>
-
             {/* Navigation Tabs */}
-            <div className="flex border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
-                <button
-                    onClick={() => setActiveTab('market')}
-                    className={`py-3 px-6 text-sm font-bold border-b-2 whitespace-nowrap transition-colors ${
-                        activeTab === 'market'
-                            ? 'border-sffl-red text-sffl-red'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                    }`}
-                >
+            <div className="flex overflow-x-auto whitespace-nowrap border-b border-gray-200 dark:border-gray-700">
+                <button type="button" onClick={() => setActiveTab('market')} aria-pressed={activeTab === 'market'} className={tabClass(activeTab === 'market')}>
                     Transfer Market
                 </button>
-                <button
-                    onClick={() => setActiveTab('my-listings')}
-                    className={`py-3 px-6 text-sm font-bold border-b-2 whitespace-nowrap transition-colors ${
-                        activeTab === 'my-listings'
-                            ? 'border-sffl-red text-sffl-red'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                    }`}
-                >
+                <button type="button" onClick={() => setActiveTab('my-listings')} aria-pressed={activeTab === 'my-listings'} className={tabClass(activeTab === 'my-listings')}>
                     My Listings ({myListings.length})
                 </button>
-                <button
-                    onClick={() => setActiveTab('incoming')}
-                    className={`py-3 px-6 text-sm font-bold border-b-2 whitespace-nowrap transition-colors ${
-                        activeTab === 'incoming'
-                            ? 'border-sffl-red text-sffl-red'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                    }`}
-                >
+                <button type="button" onClick={() => setActiveTab('incoming')} aria-pressed={activeTab === 'incoming'} className={tabClass(activeTab === 'incoming')}>
                     Incoming Offers ({incomingTransfers.length})
                 </button>
-                <button
-                    onClick={() => setActiveTab('outgoing')}
-                    className={`py-3 px-6 text-sm font-bold border-b-2 whitespace-nowrap transition-colors ${
-                        activeTab === 'outgoing'
-                            ? 'border-sffl-red text-sffl-red'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                    }`}
-                >
+                <button type="button" onClick={() => setActiveTab('outgoing')} aria-pressed={activeTab === 'outgoing'} className={tabClass(activeTab === 'outgoing')}>
                     Outgoing Proposals ({outgoingTransfers.length})
                 </button>
             </div>
 
             {/* Tab 1: Transfer Market */}
             {activeTab === 'market' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {loading ? (
-                        <div className="col-span-full p-12 text-center text-gray-400">Loading market listings...</div>
-                    ) : marketListings.length === 0 ? (
-                        <div className="col-span-full p-12 text-center text-gray-400">No players currently listed on the transfer market.</div>
-                    ) : (
-                        marketListings.map(t => {
+                loading ? (
+                    <Spinner label="Loading market listings" />
+                ) : marketListings.length === 0 ? (
+                    <div className="p-12 text-center text-gray-400 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700">
+                        No players currently listed on the transfer market.
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+                        {marketListings.map(t => {
                             const highestBid = t.bids && t.bids.length > 0 ? Math.max(...t.bids.map(b => b.bid_value)) : 0;
                             return (
-                                <div key={t.id} className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 space-y-4">
-                                    <div className="flex items-center gap-4">
+                                <div key={t.id} className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 space-y-4">
+                                    <div className="flex items-center gap-4 min-w-0">
                                         {t.player?.image ? (
-                                            <img src={t.player.image} alt={t.player.name} className="w-14 h-14 rounded-2xl object-cover shadow-sm" />
+                                            <img src={t.player.image} alt="" className="w-14 h-14 rounded-2xl object-cover shadow-sm shrink-0" />
                                         ) : (
-                                            <div className="w-14 h-14 rounded-2xl bg-sffl-navy/10 flex items-center justify-center font-bold text-sffl-navy">
+                                            <div className="w-14 h-14 rounded-2xl bg-sffl-navy/10 flex items-center justify-center font-bold text-sffl-navy dark:text-white shrink-0">
                                                 #{t.player?.jersey_number || '?'}
                                             </div>
                                         )}
-                                        <div>
-                                            <h3 className="font-bold text-gray-900 dark:text-white text-lg">{t.player?.name}</h3>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400">{t.from_team?.name} • {t.player?.position}</p>
+                                        <div className="min-w-0">
+                                            <h3 className="font-bold text-gray-900 dark:text-white text-lg wrap-break-word">{t.player?.name}</h3>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">{t.from_team?.name} · {t.player?.position}</p>
                                         </div>
                                     </div>
 
-                                    <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl flex justify-between items-center text-xs">
+                                    <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl flex justify-between items-center gap-3 text-xs">
                                         <div>
                                             <span className="text-gray-400 block font-medium">Asking Price</span>
                                             <span className="font-bold text-gray-900 dark:text-white">{t.asking_price?.toLocaleString()} pts</span>
@@ -397,74 +636,80 @@ export const TeamHeadTransfers: React.FC = () => {
 
                                     {windowStatus.is_open && t.from_team?.id !== budget?.team_id && (
                                         <button
+                                            type="button"
                                             onClick={() => {
                                                 setSelectedListing(t);
                                                 setBidValue(t.asking_price || 1000000);
                                             }}
-                                            className="w-full py-2.5 bg-sffl-navy hover:bg-sffl-navy/90 text-white font-bold text-xs rounded-xl shadow transition-colors"
+                                            className="w-full inline-flex items-center justify-center gap-1.5 min-h-11 bg-sffl-navy hover:bg-sffl-navy/90 text-white font-bold text-xs rounded-lg shadow transition-colors"
                                         >
+                                            <BanknotesIcon className="w-4 h-4" aria-hidden="true" />
                                             Place Bid
                                         </button>
                                     )}
                                 </div>
                             );
-                        })
-                    )}
-                </div>
+                        })}
+                    </div>
+                )
             )}
 
             {/* Tab 2: My Listings */}
             {activeTab === 'my-listings' && (
-                <div className="space-y-6">
-                    {myListings.length === 0 ? (
-                        <div className="bg-white dark:bg-gray-800 p-12 text-center text-gray-400 rounded-2xl border border-gray-200 dark:border-gray-700">
-                            You have no active player listings on the market.
-                        </div>
-                    ) : (
-                        myListings.map(t => (
-                            <div key={t.id} className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 space-y-4">
+                loading ? (
+                    <Spinner label="Loading your listings" />
+                ) : myListings.length === 0 ? (
+                    <div className="bg-white dark:bg-gray-800 p-12 text-center text-gray-400 rounded-2xl border border-gray-200 dark:border-gray-700">
+                        You have no active player listings on the market.
+                    </div>
+                ) : (
+                    <div className="space-y-6">
+                        {myListings.map(t => (
+                            <div key={t.id} className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 space-y-4">
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-gray-700 pb-4">
-                                    <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-4 min-w-0">
                                         {t.player?.image ? (
-                                            <img src={t.player.image} alt={t.player.name} className="w-12 h-12 rounded-xl object-cover" />
+                                            <img src={t.player.image} alt="" className="w-12 h-12 rounded-xl object-cover shrink-0" />
                                         ) : (
-                                            <div className="w-12 h-12 rounded-xl bg-sffl-navy/10 flex items-center justify-center font-bold text-sffl-navy">
+                                            <div className="w-12 h-12 rounded-xl bg-sffl-navy/10 flex items-center justify-center font-bold text-sffl-navy dark:text-white shrink-0">
                                                 #{t.player?.jersey_number}
                                             </div>
                                         )}
-                                        <div>
-                                            <h3 className="font-bold text-gray-900 dark:text-white">{t.player?.name}</h3>
+                                        <div className="min-w-0">
+                                            <h3 className="font-bold text-gray-900 dark:text-white wrap-break-word">{t.player?.name}</h3>
                                             <span className="text-xs text-gray-400">Listed Asking Price: {t.asking_price?.toLocaleString()} pts</span>
                                         </div>
                                     </div>
                                     <span className="px-3 py-1 bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20 text-xs font-bold rounded-full self-start sm:self-center">
-                                        ACTIVE LISTING
+                                        Active Listing
                                     </span>
                                 </div>
 
                                 <div className="space-y-2">
                                     <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400">Received Bids ({t.bids?.length || 0})</h4>
                                     {!t.bids || t.bids.length === 0 ? (
-                                        <p className="text-xs text-gray-500 italic">No bids placed on this listing yet.</p>
+                                        <p className="text-xs text-gray-500">No bids placed on this listing yet.</p>
                                     ) : (
                                         <div className="divide-y divide-gray-100 dark:divide-gray-700">
                                             {t.bids.map(b => (
-                                                <div key={b.id} className="py-3 flex items-center justify-between text-xs">
-                                                    <div>
+                                                <div key={b.id} className="py-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+                                                    <div className="min-w-0">
                                                         <span className="font-bold text-gray-900 dark:text-white">{b.bidder_team?.name}</span>
                                                         <span className="ml-3 font-mono font-bold text-sffl-red">{b.bid_value.toLocaleString()} pts</span>
                                                     </div>
                                                     {b.status === 'PENDING' ? (
-                                                        <div className="space-x-2">
+                                                        <div className="flex gap-2">
                                                             <button
-                                                                onClick={() => handleRespondToBid(t.id, b.id, 'accept')}
-                                                                className="px-3 py-1 bg-green-500 text-white font-bold text-xs rounded-lg hover:bg-green-600 transition-colors"
+                                                                type="button"
+                                                                onClick={() => setPendingAction({ kind: 'bidResponse', listing: t, bid: b, accept: true })}
+                                                                className="min-h-11 px-3 bg-green-500 text-white font-bold text-xs rounded-lg hover:bg-green-600 transition-colors"
                                                             >
                                                                 Accept Bid
                                                             </button>
                                                             <button
-                                                                onClick={() => handleRespondToBid(t.id, b.id, 'reject')}
-                                                                className="px-3 py-1 bg-red-100 text-red-600 font-bold text-xs rounded-lg hover:bg-red-200 transition-colors"
+                                                                type="button"
+                                                                onClick={() => setPendingAction({ kind: 'bidResponse', listing: t, bid: b, accept: false })}
+                                                                className="min-h-11 px-3 bg-red-100 text-red-600 font-bold text-xs rounded-lg hover:bg-red-200 transition-colors"
                                                             >
                                                                 Reject
                                                             </button>
@@ -482,387 +727,231 @@ export const TeamHeadTransfers: React.FC = () => {
                                     )}
                                 </div>
                             </div>
-                        ))
-                    )}
-                </div>
+                        ))}
+                    </div>
+                )
             )}
 
             {/* Tab 3: Incoming Offers */}
             {activeTab === 'incoming' && (
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-                    {incomingTransfers.length === 0 ? (
-                        <div className="p-12 text-center text-gray-400">No incoming transfer requests or direct sale proposals.</div>
-                    ) : (
-                        <div className="divide-y divide-gray-100 dark:divide-gray-700">
-                            {incomingTransfers.map(t => (
-                                <div key={t.id} className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="px-2 py-0.5 bg-sffl-navy/10 text-sffl-navy text-xs font-bold rounded">
-                                                {t.type}
-                                            </span>
-                                            <h3 className="font-bold text-gray-900 dark:text-white">{t.player?.name}</h3>
-                                        </div>
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            From: <span className="font-bold text-gray-700 dark:text-gray-300">{t.from_team?.name}</span> • Offered Value: <span className="font-bold">{t.asking_price?.toLocaleString()} pts</span>
-                                        </p>
-                                    </div>
-
-                                    {/* Once we have sent a request back for review the ball is in
-                                        the requesting club's court, so we only watch from here. */}
-                                    {t.status === 'REVIEW' ? (
-                                        <span className="px-3 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-bold rounded-full self-start sm:self-center">
-                                            AWAITING {t.from_team?.name || 'REQUESTING CLUB'}
-                                        </span>
-                                    ) : (
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={() => handleRespondToTransfer(t.id, 'accept')}
-                                                className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-bold text-xs rounded-xl transition-colors"
-                                            >
-                                                Accept
-                                            </button>
-                                            {t.type === 'REQUEST' && (
-                                                <button
-                                                    onClick={() => handleRespondToTransfer(t.id, 'review')}
-                                                    className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl transition-colors"
-                                                >
-                                                    Request Review
-                                                </button>
-                                            )}
-                                            <button
-                                                onClick={() => handleRespondToTransfer(t.id, 'reject')}
-                                                className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-600 font-bold text-xs rounded-xl transition-colors"
-                                            >
-                                                Reject
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                <DataTable
+                    data={incomingTransfers}
+                    columns={incomingColumns}
+                    getRowId={(t) => t.id}
+                    loading={loading}
+                    paginated={false}
+                    searchPlaceholder="Search incoming offers"
+                    emptyMessage="No incoming transfer requests or direct sale proposals."
+                />
             )}
 
             {/* Tab 4: Outgoing Proposals */}
             {activeTab === 'outgoing' && (
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-                    {outgoingTransfers.length === 0 ? (
-                        <div className="p-12 text-center text-gray-400">No active outgoing transfer requests or direct sale proposals.</div>
-                    ) : (
-                        <div className="divide-y divide-gray-100 dark:divide-gray-700">
-                            {outgoingTransfers.map(t => (
-                                <div key={t.id} className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="px-2 py-0.5 bg-sffl-navy/10 text-sffl-navy text-xs font-bold rounded">
-                                                {t.type}
-                                            </span>
-                                            <h3 className="font-bold text-gray-900 dark:text-white">{t.player?.name}</h3>
-                                        </div>
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            Target Club: <span className="font-bold text-gray-700 dark:text-gray-300">{t.to_team?.name || 'Open Market'}</span> • Offered Value: <span className="font-bold">{t.asking_price ? `${t.asking_price.toLocaleString()} pts` : 'N/A'}</span>
-                                        </p>
-                                        {t.status === 'REVIEW' && t.review_notes && (
-                                            <p className="text-xs mt-2 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-700 dark:text-amber-400">
-                                                <span className="font-bold">Their review:</span> {t.review_notes}
-                                            </p>
-                                        )}
-                                    </div>
+                <DataTable
+                    data={outgoingTransfers}
+                    columns={outgoingColumns}
+                    getRowId={(t) => t.id}
+                    loading={loading}
+                    paginated={false}
+                    searchPlaceholder="Search outgoing proposals"
+                    emptyMessage="No active outgoing transfer requests or direct sale proposals."
+                />
+            )}
 
-                                    {/* A request sent back for review is ours to settle: the rules
-                                        allow us to accept or reject the revised terms, nothing else. */}
-                                    {t.status === 'REVIEW' && t.type === 'REQUEST' ? (
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={() => handleRespondToTransfer(t.id, 'accept')}
-                                                className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-bold text-xs rounded-xl transition-colors"
-                                            >
-                                                Accept Terms
-                                            </button>
-                                            <button
-                                                onClick={() => handleRespondToTransfer(t.id, 'reject')}
-                                                className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-600 font-bold text-xs rounded-xl transition-colors"
-                                            >
-                                                Withdraw
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center gap-3">
-                                            <span className="px-3 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-bold rounded-full">
-                                                {t.status}
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
+            {/* Place Bid */}
+            <Modal open={!!selectedListing} onClose={closeUnlessConfirming(() => setSelectedListing(null))} title="Place Bid" maxWidth="md">
+                {selectedListing && (
+                    <div className="space-y-4">
+                        <div>
+                            <p className="text-xs uppercase font-bold text-gray-500 dark:text-gray-400 tracking-wider">Target Player</p>
+                            <p className="text-lg font-black text-gray-900 dark:text-white mt-0.5 wrap-break-word">
+                                {selectedListing.player?.name}{' '}
+                                <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">({selectedListing.from_team?.name})</span>
+                            </p>
+                        </div>
+
+                        <label className="block">
+                            <span className={labelClass}>Your Bid Amount (Points)</span>
+                            <input
+                                type="number"
+                                step="100000"
+                                min="100000"
+                                value={bidValue}
+                                onChange={e => setBidValue(parseInt(e.target.value, 10))}
+                                className={fieldClass}
+                            />
+                            {budget && (
+                                <span className={`text-xs mt-1.5 block font-semibold ${bidValue > budget.remaining ? 'text-red-500 font-bold' : 'text-gray-500 dark:text-gray-400'}`}>
+                                    Remaining Budget: {budget.remaining.toLocaleString()} pts
+                                </span>
+                            )}
+                        </label>
+
+                        <FormButtons
+                            onCancel={() => setSelectedListing(null)}
+                            onSubmit={submitBid}
+                            disabled={budget ? bidValue > budget.remaining : false}
+                            label="Submit Bid"
+                        />
+                    </div>
+                )}
+            </Modal>
+
+            {/* List Player for Sale */}
+            <Modal open={showListModal} onClose={closeUnlessConfirming(() => setShowListModal(false))} title="List Player for Sale" maxWidth="md">
+                <div className="space-y-4">
+                    <label className="block">
+                        <span className={labelClass}>Select Player</span>
+                        <select
+                            value={selectedContract?.id || ''}
+                            onChange={e => {
+                                const c = myContracts.find(mc => mc.id === e.target.value);
+                                setSelectedContract(c || null);
+                                if (c) setAskingPrice(c.player_value);
+                            }}
+                            className={fieldClass}
+                        >
+                            <option value="">Choose an active player</option>
+                            {myContracts.map(c => (
+                                <option key={c.id} value={c.id}>{c.player?.name} ({c.player?.position}) - Val: {c.player_value.toLocaleString()} pts</option>
                             ))}
-                        </div>
-                    )}
+                        </select>
+                    </label>
+
+                    <label className="block">
+                        <span className={labelClass}>Asking Price (Points)</span>
+                        <input
+                            type="number"
+                            step="100000"
+                            min="0"
+                            value={askingPrice}
+                            onChange={e => setAskingPrice(parseInt(e.target.value, 10))}
+                            className={fieldClass}
+                        />
+                    </label>
+
+                    <FormButtons onCancel={() => setShowListModal(false)} onSubmit={submitListing} disabled={!selectedContract} label="Publish Listing" />
                 </div>
-            )}
+            </Modal>
 
-            {/* Modal for Placing Bid */}
-            {selectedListing && (
-                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={() => setSelectedListing(null)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-5rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
-                            <h3 className="text-xl font-black text-sffl-navy dark:text-white">Place Bid</h3>
-                            <button onClick={() => setSelectedListing(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-lg p-1">✕</button>
-                        </div>
+            {/* Direct Sale */}
+            <Modal open={showDirectSaleModal} onClose={closeUnlessConfirming(() => setShowDirectSaleModal(false))} title="Propose Direct Sale" maxWidth="md">
+                <div className="space-y-4">
+                    <label className="block">
+                        <span className={labelClass}>Select Player to Sell</span>
+                        <select
+                            value={selectedContract?.id || ''}
+                            onChange={e => {
+                                const c = myContracts.find(mc => mc.id === e.target.value);
+                                setSelectedContract(c || null);
+                                if (c) setDirectSalePrice(c.player_value);
+                            }}
+                            className={fieldClass}
+                        >
+                            <option value="">Choose an active player</option>
+                            {myContracts.map(c => (
+                                <option key={c.id} value={c.id}>{c.player?.name} ({c.player?.position})</option>
+                            ))}
+                        </select>
+                    </label>
 
-                        <div className="p-4 sm:p-6 pb-10 sm:pb-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
-                            <div>
-                                <p className="text-xs uppercase font-bold text-gray-500 dark:text-gray-400 tracking-wider">Target Player</p>
-                                <p className="text-lg font-black text-gray-900 dark:text-white mt-0.5">{selectedListing.player?.name} <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">({selectedListing.from_team?.name})</span></p>
-                            </div>
+                    <label className="block">
+                        <span className={labelClass}>Target Buyer Team</span>
+                        <select value={directSaleTargetTeamId} onChange={e => setDirectSaleTargetTeamId(e.target.value)} className={fieldClass}>
+                            <option value="">Choose a target team</option>
+                            {allTeams.map(tm => (
+                                <option key={tm.id} value={tm.id}>{tm.name}</option>
+                            ))}
+                        </select>
+                    </label>
 
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                                    Your Bid Amount (Points)
-                                </label>
-                                <input
-                                    type="number"
-                                    step="100000"
-                                    min="100000"
-                                    value={bidValue}
-                                    onChange={e => setBidValue(parseInt(e.target.value, 10))}
-                                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-sffl-red focus:border-sffl-red"
-                                />
-                                {budget && (
-                                    <span className={`text-xs mt-1.5 block font-semibold ${bidValue > budget.remaining ? 'text-red-500 font-bold' : 'text-gray-500 dark:text-gray-400'}`}>
-                                        Remaining Budget: {budget.remaining.toLocaleString()} pts
-                                    </span>
-                                )}
-                            </div>
-                        </div>
+                    <label className="block">
+                        <span className={labelClass}>Agreed Sale Price (Points)</span>
+                        <input
+                            type="number"
+                            step="100000"
+                            min="0"
+                            value={directSalePrice}
+                            onChange={e => setDirectSalePrice(parseInt(e.target.value, 10))}
+                            className={fieldClass}
+                        />
+                    </label>
 
-                        <div className="flex gap-3 p-4 sm:p-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-gray-50 dark:bg-gray-800/90">
-                            <button
-                                onClick={() => setSelectedListing(null)}
-                                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold text-sm rounded-xl transition-colors border border-gray-200 dark:border-gray-600"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handlePlaceBid}
-                                disabled={submittingBid || (budget ? bidValue > budget.remaining : false)}
-                                className="flex-1 py-2.5 bg-sffl-red hover:bg-red-700 text-white font-bold text-sm rounded-xl transition-colors disabled:opacity-50 shadow-sm"
-                            >
-                                {submittingBid ? 'Placing Bid...' : 'Submit Bid'}
-                            </button>
-                        </div>
-                    </div>
+                    <FormButtons
+                        onCancel={() => setShowDirectSaleModal(false)}
+                        onSubmit={submitDirectSale}
+                        disabled={!selectedContract || !directSaleTargetTeamId}
+                        label="Submit Sale Proposal"
+                    />
                 </div>
-            )}
+            </Modal>
 
-            {/* Modal for Listing Player */}
-            {showListModal && (
-                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={() => setShowListModal(false)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-5rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
-                            <h3 className="text-xl font-black text-sffl-navy dark:text-white">List Player for Sale</h3>
-                            <button onClick={() => setShowListModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-lg p-1">✕</button>
-                        </div>
+            {/* Transfer Request */}
+            <Modal open={showRequestModal} onClose={closeUnlessConfirming(() => setShowRequestModal(false))} title="Request Player Transfer" maxWidth="md">
+                <div className="space-y-4">
+                    <label className="block">
+                        <span className={labelClass}>Target Team</span>
+                        <select value={requestTargetTeamId} onChange={e => handleSelectTargetTeamForRequest(e.target.value)} className={fieldClass}>
+                            <option value="">Choose a team</option>
+                            {allTeams.map(tm => (
+                                <option key={tm.id} value={tm.id}>{tm.name}</option>
+                            ))}
+                        </select>
+                    </label>
 
-                        <div className="p-4 sm:p-6 pb-10 sm:pb-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Select Player</label>
-                                <select
-                                    onChange={e => {
-                                        const c = myContracts.find(mc => mc.id === e.target.value);
-                                        setSelectedContract(c || null);
-                                        if (c) setAskingPrice(c.player_value);
-                                    }}
-                                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-sffl-red focus:border-sffl-red"
-                                >
-                                    <option value="" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">-- Choose active player --</option>
-                                    {myContracts.map(c => (
-                                        <option key={c.id} value={c.id} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">{c.player?.name} ({c.player?.position}) - Val: {c.player_value.toLocaleString()} pts</option>
-                                    ))}
-                                </select>
-                            </div>
+                    <label className="block">
+                        <span className={labelClass}>Select Target Player</span>
+                        <select
+                            value={requestPlayerId}
+                            onChange={e => setRequestPlayerId(e.target.value)}
+                            disabled={!requestTargetTeamId}
+                            className={fieldClass}
+                        >
+                            <option value="">Choose a player</option>
+                            {targetTeamPlayers.map(p => (
+                                <option key={p.id} value={p.id}>{p.name} ({p.position})</option>
+                            ))}
+                        </select>
+                    </label>
 
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Asking Price (Points)</label>
-                                <input
-                                    type="number"
-                                    step="100000"
-                                    min="0"
-                                    value={askingPrice}
-                                    onChange={e => setAskingPrice(parseInt(e.target.value, 10))}
-                                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-sffl-red focus:border-sffl-red"
-                                />
-                            </div>
-                        </div>
+                    <label className="block">
+                        <span className={labelClass}>Offered Transfer Value (Points)</span>
+                        <input
+                            type="number"
+                            step="100000"
+                            min="100000"
+                            value={requestPrice}
+                            onChange={e => setRequestPrice(parseInt(e.target.value, 10))}
+                            className={fieldClass}
+                        />
+                        {budget && (
+                            <span className={`text-xs mt-1.5 block font-semibold ${requestPrice > budget.remaining ? 'text-red-500 font-bold' : 'text-gray-500 dark:text-gray-400'}`}>
+                                Remaining Budget: {budget.remaining.toLocaleString()} pts
+                            </span>
+                        )}
+                    </label>
 
-                        <div className="flex gap-3 p-4 sm:p-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-gray-50 dark:bg-gray-800/90">
-                            <button
-                                onClick={() => setShowListModal(false)}
-                                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold text-sm rounded-xl transition-colors border border-gray-200 dark:border-gray-600"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleListPlayer}
-                                disabled={submittingListing || !selectedContract}
-                                className="flex-1 py-2.5 bg-sffl-red hover:bg-red-700 text-white font-bold text-sm rounded-xl transition-colors disabled:opacity-50 shadow-sm"
-                            >
-                                {submittingListing ? 'Publishing...' : 'Publish Listing'}
-                            </button>
-                        </div>
-                    </div>
+                    <FormButtons
+                        onCancel={() => setShowRequestModal(false)}
+                        onSubmit={submitRequest}
+                        disabled={!requestPlayerId || (budget ? requestPrice > budget.remaining : false)}
+                        label="Send Transfer Request"
+                    />
                 </div>
-            )}
+            </Modal>
 
-            {/* Modal for Direct Sale */}
-            {showDirectSaleModal && (
-                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={() => setShowDirectSaleModal(false)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-5rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
-                            <h3 className="text-xl font-black text-sffl-navy dark:text-white">Propose Direct Sale</h3>
-                            <button onClick={() => setShowDirectSaleModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-lg p-1">✕</button>
-                        </div>
-
-                        <div className="p-4 sm:p-6 pb-10 sm:pb-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Select Player to Sell</label>
-                                <select
-                                    onChange={e => {
-                                        const c = myContracts.find(mc => mc.id === e.target.value);
-                                        setSelectedContract(c || null);
-                                        if (c) setDirectSalePrice(c.player_value);
-                                    }}
-                                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-sffl-red focus:border-sffl-red"
-                                >
-                                    <option value="" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">-- Choose active player --</option>
-                                    {myContracts.map(c => (
-                                        <option key={c.id} value={c.id} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">{c.player?.name} ({c.player?.position})</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Target Buyer Team</label>
-                                <select
-                                    value={directSaleTargetTeamId}
-                                    onChange={e => setDirectSaleTargetTeamId(e.target.value)}
-                                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-sffl-red focus:border-sffl-red"
-                                >
-                                    <option value="" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">-- Choose target team --</option>
-                                    {allTeams.map(tm => (
-                                        <option key={tm.id} value={tm.id} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">{tm.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Agreed Sale Price (Points)</label>
-                                <input
-                                    type="number"
-                                    step="100000"
-                                    min="0"
-                                    value={directSalePrice}
-                                    onChange={e => setDirectSalePrice(parseInt(e.target.value, 10))}
-                                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-sffl-red focus:border-sffl-red"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="flex gap-3 p-4 sm:p-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-gray-50 dark:bg-gray-800/90">
-                            <button
-                                onClick={() => setShowDirectSaleModal(false)}
-                                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold text-sm rounded-xl transition-colors border border-gray-200 dark:border-gray-600"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleCreateDirectSale}
-                                disabled={submittingDirectSale || !selectedContract || !directSaleTargetTeamId}
-                                className="flex-1 py-2.5 bg-sffl-red hover:bg-red-700 text-white font-bold text-sm rounded-xl transition-colors disabled:opacity-50 shadow-sm"
-                            >
-                                {submittingDirectSale ? 'Submitting...' : 'Submit Sale Proposal'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Modal for Transfer Request */}
-            {showRequestModal && (
-                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={() => setShowRequestModal(false)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-5rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
-                            <h3 className="text-xl font-black text-sffl-navy dark:text-white">Request Player Transfer</h3>
-                            <button onClick={() => setShowRequestModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-lg p-1">✕</button>
-                        </div>
-
-                        <div className="p-4 sm:p-6 pb-10 sm:pb-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Target Team</label>
-                                <select
-                                    value={requestTargetTeamId}
-                                    onChange={e => handleSelectTargetTeamForRequest(e.target.value)}
-                                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-sffl-red focus:border-sffl-red"
-                                >
-                                    <option value="" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">-- Choose team --</option>
-                                    {allTeams.map(tm => (
-                                        <option key={tm.id} value={tm.id} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">{tm.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Select Target Player</label>
-                                <select
-                                    value={requestPlayerId}
-                                    onChange={e => setRequestPlayerId(e.target.value)}
-                                    disabled={!requestTargetTeamId}
-                                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold disabled:opacity-50 focus:ring-2 focus:ring-sffl-red focus:border-sffl-red"
-                                >
-                                    <option value="" className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">-- Choose player --</option>
-                                    {targetTeamPlayers.map(p => (
-                                        <option key={p.id} value={p.id} className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white">{p.name} ({p.position})</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Offered Transfer Value (Points)</label>
-                                <input
-                                    type="number"
-                                    step="100000"
-                                    min="100000"
-                                    value={requestPrice}
-                                    onChange={e => setRequestPrice(parseInt(e.target.value, 10))}
-                                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-sffl-red focus:border-sffl-red"
-                                />
-                                {budget && (
-                                    <span className={`text-xs mt-1.5 block font-semibold ${requestPrice > budget.remaining ? 'text-red-500 font-bold' : 'text-gray-500 dark:text-gray-400'}`}>
-                                        Remaining Budget: {budget.remaining.toLocaleString()} pts
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="flex gap-3 p-4 sm:p-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-gray-50 dark:bg-gray-800/90">
-                            <button
-                                onClick={() => setShowRequestModal(false)}
-                                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold text-sm rounded-xl transition-colors border border-gray-200 dark:border-gray-600"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleCreateRequest}
-                                disabled={submittingRequest || !requestPlayerId || (budget ? requestPrice > budget.remaining : false)}
-                                className="flex-1 py-2.5 bg-sffl-red hover:bg-red-700 text-white font-bold text-sm rounded-xl transition-colors disabled:opacity-50 shadow-sm"
-                            >
-                                {submittingRequest ? 'Sending Request...' : 'Send Transfer Request'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ConfirmDialog
+                open={pendingAction !== null}
+                title={dialog.title}
+                description={dialog.description}
+                body={dialog.body}
+                confirmLabel={dialog.confirmLabel}
+                tone={dialog.tone}
+                icon={dialog.icon}
+                pending={busy}
+                onConfirm={confirmPendingAction}
+                onCancel={() => setPendingAction(null)}
+            />
         </div>
     );
 };

@@ -14,7 +14,7 @@ import { Loader } from '../../components/ui/Loader';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { getApiErrorMessage } from '../../utils/apiError';
-import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
+import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 
 type Mode = 'auto' | 'on' | 'off' | 'video';
 
@@ -60,7 +60,7 @@ export const AdminLiveStream = () => {
 
     return (
         <div className="space-y-8 pb-36 md:pb-12">
-            <AdminPageHeader
+            <DashboardPageHeader
                 title="Live Stream"
                 subtitle="Control what visitors see at the top of the homepage: live stream, featured video or carousel."
             />

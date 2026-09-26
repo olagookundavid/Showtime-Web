@@ -1,112 +1,122 @@
-import React, { useState, useEffect } from 'react';
-import { playerPortalApi, type TransferData } from '../../services/api';
+import React, { useState, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
+import { playerPortalApi, type TransferData } from '../../services/api';
+import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import { DataTable, type Column } from '../../components/ui/DataTable';
 import { NotLinkedNotice } from '../../components/player-portal/NotLinkedNotice';
 import { apiError } from '../../components/player-portal/apiError';
 
+const PAGE_SIZE = 20;
+const NO_ROWS: TransferData[] = [];
+
+const TYPE_LABEL: Record<TransferData['type'], string> = {
+    REQUEST: 'Transfer request',
+    LISTING: 'Listing',
+    DIRECT_SALE: 'Direct sale',
+};
+
+const badgeClass = 'px-2.5 py-1 text-xs font-bold rounded-full border whitespace-nowrap';
+
+const StatusBadge = ({ status }: { status: string }) => {
+    switch (status) {
+        case 'COMPLETED':
+        case 'ACCEPTED':
+            return <span className={`${badgeClass} bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20`}>Completed</span>;
+        case 'PENDING':
+            return <span className={`${badgeClass} bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20`}>Pending</span>;
+        case 'REJECTED':
+        case 'CANCELLED':
+            return <span className={`${badgeClass} bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20`}>{status}</span>;
+        default:
+            return <span className={`${badgeClass} bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20`}>{status}</span>;
+    }
+};
+
+// The destination names the row; the kind of move sits under it.
+const ToClubCell = ({ t }: { t: TransferData }) => (
+    <div className="min-w-0">
+        <div className="font-semibold text-sffl-red wrap-break-word">
+            {t.to_team?.name || (t.type === 'LISTING' ? 'Open Market' : 'Free Agent')}
+        </div>
+        <div className="text-xs text-gray-500 dark:text-gray-400">{TYPE_LABEL[t.type] ?? t.type}</div>
+    </div>
+);
+
 export const PlayerPortalTransfers: React.FC = () => {
-    const [transfers, setTransfers] = useState<TransferData[]>([]);
+    const [transfers, setTransfers] = useState<TransferData[]>(NO_ROWS);
+    const [page, setPage] = useState<number>(1);
+    const [totalPages, setTotalPages] = useState<number>(1);
     const [loading, setLoading] = useState<boolean>(true);
     const [notLinked, setNotLinked] = useState<boolean>(false);
 
-    const fetchTransfers = async () => {
-        setLoading(true);
-        try {
-            const res = await playerPortalApi.getMyTransfers();
-            setTransfers(res.data || []);
-            setNotLinked(false);
-        } catch (err) {
-            // Expected state for an account whose claim hasn't been approved —
-            // explain it rather than firing an error toast.
-            if (apiError(err).code === 'PLAYER_NOT_LINKED') {
-                setNotLinked(true);
-            } else {
-                toast.error('Failed to load transfer history');
-            }
-        } finally {
-            setLoading(false);
-        }
-    };
-
     useEffect(() => {
+        const fetchTransfers = async () => {
+            setLoading(true);
+            try {
+                const res = await playerPortalApi.getMyTransfers({ page, limit: PAGE_SIZE });
+                setTransfers(res.data || NO_ROWS);
+                setTotalPages(res.total_pages || 1);
+                setNotLinked(false);
+            } catch (err) {
+                // Expected state for an account whose claim hasn't been approved —
+                // explain it rather than firing an error toast.
+                if (apiError(err).code === 'PLAYER_NOT_LINKED') {
+                    setNotLinked(true);
+                } else {
+                    toast.error('Failed to load transfer history');
+                }
+            } finally {
+                setLoading(false);
+            }
+        };
         fetchTransfers();
-    }, []);
+    }, [page]);
 
-    const getStatusBadge = (status: string) => {
-        switch (status) {
-            case 'COMPLETED':
-            case 'ACCEPTED':
-                return <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">Completed</span>;
-            case 'PENDING':
-                return <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">Pending</span>;
-            case 'REJECTED':
-            case 'CANCELLED':
-                return <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">{status}</span>;
-            default:
-                return <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-gray-500/10 text-gray-600 dark:text-gray-400 border border-gray-500/20">{status}</span>;
-        }
-    };
+    const columns = useMemo<Column<TransferData>[]>(() => [
+        { header: 'To Club', cell: (t) => <ToClubCell t={t} /> },
+        {
+            header: 'From Club',
+            cell: (t) => <span className="font-semibold text-gray-800 dark:text-gray-200">{t.from_team?.name || 'Free Agent'}</span>,
+        },
+        {
+            // Transfer values are league points, as on the team-head and admin pages.
+            header: 'Fee / Value',
+            cell: (t) => (
+                <span className="font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                    {t.asking_price ? `${t.asking_price.toLocaleString()} pts` : '—'}
+                </span>
+            ),
+        },
+        { header: 'Status', cell: (t) => <StatusBadge status={t.status} /> },
+        {
+            header: 'Date',
+            cell: (t) => (
+                <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                    {new Date(t.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                </span>
+            ),
+        },
+    ], []);
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">Transfer History</h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Complete record of your club movements, direct sales, and transfer requests.</p>
-            </div>
+            <DashboardPageHeader
+                title="Transfers"
+                subtitle="Your moves between clubs, including direct sales and transfer requests."
+            />
 
-            {notLinked && <NotLinkedNotice />}
-
-            {!notLinked && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-                {loading ? (
-                    <div className="p-12 text-center text-gray-400">Loading transfer history...</div>
-                ) : transfers.length === 0 ? (
-                    <div className="p-12 text-center text-gray-400">
-                        No transfer records yet. Moves between clubs will appear here once they complete.
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-gray-50 dark:bg-gray-700/50 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700">
-                                    <th className="p-4">Transfer Type</th>
-                                    <th className="p-4">From Club</th>
-                                    <th className="p-4">To Club</th>
-                                    <th className="p-4">Fee / Value</th>
-                                    <th className="p-4">Status</th>
-                                    <th className="p-4">Date</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700 text-sm">
-                                {transfers.map((t) => (
-                                    <tr key={t.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors">
-                                        <td className="p-4 font-bold text-gray-900 dark:text-white">
-                                            <span className="uppercase text-xs tracking-wider px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
-                                                {t.type.replace('_', ' ')}
-                                            </span>
-                                        </td>
-                                        <td className="p-4 font-semibold text-gray-800 dark:text-gray-200">
-                                            {t.from_team?.name || 'Free Agent'}
-                                        </td>
-                                        <td className="p-4 font-semibold text-sffl-red">
-                                            {t.to_team?.name || (t.type === 'LISTING' ? 'Open Market' : 'Free Agent')}
-                                        </td>
-                                        <td className="p-4 font-semibold text-gray-700 dark:text-gray-300">
-                                            {t.asking_price ? `₦${t.asking_price.toLocaleString()}` : 'N/A'}
-                                        </td>
-                                        <td className="p-4">
-                                            {getStatusBadge(t.status)}
-                                        </td>
-                                        <td className="p-4 text-xs text-gray-500">
-                                            {new Date(t.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </div>
+            {notLinked ? <NotLinkedNotice /> : (
+                <DataTable
+                    data={transfers}
+                    columns={columns}
+                    getRowId={(t) => t.id}
+                    loading={loading}
+                    searchable={false}
+                    serverPage={page}
+                    totalServerPages={totalPages}
+                    onPageChange={setPage}
+                    emptyMessage="No transfer records yet. Moves between clubs will appear here once they complete."
+                />
             )}
         </div>
     );

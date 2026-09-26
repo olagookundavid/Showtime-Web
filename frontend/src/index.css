@@ -36,10 +36,11 @@ body:has([role="dialog"]) nav.fixed.bottom-0 {
     display: none !important;
 }
 
-/* The admin shell has its own theme button in its top bar, where the floating
- * toggle would otherwise sit on top of the account menu. The toggle is rendered
- * outside the router, so it can't check the route itself. */
-body:has([data-admin-shell]) [data-floating-theme-toggle] {
+/* The dashboard shell (admin, team head) has its own theme button in its top
+ * bar, where the floating toggle would otherwise sit on top of the account
+ * menu. The toggle is rendered outside the router, so it can't check the route
+ * itself. */
+body:has([data-dashboard-shell]) [data-floating-theme-toggle] {
     display: none;
 }
 

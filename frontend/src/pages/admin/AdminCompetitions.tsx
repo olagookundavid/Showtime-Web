@@ -30,7 +30,7 @@ import {
   type Team,
 } from "../../services/api";
 import { ImageUploadField, LightboxImage } from "../../components/ui";
-import { AdminPageHeader } from "../../components/admin/AdminPageHeader";
+import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
 
 interface Competition {
   id: string;
@@ -293,7 +293,7 @@ const AdminCompetitions = () => {
 
   return (
     <div className="space-y-6">
-      <AdminPageHeader
+      <DashboardPageHeader
         title="Competitions"
         subtitle="Create competitions and choose which teams are enrolled in each."
         actions={

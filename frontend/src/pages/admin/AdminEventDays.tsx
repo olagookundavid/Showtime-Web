@@ -32,7 +32,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { useDebounced } from '../../hooks/useDebounced';
 import { getApiErrorMessage } from '../../utils/apiError';
-import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
+import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 
 type EventDayPayload = Parameters<typeof updateEventDay>[1];
 type TierPayload = Parameters<typeof updateTicketTier>[2];
@@ -662,7 +662,7 @@ export const AdminEventDays = () => {
 
     return (
         <div className="space-y-6">
-            <AdminPageHeader
+            <DashboardPageHeader
                 title="Event Days"
                 subtitle="Manage event dates, venues, ticket tiers, and allocations."
                 actions={

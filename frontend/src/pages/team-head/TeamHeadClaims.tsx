@@ -1,6 +1,50 @@
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+    ArrowPathIcon,
+    CheckCircleIcon,
+    ClipboardDocumentIcon,
+    HandThumbDownIcon,
+    HandThumbUpIcon,
+    KeyIcon,
+    NoSymbolIcon,
+    XCircleIcon,
+} from '@heroicons/react/24/outline';
 import { teamHeadClaimsApi, type ClaimCodeData, type PlayerClaimData } from '../../services/api';
+import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
+import { Spinner } from '../../components/ui/Spinner';
+import { getApiErrorMessage } from '../../utils/apiError';
+
+type Status = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+type PendingAction =
+    | { kind: 'generateCode' }
+    | { kind: 'revokeCode'; code: ClaimCodeData }
+    | { kind: 'approve'; claim: PlayerClaimData }
+    | { kind: 'reject'; claim: PlayerClaimData }
+    | { kind: 'endorse'; claim: PlayerClaimData; endorse: boolean };
+
+const STATUS_TABS: [Status, string][] = [
+    ['PENDING', 'Awaiting review'],
+    ['APPROVED', 'Approved'],
+    ['REJECTED', 'Rejected'],
+];
+
+const whoOf = (claim: PlayerClaimData) => claim.player_name || claim.proposed_name || claim.claimed_email;
+
+const claimRows = (claim: PlayerClaimData): [string, string | undefined][] => [
+    ['Claimant', whoOf(claim)],
+    ['Email', claim.claimed_email],
+    ['Jersey', claim.player_jersey_number ? `#${claim.player_jersey_number}` : undefined],
+];
+
+const smallButton = 'inline-flex items-center justify-center gap-1.5 min-h-11 px-3 text-xs font-bold rounded-lg transition-colors';
+const actionButton = 'inline-flex items-center justify-center gap-1.5 min-h-11 px-4 text-sm font-bold rounded-lg transition-colors disabled:opacity-50';
+const noteInputClass =
+    'w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sffl-red';
 
 /**
  * The team manager's claim review screen.
@@ -12,21 +56,26 @@ import { teamHeadClaimsApi, type ClaimCodeData, type PlayerClaimData } from '../
  * can invent an email address; they cannot invent a season of appearances.
  */
 export const TeamHeadClaims: React.FC = () => {
+    const queryClient = useQueryClient();
     const [claims, setClaims] = useState<PlayerClaimData[]>([]);
-    const [status, setStatus] = useState<'PENDING' | 'APPROVED' | 'REJECTED'>('PENDING');
+    const [status, setStatus] = useState<Status>('PENDING');
     const [loading, setLoading] = useState(true);
-    const [acting, setActing] = useState<string | null>(null);
 
     const [code, setCode] = useState<ClaimCodeData | null>(null);
     const [codeLoading, setCodeLoading] = useState(true);
+
+    // Every write waits here for the confirm dialog.
+    const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+    const [note, setNote] = useState('');
+    const [busy, setBusy] = useState(false);
 
     const fetchClaims = async () => {
         setLoading(true);
         try {
             const res = await teamHeadClaimsApi.list({ status, limit: 100 });
             setClaims(res.data || []);
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to load claims');
+        } catch (err) {
+            toast.error(getApiErrorMessage(err, 'Failed to load claims'));
         } finally {
             setLoading(false);
         }
@@ -45,109 +94,188 @@ export const TeamHeadClaims: React.FC = () => {
 
     useEffect(() => {
         fetchClaims();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [status]);
 
     useEffect(() => {
         fetchCode();
     }, []);
 
-    const handleGenerateCode = async () => {
-        if (code && !window.confirm('This replaces your current code. Anyone still using the old one will need the new code. Continue?')) {
-            return;
-        }
-        try {
-            const fresh = await teamHeadClaimsApi.generateCode();
-            setCode(fresh);
-            toast.success('New claim code generated');
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to generate a code');
-        }
-    };
-
-    const handleRevokeCode = async () => {
-        if (!code) return;
-        if (!window.confirm('Revoke this code? Players will not be able to claim their accounts until you generate a new one.')) return;
-        try {
-            await teamHeadClaimsApi.revokeCode(code.id);
-            setCode(null);
-            toast.success('Claim code revoked');
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to revoke the code');
-        }
-    };
-
-    const handleApprove = async (claim: PlayerClaimData) => {
-        const who = claim.player_name || claim.proposed_name || claim.claimed_email;
-
-        let confirmMsg = `Approve ${who}? This creates their login and gives them access to their player portal.`;
-        if (!claim.email_verified) {
-            confirmMsg = `${who} has not confirmed their email address yet.\n\nApproving is still fine if you know this is them — it only means they may need help resetting a password later.\n\nApprove anyway?`;
-        }
-        if (!window.confirm(confirmMsg)) return;
-
-        setActing(claim.id);
-        try {
-            await teamHeadClaimsApi.approve(claim.id, {});
-            toast.success(`${who} approved`);
-            fetchClaims();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to approve the claim');
-        } finally {
-            setActing(null);
-        }
-    };
-
-    // A new-player request is not the manager's to decide — the league office is. What
-    // the manager has that nobody else does is knowing whether this person is real, so
-    // their part is to say so. Advisory: the admin can still decide either way.
-    const handleEndorse = async (claim: PlayerClaimData, endorse: boolean) => {
-        const who = claim.proposed_name || claim.claimed_email;
-        const note = window.prompt(
-            endorse
-                ? `Anything the league office should know about ${who}? (optional)`
-                : `Why can you not vouch for ${who}? The league office will see this.`,
-            ''
+    const copyCode = (value: string) => {
+        navigator.clipboard.writeText(value).then(
+            () => toast.success('Code copied'),
+            () => toast.error('Could not copy the code'),
         );
-        if (note === null) return;
-
-        setActing(claim.id);
-        try {
-            await teamHeadClaimsApi.endorse(claim.id, endorse, note.trim());
-            toast.success(endorse ? `You vouched for ${who}` : `Recorded — you cannot vouch for ${who}`);
-            fetchClaims();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Could not record your answer');
-        } finally {
-            setActing(null);
-        }
     };
 
-    const handleReject = async (claim: PlayerClaimData) => {
-        const who = claim.player_name || claim.proposed_name || claim.claimed_email;
-        const reason = window.prompt(`Why are you rejecting ${who}? They will see this reason.`, '');
-        if (reason === null) return;
-        if (!reason.trim()) {
+    // Opens the confirm, starting any note it asks for empty.
+    const ask = (action: PendingAction) => {
+        setNote('');
+        setPendingAction(action);
+    };
+
+    const confirmPendingAction = async () => {
+        const action = pendingAction;
+        if (!action) return;
+        const trimmed = note.trim();
+        if (action.kind === 'reject' && !trimmed) {
             toast.error('A reason is required.');
             return;
         }
-
-        setActing(claim.id);
+        if (action.kind === 'endorse' && !action.endorse && !trimmed) {
+            toast.error('Tell the league office why you cannot vouch for them.');
+            return;
+        }
+        setBusy(true);
         try {
-            await teamHeadClaimsApi.reject(claim.id, reason.trim());
-            toast.success('Claim rejected');
-            fetchClaims();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to reject the claim');
+            switch (action.kind) {
+                case 'generateCode':
+                    setCode(await teamHeadClaimsApi.generateCode());
+                    toast.success('New claim code generated');
+                    break;
+                case 'revokeCode':
+                    await teamHeadClaimsApi.revokeCode(action.code.id);
+                    setCode(null);
+                    toast.success('Claim code revoked');
+                    break;
+                case 'approve':
+                    await teamHeadClaimsApi.approve(action.claim.id, {});
+                    toast.success(`${whoOf(action.claim)} approved`);
+                    break;
+                case 'reject':
+                    await teamHeadClaimsApi.reject(action.claim.id, trimmed);
+                    toast.success('Claim rejected');
+                    break;
+                case 'endorse': {
+                    // A new-player request is not the manager's to decide — the league office
+                    // is. What the manager has that nobody else does is knowing whether this
+                    // person is real, so their part is to say so. Advisory: the admin can
+                    // still decide either way.
+                    const who = action.claim.proposed_name || action.claim.claimed_email;
+                    await teamHeadClaimsApi.endorse(action.claim.id, action.endorse, trimmed);
+                    toast.success(action.endorse ? `You vouched for ${who}` : `Recorded — you cannot vouch for ${who}`);
+                    break;
+                }
+            }
+            if (action.kind !== 'generateCode' && action.kind !== 'revokeCode') {
+                fetchClaims();
+                // The layout's sidebar badge counts this queue.
+                queryClient.invalidateQueries({ queryKey: ['teamHeadPendingClaims'] });
+            }
+        } catch (err) {
+            const fallback = {
+                generateCode: 'Failed to generate a code',
+                revokeCode: 'Failed to revoke the code',
+                approve: 'Failed to approve the claim',
+                reject: 'Failed to reject the claim',
+                endorse: 'Could not record your answer',
+            }[action.kind];
+            toast.error(getApiErrorMessage(err, fallback));
         } finally {
-            setActing(null);
+            setBusy(false);
+            setPendingAction(null);
         }
     };
 
+    const noteField = (label: string, required: boolean, placeholder: string) => (
+        <label className="block">
+            <span className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
+                {label} {required ? <span className="text-sffl-red">*</span> : <span className="font-normal text-gray-400">(optional)</span>}
+            </span>
+            <textarea value={note} onChange={e => setNote(e.target.value)} rows={3} placeholder={placeholder} className={noteInputClass} />
+        </label>
+    );
+
+    const dialog = (() => {
+        switch (pendingAction?.kind) {
+            case 'generateCode':
+                return code
+                    ? {
+                        title: 'Replace your claim code?',
+                        description: 'Anyone still using the old code will need the new one.',
+                        confirmLabel: 'Rotate Code',
+                        tone: 'warning' as const,
+                        icon: ArrowPathIcon,
+                        body: <ConfirmSummary rows={[['Current code', code.code], ['Used', `${code.uses} of ${code.max_uses}`]]} />,
+                    }
+                    : {
+                        title: 'Generate a claim code?',
+                        description: 'Share it with your squad so they can claim their accounts.',
+                        confirmLabel: 'Generate Code',
+                        tone: 'info' as const,
+                        icon: KeyIcon,
+                        body: undefined,
+                    };
+            case 'revokeCode':
+                return {
+                    title: 'Revoke this code?',
+                    description: 'Players will not be able to claim their accounts until you generate a new one.',
+                    confirmLabel: 'Revoke Code',
+                    tone: 'warning' as const,
+                    icon: NoSymbolIcon,
+                    body: <ConfirmSummary rows={[['Code', pendingAction.code.code], ['Used', `${pendingAction.code.uses} of ${pendingAction.code.max_uses}`]]} />,
+                };
+            case 'reject': {
+                const { claim } = pendingAction;
+                return {
+                    title: `Reject ${whoOf(claim)}?`,
+                    description: 'They will see your reason.',
+                    confirmLabel: 'Reject Claim',
+                    tone: 'warning' as const,
+                    icon: XCircleIcon,
+                    body: (
+                        <div className="space-y-3">
+                            <ConfirmSummary rows={claimRows(claim)} />
+                            {noteField('Reason', true, 'Why are you rejecting this claim?')}
+                        </div>
+                    ),
+                };
+            }
+            case 'endorse': {
+                const { claim, endorse } = pendingAction;
+                const who = claim.proposed_name || claim.claimed_email;
+                return {
+                    title: endorse ? `Vouch for ${who}?` : `Say you cannot vouch for ${who}?`,
+                    description: 'The league office decides new-player requests. Your answer goes to them.',
+                    confirmLabel: endorse ? 'I Vouch for Them' : 'I Cannot Vouch',
+                    tone: endorse ? 'success' as const : 'warning' as const,
+                    icon: endorse ? HandThumbUpIcon : HandThumbDownIcon,
+                    body: (
+                        <div className="space-y-3">
+                            <ConfirmSummary rows={[['Name', claim.proposed_name], ['Email', claim.claimed_email], ['Position', claim.proposed_position]]} />
+                            {endorse
+                                ? noteField('Anything the league office should know?', false, 'For example, how you know them')
+                                : noteField('Why can you not vouch for them?', true, 'The league office will see this')}
+                        </div>
+                    ),
+                };
+            }
+            default: {
+                const claim = pendingAction?.claim;
+                return {
+                    title: claim ? `Approve ${whoOf(claim)}?` : 'Approve this claim?',
+                    description: claim && !claim.email_verified
+                        ? "They have not confirmed their email address yet. Approving is still fine if you know this is them; they may need help resetting a password later."
+                        : 'This creates their login and gives them access to their player portal.',
+                    confirmLabel: 'Approve',
+                    tone: 'success' as const,
+                    icon: CheckCircleIcon,
+                    body: claim ? <ConfirmSummary rows={claimRows(claim)} /> : undefined,
+                };
+            }
+        }
+    })();
+
     return (
         <div className="space-y-6">
+            <DashboardPageHeader
+                title="Account Claims"
+                subtitle="Players claim their accounts with your team code, and you confirm each one is who they say they are."
+            />
+
             {/* The code a manager gives their squad */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-6">
-                <h2 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wide">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+                <h2 className="text-base font-black text-gray-900 dark:text-white">
                     Your team claim code
                 </h2>
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -156,31 +284,34 @@ export const TeamHeadClaims: React.FC = () => {
                 </p>
 
                 {codeLoading ? (
-                    <div className="mt-4 text-sm text-gray-400">Loading…</div>
+                    <Spinner size="sm" className="py-4" label="Loading code" />
                 ) : code ? (
                     <div className="mt-4 flex flex-wrap items-center gap-3">
-                        <code className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-900 font-mono text-lg font-black tracking-widest text-gray-900 dark:text-white">
+                        <code className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-900 font-mono text-lg font-black tracking-widest text-gray-900 dark:text-white break-all">
                             {code.code}
                         </code>
                         <button
-                            onClick={() => {
-                                navigator.clipboard.writeText(code.code);
-                                toast.success('Code copied');
-                            }}
-                            className="px-3 py-2 bg-sffl-navy/10 hover:bg-sffl-navy/20 text-sffl-navy dark:text-blue-400 text-xs font-bold rounded-lg"
+                            type="button"
+                            onClick={() => copyCode(code.code)}
+                            className={`${smallButton} bg-sffl-navy/10 hover:bg-sffl-navy/20 text-sffl-navy dark:text-blue-400`}
                         >
+                            <ClipboardDocumentIcon className="w-4 h-4" aria-hidden="true" />
                             Copy
                         </button>
                         <button
-                            onClick={handleGenerateCode}
-                            className="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-xs font-bold rounded-lg"
+                            type="button"
+                            onClick={() => ask({ kind: 'generateCode' })}
+                            className={`${smallButton} bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200`}
                         >
+                            <ArrowPathIcon className="w-4 h-4" aria-hidden="true" />
                             Rotate
                         </button>
                         <button
-                            onClick={handleRevokeCode}
-                            className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-600 text-xs font-bold rounded-lg"
+                            type="button"
+                            onClick={() => ask({ kind: 'revokeCode', code })}
+                            className={`${smallButton} bg-red-100 hover:bg-red-200 text-red-600`}
                         >
+                            <NoSymbolIcon className="w-4 h-4" aria-hidden="true" />
                             Revoke
                         </button>
                         <span className="text-xs text-gray-400">
@@ -190,9 +321,11 @@ export const TeamHeadClaims: React.FC = () => {
                     </div>
                 ) : (
                     <button
-                        onClick={handleGenerateCode}
-                        className="mt-4 px-4 py-2 bg-sffl-red hover:bg-red-700 text-white text-sm font-bold rounded-lg"
+                        type="button"
+                        onClick={() => ask({ kind: 'generateCode' })}
+                        className={`mt-4 ${actionButton} bg-sffl-red hover:bg-red-700 text-white`}
                     >
+                        <KeyIcon className="w-4 h-4" aria-hidden="true" />
                         Generate a claim code
                     </button>
                 )}
@@ -200,24 +333,26 @@ export const TeamHeadClaims: React.FC = () => {
 
             {/* Review queue */}
             <div>
-                <div className="flex border-b border-gray-200 dark:border-gray-700 mb-4">
-                    {(['PENDING', 'APPROVED', 'REJECTED'] as const).map(s => (
+                <div className="flex overflow-x-auto whitespace-nowrap border-b border-gray-200 dark:border-gray-700 mb-4">
+                    {STATUS_TABS.map(([s, label]) => (
                         <button
                             key={s}
+                            type="button"
                             onClick={() => setStatus(s)}
-                            className={`py-3 px-6 text-sm font-bold border-b-2 transition-colors ${
+                            aria-pressed={status === s}
+                            className={`min-h-11 px-4 sm:px-6 text-sm font-bold border-b-2 transition-colors ${
                                 status === s
                                     ? 'border-sffl-red text-sffl-red'
                                     : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                             }`}
                         >
-                            {s === 'PENDING' ? 'Awaiting review' : s === 'APPROVED' ? 'Approved' : 'Rejected'}
+                            {label}
                         </button>
                     ))}
                 </div>
 
                 {loading ? (
-                    <div className="p-8 text-center text-gray-400">Loading claims…</div>
+                    <Spinner label="Loading claims" />
                 ) : claims.length === 0 ? (
                     <div className="p-12 text-center text-gray-400 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
                         {status === 'PENDING'
@@ -233,7 +368,7 @@ export const TeamHeadClaims: React.FC = () => {
                             >
                                 <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100 dark:divide-gray-700">
                                     {/* What the claimant submitted */}
-                                    <div className="p-5">
+                                    <div className="p-4 sm:p-5 min-w-0">
                                         <div className="text-xs font-black uppercase tracking-wide text-gray-400 mb-3">
                                             They say they are
                                         </div>
@@ -242,10 +377,10 @@ export const TeamHeadClaims: React.FC = () => {
                                                 <img
                                                     src={claim.claimed_photo}
                                                     alt="Submitted photo"
-                                                    className="w-20 h-20 rounded-lg object-cover border border-gray-200 dark:border-gray-600"
+                                                    className="w-20 h-20 shrink-0 rounded-lg object-cover border border-gray-200 dark:border-gray-600"
                                                 />
                                             ) : (
-                                                <div className="w-20 h-20 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-xs text-gray-400 text-center px-1">
+                                                <div className="w-20 h-20 shrink-0 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-xs text-gray-400 text-center px-1">
                                                     No photo
                                                 </div>
                                             )}
@@ -289,7 +424,7 @@ export const TeamHeadClaims: React.FC = () => {
                                     </div>
 
                                     {/* What the system already knows */}
-                                    <div className="p-5 bg-gray-50/50 dark:bg-gray-900/30">
+                                    <div className="p-4 sm:p-5 min-w-0 bg-gray-50/50 dark:bg-gray-900/30">
                                         <div className="text-xs font-black uppercase tracking-wide text-gray-400 mb-3">
                                             What our records show
                                         </div>
@@ -327,7 +462,7 @@ export const TeamHeadClaims: React.FC = () => {
                                                 </div>
                                                 <div className="flex justify-between gap-3">
                                                     <dt className="text-gray-500 dark:text-gray-400">Teams</dt>
-                                                    <dd className="font-bold text-gray-900 dark:text-white text-right">
+                                                    <dd className="font-bold text-gray-900 dark:text-white text-right wrap-break-word min-w-0">
                                                         {claim.past_teams?.length ? claim.past_teams.join(', ') : '—'}
                                                     </dd>
                                                 </div>
@@ -337,10 +472,10 @@ export const TeamHeadClaims: React.FC = () => {
                                 </div>
 
                                 {claim.status === 'PENDING' && claim.claim_kind === 'NEW_PLAYER' ? (
-                                    <div className="px-5 py-4 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
+                                    <div className="px-4 sm:px-5 py-4 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
                                         {claim.endorsement ? (
                                             <div className="flex flex-wrap items-center gap-3 justify-between">
-                                                <div className="text-sm">
+                                                <div className="text-sm min-w-0">
                                                     <span
                                                         className={`font-bold ${
                                                             claim.endorsement === 'ENDORSED'
@@ -354,15 +489,15 @@ export const TeamHeadClaims: React.FC = () => {
                                                     </span>
                                                     <span className="text-gray-400"> · waiting on the league office</span>
                                                     {claim.endorsement_note && (
-                                                        <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                        <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 wrap-break-word">
                                                             “{claim.endorsement_note}”
                                                         </div>
                                                     )}
                                                 </div>
                                                 <button
-                                                    onClick={() => handleEndorse(claim, claim.endorsement !== 'ENDORSED')}
-                                                    disabled={acting === claim.id}
-                                                    className="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 text-gray-700 dark:text-gray-200 text-xs font-bold rounded-lg"
+                                                    type="button"
+                                                    onClick={() => ask({ kind: 'endorse', claim, endorse: claim.endorsement !== 'ENDORSED' })}
+                                                    className={`${smallButton} bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200`}
                                                 >
                                                     Change my answer
                                                 </button>
@@ -372,44 +507,48 @@ export const TeamHeadClaims: React.FC = () => {
                                                 <p className="text-sm text-gray-500 dark:text-gray-400">
                                                     Do you know this person?
                                                 </p>
-                                                <div className="flex gap-3">
+                                                <div className="flex flex-wrap gap-3">
                                                     <button
-                                                        onClick={() => handleEndorse(claim, false)}
-                                                        disabled={acting === claim.id}
-                                                        className="px-4 py-2 bg-red-100 hover:bg-red-200 disabled:opacity-50 text-red-600 text-sm font-bold rounded-lg"
+                                                        type="button"
+                                                        onClick={() => ask({ kind: 'endorse', claim, endorse: false })}
+                                                        className={`${actionButton} bg-red-100 hover:bg-red-200 text-red-600`}
                                                     >
+                                                        <HandThumbDownIcon className="w-4 h-4" aria-hidden="true" />
                                                         I cannot vouch
                                                     </button>
                                                     <button
-                                                        onClick={() => handleEndorse(claim, true)}
-                                                        disabled={acting === claim.id}
-                                                        className="px-5 py-2 bg-sffl-red hover:bg-red-700 disabled:opacity-50 text-white text-sm font-bold rounded-lg"
+                                                        type="button"
+                                                        onClick={() => ask({ kind: 'endorse', claim, endorse: true })}
+                                                        className={`${actionButton} bg-sffl-red hover:bg-red-700 text-white`}
                                                     >
-                                                        {acting === claim.id ? 'Working…' : 'I vouch for them'}
+                                                        <HandThumbUpIcon className="w-4 h-4" aria-hidden="true" />
+                                                        I vouch for them
                                                     </button>
                                                 </div>
                                             </div>
                                         )}
                                     </div>
                                 ) : claim.status === 'PENDING' ? (
-                                    <div className="px-5 py-4 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 flex flex-wrap gap-3 justify-end">
+                                    <div className="px-4 sm:px-5 py-4 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 flex flex-wrap gap-3 justify-end">
                                         <button
-                                            onClick={() => handleReject(claim)}
-                                            disabled={acting === claim.id}
-                                            className="px-4 py-2 bg-red-100 hover:bg-red-200 disabled:opacity-50 text-red-600 text-sm font-bold rounded-lg"
+                                            type="button"
+                                            onClick={() => ask({ kind: 'reject', claim })}
+                                            className={`${actionButton} bg-red-100 hover:bg-red-200 text-red-600`}
                                         >
+                                            <XCircleIcon className="w-4 h-4" aria-hidden="true" />
                                             Reject
                                         </button>
                                         <button
-                                            onClick={() => handleApprove(claim)}
-                                            disabled={acting === claim.id}
-                                            className="px-5 py-2 bg-sffl-red hover:bg-red-700 disabled:opacity-50 text-white text-sm font-bold rounded-lg"
+                                            type="button"
+                                            onClick={() => ask({ kind: 'approve', claim })}
+                                            className={`${actionButton} bg-sffl-red hover:bg-red-700 text-white`}
                                         >
-                                            {acting === claim.id ? 'Working…' : 'Approve'}
+                                            <CheckCircleIcon className="w-4 h-4" aria-hidden="true" />
+                                            Approve
                                         </button>
                                     </div>
                                 ) : (
-                                    <div className="px-5 py-3 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-400">
+                                    <div className="px-4 sm:px-5 py-3 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-400 wrap-break-word">
                                         {claim.status === 'APPROVED' ? 'Approved' : 'Rejected'}
                                         {claim.reviewed_at && ` on ${new Date(claim.reviewed_at).toLocaleDateString()}`}
                                         {claim.reject_reason && ` — ${claim.reject_reason}`}
@@ -420,6 +559,19 @@ export const TeamHeadClaims: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            <ConfirmDialog
+                open={pendingAction !== null}
+                title={dialog.title}
+                description={dialog.description}
+                body={dialog.body}
+                confirmLabel={dialog.confirmLabel}
+                tone={dialog.tone}
+                icon={dialog.icon}
+                pending={busy}
+                onConfirm={confirmPendingAction}
+                onCancel={() => setPendingAction(null)}
+            />
         </div>
     );
 };

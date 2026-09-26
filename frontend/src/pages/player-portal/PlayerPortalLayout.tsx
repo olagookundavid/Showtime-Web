@@ -1,65 +1,25 @@
-import React from 'react';
-import { Outlet, NavLink } from 'react-router-dom';
 import { NotificationBell } from '../../components/common/NotificationBell';
+import { DashboardShell } from '../../components/dashboard/DashboardShell';
+import {
+    PLAYER_PORTAL_BOTTOM_NAV,
+    PLAYER_PORTAL_HOME,
+    PLAYER_PORTAL_NAV_SECTIONS,
+} from '../../components/player-portal/playerPortalNav';
 
-export const PlayerPortalLayout: React.FC = () => {
-    return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white flex flex-col">
-            {/* Header */}
-            <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-6">
-                        <NavLink to="/player-portal" className="text-xl font-black text-sffl-navy dark:text-white tracking-tight flex items-center gap-2">
-                            <span>⚡</span> SHOWTIME <span className="text-xs px-2 py-0.5 bg-sffl-red text-white rounded-full font-bold">PLAYER PORTAL</span>
-                        </NavLink>
-
-                        <nav className="hidden sm:flex items-center gap-1">
-                            <NavLink
-                                to="/player-portal"
-                                end
-                                className={({ isActive }) =>
-                                    `px-3 py-2 rounded-lg text-sm font-bold transition-colors ${
-                                        isActive ? 'bg-sffl-navy/10 text-sffl-navy dark:bg-white/10 dark:text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                                    }`
-                                }
-                            >
-                                Overview
-                            </NavLink>
-                            <NavLink
-                                to="/player-portal/contracts"
-                                className={({ isActive }) =>
-                                    `px-3 py-2 rounded-lg text-sm font-bold transition-colors ${
-                                        isActive ? 'bg-sffl-navy/10 text-sffl-navy dark:bg-white/10 dark:text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                                    }`
-                                }
-                            >
-                                My Contracts
-                            </NavLink>
-                            <NavLink
-                                to="/player-portal/transfers"
-                                className={({ isActive }) =>
-                                    `px-3 py-2 rounded-lg text-sm font-bold transition-colors ${
-                                        isActive ? 'bg-sffl-navy/10 text-sffl-navy dark:bg-white/10 dark:text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                                    }`
-                                }
-                            >
-                                Transfer History
-                            </NavLink>
-                        </nav>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                        <NotificationBell />
-                    </div>
-                </div>
-            </header>
-
-            {/* Main Content */}
-            <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-[calc(9rem+2*env(safe-area-inset-bottom,0px))] sm:pb-8">
-                <Outlet />
-            </main>
-        </div>
-    );
-};
+export const PlayerPortalLayout = () => (
+    <DashboardShell
+        sections={PLAYER_PORTAL_NAV_SECTIONS}
+        homePath={PLAYER_PORTAL_HOME}
+        brandLabel="Player Portal"
+        navLabel="Player portal"
+        drawerLabel="Player portal menu"
+        bottomNavLabel="Player portal shortcuts"
+        moreLabel="More player portal pages"
+        collapsedStorageKey="sffl_player_portal_sidebar_collapsed"
+        bottomNavItems={PLAYER_PORTAL_BOTTOM_NAV}
+        logoutDescription="You will need to sign in again to use the player portal."
+        topBarActions={<NotificationBell />}
+    />
+);
 
 export default PlayerPortalLayout;

@@ -4,7 +4,7 @@ import { useFont } from '../../contexts/FontContext';
 import { CheckCircleIcon, ArrowPathIcon, SparklesIcon, SwatchIcon } from '@heroicons/react/24/outline';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
-import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
+import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 
 type PendingAction = { kind: 'set'; fontId: string; fontName: string; category: string } | { kind: 'reset' };
 
@@ -74,7 +74,7 @@ export const AdminSettings = () => {
 
     return (
         <div className="space-y-8 pb-36 md:pb-12">
-            <AdminPageHeader
+            <DashboardPageHeader
                 title="App Settings"
                 subtitle="Choose the app-wide font. It changes every page for every visitor."
                 actions={

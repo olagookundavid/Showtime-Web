@@ -1,8 +1,10 @@
 import { Link } from "react-router-dom";
 
-interface AdminBrandProps {
-  /** Where the logo links to: the user's first allowed admin page. */
+interface DashboardBrandProps {
+  /** Where the logo links to: the portal's home page. */
   to: string;
+  /** The line under the logo text, e.g. "Admin Panel". */
+  label: string;
   /** Collapsed sidebar rail: logo only, text kept for screen readers. */
   collapsed?: boolean;
   /** Phone top bar: a smaller logo, and the text only from 360px up so the bar fits a 320px screen. */
@@ -10,12 +12,13 @@ interface AdminBrandProps {
   onClick?: () => void;
 }
 
-export const AdminBrand = ({
+export const DashboardBrand = ({
   to,
+  label,
   collapsed = false,
   compact = false,
   onClick,
-}: AdminBrandProps) => (
+}: DashboardBrandProps) => (
   <Link
     to={to}
     onClick={onClick}
@@ -44,8 +47,8 @@ export const AdminBrand = ({
       >
         SHOW<span className="text-sffl-red">TIME</span>
       </span>
-      <span className="block mt-1 text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 whitespace-nowrap">
-        Admin Panel
+      <span className="block mt-1 text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 whitespace-nowrap truncate">
+        {label}
       </span>
     </span>
   </Link>

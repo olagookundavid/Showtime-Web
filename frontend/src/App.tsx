@@ -288,9 +288,14 @@ const SellerLayout = lazy(() =>
     default: m.SellerLayout,
   })),
 );
-const SellerPortal = lazy(() =>
-  import("./pages/seller/SellerPortal").then((m) => ({
-    default: m.SellerPortal,
+const SellerLogSale = lazy(() =>
+  import("./pages/seller/SellerLogSale").then((m) => ({
+    default: m.SellerLogSale,
+  })),
+);
+const SellerSales = lazy(() =>
+  import("./pages/seller/SellerSales").then((m) => ({
+    default: m.SellerSales,
   })),
 );
 
@@ -642,7 +647,8 @@ function App() {
                         </ProtectedRoute>
                       }
                     >
-                      <Route index element={<SellerPortal />} />
+                      <Route index element={<SellerLogSale />} />
+                      <Route path="sales" element={<SellerSales />} />
                     </Route>
 
                     {/* Catch-all route to redirect back to home automatically */}

@@ -4,7 +4,7 @@ import { DataTable, type Column } from '../../components/ui/DataTable';
 import { getAdminAnalytics, type TicketResponse } from '../../services/api';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useTheme } from '../../contexts/ThemeContext';
-import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
+import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 
 const PIE_COLORS = ['#001F3F', '#C62828', '#22c55e', '#f59e0b', '#a855f7'];
 
@@ -106,7 +106,7 @@ export const AdminAnalytics = () => {
     return (
         <div className="space-y-6 sm:space-y-8 animate-fade-in">
             {/* Header */}
-            <AdminPageHeader
+            <DashboardPageHeader
                 title="Analytics"
                 subtitle="Deep dive into platform data and user metrics."
             />

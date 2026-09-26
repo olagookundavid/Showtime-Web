@@ -1,4 +1,6 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
+import { ClockIcon } from '@heroicons/react/24/outline';
 
 /**
  * Shown when the signed-in account has no player record behind it.
@@ -9,10 +11,10 @@ import React from 'react';
  * idea their claim was still waiting on a manager.
  */
 export const NotLinkedNotice: React.FC = () => (
-    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/60 rounded-2xl p-6 md:p-8 space-y-4">
+    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/60 rounded-2xl p-4 sm:p-6 md:p-8 space-y-4">
         <div className="flex items-start gap-3">
-            <span className="text-2xl leading-none">⏳</span>
-            <div className="space-y-2">
+            <ClockIcon className="w-6 h-6 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+            <div className="min-w-0 space-y-2">
                 <h2 className="text-lg font-black text-amber-900 dark:text-amber-200 uppercase tracking-tight">
                     Your account isn't linked to a player yet
                 </h2>
@@ -32,12 +34,12 @@ export const NotLinkedNotice: React.FC = () => (
                 <li>Ask your team manager for your club's claim code.</li>
                 <li>
                     Claim your profile at{' '}
-                    <a href="/claim" className="font-bold underline hover:no-underline">
+                    <Link to="/claim" className="font-bold underline hover:no-underline">
                         /claim
-                    </a>{' '}
+                    </Link>{' '}
                     using that code.
                 </li>
-                <li>Your manager approves it from their Claims tab — then this page fills in.</li>
+                <li>Your manager approves it from their Account Claims page — then this page fills in.</li>
             </ol>
         </div>
 

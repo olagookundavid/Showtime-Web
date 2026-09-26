@@ -19,7 +19,7 @@ const dateFormat = new Intl.DateTimeFormat("en-GB", {
  * re-renders only this, not the layout and the page inside it. No live region:
  * a screen reader should not announce every second.
  */
-export const AdminClock = ({ className = "" }: { className?: string }) => {
+export const DashboardClock = ({ className = "" }: { className?: string }) => {
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {

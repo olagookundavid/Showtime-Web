@@ -36,7 +36,7 @@ import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { DiscountCodesPanel } from '../../components/admin/DiscountCodesPanel';
 import { useImageUpload } from '../../hooks/useImageUpload';
 import { getApiErrorMessage } from '../../utils/apiError';
-import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
+import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 
 type Tab = 'PRODUCTS' | 'ORDERS' | 'DISCOUNTS';
 
@@ -585,7 +585,7 @@ export const AdminStore = () => {
 
     return (
         <div className="space-y-6 pb-36 md:pb-12">
-            <AdminPageHeader
+            <DashboardPageHeader
                 title="Online Store"
                 subtitle="Manage e-commerce products, variants, image assets, and order fulfillment."
                 actions={

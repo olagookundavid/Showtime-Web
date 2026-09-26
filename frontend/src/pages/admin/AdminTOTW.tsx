@@ -44,7 +44,7 @@ import {
   EyeSlashIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon } from "@heroicons/react/24/solid";
-import { AdminPageHeader } from "../../components/admin/AdminPageHeader";
+import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
 
 interface TOTWSlotDef {
   slot_code: string;
@@ -1338,7 +1338,7 @@ export const AdminTOTW = () => {
 
   return (
     <div className="space-y-6 md:space-y-8 animate-fade-in pb-16">
-      <AdminPageHeader
+      <DashboardPageHeader
         title="Team of the Week"
         subtitle="Manage Starting XIV selections (OFF 1–7 & DEF 1–7), ratings, and player honours."
         actions={

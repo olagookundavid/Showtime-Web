@@ -23,7 +23,7 @@ import { ImageUploadField } from '../../components/ui';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { getApiErrorMessage } from '../../utils/apiError';
-import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
+import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 
 // Mirrors the backend's MaxHeroSlides constant. Keep these in sync — the
 // server is the source of truth (it returns a 400 if exceeded), but matching
@@ -231,7 +231,7 @@ export const AdminHeroSlides = () => {
 
     return (
         <div className="space-y-6">
-            <AdminPageHeader
+            <DashboardPageHeader
                 title="Hero Slides"
                 subtitle={
                     <>

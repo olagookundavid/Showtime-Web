@@ -1,11 +1,67 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { contractsApi, type ContractData, type Player } from '../../services/api';
 import toast from 'react-hot-toast';
+import {
+    ArrowPathIcon,
+    ChevronLeftIcon,
+    ChevronRightIcon,
+    DocumentTextIcon,
+    InformationCircleIcon,
+    MagnifyingGlassIcon,
+    UserMinusIcon,
+    XCircleIcon,
+} from '@heroicons/react/24/outline';
+import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import { DataTable, type Column } from '../../components/ui/DataTable';
+import { RowActions } from '../../components/ui/RowActions';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
+import { Modal } from '../../components/ui/Modal';
+import { Spinner } from '../../components/ui/Spinner';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 const PAGE_SIZE = 20;
+const FREE_AGENT_PAGE_SIZE = 24;
+const DEFAULT_LENGTH = 13;
+
+type Tab = 'active' | 'pending' | 'free-agents';
+
+type PendingAction =
+    | { kind: 'offer'; player: Player; length: number }
+    | { kind: 'extend'; contract: ContractData }
+    | { kind: 'release'; contract: ContractData }
+    | { kind: 'withdraw'; contract: ContractData };
+
+const nameOf = (c: ContractData) => c.player?.name || 'Player';
+
+const tabClass = (active: boolean) =>
+    `min-h-11 px-4 sm:px-6 text-sm font-bold border-b-2 transition-colors ${
+        active
+            ? 'border-sffl-red text-sffl-red'
+            : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+    }`;
+
+const inputClass =
+    'w-full min-h-11 px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-sffl-red';
+
+const PlayerCell = ({ c }: { c: ContractData }) => (
+    <div className="flex items-center gap-3 min-w-0">
+        {c.player?.image ? (
+            <img src={c.player.image} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+        ) : (
+            <div className="w-8 h-8 rounded-full bg-sffl-navy/10 flex items-center justify-center font-bold text-xs text-sffl-navy dark:text-white shrink-0">
+                {c.player?.name?.slice(0, 2) || 'P'}
+            </div>
+        )}
+        <div className="min-w-0">
+            <div className="font-semibold text-gray-900 dark:text-white wrap-break-word">{c.player?.name || 'Unknown'}</div>
+            {!!c.player?.jersey_number && <div className="text-xs text-gray-400">#{c.player.jersey_number}</div>}
+        </div>
+    </div>
+);
 
 export const TeamHeadContracts: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<'active' | 'pending' | 'free-agents'>('active');
+    const [activeTab, setActiveTab] = useState<Tab>('active');
 
     // ── Active Contracts State (Server-side Filtered & Paginated) ──
     const [activeContracts, setActiveContracts] = useState<ContractData[]>([]);
@@ -31,10 +87,14 @@ export const TeamHeadContracts: React.FC = () => {
     const [freeAgentsLoading, setFreeAgentsLoading] = useState<boolean>(false);
     const [freeAgentSearch, setFreeAgentSearch] = useState<string>('');
 
-    // Modal state
+    // Offer form
     const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
-    const [contractLength, setContractLength] = useState<number>(13);
-    const [issuing, setIssuing] = useState<boolean>(false);
+    const [contractLength, setContractLength] = useState<string>(String(DEFAULT_LENGTH));
+
+    // Every write waits here for the confirm dialog.
+    const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+    const [extendLength, setExtendLength] = useState<string>(String(DEFAULT_LENGTH));
+    const [busy, setBusy] = useState(false);
 
     // ── Fetch Active Contracts (WHERE status = 'ACTIVE') ──
     const fetchActiveContracts = async () => {
@@ -49,8 +109,8 @@ export const TeamHeadContracts: React.FC = () => {
             setActiveContracts(res.data || []);
             setActiveTotal(res.total || 0);
             setActiveTotalPages(res.total_pages || 1);
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to fetch active contracts');
+        } catch (err) {
+            toast.error(getApiErrorMessage(err, 'Failed to fetch active contracts'));
         } finally {
             setActiveLoading(false);
         }
@@ -69,8 +129,8 @@ export const TeamHeadContracts: React.FC = () => {
             setPendingContracts(res.data || []);
             setPendingTotal(res.total || 0);
             setPendingTotalPages(res.total_pages || 1);
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to fetch pending contract offers');
+        } catch (err) {
+            toast.error(getApiErrorMessage(err, 'Failed to fetch pending contract offers'));
         } finally {
             setPendingLoading(false);
         }
@@ -83,12 +143,12 @@ export const TeamHeadContracts: React.FC = () => {
             const res = await contractsApi.getFreeAgents({
                 search: freeAgentSearch || undefined,
                 page: freeAgentPage,
-                limit: 24,
+                limit: FREE_AGENT_PAGE_SIZE,
             });
             setFreeAgents(res.data || []);
             setFreeAgentTotal(res.total || 0);
             setFreeAgentTotalPages(res.total_pages || 1);
-        } catch (err: any) {
+        } catch {
             toast.error('Failed to fetch free agents');
         } finally {
             setFreeAgentsLoading(false);
@@ -99,424 +159,378 @@ export const TeamHeadContracts: React.FC = () => {
     useEffect(() => {
         fetchActiveContracts();
         fetchPendingContracts();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Re-fetch active contracts when page/search changes
     useEffect(() => {
-        if (activeTab === 'active') {
-            fetchActiveContracts();
-        }
+        if (activeTab === 'active') fetchActiveContracts();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab, activePage, activeSearch]);
 
     // Re-fetch pending contracts when page/search changes
     useEffect(() => {
-        if (activeTab === 'pending') {
-            fetchPendingContracts();
-        }
+        if (activeTab === 'pending') fetchPendingContracts();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab, pendingPage, pendingSearch]);
 
     // Re-fetch free agents when page/search changes
     useEffect(() => {
-        if (activeTab === 'free-agents') {
-            fetchFreeAgents();
-        }
+        if (activeTab === 'free-agents') fetchFreeAgents();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab, freeAgentPage, freeAgentSearch]);
 
-    const handleIssueContract = async () => {
+    // A table's search box starts empty when its tab opens, so its filter does too.
+    const openTab = (tab: Tab) => {
+        if (tab === 'active') { setActiveSearch(''); setActivePage(1); }
+        if (tab === 'pending') { setPendingSearch(''); setPendingPage(1); }
+        setActiveTab(tab);
+    };
+
+    const openOffer = (p: Player) => {
+        setContractLength(String(DEFAULT_LENGTH));
+        setSelectedPlayer(p);
+    };
+
+    const submitOffer = () => {
         if (!selectedPlayer) return;
-        setIssuing(true);
-        try {
-            await contractsApi.issue({
-                player_id: selectedPlayer.id,
-                contract_length: Number(contractLength),
-                player_value: 0,
-            });
-            toast.success(`Contract offer sent to ${selectedPlayer.name}`);
-            setSelectedPlayer(null);
-            fetchActiveContracts();
-            fetchPendingContracts();
-            setActiveTab('pending');
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to issue contract offer');
-        } finally {
-            setIssuing(false);
-        }
-    };
-
-    const handleRelease = async (contractId: string, playerName: string) => {
-        if (!window.confirm(`Are you sure you want to release ${playerName}? They will become a free agent.`)) return;
-        try {
-            await contractsApi.release(contractId);
-            toast.success(`${playerName} released from contract`);
-            fetchActiveContracts();
-            fetchPendingContracts();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to release player');
-        }
-    };
-
-    const handleRenew = async (contractId: string, playerName: string) => {
-        const lenStr = window.prompt(`Enter renewal contract length in team matches for ${playerName}:`, '13');
-        if (!lenStr) return;
-        const len = parseInt(lenStr, 10);
-        if (isNaN(len) || len <= 0) {
-            toast.error('Invalid match count');
+        const length = parseInt(contractLength, 10);
+        if (!(length >= 1 && length <= 50)) {
+            toast.error('Contract length must be between 1 and 50 team matches.');
             return;
         }
+        setPendingAction({ kind: 'offer', player: selectedPlayer, length });
+    };
 
+    const confirmPendingAction = async () => {
+        const action = pendingAction;
+        if (!action) return;
+        let extendBy = 0;
+        if (action.kind === 'extend') {
+            extendBy = parseInt(extendLength, 10);
+            if (!(extendBy > 0)) {
+                toast.error('Enter the number of team matches for the extension.');
+                return;
+            }
+        }
+        setBusy(true);
         try {
-            await contractsApi.renew(contractId, { contract_length: len });
-            toast.success(`Extension offer sent to ${playerName}`);
+            switch (action.kind) {
+                case 'offer':
+                    await contractsApi.issue({ player_id: action.player.id, contract_length: action.length, player_value: 0 });
+                    toast.success(`Contract offer sent to ${action.player.name}`);
+                    setSelectedPlayer(null);
+                    openTab('pending');
+                    break;
+                case 'extend':
+                    await contractsApi.renew(action.contract.id, { contract_length: extendBy });
+                    toast.success(`Extension offer sent to ${nameOf(action.contract)}`);
+                    openTab('pending');
+                    break;
+                case 'release':
+                    await contractsApi.release(action.contract.id);
+                    toast.success(`${nameOf(action.contract)} released from contract`);
+                    break;
+                case 'withdraw':
+                    await contractsApi.cancelOffer(action.contract.id);
+                    toast.success(`Contract offer for ${nameOf(action.contract)} withdrawn`);
+                    break;
+            }
             fetchActiveContracts();
             fetchPendingContracts();
-            setActiveTab('pending');
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to offer contract extension');
+        } catch (err) {
+            const fallback = {
+                offer: 'Failed to issue contract offer',
+                extend: 'Failed to offer contract extension',
+                release: 'Failed to release player',
+                withdraw: 'Failed to withdraw contract offer',
+            }[action.kind];
+            toast.error(getApiErrorMessage(err, fallback));
+        } finally {
+            setBusy(false);
+            setPendingAction(null);
         }
     };
 
-    const handleCancelOffer = async (contractId: string, playerName: string) => {
-        if (!window.confirm(`Are you sure you want to withdraw the pending contract offer for ${playerName}?`)) return;
-        try {
-            await contractsApi.cancelOffer(contractId);
-            toast.success(`Contract offer for ${playerName} withdrawn`);
-            fetchActiveContracts();
-            fetchPendingContracts();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to withdraw contract offer');
+    const activeColumns = useMemo<Column<ContractData>[]>(() => [
+        { header: 'Player', cell: (c) => <PlayerCell c={c} /> },
+        { header: 'Position', cell: (c) => <span className="text-gray-600 dark:text-gray-300 font-medium">{c.player?.position || '—'}</span> },
+        {
+            header: 'Played / Total',
+            cell: (c) => <span className="font-mono font-bold text-gray-900 dark:text-white whitespace-nowrap">{c.matches_played} / {c.contract_length}</span>,
+        },
+        {
+            header: 'Remaining',
+            cell: (c) => (
+                <span className={`px-2 py-1 rounded-md text-xs font-bold whitespace-nowrap ${
+                    c.matches_remaining <= 2
+                        ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 animate-pulse'
+                        : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                }`}>
+                    {c.matches_remaining} matches left
+                </span>
+            ),
+        },
+        { header: 'Value', cell: (c) => <span className="font-bold text-gray-900 dark:text-white whitespace-nowrap">{c.player_value.toLocaleString()} pts</span> },
+        {
+            header: 'Actions',
+            align: 'right',
+            cell: (c) => (
+                <RowActions
+                    label={`Actions for ${nameOf(c)}`}
+                    actions={[
+                        {
+                            label: 'Extend contract',
+                            icon: ArrowPathIcon,
+                            onSelect: () => {
+                                setExtendLength(String(DEFAULT_LENGTH));
+                                setPendingAction({ kind: 'extend', contract: c });
+                            },
+                        },
+                        { label: 'Release player', icon: UserMinusIcon, danger: true, onSelect: () => setPendingAction({ kind: 'release', contract: c }) },
+                    ]}
+                />
+            ),
+        },
+    ], []);
+
+    const pendingColumns = useMemo<Column<ContractData>[]>(() => [
+        { header: 'Player', cell: (c) => <PlayerCell c={c} /> },
+        { header: 'Length', cell: (c) => <span className="text-gray-600 dark:text-gray-300 font-medium whitespace-nowrap">{c.contract_length} team matches</span> },
+        { header: 'Value', cell: (c) => <span className="font-bold text-gray-900 dark:text-white whitespace-nowrap">{c.player_value.toLocaleString()} pts</span> },
+        { header: 'Offered', cell: (c) => <span className="text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">{new Date(c.offered_at).toLocaleDateString()}</span> },
+        {
+            header: 'Status',
+            cell: () => (
+                <span className="px-2 py-1 bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 rounded-md text-xs font-bold whitespace-nowrap">
+                    Awaiting Player Acceptance
+                </span>
+            ),
+        },
+        {
+            header: 'Actions',
+            align: 'right',
+            cell: (c) => (
+                <RowActions
+                    label={`Actions for ${nameOf(c)}`}
+                    actions={[{ label: 'Withdraw offer', icon: XCircleIcon, danger: true, onSelect: () => setPendingAction({ kind: 'withdraw', contract: c }) }]}
+                />
+            ),
+        },
+    ], []);
+
+    const dialog = (() => {
+        switch (pendingAction?.kind) {
+            case 'offer': {
+                const { player, length } = pendingAction;
+                return {
+                    title: `Offer ${player.name} a contract?`,
+                    description: 'The player accepts or declines it from their Player Portal.',
+                    confirmLabel: 'Send Offer',
+                    tone: 'info' as const,
+                    icon: DocumentTextIcon,
+                    body: <ConfirmSummary rows={[['Player', player.name], ['Position', player.position], ['Length', `${length} team matches`]]} />,
+                };
+            }
+            case 'extend': {
+                const { contract } = pendingAction;
+                return {
+                    title: `Offer ${nameOf(contract)} an extension?`,
+                    description: 'The player accepts or declines it from their Player Portal.',
+                    confirmLabel: 'Send Extension Offer',
+                    tone: 'info' as const,
+                    icon: ArrowPathIcon,
+                    body: (
+                        <div className="space-y-3">
+                            <ConfirmSummary rows={[
+                                ['Player', nameOf(contract)],
+                                ['Current contract', `${contract.matches_played} / ${contract.contract_length} matches`],
+                            ]} />
+                            <label className="block">
+                                <span className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
+                                    Extension length (team matches) <span className="text-sffl-red">*</span>
+                                </span>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    value={extendLength}
+                                    onChange={e => setExtendLength(e.target.value)}
+                                    className={inputClass}
+                                />
+                            </label>
+                        </div>
+                    ),
+                };
+            }
+            case 'release': {
+                const { contract } = pendingAction;
+                return {
+                    title: `Release ${nameOf(contract)}?`,
+                    description: 'They become a free agent straight away.',
+                    confirmLabel: 'Release Player',
+                    tone: 'warning' as const,
+                    icon: UserMinusIcon,
+                    body: <ConfirmSummary rows={[
+                        ['Player', nameOf(contract)],
+                        ['Position', contract.player?.position],
+                        ['Remaining', `${contract.matches_remaining} matches`],
+                    ]} />,
+                };
+            }
+            default: {
+                const contract = pendingAction?.contract;
+                return {
+                    title: contract ? `Withdraw the offer to ${nameOf(contract)}?` : 'Withdraw this offer?',
+                    description: undefined,
+                    confirmLabel: 'Withdraw Offer',
+                    tone: 'warning' as const,
+                    icon: XCircleIcon,
+                    body: contract ? (
+                        <ConfirmSummary rows={[
+                            ['Player', nameOf(contract)],
+                            ['Length', `${contract.contract_length} team matches`],
+                            ['Offered', new Date(contract.offered_at).toLocaleDateString()],
+                        ]} />
+                    ) : undefined,
+                };
+            }
         }
-    };
+    })();
+
+    const countLabel = (n: number, one: string, many: string) => (
+        <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">{n} {n === 1 ? one : many}</span>
+    );
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">Team Contracts</h1>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Issue, renew, and manage player contracts for your roster.</p>
-                </div>
-                <button
-                    id="find-free-agents-btn"
-                    onClick={() => setActiveTab('free-agents')}
-                    className="inline-flex items-center justify-center px-4 py-2.5 bg-sffl-red hover:bg-sffl-red/90 text-white font-bold text-sm rounded-xl shadow-md transition-colors"
-                >
-                    + Find Free Agents
-                </button>
-            </div>
+            <DashboardPageHeader
+                title="Contracts"
+                subtitle="Offer, extend and release contracts for the players on your roster."
+                actions={
+                    <button
+                        type="button"
+                        onClick={() => openTab('free-agents')}
+                        className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 min-h-11 bg-sffl-red hover:bg-sffl-red/90 text-white font-bold text-sm rounded-lg shadow-md transition-colors"
+                    >
+                        <MagnifyingGlassIcon className="w-4 h-4" aria-hidden="true" />
+                        Find Free Agents
+                    </button>
+                }
+            />
 
             {/* Tabs */}
-            <div className="flex border-b border-gray-200 dark:border-gray-700">
-                <button
-                    onClick={() => setActiveTab('active')}
-                    className={`py-3 px-6 text-sm font-bold border-b-2 transition-colors ${
-                        activeTab === 'active'
-                            ? 'border-sffl-red text-sffl-red'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                    }`}
-                >
+            <div className="flex overflow-x-auto whitespace-nowrap border-b border-gray-200 dark:border-gray-700">
+                <button type="button" onClick={() => openTab('active')} aria-pressed={activeTab === 'active'} className={tabClass(activeTab === 'active')}>
                     Active Contracts ({activeTotal})
                 </button>
-                <button
-                    onClick={() => setActiveTab('pending')}
-                    className={`py-3 px-6 text-sm font-bold border-b-2 transition-colors ${
-                        activeTab === 'pending'
-                            ? 'border-sffl-red text-sffl-red'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                    }`}
-                >
+                <button type="button" onClick={() => openTab('pending')} aria-pressed={activeTab === 'pending'} className={tabClass(activeTab === 'pending')}>
                     Pending Offers ({pendingTotal})
                 </button>
-                <button
-                    onClick={() => setActiveTab('free-agents')}
-                    className={`py-3 px-6 text-sm font-bold border-b-2 transition-colors ${
-                        activeTab === 'free-agents'
-                            ? 'border-sffl-red text-sffl-red'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                    }`}
-                >
+                <button type="button" onClick={() => openTab('free-agents')} aria-pressed={activeTab === 'free-agents'} className={tabClass(activeTab === 'free-agents')}>
                     Free Agents Market
                 </button>
             </div>
 
             {/* ── Tab 1: Active Contracts ── */}
             {activeTab === 'active' && (
-                <div className="space-y-4">
-                    {/* Search Field */}
-                    <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-                        <input
-                            type="text"
-                            placeholder="Search active roster by player name..."
-                            value={activeSearch}
-                            onChange={e => {
-                                setActiveSearch(e.target.value);
-                                setActivePage(1);
-                            }}
-                            className="w-full max-w-md px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sffl-red"
-                        />
-                        <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                            {activeTotal} Active {activeTotal === 1 ? 'Player' : 'Players'}
-                        </div>
-                    </div>
-
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-                        {activeLoading ? (
-                            <div className="p-8 text-center text-gray-400">Loading active contracts...</div>
-                        ) : activeContracts.length === 0 ? (
-                            <div className="p-12 text-center text-gray-400">
-                                {activeSearch ? 'No active contracts match your search.' : 'No active player contracts found for your team.'}
-                            </div>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left border-collapse">
-                                    <thead>
-                                        <tr className="bg-gray-50 dark:bg-gray-700/50 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                                            <th className="p-4">Player</th>
-                                            <th className="p-4">Position</th>
-                                            <th className="p-4">Matches Played / Total</th>
-                                            <th className="p-4">Remaining</th>
-                                            <th className="p-4">Value</th>
-                                            <th className="p-4 text-right">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700 text-sm">
-                                        {activeContracts.map(c => (
-                                            <tr key={c.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30">
-                                                <td className="p-4 font-semibold text-gray-900 dark:text-white flex items-center gap-3">
-                                                    {c.player?.image ? (
-                                                        <img src={c.player.image} alt={c.player.name} className="w-8 h-8 rounded-full object-cover" />
-                                                    ) : (
-                                                        <div className="w-8 h-8 rounded-full bg-sffl-navy/10 flex items-center justify-center font-bold text-xs text-sffl-navy">
-                                                            {c.player?.name?.slice(0, 2) || 'P'}
-                                                        </div>
-                                                    )}
-                                                    <div>
-                                                        <div>{c.player?.name || 'Unknown'}</div>
-                                                        <div className="text-xs text-gray-400">#{c.player?.jersey_number}</div>
-                                                    </div>
-                                                </td>
-                                                <td className="p-4 text-gray-600 dark:text-gray-300 font-medium">{c.player?.position || '-'}</td>
-                                                <td className="p-4 text-gray-900 dark:text-white font-mono font-bold">
-                                                    {c.matches_played} / {c.contract_length}
-                                                </td>
-                                                <td className="p-4">
-                                                    <span className={`px-2 py-1 rounded-md text-xs font-bold ${
-                                                        c.matches_remaining <= 2 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 animate-pulse' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                                    }`}>
-                                                        {c.matches_remaining} matches left
-                                                    </span>
-                                                </td>
-                                                <td className="p-4 font-bold text-gray-900 dark:text-white">{c.player_value.toLocaleString()} pts</td>
-                                                <td className="p-4 text-right space-x-2">
-                                                    <button
-                                                        onClick={() => handleRenew(c.id, c.player?.name || 'Player')}
-                                                        className="px-3 py-1 bg-sffl-navy/10 hover:bg-sffl-navy/20 text-sffl-navy dark:text-blue-400 text-xs font-bold rounded-lg transition-colors"
-                                                    >
-                                                        Extend
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleRelease(c.id, c.player?.name || 'Player')}
-                                                        className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 text-xs font-bold rounded-lg transition-colors"
-                                                    >
-                                                        Release
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-
-                        {/* Active Contracts Pagination Footer */}
-                        {activeTotalPages > 1 && (
-                            <div className="p-4 bg-gray-50 dark:bg-gray-800/80 border-t border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-gray-500">
-                                <div>
-                                    Showing <span className="font-bold text-gray-900 dark:text-white">{activeContracts.length > 0 ? (activePage - 1) * PAGE_SIZE + 1 : 0}</span> to <span className="font-bold text-gray-900 dark:text-white">{Math.min(activePage * PAGE_SIZE, activeTotal)}</span> of <span className="font-bold text-gray-900 dark:text-white">{activeTotal}</span> active contracts
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={() => setActivePage(p => Math.max(1, p - 1))}
-                                        disabled={activePage <= 1}
-                                        className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg font-bold disabled:opacity-40 hover:bg-white dark:hover:bg-gray-700 transition-colors"
-                                    >
-                                        ← Previous
-                                    </button>
-                                    <span className="font-bold text-gray-700 dark:text-gray-300 px-2">
-                                        Page {activePage} of {activeTotalPages}
-                                    </span>
-                                    <button
-                                        onClick={() => setActivePage(p => Math.min(activeTotalPages, p + 1))}
-                                        disabled={activePage >= activeTotalPages}
-                                        className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg font-bold disabled:opacity-40 hover:bg-white dark:hover:bg-gray-700 transition-colors"
-                                    >
-                                        Next →
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
+                <DataTable
+                    data={activeContracts}
+                    columns={activeColumns}
+                    getRowId={(c) => c.id}
+                    loading={activeLoading}
+                    searchPlaceholder="Search by player name"
+                    onSearchSubmit={(q) => { setActiveSearch(q.trim()); setActivePage(1); }}
+                    serverPage={activePage}
+                    totalServerPages={activeTotalPages}
+                    onPageChange={setActivePage}
+                    headerActions={countLabel(activeTotal, 'Active Player', 'Active Players')}
+                    emptyMessage={activeSearch ? 'No active contracts match your search.' : 'No active player contracts found for your team.'}
+                />
             )}
 
             {/* ── Tab 2: Pending Offers ── */}
             {activeTab === 'pending' && (
                 <div className="space-y-4">
-                    {/* Search Field */}
-                    <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-                        <input
-                            type="text"
-                            placeholder="Search pending offers..."
-                            value={pendingSearch}
-                            onChange={e => {
-                                setPendingSearch(e.target.value);
-                                setPendingPage(1);
-                            }}
-                            className="w-full max-w-md px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sffl-red"
-                        />
-                        <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                            {pendingTotal} Pending {pendingTotal === 1 ? 'Offer' : 'Offers'}
-                        </div>
-                    </div>
-
                     {/* Managers repeatedly reported "I can't accept contracts". They can't —
                         only the player can, from their own portal. Saying so here is cheaper
                         than fielding the question, and points at the usual real cause when a
                         player says they can't either. */}
                     <div className="flex items-start gap-2.5 rounded-xl border border-blue-200 dark:border-blue-800/60 bg-blue-50 dark:bg-blue-900/20 p-3.5">
-                        <span className="text-base leading-none mt-0.5">ℹ️</span>
+                        <InformationCircleIcon className="w-5 h-5 shrink-0 text-blue-600 dark:text-blue-400" aria-hidden="true" />
                         <p className="text-xs text-blue-800 dark:text-blue-300 leading-relaxed">
                             <span className="font-bold">Only the player can accept an offer</span>, from their own
                             Player Portal — there's no accept button on this side by design. If a player says they
                             can't see the offer, their account probably isn't linked to their player profile yet:
                             they need to claim it at <span className="font-mono font-bold">/claim</span> with your
-                            team's claim code, and you approve it from the <span className="font-bold">Claims</span> tab.
+                            team's claim code, and you approve it from <span className="font-bold">Account Claims</span>.
                         </p>
                     </div>
 
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-                        {pendingLoading ? (
-                            <div className="p-8 text-center text-gray-400">Loading pending contract offers...</div>
-                        ) : pendingContracts.length === 0 ? (
-                            <div className="p-12 text-center text-gray-400">
-                                {pendingSearch ? 'No pending contract offers match your search.' : 'No pending contract offers awaiting response.'}
-                            </div>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left border-collapse">
-                                    <thead>
-                                        <tr className="bg-gray-50 dark:bg-gray-700/50 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                                            <th className="p-4">Player</th>
-                                            <th className="p-4">Offered Length</th>
-                                            <th className="p-4">Offered Value</th>
-                                            <th className="p-4">Offered Date</th>
-                                            <th className="p-4">Status</th>
-                                            <th className="p-4 text-right">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700 text-sm">
-                                        {pendingContracts.map(c => (
-                                            <tr key={c.id}>
-                                                <td className="p-4 font-semibold text-gray-900 dark:text-white">{c.player?.name || 'Unknown'}</td>
-                                                <td className="p-4 text-gray-600 dark:text-gray-300 font-medium">{c.contract_length} team matches</td>
-                                                <td className="p-4 font-bold text-gray-900 dark:text-white">{c.player_value.toLocaleString()} pts</td>
-                                                <td className="p-4 text-gray-400 text-xs">{new Date(c.offered_at).toLocaleDateString()}</td>
-                                                <td className="p-4">
-                                                    <span className="px-2 py-1 bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 rounded-md text-xs font-bold">
-                                                        Awaiting Player Acceptance
-                                                    </span>
-                                                </td>
-                                                <td className="p-4 text-right">
-                                                    <button
-                                                        onClick={() => handleCancelOffer(c.id, c.player?.name || 'Player')}
-                                                        className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 text-xs font-bold rounded-lg transition-colors"
-                                                    >
-                                                        Withdraw Offer
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-
-                        {/* Pending Contracts Pagination Footer */}
-                        {pendingTotalPages > 1 && (
-                            <div className="p-4 bg-gray-50 dark:bg-gray-800/80 border-t border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-gray-500">
-                                <div>
-                                    Showing <span className="font-bold text-gray-900 dark:text-white">{pendingContracts.length > 0 ? (pendingPage - 1) * PAGE_SIZE + 1 : 0}</span> to <span className="font-bold text-gray-900 dark:text-white">{Math.min(pendingPage * PAGE_SIZE, pendingTotal)}</span> of <span className="font-bold text-gray-900 dark:text-white">{pendingTotal}</span> pending offers
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={() => setPendingPage(p => Math.max(1, p - 1))}
-                                        disabled={pendingPage <= 1}
-                                        className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg font-bold disabled:opacity-40 hover:bg-white dark:hover:bg-gray-700 transition-colors"
-                                    >
-                                        ← Previous
-                                    </button>
-                                    <span className="font-bold text-gray-700 dark:text-gray-300 px-2">
-                                        Page {pendingPage} of {pendingTotalPages}
-                                    </span>
-                                    <button
-                                        onClick={() => setPendingPage(p => Math.min(pendingTotalPages, p + 1))}
-                                        disabled={pendingPage >= pendingTotalPages}
-                                        className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg font-bold disabled:opacity-40 hover:bg-white dark:hover:bg-gray-700 transition-colors"
-                                    >
-                                        Next →
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                    <DataTable
+                        data={pendingContracts}
+                        columns={pendingColumns}
+                        getRowId={(c) => c.id}
+                        loading={pendingLoading}
+                        searchPlaceholder="Search pending offers"
+                        onSearchSubmit={(q) => { setPendingSearch(q.trim()); setPendingPage(1); }}
+                        serverPage={pendingPage}
+                        totalServerPages={pendingTotalPages}
+                        onPageChange={setPendingPage}
+                        headerActions={countLabel(pendingTotal, 'Pending Offer', 'Pending Offers')}
+                        emptyMessage={pendingSearch ? 'No pending contract offers match your search.' : 'No pending contract offers awaiting response.'}
+                    />
                 </div>
             )}
 
             {/* ── Tab 3: Free Agents ── */}
             {activeTab === 'free-agents' && (
                 <div className="space-y-4">
-                    <input
-                        type="text"
-                        placeholder="Search free agents by name or position..."
-                        value={freeAgentSearch}
-                        onChange={e => {
-                            setFreeAgentSearch(e.target.value);
-                            setFreeAgentPage(1);
-                        }}
-                        className="w-full max-w-md px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sffl-red"
-                    />
+                    <div className="relative w-full sm:max-w-md">
+                        <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" aria-hidden="true" />
+                        <input
+                            type="search"
+                            aria-label="Search free agents"
+                            placeholder="Search free agents by name or position"
+                            value={freeAgentSearch}
+                            onChange={e => {
+                                setFreeAgentSearch(e.target.value);
+                                setFreeAgentPage(1);
+                            }}
+                            className="w-full min-h-11 pl-10 pr-4 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sffl-red"
+                        />
+                    </div>
 
                     {freeAgentsLoading ? (
-                        <div className="p-12 text-center text-gray-400 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-                            Loading free agents...
-                        </div>
+                        <Spinner label="Loading free agents" />
                     ) : freeAgents.length === 0 ? (
                         <div className="p-12 text-center text-gray-400 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
                             No free agents found matching your search.
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                                 {freeAgents.map(p => (
-                                    <div key={p.id} className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
+                                    <div key={p.id} className="bg-white dark:bg-gray-800 p-4 sm:p-5 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-3">
+                                        <div className="flex items-center gap-3 min-w-0">
                                             {p.image ? (
-                                                <img src={p.image} alt={p.name} className="w-12 h-12 rounded-full object-cover" />
+                                                <img src={p.image} alt="" className="w-12 h-12 rounded-full object-cover shrink-0" />
                                             ) : (
-                                                <div className="w-12 h-12 rounded-full bg-sffl-red/10 text-sffl-red flex items-center justify-center font-black text-lg">
+                                                <div className="w-12 h-12 rounded-full bg-sffl-red/10 text-sffl-red flex items-center justify-center font-black text-lg shrink-0">
                                                     {p.name.slice(0, 2)}
                                                 </div>
                                             )}
-                                            <div>
-                                                <h3 className="font-bold text-gray-900 dark:text-white">{p.name}</h3>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400">{p.position || 'Unassigned'} • Free Agent</p>
+                                            <div className="min-w-0">
+                                                <h3 className="font-bold text-gray-900 dark:text-white wrap-break-word">{p.name}</h3>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">{p.position || 'Unassigned'} · Free Agent</p>
                                             </div>
                                         </div>
 
                                         <button
-                                            onClick={() => setSelectedPlayer(p)}
-                                            className="px-3 py-1.5 bg-sffl-red hover:bg-sffl-red/90 text-white text-xs font-bold rounded-lg transition-colors"
+                                            type="button"
+                                            onClick={() => openOffer(p)}
+                                            className="inline-flex items-center justify-center gap-1.5 min-h-11 px-3 bg-sffl-red hover:bg-sffl-red/90 text-white text-xs font-bold rounded-lg transition-colors"
                                         >
+                                            <DocumentTextIcon className="w-4 h-4" aria-hidden="true" />
                                             Offer Contract
                                         </button>
                                     </div>
@@ -527,26 +541,30 @@ export const TeamHeadContracts: React.FC = () => {
                             {freeAgentTotalPages > 1 && (
                                 <div className="p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-gray-500">
                                     <div>
-                                        Showing <span className="font-bold text-gray-900 dark:text-white">{freeAgents.length > 0 ? (freeAgentPage - 1) * 24 + 1 : 0}</span> to <span className="font-bold text-gray-900 dark:text-white">{Math.min(freeAgentPage * 24, freeAgentTotal)}</span> of <span className="font-bold text-gray-900 dark:text-white">{freeAgentTotal}</span> free agents
+                                        Showing <span className="font-bold text-gray-900 dark:text-white">{(freeAgentPage - 1) * FREE_AGENT_PAGE_SIZE + 1}</span> to <span className="font-bold text-gray-900 dark:text-white">{Math.min(freeAgentPage * FREE_AGENT_PAGE_SIZE, freeAgentTotal)}</span> of <span className="font-bold text-gray-900 dark:text-white">{freeAgentTotal}</span> free agents
                                     </div>
 
                                     <div className="flex items-center gap-2">
                                         <button
+                                            type="button"
                                             onClick={() => setFreeAgentPage(p => Math.max(1, p - 1))}
                                             disabled={freeAgentPage <= 1}
-                                            className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg font-bold disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                            className="inline-flex items-center gap-1 min-h-11 px-3 border border-gray-200 dark:border-gray-700 rounded-lg font-bold disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                                         >
-                                            ← Previous
+                                            <ChevronLeftIcon className="w-4 h-4" aria-hidden="true" />
+                                            Previous
                                         </button>
-                                        <span className="font-bold text-gray-700 dark:text-gray-300 px-2">
+                                        <span className="font-bold text-gray-700 dark:text-gray-300 px-2 whitespace-nowrap">
                                             Page {freeAgentPage} of {freeAgentTotalPages}
                                         </span>
                                         <button
+                                            type="button"
                                             onClick={() => setFreeAgentPage(p => Math.min(freeAgentTotalPages, p + 1))}
                                             disabled={freeAgentPage >= freeAgentTotalPages}
-                                            className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg font-bold disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                            className="inline-flex items-center gap-1 min-h-11 px-3 border border-gray-200 dark:border-gray-700 rounded-lg font-bold disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                                         >
-                                            Next →
+                                            Next
+                                            <ChevronRightIcon className="w-4 h-4" aria-hidden="true" />
                                         </button>
                                     </div>
                                 </div>
@@ -556,55 +574,68 @@ export const TeamHeadContracts: React.FC = () => {
                 </div>
             )}
 
-            {/* Modal for Offering Contract */}
-            {selectedPlayer && (
-                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden" data-dialog onClick={() => setSelectedPlayer(null)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full max-h-[calc(100dvh-5rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 p-4 sm:p-6 pb-4 flex-shrink-0">
-                            <h3 className="text-xl font-black text-sffl-navy dark:text-white">Offer Contract</h3>
-                            <button onClick={() => setSelectedPlayer(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-lg p-1">✕</button>
+            {/* Offer form. Escape and the backdrop leave it alone while its confirm is up. */}
+            <Modal
+                open={!!selectedPlayer}
+                onClose={() => { if (!pendingAction) setSelectedPlayer(null); }}
+                title="Offer Contract"
+                maxWidth="md"
+            >
+                {selectedPlayer && (
+                    <div className="space-y-4">
+                        <div>
+                            <p className="text-xs uppercase font-bold text-gray-500 dark:text-gray-400 tracking-wider">Player</p>
+                            <p className="text-lg font-black text-gray-900 dark:text-white mt-0.5 wrap-break-word">
+                                {selectedPlayer.name}{' '}
+                                <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">({selectedPlayer.position || 'No Position'})</span>
+                            </p>
                         </div>
 
-                        <div className="p-4 sm:p-6 pb-10 sm:pb-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
-                            <div>
-                                <p className="text-xs uppercase font-bold text-gray-500 dark:text-gray-400 tracking-wider">Player</p>
-                                <p className="text-lg font-black text-gray-900 dark:text-white mt-0.5">{selectedPlayer.name} <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">({selectedPlayer.position || 'No Position'})</span></p>
-                            </div>
+                        <label className="block">
+                            <span className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Contract Length (Team Matches)</span>
+                            <input
+                                type="number"
+                                min="1"
+                                max="50"
+                                value={contractLength}
+                                onChange={e => setContractLength(e.target.value)}
+                                className={inputClass}
+                            />
+                            <span className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 block">Default is 13 matches (August standard).</span>
+                        </label>
 
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">
-                                    Contract Length (Team Matches)
-                                </label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    max="50"
-                                    value={contractLength}
-                                    onChange={e => setContractLength(parseInt(e.target.value, 10))}
-                                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-sffl-red focus:border-sffl-red"
-                                />
-                                <span className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 block">Default is 13 matches (August standard).</span>
-                            </div>
-                        </div>
-
-                        <div className="flex gap-3 p-4 sm:p-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-gray-50 dark:bg-gray-800/90">
+                        <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
                             <button
+                                type="button"
                                 onClick={() => setSelectedPlayer(null)}
-                                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold text-sm rounded-xl transition-colors border border-gray-200 dark:border-gray-600"
+                                className="flex-1 min-h-11 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold text-sm rounded-lg transition-colors border border-gray-200 dark:border-gray-600"
                             >
                                 Cancel
                             </button>
                             <button
-                                onClick={handleIssueContract}
-                                disabled={issuing}
-                                className="flex-1 py-2.5 bg-sffl-red hover:bg-red-700 text-white font-bold text-sm rounded-xl transition-colors disabled:opacity-50 shadow-sm"
+                                type="button"
+                                onClick={submitOffer}
+                                className="flex-1 min-h-11 bg-sffl-red hover:bg-red-700 text-white font-bold text-sm rounded-lg transition-colors shadow-sm"
                             >
-                                {issuing ? 'Sending...' : 'Send Contract Offer'}
+                                Send Contract Offer
                             </button>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
+            </Modal>
+
+            <ConfirmDialog
+                open={pendingAction !== null}
+                title={dialog.title}
+                description={dialog.description}
+                body={dialog.body}
+                confirmLabel={dialog.confirmLabel}
+                tone={dialog.tone}
+                icon={dialog.icon}
+                pending={busy}
+                onConfirm={confirmPendingAction}
+                onCancel={() => setPendingAction(null)}
+            />
         </div>
     );
 };

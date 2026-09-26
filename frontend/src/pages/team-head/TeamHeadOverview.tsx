@@ -1,15 +1,15 @@
-import { useOutletContext } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { ChevronRightIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { LightboxImage } from '../../components/ui';
+import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import { TEAM_HEAD_NAV_SECTIONS } from '../../components/team-head/teamHeadNav';
+import { useTeamHeadTeam } from '../../components/team-head/useTeamHeadTeam';
 
-interface TeamInfo {
-    id: string;
-    name: string;
-    short_name: string;
-    logo: string;
-}
+// Every page but this one, straight from the sidebar, so the two never disagree.
+const QUICK_ACTIONS = TEAM_HEAD_NAV_SECTIONS.flatMap(s => s.links).filter(l => !l.end);
 
 const TeamHeadOverview = () => {
-    const { team } = useOutletContext<{ team: TeamInfo | null }>();
+    const team = useTeamHeadTeam();
 
     if (!team) {
         return (
@@ -21,57 +21,54 @@ const TeamHeadOverview = () => {
     }
 
     return (
-        <div className="space-y-8">
-            <div>
-                <h1 className="text-3xl font-black text-sffl-navy dark:text-white uppercase">Welcome to {team.name}</h1>
-                <p className="text-gray-600 dark:text-gray-400 mt-1">Manage your team's players and details from here.</p>
-            </div>
+        <div className="space-y-6">
+            <DashboardPageHeader
+                title="Overview"
+                subtitle={<>Everything you manage for <span className="font-bold">{team.name}</span>, in one place.</>}
+            />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-6">
-                    <div className="flex items-center gap-4 mb-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+                    <div className="flex items-center gap-4 min-w-0">
                         {team.logo ? (
-                            <LightboxImage 
-                                src={team.logo} 
-                                alt={team.name} 
-                                thumbnailClassName="w-20 h-20 rounded-xl object-contain bg-gray-50 dark:bg-gray-700/50 p-2 shadow-sm border border-gray-100 dark:border-gray-700" 
+                            <LightboxImage
+                                src={team.logo}
+                                alt={team.name}
+                                thumbnailClassName="w-20 h-20 shrink-0 rounded-xl object-contain bg-gray-50 dark:bg-gray-700/50 p-2 shadow-sm border border-gray-100 dark:border-gray-700"
                             />
                         ) : (
-                            <div className="w-20 h-20 rounded-xl bg-sffl-navy/10 flex items-center justify-center text-3xl font-black text-sffl-navy">
-                                {team.short_name?.slice(0, 3) || '🛡️'}
+                            <div className="w-20 h-20 shrink-0 rounded-xl bg-sffl-navy/10 flex items-center justify-center text-2xl font-black text-sffl-navy dark:text-white">
+                                {team.short_name?.slice(0, 3) || <ShieldCheckIcon className="w-10 h-10" aria-hidden="true" />}
                             </div>
                         )}
-                        <div>
-                            <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase">{team.name}</h2>
-                            <span className="text-sm text-gray-500 dark:text-gray-400 font-medium uppercase">{team.short_name}</span>
+                        <div className="min-w-0">
+                            <h2 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white wrap-break-word">{team.name}</h2>
+                            <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">{team.short_name}</span>
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-6">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Quick Actions</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <a href="/team-head/team-sheets" className="block bg-sffl-red/10 hover:bg-sffl-red/15 border border-sffl-red/30 rounded-lg p-3 transition-colors">
-                            <span className="font-bold text-sffl-red text-sm">📋 Match Team Sheets</span>
-                            <p className="text-xs text-gray-500 mt-0.5">Set starting 14, defense cover & bench.</p>
-                        </a>
-                        <a href="/team-head/players" className="block bg-sffl-red/5 hover:bg-sffl-red/10 border border-sffl-red/20 rounded-lg p-3 transition-colors">
-                            <span className="font-bold text-sffl-red text-sm">🏃 Manage Roster</span>
-                            <p className="text-xs text-gray-500 mt-0.5">View and manage your team's players.</p>
-                        </a>
-                        <a href="/team-head/contracts" className="block bg-sffl-navy/5 hover:bg-sffl-navy/10 border border-sffl-navy/20 rounded-lg p-3 transition-colors">
-                            <span className="font-bold text-sffl-navy dark:text-blue-400 text-sm">📝 Manage Contracts</span>
-                            <p className="text-xs text-gray-500 mt-0.5">Issue, renew, and release contracts.</p>
-                        </a>
-                        <a href="/team-head/transfers" className="block bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 transition-colors">
-                            <span className="font-bold text-amber-600 dark:text-amber-400 text-sm">🔄 Transfer Market</span>
-                            <p className="text-xs text-gray-500 mt-0.5">Trade, list, and bid on players.</p>
-                        </a>
-                        <a href="/team-head/budget" className="block bg-green-500/5 hover:bg-green-500/10 border border-green-500/20 rounded-lg p-3 transition-colors">
-                            <span className="font-bold text-green-600 dark:text-green-400 text-sm">💰 Team Budget</span>
-                            <p className="text-xs text-gray-500 mt-0.5">Check remaining point allowances.</p>
-                        </a>
-                    </div>
+                <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Quick Actions</h2>
+                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {QUICK_ACTIONS.map(link => (
+                            <li key={link.path}>
+                                <Link
+                                    to={link.path}
+                                    className="group flex items-center gap-3 h-full min-h-11 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-sffl-red/40 hover:bg-sffl-red/5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sffl-red/40"
+                                >
+                                    <span className="shrink-0 w-10 h-10 rounded-lg bg-sffl-red/10 text-sffl-red flex items-center justify-center">
+                                        <link.icon className="w-5 h-5" aria-hidden="true" />
+                                    </span>
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block font-bold text-sm text-gray-900 dark:text-white">{link.name}</span>
+                                        <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5">{link.description}</span>
+                                    </span>
+                                    <ChevronRightIcon className="w-4 h-4 shrink-0 text-gray-400 group-hover:text-sffl-red transition-colors" aria-hidden="true" />
+                                </Link>
+                            </li>
+                        ))}
+                    </ul>
                 </div>
             </div>
         </div>

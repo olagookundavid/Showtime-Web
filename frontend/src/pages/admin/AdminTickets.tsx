@@ -30,7 +30,7 @@ import {
 } from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
 import { formatMatchDate } from "../../utils/dateUtils";
-import { AdminPageHeader } from "../../components/admin/AdminPageHeader";
+import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
 
 type ApiError = {
   response?: {
@@ -473,7 +473,7 @@ export const AdminTickets = () => {
 
   return (
     <div className="space-y-6">
-      <AdminPageHeader
+      <DashboardPageHeader
         title="Tickets"
         subtitle="Search and check in tickets, and review ticket sales."
       />

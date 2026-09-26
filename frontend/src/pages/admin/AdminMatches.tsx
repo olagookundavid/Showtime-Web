@@ -34,7 +34,7 @@ import { AdminTeamSheetModal } from "../../components/admin/AdminTeamSheetModal"
 import { AdminKnockoutBracket } from "../../components/admin/AdminKnockoutBracket";
 import { KNOCKOUT_STAGES } from "../../components/matches/BracketView";
 import { formatMatchDate, formatMatchTime } from "../../utils/dateUtils";
-import { AdminPageHeader } from "../../components/admin/AdminPageHeader";
+import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
 
 interface FormData {
   competition_id: string;
@@ -698,7 +698,7 @@ export const AdminMatches = () => {
 
   return (
     <div className="space-y-6">
-      <AdminPageHeader
+      <DashboardPageHeader
         title="Matches"
         subtitle="Schedule fixtures, enter scores and manage results for each competition."
         actions={

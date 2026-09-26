@@ -21,7 +21,7 @@ import { Loader } from '../../components/ui/Loader';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { getApiErrorMessage } from '../../utils/apiError';
-import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
+import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 
 type PendingAction = 'verify' | 'shipped' | 'delivered' | 'cancel';
 
@@ -152,7 +152,7 @@ export const AdminOrderDetail = () => {
 
     return (
         <div className="space-y-6 pb-36 md:pb-12">
-            <AdminPageHeader
+            <DashboardPageHeader
                 back={{ to: '/admin/store', label: 'Back to Orders' }}
                 title={<>Order <span className="font-mono text-sffl-red">{order.order_reference}</span></>}
                 subtitle={`Placed ${new Date(order.created_at).toLocaleString()}`}

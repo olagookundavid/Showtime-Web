@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 
-interface AdminPageHeaderProps {
+interface DashboardPageHeaderProps {
   /** The sidebar label for the page, e.g. "Matches". Detail pages pass their own. */
   title: ReactNode;
   /** One sentence saying what the page is for. */
@@ -15,17 +15,17 @@ interface AdminPageHeaderProps {
 }
 
 /**
- * The header every admin page starts with. The look lives here and only here, so
- * a change to it changes every page. Change the type size, weight or colour in
- * this file, never on a page.
+ * The header every dashboard page (admin, team head, player portal, seller) starts with. The look
+ * lives here and only here, so a change to it changes every page. Change the
+ * type size, weight or colour in this file, never on a page.
  */
-export const AdminPageHeader = ({
+export const DashboardPageHeader = ({
   title,
   subtitle,
   actions,
   back,
   className = "",
-}: AdminPageHeaderProps) => (
+}: DashboardPageHeaderProps) => (
   <header
     className={`flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between ${className}`}
   >

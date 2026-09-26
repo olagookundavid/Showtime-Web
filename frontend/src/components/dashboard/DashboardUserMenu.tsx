@@ -6,7 +6,7 @@ import {
   ChevronDownIcon,
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../../contexts/AuthContext";
-import { ROLE_LABELS } from "./adminNav";
+import { ROLE_LABELS } from "./dashboardNav";
 
 // Same item styling as RowActions' menu.
 const itemClass = (danger = false) =>
@@ -30,7 +30,7 @@ const initialsOf = (name: string) =>
  * layout, which asks for confirmation first. Closes on an outside tap, Escape,
  * Tab, and after a pick.
  */
-export const AdminUserMenu = ({ onLogout }: { onLogout: () => void }) => {
+export const DashboardUserMenu = ({ onLogout }: { onLogout: () => void }) => {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);

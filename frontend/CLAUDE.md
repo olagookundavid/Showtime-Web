@@ -2,7 +2,7 @@
 
 Standing rules for all code under `frontend/`. Follow them without being asked. Add each new rule the owner gives here, and keep this file succinct.
 
-**Scope:** when you edit a file, apply every rule to the whole file (text icons, native `confirm()`/`alert()`, responsiveness gaps, hand-written tables, admin page headers), and to the components a page renders for responsiveness. Don't edit other files just for these rules.
+**Scope:** when you edit a file, apply every rule to the whole file (text icons, native `confirm()`/`alert()`, responsiveness gaps, hand-written tables, dashboard page headers), and to the components a page renders for responsiveness. Don't edit other files just for these rules.
 
 ## 1. No text icons
 
@@ -17,7 +17,7 @@ Never use emoji, Unicode symbols or text as icons (`✅ 🔍 ⚡ ⭐ ✕ ✓ ←
 
 ## 2. Confirm every write, and logout
 
-Actions that create, update or delete data or change a record's state (saves, deletes, check-in, verify, approve, revoke, publish, send, reset, force), and logout, run only after a confirm dialog. Reading, filtering, sorting, paging, switching tabs and opening a form don't.
+Actions that create, update or delete data or change a record's state (saves, deletes, check-in, verify, approve, revoke, publish, send, reset, force), and logout, run only after a confirm dialog. Reading, filtering, sorting, paging, switching tabs, opening a form and marking notifications read don't.
 
 - `ConfirmDialog` (`src/components/ui/ConfirmDialog.tsx`) props: `open`, `title`, `description?`, `body?`, `confirmLabel`, `tone`, `icon` (a heroicon), `pending`, `maxWidth?` (`'md'` unless the body needs room), `onConfirm`, `onCancel`. Name the affected record with a `ConfirmSummary` (`src/components/ui/ConfirmSummary.tsx`) in `body`.
 - Tone: `success` for positive completions (check in, approve), `info` for neutral changes and saves, `warning` for destructive, irreversible or forced actions (delete, revoke, reset, force).
@@ -30,7 +30,7 @@ Actions that create, update or delete data or change a record's state (saves, de
 
 ## 3. Responsive at every size
 
-Every page you change or build works from a 320px phone to a wide monitor: the whole page, not only the lines you touched.
+Every page you change or build works from a 320px phone to a wide monitor.
 
 - **Mobile first.** Base classes are for the smallest screen. Add `sm:` (640px), `md:` (768px), `lg:` (1024px), `xl:` (1280px), `2xl:` (1536px). Don't write desktop styles and undo them with `max-*:`.
 - **No horizontal page scroll.**
@@ -38,7 +38,7 @@ Every page you change or build works from a 320px phone to a wide monitor: the w
   - Give flex and grid children whose text must shrink `min-w-0`.
   - Use `truncate`, `break-words` or `line-clamp-*` on long values, and `max-w-full` on media.
 - **Reflow.** Grids collapse (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`). Control rows wrap (`flex-wrap`) or stack (`flex-col sm:flex-row`). Spacing and type scale up with the breakpoint.
-- **Tables** scroll sideways inside their own container (`DataTable` does this). No card layout on small screens. Don't hide a column unless its information is offered another way.
+- **Tables:** see §4. Don't hide a column unless its information is offered another way.
 - **Touch targets** are at least 44px (`min-h-11 min-w-11`, or padding), with room between them. Nothing that matters depends on hover.
 - **Modals fit the viewport.**
   - Height: `max-h-[calc(100dvh-2rem)]` (prefer `dvh` to `vh`), with an `overflow-y-auto` body.
@@ -59,18 +59,20 @@ Every table uses `DataTable` (`src/components/ui/DataTable.tsx`, built on TanSta
   - Keep `data` stable too: a module-level `const NO_ROWS: Row[] = []`, not an inline `?? []`.
 - **Server-paginated lists** pass `serverPage`, `totalServerPages` and `onPageChange`, plus `onSearchSubmit` for server search. A sortable header there only reorders the loaded rows. Local lists let `DataTable` search, sort and page in the browser.
 - **Other props:** `loading`, `paginated={false}`, `getRowId`, `emptyMessage`, `searchable={false}`, `compact` (no 800px minimum width, for tables in dialogs) and `headerActions` (toolbar filters and buttons).
-- **The same table on every screen.** On phones it scrolls sideways in its card. There is no card layout; the owner doesn't want one.
+- **The same table on every screen.** On phones it scrolls sideways inside its card (`DataTable` does this). No card layout; the owner doesn't want one.
 - **The first column is frozen,** so it must name the row (player, team, match). Never lead with a narrow column like `#` or `Pos`; fold it into the name cell or put it second.
 - **Row actions.** Rows with actions end in an `Actions` column (`align: 'right'`) holding `<RowActions>` (`src/components/ui/RowActions.tsx`).
   - It's a three-dot button on every row that opens a dropdown of all that row's actions. No inline action buttons.
   - An action that can't run on a row stays in the menu, disabled, with a `hint` saying why.
 - **Missing a feature?** Add it to `DataTable` as an optional prop instead of hand-writing a table. Ask first if the change is large.
 
-## 5. Admin page headers
+## 5. Dashboards
 
-Every admin page (`src/pages/admin/`) starts with `AdminPageHeader` (`src/components/admin/AdminPageHeader.tsx`). Never hand-write an `<h1>`, banner or card header there. The look lives in that component only, so to change how headers look, change the component.
+Dashboard layouts (admin, team head, player portal, seller) render `DashboardShell` (`src/components/dashboard/`) with a nav file such as `teamHeadNav.ts`.
 
-- **Title:** the page's sidebar label in Title Case (`Matches`, `Play by Play`), so the page and the sidebar always agree. Detail pages (an order, a competition's teams) use their own title plus `back={{ to, label }}`.
-- **Subtitle:** every page has one, a single sentence saying what the page is for. Pass a `ReactNode` when it shows live values.
+Every dashboard page (`src/pages/admin/`, `src/pages/team-head/`, `src/pages/player-portal/`, `src/pages/seller/`) starts with its own `DashboardPageHeader` (`src/components/dashboard/DashboardPageHeader.tsx`). Never hand-write an `<h1>`, banner or card header there. The look lives in that component only; change it there.
+
+- **Title:** the page's sidebar label in Title Case (`Matches`, `Play by Play`), so page and sidebar agree. Detail pages (an order, a competition's teams) use their own title plus `back={{ to, label }}`.
+- **Subtitle:** one sentence on every page saying what it's for. Pass a `ReactNode` for live values.
 - **Actions:** primary buttons go in `actions`, on the right from 640px up. Search boxes and filters go in their own row below the header.
 - No italics, uppercase, icon tiles, banners or per-page sizes.

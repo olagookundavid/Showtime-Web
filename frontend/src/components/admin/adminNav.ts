@@ -1,4 +1,3 @@
-import type { ComponentType } from "react";
 import {
   Squares2X2Icon,
   PresentationChartLineIcon,
@@ -28,24 +27,26 @@ import {
   Cog6ToothIcon,
   GiftIcon,
 } from "@heroicons/react/24/outline";
-
-export type AdminNavLink = {
-  name: string;
-  path: string;
-  icon: ComponentType<{ className?: string }>;
-};
-
-export type AdminNavSection = {
-  title: string;
-  links: AdminNavLink[];
-};
+import {
+  Squares2X2Icon as SquaresSolid,
+  CalendarIcon as CalendarSolid,
+  TicketIcon as TicketSolid,
+  NewspaperIcon as NewspaperSolid,
+  ChartBarIcon as ChartBarSolid,
+  UserGroupIcon as UserGroupSolid,
+  ShieldCheckIcon as ShieldCheckSolid,
+} from "@heroicons/react/24/solid";
+import type {
+  DashboardBottomNavItem,
+  DashboardNavSection,
+} from "../dashboard/dashboardNav";
 
 // Every link has its own icon: in the collapsed rail the icon is all there is.
-export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
+export const ADMIN_NAV_SECTIONS: DashboardNavSection[] = [
   {
     title: "Overview",
     links: [
-      { name: "Dashboard", path: "/admin", icon: Squares2X2Icon },
+      { name: "Dashboard", path: "/admin", icon: Squares2X2Icon, end: true },
       { name: "Analytics", path: "/admin/analytics", icon: PresentationChartLineIcon },
     ],
   },
@@ -122,21 +123,26 @@ const allowLink = (role: string | undefined, name: string) => {
 };
 
 /** The sections a role may see, with their disallowed links and any empty sections removed. */
-export const adminSectionsFor = (role: string | undefined): AdminNavSection[] =>
+export const adminSectionsFor = (role: string | undefined): DashboardNavSection[] =>
   ADMIN_NAV_SECTIONS.map((s) => ({
     ...s,
     links: s.links.filter((l) => allowLink(role, l.name)),
   })).filter((s) => s.links.length > 0);
 
-export const isAdminLinkActive = (path: string, pathname: string) =>
-  path === "/admin"
-    ? pathname === "/admin" || pathname === "/admin/"
-    : pathname === path || pathname.startsWith(path + "/");
+const MATCH: DashboardBottomNavItem = { name: "Match", path: "/admin/matches", icon: CalendarIcon, solidIcon: CalendarSolid };
+const STATS: DashboardBottomNavItem = { name: "Stats", path: "/admin/stats", icon: ChartBarIcon, solidIcon: ChartBarSolid };
 
-export const ROLE_LABELS: Record<string, string> = {
-  app_admin: "App Admin",
-  admin: "Admin",
-  ticketer: "Ticketer",
-  referee: "Referee",
-  stats: "Stats",
+/** The phone bottom-nav shortcuts for a role. Ticketers have no bottom nav. */
+export const adminBottomNavFor = (role: string | undefined): DashboardBottomNavItem[] => {
+  if (role === "ticketer") return [];
+  if (role === "referee")
+    return [MATCH, STATS, { name: "Players", path: "/admin/players", icon: UserGroupIcon, solidIcon: UserGroupSolid }];
+  if (role === "stats")
+    return [MATCH, STATS, { name: "Teams", path: "/admin/teams", icon: ShieldCheckIcon, solidIcon: ShieldCheckSolid }];
+  return [
+    { name: "Dash", path: "/admin", end: true, icon: Squares2X2Icon, solidIcon: SquaresSolid },
+    MATCH,
+    { name: "Ticket", path: "/admin/tickets", icon: TicketIcon, solidIcon: TicketSolid },
+    { name: "News", path: "/admin/news", icon: NewspaperIcon, solidIcon: NewspaperSolid },
+  ];
 };

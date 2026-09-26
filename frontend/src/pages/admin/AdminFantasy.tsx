@@ -55,7 +55,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { Pagination } from '../../components/ui/Pagination';
 import { getApiErrorMessage } from '../../utils/apiError';
-import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
+import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 
 /** `datetime-local` gives a local wall-clock string; the API wants RFC3339. */
 const toRFC3339 = (localValue: string): string => new Date(localValue).toISOString();
@@ -325,7 +325,7 @@ export function AdminFantasy() {
 
     return (
         <div className="space-y-6 text-gray-900 dark:text-white">
-            <AdminPageHeader
+            <DashboardPageHeader
                 title="Fantasy"
                 subtitle="Every fantasy season you run, and the manual payout queue that spans all of them."
             />

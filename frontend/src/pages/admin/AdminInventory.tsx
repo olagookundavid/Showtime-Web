@@ -33,7 +33,7 @@ import { RowActions } from '../../components/ui/RowActions';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { getApiErrorMessage } from '../../utils/apiError';
-import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
+import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 
 type Tab = 'PRODUCTS' | 'SALES' | 'REPORTS' | 'SETTINGS';
 
@@ -399,7 +399,7 @@ export const AdminInventory = () => {
 
     return (
         <div className="space-y-6 relative">
-            <AdminPageHeader
+            <DashboardPageHeader
                 title="Inventory"
                 subtitle="Track warehouse stock, low-stock alerts and in-person sales."
             />

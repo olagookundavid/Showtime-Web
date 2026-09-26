@@ -19,7 +19,7 @@ import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
 import { DataTable, type Column } from "../../components/ui/DataTable";
 import { RowActions } from "../../components/ui/RowActions";
 import { Spinner } from "../../components/ui/Spinner";
-import { AdminPageHeader } from "../../components/admin/AdminPageHeader";
+import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
 
 const FREE_AGENTS_PER_PAGE = 24;
 
@@ -428,7 +428,7 @@ export const AdminTransferWindows: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <AdminPageHeader
+      <DashboardPageHeader
         title="Transfer Windows"
         subtitle="Configure open/close date windows for league-wide buying and trading."
         actions={

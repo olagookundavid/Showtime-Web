@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
+import { XMarkIcon } from "@heroicons/react/24/outline";
 
 type Props = {
   open: boolean;
@@ -56,7 +57,7 @@ export const Modal = ({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`bg-white dark:bg-gray-800 rounded-2xl ${widthClass[maxWidth]} w-full shadow-2xl max-h-[calc(100dvh-5rem)] sm:max-h-[85vh] flex flex-col overflow-hidden my-auto border border-gray-100 dark:border-gray-700`}
+        className={`bg-white dark:bg-gray-800 rounded-2xl ${widthClass[maxWidth]} w-full shadow-2xl max-h-[calc(100dvh-5rem)] sm:max-h-[85dvh] flex flex-col overflow-hidden my-auto border border-gray-100 dark:border-gray-700`}
       >
         {(title || subtitle) && (
           <div className="flex justify-between items-start gap-4 p-4 sm:p-6 pb-3 sm:pb-4 border-b border-gray-100 dark:border-gray-700 shrink-0">
@@ -76,11 +77,12 @@ export const Modal = ({
               )}
             </div>
             <button
+              type="button"
               onClick={onClose}
               aria-label="Close"
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-2xl leading-none -mt-1"
+              className="shrink-0 p-2.5 -mx-2.5 -mb-2.5 -mt-3.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white"
             >
-              ✕
+              <XMarkIcon className="w-6 h-6" aria-hidden="true" />
             </button>
           </div>
         )}

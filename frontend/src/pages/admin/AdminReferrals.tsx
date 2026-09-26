@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { adminListReferrals, type ReferralStatsResponse } from '../../services/api';
 import { DataTable, type Column } from '../../components/ui/DataTable';
-import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
+import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 
 const PAGE_SIZE = 10;
 const NO_ROWS: ReferralStatsResponse[] = [];
@@ -81,7 +81,7 @@ export const AdminReferrals = () => {
 
     return (
         <div className="space-y-6">
-            <AdminPageHeader
+            <DashboardPageHeader
                 title="Referrals"
                 subtitle={
                     <>

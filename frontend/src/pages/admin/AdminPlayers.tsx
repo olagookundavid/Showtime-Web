@@ -34,7 +34,7 @@ import {
   DeletedPlayerName,
   deletedRowClass,
 } from "../../components/common/DeletedPlayer";
-import { AdminPageHeader } from "../../components/admin/AdminPageHeader";
+import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
 
 interface FormData {
   name: string;
@@ -598,7 +598,7 @@ export const AdminPlayers = () => {
 
   return (
     <div className="space-y-6">
-      <AdminPageHeader
+      <DashboardPageHeader
         title="Players"
         subtitle="Manage player profiles, positions and team assignments."
         actions={

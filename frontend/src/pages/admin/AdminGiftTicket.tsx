@@ -6,7 +6,7 @@ import { getAllEventDays, giftTicket, type EventDayResponse, type TicketResponse
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { getApiErrorMessage } from '../../utils/apiError';
-import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
+import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 
 const MAX_QUANTITY = 10;
 
@@ -89,7 +89,7 @@ export const AdminGiftTicket = () => {
 
     return (
         <div>
-            <AdminPageHeader
+            <DashboardPageHeader
                 title="Administrator"
                 subtitle="Gift a complimentary ticket without payment."
                 className="mb-6"

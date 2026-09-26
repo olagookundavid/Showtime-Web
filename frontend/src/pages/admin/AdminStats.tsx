@@ -34,7 +34,7 @@ import {
   ALL_STAT_DEFINITIONS,
   getStatsForPosition,
 } from "../../utils/positionStatsMatrix";
-import { AdminPageHeader } from "../../components/admin/AdminPageHeader";
+import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
 
 const STAT_FIELDS = ALL_STAT_DEFINITIONS.filter((s) => !s.teamOnly);
 
@@ -295,7 +295,7 @@ export const AdminStats = () => {
   );
   return (
     <div className="space-y-6">
-      <AdminPageHeader
+      <DashboardPageHeader
         title="Stats"
         subtitle="Select match context to record player stats."
       />

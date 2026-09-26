@@ -39,7 +39,7 @@ import {
   GiftIcon,
   SparklesIcon,
 } from "@heroicons/react/24/outline";
-import { AdminPageHeader } from "../../components/admin/AdminPageHeader";
+import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
 
 const COLOR_SCHEMES = [
   {
@@ -650,7 +650,7 @@ export const AdminBadges = () => {
 
   return (
     <div className="space-y-6 md:space-y-8 animate-fade-in pb-16">
-      <AdminPageHeader
+      <DashboardPageHeader
         title="Badges & Honors"
         subtitle="Manage player accolades, MVP counters, Team of the Week/Season badges, and custom league honors."
         actions={

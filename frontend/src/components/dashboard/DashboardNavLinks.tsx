@@ -1,10 +1,14 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation } from "react-router-dom";
-import { isAdminLinkActive, type AdminNavSection } from "./adminNav";
+import { isNavLinkActive, type DashboardNavSection } from "./dashboardNav";
 
-interface AdminNavLinksProps {
-  sections: AdminNavSection[];
+interface DashboardNavLinksProps {
+  sections: DashboardNavSection[];
+  /** Names the nav for screen readers, e.g. "Admin". */
+  ariaLabel: string;
+  /** Counts shown on links, keyed by link path. Zero shows nothing. */
+  badges?: Record<string, number>;
   /** Icon-only rail: labels and headings stay for screen readers, and hovering a link shows its name. */
   collapsed?: boolean;
   onNavigate?: () => void;
@@ -13,11 +17,17 @@ interface AdminNavLinksProps {
 type Hint = { label: string; top: number; left: number };
 
 /**
- * The admin link list, shared by the desktop sidebar and the phone drawer. It is
+ * A dashboard's link list, shared by the desktop sidebar and the phone drawer. It is
  * its own scroller, with the scrollbar hidden, so the brand block above it stays
  * put. A fade at the bottom hints that there is more to scroll to.
  */
-export const AdminNavLinks = ({ sections, collapsed = false, onNavigate }: AdminNavLinksProps) => {
+export const DashboardNavLinks = ({
+  sections,
+  ariaLabel,
+  badges,
+  collapsed = false,
+  onNavigate,
+}: DashboardNavLinksProps) => {
   const { pathname } = useLocation();
   const idPrefix = useId();
   // One tooltip for the collapsed rail. It is portalled and fixed because the
@@ -57,7 +67,7 @@ export const AdminNavLinks = ({ sections, collapsed = false, onNavigate }: Admin
   return (
     <nav
       ref={navRef}
-      aria-label="Admin"
+      aria-label={ariaLabel}
       onScroll={hideHint}
       className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain no-scrollbar"
     >
@@ -81,7 +91,12 @@ export const AdminNavLinks = ({ sections, collapsed = false, onNavigate }: Admin
               )}
               <ul className="space-y-1">
                 {section.links.map((link) => {
-                  const active = isAdminLinkActive(link.path, pathname);
+                  const active = isNavLinkActive(link, pathname);
+                  const count = badges?.[link.path] ?? 0;
+                  // The active link is solid red in dark mode, so its badge flips to white.
+                  const badgeColour = active
+                    ? "bg-sffl-red text-white dark:bg-white dark:text-sffl-red"
+                    : "bg-sffl-red text-white";
                   return (
                     <li key={link.path}>
                       <Link
@@ -94,8 +109,25 @@ export const AdminNavLinks = ({ sections, collapsed = false, onNavigate }: Admin
                         onBlur={hideHint}
                         className={linkClass(active)}
                       >
-                        <link.icon className="w-5 h-5 shrink-0" aria-hidden="true" />
+                        <span className="relative shrink-0">
+                          <link.icon className="w-5 h-5" aria-hidden="true" />
+                          {collapsed && count > 0 && (
+                            <span
+                              aria-hidden="true"
+                              className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ring-2 ring-white dark:ring-sffl-navy ${badgeColour}`}
+                            />
+                          )}
+                        </span>
                         <span className={collapsed ? "sr-only" : "truncate"}>{link.name}</span>
+                        {count > 0 &&
+                          (collapsed ? (
+                            <span className="sr-only">({count} pending)</span>
+                          ) : (
+                            <span className={`ml-auto shrink-0 min-w-5 px-1.5 py-0.5 rounded-full text-[10px] font-black text-center ${badgeColour}`}>
+                              {count}
+                              <span className="sr-only"> pending</span>
+                            </span>
+                          ))}
                       </Link>
                     </li>
                   );

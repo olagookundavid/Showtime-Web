@@ -59,7 +59,7 @@ import { RunnerIcon } from "../../components/icons/RunnerIcon";
 import { useAuth } from "../../contexts/AuthContext";
 import { getPlayStatAccruals } from "../../utils/statAccrualDeriver";
 import { formatMatchDate, formatMatchTime } from "../../utils/dateUtils";
-import { AdminPageHeader } from "../../components/admin/AdminPageHeader";
+import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1936,7 +1936,7 @@ export const AdminPlayByPlay = () => {
 
   return (
     <div className="space-y-6">
-      <AdminPageHeader
+      <DashboardPageHeader
         title="Play by Play"
         subtitle="Log each play by picking players from the team sheet."
       />

@@ -12,7 +12,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { DataTable, type Column } from '../../components/ui/DataTable';
 import { RowActions } from '../../components/ui/RowActions';
-import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
+import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 
 // A stable empty list, so the table isn't handed a fresh array on every render.
 const NO_STANDINGS: Standing[] = [];
@@ -145,7 +145,7 @@ export const AdminStandings = () => {
 
     return (
         <div className="space-y-6">
-            <AdminPageHeader
+            <DashboardPageHeader
                 title="Standings"
                 subtitle="Review and adjust the league table for each competition."
                 actions={

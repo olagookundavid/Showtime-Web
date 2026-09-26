@@ -14,7 +14,7 @@ import { RowActions } from '../../components/ui/RowActions';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { getApiErrorMessage } from '../../utils/apiError';
-import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
+import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 
 const NO_CLAIMS: PlayerClaimData[] = [];
 const NO_CODES: ClaimCodeData[] = [];
@@ -340,7 +340,7 @@ export const AdminPlayerClaims: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <AdminPageHeader
+            <DashboardPageHeader
                 title="Account Claims"
                 subtitle="Team managers review their own squads. Use this to oversee every team and to undo a wrong approval."
                 actions={

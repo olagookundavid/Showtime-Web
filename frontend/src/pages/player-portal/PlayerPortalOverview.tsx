@@ -1,14 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { playerPortalApi, type ContractData } from '../../services/api';
-import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { CheckCircleIcon, ChevronRightIcon, EnvelopeIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { playerPortalApi, type ContractData } from '../../services/api';
+import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import { RunnerIcon } from '../../components/icons/RunnerIcon';
+import { Spinner } from '../../components/ui/Spinner';
 import { NotLinkedNotice } from '../../components/player-portal/NotLinkedNotice';
+import { OfferResponseDialog, type OfferResponse } from '../../components/player-portal/OfferResponseDialog';
+import { PLAYER_PORTAL_CONTRACTS_PATH } from '../../components/player-portal/playerPortalNav';
 import { apiError } from '../../components/player-portal/apiError';
+
+const statLabelClass = 'text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase';
+const statValueClass = 'text-lg sm:text-xl font-black text-gray-900 dark:text-white';
 
 export const PlayerPortalOverview: React.FC = () => {
     const [contracts, setContracts] = useState<ContractData[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [notLinked, setNotLinked] = useState<boolean>(false);
+    // Accept and reject wait here for the confirm dialog.
+    const [respondTo, setRespondTo] = useState<OfferResponse | null>(null);
 
     const fetchContracts = async () => {
         setLoading(true);
@@ -36,23 +47,12 @@ export const PlayerPortalOverview: React.FC = () => {
     const activeContract = contracts.find(c => c.status === 'ACTIVE');
     const pendingOffers = contracts.filter(c => c.status === 'PENDING');
 
-    const handleRespond = async (contractId: string, action: 'accept' | 'reject') => {
-        if (action === 'accept' && !window.confirm('Accept this contract offer? You will be signed to the team.')) return;
-        try {
-            await playerPortalApi.respondToContract(contractId, action);
-            toast.success(`Contract offer ${action}ed!`);
-            fetchContracts();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Failed to respond to contract offer');
-        }
-    };
-
     return (
-        <div className="space-y-8">
-            <div>
-                <h1 className="text-3xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">Player Portal</h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">View active contract details and manage pending offers from team managers.</p>
-            </div>
+        <div className="space-y-6 sm:space-y-8">
+            <DashboardPageHeader
+                title="Overview"
+                subtitle="Your current contract and any offers waiting for your answer."
+            />
 
             {/* Either/or, never both. With no player record behind the account the
                 status card below falls through to its "Free Agent — managers can
@@ -62,111 +62,129 @@ export const PlayerPortalOverview: React.FC = () => {
             <>
             {/* Pending Offers Alert Section */}
             {pendingOffers.length > 0 && (
-                <div className="space-y-4">
-                    <h2 className="text-lg font-black text-sffl-red uppercase tracking-wide flex items-center gap-2">
-                        <span>📩</span> Pending Contract Offers ({pendingOffers.length})
+                <section className="space-y-4">
+                    <h2 className="inline-flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-white">
+                        <EnvelopeIcon className="w-5 h-5 text-sffl-red" aria-hidden="true" />
+                        Pending Offers ({pendingOffers.length})
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {pendingOffers.map(c => (
-                            <div key={c.id} className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border-2 border-sffl-red/30 space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
+                            <div key={c.id} className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-lg border-2 border-sffl-red/30 space-y-4">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                    <div className="flex items-center gap-3 min-w-0">
                                         {c.team?.logo ? (
-                                            <img src={c.team.logo} alt={c.team.name} className="w-10 h-10 object-contain" />
+                                            <img src={c.team.logo} alt="" className="w-10 h-10 shrink-0 object-contain" />
                                         ) : (
-                                            <div className="w-10 h-10 bg-sffl-navy text-white rounded-xl flex items-center justify-center font-bold text-sm">
+                                            <div className="w-10 h-10 shrink-0 bg-sffl-navy text-white rounded-xl flex items-center justify-center font-bold text-sm">
                                                 {c.team?.name?.slice(0, 2) || 'TM'}
                                             </div>
                                         )}
-                                        <div>
-                                            <h3 className="font-bold text-lg text-gray-900 dark:text-white">{c.team?.name}</h3>
-                                            <p className="text-xs text-gray-400">Offered on {new Date(c.offered_at).toLocaleDateString()}</p>
+                                        <div className="min-w-0">
+                                            <h3 className="font-bold text-lg text-gray-900 dark:text-white wrap-break-word">{c.team?.name}</h3>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">Offered on {new Date(c.offered_at).toLocaleDateString()}</p>
                                         </div>
                                     </div>
-                                    <span className="px-2.5 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold rounded-md animate-pulse">
-                                        ACTION REQUIRED
+                                    <span className="px-2.5 py-1 bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 text-xs font-bold rounded-md whitespace-nowrap">
+                                        Action required
                                     </span>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-2 text-sm bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl">
-                                    <div>
-                                        <span className="text-xs text-gray-400 block">Length</span>
-                                        <span className="font-bold text-gray-900 dark:text-white">{c.contract_length?.toLocaleString()} Team Matches</span>
+                                    <div className="min-w-0">
+                                        <span className="text-xs text-gray-500 dark:text-gray-400 block">Length</span>
+                                        <span className="font-bold text-gray-900 dark:text-white">{c.contract_length?.toLocaleString()} team matches</span>
                                     </div>
-                                    <div>
-                                        <span className="text-xs text-gray-400 block">Player Value</span>
+                                    <div className="min-w-0">
+                                        <span className="text-xs text-gray-500 dark:text-gray-400 block">Player Value</span>
                                         <span className="font-bold text-sffl-red">{c.player_value.toLocaleString()} pts</span>
                                     </div>
                                 </div>
 
-                                <div className="flex gap-3 pt-2">
+                                <div className="flex gap-3">
                                     <button
-                                        onClick={() => handleRespond(c.id, 'accept')}
-                                        className="flex-1 py-2.5 bg-green-500 hover:bg-green-600 text-white font-bold text-sm rounded-xl transition-colors shadow-sm"
+                                        type="button"
+                                        onClick={() => setRespondTo({ contract: c, action: 'accept' })}
+                                        className="flex-1 inline-flex items-center justify-center gap-1.5 min-h-11 px-3 bg-green-600 hover:bg-green-700 text-white font-bold text-sm rounded-xl transition-colors shadow-sm"
                                     >
+                                        <CheckCircleIcon className="w-4 h-4" aria-hidden="true" />
                                         Accept Offer
                                     </button>
                                     <button
-                                        onClick={() => handleRespond(c.id, 'reject')}
-                                        className="flex-1 py-2.5 bg-red-100 hover:bg-red-200 text-red-600 font-bold text-sm rounded-xl transition-colors"
+                                        type="button"
+                                        onClick={() => setRespondTo({ contract: c, action: 'reject' })}
+                                        className="flex-1 inline-flex items-center justify-center gap-1.5 min-h-11 px-3 bg-red-100 hover:bg-red-200 text-red-600 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-400 font-bold text-sm rounded-xl transition-colors"
                                     >
+                                        <XCircleIcon className="w-4 h-4" aria-hidden="true" />
                                         Reject
                                     </button>
                                 </div>
                             </div>
                         ))}
                     </div>
-                </div>
+                </section>
             )}
 
             {/* Active Contract Status Card */}
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 space-y-6">
-                <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-4">
-                    <h2 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-wider">Current Contract Status</h2>
-                    <Link to="/player-portal/contracts" className="text-xs text-sffl-red font-bold hover:underline">
-                        View Full Contract History →
+            <section className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 space-y-6">
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-gray-100 dark:border-gray-700 pb-3">
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-white">Current Contract</h2>
+                    <Link
+                        to={PLAYER_PORTAL_CONTRACTS_PATH}
+                        className="inline-flex items-center gap-1 min-h-11 text-xs font-bold text-sffl-red hover:underline"
+                    >
+                        Contract history
+                        <ChevronRightIcon className="w-4 h-4" aria-hidden="true" />
                     </Link>
                 </div>
 
                 {loading ? (
-                    <div className="py-8 text-center text-gray-400">Loading current status...</div>
+                    <Spinner label="Loading your contract" />
                 ) : activeContract ? (
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        <div className="space-y-1">
-                            <span className="text-xs text-gray-400 font-semibold uppercase">Current Team</span>
-                            <div className="flex items-center gap-3">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                        <div className="col-span-2 lg:col-span-1 space-y-1 min-w-0">
+                            <span className={statLabelClass}>Current Team</span>
+                            <div className="flex items-center gap-3 min-w-0">
                                 {activeContract.team?.logo && (
-                                    <img src={activeContract.team.logo} alt="" className="w-8 h-8 object-contain" />
+                                    <img src={activeContract.team.logo} alt="" className="w-8 h-8 shrink-0 object-contain" />
                                 )}
-                                <h3 className="text-xl font-black text-gray-900 dark:text-white">{activeContract.team?.name}</h3>
+                                <h3 className={`${statValueClass} wrap-break-word min-w-0`}>{activeContract.team?.name}</h3>
                             </div>
                         </div>
 
-                        <div className="space-y-1">
-                            <span className="text-xs text-gray-400 font-semibold uppercase">Contract Length</span>
-                            <p className="text-xl font-black text-gray-900 dark:text-white">{activeContract.contract_length?.toLocaleString()} matches</p>
+                        <div className="space-y-1 min-w-0">
+                            <span className={statLabelClass}>Contract Length</span>
+                            <p className={statValueClass}>{activeContract.contract_length?.toLocaleString()} matches</p>
                         </div>
 
-                        <div className="space-y-1">
-                            <span className="text-xs text-gray-400 font-semibold uppercase">Matches Played</span>
-                            <p className="text-xl font-black text-gray-900 dark:text-white">{activeContract.matches_played?.toLocaleString()} matches</p>
+                        <div className="space-y-1 min-w-0">
+                            <span className={statLabelClass}>Matches Played</span>
+                            <p className={statValueClass}>{activeContract.matches_played?.toLocaleString()} matches</p>
                         </div>
 
-                        <div className="space-y-1">
-                            <span className="text-xs text-gray-400 font-semibold uppercase">Remaining</span>
-                            <p className="text-xl font-black text-green-600 dark:text-green-400">{activeContract.matches_remaining?.toLocaleString()} matches</p>
+                        <div className="space-y-1 min-w-0">
+                            <span className={statLabelClass}>Remaining</span>
+                            <p className="text-lg sm:text-xl font-black text-green-600 dark:text-green-400">{activeContract.matches_remaining?.toLocaleString()} matches</p>
                         </div>
                     </div>
                 ) : (
-                    <div className="p-8 text-center bg-gray-50 dark:bg-gray-700/30 rounded-xl">
-                        <span className="text-3xl mb-2 block">🏃</span>
+                    <div className="p-6 sm:p-8 text-center bg-gray-50 dark:bg-gray-700/30 rounded-xl">
+                        <RunnerIcon className="w-8 h-8 mx-auto mb-2 text-gray-400" aria-hidden="true" />
                         <h3 className="font-bold text-gray-900 dark:text-white text-lg">Free Agent</h3>
-                        <p className="text-xs text-gray-500 mt-1">You are not currently under contract with any team. Team managers can issue offers to sign you.</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">You are not currently under contract with any team. Team managers can issue offers to sign you.</p>
                     </div>
                 )}
-            </div>
+            </section>
             </>
             )}
+
+            <OfferResponseDialog
+                request={respondTo}
+                onCancel={() => setRespondTo(null)}
+                onDone={() => {
+                    setRespondTo(null);
+                    fetchContracts();
+                }}
+            />
         </div>
     );
 };

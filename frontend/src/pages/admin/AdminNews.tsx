@@ -24,7 +24,7 @@ import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { NewsContentEditor } from '../../components/admin/NewsContentEditor';
 import { parseYouTubeId, youTubeThumbnailUrl } from '../../utils/newsContent';
 import { getApiErrorMessage } from '../../utils/apiError';
-import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
+import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
 
 interface ArticleForm {
     title: string; excerpt: string; content: string;
@@ -217,7 +217,7 @@ export const AdminNews = () => {
 
     return (
         <div className="space-y-6">
-            <AdminPageHeader
+            <DashboardPageHeader
                 title="News"
                 subtitle="Write, publish and manage news articles."
                 actions={
