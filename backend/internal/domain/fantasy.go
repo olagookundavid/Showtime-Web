@@ -457,6 +457,7 @@ func (FantasyWeights) Calculate(s PlayerStat) FantasyPointsBreakdown {
 func SumBreakdowns(parts []FantasyPointsBreakdown) FantasyPointsBreakdown {
 	var t FantasyPointsBreakdown
 	t.Version = FantasyScoringVersion
+	var fullMatchTotal float64
 	for _, b := range parts {
 		t.PassingYardsPts += b.PassingYardsPts
 		t.PassingTDsPts += b.PassingTDsPts
@@ -483,9 +484,16 @@ func SumBreakdowns(parts []FantasyPointsBreakdown) FantasyPointsBreakdown {
 		t.SafetyPts += b.SafetyPts
 		t.SafetyConcededPts += b.SafetyConcededPts
 		t.DefensiveTotal += b.DefensiveTotal
+		if b.FullMatchTotal != nil {
+			fullMatchTotal += *b.FullMatchTotal
+		} else {
+			fullMatchTotal += b.NetTotal
+		}
 		t.NetTotal += b.NetTotal
 	}
 	t.NetTotal = math.Round((t.OffensiveTotal+t.DefensiveTotal)*100) / 100
+	fullMatchTotal = math.Round(fullMatchTotal*100) / 100
+	t.FullMatchTotal = &fullMatchTotal
 	return t
 }
 
@@ -522,6 +530,85 @@ type FantasyPointsBreakdown struct {
 	DefensiveTotal     float64 `json:"defensive_total"`
 
 	NetTotal float64 `json:"net_total"`
+
+	// FullMatchTotal preserves the complete match output before any slot-specific
+	// scoping. A pointer because nil ("not scoped yet") and a real zero (an
+	// All-Rounder's offense and defense exactly cancelling out) are both
+	// possible and must stay distinguishable — see SumBreakdowns.
+	FullMatchTotal *float64 `json:"full_match_total,omitempty"`
+}
+
+// IsAllrounderPlayer reports whether a player is an All-Rounder in either primary
+// or secondary position.
+func IsAllrounderPlayer(position string, secondaryPosition *string) bool {
+	if IsAllrounderRole(position) {
+		return true
+	}
+	if secondaryPosition != nil && IsAllrounderRole(*secondaryPosition) {
+		return true
+	}
+	return false
+}
+
+// ForSlot returns the points and breakdown applicable to a specific roster slot.
+// Standard players receive their full match output across all phases.
+// All-Rounders receive only offensive points when placed in an offensive slot,
+// and only defensive points when placed in a defensive slot.
+func (b FantasyPointsBreakdown) ForSlot(slot FantasySlot, isAllrounder bool) (float64, FantasyPointsBreakdown) {
+	netTotal := b.NetTotal
+	if !isAllrounder {
+		scoped := b
+		scoped.FullMatchTotal = &netTotal
+		return b.NetTotal, scoped
+	}
+
+	spec, ok := SlotSpecFor(slot)
+	if !ok {
+		scoped := b
+		scoped.FullMatchTotal = &netTotal
+		return b.NetTotal, scoped
+	}
+
+	scoped := b
+	scoped.FullMatchTotal = &netTotal
+
+	switch spec.Unit {
+	case UnitOffense:
+		scoped.FlagPullsPts = 0
+		scoped.PassDeflectionsPts = 0
+		scoped.InterceptionsPts = 0
+		scoped.DefSacksPts = 0
+		scoped.DefensiveTDsPts = 0
+		scoped.DefensiveXPTDsPts = 0
+		scoped.SafetyPts = 0
+		scoped.SafetyConcededPts = 0
+		scoped.DefensiveTotal = 0
+		scoped.NetTotal = math.Round(b.OffensiveTotal*100) / 100
+		return scoped.NetTotal, scoped
+
+	case UnitDefense:
+		scoped.PassingYardsPts = 0
+		scoped.PassingTDsPts = 0
+		scoped.InterceptionsThrownPts = 0
+		scoped.QBSacksPts = 0
+		scoped.RushingYardsPts = 0
+		scoped.RushingTDsPts = 0
+		scoped.ReceptionsPts = 0
+		scoped.ReceivingYardsPts = 0
+		scoped.ReceivingTDsPts = 0
+		scoped.DropsPts = 0
+		scoped.XPGoodPts = 0
+		scoped.ExtraPointTDsPts = 0
+		scoped.BadSnapsPts = 0
+		scoped.OffensivePositive = 0
+		scoped.OffensiveNegative = 0
+		scoped.OffensiveTotal = 0
+		scoped.NetTotal = math.Round(b.DefensiveTotal*100) / 100
+		return scoped.NetTotal, scoped
+
+	default:
+		return b.NetTotal, scoped
+	}
 }
 
 // ─── Fantasy Season ───────────────────────────────────────────────────────────
@@ -643,6 +730,13 @@ type FantasyLineupPick struct {
 	PurchasePrice float64     `json:"purchase_price"` // Price at time of lock
 	Points        float64     `json:"points"`         // Points scored by player in this GW
 	CreatedAt     time.Time   `json:"created_at"`
+
+	// IsAllrounderAtLock is the player's All-Rounder status frozen at the
+	// moment this pick's lineup was locked. Scoring must use this, not the
+	// player's live position, or a later position edit would retroactively
+	// change an already-scored gameweek. Nil for picks locked before this
+	// snapshot existed; callers fall back to the live position for those.
+	IsAllrounderAtLock *bool `json:"is_allrounder_at_lock,omitempty"`
 
 	Player *Player `json:"player,omitempty"`
 }

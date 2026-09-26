@@ -1208,6 +1208,156 @@ func TestGameweekScoringIsIdempotent(t *testing.T) {
 	}
 }
 
+// All-Rounders must score only the points of the unit they are fielded in:
+// Offensive slots score only offensive stats, Defensive slots score only defensive stats.
+// Standard players retain their full match score across all phases.
+func TestComputeGameweekScores_AllrounderSlotScoring(t *testing.T) {
+	repo := newFakeRepo()
+	repo.season = testSeason()
+	gw := &domain.FantasyGameweek{
+		ID: "gw-1", SeasonID: "season-1", Number: 1, EventDayID: "ed-1",
+		Deadline: time.Now().Add(-time.Hour), Status: domain.GameweekLocked,
+	}
+	repo.gameweeks[gw.ID] = gw
+
+	arPlayer := &domain.Player{ID: "player-ar", Position: "All-Rounder"}
+	normPlayer := &domain.Player{ID: "player-norm", Position: "Receiver"}
+
+	// Team 1 places the All-Rounder in an Offensive slot (REC_1)
+	lineup1 := &domain.FantasyLineup{
+		ID: "lineup-1", TeamID: "team-1", GameweekID: "gw-1", Status: domain.LineupLocked,
+		Picks: []domain.FantasyLineupPick{
+			{PlayerID: arPlayer.ID, Slot: domain.SlotRec1, Player: arPlayer},
+		},
+	}
+	repo.lineups[lineupKey("team-1", "gw-1")] = lineup1
+
+	// Team 2 places the SAME All-Rounder in a Defensive slot (DEF_1)
+	lineup2 := &domain.FantasyLineup{
+		ID: "lineup-2", TeamID: "team-2", GameweekID: "gw-1", Status: domain.LineupLocked,
+		Picks: []domain.FantasyLineupPick{
+			{PlayerID: arPlayer.ID, Slot: domain.SlotDef1, Player: arPlayer},
+		},
+	}
+	repo.lineups[lineupKey("team-2", "gw-1")] = lineup2
+
+	// Team 3 places a regular Receiver in an Offensive slot (REC_1)
+	lineup3 := &domain.FantasyLineup{
+		ID: "lineup-3", TeamID: "team-3", GameweekID: "gw-1", Status: domain.LineupLocked,
+		Picks: []domain.FantasyLineupPick{
+			{PlayerID: normPlayer.ID, Slot: domain.SlotRec1, Player: normPlayer},
+		},
+	}
+	repo.lineups[lineupKey("team-3", "gw-1")] = lineup3
+
+	// Both players record identical match stats:
+	// Offense: 5 rec (1.25) + 80 yds (2.0) + 1 TD (2.0) = 5.25 pts
+	// Defense: 1 interception (4.0) = 4.0 pts
+	// Full match total = 9.25 pts
+	repo.stats = []domain.PlayerStat{
+		{
+			PlayerID: arPlayer.ID, MatchID: "match-1",
+			Receptions: 5, ReceivingYards: 80, ReceivingTDs: 1,
+			Interceptions: 1,
+		},
+		{
+			PlayerID: normPlayer.ID, MatchID: "match-1",
+			Receptions: 5, ReceivingYards: 80, ReceivingTDs: 1,
+			Interceptions: 1,
+		},
+	}
+
+	svc := NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil, ownsPool(repo))
+
+	if err := svc.ComputeGameweekScores(context.Background(), "gw-1"); err != nil {
+		t.Fatalf("scoring failed: %v", err)
+	}
+
+	// 1. Team 1: All-Rounder in REC_1 should only earn offensive points (5.25)
+	if got := repo.pickPoints["lineup-1"][arPlayer.ID]; got < 5.24 || got > 5.26 {
+		t.Errorf("expected All-Rounder in REC_1 to score 5.25 offensive pts, got %.4f", got)
+	}
+	if got := repo.teamTotals["team-1"]; got < 5.24 || got > 5.26 {
+		t.Errorf("expected Team 1 total to be 5.25, got %.4f", got)
+	}
+
+	// 2. Team 2: All-Rounder in DEF_1 should only earn defensive points (4.00)
+	if got := repo.pickPoints["lineup-2"][arPlayer.ID]; got < 3.99 || got > 4.01 {
+		t.Errorf("expected All-Rounder in DEF_1 to score 4.00 defensive pts, got %.4f", got)
+	}
+	if got := repo.teamTotals["team-2"]; got < 3.99 || got > 4.01 {
+		t.Errorf("expected Team 2 total to be 4.00, got %.4f", got)
+	}
+
+	// 3. Team 3: Regular Receiver in REC_1 should receive full net points (9.25)
+	if got := repo.pickPoints["lineup-3"][normPlayer.ID]; got < 9.24 || got > 9.26 {
+		t.Errorf("expected normal player in REC_1 to score full match 9.25 pts, got %.4f", got)
+	}
+	if got := repo.teamTotals["team-3"]; got < 9.24 || got > 9.26 {
+		t.Errorf("expected Team 3 total to be 9.25, got %.4f", got)
+	}
+
+	// 4. Scoring must be idempotent
+	if err := svc.ComputeGameweekScores(context.Background(), "gw-1"); err != nil {
+		t.Fatalf("rescore failed: %v", err)
+	}
+	if got := repo.teamTotals["team-1"]; got < 5.24 || got > 5.26 {
+		t.Errorf("expected Team 1 total to stay 5.25 on rescore, got %.4f", got)
+	}
+	if got := repo.teamTotals["team-2"]; got < 3.99 || got > 4.01 {
+		t.Errorf("expected Team 2 total to stay 4.00 on rescore, got %.4f", got)
+	}
+}
+
+// A position edit made after a lineup is locked must not retroactively change
+// an already-scored gameweek: scoring has to key off the All-Rounder snapshot
+// taken at lock time (IsAllrounderAtLock), not the player's live position.
+func TestComputeGameweekScores_UsesAllrounderSnapshotAtLock(t *testing.T) {
+	repo := newFakeRepo()
+	repo.season = testSeason()
+	gw := &domain.FantasyGameweek{
+		ID: "gw-1", SeasonID: "season-1", Number: 1, EventDayID: "ed-1",
+		Deadline: time.Now().Add(-time.Hour), Status: domain.GameweekLocked,
+	}
+	repo.gameweeks[gw.ID] = gw
+
+	// The player was an All-Rounder when the lineup locked (isAllrounderAtLock
+	// = true), but their live position has since been edited to a plain
+	// Receiver — simulating an admin correction made after this gameweek was
+	// already finalized once.
+	wasAR := true
+	player := &domain.Player{ID: "player-1", Position: "Receiver"}
+	lineup := &domain.FantasyLineup{
+		ID: "lineup-1", TeamID: "team-1", GameweekID: "gw-1", Status: domain.LineupLocked,
+		Picks: []domain.FantasyLineupPick{
+			{PlayerID: player.ID, Slot: domain.SlotRec1, Player: player, IsAllrounderAtLock: &wasAR},
+		},
+	}
+	repo.lineups[lineupKey("team-1", "gw-1")] = lineup
+
+	// Offense: 5.25 pts, Defense: 4.00 pts (same stat line as the test above).
+	repo.stats = []domain.PlayerStat{
+		{
+			PlayerID: player.ID, MatchID: "match-1",
+			Receptions: 5, ReceivingYards: 80, ReceivingTDs: 1,
+			Interceptions: 1,
+		},
+	}
+
+	svc := NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil, ownsPool(repo))
+
+	if err := svc.ComputeGameweekScores(context.Background(), "gw-1"); err != nil {
+		t.Fatalf("scoring failed: %v", err)
+	}
+
+	// Must still score as an All-Rounder in an offensive slot (5.25), not as a
+	// plain Receiver's full match total (9.25) — the snapshot, not the live
+	// position, decides this.
+	if got := repo.pickPoints["lineup-1"][player.ID]; got < 5.24 || got > 5.26 {
+		t.Errorf("expected snapshot-based All-Rounder scoring of 5.25, got %.4f (live-position scoring would give 9.25)", got)
+	}
+}
+
 // ─── Deadline derivation ──────────────────────────────────────────────────────
 
 func TestResolveDeadline(t *testing.T) {

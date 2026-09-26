@@ -20,8 +20,13 @@ import {
   XMarkIcon,
   ListBulletIcon,
   Squares2X2Icon,
+  StarIcon,
+  ShieldCheckIcon,
+  TrophyIcon,
 } from "@heroicons/react/24/outline";
 import { BadgeImage } from "../../components/common/BadgeImage";
+import { CrownIcon } from "../../components/icons/CrownIcon";
+import { SproutIcon } from "../../components/icons/SproutIcon";
 import { formatStatNumber } from "../../utils/formatters";
 
 const StatCard = ({
@@ -82,7 +87,7 @@ export const PlayerDetail = () => {
           name: "Match MVP",
           description:
             "Awarded to the most valuable player of an official match.",
-          icon: "🏆",
+          icon: "https://cdn.sffl.football/badges/game-mvp.png",
           category: "Individual Honor",
           color_scheme: "gold",
           count: player?.mvp_count || 1,
@@ -214,8 +219,9 @@ export const PlayerDetail = () => {
                 {player.position}
               </div>
               {player.secondary_position && (
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wide bg-amber-500/20 text-amber-200 border border-amber-500/40">
-                  ⭐ Sec: {player.secondary_position}
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wide bg-amber-500/20 text-amber-200 border border-amber-500/40 inline-flex items-center gap-1">
+                  <StarIcon className="w-3 h-3" aria-hidden="true" />
+                  Sec: {player.secondary_position}
                 </span>
               )}
               {player.gender && (
@@ -245,10 +251,18 @@ export const PlayerDetail = () => {
                         : "bg-white/10 text-gray-200 border-white/20"
                 }`}
               >
-                {player.tier === "Superstar" && "👑"}
-                {player.tier === "Star" && "⭐"}
-                {player.tier === "Starter" && "🛡️"}
-                {(!player.tier || player.tier === "Prospect") && "🌱"}
+                {player.tier === "Superstar" && (
+                  <CrownIcon className="w-3.5 h-3.5" />
+                )}
+                {player.tier === "Star" && (
+                  <StarIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                )}
+                {player.tier === "Starter" && (
+                  <ShieldCheckIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                )}
+                {(!player.tier || player.tier === "Prospect") && (
+                  <SproutIcon className="w-3.5 h-3.5" />
+                )}
                 <span>{player.tier || "Prospect"} Tier</span>
               </span>
               {/* Badges & Honors Quick Highlights */}
@@ -309,8 +323,8 @@ export const PlayerDetail = () => {
           {/* Header */}
           <div className="p-4 md:p-6 bg-gray-50 dark:bg-gray-900/40 border-b border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-linear-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-xl shadow-md shrink-0">
-                🏆
+              <div className="w-10 h-10 rounded-xl bg-linear-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center shadow-md shrink-0">
+                <TrophyIcon className="w-5 h-5" aria-hidden="true" />
               </div>
               <div>
                 <h2 className="text-xl md:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight flex items-center gap-2">
@@ -330,7 +344,7 @@ export const PlayerDetail = () => {
                 {playerBadges.length === 1 ? "Badge" : "Badges"}
               </span>
               <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 flex items-center gap-1 shadow-xs">
-                <span>⭐</span>
+                <StarIcon className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>
                   {totalAwardsCount} Total{" "}
                   {totalAwardsCount === 1 ? "Win" : "Wins"}
@@ -339,99 +353,37 @@ export const PlayerDetail = () => {
             </div>
           </div>
 
-          {/* Trophy Cards Grid (Dynamically grows row by row as badges expand) */}
+          {/* Badges Display: Pure PNG emblem with phone notification-style counter */}
           <div className="p-4 md:p-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 md:gap-4">
+            <div className="flex flex-wrap items-center gap-5 md:gap-7">
               {playerBadges.map((badge) => {
-                const scheme = badge.color_scheme || "gold";
-                const isGold = scheme === "gold";
-                const isRed = scheme === "red";
-                const isBlue = scheme === "blue";
-
+                const count = badge.count || 1;
                 return (
                   <button
                     key={badge.id || badge.badge_id || badge.code}
                     type="button"
                     onClick={() => setSelectedBadge(badge)}
-                    className={`group relative text-left p-4 rounded-xl border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer flex flex-col justify-between ${
-                      isGold
-                        ? "bg-linear-to-br from-amber-50/70 via-white to-amber-50/30 dark:from-amber-950/20 dark:via-gray-800 dark:to-gray-800 border-amber-300/80 dark:border-amber-700/60 hover:border-amber-400"
-                        : isRed
-                          ? "bg-linear-to-br from-red-50/70 via-white to-red-50/30 dark:from-red-950/20 dark:via-gray-800 dark:to-gray-800 border-red-300/80 dark:border-red-700/60 hover:border-red-400"
-                          : isBlue
-                            ? "bg-linear-to-br from-blue-50/70 via-white to-blue-50/30 dark:from-blue-950/20 dark:via-gray-800 dark:to-gray-800 border-blue-300/80 dark:border-blue-700/60 hover:border-blue-400"
-                            : "bg-linear-to-br from-emerald-50/70 via-white to-emerald-50/30 dark:from-emerald-950/20 dark:via-gray-800 dark:to-gray-800 border-emerald-300/8₀ dark:border-emerald-7₀/6₀ hover:border-emerald-4₀"
-                    }`}
+                    title={`${badge.name} (${count} won) — Click to view details`}
+                    className="group relative cursor-pointer focus:outline-none transition-transform duration-200 hover:scale-105 active:scale-95"
                   >
-                    <div>
-                      {/* Top Row: Icon & Win Count */}
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <div
-                          className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-xs border shrink-0 ${
-                            isGold
-                              ? "bg-amber-100 dark:bg-amber-900/40 border-amber-300 dark:border-amber-700"
-                              : isRed
-                                ? "bg-red-100 dark:bg-red-900/40 border-red-300 dark:border-red-700"
-                                : isBlue
-                                  ? "bg-blue-100 dark:bg-blue-900/40 border-blue-300 dark:border-blue-700"
-                                  : "bg-emerald-100 dark:bg-emerald-900/40 border-emerald-300 dark:border-emerald-700"
-                          }`}
-                        >
-                          <BadgeImage
-                            icon={badge.icon}
-                            name={badge.name}
-                            className="w-8 h-8 text-2xl"
-                          />
-                        </div>
-
-                        {/* Win Counter Badge */}
-                        <span
-                          className={`px-2.5 py-1 rounded-full text-xs font-black shadow-xs flex items-center gap-1 border ${
-                            isGold
-                              ? "bg-amber-400/20 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-600"
-                              : isRed
-                                ? "bg-red-500/20 text-red-800 dark:text-red-200 border-red-300 dark:border-red-600"
-                                : isBlue
-                                  ? "bg-blue-500/20 text-blue-800 dark:text-blue-200 border-blue-300 dark:border-blue-600"
-                                  : "bg-emerald-500/20 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-600"
-                          }`}
-                        >
-                          <span>×{badge.count}</span>
-                          <span className="text-[10px] uppercase font-bold opacity-80">
-                            {badge.count === 1 ? "Won" : "Won"}
-                          </span>
-                        </span>
-                      </div>
-
-                      {/* Badge Title & Category */}
-                      <h3 className="text-base font-black text-sffl-navy dark:text-white leading-snug group-hover:text-sffl-red transition-colors">
-                        {badge.name}
-                      </h3>
-                      {badge.category && (
-                        <span className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 block mt-0.5">
-                          {badge.category}
-                        </span>
-                      )}
-
-                      {/* Description */}
-                      {badge.description && (
-                        <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 mt-1.5 leading-relaxed">
-                          {badge.description}
-                        </p>
-                      )}
+                    {/* Badge PNG Artwork */}
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 flex items-center justify-center p-1">
+                      <BadgeImage
+                        icon={badge.icon}
+                        name={badge.name}
+                        className="w-full h-full object-contain filter drop-shadow-md group-hover:drop-shadow-xl transition-all"
+                      />
                     </div>
 
-                    {/* Card Footer: View Details hint */}
-                    <div className="mt-4 pt-2.5 border-t border-gray-100 dark:border-gray-700/60 flex items-center justify-between text-[11px] font-bold text-gray-500 dark:text-gray-400">
-                      <span>
-                        {badge.count > 1
-                          ? `${badge.count} awards recorded`
-                          : "Single award"}
-                      </span>
-                      <span className="text-sffl-red font-black text-xs flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
-                        History →
-                      </span>
-                    </div>
+                    {/* Unread notification style counter bubble on top-right */}
+                    <span className="absolute -top-1 -right-1 min-w-[22px] h-[22px] md:min-w-[26px] md:h-[26px] px-1.5 rounded-full bg-sffl-red text-white text-xs md:text-sm font-black flex items-center justify-center shadow-lg ring-2 ring-white dark:ring-gray-800 leading-none pointer-events-none select-none">
+                      {count}
+                    </span>
+
+                    {/* Hover tooltip label */}
+                    <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap px-2.5 py-1 rounded-lg bg-gray-900/90 text-white text-[11px] font-bold shadow-lg z-20">
+                      {badge.name}
+                    </span>
                   </button>
                 );
               })}
@@ -681,7 +633,7 @@ export const PlayerDetail = () => {
                 {selectedBadge.description}
               </p>
               <div className="mt-4 px-4 py-1.5 rounded-full bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-xs font-black inline-flex items-center gap-1.5">
-                <span>⭐</span>
+                <StarIcon className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>
                   Awarded {formatStatNumber(selectedBadge.count)}{" "}
                   {selectedBadge.count === 1 ? "time" : "times"} to this player

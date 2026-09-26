@@ -155,3 +155,142 @@ func TestFantasyScoring(t *testing.T) {
 		}
 	})
 }
+
+func TestFantasyPointsBreakdown_ForSlot(t *testing.T) {
+	weights := FantasyWeights{}
+	// Player with both offensive (5 catches + 80 yds = 3.25 pts) and defensive (1 INT = 3.0 pts) output.
+	stat := PlayerStat{
+		Receptions:     5,
+		ReceivingYards: 80,
+		Interceptions:  1,
+	}
+	breakdown := weights.Calculate(stat)
+	// Offensive: 1.25 + 2.0 = 3.25
+	// Defensive: 4.0
+	// Net: 7.25
+
+	t.Run("Non-All-Rounder in offensive slot keeps full match score", func(t *testing.T) {
+		pts, scoped := breakdown.ForSlot(SlotRec1, false)
+		if pts != 7.25 {
+			t.Fatalf("expected 7.25 pts, got %f", pts)
+		}
+		if scoped.NetTotal != 7.25 {
+			t.Errorf("expected NetTotal 7.25, got %f", scoped.NetTotal)
+		}
+		if scoped.DefensiveTotal != 4.0 {
+			t.Errorf("expected DefensiveTotal 4.0, got %f", scoped.DefensiveTotal)
+		}
+		if scoped.FullMatchTotal == nil || *scoped.FullMatchTotal != 7.25 {
+			t.Errorf("expected FullMatchTotal 7.25, got %v", scoped.FullMatchTotal)
+		}
+	})
+
+	t.Run("Non-All-Rounder in defensive slot keeps full match score", func(t *testing.T) {
+		pts, scoped := breakdown.ForSlot(SlotDef1, false)
+		if pts != 7.25 {
+			t.Fatalf("expected 7.25 pts, got %f", pts)
+		}
+		if scoped.NetTotal != 7.25 {
+			t.Errorf("expected NetTotal 7.25, got %f", scoped.NetTotal)
+		}
+	})
+
+	t.Run("All-Rounder in Offensive slot earns only offensive points", func(t *testing.T) {
+		pts, scoped := breakdown.ForSlot(SlotRec1, true)
+		if pts != 3.25 {
+			t.Fatalf("expected 3.25 offensive pts, got %f", pts)
+		}
+		if scoped.NetTotal != 3.25 {
+			t.Errorf("expected scoped NetTotal 3.25, got %f", scoped.NetTotal)
+		}
+		if scoped.OffensiveTotal != 3.25 {
+			t.Errorf("expected OffensiveTotal 3.25, got %f", scoped.OffensiveTotal)
+		}
+		if scoped.DefensiveTotal != 0 {
+			t.Errorf("expected DefensiveTotal zeroed out, got %f", scoped.DefensiveTotal)
+		}
+		if scoped.InterceptionsPts != 0 {
+			t.Errorf("expected InterceptionsPts zeroed out, got %f", scoped.InterceptionsPts)
+		}
+		if scoped.FullMatchTotal == nil || *scoped.FullMatchTotal != 7.25 {
+			t.Errorf("expected FullMatchTotal to be preserved as 7.25, got %v", scoped.FullMatchTotal)
+		}
+	})
+
+	t.Run("All-Rounder in Defensive slot earns only defensive points", func(t *testing.T) {
+		pts, scoped := breakdown.ForSlot(SlotDef1, true)
+		if pts != 4.0 {
+			t.Fatalf("expected 4.0 defensive pts, got %f", pts)
+		}
+		if scoped.NetTotal != 4.0 {
+			t.Errorf("expected scoped NetTotal 4.0, got %f", scoped.NetTotal)
+		}
+		if scoped.DefensiveTotal != 4.0 {
+			t.Errorf("expected DefensiveTotal 4.0, got %f", scoped.DefensiveTotal)
+		}
+		if scoped.OffensiveTotal != 0 {
+			t.Errorf("expected OffensiveTotal zeroed out, got %f", scoped.OffensiveTotal)
+		}
+		if scoped.ReceptionsPts != 0 || scoped.ReceivingYardsPts != 0 {
+			t.Errorf("expected offensive stats zeroed out")
+		}
+		if scoped.FullMatchTotal == nil || *scoped.FullMatchTotal != 7.25 {
+			t.Errorf("expected FullMatchTotal to be preserved as 7.25, got %v", scoped.FullMatchTotal)
+		}
+	})
+}
+
+func TestIsAllrounderPlayer(t *testing.T) {
+	secAR := "All-Rounder"
+	secWR := "Receiver"
+
+	tests := []struct {
+		pos    string
+		sec    *string
+		wantAR bool
+	}{
+		{"ALLROUNDER", nil, true},
+		{"all-rounder", nil, true},
+		{"All Rounder", nil, true},
+		{"AR", nil, true},
+		{"Receiver", &secAR, true},
+		{"QB", nil, false},
+		{"Receiver", &secWR, false},
+		{"", nil, false},
+	}
+
+	for _, tt := range tests {
+		got := IsAllrounderPlayer(tt.pos, tt.sec)
+		if got != tt.wantAR {
+			t.Errorf("IsAllrounderPlayer(%q, %v) = %v, want %v", tt.pos, tt.sec, got, tt.wantAR)
+		}
+	}
+}
+
+func TestSumBreakdowns(t *testing.T) {
+	t.Run("raw (unscoped) parts fall back to NetTotal", func(t *testing.T) {
+		parts := []FantasyPointsBreakdown{
+			{NetTotal: 3.0},
+			{NetTotal: 4.5},
+		}
+		total := SumBreakdowns(parts)
+		if total.FullMatchTotal == nil || *total.FullMatchTotal != 7.5 {
+			t.Errorf("expected FullMatchTotal 7.5, got %v", total.FullMatchTotal)
+		}
+	})
+
+	// A ForSlot-scoped All-Rounder breakdown whose real full-match total is
+	// exactly zero (offense and defense cancelling out) must still be summed
+	// as zero, not silently replaced by the scoped NetTotal — see the
+	// FullMatchTotal doc comment for why this has to be a pointer.
+	t.Run("a scoped part whose real FullMatchTotal is exactly zero is not mistaken for unset", func(t *testing.T) {
+		zero := 0.0
+		parts := []FantasyPointsBreakdown{
+			{NetTotal: -1.5, FullMatchTotal: &zero},
+		}
+		total := SumBreakdowns(parts)
+		if total.FullMatchTotal == nil || *total.FullMatchTotal != 0 {
+			t.Errorf("expected FullMatchTotal 0, got %v", total.FullMatchTotal)
+		}
+	})
+}
