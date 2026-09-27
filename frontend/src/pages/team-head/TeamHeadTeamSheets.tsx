@@ -23,6 +23,8 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   UsersIcon,
+  LockClosedIcon,
+  ClockIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon } from "@heroicons/react/24/solid";
 import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
@@ -32,6 +34,12 @@ import { Modal } from "../../components/ui/Modal";
 import { Spinner } from "../../components/ui/Spinner";
 import { useTeamHeadTeam } from "../../components/team-head/useTeamHeadTeam";
 import { getApiErrorMessage } from "../../utils/apiError";
+import {
+  formatMatchDate,
+  formatMatchTime,
+  isMatchLocked,
+  getMatchLockCountdown,
+} from "../../utils/dateUtils";
 
 interface ClubPlayer {
   id: string;
@@ -401,7 +409,7 @@ export const TeamHeadTeamSheets = () => {
   const team = useTeamHeadTeam();
   const queryClient = useQueryClient();
 
-  // ── Fixtures list for this manager's team ─────────────────────────────────
+  // ── Next 5 upcoming fixtures for this manager's team ──────────────────────
   const { data: matchesData, isLoading: matchesLoading } = useQuery({
     queryKey: ["teamHeadMatches", team?.id],
     queryFn: async () => {
@@ -409,8 +417,8 @@ export const TeamHeadTeamSheets = () => {
       const res = await getMatches(
         undefined,
         1,
-        50,
-        undefined,
+        5,
+        "UPCOMING",
         undefined,
         team.id,
       );
@@ -648,12 +656,36 @@ export const TeamHeadTeamSheets = () => {
 
   const isMatchFinished = currentMatch?.status === "FINISHED";
 
+  // isMatchLocked/getMatchLockCountdown key off Date.now(), so without this
+  // tick the lock status and countdown label would freeze at whatever they
+  // were when the page loaded and only catch up once something else
+  // happened to re-render — the manager could keep editing past the actual
+  // 10-minute cutoff until a save attempt was rejected by the backend.
+  const [lockTick, setLockTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setLockTick((t) => t + 1), 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  const isMatchLockedCurrently = useMemo(
+    () => isMatchLocked(currentMatch, 10),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [currentMatch, lockTick],
+  );
+  const lockInfo = useMemo(
+    () => getMatchLockCountdown(currentMatch, 10),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [currentMatch, lockTick],
+  );
+
   // Mirrors the server rules in SaveTeamHeadTeamSheet so the manager sees why
   // a save is blocked instead of getting an error after pressing Save. A squad
   // with no starters at all is allowed (named squad, lineup announced later).
   const saveBlockReason = useMemo((): string | null => {
     if (isMatchFinished)
       return "This match is finished — its team sheet is locked.";
+    if (isMatchLockedCurrently)
+      return "Team sheet is locked (locks 10 minutes before kickoff). Contact the commissioner if emergency adjustments are needed.";
     if (totalSquadCount > 25) return "Match squad is over the 25-player cap.";
     if (!isStarterUniquenessValid)
       return "A player is in more than one starter slot.";
@@ -673,6 +705,7 @@ export const TeamHeadTeamSheets = () => {
     return null;
   }, [
     isMatchFinished,
+    isMatchLockedCurrently,
     totalSquadCount,
     isStarterUniquenessValid,
     startersCount,
@@ -697,6 +730,12 @@ export const TeamHeadTeamSheets = () => {
     slotKey: string,
     player: ClubPlayer,
   ) => {
+    if (isMatchLockedCurrently || isMatchFinished) {
+      toast.error(
+        "This match is locked — team sheets cannot be modified within 10 minutes of kickoff.",
+      );
+      return;
+    }
     setOffenseStarters((prevOff) => {
       const nextOff = { ...prevOff };
       // Clear if already in offense
@@ -735,6 +774,12 @@ export const TeamHeadTeamSheets = () => {
     slotKey: string,
     player: ClubPlayer | null,
   ) => {
+    if (isMatchLockedCurrently || isMatchFinished) {
+      toast.error(
+        "This match is locked — team sheets cannot be modified within 10 minutes of kickoff.",
+      );
+      return;
+    }
     // If we currently have a starter slot selected for swap:
     if (selectedSlotForSwap) {
       // Clicking same slot cancels selection
@@ -808,6 +853,12 @@ export const TeamHeadTeamSheets = () => {
    * Handle clicking a bench substitute
    */
   const handleSubClick = (sub: ClubPlayer) => {
+    if (isMatchLockedCurrently || isMatchFinished) {
+      toast.error(
+        "This match is locked — team sheets cannot be modified within 10 minutes of kickoff.",
+      );
+      return;
+    }
     // If a starter slot is selected, swap directly!
     if (selectedSlotForSwap && selectedSlotForSwap.player) {
       const starterToMove = selectedSlotForSwap.player;
@@ -854,6 +905,12 @@ export const TeamHeadTeamSheets = () => {
     player: ClubPlayer,
   ) => {
     e.stopPropagation();
+    if (isMatchLockedCurrently || isMatchFinished) {
+      toast.error(
+        "This match is locked — team sheets cannot be modified within 10 minutes of kickoff.",
+      );
+      return;
+    }
     if (unit === "OFFENSE") {
       setOffenseStarters((prev) => ({ ...prev, [slotKey]: null }));
     } else {
@@ -877,6 +934,12 @@ export const TeamHeadTeamSheets = () => {
    * Add player to bench
    */
   const handleAddPlayerToBench = (player: ClubPlayer) => {
+    if (isMatchLockedCurrently || isMatchFinished) {
+      toast.error(
+        "This match is locked — team sheets cannot be modified within 10 minutes of kickoff.",
+      );
+      return;
+    }
     if (totalSquadCount >= 25) {
       toast.error("Maximum match squad limit of 25 players reached!");
       return;
@@ -905,6 +968,12 @@ export const TeamHeadTeamSheets = () => {
    * Remove player from bench
    */
   const handleRemoveFromBench = (playerId: string) => {
+    if (isMatchLockedCurrently || isMatchFinished) {
+      toast.error(
+        "This match is locked — team sheets cannot be modified within 10 minutes of kickoff.",
+      );
+      return;
+    }
     setSubstitutes((prev) => prev.filter((p) => p.id !== playerId));
     toast.success("Player removed from match bench.");
   };
@@ -914,6 +983,12 @@ export const TeamHeadTeamSheets = () => {
    * Automatically assigns best available players from roster into 14 starter slots.
    */
   const handleAutoFill = () => {
+    if (isMatchLockedCurrently || isMatchFinished) {
+      toast.error(
+        "This match is locked — team sheets cannot be modified within 10 minutes of kickoff.",
+      );
+      return;
+    }
     // Sort highest rated players first so auto-fill selects the top performers
     const available = [...clubPlayers].sort(
       (a, b) => (Number(b.rating) || 0) - (Number(a.rating) || 0),
@@ -1194,16 +1269,26 @@ export const TeamHeadTeamSheets = () => {
       ? m.away_team?.name || "TBD"
       : m.home_team?.name || "TBD";
     const venue = isHome ? "vs" : "@";
-    const dateStr = m.date
-      ? new Date(m.date).toLocaleDateString(undefined, {
-          month: "short",
-          day: "numeric",
-        })
-      : "";
-    return `${venue} ${opponent} (${dateStr || m.status})${m.status === "FINISHED" ? " · Final" : ""}`;
+    const dateFormatted = formatMatchDate(m.date, {
+      month: "short",
+      day: "numeric",
+    });
+    const timeFormatted = formatMatchTime(m.start_time);
+    const timeDisplay =
+      timeFormatted !== "TBD"
+        ? `${dateFormatted} · ${timeFormatted}`
+        : dateFormatted || m.status;
+    const locked = isMatchLocked(m, 10);
+    return `${venue} ${opponent} (${timeDisplay})${m.status === "FINISHED" ? " · Final" : locked ? " · Locked" : ""}`;
   };
 
   const openPicker = (target: NonNullable<typeof pickerTarget>) => {
+    if (isMatchLockedCurrently || isMatchFinished) {
+      toast.error(
+        "This match is locked — team sheets cannot be modified within 10 minutes of kickoff.",
+      );
+      return;
+    }
     setPickerTarget(target);
     setPickerSearch("");
     setPickerPositionFilter("ALL");
@@ -1234,8 +1319,13 @@ export const TeamHeadTeamSheets = () => {
               <button
                 type="button"
                 onClick={handleAutoFill}
-                title="Auto-populate starters from your squad"
-                className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto min-h-11 px-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-sffl-navy dark:text-white font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                disabled={isMatchLockedCurrently || isMatchFinished}
+                title={
+                  isMatchLockedCurrently
+                    ? "Locked (within 10m of kickoff)"
+                    : "Auto-populate starters from your squad"
+                }
+                className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto min-h-11 px-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-sffl-navy dark:text-white font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <SparklesIcon
                   className="w-4 h-4 text-amber-500"
@@ -1275,9 +1365,9 @@ export const TeamHeadTeamSheets = () => {
             className="w-full sm:w-auto sm:min-w-72 min-h-11 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-sffl-red"
           >
             {matchesLoading ? (
-              <option>Loading fixtures</option>
+              <option>Loading upcoming fixtures</option>
             ) : matches.length === 0 ? (
-              <option>No matches scheduled</option>
+              <option>No upcoming matches scheduled</option>
             ) : (
               matches.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -1287,6 +1377,27 @@ export const TeamHeadTeamSheets = () => {
             )}
           </select>
         </label>
+        {currentMatch && (
+          <div
+            className={`flex items-center gap-1.5 self-start sm:self-auto px-3 py-1.5 rounded-xl border text-xs font-black uppercase tracking-tight ${
+              isMatchLockedCurrently || isMatchFinished
+                ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800"
+                : "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
+            }`}
+          >
+            {isMatchLockedCurrently || isMatchFinished ? (
+              <>
+                <LockClosedIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>{lockInfo.label || "Locked (10m Pre-Match)"}</span>
+              </>
+            ) : (
+              <>
+                <ClockIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>{lockInfo.label || "Open"}</span>
+              </>
+            )}
+          </div>
+        )}
         {selectedMatchId && (
           <Link
             to={`/matches/${selectedMatchId}?tab=rating`}
@@ -1299,6 +1410,26 @@ export const TeamHeadTeamSheets = () => {
           </Link>
         )}
       </div>
+
+      {/* ── Match Lock Warning Banner ── */}
+      {(isMatchLockedCurrently || isMatchFinished) && (
+        <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 p-4 rounded-xl md:rounded-2xl flex items-start sm:items-center gap-3 shadow-sm animate-fade-in">
+          <LockClosedIcon
+            className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5 sm:mt-0"
+            aria-hidden="true"
+          />
+          <div className="text-xs md:text-sm">
+            <span className="font-black uppercase tracking-wide mr-1.5">
+              Team Sheet Locked:
+            </span>
+            <span>
+              {isMatchFinished
+                ? "This match has finished. The team sheet cannot be edited."
+                : "Team sheet submissions lock 10 minutes prior to kickoff. If emergency roster or starter adjustments are required, please contact the league commissioner."}
+            </span>
+          </div>
+        </div>
+      )}
 
       {loadingSheet ? (
         <Spinner label="Loading team sheet" />

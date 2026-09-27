@@ -51,6 +51,15 @@ type MatchHandler struct {
 	service services.IMatchService
 }
 
+// lagosLocation is resolved once for the team-sheet pre-kickoff lock check
+// below rather than on every save request.
+var lagosLocation = func() *time.Location {
+	if loc, err := time.LoadLocation("Africa/Lagos"); err == nil {
+		return loc
+	}
+	return time.FixedZone("WAT", 3600)
+}()
+
 func NewMatchHandler(service services.IMatchService) IMatchHandler {
 	return &MatchHandler{service: service}
 }
@@ -916,10 +925,45 @@ func (h *MatchHandler) SaveTeamHeadTeamSheet(c *gin.Context) {
 		return
 	}
 
-	// 3. Reject modifications on finished matches
+	// 3. Reject modifications on finished, live, or locked matches (10 minutes before kickoff)
 	if match.Status == "FINISHED" {
 		helpers.BadResponse(c, "Cannot modify team sheet for a completed match")
 		return
+	}
+	if match.Status == "LIVE" {
+		helpers.BadResponse(c, "Cannot modify team sheet while match is live")
+		return
+	}
+
+	// A postponed match keeps its old date/time until an admin reschedules it,
+	// so the kickoff-time lock below would otherwise leave it permanently
+	// un-editable the moment its original kickoff passes.
+	if match.Status != "POSTPONED" && !match.Date.IsZero() {
+		loc := lagosLocation
+		// Only enforce 10-minute pre-match lock if a valid start time is scheduled
+		hasTime := !match.StartTime.IsZero() && (match.StartTime.Hour() != 0 || match.StartTime.Minute() != 0)
+		if hasTime {
+			kickoff := time.Date(
+				match.Date.Year(), match.Date.Month(), match.Date.Day(),
+				match.StartTime.Hour(), match.StartTime.Minute(), match.StartTime.Second(), 0,
+				loc,
+			)
+			cutoff := kickoff.Add(-10 * time.Minute)
+			if time.Now().In(loc).After(cutoff) {
+				helpers.BadResponse(c, "Team sheet submissions lock 10 minutes prior to kickoff")
+				return
+			}
+		} else {
+			// If time is TBD, check if match date is strictly in the past (end of that day in WAT)
+			endOfMatchDay := time.Date(
+				match.Date.Year(), match.Date.Month(), match.Date.Day(),
+				23, 59, 59, 0, loc,
+			)
+			if time.Now().In(loc).After(endOfMatchDay) {
+				helpers.BadResponse(c, "Cannot modify team sheet for a past match")
+				return
+			}
+		}
 	}
 
 	// 4. Validate 25-player maximum squad cap

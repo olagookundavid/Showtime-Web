@@ -453,8 +453,12 @@ func (r *PostgresMatchRepository) GetMatches(ctx context.Context, competitionID 
 	}
 
 	if status != "" {
-		args = append(args, status)
-		whereClause += fmt.Sprintf(" AND m.status = $%d", len(args))
+		if strings.EqualFold(status, "UPCOMING") || strings.EqualFold(status, "NOT_FINISHED") {
+			whereClause += " AND m.status != 'FINISHED'"
+		} else {
+			args = append(args, status)
+			whereClause += fmt.Sprintf(" AND m.status = $%d", len(args))
+		}
 	}
 
 	// Filtering by club has to happen here rather than in the client. The Match
