@@ -1306,56 +1306,119 @@ func (s *FantasyService) GetGameweekReport(ctx context.Context, seasonID, gamewe
 var ErrGameweekNotFound = errors.New("gameweek not found")
 
 // GetPlayerBreakdown scores a player's gameweek directly from the official
-// stat lines rather than from the points log, so it reflects live stat entry
-// before the gameweek has been finalised.
-//
-// A nil, nil result means the gameweek is real but the player has no stat
-// lines yet — normal before or during a match day, not an error condition —
-// and the caller should answer with empty data rather than a 404.
+// stat lines or from the saved gameweek points log. If the requested gameweek
+// has no stats for this player yet, it falls back to the nearest gameweek in the
+// season where the player recorded stats, and always returns the player's
+// season-long total points and ownership percentage.
 func (s *FantasyService) GetPlayerBreakdown(ctx context.Context, playerID, gameweekID string) (*dto.PlayerGWBreakdownResponse, error) {
-	gw, err := s.repo.GetGameweekByID(ctx, gameweekID)
-	if err != nil {
-		return nil, err
+	var gw *domain.FantasyGameweek
+	// "current" is the frontend's sentinel for "no gameweek context yet" (see
+	// FantasyPlayerModal); fantasy_gameweeks.id is a uuid column, so passing
+	// that straight to GetGameweekByID fails the uuid cast with a real error
+	// (not pgx.ErrNoRows) and would skip the fallback below entirely.
+	if gameweekID != "" && gameweekID != "current" {
+		var err error
+		gw, err = s.repo.GetGameweekByID(ctx, gameweekID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if gw == nil {
+		// Fall back to current active season gameweek if specific id not found
+		if activeSeason, sErr := s.repo.GetActiveSeason(ctx); sErr == nil && activeSeason != nil {
+			if curGW, gErr := s.repo.GetCurrentGameweek(ctx, activeSeason.ID); gErr == nil && curGW != nil {
+				gw = curGW
+			}
+		}
 	}
 	if gw == nil {
 		return nil, ErrGameweekNotFound
 	}
 
-	stats, err := s.repo.GetPlayerStatsByEventDay(ctx, gw.EventDayID)
-	if err != nil {
-		return nil, err
+	name := playerID
+	if s.playerRepo != nil {
+		if player, err := s.playerRepo.GetPlayerByID(ctx, playerID); err == nil && player != nil {
+			name = player.Name
+		}
 	}
 
+	totalPoints, selectedByPct, _ := s.repo.GetPlayerFantasySummary(ctx, gw.SeasonID, playerID)
+
+	// 1. Try to compute live stats directly from match day stats
 	calc := domain.FantasyWeights{}
 	var parts []domain.FantasyPointsBreakdown
 	matchID := ""
-	for _, st := range stats {
-		if st.PlayerID != playerID {
-			continue
+
+	stats, err := s.repo.GetPlayerStatsByEventDay(ctx, gw.EventDayID, gw.SeasonID)
+	if err == nil {
+		for _, st := range stats {
+			if st.PlayerID != playerID {
+				continue
+			}
+			if matchID == "" {
+				matchID = st.MatchID
+			}
+			parts = append(parts, calc.Calculate(st))
 		}
-		if matchID == "" {
-			matchID = st.MatchID
-		}
-		parts = append(parts, calc.Calculate(st))
 	}
+
+	// 2. If no live stats found for this gameweek, check stored fantasy_gw_points
 	if len(parts) == 0 {
-		return nil, nil
+		if gwPoints, err := s.repo.GetPlayerGWPointsByGameweek(ctx, gw.ID, playerID); err == nil && gwPoints != nil {
+			parts = append(parts, gwPoints.Breakdown)
+			if matchID == "" {
+				matchID = gwPoints.MatchID
+			}
+		}
 	}
 
-	total := domain.SumBreakdowns(parts)
-
-	name := playerID
-	if player, err := s.playerRepo.GetPlayerByID(ctx, playerID); err == nil && player != nil {
-		name = player.Name
+	// 3. If stats were found for this requested gameweek, return them
+	if len(parts) > 0 {
+		total := domain.SumBreakdowns(parts)
+		return &dto.PlayerGWBreakdownResponse{
+			PlayerID:       playerID,
+			PlayerName:     name,
+			MatchID:        matchID,
+			MatchLabel:     fmt.Sprintf("Match Day %d", gw.Number),
+			GameweekNumber: gw.Number,
+			IsNearestWeek:  false,
+			Points:         total.NetTotal,
+			TotalPoints:    totalPoints,
+			SelectedByPct:  selectedByPct,
+			Breakdown:      total,
+		}, nil
 	}
 
+	// 4. Fallback to nearest gameweek data in the season so breakdown is not empty
+	nearest, nearestGWNum, err := s.repo.GetNearestPlayerBreakdown(ctx, gw.SeasonID, playerID, gw.Number)
+	if err == nil && nearest != nil {
+		return &dto.PlayerGWBreakdownResponse{
+			PlayerID:       playerID,
+			PlayerName:     name,
+			MatchID:        nearest.MatchID,
+			MatchLabel:     fmt.Sprintf("Match Day %d", nearestGWNum),
+			GameweekNumber: nearestGWNum,
+			IsNearestWeek:  true,
+			Points:         nearest.Points,
+			TotalPoints:    totalPoints,
+			SelectedByPct:  selectedByPct,
+			Breakdown:      nearest.Breakdown,
+		}, nil
+	}
+
+	// 5. If player has no stats anywhere in the season yet, return empty breakdown
+	// with season summary stats so the UI never displays '—' for Total Points or Ownership.
 	return &dto.PlayerGWBreakdownResponse{
-		PlayerID:   playerID,
-		PlayerName: name,
-		MatchID:    matchID,
-		MatchLabel: fmt.Sprintf("Match Day %d", gw.Number),
-		Points:     total.NetTotal,
-		Breakdown:  total,
+		PlayerID:       playerID,
+		PlayerName:     name,
+		MatchID:        matchID,
+		MatchLabel:     fmt.Sprintf("Match Day %d", gw.Number),
+		GameweekNumber: gw.Number,
+		IsNearestWeek:  false,
+		Points:         0,
+		TotalPoints:    totalPoints,
+		SelectedByPct:  selectedByPct,
+		Breakdown:      domain.FantasyPointsBreakdown{},
 	}, nil
 }
 
@@ -1390,7 +1453,7 @@ func (s *FantasyService) ComputeGameweekScores(ctx context.Context, gameweekID s
 		return errors.New("gameweek not found")
 	}
 
-	stats, err := s.repo.GetPlayerStatsByEventDay(ctx, gw.EventDayID)
+	stats, err := s.repo.GetPlayerStatsByEventDay(ctx, gw.EventDayID, gw.SeasonID)
 	if err != nil {
 		return fmt.Errorf("failed to get player stats for gameweek: %w", err)
 	}

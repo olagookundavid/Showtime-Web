@@ -57,8 +57,12 @@ type fakeFantasyRepo struct {
 	overrides      map[string]float64
 	overridesErr   error
 	upsertedPrices []domain.FantasyPlayerPrice
-	pricingLines   []ports.PlayerPricingLine
-	teamNameTaken  bool
+	pricingLines     []ports.PlayerPricingLine
+	teamNameTaken    bool
+	nearestBreakdown *domain.FantasyGWPoints
+	nearestGWNum     int
+	totalPoints      float64
+	selectedByPct    float64
 
 	// pickPointsMu guards pickPoints for the one test (TestTriggerLiveScoreForMatch)
 	// that reads it from the test goroutine while a background worker-pool
@@ -260,8 +264,20 @@ func (f *fakeFantasyRepo) UpdateGameweekStatus(_ context.Context, id string, st 
 	return nil
 }
 
-func (f *fakeFantasyRepo) GetPlayerStatsByEventDay(_ context.Context, _ string) ([]domain.PlayerStat, error) {
+func (f *fakeFantasyRepo) GetPlayerStatsByEventDay(_ context.Context, _, _ string) ([]domain.PlayerStat, error) {
 	return f.stats, nil
+}
+
+func (f *fakeFantasyRepo) GetPlayerGWPointsByGameweek(_ context.Context, _, _ string) (*domain.FantasyGWPoints, error) {
+	return nil, nil
+}
+
+func (f *fakeFantasyRepo) GetNearestPlayerBreakdown(_ context.Context, _, _ string, _ int) (*domain.FantasyGWPoints, int, error) {
+	return f.nearestBreakdown, f.nearestGWNum, nil
+}
+
+func (f *fakeFantasyRepo) GetPlayerFantasySummary(_ context.Context, _, _ string) (float64, float64, error) {
+	return f.totalPoints, f.selectedByPct, nil
 }
 
 func (f *fakeFantasyRepo) GetLockedLineupsForGameweek(_ context.Context, gwID string) ([]domain.FantasyLineup, error) {
@@ -1652,3 +1668,88 @@ func TestDeleteGameweek_SucceedsForUnfinalized(t *testing.T) {
 		})
 	}
 }
+
+func TestGetPlayerBreakdown_NearestWeekFallback(t *testing.T) {
+	repo := newFakeRepo()
+	gw := testGameweek()
+	gw.Number = 2
+	repo.gameweeks[gw.ID] = gw
+
+	// Player has no live stats in GW 2, but has nearest stats in GW 1
+	repo.stats = nil
+	repo.totalPoints = 12.5
+	repo.selectedByPct = 34.0
+	repo.nearestGWNum = 1
+	repo.nearestBreakdown = &domain.FantasyGWPoints{
+		MatchID: "match-101",
+		Points:  5.5,
+		Breakdown: domain.FantasyPointsBreakdown{
+			PassDeflectionsPts: 1.5,
+			InterceptionsPts:   4.0,
+			DefensiveTotal:     5.5,
+			NetTotal:           5.5,
+		},
+	}
+
+	svc := NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil, ownsPool(repo))
+
+	resp, err := svc.GetPlayerBreakdown(context.Background(), "player-1", gw.ID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp == nil {
+		t.Fatal("expected breakdown response, got nil")
+	}
+
+	if !resp.IsNearestWeek {
+		t.Errorf("expected IsNearestWeek to be true")
+	}
+	if resp.GameweekNumber != 1 {
+		t.Errorf("expected GameweekNumber 1, got %d", resp.GameweekNumber)
+	}
+	if resp.Points != 5.5 {
+		t.Errorf("expected Points 5.5, got %f", resp.Points)
+	}
+	if resp.TotalPoints != 12.5 {
+		t.Errorf("expected TotalPoints 12.5, got %f", resp.TotalPoints)
+	}
+	if resp.SelectedByPct != 34.0 {
+		t.Errorf("expected SelectedByPct 34.0, got %f", resp.SelectedByPct)
+	}
+	if resp.Breakdown.PassDeflectionsPts != 1.5 {
+		t.Errorf("expected PassDeflectionsPts 1.5, got %f", resp.Breakdown.PassDeflectionsPts)
+	}
+}
+
+func TestGetPlayerBreakdown_NoStatsReturnsSummary(t *testing.T) {
+	repo := newFakeRepo()
+	gw := testGameweek()
+	gw.Number = 3
+	repo.gameweeks[gw.ID] = gw
+
+	repo.stats = nil
+	repo.nearestBreakdown = nil
+	repo.totalPoints = 0.0
+	repo.selectedByPct = 5.0
+
+	svc := NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil, ownsPool(repo))
+
+	resp, err := svc.GetPlayerBreakdown(context.Background(), "player-2", gw.ID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp == nil {
+		t.Fatal("expected non-nil response even with no stats")
+	}
+
+	if resp.Points != 0 {
+		t.Errorf("expected 0 points, got %f", resp.Points)
+	}
+	if resp.SelectedByPct != 5.0 {
+		t.Errorf("expected SelectedByPct 5.0, got %f", resp.SelectedByPct)
+	}
+	if resp.IsNearestWeek {
+		t.Errorf("expected IsNearestWeek to be false")
+	}
+}
+

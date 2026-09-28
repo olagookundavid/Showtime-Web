@@ -696,7 +696,7 @@ export function FantasyDashboard() {
                         <FantasyPitch
                             picks={picks}
                             gameweekLabel={gameweek ? `Gameweek ${gameweek.number}` : undefined}
-                            gameweekId={gameweek?.id}
+                            gameweekId={dashboard?.lineup?.gameweek_id || gameweek?.id}
                             showPoints={deadlinePassed}
                         />
 
@@ -722,7 +722,7 @@ export function FantasyDashboard() {
                                                 points: num(pick.points),
                                                 purchasePrice: (pick as any).purchase_price,
                                                 price: (pick as any).fantasy_price || (pick as any).price || (pick as any).purchase_price,
-                                                gameweekId: gameweek?.id,
+                                                gameweekId: (pick as any).gameweek_id || dashboard?.lineup?.gameweek_id || gameweek?.id,
                                                 gameweekNumber: gameweek?.number,
                                             });
                                         }
@@ -745,7 +745,7 @@ export function FantasyDashboard() {
                                                           points: num(pick.points),
                                                           purchasePrice: (pick as any).purchase_price,
                                                           price: (pick as any).fantasy_price || (pick as any).price || (pick as any).purchase_price,
-                                                          gameweekId: gameweek?.id,
+                                                          gameweekId: (pick as any).gameweek_id || dashboard?.lineup?.gameweek_id || gameweek?.id,
                                                           gameweekNumber: gameweek?.number,
                                                       });
                                                   }

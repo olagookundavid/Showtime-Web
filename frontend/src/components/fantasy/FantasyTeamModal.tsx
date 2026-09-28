@@ -312,6 +312,7 @@ export function FantasyTeamModal({
                                                 purchasePrice: pick.purchase_price,
                                                 points: pick.points,
                                                 gameweekId: selectedGwId,
+                                                gameweekNumber: selectedGw?.number,
                                             })}
                                             className="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 flex items-center justify-between gap-3 transition cursor-pointer"
                                         >
@@ -382,6 +383,7 @@ export function FantasyTeamModal({
                                                 purchasePrice: pick.purchase_price,
                                                 points: pick.points,
                                                 gameweekId: selectedGwId,
+                                                gameweekNumber: selectedGw?.number,
                                             })}
                                             className="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 flex items-center justify-between gap-3 transition cursor-pointer"
                                         >

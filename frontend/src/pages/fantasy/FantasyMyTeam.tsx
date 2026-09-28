@@ -241,7 +241,11 @@ export function FantasyMyTeam() {
                                 <div className="py-12 flex justify-center">
                                     <div className="w-8 h-8 border-2 border-sffl-red border-t-transparent rounded-full animate-spin" />
                                 </div>
-                            ) : !breakdownData ? (
+                            ) : !breakdownData || (
+                                breakdownData.breakdown.net_total === 0 &&
+                                breakdownData.breakdown.offensive_total === 0 &&
+                                breakdownData.breakdown.defensive_total === 0
+                            ) ? (
                                 <div className="py-12 text-center text-gray-500 dark:text-gray-400 text-sm">
                                     No statistical events recorded for this gameweek yet. Points update live as official match stats are entered.
                                 </div>

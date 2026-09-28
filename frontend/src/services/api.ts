@@ -3108,7 +3108,11 @@ export interface PlayerGWBreakdownResponse {
     player_name: string;
     match_id: string;
     match_label: string;
+    gameweek_number?: number;
+    is_nearest_week?: boolean;
     points: number;
+    total_points?: number;
+    selected_by_pct?: number;
     breakdown: PointsBreakdown;
 }
 
@@ -3131,6 +3135,8 @@ export interface PlayerPriceHistoryResponse {
     current_price: number;
     base_price: number;
     total_change: number;
+    total_points?: number;
+    selected_by_pct?: number;
     history: PlayerPriceHistoryItem[];
 }
 

@@ -440,7 +440,7 @@ func TestFantasyRepositoryQueries(t *testing.T) {
 	})
 
 	t.Run("stats resolve through matches.event_day_id", func(t *testing.T) {
-		stats, err := repo.GetPlayerStatsByEventDay(ctx, f.eventDayID)
+		stats, err := repo.GetPlayerStatsByEventDay(ctx, f.eventDayID, f.seasonID)
 		if err != nil {
 			t.Fatalf("GetPlayerStatsByEventDay: %v", err)
 		}

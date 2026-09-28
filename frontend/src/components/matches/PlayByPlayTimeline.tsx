@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { API_URL, getMatchPlays, type GamePlay } from '../../services/api';
 import { Spinner } from '../ui';
+import { ClockIcon } from '@heroicons/react/24/outline';
+import { isScore, isPickSix, isReturnTD, isTurnover, isOneMinWarning, isInjury } from '../../utils/playClassification';
 
 const who = (p?: { name: string; jersey_number: number }) => (p ? (p.jersey_number ? `#${p.jersey_number} ${p.name}` : p.name) : '');
 
@@ -21,18 +23,6 @@ const RESULT_LABEL: Record<string, string> = {
     INC: 'Incomplete', OMW: '1-MINUTE WARNING', '1MW': '1-MINUTE WARNING',
 };
 
-const isScore = (p: GamePlay) => p.result === 'TD' || p.result === 'XP' || p.result === 'SAF' || (p.result === 'XPF' && p.returned_for_td);
-// An interception returned for a TD is a defensive score — green, not red.
-const isPickSix = (p: GamePlay) => (p.result === 'INT' || p.play_type === 'INT') && p.returned_for_td === true;
-// Red "possession changed the hard way": turnover on downs, a non-returned
-// interception, or a bad snap (play dies on the spot, center charged).
-const isTurnover = (p: GamePlay) =>
-    p.result === 'TO' ||
-    ((p.result === 'INT' || p.play_type === 'INT') && !p.returned_for_td) ||
-    (p.play_type === 'BADSNAP' && p.result === 'TO');
-const isOneMinWarning = (p: GamePlay) => p.result === 'OMW' || p.result === '1MW';
-const isInjury = (p: GamePlay) => p.result === 'IH';
-
 function describe(p: GamePlay): string {
     if (p.penalty && !p.play_type) {
         return `Penalty — ${p.penalty}${p.penalty_player ? ' on ' + who(p.penalty_player) : ''}${p.penalty_yards != null ? ` (${p.penalty_yards} yd)` : ''}`;
@@ -44,7 +34,13 @@ function describe(p: GamePlay): string {
     }
     const parts: string[] = [];
     if (p.off_qb) parts.push(who(p.off_qb));
-    if (p.target) parts.push(`→ ${who(p.target)}`);
+    if (p.target) {
+        if (isReturnTD(p)) {
+            parts.push(`Return TD: ${who(p.target)}`);
+        } else {
+            parts.push(`→ ${who(p.target)}`);
+        }
+    }
     if (p.batted_down) {
         const batter = p.rusher || p.defender;
         parts.push(`— batted down${batter ? ` by ${who(batter)}` : ''}`);
@@ -140,7 +136,7 @@ export const PlayByPlayTimeline = ({ matchId, isLive, showEmpty = false }: { mat
                         </div>
                         <ol className="space-y-1.5">
                             {drive.plays.map(p => {
-                                const scored = isScore(p) || isPickSix(p);
+                                const scored = isScore(p) || isPickSix(p) || isReturnTD(p);
                                 const turnover = isTurnover(p);
                                 const warning = isOneMinWarning(p);
                                 const injury = isInjury(p);
@@ -149,9 +145,10 @@ export const PlayByPlayTimeline = ({ matchId, isLive, showEmpty = false }: { mat
                                 if (endPeriod) {
                                     return (
                                         <li key={p.id} className="my-5 py-3 px-4 bg-slate-900 dark:bg-slate-950 text-white rounded-xl border border-slate-700 text-center font-black tracking-widest text-xs uppercase shadow-md flex items-center justify-between">
-                                            <span className="text-[11px] font-bold text-slate-400">Q{p.quarter}{p.clock ? ` · ${p.clock}` : ''}</span>
-                                            <span className="flex-1 text-center font-extrabold text-amber-300 tracking-widest">
-                                                ⏱️ {p.result === 'EH' ? 'END OF HALF' : 'END OF GAME'}
+                                            <span className="text-[11px] font-bold text-slate-400">H{p.quarter}{p.clock ? ` · ${p.clock}` : ''}</span>
+                                            <span className="flex-1 text-center font-extrabold text-amber-300 tracking-widest inline-flex items-center justify-center gap-1.5">
+                                                <ClockIcon className="w-4 h-4" aria-hidden="true" />
+                                                {p.result === 'EH' ? 'END OF HALF' : 'END OF GAME'}
                                             </span>
                                             {(p.home_score_after != null && p.away_score_after != null) && (
                                                 <span className="text-xs font-black text-white tabular-nums">
@@ -176,7 +173,7 @@ export const PlayByPlayTimeline = ({ matchId, isLive, showEmpty = false }: { mat
                                     }`}>
                                         <div className="flex flex-col items-start gap-1 shrink-0 w-20 sm:w-24 pt-0.5">
                                             <span className="text-[11px] font-bold text-gray-400 tabular-nums">
-                                                Q{p.quarter}{p.clock ? ` ${p.clock}` : ''}
+                                                H{p.quarter}{p.clock ? ` ${p.clock}` : ''}
                                             </span>
                                             {formatDown(p) && (
                                                 <span className="inline-block px-1.5 py-0.5 text-[10px] font-black rounded-md bg-sffl-navy/10 text-sffl-navy dark:bg-blue-900/40 dark:text-blue-300 uppercase tracking-tight tabular-nums">
@@ -204,6 +201,7 @@ export const PlayByPlayTimeline = ({ matchId, isLive, showEmpty = false }: { mat
                                                     · [{
                                                         p.play_type === 'BADSNAP' ? `Bad Snap${p.center ? ` - ${who(p.center)}` : ''}${p.result === 'SAF' ? ' · SAFETY' : p.result === 'TO' ? ' · Turnover on downs' : ''}`
                                                             : isPickSix(p) ? 'Defensive Touchdown'
+                                                            : isReturnTD(p) ? 'Return Touchdown'
                                                             : (p.result === 'XPF' && p.returned_for_td) ? 'Defensive Extra Point'
                                                             : RESULT_LABEL[p.result] || p.result
                                                     }]

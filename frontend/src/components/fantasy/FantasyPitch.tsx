@@ -279,7 +279,7 @@ export function FantasyPitch({
             currentPrice: pick.current_price,
             purchasePrice: pick.purchase_price,
             points: pick.points,
-            gameweekId: gameweekId,
+            gameweekId,
         });
     };
 

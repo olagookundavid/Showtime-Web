@@ -325,6 +325,14 @@ func (s *PlayService) DeriveMatchStats(ctx context.Context, matchID string) ([]d
 					d.DefensiveXPTDs++
 				}
 			}
+
+		case pt == "KO" || pt == "PUNT":
+			// Special teams: throw-off or punt returned for a touchdown by the receiver/returner.
+			if p.ReturnedForTD || res == "TD" {
+				if target := get(p.TargetID); target != nil {
+					target.DefensiveTDs++
+				}
+			}
 		}
 	}
 

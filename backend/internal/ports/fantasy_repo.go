@@ -104,7 +104,10 @@ type IFantasyRepository interface {
 	UpdateLineupPickPoints(ctx context.Context, lineupID string, pointsByPlayer map[string]float64) error
 
 	// Scoring & Breakdown
-	GetPlayerStatsByEventDay(ctx context.Context, eventDayID string) ([]domain.PlayerStat, error)
+	GetPlayerStatsByEventDay(ctx context.Context, eventDayID, seasonID string) ([]domain.PlayerStat, error)
+	GetPlayerGWPointsByGameweek(ctx context.Context, gameweekID, playerID string) (*domain.FantasyGWPoints, error)
+	GetNearestPlayerBreakdown(ctx context.Context, seasonID, playerID string, targetGWNumber int) (*domain.FantasyGWPoints, int, error)
+	GetPlayerFantasySummary(ctx context.Context, seasonID, playerID string) (totalPoints float64, selectedByPct float64, err error)
 	// Scoring writes one row per (team, player, match), so this is always a
 	// bulk operation — there is deliberately no single-row variant to reach for.
 	BulkUpsertGWPoints(ctx context.Context, pts []domain.FantasyGWPoints) error
@@ -1785,11 +1788,14 @@ func (r *FantasyRepository) BulkUpsertGWPoints(ctx context.Context, pts []domain
 }
 
 // GetPlayerStatsByEventDay returns every stat line recorded on an event day,
-// resolved through the canonical matches.event_day_id foreign key rather than
-// by comparing calendar dates. The inner join to matches also drops stat rows
-// with a NULL match_id (the column is nullable), which would otherwise fail to
-// scan into MatchID and abort scoring for the entire gameweek.
-func (r *FantasyRepository) GetPlayerStatsByEventDay(ctx context.Context, eventDayID string) ([]domain.PlayerStat, error) {
+// resolved through matches.event_day_id or matching calendar date (fallback for
+// fixtures not yet backfilled with an event_day_id). The date fallback is scoped
+// to seasonID's competition — the same guard every other date-fallback query in
+// this file uses (see GetGameweeksDueForFinalize, GetActiveGameweekByMatchID) —
+// so two competitions with matches on the same calendar date can't leak stats
+// into each other's gameweeks. The inner join to matches also drops stat rows
+// with a NULL match_id (the column is nullable).
+func (r *FantasyRepository) GetPlayerStatsByEventDay(ctx context.Context, eventDayID, seasonID string) ([]domain.PlayerStat, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -1805,9 +1811,11 @@ func (r *FantasyRepository) GetPlayerStatsByEventDay(ctx context.Context, eventD
 		       ps.snaps, ps.bad_snaps, ps.created_at, ps.updated_at
 		FROM player_stats ps
 		JOIN matches m ON ps.match_id = m.id
-		WHERE m.event_day_id = $1
+		JOIN event_days ed ON ed.id = $1::uuid
+		JOIN fantasy_seasons s ON s.id = $2::uuid
+		WHERE (m.event_day_id = ed.id OR (m.competition_id = s.competition_id AND m.date = ed.date))
 	`
-	rows, err := r.pool.Query(ctx, query, eventDayID)
+	rows, err := r.pool.Query(ctx, query, eventDayID, seasonID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query player stats by event day: %w", err)
 	}
@@ -1832,6 +1840,156 @@ func (r *FantasyRepository) GetPlayerStatsByEventDay(ctx context.Context, eventD
 		list = append(list, s)
 	}
 	return list, nil
+}
+
+// GetPlayerGWPointsByGameweek reads the saved fantasy breakdown and score for a player in a gameweek.
+func (r *FantasyRepository) GetPlayerGWPointsByGameweek(ctx context.Context, gameweekID, playerID string) (*domain.FantasyGWPoints, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	// A player can have more than one row here for the same gameweek: an
+	// All-Rounder is scored per team, scoped by the slot that team started
+	// them in (see ForSlot), so two teams' rows can carry different points
+	// for the very same match. This method has no team context to prefer one
+	// over another, so it picks the earliest-written row deterministically
+	// rather than ORDER BY points DESC, which would systematically show
+	// every viewer the most flattering of several teams' scores instead of a
+	// stable, team-agnostic answer.
+	query := `
+		SELECT id, team_id, gameweek_id, player_id, match_id, points, breakdown, created_at
+		FROM fantasy_gw_points
+		WHERE gameweek_id = $1 AND player_id = $2
+		ORDER BY created_at ASC
+		LIMIT 1
+	`
+	var p domain.FantasyGWPoints
+	var breakdownJSON []byte
+	err := r.pool.QueryRow(ctx, query, gameweekID, playerID).Scan(
+		&p.ID, &p.TeamID, &p.GameweekID, &p.PlayerID, &p.MatchID, &p.Points, &breakdownJSON, &p.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to query player gameweek points: %w", err)
+	}
+
+	if len(breakdownJSON) > 0 {
+		_ = json.Unmarshal(breakdownJSON, &p.Breakdown)
+	}
+	return &p, nil
+}
+
+// GetNearestPlayerBreakdown returns the player's scored breakdown and points from the closest gameweek
+// in the same season, used when the currently viewed gameweek has not recorded any stats for this player yet.
+func (r *FantasyRepository) GetNearestPlayerBreakdown(ctx context.Context, seasonID, playerID string, targetGWNumber int) (*domain.FantasyGWPoints, int, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	// See GetPlayerGWPointsByGameweek for why the final tie-break is
+	// created_at ASC rather than points DESC: multiple teams can have scored
+	// this player differently in the same gameweek (All-Rounder slot
+	// scoping), and this method has no team context to prefer one.
+	query := `
+		SELECT fgp.id, fgp.team_id, fgp.gameweek_id, fgp.player_id, fgp.match_id, fgp.points, fgp.breakdown, fgp.created_at, fgw.number
+		FROM fantasy_gw_points fgp
+		JOIN fantasy_gameweeks fgw ON fgp.gameweek_id = fgw.id
+		WHERE fgw.season_id = $1 AND fgp.player_id = $2
+		ORDER BY ABS(fgw.number - $3) ASC, fgw.number DESC, fgp.created_at ASC
+		LIMIT 1
+	`
+	var p domain.FantasyGWPoints
+	var gwNumber int
+	var breakdownJSON []byte
+	err := r.pool.QueryRow(ctx, query, seasonID, playerID, targetGWNumber).Scan(
+		&p.ID, &p.TeamID, &p.GameweekID, &p.PlayerID, &p.MatchID, &p.Points, &breakdownJSON, &p.CreatedAt, &gwNumber,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, 0, nil
+		}
+		return nil, 0, fmt.Errorf("failed to query nearest player gameweek breakdown: %w", err)
+	}
+
+	if len(breakdownJSON) > 0 {
+		_ = json.Unmarshal(breakdownJSON, &p.Breakdown)
+	}
+	return &p, gwNumber, nil
+}
+
+// GetPlayerFantasySummary returns the player's season total fantasy points and ownership percentage.
+func (r *FantasyRepository) GetPlayerFantasySummary(ctx context.Context, seasonID, playerID string) (totalPoints float64, selectedByPct float64, err error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	if seasonID == "" {
+		var activeID string
+		if err := r.pool.QueryRow(ctx, `SELECT id FROM fantasy_seasons WHERE status = 'ACTIVE' LIMIT 1`).Scan(&activeID); err == nil {
+			seasonID = activeID
+		}
+	}
+
+	// 1. Calculate ownership percentage: (squads owning player / total squads in season) * 100
+	var squadCount int
+	if err := r.pool.QueryRow(ctx, `SELECT COUNT(id) FROM fantasy_teams WHERE season_id = $1`, seasonID).Scan(&squadCount); err != nil {
+		return 0, 0, fmt.Errorf("failed to count fantasy squads: %w", err)
+	}
+
+	var ownedNow int
+	if err := r.pool.QueryRow(ctx, `
+		SELECT COUNT(*)
+		FROM fantasy_squad_players sp
+		JOIN fantasy_teams ft ON ft.id = sp.team_id
+		WHERE ft.season_id = $1 AND sp.player_id = $2 AND sp.sold_at IS NULL
+	`, seasonID, playerID).Scan(&ownedNow); err != nil {
+		return 0, 0, fmt.Errorf("failed to count owned player squads: %w", err)
+	}
+
+	if squadCount > 0 {
+		selectedByPct = (float64(ownedNow) / float64(squadCount)) * 100
+	}
+
+	// 2. Calculate season total points from the canonical fantasy_gw_points log,
+	// falling back to fantasy_lineup_picks only for a gameweek that log has no
+	// row for at all (scored via the picks table but not yet upserted into
+	// fantasy_gw_points). This is a "prefer canonical, fill the gaps" merge,
+	// not a sum of both sources — summing both would double the total for any
+	// gameweek both tables happen to have a row for.
+	//
+	// Within fantasy_gw_points, GROUP BY (not SELECT DISTINCT) collapses every
+	// team's row for the same gameweek+match down to one value via MAX, even
+	// when the values differ. They can differ: an All-Rounder's points are
+	// scoped per team by the slot each team started them in (see ForSlot), so
+	// two teams can score the same player differently in the same match.
+	// DISTINCT alone only collapses rows when the values happen to match, so
+	// it would silently double-count a divergent All-Rounder score.
+	queryPts := `
+		SELECT COALESCE(SUM(pts), 0.0)
+		FROM (
+			SELECT gwp.gameweek_id, MAX(gwp.points) AS pts
+			FROM fantasy_gw_points gwp
+			JOIN fantasy_gameweeks fgw ON fgw.id = gwp.gameweek_id
+			WHERE fgw.season_id = $1 AND gwp.player_id = $2
+			GROUP BY gwp.gameweek_id, gwp.match_id
+
+			UNION ALL
+
+			SELECT fl.gameweek_id, MAX(flp.points) AS pts
+			FROM fantasy_lineup_picks flp
+			JOIN fantasy_lineups fl ON fl.id = flp.lineup_id
+			WHERE flp.player_id = $2 AND fl.season_id = $1 AND fl.status = 'LOCKED'
+			  AND NOT EXISTS (
+			      SELECT 1 FROM fantasy_gw_points gwp
+			      WHERE gwp.gameweek_id = fl.gameweek_id AND gwp.player_id = $2
+			  )
+			GROUP BY fl.gameweek_id
+		) totals
+	`
+	if err := r.pool.QueryRow(ctx, queryPts, seasonID, playerID).Scan(&totalPoints); err != nil {
+		return 0, selectedByPct, fmt.Errorf("failed to calculate player total points: %w", err)
+	}
+
+	return totalPoints, selectedByPct, nil
 }
 
 // GetSeasonPricingLines rolls a competition's stats up per player for pricing:
@@ -2262,6 +2420,10 @@ func (r *FantasyRepository) GetPlayerPriceHistory(ctx context.Context, seasonID,
 		PlayerName: playerName,
 		History:    []dto.PlayerPriceHistoryItem{},
 	}
+
+	totalPts, selPct, _ := r.GetPlayerFantasySummary(ctx, seasonID, playerID)
+	resp.TotalPoints = totalPts
+	resp.SelectedByPct = selPct
 
 	if len(rawHistory) > 0 {
 		resp.BasePrice = rawHistory[0].Price
