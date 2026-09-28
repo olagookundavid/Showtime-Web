@@ -381,6 +381,14 @@ export function FantasyDashboard() {
     const { data: dashboard, isLoading, isError } = useQuery({
         queryKey: ['fantasyDashboard'],
         queryFn: () => fantasySeasonApi.getDashboard(),
+        refetchInterval: (query) => {
+            const gw = query.state.data?.current_gameweek;
+            // Only auto-poll during active match days when gameweek is locked or live
+            if (gw && (gw.status === 'LOCKED' || gw.status === 'LIVE')) {
+                return 30_000;
+            }
+            return false;
+        },
     });
 
     // Prize money is the one thing on this page that a manager can actually lose

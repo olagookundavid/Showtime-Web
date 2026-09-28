@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -35,6 +36,8 @@ type fakeFantasyRepo struct {
 
 	dueForLock     []domain.FantasyGameweek
 	dueForFinalize []domain.FantasyGameweek
+	matchGW        map[string]*domain.FantasyGameweek
+	activeMatchDays []domain.FantasyGameweek
 
 	// currentGW is what GetCurrentGameweek answers — the match day in progress,
 	// or nil when nothing is.
@@ -56,6 +59,17 @@ type fakeFantasyRepo struct {
 	upsertedPrices []domain.FantasyPlayerPrice
 	pricingLines   []ports.PlayerPricingLine
 	teamNameTaken  bool
+
+	// pickPointsMu guards pickPoints for the one test (TestTriggerLiveScoreForMatch)
+	// that reads it from the test goroutine while a background worker-pool
+	// goroutine writes it via UpdateLineupPickPoints.
+	pickPointsMu sync.Mutex
+}
+
+func (f *fakeFantasyRepo) getPickPoints(lineupID, playerID string) float64 {
+	f.pickPointsMu.Lock()
+	defer f.pickPointsMu.Unlock()
+	return f.pickPoints[lineupID][playerID]
 }
 
 func newFakeRepo() *fakeFantasyRepo {
@@ -70,6 +84,7 @@ func newFakeRepo() *fakeFantasyRepo {
 		pickPoints:     map[string]map[string]float64{},
 		overrides:      map[string]float64{},
 		upsertedPrices: []domain.FantasyPlayerPrice{},
+		matchGW:        map[string]*domain.FantasyGameweek{},
 	}
 }
 
@@ -197,6 +212,17 @@ func (f *fakeFantasyRepo) GetGameweeksDueForFinalize(_ context.Context) ([]domai
 	return f.dueForFinalize, nil
 }
 
+func (f *fakeFantasyRepo) GetActiveGameweekByMatchID(_ context.Context, matchID string) (*domain.FantasyGameweek, error) {
+	if f.matchGW != nil {
+		return f.matchGW[matchID], nil
+	}
+	return nil, nil
+}
+
+func (f *fakeFantasyRepo) GetActiveMatchDayGameweeks(_ context.Context) ([]domain.FantasyGameweek, error) {
+	return f.activeMatchDays, nil
+}
+
 func (f *fakeFantasyRepo) LockLineupsForGameweek(_ context.Context, gwID string) error {
 	f.lockedGWs = append(f.lockedGWs, gwID)
 	for _, l := range f.lineups {
@@ -249,7 +275,9 @@ func (f *fakeFantasyRepo) GetLockedLineupsForGameweek(_ context.Context, gwID st
 }
 
 func (f *fakeFantasyRepo) UpdateLineupPickPoints(_ context.Context, lineupID string, pts map[string]float64) error {
+	f.pickPointsMu.Lock()
 	f.pickPoints[lineupID] = pts
+	f.pickPointsMu.Unlock()
 	return nil
 }
 
@@ -1151,6 +1179,70 @@ func TestAutoFinalizeGameweeks(t *testing.T) {
 	// Verify points were recorded
 	if points := repo.teamTotals["team-1"]; points < 5.24 || points > 5.26 {
 		t.Errorf("expected 5.25 points after auto-finalize, got %.4f", points)
+	}
+}
+
+func TestAutoScoreAndFinalizeMatchDays_WeekdaySkip(t *testing.T) {
+	repo := newFakeRepo()
+	repo.season = testSeason()
+	// No active match days (weekday scenario)
+	repo.activeMatchDays = nil
+
+	svc := NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil, ownsPool(repo))
+
+	if err := svc.AutoScoreAndFinalizeMatchDays(context.Background()); err != nil {
+		t.Fatalf("expected weekday check to succeed with 0 work, got: %v", err)
+	}
+	if len(repo.gwStatus) > 0 {
+		t.Errorf("expected no gameweeks to be modified, got %v", repo.gwStatus)
+	}
+}
+
+func TestTriggerLiveScoreForMatch(t *testing.T) {
+	repo := newFakeRepo()
+	repo.season = testSeason()
+	gw := &domain.FantasyGameweek{
+		ID: "gw-1", SeasonID: "season-1", Number: 1, EventDayID: "ed-1",
+		Deadline: time.Now().Add(-time.Hour), Status: domain.GameweekLocked,
+	}
+	repo.gameweeks[gw.ID] = gw
+	repo.matchGW["match-1"] = gw
+
+	squad := validSquad()
+	lineup := &domain.FantasyLineup{
+		ID: "lineup-1", TeamID: "team-1", GameweekID: "gw-1", Status: domain.LineupLocked,
+	}
+	for _, c := range squad {
+		lineup.Picks = append(lineup.Picks, domain.FantasyLineupPick{PlayerID: c.PlayerID, Slot: c.Slot})
+	}
+	repo.lineups[lineupKey("team-1", "gw-1")] = lineup
+
+	repo.stats = []domain.PlayerStat{{
+		PlayerID: squad[2].PlayerID, MatchID: "match-1",
+		Receptions: 5, ReceivingYards: 80, ReceivingTDs: 1,
+	}}
+
+	svc := NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil, ownsPool(repo))
+
+	if err := svc.TriggerLiveScoreForMatch(context.Background(), "match-1"); err != nil {
+		t.Fatalf("TriggerLiveScoreForMatch failed: %v", err)
+	}
+
+	// The scoring job runs asynchronously on the worker pool. Poll for it to
+	// land instead of a fixed sleep, which would be flaky under CI load; both
+	// this read and the job's write go through getPickPoints/pickPointsMu so
+	// they can't race each other either.
+	deadline := time.Now().Add(2 * time.Second)
+	var got float64
+	for {
+		got = repo.getPickPoints("lineup-1", squad[2].PlayerID)
+		if got >= 5.24 && got <= 5.26 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("expected the scoring player's pick to carry 5.25 points via live trigger, got %.4f", got)
+		}
+		time.Sleep(5 * time.Millisecond)
 	}
 }
 

@@ -46,13 +46,21 @@ type IPlayService interface {
 }
 
 type PlayService struct {
-	repo      ports.PlayRepository
-	matchRepo ports.MatchRepository
-	statsRepo ports.StatsRepository
+	repo           ports.PlayRepository
+	matchRepo      ports.MatchRepository
+	statsRepo      ports.StatsRepository
+	fantasyService IFantasyService
 }
 
 func NewPlayService(repo ports.PlayRepository, matchRepo ports.MatchRepository, statsRepo ports.StatsRepository) IPlayService {
 	return &PlayService{repo: repo, matchRepo: matchRepo, statsRepo: statsRepo}
+}
+
+// WithFantasyService wires the fantasy scoring service in after construction,
+// so that play-by-play stat mutations can immediately trigger real-time fantasy recalculation.
+func (s *PlayService) WithFantasyService(fantasy IFantasyService) *PlayService {
+	s.fantasyService = fantasy
+	return s
 }
 
 func (s *PlayService) ListByMatch(ctx context.Context, matchID string) ([]*domain.GamePlay, error) {
@@ -95,6 +103,11 @@ func (s *PlayService) syncDerived(ctx context.Context, matchID string) {
 	}
 	if _, err := s.CommitDerivedStats(ctx, matchID); err != nil {
 		log.Printf("[ERROR] play sync: commit derived stats for match %s: %v", matchID, err)
+	}
+	if s.fantasyService != nil {
+		if err := s.fantasyService.TriggerLiveScoreForMatch(context.Background(), matchID); err != nil {
+			log.Printf("[WARN] play sync: live fantasy score trigger for match %s: %v", matchID, err)
+		}
 	}
 }
 

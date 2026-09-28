@@ -76,6 +76,10 @@ export function FantasyLeaderboard() {
         enabled: !!seasonId && !!user?.id,
     });
 
+    const isLiveMatchDay = useMemo(() => {
+        return (gameweeks ?? []).some((gw) => gw.status === 'LOCKED' || gw.status === 'LIVE');
+    }, [gameweeks]);
+
     const {
         isLoading,
         isEmpty,
@@ -97,6 +101,7 @@ export function FantasyLeaderboard() {
         queryPrefix: 'fantasyLeaderboard',
         limit: 10,
         defaultToPage1: true,
+        refetchInterval: isLiveMatchDay ? 30_000 : false,
     });
 
     const showGWColumn = !!selectedGWId;

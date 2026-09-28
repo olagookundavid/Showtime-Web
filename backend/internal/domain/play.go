@@ -79,9 +79,10 @@ var (
 		"KO": true, "SAF": true,
 		// BADSNAP is a pragmatic extension (not on the official sheet): the
 		// center's snap to the QB never arrives cleanly, so the play ends right
-		// there — no rush/pass outcome ever happens. Paired with result "DB"
-		// (Dead Ball), which already means "play ended at the spot, no score,
-		// no turnover" for other play types.
+		// there — no rush/pass outcome ever happens. Pairs with result "DB"
+		// (Dead Ball, down advances), "TO" (turnover on downs), or "SAF" (bad
+		// snap into the endzone) — see services/play_stats.go for how each is
+		// scored.
 		"BADSNAP": true,
 	}
 	// The official sheet's Result Codes list (13 codes) has no dedicated code

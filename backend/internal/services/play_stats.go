@@ -149,6 +149,12 @@ func (s *PlayService) DeriveMatchStats(ctx context.Context, matchID string) ([]d
 				if t := get(p.TargetID); t != nil {
 					t.SafetyConceded++
 				}
+			} else if pt == "BADSNAP" {
+				if c := get(p.CenterID); c != nil {
+					c.SafetyConceded++
+				} else if qb := get(p.OffQBID); qb != nil {
+					qb.SafetyConceded++
+				}
 			} else if qb := get(p.OffQBID); qb != nil {
 				qb.SafetyConceded++
 			}

@@ -29,7 +29,7 @@ const isPickSix = (p: GamePlay) => (p.result === 'INT' || p.play_type === 'INT')
 const isTurnover = (p: GamePlay) =>
     p.result === 'TO' ||
     ((p.result === 'INT' || p.play_type === 'INT') && !p.returned_for_td) ||
-    p.play_type === 'BADSNAP';
+    (p.play_type === 'BADSNAP' && p.result === 'TO');
 const isOneMinWarning = (p: GamePlay) => p.result === 'OMW' || p.result === '1MW';
 const isInjury = (p: GamePlay) => p.result === 'IH';
 
@@ -202,7 +202,7 @@ export const PlayByPlayTimeline = ({ matchId, isLive, showEmpty = false }: { mat
                                                                     : 'text-gray-400'
                                                 }`}>
                                                     · [{
-                                                        p.play_type === 'BADSNAP' ? `Bad Snap${p.center ? ` - ${who(p.center)}` : ''}`
+                                                        p.play_type === 'BADSNAP' ? `Bad Snap${p.center ? ` - ${who(p.center)}` : ''}${p.result === 'SAF' ? ' · SAFETY' : p.result === 'TO' ? ' · Turnover on downs' : ''}`
                                                             : isPickSix(p) ? 'Defensive Touchdown'
                                                             : (p.result === 'XPF' && p.returned_for_td) ? 'Defensive Extra Point'
                                                             : RESULT_LABEL[p.result] || p.result

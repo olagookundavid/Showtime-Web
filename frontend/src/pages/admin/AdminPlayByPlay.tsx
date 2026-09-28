@@ -72,6 +72,7 @@ type PassDefenderAction = "FG" | "OB";
 type PassFinalOutcome = "TD" | "next_down" | "INT" | "TO" | "pick6" | "SAF";
 type IncompleteOption = "dropped" | "batted_down" | "uncatchable";
 type SnapOutcome = "snap" | "bad_snap";
+type BadSnapOutcome = "next_down" | "turnover" | "safety";
 
 type RunStyle = "RUN" | "QBR";
 type RunDefenderAction = "FG" | "OB";
@@ -98,6 +99,7 @@ interface Wizard {
   kind: Kind;
   // Pass flow
   snapOutcome?: SnapOutcome;
+  badSnapOutcome?: BadSnapOutcome;
   rushOutcome?: RushOutcome;
   sackResult?: SackResult;
   passOutcome?: PassOutcome;
@@ -159,6 +161,7 @@ const emptyWizard: Wizard = {
   // 'snap' is the resting state so the highlighted chip always reflects real
   // state — a bad snap is only ever an explicit choice.
   snapOutcome: "snap",
+  badSnapOutcome: "next_down",
   qbId: "",
   targetId: "",
   carrierId: "",
@@ -1117,7 +1120,15 @@ export const AdminPlayByPlay = () => {
       if (!w.centerId) return { payload: null, error: "Select the Center." };
       base.center_id = w.centerId;
       base.play_type = "BADSNAP";
-      base.result = "DB";
+      const outcome = w.badSnapOutcome || "next_down";
+      if (outcome === "turnover") {
+        base.result = "TO";
+      } else if (outcome === "safety") {
+        base.result = "SAF";
+        base.defender_id = w.defenderId || undefined;
+      } else {
+        base.result = "DB";
+      }
       // Falls through to the shared penalty block below — a bad snap can
       // still carry a flag, same as every other play.
     } else {
@@ -1687,6 +1698,14 @@ export const AdminPlayByPlay = () => {
       nw.qbId = p.off_qb?.id || "";
       nw.snapOutcome = "bad_snap";
       nw.centerId = p.center?.id || "";
+      if (res === "TO") {
+        nw.badSnapOutcome = "turnover";
+      } else if (res === "SAF") {
+        nw.badSnapOutcome = "safety";
+        nw.defenderId = p.defender?.id || "";
+      } else {
+        nw.badSnapOutcome = "next_down";
+      }
     } else if (["RUN", "QBR"].includes(pt)) {
       nw.kind = "run";
       nw.runStyle = pt === "QBR" ? "QBR" : "RUN";
@@ -2246,10 +2265,64 @@ export const AdminPlayByPlay = () => {
                   </div>
                 </div>
                 {isBadSnap && (
-                  <p className="text-xs font-semibold text-red-600 dark:text-red-400">
-                    Play ends immediately — the center is charged a Bad Snap and
-                    the down advances.
-                  </p>
+                  <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700/60 space-y-3">
+                    <div>
+                      <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1.5">
+                        Bad Snap Outcome
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {(
+                          [
+                            ["next_down", "Next Down"],
+                            ["turnover", "Turnover on Downs"],
+                            ["safety", "Safety (2 pts)"],
+                          ] as [BadSnapOutcome, string][]
+                        ).map(([bso, label]) => (
+                          <button
+                            key={bso}
+                            type="button"
+                            className={chip((w.badSnapOutcome || "next_down") === bso)}
+                            onClick={() => setField("badSnapOutcome", bso)}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {(w.badSnapOutcome || "next_down") === "next_down" && (
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                        Play ends as a dead ball — down advances to next down; Center is charged with a Bad Snap.
+                      </p>
+                    )}
+                    {w.badSnapOutcome === "turnover" && (
+                      <p className="text-xs font-semibold text-red-600 dark:text-red-400">
+                        Turnover on downs — ball turns over to {teamName(ctx.offense === "home" ? "away" : "home")}.
+                      </p>
+                    )}
+                    {w.badSnapOutcome === "safety" && (
+                      <div className="space-y-3 bg-amber-50/50 dark:bg-amber-950/20 p-3.5 rounded-xl border border-amber-200 dark:border-amber-800">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-amber-800 dark:text-amber-300">
+                            Safety (+2 pts)
+                          </span>
+                          <span className="text-xs font-black text-amber-700 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-900/40 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-700">
+                            +2 pts → {teamName(ctx.offense === "home" ? "away" : "home")}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-600 dark:text-gray-300">
+                          Bad snap into the endzone — 2 points awarded to {teamName(ctx.offense === "home" ? "away" : "home")} (defending team).
+                        </div>
+                        <PlayerField
+                          label={`Tackler / Defender (Optional, ${teamName(ctx.offense === "home" ? "away" : "home")})`}
+                          value={w.defenderId}
+                          onChange={(v) => handlePlayerSelect("defenderId", defenseTeamId, "defender", v)}
+                          roster={defenseRoster}
+                          favoriteIds={getFavorites(defenseTeamId, "defender")}
+                        />
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </Section>
@@ -3673,7 +3746,10 @@ const PlayRow = ({
   if (play.batted_down) bits.push("batted down");
   if (play.rusher) bits.push(`(rush ${who(play.rusher)})`);
   if (play.defender) bits.push(`(def ${who(play.defender)})`);
-  if (play.play_type === "BADSNAP") bits.push("BAD SNAP");
+  if (play.play_type === "BADSNAP")
+    bits.push(
+      `BAD SNAP${play.result === "SAF" ? " (SAFETY)" : play.result === "TO" ? " (TURNOVER)" : ""}`,
+    );
   else if (play.center) bits.push(`(snap ${who(play.center)})`);
   if (play.penalty)
     bits.push(

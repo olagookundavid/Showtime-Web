@@ -318,12 +318,13 @@ func cronjobs(app *api.Application, ctx context.Context, cancel context.CancelFu
 		return app.FantasyService.AutoLockGameweeks(ctx)
 	})
 
-	// Run every 10 minutes to auto-finalize and score gameweeks when all matches are finished and stats populated
-	add("*/10 * * * *", "Fantasy auto-finalize job", func(ctx context.Context) error {
+	// Run every 2 minutes to score live fantasy matches and auto-finalize completed gameweeks.
+	// Built-in smart guard: skips immediately (< 1ms) with zero work on weekdays when no match day is active.
+	add("*/2 * * * *", "Fantasy match-day ticker", func(ctx context.Context) error {
 		if app.FantasyService == nil {
 			return nil
 		}
-		return app.FantasyService.AutoFinalizeGameweeks(ctx)
+		return app.FantasyService.AutoScoreAndFinalizeMatchDays(ctx)
 	})
 
 	app.Logger.Info("Starting scheduler...", nil)
@@ -458,6 +459,10 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	appSettingService := services.NewAppSettingService(appSettingRepo)
 
 	fantasyService := services.NewFantasyService(fantasyRepo, fantasyLeagueRepo, playerRepo, matchRepo, fantasySquadRepo)
+
+	if ps, ok := playService.(*services.PlayService); ok {
+		ps.WithFantasyService(fantasyService)
+	}
 
 	// A fantasy gameweek is one date the competition plays on, so editing a
 	// fixture can change the season's shape. Wired after both exist because the

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"sync"
 	"time"
@@ -35,6 +36,8 @@ type IFantasyService interface {
 	FinalizeGameweek(ctx context.Context, gameweekID string) error
 	AutoLockGameweeks(ctx context.Context) error
 	AutoFinalizeGameweeks(ctx context.Context) error
+	AutoScoreAndFinalizeMatchDays(ctx context.Context) error
+	TriggerLiveScoreForMatch(ctx context.Context, matchID string) error
 
 	// User Operations
 	GetActiveSeason(ctx context.Context) (*dto.FantasySeasonResponse, error)
@@ -82,6 +85,25 @@ type FantasyService struct {
 	// meaningful until the next one supersedes it. sync.Map because the
 	// automatic path runs on a background worker while an admin may be reading.
 	lastSyncNotices sync.Map
+
+	liveScoreMu      sync.Mutex
+	liveScoreRunning map[string]bool
+	liveScorePending map[string]bool
+
+	// gwScoreMu holds one *sync.Mutex per gameweek ID, serializing every path
+	// that scores or finalizes that gameweek. Without it, a live-score run
+	// triggered by a play (queueLiveScore, async) and a finalize triggered by
+	// marking a match finished or the match-day cron (FinalizeGameweek, which
+	// also locks lineups and reprices) can run concurrently against the same
+	// gameweek and interleave their writes.
+	gwScoreMu sync.Map
+}
+
+// gameweekLock returns the mutex serializing all scoring/finalize work for one
+// gameweek. See gwScoreMu.
+func (s *FantasyService) gameweekLock(gameweekID string) *sync.Mutex {
+	mu, _ := s.gwScoreMu.LoadOrStore(gameweekID, &sync.Mutex{})
+	return mu.(*sync.Mutex)
 }
 
 func NewFantasyService(
@@ -92,11 +114,13 @@ func NewFantasyService(
 	squadRepo ports.IFantasySquadRepository,
 ) IFantasyService {
 	return &FantasyService{
-		repo:       repo,
-		leagueRepo: leagueRepo,
-		playerRepo: playerRepo,
-		matchRepo:  matchRepo,
-		squadRepo:  squadRepo,
+		repo:             repo,
+		leagueRepo:       leagueRepo,
+		playerRepo:       playerRepo,
+		matchRepo:        matchRepo,
+		squadRepo:        squadRepo,
+		liveScoreRunning: make(map[string]bool),
+		liveScorePending: make(map[string]bool),
 	}
 }
 
@@ -534,6 +558,13 @@ func (s *FantasyService) FinalizeGameweek(ctx context.Context, gameweekID string
 		return errors.New("gameweek not found")
 	}
 
+	// Excludes any concurrent live-score run for this same gameweek (see
+	// gwScoreMu) — otherwise a play logged right as the match finishes could
+	// have queueLiveScore's ComputeGameweekScores interleave with this one.
+	mu := s.gameweekLock(gameweekID)
+	mu.Lock()
+	defer mu.Unlock()
+
 	// A gameweek can reach finalisation without the lock cron having run (a
 	// restart across the deadline, say). Lock any stragglers first, otherwise
 	// their lineups are still DRAFT and would silently score nothing.
@@ -598,6 +629,107 @@ func (s *FantasyService) AutoFinalizeGameweeks(ctx context.Context) error {
 		}
 	}
 	return errors.Join(failures...)
+}
+
+// AutoScoreAndFinalizeMatchDays runs on a fast interval during match days (e.g. every 2m).
+// It has a built-in guard: if no gameweek is currently LOCKED or LIVE, it skips immediately (< 1ms),
+// consuming zero database or CPU resources on weekdays.
+// On match days, it auto-finalizes any completed gameweeks and keeps live scores fresh for ongoing ones.
+func (s *FantasyService) AutoScoreAndFinalizeMatchDays(ctx context.Context) error {
+	activeGWs, err := s.repo.GetActiveMatchDayGameweeks(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to query active match-day gameweeks: %w", err)
+	}
+	if len(activeGWs) == 0 {
+		return nil // Weekday / off-schedule: zero work
+	}
+
+	// 1. Try to finalize any gameweeks whose matches are all finished
+	if err := s.AutoFinalizeGameweeks(ctx); err != nil {
+		log.Printf("[WARN] auto-finalize in match day ticker: %v", err)
+	}
+
+	// 2. For gameweeks that are still active/ongoing, update live scores
+	for _, gw := range activeGWs {
+		latestGW, err := s.repo.GetGameweekByID(ctx, gw.ID)
+		if err == nil && latestGW != nil && latestGW.Status != domain.GameweekFinalized {
+			s.queueLiveScore(latestGW.ID)
+		}
+	}
+	return nil
+}
+
+// TriggerLiveScoreForMatch checks if the given match belongs to an active (LOCKED or LIVE)
+// gameweek, and if so, schedules an immediate background score calculation.
+func (s *FantasyService) TriggerLiveScoreForMatch(ctx context.Context, matchID string) error {
+	gw, err := s.repo.GetActiveGameweekByMatchID(ctx, matchID)
+	if err != nil {
+		return err
+	}
+	if gw == nil {
+		return nil
+	}
+	s.queueLiveScore(gw.ID)
+	return nil
+}
+
+// queueLiveScore safely schedules an asynchronous gameweek score calculation.
+// If a calculation is already executing for this gameweek, it marks it as pending
+// so that a follow-up calculation runs with the freshest stats once the current one finishes.
+func (s *FantasyService) queueLiveScore(gameweekID string) {
+	s.liveScoreMu.Lock()
+	if s.liveScoreRunning == nil {
+		s.liveScoreRunning = make(map[string]bool)
+		s.liveScorePending = make(map[string]bool)
+	}
+
+	if s.liveScoreRunning[gameweekID] {
+		s.liveScorePending[gameweekID] = true
+		s.liveScoreMu.Unlock()
+		return
+	}
+
+	s.liveScoreRunning[gameweekID] = true
+	s.liveScoreMu.Unlock()
+
+	_ = SubmitJob(func() {
+		// ants recovers a panic inside the job internally so it can't crash the
+		// process, but that means the cleanup below would never run without this
+		// — liveScoreRunning[gameweekID] would stay true forever and every
+		// future play for this gameweek would only ever set the pending flag,
+		// with no goroutine left to consume it. Live scoring would silently stop
+		// for the rest of the process's life with no visible error.
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("[ERROR] live fantasy scoring panicked for gameweek %s: %v", gameweekID, r)
+			}
+			s.liveScoreMu.Lock()
+			delete(s.liveScoreRunning, gameweekID)
+			delete(s.liveScorePending, gameweekID)
+			s.liveScoreMu.Unlock()
+		}()
+
+		for {
+			// Shares gameweekLock with FinalizeGameweek so this can never
+			// interleave with a finalize running for the same gameweek.
+			func() {
+				mu := s.gameweekLock(gameweekID)
+				mu.Lock()
+				defer mu.Unlock()
+				if err := s.ComputeGameweekScores(context.Background(), gameweekID); err != nil {
+					log.Printf("[WARN] live fantasy scoring failed for gameweek %s: %v", gameweekID, err)
+				}
+			}()
+
+			s.liveScoreMu.Lock()
+			if !s.liveScorePending[gameweekID] {
+				s.liveScoreMu.Unlock()
+				return
+			}
+			s.liveScorePending[gameweekID] = false
+			s.liveScoreMu.Unlock()
+		}
+	})
 }
 
 // lockAndRollOver locks every draft lineup for a gameweek, then carries forward

@@ -59,6 +59,13 @@ export function FantasyMyTeam() {
         queryKey: ['myFantasyLineup', season?.id, selectedGWId],
         queryFn: () => (season?.id && selectedGWId ? fantasyApi.getMyLineup(season.id, selectedGWId) : Promise.resolve(null)),
         enabled: !!season?.id && !!selectedGWId,
+        refetchInterval: () => {
+            const activeGw = gameweeks.find(gw => gw.id === selectedGWId);
+            if (activeGw && (activeGw.status === 'LOCKED' || activeGw.status === 'LIVE')) {
+                return 30_000;
+            }
+            return false;
+        },
     });
 
     // Fetch Squad to show accurate bank & squad values

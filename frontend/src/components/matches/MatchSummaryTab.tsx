@@ -408,7 +408,7 @@ export const MatchSummaryTab = ({ match, teamSheet = { home_team: [], away_team:
             const isTO = pl.result === 'TO' || 
                          pl.result === 'INT' || 
                          pl.play_type === 'INT' || 
-                         pl.play_type === 'BADSNAP';
+                         (pl.play_type === 'BADSNAP' && pl.result === 'TO');
             if (isTO) {
                 if (pl.offense_team_id === homeTeamId) home.turnovers += 1;
                 else if (pl.offense_team_id === awayTeamId) away.turnovers += 1;

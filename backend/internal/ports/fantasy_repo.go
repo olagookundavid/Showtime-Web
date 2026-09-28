@@ -40,6 +40,8 @@ type IFantasyRepository interface {
 	UpdateGameweekDeadline(ctx context.Context, id string, deadline time.Time) error
 	GetGameweeksDueForLock(ctx context.Context) ([]domain.FantasyGameweek, error)
 	GetGameweeksDueForFinalize(ctx context.Context) ([]domain.FantasyGameweek, error)
+	GetActiveGameweekByMatchID(ctx context.Context, matchID string) (*domain.FantasyGameweek, error)
+	GetActiveMatchDayGameweeks(ctx context.Context) ([]domain.FantasyGameweek, error)
 	GetEventDayFirstKickoff(ctx context.Context, eventDayID string) (*time.Time, error)
 	EnsureEventDayForMatchDate(ctx context.Context, competitionID, matchDate string, gwNumber int) (string, *time.Time, error)
 	GetScheduledMatchDays(ctx context.Context, competitionID string) ([]dto.ScheduledMatchDayDTO, error)
@@ -667,6 +669,73 @@ func (r *FantasyRepository) GetGameweeksDueForFinalize(ctx context.Context) ([]d
 		list = append(list, gw)
 	}
 	return list, nil
+}
+
+// GetActiveGameweekByMatchID resolves the currently active (LOCKED or LIVE) fantasy
+// gameweek that includes the given match fixture.
+func (r *FantasyRepository) GetActiveGameweekByMatchID(ctx context.Context, matchID string) (*domain.FantasyGameweek, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	query := `
+		SELECT gw.id, gw.season_id, gw.number, gw.event_day_id, gw.deadline, gw.status, gw.created_at, gw.updated_at
+		FROM fantasy_gameweeks gw
+		JOIN fantasy_seasons s ON gw.season_id = s.id
+		JOIN event_days ed ON gw.event_day_id = ed.id
+		JOIN matches m ON (m.event_day_id = gw.event_day_id OR (m.competition_id = s.competition_id AND m.date = ed.date))
+		WHERE m.id = $1
+		  AND gw.status IN ('LOCKED', 'LIVE')
+		  AND s.status = 'ACTIVE'
+		ORDER BY gw.deadline ASC
+		LIMIT 1
+	`
+	var gw domain.FantasyGameweek
+	err := r.pool.QueryRow(ctx, query, matchID).Scan(
+		&gw.ID, &gw.SeasonID, &gw.Number, &gw.EventDayID, &gw.Deadline, &gw.Status,
+		&gw.CreatedAt, &gw.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to find active gameweek for match %s: %w", matchID, err)
+	}
+	return &gw, nil
+}
+
+// GetActiveMatchDayGameweeks returns any gameweeks currently in LOCKED or LIVE status
+// belonging to an ACTIVE season whose deadline has passed (i.e. match day is ongoing).
+func (r *FantasyRepository) GetActiveMatchDayGameweeks(ctx context.Context) ([]domain.FantasyGameweek, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	query := `
+		SELECT gw.id, gw.season_id, gw.number, gw.event_day_id, gw.deadline, gw.status, gw.created_at, gw.updated_at
+		FROM fantasy_gameweeks gw
+		JOIN fantasy_seasons s ON gw.season_id = s.id
+		WHERE gw.status IN ('LOCKED', 'LIVE')
+		  AND gw.deadline <= NOW()
+		  AND s.status = 'ACTIVE'
+		ORDER BY gw.deadline ASC
+	`
+	rows, err := r.pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query active match-day gameweeks: %w", err)
+	}
+	defer rows.Close()
+
+	var list []domain.FantasyGameweek
+	for rows.Next() {
+		var gw domain.FantasyGameweek
+		if err := rows.Scan(
+			&gw.ID, &gw.SeasonID, &gw.Number, &gw.EventDayID, &gw.Deadline, &gw.Status,
+			&gw.CreatedAt, &gw.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		list = append(list, gw)
+	}
+	return list, rows.Err()
 }
 
 // ─── Player Price Methods ─────────────────────────────────────────────────────

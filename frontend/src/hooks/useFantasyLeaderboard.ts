@@ -37,6 +37,8 @@ interface Options {
     limit?: number;
     /** If true, default to page 1 rather than opening on myPage. Defaults to true. */
     defaultToPage1?: boolean;
+    /** Optional refetch interval (e.g. 30_000 for live match days). */
+    refetchInterval?: number | false;
 }
 
 /**
@@ -50,6 +52,7 @@ export function useFantasyLeaderboard({
     queryPrefix,
     limit: customLimit,
     defaultToPage1 = true,
+    refetchInterval = false,
 }: Options) {
     const limit = customLimit && customLimit > 0 ? customLimit : LEADERBOARD_LIMIT;
 
@@ -72,6 +75,7 @@ export function useFantasyLeaderboard({
         queryKey: [`${queryPrefix}Top`, scope, seasonId, gameweekId],
         queryFn: () => fetchBoard(1, 3),
         enabled: scopeReady,
+        refetchInterval,
     });
     const topBoard = topQuery.data;
 
@@ -91,6 +95,7 @@ export function useFantasyLeaderboard({
         queryKey: [queryPrefix, scope, seasonId, gameweekId, page, limit],
         queryFn: () => fetchBoard(page, limit),
         enabled: scopeReady && topQuery.isFetched,
+        refetchInterval,
     });
 
     const totalPages = Math.max(1, num(board?.total_pages) || pagesFromTotal);

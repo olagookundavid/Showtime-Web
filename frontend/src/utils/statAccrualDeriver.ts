@@ -94,6 +94,14 @@ export const getPlayStatAccruals = (
             if (p.target) {
                 addPlayer(p.target, 'Safety Conceded', '+1', 'receiving', 'rose');
             }
+        } else if (pt === 'BADSNAP') {
+            // Matches the backend (play_stats.go): a bad-snap safety charges the
+            // center first, falling back to the QB only if there's no center.
+            if (p.center) {
+                addPlayer(p.center, 'Safety Conceded', '+1', 'passing', 'rose');
+            } else if (p.off_qb) {
+                addPlayer(p.off_qb, 'Safety Conceded', '+1', 'passing', 'rose');
+            }
         } else if (p.off_qb) {
             addPlayer(p.off_qb, 'Safety Conceded', '+1', 'passing', 'rose');
         }

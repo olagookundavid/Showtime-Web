@@ -694,6 +694,11 @@ func (s *MatchService) UpdateMatch(ctx context.Context, match *domain.Match) err
 	s.triggerFantasyResync(match.CompetitionID)
 	if match.Status == domain.MatchStatusFinished {
 		s.triggerContractCheck(match.HomeTeamID, match.AwayTeamID)
+		if s.fantasyService != nil {
+			_ = SubmitJob(func() {
+				_ = s.fantasyService.AutoScoreAndFinalizeMatchDays(context.Background())
+			})
+		}
 	}
 	if hasBracket {
 		return s.advanceWinner(ctx, match.ID)
