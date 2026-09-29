@@ -602,6 +602,8 @@ func (s *MatchService) CreateMatch(ctx context.Context, match *domain.Match) err
 	}
 	if match.Status == domain.MatchStatusFinished {
 		s.triggerContractCheck(match.HomeTeamID, match.AwayTeamID)
+	}
+	if match.Status == domain.MatchStatusFinished || match.Status == domain.MatchStatusLive {
 		return s.repo.RecalculateStandings(ctx, match.CompetitionID)
 	}
 	return nil
@@ -753,6 +755,12 @@ func (s *MatchService) RecalculateStandings(ctx context.Context, competitionID s
 }
 
 func (s *MatchService) GetStandings(ctx context.Context, competitionID string, page, limit int) ([]dto.StandingResponse, int, error) {
+	// Standings are computed live: FINISHED and in-progress LIVE matches both
+	// count, so every read recalculates rather than relying solely on the
+	// write-time triggers in CreateMatch/UpdateMatch to keep the table fresh.
+	if err := s.repo.RecalculateStandings(ctx, competitionID); err != nil {
+		return nil, 0, err
+	}
 	standings, err := s.repo.GetStandings(ctx, competitionID)
 	if err != nil {
 		return nil, 0, err

@@ -863,7 +863,7 @@ func (r *PostgresMatchRepository) GetStandings(ctx context.Context, competitionI
 		mRows, err := r.db.Query(ctx, `
 			SELECT home_team_id, away_team_id, home_score, away_score 
 			FROM matches 
-			WHERE competition_id::text = $1 AND status = 'FINISHED' AND home_score IS NOT NULL AND away_score IS NOT NULL
+			WHERE competition_id::text = $1 AND status IN ('FINISHED', 'LIVE') AND home_score IS NOT NULL AND away_score IS NOT NULL
 		`, competitionID)
 		if err == nil {
 			defer mRows.Close()
@@ -1012,7 +1012,7 @@ func (r *PostgresMatchRepository) RecalculateStandings(ctx context.Context, comp
 			  ELSE 'L'
 			END AS result
 		  FROM matches
-		  WHERE competition_id = $1 AND status = 'FINISHED'
+		  WHERE competition_id = $1 AND status IN ('FINISHED', 'LIVE')
 			AND home_score IS NOT NULL AND away_score IS NOT NULL
 
 		  UNION ALL
@@ -1026,7 +1026,7 @@ func (r *PostgresMatchRepository) RecalculateStandings(ctx context.Context, comp
 			  ELSE 'L'
 			END AS result
 		  FROM matches
-		  WHERE competition_id = $1 AND status = 'FINISHED'
+		  WHERE competition_id = $1 AND status IN ('FINISHED', 'LIVE')
 			AND home_score IS NOT NULL AND away_score IS NOT NULL
 		),
 		aggregated AS (
@@ -1096,11 +1096,11 @@ func (r *PostgresMatchRepository) RecalculateStandings(ctx context.Context, comp
 		WHERE competition_id = $1
 		  AND team_id NOT IN (
 			SELECT DISTINCT home_team_id FROM matches 
-			WHERE competition_id = $1 AND status = 'FINISHED' 
+			WHERE competition_id = $1 AND status IN ('FINISHED', 'LIVE') 
 			  AND home_score IS NOT NULL AND away_score IS NOT NULL
 			UNION
 			SELECT DISTINCT away_team_id FROM matches 
-			WHERE competition_id = $1 AND status = 'FINISHED' 
+			WHERE competition_id = $1 AND status IN ('FINISHED', 'LIVE') 
 			  AND home_score IS NOT NULL AND away_score IS NOT NULL
 		  )
 	`
