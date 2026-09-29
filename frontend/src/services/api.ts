@@ -494,6 +494,7 @@ export interface Match {
     second_leg_match_id?: string | null;
     pbp_locked?: boolean;
     mvp_player_id?: string | null;
+    mvp_overridden?: boolean;
     home_coverage?: number;
     away_coverage?: number;
 }
@@ -721,6 +722,7 @@ export interface CreateMatchPayload {
     feeds_slot?: string;
     second_leg_match_id?: string | null;
     mvp_player_id?: string | null;
+    mvp_overridden?: boolean;
 }
 
 export interface CreatePlayerPayload {
@@ -2180,6 +2182,18 @@ export const getPublicMatchStats = async (matchId: string): Promise<StatsCompare
 
 export const commitDerivedStats = async (matchId: string): Promise<{ players: number }> => {
     const res = await api.post<{ players: number }>(`/admin/matches/${matchId}/stats-commit`, {});
+    return res.data;
+};
+
+export const overrideMatchMVP = async (
+    matchId: string,
+    playerId: string | null,
+    override?: boolean
+): Promise<{ message: string }> => {
+    const res = await api.put<{ message: string }>(`/admin/matches/${matchId}/mvp`, {
+        player_id: playerId,
+        override,
+    });
     return res.data;
 };
 

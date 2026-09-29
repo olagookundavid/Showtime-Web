@@ -22,6 +22,7 @@ import {
   ShieldCheckIcon,
   StarIcon,
   TrashIcon,
+  TrophyIcon,
   UserIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
@@ -40,10 +41,12 @@ import {
   commitScore,
   setPBPLock,
   rederiveSituations,
+  overrideMatchMVP,
   type SituationUpdate,
   type Match,
   type Competition,
   type TeamSheetPlayer,
+  type MatchTeamSheet,
   type GamePlay,
   type PlayPayload,
   type GameRulesPayload,
@@ -3625,6 +3628,7 @@ export const AdminPlayByPlay = () => {
             competitionId={match?.competition?.id || ""}
             match={match}
             plays={plays}
+            teamSheet={teamSheet}
           />
 
           {/* Logged plays */}
@@ -3904,6 +3908,7 @@ interface ScoreToolsProps {
   competitionId: string;
   match?: Match;
   plays?: GamePlay[];
+  teamSheet?: MatchTeamSheet | null;
 }
 
 const ScoreTools = ({
@@ -3911,6 +3916,7 @@ const ScoreTools = ({
   competitionId,
   match,
   plays = [],
+  teamSheet,
 }: ScoreToolsProps) => {
   const { user } = useAuth();
   const isAppAdmin = user?.role === "app_admin";
@@ -3921,8 +3927,64 @@ const ScoreTools = ({
   const [savingRules, setSavingRules] = useState(false);
   const [committingScore, setCommittingScore] = useState(false);
   const [pendingAction, setPendingAction] = useState<
-    "recompute" | "commit" | "rules" | null
+    "recompute" | "commit" | "rules" | "mvp-override" | "mvp-reset" | null
   >(null);
+
+  const [selectedMVP, setSelectedMVP] = useState<string>(match?.mvp_player_id || "");
+  const [savingMVP, setSavingMVP] = useState(false);
+
+  useEffect(() => {
+    setSelectedMVP(match?.mvp_player_id || "");
+  }, [match?.mvp_player_id]);
+
+  const allSheetPlayers = useMemo(() => {
+    return [...(teamSheet?.home_team || []), ...(teamSheet?.away_team || [])];
+  }, [teamSheet]);
+
+  const currentMVPPlayer = useMemo(() => {
+    if (!match?.mvp_player_id) return null;
+    return allSheetPlayers.find((p) => p.player_id === match.mvp_player_id) || null;
+  }, [match?.mvp_player_id, allSheetPlayers]);
+
+  const selectedMVPPlayer = useMemo(() => {
+    if (!selectedMVP) return null;
+    return allSheetPlayers.find((p) => p.player_id === selectedMVP) || null;
+  }, [selectedMVP, allSheetPlayers]);
+
+  // Clicking "Apply" is a no-op if it would leave (mvp_player_id, mvp_overridden)
+  // exactly as they are now — e.g. the select already shows the auto-calculated
+  // pick. It is NOT a no-op just because the selected player matches the current
+  // mvp_player_id: locking in the platform's own pick as an official override is
+  // a real state change (mvp_overridden false -> true) that must stay clickable.
+  const mvpApplyWouldOverride = selectedMVP !== "";
+  const mvpApplyIsNoOp =
+    (selectedMVP || null) === (match?.mvp_player_id || null) &&
+    mvpApplyWouldOverride === !!match?.mvp_overridden;
+
+  const handleOverrideMVP = async (newPlayerId: string | null) => {
+    setSavingMVP(true);
+    try {
+      const isOverride = newPlayerId !== null && newPlayerId !== "";
+      await overrideMatchMVP(matchId, isOverride ? newPlayerId : null, isOverride);
+      toast.success(
+        isOverride
+          ? "Official Match MVP override applied successfully!"
+          : "Match MVP reset to auto-calculated."
+      );
+      await queryClient.invalidateQueries({ queryKey: ["pbpMatches"] });
+      await queryClient.invalidateQueries({ queryKey: ["adminMatches"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["adminMatchDetail", matchId],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["publicMatchStatsCompare", matchId],
+      });
+    } catch (e: unknown) {
+      toast.error(getApiErrorMessage(e) || "Failed to update match MVP");
+    } finally {
+      setSavingMVP(false);
+    }
+  };
 
   // Compute PBP derived score from the last play snapshot in log
   const lastPlayWithScore = [...plays]
@@ -4012,6 +4074,9 @@ const ScoreTools = ({
     if (pendingAction === "recompute") await recompute();
     else if (pendingAction === "commit") await handleCommitScore();
     else if (pendingAction === "rules") await saveRules();
+    else if (pendingAction === "mvp-reset") await handleOverrideMVP(null);
+    else if (pendingAction === "mvp-override")
+      await handleOverrideMVP(selectedMVP || null);
     setPendingAction(null);
   };
 
@@ -4054,15 +4119,59 @@ const ScoreTools = ({
               />
             ),
           }
-        : {
-            title: "Refresh the play-by-play score?",
-            description:
-              "Recalculates the running score stored on every logged play. The official match record is not changed.",
-            confirmLabel: "Refresh Score",
-            tone: "info" as const,
-            icon: ArrowPathIcon,
-            body: null,
-          };
+        : pendingAction === "mvp-override"
+          ? {
+              title: "Apply MVP override?",
+              description:
+                "This locks in the selected player as the official Match MVP, taking precedence over the rating algorithm across all future play edits and score recalculations.",
+              confirmLabel: "Apply Override",
+              tone: "warning" as const,
+              icon: StarIcon,
+              body: (
+                <ConfirmSummary
+                  rows={[
+                    ["Match", `${homeLabel} vs ${awayLabel}`],
+                    [
+                      "New Official MVP",
+                      selectedMVPPlayer
+                        ? `#${selectedMVPPlayer.jersey_number} ${selectedMVPPlayer.name}`
+                        : "Auto-Calculated by Platform",
+                    ],
+                  ]}
+                />
+              ),
+            }
+          : pendingAction === "mvp-reset"
+            ? {
+                title: "Reset MVP to auto-calculated?",
+                description:
+                  "Clears the admin override so the platform's rating algorithm decides the Match MVP again.",
+                confirmLabel: "Reset MVP",
+                tone: "warning" as const,
+                icon: ArrowPathIcon,
+                body: (
+                  <ConfirmSummary
+                    rows={[
+                      ["Match", `${homeLabel} vs ${awayLabel}`],
+                      [
+                        "Current Official MVP",
+                        currentMVPPlayer
+                          ? `#${currentMVPPlayer.jersey_number} ${currentMVPPlayer.name}`
+                          : "Not assigned",
+                      ],
+                    ]}
+                  />
+                ),
+              }
+            : {
+                title: "Refresh the play-by-play score?",
+                description:
+                  "Recalculates the running score stored on every logged play. The official match record is not changed.",
+                confirmLabel: "Refresh Score",
+                tone: "info" as const,
+                icon: ArrowPathIcon,
+                body: null,
+              };
 
   return (
     <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3">
@@ -4165,6 +4274,111 @@ const ScoreTools = ({
         </div>
       </div>
 
+      {/* Official Match MVP & Override Section */}
+      <div className="p-3.5 bg-gray-50 dark:bg-gray-800/80 rounded-xl border border-gray-200 dark:border-gray-700 space-y-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <TrophyIcon className="w-5 h-5 text-amber-500 shrink-0" aria-hidden="true" />
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-black uppercase tracking-wider text-sffl-navy dark:text-gray-200">
+                  Official Match MVP
+                </span>
+                {match?.mvp_overridden ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                    <StarIcon className="w-3 h-3" aria-hidden="true" />
+                    Admin Override Active
+                  </span>
+                ) : match?.mvp_player_id ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                    <BoltIcon className="w-3 h-3" aria-hidden="true" />
+                    Auto-Calculated
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-300">
+                    Not Assigned
+                  </span>
+                )}
+              </div>
+              <p className="text-xs font-bold text-gray-800 dark:text-gray-200 mt-0.5 truncate">
+                {currentMVPPlayer ? (
+                  <span>
+                    #{currentMVPPlayer.jersey_number} {currentMVPPlayer.name} ({currentMVPPlayer.position})
+                    {currentMVPPlayer.rating != null && (
+                      <span className="text-gray-500 dark:text-gray-400 font-normal"> · Rating {currentMVPPlayer.rating.toFixed(1)}</span>
+                    )}
+                  </span>
+                ) : match?.mvp_player_id ? (
+                  <span>Assigned Player ({match.mvp_player_id.slice(0, 8)}...)</span>
+                ) : (
+                  <span className="text-gray-500 dark:text-gray-400 font-normal">
+                    No MVP selected yet. The system will auto-calculate when plays are logged, or you can override below.
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+          {(match?.mvp_overridden || match?.mvp_player_id) && isAppAdmin && (
+            <button
+              type="button"
+              onClick={() => setPendingAction("mvp-reset")}
+              disabled={savingMVP}
+              className="text-xs text-sffl-red hover:underline font-bold px-2 py-1 min-h-8 disabled:opacity-50"
+            >
+              Reset to Auto-Calculated
+            </button>
+          )}
+        </div>
+
+        {isAppAdmin && (
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1 border-t border-gray-200 dark:border-gray-700">
+            <select
+              value={selectedMVP}
+              onChange={(e) => setSelectedMVP(e.target.value)}
+              className="flex-1 min-h-11 px-3 py-2 text-xs font-bold bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:border-sffl-red focus:ring-sffl-red"
+            >
+              <option value="">Auto-Calculated by Platform (Default)</option>
+              {teamSheet?.home_team && teamSheet.home_team.length > 0 && (
+                <optgroup label={`${homeLabel} Roster`}>
+                  {teamSheet.home_team.map((p) => (
+                    <option key={p.player_id} value={p.player_id}>
+                      #{p.jersey_number} {p.name} ({p.position}) {p.rating ? `· Rating ${p.rating.toFixed(1)}` : ""}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {teamSheet?.away_team && teamSheet.away_team.length > 0 && (
+                <optgroup label={`${awayLabel} Roster`}>
+                  {teamSheet.away_team.map((p) => (
+                    <option key={p.player_id} value={p.player_id}>
+                      #{p.jersey_number} {p.name} ({p.position}) {p.rating ? `· Rating ${p.rating.toFixed(1)}` : ""}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+            <button
+              type="button"
+              onClick={() => setPendingAction("mvp-override")}
+              disabled={savingMVP || mvpApplyIsNoOp}
+              className="px-4 py-2 min-h-11 bg-sffl-red hover:bg-[#A52323] text-white font-bold rounded-lg text-xs disabled:opacity-50 disabled:cursor-not-allowed shrink-0 transition-colors shadow-sm inline-flex items-center justify-center gap-1.5"
+            >
+              {savingMVP ? (
+                <>
+                  <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+                  Saving...
+                </>
+              ) : (
+                "Apply MVP Override"
+              )}
+            </button>
+          </div>
+        )}
+        <p className="text-[11px] text-gray-500 dark:text-gray-400">
+          Admin overrides take precedence over the rating algorithm and remain permanently locked across play modifications and score recalculations.
+        </p>
+      </div>
+
       {editingRules && (
         <div className="pt-2">
           {!rulesForm ? (
@@ -4210,7 +4424,7 @@ const ScoreTools = ({
         </div>
       )}
 
-      {/* Refreshing the score, committing it and saving rules all confirm first. */}
+      {/* Refreshing the score, committing it, saving rules, and the MVP override actions all confirm first. */}
       <ConfirmDialog
         open={pendingAction !== null}
         title={scoreDialog.title}
@@ -4219,7 +4433,7 @@ const ScoreTools = ({
         confirmLabel={scoreDialog.confirmLabel}
         tone={scoreDialog.tone}
         icon={scoreDialog.icon}
-        pending={recomputing || committingScore || savingRules}
+        pending={recomputing || committingScore || savingRules || savingMVP}
         onConfirm={confirmPendingAction}
         onCancel={() => setPendingAction(null)}
       />

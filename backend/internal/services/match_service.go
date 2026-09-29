@@ -44,6 +44,7 @@ type IMatchService interface {
 	GetMatchDaysByCompetition(ctx context.Context, competitionID string, page, limit int) ([]string, int, error)
 	GetEligiblePlayersForMatchDay(ctx context.Context, competitionID string, date string, page, limit int) ([]domain.Player, int, error)
 	CountFemalePlayers(ctx context.Context, playerIDs []string) (int, error)
+	OverrideMatchMVP(ctx context.Context, matchID string, playerID *string, override bool) error
 }
 
 type MatchService struct {
@@ -365,6 +366,7 @@ func (s *MatchService) GetMatches(ctx context.Context, competitionID string, tea
 			SecondLegMatchID: m.SecondLegMatchID,
 			PBPLocked:     m.PBPLocked,
 			MVPPlayerID:   m.MVPPlayerID,
+			MVPOverridden: m.MVPOverridden,
 		})
 	}
 
@@ -666,6 +668,7 @@ func (s *MatchService) UpdateMatch(ctx context.Context, match *domain.Match) err
 	// partial update dropped the MVP and, with it, the player's MVP award.
 	if match.MVPPlayerID == nil {
 		match.MVPPlayerID = existing.MVPPlayerID
+		match.MVPOverridden = existing.MVPOverridden
 	}
 
 	completed, format, err := s.competitionState(ctx, match.CompetitionID)
@@ -972,5 +975,9 @@ func (s *MatchService) GetMatchByID(ctx context.Context, id string) (*domain.Mat
 
 func (s *MatchService) CountFemalePlayers(ctx context.Context, playerIDs []string) (int, error) {
 	return s.repo.CountFemalePlayers(ctx, playerIDs)
+}
+
+func (s *MatchService) OverrideMatchMVP(ctx context.Context, matchID string, playerID *string, override bool) error {
+	return s.repo.OverrideMatchMVP(ctx, matchID, playerID, override)
 }
 

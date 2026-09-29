@@ -82,40 +82,38 @@ export function getUnifiedMatchMvp(
     if (match.mvp_player_id) {
         const pStat = pStatMap.get(match.mvp_player_id);
         const sheetEntry = sheetMap.get(match.mvp_player_id);
-        if (pStat || sheetEntry) {
-            const fp = pStat ? calculatePlayerFantasyPoints(pStat) : 0;
-            const rating = sheetEntry?.rating ?? null;
-            const statParts: string[] = [];
-            if (pStat) {
-                if (pStat.passing_tds) statParts.push(`${formatStatNumber(pStat.passing_tds)} Pass TD`);
-                if (pStat.passing_yards) statParts.push(`${formatStatNumber(pStat.passing_yards)} Pass Yds`);
-                if (pStat.receiving_tds) statParts.push(`${formatStatNumber(pStat.receiving_tds)} Rec TD`);
-                if (pStat.receiving_yards) statParts.push(`${formatStatNumber(pStat.receiving_yards)} Rec Yds`);
-                if (pStat.rushing_tds) statParts.push(`${formatStatNumber(pStat.rushing_tds)} Rush TD`);
-                if (pStat.flag_pulls) statParts.push(`${formatStatNumber(pStat.flag_pulls)} Pulls`);
-                if (pStat.interceptions) statParts.push(`${formatStatNumber(pStat.interceptions)} INT`);
-                if (pStat.def_sacks) statParts.push(`${formatStatNumber(pStat.def_sacks)} Sacks`);
-            } else if (rating) {
-                statParts.push(`Match Rating ${rating.toFixed(1)}`);
-            }
-
-            const isHome = teamSheet?.home_team?.some(p => p.player_id === match.mvp_player_id);
-            const teamId = pStat?.team_id || (isHome ? match.home_team?.id : match.away_team?.id) || '';
-            const teamName = pStat?.team_name || (isHome ? match.home_team?.name : match.away_team?.name) || '';
-
-            return {
-                playerId: match.mvp_player_id,
-                playerName: pStat?.player_name || sheetEntry?.name || 'Match MVP',
-                playerImage: pStat?.player_image || sheetEntry?.image,
-                playerJerseyNumber: pStat?.player_jersey_number || sheetEntry?.jersey_number,
-                playerPosition: pStat?.player_position || sheetEntry?.position,
-                teamName,
-                teamId,
-                fp,
-                rating,
-                statSummary: statParts.length > 0 ? statParts.slice(0, 3).join(' · ') : undefined,
-            };
+        const fp = pStat ? calculatePlayerFantasyPoints(pStat) : 0;
+        const rating = sheetEntry?.rating ?? null;
+        const statParts: string[] = [];
+        if (pStat) {
+            if (pStat.passing_tds) statParts.push(`${formatStatNumber(pStat.passing_tds)} Pass TD`);
+            if (pStat.passing_yards) statParts.push(`${formatStatNumber(pStat.passing_yards)} Pass Yds`);
+            if (pStat.receiving_tds) statParts.push(`${formatStatNumber(pStat.receiving_tds)} Rec TD`);
+            if (pStat.receiving_yards) statParts.push(`${formatStatNumber(pStat.receiving_yards)} Rec Yds`);
+            if (pStat.rushing_tds) statParts.push(`${formatStatNumber(pStat.rushing_tds)} Rush TD`);
+            if (pStat.flag_pulls) statParts.push(`${formatStatNumber(pStat.flag_pulls)} Pulls`);
+            if (pStat.interceptions) statParts.push(`${formatStatNumber(pStat.interceptions)} INT`);
+            if (pStat.def_sacks) statParts.push(`${formatStatNumber(pStat.def_sacks)} Sacks`);
+        } else if (rating) {
+            statParts.push(`Match Rating ${rating.toFixed(1)}`);
         }
+
+        const isHome = teamSheet?.home_team?.some(p => p.player_id === match.mvp_player_id);
+        const teamId = pStat?.team_id || (isHome ? match.home_team?.id : match.away_team?.id) || '';
+        const teamName = pStat?.team_name || (isHome ? match.home_team?.name : match.away_team?.name) || '';
+
+        return {
+            playerId: match.mvp_player_id,
+            playerName: pStat?.player_name || sheetEntry?.name || 'Official Match MVP',
+            playerImage: pStat?.player_image || sheetEntry?.image,
+            playerJerseyNumber: pStat?.player_jersey_number || sheetEntry?.jersey_number,
+            playerPosition: pStat?.player_position || sheetEntry?.position,
+            teamName,
+            teamId,
+            fp,
+            rating,
+            statSummary: statParts.length > 0 ? statParts.slice(0, 3).join(' · ') : undefined,
+        };
     }
 
     // 1. Unified Automated MVP Selection

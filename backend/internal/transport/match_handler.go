@@ -45,6 +45,7 @@ type IMatchHandler interface {
 	SaveTeamSheet(c *gin.Context)
 	SaveTeamHeadTeamSheet(c *gin.Context)
 	GetAdminTeamSheet(c *gin.Context)
+	OverrideMatchMVP(c *gin.Context)
 }
 
 type MatchHandler struct {
@@ -225,6 +226,12 @@ func (h *MatchHandler) CreateMatch(c *gin.Context) {
 		MVPPlayerID:   req.MVPPlayerID,
 	}
 
+	if req.MVPOverridden != nil {
+		match.MVPOverridden = *req.MVPOverridden
+	} else if req.MVPPlayerID != nil {
+		match.MVPOverridden = (*req.MVPPlayerID != "")
+	}
+
 	if match.Status == "" {
 		match.Status = "SCHEDULED"
 	}
@@ -283,6 +290,12 @@ func (h *MatchHandler) UpdateMatch(c *gin.Context) {
 		MVPPlayerID:   req.MVPPlayerID,
 	}
 
+	if req.MVPOverridden != nil {
+		match.MVPOverridden = *req.MVPOverridden
+	} else if req.MVPPlayerID != nil {
+		match.MVPOverridden = (*req.MVPPlayerID != "")
+	}
+
 	if req.Date != "" {
 		match.Date, _ = time.Parse("2006-01-02", req.Date)
 	}
@@ -317,6 +330,36 @@ func (h *MatchHandler) UpdateMatch(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Match updated"})
+}
+
+// OverrideMatchMVP godoc
+// @Summary      Override or reset a match's official MVP
+// @Tags         match-hub
+// @Accept       json
+// @Produce      json
+// @Param        id      path string true "Match ID"
+// @Param        request body dto.OverrideMVPRequest true "MVP override request"
+// @Success      200 {object} map[string]string
+// @Router       /api/v1/admin/matches/{id}/mvp [put]
+func (h *MatchHandler) OverrideMatchMVP(c *gin.Context) {
+	id := c.Param("id")
+	var req dto.OverrideMVPRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helpers.BadResponse(c, err.Error())
+		return
+	}
+	override := true
+	if req.Override != nil {
+		override = *req.Override
+	} else if req.PlayerID == nil || *req.PlayerID == "" {
+		override = false
+	}
+
+	if err := h.service.OverrideMatchMVP(c.Request.Context(), id, req.PlayerID, override); err != nil {
+		helpers.ServerErrorResponse(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Match MVP updated successfully"})
 }
 
 // DeleteMatch godoc

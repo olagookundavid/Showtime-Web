@@ -2,12 +2,14 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
+  BoltIcon,
   CheckCircleIcon,
   ChevronDownIcon,
   ClipboardDocumentListIcon,
   LockClosedIcon,
   PencilSquareIcon,
   PlusIcon,
+  StarIcon,
   TrashIcon,
   TrophyIcon,
   XMarkIcon,
@@ -54,6 +56,7 @@ interface FormData {
   feeds_slot: string;
   second_leg_match_id: string;
   mvp_player_id: string;
+  mvp_overridden: boolean;
 }
 
 const emptyForm: FormData = {
@@ -74,6 +77,7 @@ const emptyForm: FormData = {
   feeds_slot: "HOME",
   second_leg_match_id: "",
   mvp_player_id: "",
+  mvp_overridden: false,
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -405,6 +409,7 @@ export const AdminMatches = () => {
         feeds_slot: m.feeds_slot || "HOME",
         second_leg_match_id: m.second_leg_match_id || "",
         mvp_player_id: m.mvp_player_id || "",
+        mvp_overridden: !!m.mvp_overridden,
       });
       setShowModal(true);
     },
@@ -487,6 +492,7 @@ export const AdminMatches = () => {
             : null,
         // '' clears the MVP; the API treats an omitted/null field as "keep".
         mvp_player_id: form.mvp_player_id || "",
+        mvp_overridden: form.mvp_overridden,
       };
       if (editingId) {
         await updateMatch(editingId, payload);
@@ -602,11 +608,19 @@ export const AdminMatches = () => {
       {
         header: "Status",
         cell: (m) => (
-          <span
-            className={`px-2 py-1 rounded-full text-[10px] font-bold tracking-wide ${STATUS_COLORS[m.status] || "bg-gray-100 min-w-16 dark:bg-gray-600 dark:text-gray-300"}`}
-          >
-            {m.status}
-          </span>
+          <div className="flex flex-col gap-1 items-start">
+            <span
+              className={`px-2 py-1 rounded-full text-[10px] font-bold tracking-wide ${STATUS_COLORS[m.status] || "bg-gray-100 min-w-16 dark:bg-gray-600 dark:text-gray-300"}`}
+            >
+              {m.status}
+            </span>
+            {m.mvp_overridden && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                <TrophyIcon className="w-2.5 h-2.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                MVP Override
+              </span>
+            )}
+          </div>
         ),
       },
       {
@@ -1169,17 +1183,38 @@ export const AdminMatches = () => {
               {editingId && (
                 <div className="p-3.5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 space-y-2">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <label className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-sffl-navy dark:text-gray-200">
+                    <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-sffl-navy dark:text-gray-200">
                       <TrophyIcon
-                        className="w-4 h-4 shrink-0"
+                        className="w-4 h-4 shrink-0 text-amber-500"
                         aria-hidden="true"
                       />
-                      Official Match MVP (Admin Override)
-                    </label>
-                    {form.mvp_player_id && (
+                      <span>Official Match MVP</span>
+                      {form.mvp_overridden ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                          <StarIcon className="w-3 h-3" aria-hidden="true" />
+                          Admin Override Active
+                        </span>
+                      ) : form.mvp_player_id ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                          <BoltIcon className="w-3 h-3" aria-hidden="true" />
+                          Auto-Calculated
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-300">
+                          Not Assigned
+                        </span>
+                      )}
+                    </div>
+                    {(form.mvp_overridden || form.mvp_player_id) && (
                       <button
                         type="button"
-                        onClick={() => set("mvp_player_id", "")}
+                        onClick={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            mvp_player_id: "",
+                            mvp_overridden: false,
+                          }))
+                        }
                         className="min-h-11 px-2 text-xs text-sffl-red hover:underline font-bold"
                       >
                         Reset to Auto-Calculated
@@ -1188,7 +1223,14 @@ export const AdminMatches = () => {
                   </div>
                   <select
                     value={form.mvp_player_id}
-                    onChange={(e) => set("mvp_player_id", e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setForm((prev) => ({
+                        ...prev,
+                        mvp_player_id: val,
+                        mvp_overridden: val !== "",
+                      }));
+                    }}
                     className={`${inputClass} text-sm`}
                   >
                     <option value="">
@@ -1222,9 +1264,7 @@ export const AdminMatches = () => {
                       )}
                   </select>
                   <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-normal">
-                    Leave as "Auto-Calculated" for the system to award MVP
-                    dynamically based on winning team and composite impact, or
-                    choose a player to record an official override.
+                    Leave as "Auto-Calculated" for the system to award MVP dynamically based on player stats and ratings, or select a player to enforce an official override that persists across play recalculations.
                   </p>
                 </div>
               )}

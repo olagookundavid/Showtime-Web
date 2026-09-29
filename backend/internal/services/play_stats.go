@@ -609,6 +609,11 @@ func (s *PlayService) CommitDerivedStats(ctx context.Context, matchID string) (i
 				return a.fp > b.fp
 			})
 			bestID := pool[0].playerID
+			// An admin override is already protected twice over without any check
+			// needed here: the enclosing `if` above only runs auto-assignment when
+			// MVPPlayerID is still empty (an override always has one set), and
+			// SetMatchMVP's own UPDATE carries `AND NOT mvp_overridden` at the SQL
+			// level. A guard here would be dead code given the enclosing `if`.
 			_ = s.matchRepo.SetMatchMVP(ctx, matchID, &bestID)
 		}
 	}

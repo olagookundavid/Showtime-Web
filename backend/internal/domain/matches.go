@@ -99,6 +99,7 @@ type Match struct {
 	FeedsSlot        string  `json:"feeds_slot,omitempty"` // HOME | AWAY
 	SecondLegMatchID *string `json:"second_leg_match_id,omitempty"`
 	MVPPlayerID      *string `json:"mvp_player_id,omitempty"`
+	MVPOverridden    bool    `json:"mvp_overridden"`
 	HomeCoverage     int     `json:"home_coverage,omitempty"`
 	AwayCoverage     int     `json:"away_coverage,omitempty"`
 

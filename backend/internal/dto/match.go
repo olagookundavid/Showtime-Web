@@ -74,6 +74,7 @@ type CreateMatchRequest struct {
 	FeedsSlot     string  `json:"feeds_slot"`     // ...as HOME or AWAY
 	SecondLegMatchID *string `json:"second_leg_match_id"`
 	MVPPlayerID      *string `json:"mvp_player_id"`
+	MVPOverridden    *bool   `json:"mvp_overridden,omitempty"`
 }
 
 type UpdateMatchRequest struct {
@@ -94,6 +95,12 @@ type UpdateMatchRequest struct {
 	FeedsSlot     string  `json:"feeds_slot"`
 	SecondLegMatchID *string `json:"second_leg_match_id"`
 	MVPPlayerID      *string `json:"mvp_player_id"`
+	MVPOverridden    *bool   `json:"mvp_overridden,omitempty"`
+}
+
+type OverrideMVPRequest struct {
+	PlayerID *string `json:"player_id"`
+	Override *bool   `json:"override,omitempty"`
 }
 
 type MatchResponse struct {
@@ -116,6 +123,7 @@ type MatchResponse struct {
 	SecondLegMatchID *string              `json:"second_leg_match_id,omitempty"`
 	PBPLocked     bool                 `json:"pbp_locked"`
 	MVPPlayerID   *string              `json:"mvp_player_id,omitempty"`
+	MVPOverridden bool                 `json:"mvp_overridden"`
 }
 
 // --- Brackets ---

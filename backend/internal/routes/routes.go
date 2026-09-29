@@ -304,6 +304,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 	{
 		matchesGroup.POST("", app.Handlers.MatchHandler.CreateMatch)
 		matchesGroup.PUT("/:id", app.Handlers.MatchHandler.UpdateMatch)
+		matchesGroup.PUT("/:id/mvp", app.Handlers.MatchHandler.OverrideMatchMVP)
 		matchesGroup.DELETE("/:id", app.Handlers.MatchHandler.DeleteMatch)
 		matchesGroup.POST("/:id/team-sheets", app.Handlers.MatchHandler.SaveTeamSheet)
 		matchesGroup.GET("/:id/team-sheets", app.Handlers.MatchHandler.GetAdminTeamSheet)
