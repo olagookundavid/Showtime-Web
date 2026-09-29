@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
@@ -119,8 +120,11 @@ export const AdminPlayers = () => {
     "all",
   );
 
-  // Filters
-  const [filterTeam, setFilterTeam] = useState("");
+  // Filters. ?team=<id> (from a team's profile page) opens pre-filtered.
+  const [searchParams] = useSearchParams();
+  const [filterTeam, setFilterTeam] = useState(
+    () => searchParams.get("team") ?? "",
+  );
 
   const { data: allPlayersData, isLoading: loadingPlayers } = useQuery({
     queryKey: [

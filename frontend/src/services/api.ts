@@ -1147,8 +1147,9 @@ export const updateUserInfo = async (userId: string, payload: { fullname: string
 };
 
 // -------- ADMIN TEAM MANAGEMENT API -------- //
-export const getAdminTeams = async (params?: { page?: number; limit?: number; search?: string; status?: string }) => {
-    const response = await api.get('/admin/teams', { params });
+// Every team, inactive ones included (the public list hides them).
+export const getAdminTeams = async (params?: { page?: number; limit?: number; search?: string; status?: string }): Promise<PaginatedResponse<Team>> => {
+    const response = await api.get<PaginatedResponse<Team>>('/admin/teams', { params });
     return response.data;
 };
 
@@ -1192,9 +1193,19 @@ export const deleteTeam = async (id: string) => {
     return response.data;
 };
 
-export const getTeamManagers = async (teamId: string) => {
-    const response = await api.get(`/admin/teams/${teamId}/managers`);
-    return response.data;
+// A team head assigned to a team. created_at is when they were assigned.
+export interface TeamManager {
+    id: string;
+    user_id: string;
+    team_id: string;
+    created_at: string;
+    user_full_name?: string;
+    user_email?: string;
+}
+
+export const getTeamManagers = async (teamId: string): Promise<TeamManager[]> => {
+    const response = await api.get<{ data: TeamManager[] | null }>(`/admin/teams/${teamId}/managers`);
+    return response.data.data || [];
 };
 
 // Every team_head user, with whichever team they currently manage (if any) —

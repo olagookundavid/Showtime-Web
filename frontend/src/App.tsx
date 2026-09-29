@@ -174,6 +174,11 @@ const AdminEventDays = lazy(() =>
 );
 const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
 const AdminTeams = lazy(() => import("./pages/admin/AdminTeams"));
+const AdminTeamDetail = lazy(() =>
+  import("./pages/admin/AdminTeamDetail").then((m) => ({
+    default: m.AdminTeamDetail,
+  })),
+);
 const AdminCompetitions = lazy(() => import("./pages/admin/AdminCompetitions"));
 const AdminCompetitionTeams = lazy(() =>
   import("./pages/admin/AdminCompetitionTeams").then((m) => ({
@@ -568,6 +573,7 @@ function App() {
                       <Route path="event-days" element={<AdminEventDays />} />
                       <Route path="users" element={<AdminUsers />} />
                       <Route path="teams" element={<AdminTeams />} />
+                      <Route path="teams/:id" element={<AdminTeamDetail />} />
                       <Route
                         path="competitions"
                         element={<AdminCompetitions />}

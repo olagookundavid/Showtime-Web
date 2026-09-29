@@ -2,14 +2,14 @@
 
 Standing rules for all code under `frontend/`. Follow them without being asked. Add each new rule the owner gives here, and keep this file succinct.
 
-**Scope:** when you edit a file, apply every rule to the whole file (text icons, native `confirm()`/`alert()`, responsiveness gaps, hand-written tables, dashboard page headers), and to the components a page renders for responsiveness. Don't edit other files just for these rules.
+**Scope:** when you edit a file, apply every rule to the whole file (text icons, native `confirm()`/`alert()`, responsiveness gaps, hand-written tables, dashboard page headers, first-time usability), and to the components a page renders for responsiveness. Don't edit other files just for these rules.
 
 ## 1. No text icons
 
-Never use emoji, Unicode symbols or text as icons (`✅ 🔍 ⚡ ⭐ ✕ ✓ ← → ▲ ▼ ●`, an `x` or `>` for an icon, `...` as a loading indicator) in JSX, labels, headings, or `toast()` and dialog strings. Currency signs like `₦`, the `—` empty-cell placeholder and punctuation are typography and stay.
+Never use emoji, Unicode symbols or text as icons (`✅ 🔍 ⚡ ⭐ ✕ ✓ ← → ▲ ▼ ●`, an `x` or `>` for an icon, `...` as a loading indicator) in JSX, labels, headings, `toast()` or dialog strings. Currency signs like `₦`, the `—` empty-cell placeholder and punctuation are typography and stay.
 
 1. **Heroicons** (`@heroicons/react`): `24/outline`, or `24/solid` for filled or active states. Check `node_modules/@heroicons/react/24/outline` before deciding one doesn't exist.
-2. **Custom SVG**, only when no heroicon depicts the exact thing (a football, a gender symbol), never a loosely related one. Use the outline style: `viewBox="0 0 24 24"`, `fill="none"`, `stroke="currentColor"`, `strokeWidth={1.5}`, round caps and joins, sized with `className`. If it's used in more than one place, make it a component in `src/components/icons/` (see `RunnerIcon.tsx`).
+2. **Custom SVG**, only when no heroicon depicts the exact thing (a football, a gender symbol), never a loosely related one. Outline style: `viewBox="0 0 24 24"`, `fill="none"`, `stroke="currentColor"`, `strokeWidth={1.5}`, round caps and joins, sized with `className`. Used in more than one place? Make it a component in `src/components/icons/` (see `RunnerIcon.tsx`).
 
 - Size `w-4 h-4` beside text, `w-5 h-5` in headings and larger controls. Align with `inline-flex items-center gap-1.5`.
 - Decorative icons get `aria-hidden="true"`. Icon-only buttons get an `aria-label`.
@@ -24,7 +24,7 @@ Actions that create, update or delete data or change a record's state (saves, de
 - Logout: title "Log out?", `confirmLabel` "Log out", `tone="info"`, `icon={ArrowRightOnRectangleIcon}`.
 - Never use `confirm()`, `window.confirm()` or `alert()`. Report results with `toast` from `react-hot-toast` (mounted in `App.tsx`).
 - Pattern (`src/pages/admin/AdminTickets.tsx`):
-  1. The button doesn't call the handler. It stores the pending action (`setPendingAction({ kind, item })`).
+  1. The button stores the pending action (`setPendingAction({ kind, item })`) instead of calling the handler.
   2. One `<ConfirmDialog>` per page reads that state. Its title says what will happen, and its body names the record.
   3. `onConfirm` runs the handler with `pending` true while the request is in flight, then the dialog closes. `onCancel` clears the state.
 
@@ -58,12 +58,10 @@ Every table uses `DataTable` (`src/components/ui/DataTable.tsx`, built on TanSta
   - Define columns once with `useMemo`. When a page shows the same columns twice, share them (see `AdminTickets.tsx`).
   - Keep `data` stable too: a module-level `const NO_ROWS: Row[] = []`, not an inline `?? []`.
 - **Server-paginated lists** pass `serverPage`, `totalServerPages` and `onPageChange`, plus `onSearchSubmit` for server search. A sortable header there only reorders the loaded rows. Local lists let `DataTable` search, sort and page in the browser.
-- **Other props:** `loading`, `paginated={false}`, `getRowId`, `emptyMessage`, `searchable={false}`, `compact` (no 800px minimum width, for tables in dialogs) and `headerActions` (toolbar filters and buttons).
+- **Other props:** `loading`, `paginated={false}`, `getRowId`, `emptyMessage`, `searchable={false}`, `compact` (no 800px minimum width, for tables in dialogs or narrow cards) and `headerActions` (toolbar filters and buttons).
 - **The same table on every screen.** On phones it scrolls sideways inside its card (`DataTable` does this). No card layout; the owner doesn't want one.
 - **The first column is frozen,** so it must name the row (player, team, match). Never lead with a narrow column like `#` or `Pos`; fold it into the name cell or put it second.
-- **Row actions.** Rows with actions end in an `Actions` column (`align: 'right'`) holding `<RowActions>` (`src/components/ui/RowActions.tsx`).
-  - It's a three-dot button on every row that opens a dropdown of all that row's actions. No inline action buttons.
-  - An action that can't run on a row stays in the menu, disabled, with a `hint` saying why.
+- **Row actions.** Rows with actions end in an `Actions` column (`align: 'right'`) holding `<RowActions>` (`src/components/ui/RowActions.tsx`): a three-dot button on every row that opens a dropdown of all that row's actions. No inline action buttons. An action that can't run on a row stays in the menu, disabled, with a `hint` saying why.
 - **Missing a feature?** Add it to `DataTable` as an optional prop instead of hand-writing a table. Ask first if the change is large.
 
 ## 5. Dashboards
@@ -72,7 +70,18 @@ Dashboard layouts (admin, team head, player portal, seller) render `DashboardShe
 
 Every dashboard page (`src/pages/admin/`, `src/pages/team-head/`, `src/pages/player-portal/`, `src/pages/seller/`) starts with its own `DashboardPageHeader` (`src/components/dashboard/DashboardPageHeader.tsx`). Never hand-write an `<h1>`, banner or card header there. The look lives in that component only; change it there.
 
-- **Title:** the page's sidebar label in Title Case (`Matches`, `Play by Play`), so page and sidebar agree. Detail pages (an order, a competition's teams) use their own title plus `back={{ to, label }}`.
+- **Title:** the page's sidebar label in Title Case (`Matches`, `Play by Play`), so page and sidebar agree. Detail pages (an order, a team) use their own title plus `back={{ to, label }}`.
 - **Subtitle:** one sentence on every page saying what it's for. Pass a `ReactNode` for live values.
 - **Actions:** primary buttons go in `actions`, on the right from 640px up. Search boxes and filters go in their own row below the header.
 - No italics, uppercase, icon tiles, banners or per-page sizes.
+
+## 6. First-time users
+
+Every UI change and new page must be easy for someone using the app for the first time. Put UX and UI first.
+
+- **Say what things are.** Plain-word labels, a subtitle saying what the page is for, a heading on each section.
+- **Show, don't hide.** Put what people need to decide (who, how many, status) on the page, not behind a dialog or an extra click.
+- **Obvious next step.** One primary action per page or section. Links look like links, and a record's name opens its detail page. A status badge is never a secret button.
+- **Helpful empty states.** Say what's missing, why it matters, and give a link or button to fix it.
+- **Predictable.** Reuse the shared components and patterns above so every page behaves the same way.
+- **Check** by walking the page as a newcomer: can they tell where they are, what they can do, and how to get back?

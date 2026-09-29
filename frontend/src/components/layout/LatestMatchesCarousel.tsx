@@ -241,7 +241,7 @@ export const LatestMatchesCarousel = () => {
             onMouseLeave={handleMouseUpOrLeave}
             onMouseUp={handleMouseUpOrLeave}
             onClickCapture={handleClickCapture}
-            className="flex overflow-x-auto gap-2 py-1 px-7 sm:px-8 md:px-10 no-scrollbar w-full h-full items-center touch-pan-x overscroll-x-contain cursor-grab active:cursor-grabbing select-none"
+            className="flex overflow-x-auto gap-2 py-1 px-4 sm:px-8 md:px-10 no-scrollbar w-full h-full items-center touch-pan-x overscroll-x-contain cursor-grab active:cursor-grabbing select-none"
             style={{
               WebkitOverflowScrolling: "touch",
               scrollbarWidth: "none",
