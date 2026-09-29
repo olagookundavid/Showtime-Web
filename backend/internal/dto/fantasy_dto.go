@@ -273,12 +273,16 @@ type LeaderboardEntry struct {
 // ─── Points Breakdown DTO ─────────────────────────────────────────────────────
 
 type PlayerGWBreakdownResponse struct {
-	PlayerID   string                        `json:"player_id"`
-	PlayerName string                        `json:"player_name"`
-	MatchID    string                        `json:"match_id"`
-	MatchLabel string                        `json:"match_label"`
-	Points     float64                       `json:"points"`
-	Breakdown  domain.FantasyPointsBreakdown `json:"breakdown"`
+	PlayerID       string                        `json:"player_id"`
+	PlayerName     string                        `json:"player_name"`
+	MatchID        string                        `json:"match_id"`
+	MatchLabel     string                        `json:"match_label"`
+	GameweekNumber int                           `json:"gameweek_number,omitempty"`
+	IsNearestWeek  bool                          `json:"is_nearest_week,omitempty"`
+	Points         float64                       `json:"points"`
+	TotalPoints    float64                       `json:"total_points"`
+	SelectedByPct  float64                       `json:"selected_by_pct"`
+	Breakdown      domain.FantasyPointsBreakdown `json:"breakdown"`
 }
 
 // ─── Squad & trading ─────────────────────────────────────────────────────────
@@ -374,11 +378,13 @@ type PlayerPriceHistoryItem struct {
 }
 
 type PlayerPriceHistoryResponse struct {
-	PlayerID     string                   `json:"player_id"`
-	PlayerName   string                   `json:"player_name"`
-	CurrentPrice float64                  `json:"current_price"`
-	BasePrice    float64                  `json:"base_price"`
-	TotalChange  float64                  `json:"total_change"`
-	History      []PlayerPriceHistoryItem `json:"history"`
+	PlayerID      string                   `json:"player_id"`
+	PlayerName    string                   `json:"player_name"`
+	CurrentPrice  float64                  `json:"current_price"`
+	BasePrice     float64                  `json:"base_price"`
+	TotalChange   float64                  `json:"total_change"`
+	TotalPoints   float64                  `json:"total_points"`
+	SelectedByPct float64                  `json:"selected_by_pct"`
+	History       []PlayerPriceHistoryItem `json:"history"`
 }
 

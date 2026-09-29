@@ -49,6 +49,7 @@ import {
   type GameRulesPayload,
   type TeamStat,
 } from "../../services/api";
+import { isReturnTD } from "../../utils/playClassification";
 import { StatsTable } from "../../components/stats/StatsTable";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
@@ -601,6 +602,10 @@ const calculateNextSituation = (
   // Touchdown: the scoring team stays "on offense" for the extra-point try
   // that follows as a separate logged play.
   if (isTD) {
+    if (payload.returned_for_td) {
+      nextCtx.offense = flipSide(currentCtx.offense);
+      nextCtx.driveNo = currentCtx.driveNo + 1;
+    }
     nextCtx.down = "1";
     nextCtx.toGo = "10";
     clearBallOn();
@@ -1823,8 +1828,8 @@ export const AdminPlayByPlay = () => {
               rows={[
                 ["Match", matchLabel],
                 [
-                  "Quarter",
-                  `Q${p.quarter ?? ""}${p.drive_no != null ? ` · Drive ${p.drive_no}` : ""}`,
+                  "Half",
+                  `H${p.quarter ?? ""}${p.drive_no != null ? ` · Drive ${p.drive_no}` : ""}`,
                 ],
                 [
                   "Down",
@@ -1858,8 +1863,8 @@ export const AdminPlayByPlay = () => {
                 ["Match", matchLabel],
                 ["Play", `#${p.seq}`],
                 [
-                  "Quarter",
-                  `Q${p.quarter}${p.down ? ` · ${p.down}&${p.to_go ?? ""}` : ""}`,
+                  "Half",
+                  `H${p.quarter}${p.down ? ` · ${p.down}&${p.to_go ?? ""}` : ""}`,
                 ],
                 [
                   "Type",
@@ -2110,7 +2115,7 @@ export const AdminPlayByPlay = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-sm">
               <label className="flex flex-col gap-1">
                 <span className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">
-                  Qtr
+                  Half
                 </span>
                 <input
                   type="number"
@@ -3734,13 +3739,23 @@ const PlayRow = ({
     p ? (p.jersey_number ? `#${p.jersey_number} ${p.name}` : p.name) : "";
   const bits: ReactNode[] = [];
   if (play.off_qb) bits.push(who(play.off_qb));
-  if (play.target)
-    bits.push(
-      <span className="inline-flex items-center gap-1 align-middle">
-        <ArrowRightIcon className="w-3.5 h-3.5" aria-hidden="true" />
-        {who(play.target)}
-      </span>,
-    );
+  if (play.target) {
+    if (isReturnTD(play)) {
+      bits.push(
+        <span className="inline-flex items-center gap-1 align-middle font-bold text-emerald-600 dark:text-emerald-400">
+          <ArrowRightIcon className="w-3.5 h-3.5" aria-hidden="true" />
+          Return TD: {who(play.target)}
+        </span>,
+      );
+    } else {
+      bits.push(
+        <span className="inline-flex items-center gap-1 align-middle">
+          <ArrowRightIcon className="w-3.5 h-3.5" aria-hidden="true" />
+          {who(play.target)}
+        </span>,
+      );
+    }
+  }
   if (play.yards != null)
     bits.push(`${play.yards >= 0 ? "+" : ""}${play.yards} yd`);
   if (play.batted_down) bits.push("batted down");
@@ -3772,7 +3787,7 @@ const PlayRow = ({
             #{play.seq}
           </span>
           <span className="text-[11px] font-bold text-sffl-navy dark:text-gray-300 shrink-0">
-            Q{play.quarter}
+            H{play.quarter}
             {play.down ? ` · ${play.down}&${play.to_go ?? ""}` : ""}
           </span>
           <span className="text-xs font-mono font-bold bg-sffl-navy/10 dark:bg-white/10 rounded px-1.5 py-0.5 shrink-0">
@@ -4569,7 +4584,7 @@ const FullStatAuditLog = ({
       <div className="flex items-center justify-between gap-3 flex-wrap bg-gray-50 dark:bg-gray-800/60 p-3 rounded-xl border border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs font-bold text-gray-500">
-            Filter Quarter:
+            Filter Half:
           </span>
           <button
             onClick={() => setQuarterFilter("all")}
@@ -4577,13 +4592,13 @@ const FullStatAuditLog = ({
           >
             All
           </button>
-          {[1, 2, 3, 4].map((q) => (
+          {[1, 2].map((q) => (
             <button
               key={q}
               onClick={() => setQuarterFilter(q)}
               className={`px-3 py-1 min-h-11 rounded-md text-xs font-bold transition-colors ${quarterFilter === q ? "bg-sffl-navy text-white" : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200"}`}
             >
-              Q{q}
+              {q}H
             </button>
           ))}
         </div>
@@ -4615,7 +4630,7 @@ const FullStatAuditLog = ({
                       Play #{p.seq}
                     </span>
                     <span className="font-bold text-sffl-navy dark:text-gray-200">
-                      Q{p.quarter}
+                      H{p.quarter}
                       {p.down ? ` · ${p.down}&${p.to_go ?? ""}` : ""}
                     </span>
                     <span className="font-mono font-black px-2 py-0.5 rounded bg-sffl-navy/10 dark:bg-white/10 text-sffl-navy dark:text-white">

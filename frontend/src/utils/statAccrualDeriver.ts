@@ -1,4 +1,5 @@
 import type { GamePlay } from '../services/api';
+import { isReturnTD } from './playClassification';
 
 export interface StatAccrual {
     type: 'player' | 'team';
@@ -225,6 +226,13 @@ export const getPlayStatAccruals = (
         }
         if (p.returned_for_td && p.defender) {
             addPlayer(p.defender, 'Defensive XP Scored', '+1', 'defense', 'emerald');
+        }
+    }
+
+    // ── 5b. Special Teams (KO / Punt) Return TD ────────────────────────────
+    if (isReturnTD(p)) {
+        if (p.target) {
+            addPlayer(p.target, 'Defensive TD (Return)', '+1', 'defense', 'emerald');
         }
     }
 

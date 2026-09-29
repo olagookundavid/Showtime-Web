@@ -91,8 +91,8 @@ export function FantasyPlayerModal({ isOpen, onClose, player }: FantasyPlayerMod
 
     const { data: breakdownData, isLoading: loadingBreakdown } = useQuery({
         queryKey: ['playerFantasyBreakdown', player?.playerId, player?.gameweekId],
-        queryFn: () => (player?.playerId && player?.gameweekId ? fantasyApi.getPlayerBreakdown(player.playerId, player.gameweekId) : null),
-        enabled: isOpen && Boolean(player?.playerId) && Boolean(player?.gameweekId),
+        queryFn: () => (player?.playerId ? fantasyApi.getPlayerBreakdown(player.playerId, player.gameweekId || 'current') : null),
+        enabled: isOpen && Boolean(player?.playerId),
         staleTime: 30000,
     });
 
@@ -111,6 +111,16 @@ export function FantasyPlayerModal({ isOpen, onClose, player }: FantasyPlayerMod
     const posStyle = POSITION_STYLES[posLabel] || { bg: 'bg-gray-700', text: 'text-white' };
     const price = player.currentPrice ?? player.price ?? player.purchasePrice ?? 0;
     const breakdown = breakdownData?.breakdown;
+
+    const displayedGwPoints = typeof player.points === 'number'
+        ? player.points
+        : breakdownData?.points;
+    const displayedTotalPoints = typeof player.totalPoints === 'number'
+        ? player.totalPoints
+        : (breakdownData?.total_points ?? priceHistoryData?.total_points);
+    const displayedOwnership = typeof player.ownedByPct === 'number'
+        ? player.ownedByPct
+        : (breakdownData?.selected_by_pct ?? priceHistoryData?.selected_by_pct);
 
     return (
         <div
@@ -214,7 +224,7 @@ export function FantasyPlayerModal({ isOpen, onClose, player }: FantasyPlayerMod
                                 GW Points
                             </span>
                             <span className="text-lg font-black text-sffl-red mt-0.5 block">
-                                {typeof player.points === 'number' ? `${formatStatDecimal(player.points, 1)} pts` : '—'}
+                                {typeof displayedGwPoints === 'number' ? `${formatStatDecimal(displayedGwPoints, 1)} pts` : '—'}
                             </span>
                         </div>
 
@@ -223,7 +233,7 @@ export function FantasyPlayerModal({ isOpen, onClose, player }: FantasyPlayerMod
                                 Total Points
                             </span>
                             <span className="text-lg font-black text-gray-900 dark:text-white mt-0.5 block">
-                                {typeof player.totalPoints === 'number' ? `${formatStatDecimal(player.totalPoints, 1)} pts` : '—'}
+                                {typeof displayedTotalPoints === 'number' ? `${formatStatDecimal(displayedTotalPoints, 1)} pts` : '—'}
                             </span>
                         </div>
 
@@ -232,29 +242,36 @@ export function FantasyPlayerModal({ isOpen, onClose, player }: FantasyPlayerMod
                                 Ownership
                             </span>
                             <span className="text-lg font-black text-gray-900 dark:text-white mt-0.5 block">
-                                {typeof player.ownedByPct === 'number' ? `${player.ownedByPct.toFixed(1)}%` : '—'}
+                                {typeof displayedOwnership === 'number' ? `${displayedOwnership.toFixed(1)}%` : '—'}
                             </span>
                         </div>
                     </div>
 
                     {/* Gameweek Scoring Breakdown (if available) */}
-                    {player.gameweekId && (
+                    {(player.gameweekId || breakdownData) && (
                         <div className="rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden bg-gray-50 dark:bg-gray-800/60 p-4">
-                            <div className="flex items-center justify-between mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
+                            <div className="flex items-center justify-between mb-3 border-b border-gray-200 dark:border-gray-700 pb-2 gap-2 flex-wrap">
                                 <h4 className="text-xs font-black uppercase tracking-wider text-sffl-navy dark:text-white flex items-center gap-1.5">
                                     <SparklesIcon className="w-4 h-4 text-sffl-red" />
                                     Gameweek Scoring Breakdown
                                 </h4>
-                                {breakdownData?.match_label && (
-                                    <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400">
-                                        {breakdownData.match_label}
-                                    </span>
-                                )}
+                                <div className="flex items-center gap-1.5">
+                                    {breakdownData?.is_nearest_week && (
+                                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                            Latest Played{breakdownData.gameweek_number ? ` (GW ${breakdownData.gameweek_number})` : ''}
+                                        </span>
+                                    )}
+                                    {breakdownData?.match_label && (
+                                        <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400">
+                                            {breakdownData.match_label}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
 
                             {loadingBreakdown ? (
                                 <p className="text-xs text-gray-500 py-3 text-center">Loading gameweek stats...</p>
-                            ) : breakdown ? (
+                            ) : breakdown && (breakdown.net_total !== 0 || breakdown.offensive_total !== 0 || breakdown.defensive_total !== 0) ? (
                                 <div className="space-y-3 text-xs">
                                     {/* Offensive stats */}
                                     {breakdown.offensive_total !== 0 && (
@@ -299,7 +316,7 @@ export function FantasyPlayerModal({ isOpen, onClose, player }: FantasyPlayerMod
                                 </div>
                             ) : (
                                 <p className="text-xs text-gray-500 py-2 text-center">
-                                    No live match stats recorded for this gameweek yet.
+                                    No match stats recorded for this player yet.
                                 </p>
                             )}
                         </div>
