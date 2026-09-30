@@ -8,7 +8,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getNews } from "../services/api";
 import { Loader } from "../components/ui/Loader";
-import { ArrowRightIcon } from "@heroicons/react/24/outline";
+import { ArrowPathIcon, ArrowRightIcon } from "@heroicons/react/24/outline";
 import { LightboxImage } from "../components/ui/LightboxImage";
 
 export const LandingPage = () => {
@@ -31,11 +31,6 @@ export const LandingPage = () => {
 
   return (
     <div className="space-y-6 md:space-y-12 pt-4">
-      {/* Team of the Week Module */}
-      <section className="px-1">
-        <TeamOfTheWeekModule showArchiveLink={true} />
-      </section>
-
       {/* Hero — the live stream or featured video when active, the carousel otherwise */}
       <section className="px-1">
         {(isLive || isVideo) && videoId ? (
@@ -43,6 +38,11 @@ export const LandingPage = () => {
         ) : (
           <MainHeroCarousel />
         )}
+      </section>
+
+      {/* Team of the Week Module */}
+      <section className="px-1">
+        <TeamOfTheWeekModule showArchiveLink={true} />
       </section>
 
       {/* RELIVE - YouTube Playlist Video Carousel */}
@@ -53,15 +53,16 @@ export const LandingPage = () => {
       {/* Team News — moved immediately after the hero so news is the
                 first thing visitors see below the carousel. */}
       <section className="px-1">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-wrap justify-between items-center gap-x-4 gap-y-1 mb-4 md:mb-6">
           <h2 className="text-lg md:text-4xl font-black italic text-sffl-navy dark:text-white transition-colors duration-300">
             <span className="text-sffl-red">NEWS</span>
           </h2>
           <Link
             to="/news"
-            className="text-sffl-red text-sm font-semibold hover:underline flex items-center gap-1"
+            className="text-sffl-red text-sm font-semibold hover:underline inline-flex items-center gap-1 min-h-11"
           >
-            View All News &rarr;
+            View All News
+            <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
           </Link>
         </div>
 
@@ -84,7 +85,7 @@ export const LandingPage = () => {
                 </div>
                 <Link
                   to={`/news/${item.slug}`}
-                  className="p-5 flex flex-col flex-1"
+                  className="p-4 sm:p-5 flex flex-col flex-1"
                 >
                   <h3 className="text-base font-black text-sffl-navy dark:text-white mb-2 line-clamp-2 group-hover:text-sffl-red transition-colors">
                     {item.title}
@@ -92,8 +93,8 @@ export const LandingPage = () => {
                   <p className="text-gray-500 dark:text-gray-400 text-xs line-clamp-3 mb-4 flex-1 leading-relaxed">
                     {item.excerpt || item.content.substring(0, 120) + "..."}
                   </p>
-                  <div className="flex justify-between items-center mt-auto pt-4 border-t border-gray-50 dark:border-gray-700/30">
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap justify-between items-center gap-2 mt-auto pt-4 border-t border-gray-50 dark:border-gray-700/30">
+                    <div className="flex flex-wrap items-center gap-2 min-w-0">
                       <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                         {new Date(item.created_at).toLocaleDateString(
                           undefined,
@@ -107,7 +108,11 @@ export const LandingPage = () => {
                       )}
                     </div>
                     <span className="text-sffl-red text-xs font-bold group-hover:translate-x-1 transition-transform flex items-center gap-1">
-                      Read More &rarr;
+                      Read More
+                      <ArrowRightIcon
+                        className="w-3.5 h-3.5"
+                        aria-hidden="true"
+                      />
                     </span>
                   </div>
                 </Link>
@@ -124,10 +129,10 @@ export const LandingPage = () => {
       </section>
 
       {/* Commissioner's Note */}
-      <section className="px-2 md:px-0">
+      <section className="px-1 md:px-0">
         <div className="max-w-2xl mx-auto">
           {/* Commissioner's Note */}
-          <div className="bg-sffl-navy dark:bg-gray-800 text-white p-6 md:p-8 rounded-2xl shadow-xl border border-transparent dark:border-gray-700 flex flex-col h-full relative overflow-hidden group min-h-80">
+          <div className="bg-sffl-navy dark:bg-gray-800 text-white p-5 md:p-8 rounded-2xl shadow-xl border border-transparent dark:border-gray-700 flex flex-col h-full relative overflow-hidden group min-h-80">
             {/* Commissioner background image */}
             <div className="absolute inset-0 z-0 overflow-hidden">
               <img
@@ -140,7 +145,7 @@ export const LandingPage = () => {
 
             <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/4 w-32 h-32 bg-sffl-red/10 rounded-full blur-2xl group-hover:bg-sffl-red/20 transition-all duration-700 z-10"></div>
 
-            <div className="flex items-center justify-between mb-6 relative z-10">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-6 relative z-10">
               <h3 className="text-xl md:text-2xl font-black italic uppercase tracking-tighter">
                 Commissioner's <span className="text-sffl-red">Note</span>
               </h3>
@@ -150,8 +155,11 @@ export const LandingPage = () => {
             </div>
 
             {loadingNews ? (
-              <div className="flex-1 flex justify-center items-center py-8 relative z-10">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+              <div className="flex-1 flex justify-center items-center py-8 relative z-10 text-white">
+                <ArrowPathIcon
+                  className="w-8 h-8 animate-spin"
+                  aria-label="Loading"
+                />
               </div>
             ) : latestNote ? (
               <div className="relative z-10 flex flex-col h-full">
@@ -162,9 +170,10 @@ export const LandingPage = () => {
                 <div className="flex items-center justify-between mt-auto pt-4 border-t border-white/10">
                   <Link
                     to={`/news/${latestNote.slug}`}
-                    className="text-white bg-sffl-red hover:bg-sffl-red/90 px-6 py-2.5 rounded-xl font-bold transition-all inline-flex items-center justify-center gap-2 border border-sffl-red/30 hover:scale-[1.02] active:scale-95 shadow-lg"
+                    className="min-h-11 text-white bg-sffl-red hover:bg-sffl-red/90 px-6 py-2.5 rounded-xl font-bold transition-all inline-flex items-center justify-center gap-2 border border-sffl-red/30 hover:scale-[1.02] active:scale-95 shadow-lg"
                   >
-                    Read Full Note <ArrowRightIcon className="w-4 h-4" />
+                    Read Full Note
+                    <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
                   </Link>
                   <span className="text-xs text-gray-300 font-medium italic hidden sm:inline">
                     — Adebare Adejumo
