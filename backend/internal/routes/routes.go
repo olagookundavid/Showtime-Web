@@ -245,6 +245,7 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		totwAdminGroup.GET("/:id", app.Handlers.TOTWHandler.GetTOTWByID)
 		totwAdminGroup.POST("", app.Handlers.TOTWHandler.CreateTOTW)
 		totwAdminGroup.PUT("/:id", app.Handlers.TOTWHandler.UpdateTOTW)
+		totwAdminGroup.PUT("/:id/article", app.Handlers.TOTWHandler.SaveTOTWArticle)
 		totwAdminGroup.DELETE("/:id", app.Handlers.TOTWHandler.DeleteTOTW)
 		totwAdminGroup.PATCH("/:id/publish", app.Handlers.TOTWHandler.PublishTOTW)
 	}

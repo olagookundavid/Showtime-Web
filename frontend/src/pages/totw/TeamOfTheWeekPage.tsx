@@ -1,12 +1,18 @@
 import React, { useState, useMemo, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getTOTWArchive,
   getCompetitions,
+  getTOTWById,
+  getLatestTOTW,
   type TOTWListItem,
+  type TeamOfTheWeek,
 } from "../../services/api";
+import { useAuth } from "../../contexts/AuthContext";
 import { TeamOfTheWeekModule } from "../../components/totw/TeamOfTheWeekModule";
+import { TOTWEditorialStory } from "../../components/totw/TOTWEditorialStory";
+import { TOTWStoryModal } from "../../components/totw/TOTWStoryModal";
 import {
   CalendarDaysIcon,
   TrophyIcon,
@@ -17,15 +23,21 @@ import {
   ShareIcon,
   SparklesIcon,
 } from "@heroicons/react/24/outline";
+import { StarIcon } from "@heroicons/react/24/solid";
 import toast from "react-hot-toast";
 
 export const TeamOfTheWeekPage: React.FC = () => {
   const { id: routeTotwId } = useParams<{ id?: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const isAdmin = Boolean(user && (user.role === "admin" || user.role === "app_admin"));
+
   const pitchRef = useRef<HTMLDivElement>(null);
 
   const [selectedCompId, setSelectedCompId] = useState<string>("ALL");
   const [copied, setCopied] = useState<boolean>(false);
+  const [isStoryModalOpen, setIsStoryModalOpen] = useState<boolean>(false);
 
   // Fetch all competitions for filtering
   const { data: compData } = useQuery({
@@ -49,6 +61,14 @@ export const TeamOfTheWeekPage: React.FC = () => {
     if (archive.length > 0) return archive[0].id;
     return undefined;
   }, [routeTotwId, archive]);
+
+  // Fetch full active TOTW data (including attached editorial news story)
+  const { data: totw, refetch: refetchTOTW } = useQuery<TeamOfTheWeek>({
+    queryKey: ["totw", activeTotwId, effectiveCompId],
+    queryFn: () =>
+      activeTotwId ? getTOTWById(activeTotwId) : getLatestTOTW(effectiveCompId),
+    enabled: Boolean(activeTotwId || archive.length > 0),
+  });
 
   // Current edition index in archive list
   const currentIndex = useMemo(() => {
@@ -119,7 +139,8 @@ export const TeamOfTheWeekPage: React.FC = () => {
           <p className="text-gray-300 text-sm md:text-base leading-relaxed">
             Honoring the premier offensive and defensive playmakers across
             official Showtime matchdays. Browse current and historical Starting
-            XIV lineups, player box scores, and performance ratings.
+            XIV lineups, player box scores, and read in-depth editorial
+            breakdowns.
           </p>
         </div>
 
@@ -159,11 +180,11 @@ export const TeamOfTheWeekPage: React.FC = () => {
             <div className="flex items-center gap-3">
               <span className="w-2.5 h-2.5 rounded-full bg-sffl-red animate-pulse"></span>
               <div className="text-xs md:text-sm font-bold text-gray-900 dark:text-white">
-                {activeEdition?.week_title || "Active Edition"}
-                {activeEdition?.headline && (
+                {activeEdition?.week_title || totw?.week_title || "Active Edition"}
+                {(activeEdition?.headline || totw?.headline) && (
                   <span className="hidden sm:inline text-gray-500 dark:text-gray-400 font-normal">
                     {" "}
-                    — {activeEdition.headline}
+                    — {activeEdition?.headline || totw?.headline}
                   </span>
                 )}
               </div>
@@ -207,6 +228,30 @@ export const TeamOfTheWeekPage: React.FC = () => {
           onSelectEdition={handleSelectEdition}
         />
       </div>
+
+      {/* ── Official Gameweek Breakdown (Attached Editorial Story) ─────── */}
+      {totw && (
+        <TOTWEditorialStory
+          totw={totw}
+          isAdmin={isAdmin}
+          onEditClick={() => setIsStoryModalOpen(true)}
+        />
+      )}
+
+      {/* ── Inline Editorial Story Editor Modal (Admin Only) ─────────── */}
+      {isAdmin && totw && (
+        <TOTWStoryModal
+          isOpen={isStoryModalOpen}
+          onClose={() => setIsStoryModalOpen(false)}
+          totwId={totw.id}
+          totwWeekTitle={totw.week_title}
+          initialStory={totw.news}
+          onSaved={async () => {
+            await refetchTOTW();
+            queryClient.invalidateQueries({ queryKey: ["totw"] });
+          }}
+        />
+      )}
 
       {/* ── All Editions Archive Section ──────────────────────────────── */}
       <section className="space-y-6 pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -305,7 +350,7 @@ export const TeamOfTheWeekPage: React.FC = () => {
                             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
                             title="Includes Player of the Week honor"
                           >
-                            <span>⭐</span>
+                            <StarIcon className="w-3 h-3" aria-hidden="true" />
                             <span>POTW</span>
                           </span>
                         )}

@@ -4184,11 +4184,13 @@ export interface TeamOfTheWeek {
     week_title: string;
     headline: string;
     sub_headline: string;
+    news_id?: string | null;
     is_published: boolean;
     published_at?: string;
     created_at: string;
     updated_at: string;
     competition?: Competition;
+    news?: News | null;
     players: TOTWPlayer[];
 }
 
@@ -4202,6 +4204,7 @@ export interface TOTWListItem {
     week_title: string;
     headline: string;
     sub_headline?: string;
+    news_id?: string | null;
     is_published: boolean;
     published_at?: string;
     created_at: string;
@@ -4214,6 +4217,8 @@ export interface SaveTOTWPayload {
     week_title: string;
     headline: string;
     sub_headline?: string;
+    news_id?: string | null;
+    news_article?: CreateNewsPayload;
     is_published: boolean;
     players: TOTWPlayerSlot[];
 }
@@ -4273,6 +4278,11 @@ export const getAdminPlayerDayStats = async (playerId: string, eventDayId: strin
     const res = await api.get<{ data: Record<string, string> }>('/admin/totw/player-stats', {
         params: { player_id: playerId, event_day_id: eventDayId },
     });
+    return res.data.data;
+};
+
+export const saveTOTWArticle = async (totwId: string, payload: CreateNewsPayload): Promise<TeamOfTheWeek> => {
+    const res = await api.put<{ data: TeamOfTheWeek }>(`/admin/totw/${totwId}/article`, payload);
     return res.data.data;
 };
 

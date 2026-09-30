@@ -20,6 +20,7 @@ type ITOTWHandler interface {
 	DeleteTOTW(c *gin.Context)
 	PublishTOTW(c *gin.Context)
 	GetPlayerDayStats(c *gin.Context)
+	SaveTOTWArticle(c *gin.Context)
 }
 
 type TOTWHandler struct {
@@ -159,3 +160,20 @@ func (h *TOTWHandler) GetPlayerDayStats(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"data": stats})
 }
+
+func (h *TOTWHandler) SaveTOTWArticle(c *gin.Context) {
+	id := c.Param("id")
+	var req dto.CreateNewsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	updated, err := h.service.SaveTOTWArticle(c.Request.Context(), id, req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": updated})
+}
+
