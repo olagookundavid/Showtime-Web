@@ -8,7 +8,12 @@ import {
   type TeamOfTheWeek,
   type TOTWPlayer,
 } from "../../services/api";
-import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import {
+  ArrowPathIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from "@heroicons/react/24/outline";
+import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 import { formatStatNumber } from "../../utils/formatters";
 
 const isPlayerOfTheWeek = (totw: TeamOfTheWeek, player: TOTWPlayer): boolean =>
@@ -79,11 +84,14 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
   if (isLoading) {
     return (
       <div
-        className={`w-full rounded-3xl bg-sffl-navy/95 border border-white/10 p-12 text-center text-white ${className}`}
+        className={`w-full rounded-3xl bg-sffl-navy/95 border border-white/10 p-8 sm:p-12 text-center text-white ${className}`}
       >
-        <div className="inline-block animate-spin rounded-full h-10 w-10 border-4 border-sffl-red border-t-transparent mb-4"></div>
+        <ArrowPathIcon
+          className="w-10 h-10 mx-auto mb-4 text-sffl-red animate-spin"
+          aria-hidden="true"
+        />
         <p className="text-sm font-bold uppercase tracking-wider text-gray-300">
-          Loading Team of the Week...
+          Loading Team of the Week…
         </p>
       </div>
     );
@@ -121,7 +129,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
               className="w-10 h-10 md:w-12 md:h-12 object-contain shrink-0"
             />
             <div className="min-w-0">
-              <div className="text-[10px] md:text-xs font-black uppercase tracking-wider text-[#91A7C1]">
+              <div className="text-[10px] md:text-xs font-black uppercase tracking-wider text-[#91A7C1] wrap-break-word">
                 {totw.headline ||
                   `${totw.competition?.name || "Showtime League"} · ${totw.week_title}`}
               </div>
@@ -131,14 +139,14 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             {showArchiveLink && (
               <Link
                 to="/totw"
-                className="inline-flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-white/20 transition-all hover:scale-[1.02] shadow-sm shrink-0"
+                className="inline-flex items-center gap-1 min-h-11 bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-white/20 transition-all hover:scale-[1.02] shadow-sm shrink-0"
               >
                 <span>Browse Archive</span>
-                <ChevronRightIcon className="w-3.5 h-3.5" />
+                <ChevronRightIcon className="w-3.5 h-3.5" aria-hidden="true" />
               </Link>
             )}
             {archive.length > 1 && (
@@ -148,7 +156,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                   setSelectedTotwId(e.target.value);
                   onSelectEdition?.(e.target.value);
                 }}
-                className="bg-[#112D4E] text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-white/20 focus:outline-none focus:border-sffl-red"
+                className="flex-1 sm:flex-none min-w-0 w-full sm:w-auto sm:max-w-60 min-h-11 bg-[#112D4E] text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-white/20 focus:outline-none focus:border-sffl-red"
                 aria-label="Select Gameday"
               >
                 {archive.map((item) => (
@@ -159,15 +167,15 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                 ))}
               </select>
             )}
-            <span className="bg-sffl-red text-white text-[11px] md:text-xs font-black uppercase tracking-wider px-3 py-1.5 rounded-md shadow-sm">
+            <span className="shrink-0 bg-sffl-red text-white text-[11px] md:text-xs font-black uppercase tracking-wider px-3 py-1.5 rounded-md shadow-sm">
               {totw.week_title || "Week"}
             </span>
           </div>
         </header>
 
         {/* ── Section Subheader & Legend ───────────────────────────── */}
-        <div className="flex items-center justify-between px-4 py-3 md:px-6 md:py-3.5 bg-[#091D36]/80 border-b border-white/5 text-xs">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 md:px-6 md:py-3.5 bg-[#091D36]/80 border-b border-white/5 text-xs">
+          <div className="min-w-0">
             <div className="text-[9px] md:text-[10px] font-black uppercase tracking-wider text-[#91A7C1]">
               Starting XIV
             </div>
@@ -206,13 +214,13 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
             <div className="absolute bottom-[12%] left-[4%] right-[4%] h-px bg-white/25"></div>
 
             {/* Top Endzone */}
-            <div className="absolute top-0 left-0 right-0 h-[12%] flex items-center justify-center text-white/20 bg-[#0C2D28]/70 border-b border-white/20 font-black italic tracking-[0.25em] text-xl md:text-3xl pointer-events-none">
+            <div className="absolute top-0 left-0 right-0 h-[12%] flex items-center justify-center text-white/20 bg-[#0C2D28]/70 border-b border-white/20 font-black italic tracking-widest sm:tracking-[0.25em] text-sm sm:text-xl md:text-3xl pointer-events-none px-2">
               SHOWTIME
             </div>
 
             {/* Bottom Endzone */}
-            <div className="absolute bottom-0 left-0 right-0 h-[12%] flex items-center justify-center text-white/20 bg-[#0C2D28]/70 border-t border-white/20 font-black italic tracking-[0.25em] text-xl md:text-3xl pointer-events-none">
-              TEAM OF THE WEEK
+            <div className="absolute bottom-0 left-0 right-0 h-[12%] flex items-center justify-center text-white/20 bg-[#0C2D28]/70 border-t border-white/20 font-black italic tracking-widest sm:tracking-[0.25em] text-sm sm:text-xl md:text-3xl pointer-events-none px-2">
+              <span className="truncate">TEAM OF THE WEEK</span>
             </div>
 
             {/* Line of Scrimmage */}
@@ -258,7 +266,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                     left: posX,
                     top: p.coord_y || "50%",
                   }}
-                  className={`absolute -translate-x-1/2 -translate-y-1/2 z-30 w-16 md:w-24 p-1 rounded-xl text-center transition-all duration-200 focus:outline-none group cursor-pointer ${
+                  className={`absolute -translate-x-1/2 -translate-y-1/2 z-30 w-12 sm:w-16 md:w-24 p-1 rounded-xl text-center transition-all duration-200 focus:outline-none group cursor-pointer ${
                     isSelected
                       ? "scale-110 z-40"
                       : "hover:scale-105 opacity-90 hover:opacity-100"
@@ -269,14 +277,14 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                   {/* Floating POTW Star Badge */}
                   {isPOTW && (
                     <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-40 px-2 py-0.5 rounded-full bg-linear-to-r from-amber-400 via-yellow-300 to-amber-500 text-sffl-navy text-[8px] md:text-[9px] font-black uppercase tracking-wider shadow-lg border border-white flex items-center gap-0.5 whitespace-nowrap animate-pulse">
-                      <span>⭐</span>
+                      <StarSolidIcon className="w-2.5 h-2.5" aria-hidden="true" />
                       <span>POTW</span>
                     </div>
                   )}
 
                   {/* Avatar circle */}
                   <div
-                    className={`relative w-10 h-10 md:w-12 md:h-12 mx-auto rounded-full border-2 overflow-hidden shadow-lg transition-all duration-200 ${
+                    className={`relative w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 mx-auto rounded-full border-2 overflow-hidden shadow-lg transition-all duration-200 ${
                       isSelected
                         ? isPOTW
                           ? "border-yellow-200 ring-4 ring-amber-400 ring-offset-2 ring-offset-black/50 shadow-amber-400/60"
@@ -305,7 +313,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
 
                   {/* Position pill */}
                   <span
-                    className={`inline-block px-1.5 py-0.5 mt-1 rounded text-[8px] md:text-[9px] font-black uppercase leading-tight shadow-xs ${
+                    className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 mt-1 rounded text-[8px] md:text-[9px] font-black uppercase leading-tight shadow-xs ${
                       isPOTW
                         ? "bg-linear-to-r from-amber-300 to-yellow-400 text-sffl-navy border border-amber-500/40"
                         : isPlayerDef
@@ -313,9 +321,10 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                           : "bg-[#FFF8E9] text-[#102844]"
                     }`}
                   >
-                    {isPOTW
-                      ? `⭐ ${p.slot_code || p.position}`
-                      : p.slot_code || p.position}
+                    {isPOTW && (
+                      <StarSolidIcon className="w-2.5 h-2.5" aria-hidden="true" />
+                    )}
+                    {p.slot_code || p.position}
                   </span>
 
                   {/* Player Name */}
@@ -337,8 +346,8 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
 
         {/* ── Carousel Profile Card ─────────────────────────────────── */}
         <div className="bg-[#091D36] p-4 md:p-6 border-t border-white/10">
-          <div className="flex items-center justify-between mb-3 text-xs">
-            <div>
+          <div className="flex items-center justify-between gap-3 mb-3 text-xs">
+            <div className="min-w-0">
               <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider text-[#91A7C0]">
                 Player spotlight
               </span>
@@ -351,19 +360,20 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-[36px_1fr_36px] md:grid-cols-[48px_1fr_48px] items-center gap-2 md:gap-4">
+          {/* Phones: card full width with the arrows side by side below it. */}
+          <div className="grid grid-cols-2 sm:grid-cols-[48px_minmax(0,1fr)_48px] items-center gap-2 md:gap-4">
             {/* Prev Button */}
             <button
               type="button"
               onClick={handlePrev}
-              className="w-9 h-12 md:w-12 md:h-16 rounded-xl bg-[#112D4E] hover:bg-sffl-red text-white flex items-center justify-center border border-white/20 transition-all active:scale-95 shadow-md cursor-pointer"
+              className="w-full sm:w-12 h-11 sm:h-14 md:h-16 rounded-xl bg-[#112D4E] hover:bg-sffl-red text-white flex items-center justify-center border border-white/20 transition-all active:scale-95 shadow-md cursor-pointer"
               aria-label="Previous player"
             >
-              <ChevronLeftIcon className="w-5 h-5 md:w-6 md:h-6" />
+              <ChevronLeftIcon className="w-5 h-5 md:w-6 md:h-6" aria-hidden="true" />
             </button>
 
             {/* Active Player Card */}
-            <article className="overflow-hidden rounded-2xl bg-linear-to-br from-[#123156] to-[#0C2441] border border-white/15 shadow-xl grid grid-cols-1 sm:grid-cols-[130px_1fr] md:grid-cols-[170px_1fr] min-h-42.5">
+            <article className="col-span-2 sm:col-span-1 order-first sm:order-0 min-w-0 overflow-hidden rounded-2xl bg-linear-to-br from-[#123156] to-[#0C2441] border border-white/15 shadow-xl grid grid-cols-1 sm:grid-cols-[130px_minmax(0,1fr)] md:grid-cols-[170px_minmax(0,1fr)] min-h-42.5">
               {/* Visual Avatar column */}
               <div
                 className={`relative flex items-center justify-center p-4 ${
@@ -390,7 +400,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                 {/* Floating POTW Badge Stamp */}
                 {isActivePOTW && (
                   <div className="absolute top-2 right-2 md:top-3 md:right-3 px-2 py-0.5 rounded-full bg-linear-to-r from-amber-400 to-yellow-300 text-sffl-navy text-[9px] md:text-[10px] font-black uppercase tracking-wider shadow-md border border-white flex items-center gap-1">
-                    <span>⭐</span>
+                    <StarSolidIcon className="w-3 h-3" aria-hidden="true" />
                     <span>POTW</span>
                   </div>
                 )}
@@ -421,12 +431,12 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
               <div className="p-4 md:p-5 flex flex-col justify-center min-w-0">
                 {isActivePOTW && (
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-linear-to-r from-amber-500/25 via-yellow-400/20 to-amber-500/25 border border-amber-400/60 text-amber-300 font-black text-[10px] md:text-xs uppercase tracking-wider shadow-sm mb-2 w-fit animate-pulse">
-                    <span className="text-xs md:text-sm">⭐</span>
+                    <StarSolidIcon className="w-3.5 h-3.5 md:w-4 md:h-4" aria-hidden="true" />
                     <span>PLAYER OF THE WEEK</span>
                   </div>
                 )}
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <span
                     className={`px-2.5 py-0.5 rounded text-[10px] md:text-xs font-black uppercase tracking-wider ${
                       isActivePOTW
@@ -461,12 +471,12 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                   )}
                 </h3>
 
-                <div className="text-xs md:text-sm font-semibold text-gray-300">
+                <div className="text-xs md:text-sm font-semibold text-gray-300 wrap-break-word">
                   {activePlayer.player?.team?.name || "Showtime League"}
                 </div>
 
                 {/* 3 Key Stats */}
-                <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-white/10">
+                <div className="grid grid-cols-3 gap-1.5 sm:gap-2 mt-3 pt-3 border-t border-white/10">
                   <div className="bg-[#06182D]/70 p-2 md:p-2.5 rounded-lg border border-white/10 text-center">
                     <div className="text-sm md:text-lg font-black text-white leading-tight">
                       {activePlayer.stat1_value
@@ -505,33 +515,34 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
             <button
               type="button"
               onClick={handleNext}
-              className="w-9 h-12 md:w-12 md:h-16 rounded-xl bg-[#112D4E] hover:bg-sffl-red text-white flex items-center justify-center border border-white/20 transition-all active:scale-95 shadow-md cursor-pointer"
+              className="w-full sm:w-12 h-11 sm:h-14 md:h-16 rounded-xl bg-[#112D4E] hover:bg-sffl-red text-white flex items-center justify-center border border-white/20 transition-all active:scale-95 shadow-md cursor-pointer"
               aria-label="Next player"
             >
-              <ChevronRightIcon className="w-5 h-5 md:w-6 md:h-6" />
+              <ChevronRightIcon className="w-5 h-5 md:w-6 md:h-6" aria-hidden="true" />
             </button>
           </div>
 
-          {/* Pagination Dots */}
-          <div className="flex flex-wrap items-center justify-center gap-1.5 mt-4">
+          {/* Position dots: a progress indicator only. The pins on the pitch
+              and the arrows above are the controls, so these stay
+              non-interactive rather than becoming 6px tap targets. */}
+          <div
+            className="flex flex-wrap items-center justify-center gap-1.5 mt-4"
+            aria-hidden="true"
+          >
             {players.map((p, idx) => {
               const isPlayerPOTW = isPlayerOfTheWeek(totw, p);
               return (
-                <button
+                <span
                   key={p.id || idx}
-                  type="button"
-                  onClick={() => setSelectedIndex(idx)}
-                  className={`h-1.5 rounded-full transition-all duration-200 cursor-pointer ${
+                  className={`h-1.5 rounded-full transition-all duration-200 ${
                     idx === selectedIndex
                       ? isPlayerPOTW
                         ? "w-7 bg-amber-400 ring-1 ring-amber-300"
                         : "w-6 bg-[#F4CA67]"
                       : isPlayerPOTW
                         ? "w-3 bg-amber-400/80"
-                        : "w-2 bg-[#42607E] hover:bg-gray-400"
+                        : "w-2 bg-[#42607E]"
                   }`}
-                  aria-label={`Select ${p.player?.name || "player"}${isPlayerPOTW ? " (Player of the Week)" : ""}`}
-                  aria-pressed={idx === selectedIndex}
                 />
               );
             })}
