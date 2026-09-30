@@ -306,7 +306,6 @@ const SellerSales = lazy(() =>
 
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { Toaster } from "react-hot-toast";
-import { FloatingThemeToggle } from "./components/common/FloatingThemeToggle";
 import { AdSenseScript } from "./components/monetization";
 import { BrevoTracker } from "./components/analytics";
 import { Analytics } from "@vercel/analytics/react";
@@ -316,7 +315,6 @@ function App() {
   return (
     <FontProvider>
       <ThemeProvider>
-        <FloatingThemeToggle />
         <AuthProvider>
           <CartProvider>
             <Toaster position="top-right" toastOptions={{ duration: 4000 }} />

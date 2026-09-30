@@ -21,7 +21,7 @@ Actions that create, update or delete data or change a record's state (saves, de
 
 - `ConfirmDialog` (`src/components/ui/ConfirmDialog.tsx`) props: `open`, `title`, `description?`, `body?`, `confirmLabel`, `tone`, `icon` (a heroicon), `pending`, `maxWidth?` (`'md'` unless the body needs room), `onConfirm`, `onCancel`. Name the affected record with a `ConfirmSummary` (`src/components/ui/ConfirmSummary.tsx`) in `body`.
 - Tone: `success` for positive completions (check in, approve), `info` for neutral changes and saves, `warning` for destructive, irreversible or forced actions (delete, revoke, reset, force).
-- Logout: title "Log out?", `confirmLabel` "Log out", `tone="info"`, `icon={ArrowRightOnRectangleIcon}`.
+- Logout: title "Log out?", `confirmLabel` "Log out", `tone="info"`, `icon={ArrowRightOnRectangleIcon}`. Exception (owner's call): the public `Navbar` account dropdown logs out immediately.
 - Never use `confirm()`, `window.confirm()` or `alert()`. Report results with `toast` from `react-hot-toast` (mounted in `App.tsx`).
 - Pattern (`src/pages/admin/AdminTickets.tsx`):
   1. The button stores the pending action (`setPendingAction({ kind, item })`) instead of calling the handler.

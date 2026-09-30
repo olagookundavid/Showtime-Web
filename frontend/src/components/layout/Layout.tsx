@@ -11,11 +11,13 @@ import {
 } from "./LatestMatchesCarousel";
 import { useHideOnScrollDown } from "../../hooks/useHideOnScrollDown";
 import { NewsletterPopup } from "../newsletter/NewsletterPopup";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 import {
   XMarkIcon,
   InformationCircleIcon,
   ShoppingBagIcon,
   NewspaperIcon,
+  StarIcon,
   QuestionMarkCircleIcon,
   ChevronRightIcon,
   ChevronLeftIcon,
@@ -43,6 +45,7 @@ import {
 export const Layout = () => {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [activeSubMenu, setActiveSubMenu] = useState<"main" | "about">("main");
+  const [confirmLogout, setConfirmLogout] = useState(false);
   const { isAuthenticated, user, logout } = useAuth();
   const { count: cartCount } = useCart();
   const location = useLocation();
@@ -196,11 +199,12 @@ export const Layout = () => {
                   </h2>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setIsMoreMenuOpen(false)}
-                  className="p-2 -mr-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full transition-colors"
+                  className="min-h-11 min-w-11 -mr-2 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full transition-colors"
                   aria-label="Close menu"
                 >
-                  <XMarkIcon className="w-6 h-6" />
+                  <XMarkIcon className="w-6 h-6" aria-hidden="true" />
                 </button>
               </div>
 
@@ -634,6 +638,24 @@ export const Layout = () => {
                       </p>
                     </div>
                   </Link>
+
+                  <Link
+                    to="/totw"
+                    onClick={() => setIsMoreMenuOpen(false)}
+                    className="col-span-2 flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-all shadow-xs hover:border-sffl-red/40"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-sffl-navy/10 dark:bg-sffl-navy/40 text-sffl-navy dark:text-white flex items-center justify-center shrink-0">
+                      <StarIcon className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="font-black text-xs text-sffl-navy dark:text-white uppercase tracking-tight truncate block">
+                        Team of the Week
+                      </span>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                        Best Performers
+                      </p>
+                    </div>
+                  </Link>
                 </div>
               </div>
 
@@ -664,11 +686,9 @@ export const Layout = () => {
               {isAuthenticated && (
                 <div className="mb-4">
                   <button
-                    onClick={() => {
-                      logout();
-                      setIsMoreMenuOpen(false);
-                    }}
-                    className="w-full flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/60 font-black py-3 rounded-xl active:scale-[0.98] transition-all text-xs uppercase tracking-wider"
+                    type="button"
+                    onClick={() => setConfirmLogout(true)}
+                    className="w-full min-h-11 flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/60 font-black py-3 rounded-xl active:scale-[0.98] transition-all text-xs uppercase tracking-wider"
                   >
                     <ArrowRightOnRectangleIcon className="w-4 h-4" />
                     <span>Sign Out</span>
@@ -686,10 +706,11 @@ export const Layout = () => {
               {/* Back Header */}
               <div className="flex items-center gap-3 mb-5 shrink-0">
                 <button
+                  type="button"
                   onClick={() => setActiveSubMenu("main")}
-                  className="flex items-center gap-1.5 p-2 -ml-2 text-sffl-red hover:bg-sffl-red/10 rounded-xl font-black text-xs uppercase tracking-wider transition-all"
+                  className="min-h-11 flex items-center gap-1.5 p-2 -ml-2 text-sffl-red hover:bg-sffl-red/10 rounded-xl font-black text-xs uppercase tracking-wider transition-all"
                 >
-                  <ChevronLeftIcon className="w-5 h-5" />
+                  <ChevronLeftIcon className="w-5 h-5" aria-hidden="true" />
                   <span>Back</span>
                 </button>
                 <div className="h-4 w-px bg-gray-200 dark:bg-gray-700" />
@@ -859,6 +880,21 @@ export const Layout = () => {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmLogout}
+        title="Log out?"
+        description="You'll need to sign in again to buy tickets, manage your fantasy team or see your orders."
+        confirmLabel="Log out"
+        tone="info"
+        icon={ArrowRightOnRectangleIcon}
+        onConfirm={() => {
+          setConfirmLogout(false);
+          setIsMoreMenuOpen(false);
+          logout();
+        }}
+        onCancel={() => setConfirmLogout(false)}
+      />
     </div>
   );
 };
