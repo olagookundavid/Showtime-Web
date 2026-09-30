@@ -25,7 +25,6 @@ import {
 } from "@heroicons/react/24/outline";
 import { StarIcon } from "@heroicons/react/24/solid";
 import toast from "react-hot-toast";
-import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 
 export const TeamOfTheWeekPage: React.FC = () => {
   const { id: routeTotwId } = useParams<{ id?: string }>();
