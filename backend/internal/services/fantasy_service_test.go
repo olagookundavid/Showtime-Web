@@ -1054,6 +1054,7 @@ func TestLineupRollover(t *testing.T) {
 			prior.Picks = append(prior.Picks, domain.FantasyLineupPick{
 				PlayerID: c.PlayerID, Slot: c.Slot, PurchasePrice: c.Price,
 			})
+			repo.candidates[c.PlayerID] = c
 		}
 		repo.priorLocked["team-forgot"] = prior
 		repo.lineups[lineupKey("team-forgot", "gw-1")] = prior
@@ -1750,6 +1751,82 @@ func TestGetPlayerBreakdown_NoStatsReturnsSummary(t *testing.T) {
 	}
 	if resp.IsNearestWeek {
 		t.Errorf("expected IsNearestWeek to be false")
+	}
+}
+
+func TestGetMyLineup_FiltersSoldPlayersFromRollover(t *testing.T) {
+	repo := newFakeRepo()
+	repo.season = testSeason()
+
+	gw1 := testGameweek()
+	gw1.ID = "gw-1"
+	gw1.Number = 1
+	gw1.Status = domain.GameweekFinalized
+
+	gw2 := testGameweek()
+	gw2.ID = "gw-2"
+	gw2.Number = 2
+	gw2.Status = domain.GameweekScheduled
+
+	repo.gameweeks["gw-1"] = gw1
+	repo.gameweeks["gw-2"] = gw2
+
+	team := &domain.FantasyTeam{ID: "team-1", UserID: "user-1", SeasonID: "season-1", Name: "My Team"}
+	repo.enteredTeam = team
+
+	// Prior locked lineup had 2 players
+	prior := &domain.FantasyLineup{
+		ID: "lineup-1", TeamID: "team-1", GameweekID: "gw-1",
+		Status: domain.LineupLocked, TotalSpent: 25,
+		Picks: []domain.FantasyLineupPick{
+			{PlayerID: "player-kept", Slot: domain.SlotQBMale, PurchasePrice: 15},
+			{PlayerID: "player-sold", Slot: domain.SlotRec1, PurchasePrice: 10},
+		},
+	}
+	repo.priorLocked["team-1"] = prior
+
+	// Squad repo only owns player-kept (player-sold was sold)
+	squadRepo := &fakeSquadRepo{
+		owned: []domain.LineupCandidate{
+			{PlayerID: "player-kept", Name: "Kept Player", Price: 15, Position: "QB", Gender: "M", TeamID: "club-1"},
+		},
+	}
+
+	svc := NewFantasyService(repo, &fakeLeagueRepo{}, nil, nil, squadRepo)
+
+	res, err := svc.GetMyLineup(context.Background(), "user-1", "season-1", "gw-2")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res == nil {
+		t.Fatal("expected non-nil lineup response")
+	}
+
+	if !res.IsRollover {
+		t.Errorf("expected IsRollover to be true")
+	}
+
+	if len(res.Picks) != 1 {
+		t.Fatalf("expected 1 pick remaining after filtering sold player, got %d", len(res.Picks))
+	}
+
+	if res.Picks[0].PlayerID != "player-kept" {
+		t.Errorf("expected pick to be player-kept, got %s", res.Picks[0].PlayerID)
+	}
+
+	if res.TotalSpent != 15 {
+		t.Errorf("expected TotalSpent to be 15, got %f", res.TotalSpent)
+	}
+
+	// A rollover missing a sold player never actually gets cloned at lock time
+	// (lockAndRollOver requires every prior pick to still be owned), so this
+	// preview must say plainly that the gameweek will score zero rather than
+	// the generic "N of 14 slots filled" a manager might read as harmless.
+	if res.Complete {
+		t.Errorf("expected Complete to be false for a rollover missing a sold player")
+	}
+	if !strings.Contains(res.BlockingReason, "score zero") {
+		t.Errorf("expected BlockingReason to warn the gameweek will score zero, got %q", res.BlockingReason)
 	}
 }
 

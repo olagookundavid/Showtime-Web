@@ -68,10 +68,14 @@ type SquadPlayer struct {
 	// form, so it is not the price that was paid.
 	CurrentPrice float64 `json:"current_price"`
 
-	Name     string `json:"name"`
-	Position string `json:"position"`
-	Gender   string `json:"gender"`
-	ClubID   string `json:"club_id"`
+	Name          string `json:"name"`
+	Image         string `json:"image"`
+	Position      string `json:"position"`
+	Gender        string `json:"gender"`
+	ClubID        string `json:"club_id"`
+	ClubName      string `json:"club_name"`
+	ClubShortName string `json:"club_short_name"`
+	ClubLogo      string `json:"club_logo"`
 
 	// PlayerStatus is "active" or "inactive". A squad can be holding someone who
 	// was deleted after being signed: the row survives (migration 088), so the

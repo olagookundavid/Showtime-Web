@@ -58,8 +58,8 @@ func (r *FantasySquadRepository) ListSquad(ctx context.Context, teamID, gameweek
 		           ORDER BY (pp.gameweek_id IS NULL), pp.created_at DESC
 		           LIMIT 1
 		       ), sp.purchase_price) AS current_price,
-		       p.name, COALESCE(p.position, '-'), COALESCE(p.gender, ''),
-		       COALESCE(p.team_id::text, ''),
+		       p.name, COALESCE(p.image, ''), COALESCE(p.position, '-'), COALESCE(p.gender, ''),
+		       COALESCE(p.team_id::text, ''), COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
 		       EXISTS (
 		           SELECT 1 FROM fantasy_lineup_picks flp
 		           JOIN fantasy_lineups fl ON fl.id = flp.lineup_id
@@ -85,8 +85,8 @@ func (r *FantasySquadRepository) ListSquad(ctx context.Context, teamID, gameweek
 	for rows.Next() {
 		var s domain.SquadPlayer
 		if err := rows.Scan(&s.ID, &s.TeamID, &s.PlayerID, &s.PurchasePrice, &s.CurrentPrice,
-			&s.Name, &s.Position, &s.Gender, &s.ClubID, &s.Starting, &s.TeamActive,
-			&s.PlayerStatus); err != nil {
+			&s.Name, &s.Image, &s.Position, &s.Gender, &s.ClubID, &s.ClubName, &s.ClubShortName, &s.ClubLogo,
+			&s.Starting, &s.TeamActive, &s.PlayerStatus); err != nil {
 			return nil, fmt.Errorf("failed to scan squad player: %w", err)
 		}
 		squad = append(squad, s)

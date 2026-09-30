@@ -771,6 +771,30 @@ func (s *FantasyService) lockAndRollOver(ctx context.Context, gw domain.FantasyG
 		if prior == nil || len(prior.Picks) != len(domain.AllValidSlots) {
 			continue
 		}
+
+		if s.squadRepo != nil {
+			ownedSquad, err := s.squadRepo.ListSquad(ctx, tm.ID, "")
+			if err != nil {
+				failures = append(failures, fmt.Errorf("team %s list squad: %w", tm.ID, err))
+				continue
+			}
+			ownedMap := make(map[string]bool, len(ownedSquad))
+			for _, sp := range ownedSquad {
+				ownedMap[sp.PlayerID] = true
+			}
+			hasUnowned := false
+			for _, p := range prior.Picks {
+				if !ownedMap[p.PlayerID] {
+					hasUnowned = true
+					break
+				}
+			}
+			if hasUnowned {
+				// Team sold a player since the prior lineup and did not submit a new legal lineup; cannot clone unowned players
+				continue
+			}
+		}
+
 		if err := s.repo.CloneLineupToGameweek(ctx, prior, gw.ID); err != nil {
 			failures = append(failures, fmt.Errorf("team %s rollover: %w", tm.ID, err))
 		}
@@ -1136,27 +1160,51 @@ func (s *FantasyService) GetMyLineup(ctx context.Context, userID, seasonID, game
 		budget = season.Budget
 	}
 
+	gw, err := s.repo.GetGameweekByID(ctx, gameweekID)
+	if err != nil {
+		return nil, err
+	}
+
 	// With no lineup of its own for this gameweek, the team's previous locked
 	// squad is what will actually roll over and score — so show that, flagged.
 	isRollover := false
-	if lineup == nil {
-		gw, err := s.repo.GetGameweekByID(ctx, gameweekID)
+	if lineup == nil && gw != nil {
+		prior, err := s.repo.GetLatestPriorLockedLineup(ctx, team.ID, gw.Number)
 		if err != nil {
 			return nil, err
 		}
-		if gw != nil {
-			prior, err := s.repo.GetLatestPriorLockedLineup(ctx, team.ID, gw.Number)
-			if err != nil {
-				return nil, err
-			}
-			if prior != nil {
-				lineup = prior
-				isRollover = true
-			}
+		if prior != nil {
+			lineup = prior
+			isRollover = true
 		}
 	}
 	if lineup == nil {
 		return nil, nil
+	}
+
+	// For non-finalized gameweeks or rollovers, filter out any players that the manager has sold
+	// (or are no longer owned in fantasy_squad_players) so they never appear on the bill or pitch.
+	picksBeforeOwnershipFilter := len(lineup.Picks)
+	if s.squadRepo != nil && gw != nil && gw.Status != domain.GameweekFinalized {
+		ownedSquad, err := s.squadRepo.ListSquad(ctx, team.ID, "")
+		if err != nil {
+			log.Printf("[ERROR] GetMyLineup: list squad for team %s to filter sold players: %v", team.ID, err)
+		} else {
+			ownedMap := make(map[string]bool, len(ownedSquad))
+			for _, sp := range ownedSquad {
+				ownedMap[sp.PlayerID] = true
+			}
+			filteredPicks := make([]domain.FantasyLineupPick, 0, len(lineup.Picks))
+			var recomputedSpent float64
+			for _, p := range lineup.Picks {
+				if ownedMap[p.PlayerID] {
+					filteredPicks = append(filteredPicks, p)
+					recomputedSpent += p.PurchasePrice
+				}
+			}
+			lineup.Picks = filteredPicks
+			lineup.TotalSpent = recomputedSpent
+		}
 	}
 
 	picks := make([]dto.FantasyLineupPickResponse, 0, len(lineup.Picks))
@@ -1193,7 +1241,20 @@ func (s *FantasyService) GetMyLineup(ctx context.Context, userID, seasonID, game
 	complete := len(lineup.Picks) == len(domain.AllValidSlots)
 	blocking := ""
 	if !complete {
-		blocking = fmt.Sprintf("%d of %d slots filled", len(lineup.Picks), len(domain.AllValidSlots))
+		if isRollover && picksBeforeOwnershipFilter != len(lineup.Picks) {
+			// lockAndRollOver requires all 14 prior picks to still be owned before
+			// it will clone a rollover lineup at all (see that function) — a squad
+			// missing even one sold player never gets cloned and scores zero. This
+			// preview must say so plainly, not just "13 of 14 slots filled", or the
+			// manager has no reason to think their "rolled over" squad won't score.
+			sold := picksBeforeOwnershipFilter - len(lineup.Picks)
+			blocking = fmt.Sprintf(
+				"Your rolled-over squad is missing %d sold player(s) — submit a complete 14-player lineup before the deadline or this gameweek will score zero",
+				sold,
+			)
+		} else {
+			blocking = fmt.Sprintf("%d of %d slots filled", len(lineup.Picks), len(domain.AllValidSlots))
+		}
 	}
 
 	return &dto.FantasyLineupResponse{
@@ -1265,6 +1326,28 @@ func (s *FantasyService) GetTeamLineup(ctx context.Context, requestingUserID, te
 
 	if lineup == nil {
 		return resp, nil
+	}
+
+	if s.squadRepo != nil && gw.Status != domain.GameweekFinalized {
+		ownedSquad, err := s.squadRepo.ListSquad(ctx, team.ID, "")
+		if err != nil {
+			log.Printf("[ERROR] GetTeamLineup: list squad for team %s to filter sold players: %v", team.ID, err)
+		} else {
+			ownedMap := make(map[string]bool, len(ownedSquad))
+			for _, sp := range ownedSquad {
+				ownedMap[sp.PlayerID] = true
+			}
+			filteredPicks := make([]domain.FantasyLineupPick, 0, len(lineup.Picks))
+			var recomputedSpent float64
+			for _, p := range lineup.Picks {
+				if ownedMap[p.PlayerID] {
+					filteredPicks = append(filteredPicks, p)
+					recomputedSpent += p.PurchasePrice
+				}
+			}
+			lineup.Picks = filteredPicks
+			lineup.TotalSpent = recomputedSpent
+		}
 	}
 
 	resp.Points = lineup.Points

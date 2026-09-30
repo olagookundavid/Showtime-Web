@@ -3691,9 +3691,13 @@ export interface SquadPlayer {
     id: string;
     player_id: string;
     name: string;
+    image?: string;
     position: string;
     gender: string;
     club_id: string;
+    club_name?: string;
+    club_short_name?: string;
+    club_logo?: string;
     purchase_price: number;
     current_price: number;
     /** In this gameweek's starting fourteen. Subs score nothing until brought in. */

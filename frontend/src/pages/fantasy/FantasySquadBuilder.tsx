@@ -29,6 +29,7 @@ import {
   type FantasyPlayerListItem,
   type Squad,
   type SquadPlayer,
+  type FantasySeason,
   formatFantasyPrice,
 } from "../../services/api";
 import { formatStatNumber } from "../../utils/formatters";
@@ -38,6 +39,11 @@ import { Loader } from "../../components/ui/Loader";
 const getDefaultTeamName = (userName?: string | null): string => {
   const clean = (userName || "").trim();
   return clean ? `${clean} Team` : "Showtime Team";
+};
+
+const getDraftKey = (seasonId?: string, gwId?: string, userId?: string) => {
+  if (!seasonId || !gwId) return null;
+  return `showtime_fantasy_draft_${seasonId}_${gwId}_${userId || "anon"}`;
 };
 import { PlayerAvatar } from "../../components/fantasy/PlayerAvatar";
 import { FantasyBackLink } from "../../components/fantasy/FantasyBackLink";
@@ -248,136 +254,6 @@ export function FantasySquadBuilder() {
     enabled: !!season?.id && !!scheduledGW?.id,
   });
 
-  // Local squad state: slot -> FantasyPlayerListItem
-  const [squad, setSquad] =
-    useState<Record<FantasySlot, FantasyPlayerListItem | null>>(emptySquad);
-
-  const [teamName, setTeamName] = useState(() =>
-    getDefaultTeamName(user?.name),
-  );
-  const [showEditNameModal, setShowEditNameModal] = useState(false);
-  const [editModalNameInput, setEditModalNameInput] = useState("");
-  const [joinTeamNameInput, setJoinTeamNameInput] = useState("");
-  const [selectedUnitTab, setSelectedUnitTab] = useState<
-    "ALL" | "OFFENSE" | "DEFENSE"
-  >("ALL");
-  const [activeModalSlot, setActiveModalSlot] = useState<SlotDefinition | null>(
-    null,
-  );
-  const [marketSearch, setMarketSearch] = useState("");
-  // Opens on price, not ownership. Ownership only separates players once
-  // squads exist — before that every player ties on 0 owned and the list
-  // falls through to alphabetical, which buries the players worth picking.
-  const [marketSort, setMarketSort] = useState<
-    "selected" | "price_asc" | "price_desc" | "rating" | "points"
-  >("price_desc");
-  // Team filter, shared by the slot and bench pickers — only one is ever open
-  // at a time. A slot's position/gender are fixed by the slot itself; team is
-  // the one axis a manager still wants to narrow by.
-  const [marketTeamFilter, setMarketTeamFilter] = useState("");
-  // Role filter for the bench picker only — a slot already fixes position.
-  const [benchPositionFilter, setBenchPositionFilter] = useState("");
-  // Player action popover: which slot's player is showing actions
-  const [actionSlot, setActionSlot] = useState<FantasySlot | null>(null);
-  // Sell confirmation dialog
-  const [confirmSell, setConfirmSell] = useState<SquadPlayer | null>(null);
-  // When selling from the starting 14: open market after sell completes
-  const [pendingTransferOutSlot, setPendingTransferOutSlot] =
-    useState<SlotDefinition | null>(null);
-  // Market browser for bench signing
-  const [showBenchMarket, setShowBenchMarket] = useState(false);
-
-  const hydratedGameweekIdRef = useRef<string | null>(null);
-
-  // Pre-populate from the saved lineup, once per gameweek.
-  useEffect(() => {
-    const gameweekId = scheduledGW?.id;
-    if (!gameweekId || lineupLoading) return;
-    if (hydratedGameweekIdRef.current === gameweekId) return;
-
-    const isGameweekSwitch = hydratedGameweekIdRef.current !== null;
-    hydratedGameweekIdRef.current = gameweekId;
-
-    if (!currentLineup) {
-      if (isGameweekSwitch) {
-        setTeamName(
-          dashboard?.team?.name && dashboard.team.name !== "My Showtime Stars"
-            ? dashboard.team.name
-            : getDefaultTeamName(user?.name),
-        );
-        setSquad(emptySquad());
-      }
-      return;
-    }
-
-    const resolvedName =
-      currentLineup.team_name && currentLineup.team_name !== "My Showtime Stars"
-        ? currentLineup.team_name
-        : dashboard?.team?.name && dashboard.team.name !== "My Showtime Stars"
-          ? dashboard.team.name
-          : getDefaultTeamName(user?.name);
-    setTeamName(resolvedName);
-    setSquad((prev) => {
-      const next = isGameweekSwitch ? emptySquad() : { ...prev };
-      currentLineup.picks.forEach((p) => {
-        next[p.slot] = {
-          player_id: p.player_id,
-          player_name: p.player_name || "Unknown Player",
-          player_image: p.player_image || "",
-          position: p.position || "",
-          gender: p.gender || "M",
-          team_id: p.team_id || "",
-          team_name: p.team_name || "",
-          team_short_name: p.team_short_name || "",
-          team_logo: p.team_logo || "",
-          price: p.purchase_price || 0,
-          rating: 5,
-          total_points: p.points || 0,
-          // A lineup pick carries no market context — these are the
-          // market's fields, and this player was resolved from a
-          // saved team sheet rather than the listing.
-          owned_by: 0,
-          selected_by_pct: 0,
-          transfers_in: 0,
-          transfers_out: 0,
-        };
-      });
-      return next;
-    });
-  }, [
-    currentLineup,
-    scheduledGW?.id,
-    lineupLoading,
-    dashboard?.team?.name,
-    user?.name,
-  ]);
-
-  // Keep team name in sync with dashboard or user profile if unset/default
-  useEffect(() => {
-    if (dashboard?.team?.name && dashboard.team.name !== "My Showtime Stars") {
-      setTeamName(dashboard.team.name);
-    } else if (
-      user?.name &&
-      (!teamName ||
-        teamName === "Showtime Team" ||
-        teamName === "My Showtime Stars")
-    ) {
-      setTeamName(getDefaultTeamName(user.name));
-    }
-  }, [dashboard?.team?.name, user?.name]);
-
-  // If an entered manager still has legacy "My Showtime Stars", prompt them to name their team
-  useEffect(() => {
-    if (
-      hasJoined &&
-      (dashboard?.team?.name === "My Showtime Stars" ||
-        currentLineup?.team_name === "My Showtime Stars")
-    ) {
-      setEditModalNameInput(getDefaultTeamName(user?.name));
-      setShowEditNameModal(true);
-    }
-  }, [hasJoined, dashboard?.team?.name, currentLineup?.team_name, user?.name]);
-
   // The manager's owned squad. A lineup can only name players they own, so
   // this is the primary source for the picker — the market below it is for
   // filling gaps when the nineteen isn't complete.
@@ -425,6 +301,255 @@ export function FantasySquadBuilder() {
     return Array.from(positions).sort();
   }, [allMarketPlayers]);
 
+  // Player metadata cache ensuring photos and team info are never dropped across transfers/bench
+  const playerMetadataLookup = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        image: string;
+        team_name: string;
+        team_short_name: string;
+        team_logo: string;
+      }
+    >();
+    for (const p of allMarketPlayers?.data ?? []) {
+      if (p.player_id) {
+        map.set(p.player_id, {
+          image: p.player_image || "",
+          team_name: p.team_name || "",
+          team_short_name: p.team_short_name || "",
+          team_logo: p.team_logo || "",
+        });
+      }
+    }
+    for (const p of mySquad?.players ?? []) {
+      if (p.player_id) {
+        const existing = map.get(p.player_id);
+        map.set(p.player_id, {
+          image: p.image || existing?.image || "",
+          team_name: p.club_name || existing?.team_name || "",
+          team_short_name: p.club_short_name || existing?.team_short_name || "",
+          team_logo: p.club_logo || existing?.team_logo || "",
+        });
+      }
+    }
+    for (const p of currentLineup?.picks ?? []) {
+      if (p.player_id) {
+        const existing = map.get(p.player_id);
+        map.set(p.player_id, {
+          image: p.player_image || existing?.image || "",
+          team_name: p.team_name || existing?.team_name || "",
+          team_short_name: p.team_short_name || existing?.team_short_name || "",
+          team_logo: p.team_logo || existing?.team_logo || "",
+        });
+      }
+    }
+    return map;
+  }, [allMarketPlayers, mySquad, currentLineup]);
+
+  // Local squad state: slot -> FantasyPlayerListItem
+  const [squad, setSquad] =
+    useState<Record<FantasySlot, FantasyPlayerListItem | null>>(emptySquad);
+
+  const [teamName, setTeamName] = useState(() =>
+    getDefaultTeamName(user?.name),
+  );
+  const [showEditNameModal, setShowEditNameModal] = useState(false);
+  const [editModalNameInput, setEditModalNameInput] = useState("");
+  const [joinTeamNameInput, setJoinTeamNameInput] = useState("");
+  const [selectedUnitTab, setSelectedUnitTab] = useState<
+    "ALL" | "OFFENSE" | "DEFENSE"
+  >("ALL");
+  const [activeModalSlot, setActiveModalSlot] = useState<SlotDefinition | null>(
+    null,
+  );
+  const [marketSearch, setMarketSearch] = useState("");
+  // Opens on price, not ownership. Ownership only separates players once
+  // squads exist — before that every player ties on 0 owned and the list
+  // falls through to alphabetical, which buries the players worth picking.
+  const [marketSort, setMarketSort] = useState<
+    "selected" | "price_asc" | "price_desc" | "rating" | "points"
+  >("price_desc");
+  // Team filter, shared by the slot and bench pickers — only one is ever open
+  // at a time. A slot's position/gender are fixed by the slot itself; team is
+  // the one axis a manager still wants to narrow by.
+  const [marketTeamFilter, setMarketTeamFilter] = useState("");
+  // Role filter for the bench picker only — a slot already fixes position.
+  const [benchPositionFilter, setBenchPositionFilter] = useState("");
+  // Player action popover: which slot's player is showing actions
+  const [actionSlot, setActionSlot] = useState<FantasySlot | null>(null);
+  // Sell confirmation dialog
+  const [confirmSell, setConfirmSell] = useState<SquadPlayer | null>(null);
+  // When selling from the starting 14: open market after sell completes
+  const [pendingTransferOutSlot, setPendingTransferOutSlot] =
+    useState<SlotDefinition | null>(null);
+  // Market browser for bench signing
+  const [showBenchMarket, setShowBenchMarket] = useState(false);
+  // Rule violation modal dialog
+  const [violationModal, setViolationModal] = useState<{
+    title: string;
+    message: string;
+  } | null>(null);
+
+  const hydratedGameweekIdRef = useRef<string | null>(null);
+
+  // Pre-populate from the local working draft or saved lineup, once per gameweek.
+  useEffect(() => {
+    const gameweekId = scheduledGW?.id;
+    if (!gameweekId || lineupLoading) return;
+    if (hydratedGameweekIdRef.current === gameweekId) return;
+
+    const isGameweekSwitch = hydratedGameweekIdRef.current !== null;
+    hydratedGameweekIdRef.current = gameweekId;
+
+    const draftKey = getDraftKey(season?.id, gameweekId, user?.id);
+    let restoredFromDraft = false;
+
+    if (draftKey && !isGameweekSwitch) {
+      try {
+        const raw = localStorage.getItem(draftKey);
+        if (raw) {
+          const draft = JSON.parse(raw);
+          if (draft && draft.squad) {
+            const ownedSet = new Set((mySquad?.players ?? []).map((p) => p.player_id));
+            const nextSquad = emptySquad();
+            let count = 0;
+            for (const def of SLOT_DEFINITIONS) {
+              const p = draft.squad[def.slot];
+              // Player must be owned (if mySquad is loaded)
+              if (p && (!mySquad || ownedSet.has(p.player_id))) {
+                const meta = playerMetadataLookup.get(p.player_id);
+                nextSquad[def.slot] = {
+                  ...p,
+                  player_image: p.player_image || meta?.image || "",
+                  team_name: p.team_name || meta?.team_name || "",
+                  team_short_name: p.team_short_name || meta?.team_short_name || "",
+                  team_logo: p.team_logo || meta?.team_logo || "",
+                };
+                count++;
+              }
+            }
+            if (count > 0) {
+              setSquad(nextSquad);
+              if (draft.teamName) setTeamName(draft.teamName);
+              restoredFromDraft = true;
+              persistSquad(nextSquad);
+            }
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    if (!restoredFromDraft) {
+      if (!currentLineup) {
+        if (isGameweekSwitch) {
+          setTeamName(
+            dashboard?.team?.name && dashboard.team.name !== "My Showtime Stars"
+              ? dashboard.team.name
+              : getDefaultTeamName(user?.name),
+          );
+          setSquad(emptySquad());
+        }
+        return;
+      }
+
+      const resolvedName =
+        currentLineup.team_name && currentLineup.team_name !== "My Showtime Stars"
+          ? currentLineup.team_name
+          : dashboard?.team?.name && dashboard.team.name !== "My Showtime Stars"
+            ? dashboard.team.name
+            : getDefaultTeamName(user?.name);
+      setTeamName(resolvedName);
+      setSquad((prev) => {
+        const next = isGameweekSwitch ? emptySquad() : { ...prev };
+        const ownedSet = new Set((mySquad?.players ?? []).map((p) => p.player_id));
+        currentLineup.picks.forEach((p) => {
+          if (mySquad && !ownedSet.has(p.player_id)) return;
+          const meta = playerMetadataLookup.get(p.player_id);
+          next[p.slot] = {
+            player_id: p.player_id,
+            player_name: p.player_name || "Unknown Player",
+            player_image: p.player_image || meta?.image || "",
+            position: p.position || "",
+            gender: p.gender || "M",
+            team_id: p.team_id || "",
+            team_name: p.team_name || meta?.team_name || "",
+            team_short_name: p.team_short_name || meta?.team_short_name || "",
+            team_logo: p.team_logo || meta?.team_logo || "",
+            price: p.purchase_price || 0,
+            rating: 5,
+            total_points: p.points || 0,
+            owned_by: 0,
+            selected_by_pct: 0,
+            transfers_in: 0,
+            transfers_out: 0,
+          };
+        });
+        return next;
+      });
+    }
+  }, [
+    currentLineup,
+    scheduledGW?.id,
+    lineupLoading,
+    dashboard?.team?.name,
+    user?.name,
+    season?.id,
+    user?.id,
+    mySquad,
+    playerMetadataLookup,
+  ]);
+
+  // Cleanup: immediately evict any player from the active starting berth who was
+  // sold or is no longer owned. Computed from the current `squad` and saved
+  // outside setSquad on purpose — React invokes a functional updater twice
+  // under StrictMode, which would fire two saves for the same eviction (see
+  // commitSquad).
+  useEffect(() => {
+    if (!mySquad?.players) return;
+    const ownedSet = new Set(mySquad.players.map((p) => p.player_id));
+    let changed = false;
+    const next = { ...squad };
+    for (const def of SLOT_DEFINITIONS) {
+      if (next[def.slot] && !ownedSet.has(next[def.slot]!.player_id)) {
+        next[def.slot] = null;
+        changed = true;
+      }
+    }
+    if (changed) {
+      setSquad(next);
+      persistSquad(next);
+    }
+  }, [mySquad, squad]);
+
+  // Keep team name in sync with dashboard or user profile if unset/default
+  useEffect(() => {
+    if (dashboard?.team?.name && dashboard.team.name !== "My Showtime Stars") {
+      setTeamName(dashboard.team.name);
+    } else if (
+      user?.name &&
+      (!teamName ||
+        teamName === "Showtime Team" ||
+        teamName === "My Showtime Stars")
+    ) {
+      setTeamName(getDefaultTeamName(user.name));
+    }
+  }, [dashboard?.team?.name, user?.name]);
+
+  // If an entered manager still has legacy "My Showtime Stars", prompt them to name their team
+  useEffect(() => {
+    if (
+      hasJoined &&
+      (dashboard?.team?.name === "My Showtime Stars" ||
+        currentLineup?.team_name === "My Showtime Stars")
+    ) {
+      setEditModalNameInput(getDefaultTeamName(user?.name));
+      setShowEditNameModal(true);
+    }
+  }, [hasJoined, dashboard?.team?.name, currentLineup?.team_name, user?.name]);
+
   // Buying from inside the picker, for a squad that has no one for this slot.
   const buyMutation = useMutation({
     mutationFn: (playerId: string) =>
@@ -451,10 +576,57 @@ export function FantasySquadBuilder() {
   const sellMutation = useMutation({
     mutationFn: (playerId: string) =>
       fantasySquadApi.sellPlayer(season!.id, playerId),
-    onSuccess: (next) => {
+    onSuccess: (next, soldPlayerId) => {
       refreshSquad(next);
       setConfirmSell(null);
       toast.success("Sold — the money is back in your bank.");
+
+      // Evict sold player from starting squad state immediately. Computed from
+      // the current `squad` and saved outside setSquad on purpose — React
+      // invokes a functional updater twice under StrictMode, which would fire
+      // two saves for the same eviction (see commitSquad).
+      {
+        let changed = false;
+        const updated = { ...squad };
+        for (const def of SLOT_DEFINITIONS) {
+          if (updated[def.slot]?.player_id === soldPlayerId) {
+            updated[def.slot] = null;
+            changed = true;
+          }
+        }
+        if (changed) {
+          setSquad(updated);
+          persistSquad(updated);
+        }
+      }
+
+      // Clear from local draft storage as well
+      const draftKey = getDraftKey(season?.id, scheduledGW?.id, user?.id);
+      if (draftKey) {
+        try {
+          const raw = localStorage.getItem(draftKey);
+          if (raw) {
+            const draft = JSON.parse(raw);
+            if (draft && draft.squad) {
+              for (const slotKey in draft.squad) {
+                if (draft.squad[slotKey]?.player_id === soldPlayerId) {
+                  draft.squad[slotKey] = null;
+                }
+              }
+              localStorage.setItem(draftKey, JSON.stringify(draft));
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      // Invalidate relevant queries so cache reflects sold player removal
+      queryClient.invalidateQueries({
+        queryKey: ["myFantasyLineup", season?.id, scheduledGW?.id],
+      });
+      queryClient.invalidateQueries({ queryKey: ["fantasyLineup"] });
+      queryClient.invalidateQueries({ queryKey: ["fantasyDashboard"] });
 
       // If this was a "Transfer Out" from a starting slot, open market for replacement
       if (pendingTransferOutSlot) {
@@ -909,6 +1081,14 @@ export function FantasySquadBuilder() {
         toast.success(
           "Lineup published — it starts earning points this match day.",
         );
+        const draftKey = getDraftKey(season?.id, scheduledGW?.id, user?.id);
+        if (draftKey) {
+          try {
+            localStorage.removeItem(draftKey);
+          } catch {
+            // ignore
+          }
+        }
       }
     },
     onError: (err: unknown) => {
@@ -951,6 +1131,228 @@ export function FantasySquadBuilder() {
   // here rather than calling setSquad directly.
   // The save runs outside the state updater on purpose: React invokes an
   // updater twice under StrictMode, which would fire two saves per pick.
+  // Helper to validate whether placing a player into a starting slot violates
+  // any lineup or squad rules. Returns an object with valid: boolean, title, and error.
+  const validateProposedStartingMove = (
+    currentSquad: Record<FantasySlot, FantasyPlayerListItem | null>,
+    targetSlot: SlotDefinition,
+    candidate:
+      | FantasyPlayerListItem
+      | SquadPlayer
+      | {
+          player_id: string;
+          name?: string;
+          player_name?: string;
+          position: string;
+          gender: string;
+          team_id?: string;
+          club_id?: string;
+          team_name?: string;
+          club_name?: string;
+          price?: number;
+          purchase_price?: number;
+          team_active?: boolean;
+          player_status?: string;
+        },
+    opts?: {
+      season?: FantasySeason | null;
+      mySquad?: Squad | null;
+      isBuying?: boolean;
+    },
+  ): { valid: boolean; title?: string; error?: string } => {
+    const candidateId = candidate.player_id;
+    const candidateName =
+      "player_name" in candidate && candidate.player_name
+        ? candidate.player_name
+        : "name" in candidate && candidate.name
+          ? candidate.name
+          : "This player";
+    const candidatePos = candidate.position;
+    const candidateGender = candidate.gender || "M";
+    const candidateClubId =
+      "team_id" in candidate && candidate.team_id
+        ? candidate.team_id
+        : "club_id" in candidate && candidate.club_id
+          ? candidate.club_id
+          : "";
+    const candidateClubName =
+      "team_name" in candidate && candidate.team_name
+        ? candidate.team_name
+        : "club_name" in candidate && candidate.club_name
+          ? candidate.club_name
+          : "";
+    const candidatePrice =
+      "price" in candidate && typeof candidate.price === "number"
+        ? candidate.price
+        : "purchase_price" in candidate &&
+            typeof candidate.purchase_price === "number"
+          ? candidate.purchase_price
+          : 0;
+    const teamActive =
+      "team_active" in candidate ? candidate.team_active : true;
+    const playerStatus =
+      "player_status" in candidate ? candidate.player_status : undefined;
+
+    // 1. Inactive Club or Deleted Player Check
+    if (teamActive === false) {
+      return {
+        valid: false,
+        title: "Inactive Club",
+        error: `${candidateName}'s club is currently inactive in the league.`,
+      };
+    }
+    if (isDeletedPlayer({ status: playerStatus })) {
+      return {
+        valid: false,
+        title: "Player Unavailable",
+        error: `${candidateName} is no longer available in the league.`,
+      };
+    }
+
+    // 2. Slot Position Compatibility
+    if (!positionFitsSlot(targetSlot, candidatePos)) {
+      return {
+        valid: false,
+        title: "Invalid Position",
+        error: `${candidateName} plays ${candidatePos}, which does not match slot ${targetSlot.label} (${targetSlot.allowedPositions.join("/")}).`,
+      };
+    }
+
+    // 3. Slot Gender Requirement
+    if (
+      targetSlot.requiredGender &&
+      !candidateGender.toUpperCase().startsWith(targetSlot.requiredGender)
+    ) {
+      return {
+        valid: false,
+        title: "Gender Requirement",
+        error: `Slot ${targetSlot.label} requires a ${targetSlot.requiredGender === "F" ? "Female" : "Male"} player.`,
+      };
+    }
+
+    // 4. Duplicate Player Check (cannot start in two slots)
+    const existingSlotEntry = Object.entries(currentSquad).find(
+      ([slotKey, p]) =>
+        p?.player_id === candidateId && slotKey !== targetSlot.slot,
+    );
+    if (existingSlotEntry) {
+      return {
+        valid: false,
+        title: "Player Already Selected",
+        error: `${candidateName} is already selected in slot ${existingSlotEntry[0]}.`,
+      };
+    }
+
+    // 5. Defense All-Rounder Restriction: max 1 in defense unit
+    if (
+      targetSlot.unit === "DEFENSE" &&
+      isAllrounderPosition(candidatePos)
+    ) {
+      const otherDefAllrounders = SLOT_DEFINITIONS.filter(
+        (d) => d.unit === "DEFENSE" && d.slot !== targetSlot.slot,
+      ).filter((d) => {
+        const p = currentSquad[d.slot];
+        return (
+          p && p.player_id !== candidateId && isAllrounderPosition(p.position)
+        );
+      }).length;
+
+      if (otherDefAllrounders >= 1) {
+        return {
+          valid: false,
+          title: "Defense All-Rounder Limit",
+          error: "You can only have a maximum of 1 All-Rounder in defence.",
+        };
+      }
+    }
+
+    // 6. Max Players Per Club
+    const maxPerClub = opts?.season?.max_per_club || 3;
+    if (candidateClubId) {
+      let clubCount = 0;
+      for (const def of SLOT_DEFINITIONS) {
+        if (def.slot === targetSlot.slot) continue;
+        const p = currentSquad[def.slot];
+        if (!p || p.player_id === candidateId) continue;
+        if (p.team_id === candidateClubId) {
+          clubCount++;
+        }
+      }
+      if (clubCount + 1 > maxPerClub) {
+        return {
+          valid: false,
+          title: "Club Quota Exceeded",
+          error: `You cannot select more than ${maxPerClub} players from ${candidateClubName || "the same club"} in your starting 14.`,
+        };
+      }
+    }
+
+    // 7. Purchase-specific validations
+    if (opts?.isBuying) {
+      const maxSquadSize = opts?.season?.squad_size || 18;
+      if (opts?.mySquad && opts.mySquad.players.length >= maxSquadSize) {
+        return {
+          valid: false,
+          title: "Squad Full",
+          error: `Your squad is full (${maxSquadSize} players). Sell a player before signing a new one.`,
+        };
+      }
+      const bank = opts?.mySquad?.bank ?? 0;
+      if (candidatePrice > bank) {
+        return {
+          valid: false,
+          title: "Insufficient Budget",
+          error: `Signing ${candidateName} costs ₦${candidatePrice.toFixed(1)}m, but your remaining bank budget is ₦${bank.toFixed(1)}m.`,
+        };
+      }
+    }
+
+    // 8. Feasibility of Female Requirements
+    const minFemale =
+      targetSlot.unit === "OFFENSE"
+        ? (opts?.season?.min_female_offense ?? 3)
+        : (opts?.season?.min_female_defense ?? 3);
+
+    const unitSlots = SLOT_DEFINITIONS.filter(
+      (d) => d.unit === targetSlot.unit,
+    );
+    let currentFemalesInOtherSlots = 0;
+    let emptyOtherSlots = 0;
+
+    for (const def of unitSlots) {
+      if (def.slot === targetSlot.slot) continue;
+      const p = currentSquad[def.slot];
+      if (p) {
+        if (p.player_id === candidateId) continue;
+        if (isFemale(p.gender)) {
+          currentFemalesInOtherSlots++;
+        }
+      } else {
+        emptyOtherSlots++;
+      }
+    }
+
+    const candidateIsFemale = isFemale(candidateGender);
+    const totalPotentialFemales =
+      currentFemalesInOtherSlots +
+      (candidateIsFemale ? 1 : 0) +
+      emptyOtherSlots;
+
+    if (totalPotentialFemales < minFemale) {
+      return {
+        valid: false,
+        title: "Female Quota Violation",
+        error: `Placing a male player in ${targetSlot.label} leaves only ${totalPotentialFemales} possible female athletes in ${targetSlot.unit.toLowerCase()}, but at least ${minFemale} are required.`,
+      };
+    }
+
+    return { valid: true };
+  };
+
+  // Applies a change to the sheet and saves it in the same step, so the two
+  // can never drift apart — every path that edits the fourteen goes through
+  // here rather than calling setSquad directly.
+  // Also saves to localStorage working draft for immediate persistence across reloads.
   const commitSquad = (
     update: (
       prev: Record<FantasySlot, FantasyPlayerListItem | null>,
@@ -958,41 +1360,61 @@ export function FantasySquadBuilder() {
   ) => {
     const next = update(squad);
     setSquad(next);
+
+    const draftKey = getDraftKey(season?.id, scheduledGW?.id, user?.id);
+    if (draftKey) {
+      try {
+        localStorage.setItem(
+          draftKey,
+          JSON.stringify({ squad: next, teamName }),
+        );
+      } catch (err) {
+        console.warn("Failed to write lineup draft to localStorage:", err);
+      }
+    }
+
     persistSquad(next);
   };
 
   const handleSelectPlayer = (player: FantasyPlayerListItem) => {
     if (!activeModalSlot) return;
 
-    const existingSlot = Object.entries(squad).find(
-      ([, p]) => p?.player_id === player.player_id,
+    // Reject move before placement if any squad rule is violated
+    const validation = validateProposedStartingMove(
+      squad,
+      activeModalSlot,
+      player,
+      {
+        season,
+        mySquad,
+        isBuying: false,
+      },
     );
-    if (existingSlot && existingSlot[0] !== activeModalSlot.slot) {
-      toast.error(
-        `${player.player_name} is already picked in slot ${existingSlot[0]}`,
-      );
+
+    if (!validation.valid) {
+      setViolationModal({
+        title: validation.title || "Selection Blocked",
+        message: validation.error || "This move violates squad rules.",
+      });
+      toast.error(validation.error || "This move violates squad rules.");
       return;
     }
 
-    // Rule: max 1 All-Rounder in defence, unlimited in offence
-    if (
-      activeModalSlot.unit === "DEFENSE" &&
-      isAllrounderPosition(player.position)
-    ) {
-      const otherDefAllrounders = SLOT_DEFINITIONS.filter(
-        (d) => d.unit === "DEFENSE" && d.slot !== activeModalSlot.slot,
-      ).filter((d) => isAllrounderPosition(squad[d.slot]?.position)).length;
-      if (otherDefAllrounders >= 1) {
-        toast.error("You can only have a maximum of 1 All-Rounder in defence.");
-        return;
-      }
-    }
+    // Enrich player metadata so images and logos are preserved
+    const meta = playerMetadataLookup.get(player.player_id);
+    const enrichedPlayer: FantasyPlayerListItem = {
+      ...player,
+      player_image: player.player_image || meta?.image || "",
+      team_name: player.team_name || meta?.team_name || "",
+      team_short_name: player.team_short_name || meta?.team_short_name || "",
+      team_logo: player.team_logo || meta?.team_logo || "",
+    };
 
     // The pick is saved the moment it is made, and it stays in the slot it
     // was put in — it is not parked on the bench waiting for a later save.
     commitSquad((prev) => ({
       ...prev,
-      [activeModalSlot.slot]: player,
+      [activeModalSlot.slot]: enrichedPlayer,
     }));
     setActiveModalSlot(null);
     setMarketTeamFilter("");
@@ -1043,58 +1465,87 @@ export function FantasySquadBuilder() {
 
   // "Start" — promote a bench reserve into an open matching slot
   const handleStartReserve = (reservePlayer: SquadPlayer) => {
-    const currentDefAllrounders = SLOT_DEFINITIONS.filter(
-      (d) => d.unit === "DEFENSE",
-    ).filter((d) => isAllrounderPosition(squad[d.slot]?.position)).length;
-    const isReserveAllrounder = isAllrounderPosition(reservePlayer.position);
-
-    // Find the first empty slot that matches position & gender
-    const matchingSlot = SLOT_DEFINITIONS.find((def) => {
-      if (squad[def.slot] !== null) return false; // Already filled
-      if (!positionFitsSlot(def, reservePlayer.position)) return false;
-      if (
-        def.requiredGender &&
-        !reservePlayer.gender.toUpperCase().startsWith(def.requiredGender)
-      )
-        return false;
-      if (
-        def.unit === "DEFENSE" &&
-        isReserveAllrounder &&
-        currentDefAllrounders >= 1
-      )
-        return false;
-      return true;
+    // Find all empty slots that match position
+    const eligibleSlots = SLOT_DEFINITIONS.filter((def) => {
+      if (squad[def.slot] !== null) return false;
+      return positionFitsSlot(def, reservePlayer.position);
     });
 
-    if (!matchingSlot) {
+    if (eligibleSlots.length === 0) {
+      setViolationModal({
+        title: "No Open Slot",
+        message: `No empty starting slot accepts a ${reservePlayer.position}. Remove or bench a starter first.`,
+      });
       toast.error(
-        "No open slot matches this player's position. Remove a starter first.",
+        `No open slot matches ${reservePlayer.position}. Remove a starter first.`,
       );
       return;
     }
 
+    // Find first slot that satisfies all squad & lineup rules
+    let validSlot: SlotDefinition | null = null;
+    let lastViolation: { title?: string; error?: string } | null = null;
+
+    for (const slotDef of eligibleSlots) {
+      const validation = validateProposedStartingMove(
+        squad,
+        slotDef,
+        reservePlayer,
+        {
+          season,
+          mySquad,
+          isBuying: false,
+        },
+      );
+      if (validation.valid) {
+        validSlot = slotDef;
+        break;
+      } else {
+        lastViolation = validation;
+      }
+    }
+
+    if (!validSlot) {
+      setViolationModal({
+        title: lastViolation?.title || "Cannot Start Reserve",
+        message:
+          lastViolation?.error ||
+          `Starting ${reservePlayer.name} violates lineup rules in available open slots.`,
+      });
+      toast.error(
+        lastViolation?.error ||
+          "Cannot start player: rule violation in available slots.",
+      );
+      return;
+    }
+
+    // Preserve player image and club details
+    const meta = playerMetadataLookup.get(reservePlayer.player_id);
+    const enrichedPlayer: FantasyPlayerListItem = {
+      player_id: reservePlayer.player_id,
+      player_name: reservePlayer.name,
+      player_image: reservePlayer.image || meta?.image || "",
+      position: reservePlayer.position,
+      gender: reservePlayer.gender,
+      team_id: reservePlayer.club_id,
+      team_name: reservePlayer.club_name || meta?.team_name || "",
+      team_short_name:
+        reservePlayer.club_short_name || meta?.team_short_name || "",
+      team_logo: reservePlayer.club_logo || meta?.team_logo || "",
+      price: reservePlayer.purchase_price,
+      rating: 0,
+      total_points: 0,
+      owned_by: 0,
+      selected_by_pct: 0,
+      transfers_in: 0,
+      transfers_out: 0,
+    };
+
     commitSquad((prev) => ({
       ...prev,
-      [matchingSlot.slot]: {
-        player_id: reservePlayer.player_id,
-        player_name: reservePlayer.name,
-        player_image: "",
-        position: reservePlayer.position,
-        gender: reservePlayer.gender,
-        team_id: reservePlayer.club_id,
-        team_name: "",
-        team_short_name: "",
-        team_logo: "",
-        price: reservePlayer.purchase_price,
-        rating: 0,
-        total_points: 0,
-        owned_by: 0,
-        selected_by_pct: 0,
-        transfers_in: 0,
-        transfers_out: 0,
-      },
+      [validSlot!.slot]: enrichedPlayer,
     }));
-    toast.success(`${reservePlayer.name} promoted to ${matchingSlot.label}.`);
+    toast.success(`${reservePlayer.name} promoted to ${validSlot.label}.`);
   };
 
   // Market closed detection
@@ -1211,6 +1662,29 @@ export function FantasySquadBuilder() {
   // Signing from the picker puts them in the squad, then straight into the
   // slot the manager opened — one action, not two.
   const buyAndSelect = async (p: FantasyPlayerListItem) => {
+    if (!activeModalSlot) return;
+
+    // Validate proposed move before spending transfer budget!
+    const validation = validateProposedStartingMove(
+      squad,
+      activeModalSlot,
+      p,
+      {
+        season,
+        mySquad,
+        isBuying: true,
+      },
+    );
+
+    if (!validation.valid) {
+      setViolationModal({
+        title: validation.title || "Signing Blocked",
+        message: validation.error || "Cannot sign and field this player.",
+      });
+      toast.error(validation.error || "Cannot sign and field this player.");
+      return;
+    }
+
     try {
       await buyMutation.mutateAsync(p.player_id);
       handleSelectPlayer(p);
@@ -1887,6 +2361,15 @@ export function FantasySquadBuilder() {
                   key={p.player_id}
                   className="p-4 flex items-center justify-between gap-3"
                 >
+                  <PlayerAvatar
+                    name={p.name}
+                    image={
+                      p.image ||
+                      playerMetadataLookup.get(p.player_id)?.image ||
+                      undefined
+                    }
+                    gender={p.gender}
+                  />
                   <div className="min-w-0 flex-1">
                     <h3 className="text-sm font-bold text-gray-900 dark:text-white truncate">
                       {p.name}
@@ -2113,6 +2596,14 @@ export function FantasySquadBuilder() {
                         ).some((d) =>
                           isAllrounderPosition(squad[d.slot]?.position),
                         );
+                      const meta = playerMetadataLookup.get(p.player_id);
+                      const playerImage =
+                        p.image || meta?.image || undefined;
+                      const clubName = p.club_name || meta?.team_name || "";
+                      const clubShortName =
+                        p.club_short_name || meta?.team_short_name || "";
+                      const clubLogo = p.club_logo || meta?.team_logo || "";
+
                       return (
                         <div
                           key={p.player_id}
@@ -2124,7 +2615,7 @@ export function FantasySquadBuilder() {
                         >
                           <PlayerAvatar
                             name={p.name}
-                            image={null}
+                            image={playerImage}
                             gender={p.gender}
                           />
                           <div className="min-w-0 flex-1">
@@ -2155,13 +2646,13 @@ export function FantasySquadBuilder() {
                               handleSelectPlayer({
                                 player_id: p.player_id,
                                 player_name: p.name,
-                                player_image: "",
+                                player_image: playerImage || "",
                                 position: p.position,
                                 gender: p.gender,
                                 team_id: p.club_id,
-                                team_name: "",
-                                team_short_name: "",
-                                team_logo: "",
+                                team_name: clubName,
+                                team_short_name: clubShortName,
+                                team_logo: clubLogo,
                                 price: p.purchase_price,
                                 rating: 0,
                                 total_points: 0,
@@ -2748,6 +3239,57 @@ export function FantasySquadBuilder() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────────────────────────────────────────────────────────
+                RULE VIOLATION MODAL DIALOG
+            ────────────────────────────────────────────────────────────────── */}
+      {violationModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          data-dialog
+        >
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white w-full max-w-md rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-5 md:p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center text-sffl-red shrink-0">
+                  <ExclamationTriangleIcon className="w-5 h-5" />
+                </div>
+                <h3 className="text-base font-black text-sffl-navy dark:text-white uppercase tracking-tight">
+                  {violationModal.title}
+                </h3>
+              </div>
+              <button
+                onClick={() => setViolationModal(null)}
+                aria-label="Close dialog"
+                className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300 cursor-pointer transition"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 md:p-6 space-y-4">
+              <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800">
+                <p className="text-xs font-semibold text-red-700 dark:text-red-300 leading-relaxed">
+                  {violationModal.message}
+                </p>
+              </div>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                Lineup rules enforce balanced rosters, gender quotas, and club diversity across every match day.
+              </p>
+            </div>
+
+            <div className="p-4 md:p-5 border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/30 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setViolationModal(null)}
+                className="w-full py-2.5 rounded-xl bg-sffl-navy hover:bg-sffl-navy/90 text-white font-bold text-xs uppercase tracking-wider transition shadow-md cursor-pointer"
+              >
+                Understood
+              </button>
+            </div>
           </div>
         </div>
       )}
