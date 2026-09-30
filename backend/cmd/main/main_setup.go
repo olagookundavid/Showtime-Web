@@ -514,7 +514,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	)
 
 	badgeService := services.NewBadgeService(badgeRepo)
-	totwService := services.NewTOTWService(totwRepo, badgeService)
+	totwService := services.NewTOTWService(totwRepo, badgeService, newsRepo)
 
 	badgeHandler := transport.NewBadgeHandler(badgeService)
 	totwHandler := transport.NewTOTWHandler(totwService)

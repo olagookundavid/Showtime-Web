@@ -17,6 +17,7 @@ import {
   type Competition,
   type EventDayResponse,
   type Player,
+  type CreateNewsPayload,
 } from "../../services/api";
 import { Loader } from "../../components/ui/Loader";
 import { DataTable, type Column } from "../../components/ui/DataTable";
@@ -25,6 +26,8 @@ import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
 import { FemaleIcon } from "../../components/icons/FemaleIcon";
 import { MaleIcon } from "../../components/icons/MaleIcon";
+import { ImageUploadField } from "../../components/ui/ImageUploadField";
+import { NewsContentEditor } from "../../components/admin/NewsContentEditor";
 import { getApiErrorMessage } from "../../utils/apiError";
 import {
   PlusIcon,
@@ -37,11 +40,16 @@ import {
   UserPlusIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
   ArrowsRightLeftIcon,
   ArrowLeftIcon,
   ArrowRightIcon,
   CheckIcon,
   EyeSlashIcon,
+  NewspaperIcon,
+  PhotoIcon,
+  PlayCircleIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon } from "@heroicons/react/24/solid";
 import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
@@ -477,6 +485,16 @@ export const AdminTOTW = () => {
   );
   const [formIsPublished, setFormIsPublished] = useState<boolean>(false);
 
+  // Attached Editorial Story state
+  const [storyTitle, setStoryTitle] = useState<string>("");
+  const [storyExcerpt, setStoryExcerpt] = useState<string>("");
+  const [storyContent, setStoryContent] = useState<string>("");
+  const [storyMediaType, setStoryMediaType] = useState<"image" | "youtube">("image");
+  const [storyImage, setStoryImage] = useState<string>("");
+  const [storyYoutubeUrl, setStoryYoutubeUrl] = useState<string>("");
+  const [storyAuthor, setStoryAuthor] = useState<string>("Showtime Editorial");
+  const [isStoryExpanded, setIsStoryExpanded] = useState<boolean>(false);
+
   // Pitch & Slot State
   const [pitchTab, setPitchTab] = useState<"all" | "offence" | "defence">(
     "all",
@@ -688,6 +706,14 @@ export const AdminTOTW = () => {
     setPitchTab("all");
     setSelectedSlotIndex(0);
     setSlots(emptySlots());
+    setStoryTitle("");
+    setStoryExcerpt("");
+    setStoryContent("");
+    setStoryMediaType("image");
+    setStoryImage("");
+    setStoryYoutubeUrl("");
+    setStoryAuthor("Showtime Editorial");
+    setIsStoryExpanded(false);
   };
 
   /**
@@ -705,6 +731,26 @@ export const AdminTOTW = () => {
       setFormSubHeadline(fullTotw.sub_headline || "");
       setFormIsPublished(fullTotw.is_published);
       setPitchTab("all");
+
+      if (fullTotw.news) {
+        setStoryTitle(fullTotw.news.title || "");
+        setStoryExcerpt(fullTotw.news.excerpt || "");
+        setStoryContent(fullTotw.news.content || "");
+        setStoryMediaType(fullTotw.news.featured_media_type || "image");
+        setStoryImage(fullTotw.news.featured_image || "");
+        setStoryYoutubeUrl(fullTotw.news.featured_youtube_url || "");
+        setStoryAuthor(fullTotw.news.author || "Showtime Editorial");
+        setIsStoryExpanded(true);
+      } else {
+        setStoryTitle(fullTotw.week_title ? `${fullTotw.week_title} Editorial Breakdown` : "");
+        setStoryExcerpt("");
+        setStoryContent("");
+        setStoryMediaType("image");
+        setStoryImage("");
+        setStoryYoutubeUrl("");
+        setStoryAuthor("Showtime Editorial");
+        setIsStoryExpanded(false);
+      }
 
       // Initialize 14 canonical default slots (OFF1..OFF7, DEF1..DEF7)
       const newSlots = emptySlots();
@@ -1107,6 +1153,22 @@ export const AdminTOTW = () => {
     }
 
     const potwSlot = validSlots.find((s) => s.is_player_of_the_week);
+
+    const newsArticlePayload: CreateNewsPayload | undefined =
+      storyTitle.trim() && storyContent.trim()
+        ? {
+            title: storyTitle.trim(),
+            excerpt: storyExcerpt.trim(),
+            content: storyContent.trim(),
+            featured_image: storyMediaType === "image" ? storyImage.trim() : undefined,
+            featured_media_type: storyMediaType,
+            featured_youtube_url: storyMediaType === "youtube" ? storyYoutubeUrl.trim() : undefined,
+            author: storyAuthor.trim() || "Showtime Editorial",
+            category: "Team of the Week",
+            comments_enabled: true,
+          }
+        : undefined;
+
     return {
       competition_id: formCompId,
       event_day_id: formEventDayId || undefined,
@@ -1115,6 +1177,7 @@ export const AdminTOTW = () => {
       headline: formHeadline.trim() || "TEAM OF THE WEEK",
       sub_headline: formSubHeadline.trim(),
       is_published: formIsPublished,
+      news_article: newsArticlePayload,
       players: validSlots.map((s) => ({
         player_id: s.player_id,
         slot_code: s.slot_code,
@@ -2266,6 +2329,165 @@ export const AdminTOTW = () => {
                     </button>
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+
+          {/* ── ATTACHED EDITORIAL STORY ACCORDION ───────────────────────── */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden transition-all">
+            <button
+              type="button"
+              onClick={() => setIsStoryExpanded((prev) => !prev)}
+              className="w-full flex items-center justify-between p-4 md:p-6 text-left hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-sffl-red/10 text-sffl-red flex items-center justify-center font-bold shrink-0">
+                  <NewspaperIcon className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base md:text-lg font-black italic tracking-tight text-sffl-navy dark:text-white">
+                      Attached Editorial Story (Gameweek Breakdown)
+                    </h3>
+                    {storyTitle.trim() && storyContent.trim() ? (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                        Story Attached
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                        Optional
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    Write official matchday coverage, player highlights, and analysis to accompany this Starting XIV.
+                  </p>
+                </div>
+              </div>
+              <div className="p-2 text-gray-400">
+                {isStoryExpanded ? (
+                  <ChevronUpIcon className="w-5 h-5" />
+                ) : (
+                  <ChevronDownIcon className="w-5 h-5" />
+                )}
+              </div>
+            </button>
+
+            {isStoryExpanded && (
+              <div className="p-4 md:p-6 border-t border-gray-200 dark:border-gray-700 space-y-5 bg-gray-50/40 dark:bg-gray-800/50">
+                {/* Title */}
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5">
+                    Headline Title
+                  </label>
+                  <input
+                    type="text"
+                    value={storyTitle}
+                    onChange={(e) => setStoryTitle(e.target.value)}
+                    placeholder="e.g. Week 4: Offensive Masterclasses & Defensive Dominance"
+                    className={metaFieldClass}
+                  />
+                </div>
+
+                {/* Excerpt */}
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5">
+                    Lead Summary / Excerpt
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={storyExcerpt}
+                    onChange={(e) => setStoryExcerpt(e.target.value)}
+                    placeholder="A high-impact lead excerpt highlighting key game storylines..."
+                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-sffl-red outline-none"
+                  />
+                </div>
+
+                {/* Author */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5">
+                      Byline / Author
+                    </label>
+                    <input
+                      type="text"
+                      value={storyAuthor}
+                      onChange={(e) => setStoryAuthor(e.target.value)}
+                      placeholder="Showtime Editorial"
+                      className={metaFieldClass}
+                    />
+                  </div>
+                </div>
+
+                {/* Featured Cover Media */}
+                <div className="space-y-3 bg-white dark:bg-gray-700/40 p-4 rounded-xl border border-gray-200 dark:border-gray-600">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                      Featured Cover Media (Optional)
+                    </label>
+                    <div className="inline-flex rounded-lg bg-gray-200 dark:bg-gray-600 p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setStoryMediaType("image")}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-md transition ${
+                          storyMediaType === "image"
+                            ? "bg-white dark:bg-gray-800 text-sffl-navy dark:text-white shadow-xs"
+                            : "text-gray-600 dark:text-gray-300"
+                        }`}
+                      >
+                        <PhotoIcon className="w-3.5 h-3.5" />
+                        <span>Image</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setStoryMediaType("youtube")}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-md transition ${
+                          storyMediaType === "youtube"
+                            ? "bg-white dark:bg-gray-800 text-sffl-navy dark:text-white shadow-xs"
+                            : "text-gray-600 dark:text-gray-300"
+                        }`}
+                      >
+                        <PlayCircleIcon className="w-3.5 h-3.5" />
+                        <span>YouTube</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {storyMediaType === "image" ? (
+                    <ImageUploadField
+                      label="Featured Cover Photo"
+                      value={storyImage}
+                      onChange={setStoryImage}
+                      folder="news"
+                      helperText="High-resolution landscape hero banner"
+                    />
+                  ) : (
+                    <div>
+                      <input
+                        type="url"
+                        value={storyYoutubeUrl}
+                        onChange={(e) => setStoryYoutubeUrl(e.target.value)}
+                        placeholder="https://www.youtube.com/watch?v=..."
+                        className={metaFieldClass}
+                      />
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                        Paste YouTube video link for matchday highlights or breakdown.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Story Content Editor */}
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5">
+                    Story Content (Tagged Markdown)
+                  </label>
+                  <NewsContentEditor
+                    value={storyContent}
+                    onChange={setStoryContent}
+                    rows={10}
+                  />
+                </div>
               </div>
             )}
           </div>

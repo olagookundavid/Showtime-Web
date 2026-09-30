@@ -28,6 +28,8 @@ type SaveTOTWRequest struct {
 	SubHeadline       string                `json:"sub_headline"`                  // default "Offence & defence lineup"
 	IsPublished       bool                  `json:"is_published"`
 	Players           []TOTWPlayerSlotInput `json:"players" binding:"required"`    // Starting XIV
+	NewsID            *string               `json:"news_id,omitempty"`
+	NewsArticle       *CreateNewsRequest    `json:"news_article,omitempty"`
 }
 
 type TOTWPlayerResponse struct {
@@ -65,6 +67,8 @@ type TOTWResponse struct {
 	UpdatedAt         time.Time            `json:"updated_at"`
 	Competition       *CompetitionResponse `json:"competition,omitempty"`
 	Players           []TOTWPlayerResponse `json:"players,omitempty"`
+	NewsID            *string              `json:"news_id,omitempty"`
+	News              *NewsResponse        `json:"news,omitempty"`
 }
 
 type TOTWListItemResponse struct {
@@ -74,6 +78,7 @@ type TOTWListItemResponse struct {
 	CompetitionLogo   string     `json:"competition_logo,omitempty"`
 	EventDayID        *string    `json:"event_day_id,omitempty"`
 	PlayerOfTheWeekID *string    `json:"player_of_the_week_id,omitempty"`
+	NewsID            *string    `json:"news_id,omitempty"`
 	WeekTitle         string     `json:"week_title"`
 	Headline          string     `json:"headline"`
 	SubHeadline       string     `json:"sub_headline,omitempty"`

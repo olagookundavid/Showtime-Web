@@ -39,4 +39,6 @@ type TeamOfTheWeek struct {
 	UpdatedAt     time.Time    `json:"updated_at"`
 	Competition   *Competition `json:"competition,omitempty"`
 	Players       []TOTWPlayer `json:"players,omitempty"`
+	NewsID        *string      `json:"news_id,omitempty"`
+	News          *News        `json:"news,omitempty"`
 }

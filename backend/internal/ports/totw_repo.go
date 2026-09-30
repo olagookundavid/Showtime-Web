@@ -22,6 +22,7 @@ type TOTWRepository interface {
 	ListTOTWArchive(ctx context.Context, competitionID string, onlyPublished bool) ([]domain.TeamOfTheWeek, error)
 	PublishTOTW(ctx context.Context, id string, isPublished bool) (*domain.TeamOfTheWeek, error)
 	GetPlayerDayStats(ctx context.Context, playerID string, eventDayID string) (map[string]string, error)
+	AttachNewsToTOTW(ctx context.Context, totwID string, newsID string) error
 }
 
 type PostgresTOTWRepository struct {
@@ -45,14 +46,19 @@ func (r *PostgresTOTWRepository) CreateTOTW(ctx context.Context, totw *domain.Te
 		pubAt = &now
 	}
 
+	var newsID any = nil
+	if totw.NewsID != nil && *totw.NewsID != "" {
+		newsID = *totw.NewsID
+	}
+
 	query := `
-		INSERT INTO team_of_the_week (competition_id, event_day_id, player_of_the_week_id, week_title, headline, sub_headline, is_published, published_at, created_by, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+		INSERT INTO team_of_the_week (competition_id, event_day_id, player_of_the_week_id, week_title, headline, sub_headline, is_published, published_at, created_by, news_id, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULLIF($10, '')::uuid, NOW(), NOW())
 		RETURNING id, created_at, updated_at
 	`
 	err = tx.QueryRow(ctx, query,
 		totw.CompetitionID, totw.EventDayID, totw.PlayerOfTheWeekID, totw.WeekTitle, totw.Headline,
-		totw.SubHeadline, totw.IsPublished, pubAt, totw.CreatedBy,
+		totw.SubHeadline, totw.IsPublished, pubAt, totw.CreatedBy, newsID,
 	).Scan(&totw.ID, &totw.CreatedAt, &totw.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert totw header: %w", err)
@@ -126,6 +132,13 @@ func (r *PostgresTOTWRepository) UpdateTOTW(ctx context.Context, totw *domain.Te
 		pubAt = nil
 	}
 
+	// news_id is deliberately not written here: it's owned exclusively by
+	// AttachNewsToTOTW / SaveTOTWArticle's update-in-place branch. The admin
+	// form never sends news_id on a header save (only news_article, when a
+	// story is attached), so writing it here from a request that never
+	// carries it would null out an existing article's link on every save —
+	// which then made SaveTOTWArticle see no existing article and create a
+	// fresh duplicate instead of updating the one already attached.
 	updateHeader := `
 		UPDATE team_of_the_week
 		SET competition_id = $1, event_day_id = $2, player_of_the_week_id = $3, week_title = $4, headline = $5,
@@ -200,24 +213,74 @@ func (r *PostgresTOTWRepository) GetTOTWByID(ctx context.Context, id string) (*d
 		SELECT totw.id, totw.competition_id, totw.event_day_id::text, totw.player_of_the_week_id::text, totw.week_title,
 		       totw.headline, totw.sub_headline, totw.is_published, totw.published_at,
 		       totw.created_by::text, totw.created_at, totw.updated_at,
-		       c.id, c.name, COALESCE(c.logo, '')
+		       c.id, c.name, COALESCE(c.logo, ''),
+		       totw.news_id::text,
+		       n.id::text, n.title, n.slug, n.excerpt, n.content, COALESCE(n.featured_image, ''),
+		       COALESCE(n.featured_media_type, 'image'), COALESCE(n.featured_youtube_url, ''),
+		       COALESCE(n.author, ''), COALESCE(n.category, ''),
+		       n.published_at, n.created_at, n.updated_at, COALESCE(n.is_hero_only, false), COALESCE(n.comments_enabled, true)
 		FROM team_of_the_week totw
 		JOIN competitions c ON totw.competition_id = c.id
+		LEFT JOIN news n ON totw.news_id = n.id
 		WHERE totw.id = $1
 	`
 	var totw domain.TeamOfTheWeek
 	totw.Competition = &domain.Competition{}
+
+	var newsID *string
+	var nID, nTitle, nSlug, nExcerpt, nContent, nImage, nMediaType, nYoutubeURL, nAuthor, nCategory *string
+	var nPubAt, nCreatedAt, nUpdatedAt *time.Time
+	var nIsHeroOnly, nCommentsEnabled *bool
+
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&totw.ID, &totw.CompetitionID, &totw.EventDayID, &totw.PlayerOfTheWeekID, &totw.WeekTitle,
 		&totw.Headline, &totw.SubHeadline, &totw.IsPublished, &totw.PublishedAt,
 		&totw.CreatedBy, &totw.CreatedAt, &totw.UpdatedAt,
 		&totw.Competition.ID, &totw.Competition.Name, &totw.Competition.Logo,
+		&newsID,
+		&nID, &nTitle, &nSlug, &nExcerpt, &nContent, &nImage,
+		&nMediaType, &nYoutubeURL, &nAuthor, &nCategory,
+		&nPubAt, &nCreatedAt, &nUpdatedAt, &nIsHeroOnly, &nCommentsEnabled,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("team of the week not found")
 		}
 		return nil, err
+	}
+
+	totw.NewsID = newsID
+	if nID != nil && *nID != "" {
+		article := &domain.News{
+			ID:                 *nID,
+			Title:              derefString(nTitle),
+			Slug:               derefString(nSlug),
+			Excerpt:            derefString(nExcerpt),
+			Content:            derefString(nContent),
+			FeaturedImage:      derefString(nImage),
+			FeaturedMediaType:  derefString(nMediaType),
+			FeaturedYoutubeURL: derefString(nYoutubeURL),
+			Author:             derefString(nAuthor),
+			Category:           derefString(nCategory),
+		}
+		if nPubAt != nil {
+			article.PublishedAt = *nPubAt
+		}
+		if nCreatedAt != nil {
+			article.CreatedAt = *nCreatedAt
+		}
+		if nUpdatedAt != nil {
+			article.UpdatedAt = *nUpdatedAt
+		}
+		if nIsHeroOnly != nil {
+			article.IsHeroOnly = *nIsHeroOnly
+		}
+		if nCommentsEnabled != nil {
+			article.CommentsEnabled = *nCommentsEnabled
+		} else {
+			article.CommentsEnabled = true
+		}
+		totw.News = article
 	}
 
 	playersQuery := `
@@ -315,7 +378,8 @@ func (r *PostgresTOTWRepository) ListTOTWArchive(ctx context.Context, competitio
 		SELECT totw.id, totw.competition_id, totw.event_day_id::text, totw.player_of_the_week_id::text, totw.week_title,
 		       totw.headline, totw.sub_headline, totw.is_published, totw.published_at,
 		       totw.created_at, totw.updated_at,
-		       c.id, c.name, COALESCE(c.logo, '')
+		       c.id, c.name, COALESCE(c.logo, ''),
+		       totw.news_id::text
 		FROM team_of_the_week totw
 		JOIN competitions c ON totw.competition_id = c.id
 		%s
@@ -337,6 +401,7 @@ func (r *PostgresTOTWRepository) ListTOTWArchive(ctx context.Context, competitio
 			&totw.Headline, &totw.SubHeadline, &totw.IsPublished, &totw.PublishedAt,
 			&totw.CreatedAt, &totw.UpdatedAt,
 			&totw.Competition.ID, &totw.Competition.Name, &totw.Competition.Logo,
+			&totw.NewsID,
 		)
 		if err != nil {
 			return nil, err
@@ -555,3 +620,10 @@ func (r *PostgresTOTWRepository) GetPlayerDayStats(ctx context.Context, playerID
 
 	return result, nil
 }
+
+func (r *PostgresTOTWRepository) AttachNewsToTOTW(ctx context.Context, totwID string, newsID string) error {
+	query := `UPDATE team_of_the_week SET news_id = NULLIF($1, '')::uuid, updated_at = NOW() WHERE id = $2`
+	_, err := r.db.Exec(ctx, query, newsID, totwID)
+	return err
+}
+

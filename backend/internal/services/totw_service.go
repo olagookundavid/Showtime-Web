@@ -8,6 +8,7 @@ import (
 	"showtime-backend/internal/dto"
 	"showtime-backend/internal/ports"
 	"strings"
+	"time"
 )
 
 type ITOTWService interface {
@@ -19,15 +20,17 @@ type ITOTWService interface {
 	ListTOTWArchive(ctx context.Context, competitionID string, onlyPublished bool) ([]dto.TOTWListItemResponse, error)
 	PublishTOTW(ctx context.Context, id string, isPublished bool) (*dto.TOTWResponse, error)
 	GetPlayerDayStats(ctx context.Context, playerID string, eventDayID string) (map[string]string, error)
+	SaveTOTWArticle(ctx context.Context, totwID string, req dto.CreateNewsRequest) (*dto.TOTWResponse, error)
 }
 
 type TOTWService struct {
 	totwRepo     ports.TOTWRepository
 	badgeService IBadgeService
+	newsRepo     ports.NewsRepository
 }
 
-func NewTOTWService(totwRepo ports.TOTWRepository, badgeService IBadgeService) *TOTWService {
-	return &TOTWService{totwRepo: totwRepo, badgeService: badgeService}
+func NewTOTWService(totwRepo ports.TOTWRepository, badgeService IBadgeService, newsRepo ports.NewsRepository) *TOTWService {
+	return &TOTWService{totwRepo: totwRepo, badgeService: badgeService, newsRepo: newsRepo}
 }
 
 func (s *TOTWService) CreateTOTW(ctx context.Context, req dto.SaveTOTWRequest, createdBy *string) (*dto.TOTWResponse, error) {
@@ -63,6 +66,7 @@ func (s *TOTWService) CreateTOTW(ctx context.Context, req dto.SaveTOTWRequest, c
 		SubHeadline:       subHeadline,
 		IsPublished:       req.IsPublished,
 		CreatedBy:         createdBy,
+		NewsID:            req.NewsID,
 	}
 
 	players := make([]domain.TOTWPlayer, len(req.Players))
@@ -109,6 +113,14 @@ func (s *TOTWService) CreateTOTW(ctx context.Context, req dto.SaveTOTWRequest, c
 		return nil, err
 	}
 
+	if req.NewsArticle != nil && strings.TrimSpace(req.NewsArticle.Content) != "" {
+		if _, err := s.SaveTOTWArticle(ctx, created.ID, *req.NewsArticle); err != nil {
+			log.Printf("[ERROR] totw %s: sync attached news article: %v", created.ID, err)
+		} else if refreshed, err := s.totwRepo.GetTOTWByID(ctx, created.ID); err == nil {
+			created = refreshed
+		}
+	}
+
 	if created.IsPublished && s.badgeService != nil {
 		if err := s.badgeService.SyncTOTWBadges(ctx, created); err != nil {
 			log.Printf("[ERROR] totw %s: sync badges after create: %v", created.ID, err)
@@ -151,6 +163,8 @@ func (s *TOTWService) UpdateTOTW(ctx context.Context, id string, req dto.SaveTOT
 		Headline:          strings.TrimSpace(req.Headline),
 		SubHeadline:       subHeadline,
 		IsPublished:       req.IsPublished,
+		// NewsID is intentionally not carried from the request — see
+		// UpdateTOTW's repo query for why writing it here would be destructive.
 	}
 
 	players := make([]domain.TOTWPlayer, len(req.Players))
@@ -196,6 +210,14 @@ func (s *TOTWService) UpdateTOTW(ctx context.Context, id string, req dto.SaveTOT
 	updated, err := s.totwRepo.UpdateTOTW(ctx, totw, players)
 	if err != nil {
 		return nil, err
+	}
+
+	if req.NewsArticle != nil && strings.TrimSpace(req.NewsArticle.Content) != "" {
+		if _, err := s.SaveTOTWArticle(ctx, updated.ID, *req.NewsArticle); err != nil {
+			log.Printf("[ERROR] totw %s: sync attached news article: %v", updated.ID, err)
+		} else if refreshed, err := s.totwRepo.GetTOTWByID(ctx, updated.ID); err == nil {
+			updated = refreshed
+		}
 	}
 
 	if s.badgeService != nil {
@@ -252,6 +274,7 @@ func (s *TOTWService) ListTOTWArchive(ctx context.Context, competitionID string,
 			CompetitionLogo:   compLogo,
 			EventDayID:        item.EventDayID,
 			PlayerOfTheWeekID: item.PlayerOfTheWeekID,
+			NewsID:            item.NewsID,
 			WeekTitle:         item.WeekTitle,
 			Headline:          item.Headline,
 			SubHeadline:       item.SubHeadline,
@@ -351,7 +374,112 @@ func (s *TOTWService) mapToResponse(totw *domain.TeamOfTheWeek) *dto.TOTWRespons
 		resp.Players[i] = pResp
 	}
 
+	resp.NewsID = totw.NewsID
+	if totw.News != nil {
+		resp.News = &dto.NewsResponse{
+			ID:                 totw.News.ID,
+			Title:              totw.News.Title,
+			Slug:               totw.News.Slug,
+			Excerpt:            totw.News.Excerpt,
+			Content:            totw.News.Content,
+			FeaturedImage:      totw.News.FeaturedImage,
+			FeaturedMediaType:  totw.News.FeaturedMediaType,
+			FeaturedYoutubeURL: totw.News.FeaturedYoutubeURL,
+			Author:             totw.News.Author,
+			Category:           totw.News.Category,
+			PublishedAt:        totw.News.PublishedAt,
+			CreatedAt:          totw.News.CreatedAt,
+			UpdatedAt:          totw.News.UpdatedAt,
+			CommentsEnabled:    totw.News.CommentsEnabled,
+		}
+	}
+
 	return resp
+}
+
+func (s *TOTWService) SaveTOTWArticle(ctx context.Context, totwID string, req dto.CreateNewsRequest) (*dto.TOTWResponse, error) {
+	totw, err := s.totwRepo.GetTOTWByID(ctx, totwID)
+	if err != nil {
+		return nil, fmt.Errorf("load totw: %w", err)
+	}
+
+	if err := validateFeaturedMedia(&req); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(req.Category) == "" {
+		req.Category = "Team of the Week"
+	}
+	if strings.TrimSpace(req.Title) == "" {
+		req.Title = fmt.Sprintf("%s · %s", totw.WeekTitle, totw.Headline)
+	}
+	commentsEnabled := true
+	if req.CommentsEnabled != nil {
+		commentsEnabled = *req.CommentsEnabled
+	}
+
+	if totw.NewsID != nil && *totw.NewsID != "" && s.newsRepo != nil {
+		existingNews, err := s.newsRepo.FindByID(ctx, *totw.NewsID)
+		if err != nil {
+			// A real lookup failure (not "the article was since deleted", which
+			// FindByID reports as nil, nil) must not be treated the same as "no
+			// existing article" — that would silently create a duplicate on top
+			// of an article that's still there and just failed to load.
+			return nil, fmt.Errorf("load existing news article: %w", err)
+		}
+		if existingNews != nil {
+			existingNews.Title = req.Title
+			existingNews.Excerpt = req.Excerpt
+			existingNews.Content = req.Content
+			existingNews.FeaturedImage = req.FeaturedImage
+			existingNews.FeaturedMediaType = req.FeaturedMediaType
+			existingNews.FeaturedYoutubeURL = req.FeaturedYoutubeURL
+			existingNews.Author = req.Author
+			existingNews.Category = req.Category
+			existingNews.CommentsEnabled = commentsEnabled
+			existingNews.UpdatedAt = time.Now()
+			if err := s.newsRepo.Update(ctx, existingNews); err != nil {
+				return nil, fmt.Errorf("update news: %w", err)
+			}
+			refreshed, err := s.totwRepo.GetTOTWByID(ctx, totwID)
+			if err != nil {
+				return nil, err
+			}
+			return s.mapToResponse(refreshed), nil
+		}
+	}
+
+	if s.newsRepo == nil {
+		return nil, fmt.Errorf("news repository is not initialized")
+	}
+
+	newArticle := &domain.News{
+		Title:              req.Title,
+		Slug:               generateArticleSlug(req.Title),
+		Excerpt:            req.Excerpt,
+		Content:            req.Content,
+		FeaturedImage:      req.FeaturedImage,
+		FeaturedMediaType:  req.FeaturedMediaType,
+		FeaturedYoutubeURL: req.FeaturedYoutubeURL,
+		Author:             req.Author,
+		Category:           req.Category,
+		CommentsEnabled:    commentsEnabled,
+		PublishedAt:        time.Now(),
+		CreatedAt:          time.Now(),
+		UpdatedAt:          time.Now(),
+	}
+	if err := s.newsRepo.Create(ctx, newArticle); err != nil {
+		return nil, fmt.Errorf("create news article: %w", err)
+	}
+
+	if err := s.totwRepo.AttachNewsToTOTW(ctx, totwID, newArticle.ID); err != nil {
+		return nil, fmt.Errorf("attach news to totw: %w", err)
+	}
+
+	refreshed, err := s.totwRepo.GetTOTWByID(ctx, totwID)
+	if err != nil {
+		return nil, err
+	}
+	return s.mapToResponse(refreshed), nil
 }
 
 func normalizeTOTWSlot(slot string) string {

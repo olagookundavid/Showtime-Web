@@ -29,6 +29,7 @@ interface TeamOfTheWeekModuleProps {
   className?: string;
   totwId?: string;
   showArchiveLink?: boolean;
+  showDetailsLink?: boolean;
   onSelectEdition?: (id: string) => void;
 }
 
@@ -37,6 +38,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
   className = "",
   totwId,
   showArchiveLink = false,
+  showDetailsLink,
   onSelectEdition,
 }) => {
   const [selectedTotwId, setSelectedTotwId] = useState<string | null>(
@@ -139,14 +141,14 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            {showArchiveLink && (
+          <div className="flex items-center gap-2">
+            {(showDetailsLink ?? showArchiveLink) && (
               <Link
-                to="/totw"
-                className="inline-flex items-center gap-1 min-h-11 bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-white/20 transition-all hover:scale-[1.02] shadow-sm shrink-0"
+                to={totw?.id ? `/totw/${totw.id}` : "/totw"}
+                className="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-white/20 transition-all hover:scale-[1.02] shadow-sm shrink-0"
               >
-                <span>Browse Archive</span>
-                <ChevronRightIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>View All Details</span>
+                <ChevronRightIcon className="w-3.5 h-3.5" />
               </Link>
             )}
             {archive.length > 1 && (
@@ -277,7 +279,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                   {/* Floating POTW Star Badge */}
                   {isPOTW && (
                     <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-40 px-2 py-0.5 rounded-full bg-linear-to-r from-amber-400 via-yellow-300 to-amber-500 text-sffl-navy text-[8px] md:text-[9px] font-black uppercase tracking-wider shadow-lg border border-white flex items-center gap-0.5 whitespace-nowrap animate-pulse">
-                      <StarSolidIcon className="w-2.5 h-2.5" aria-hidden="true" />
+                      <span>⭐</span>
                       <span>POTW</span>
                     </div>
                   )}
@@ -321,10 +323,9 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
                           : "bg-[#FFF8E9] text-[#102844]"
                     }`}
                   >
-                    {isPOTW && (
-                      <StarSolidIcon className="w-2.5 h-2.5" aria-hidden="true" />
-                    )}
-                    {p.slot_code || p.position}
+                    {isPOTW
+                      ? `⭐ ${p.slot_code || p.position}`
+                      : p.slot_code || p.position}
                   </span>
 
                   {/* Player Name */}
@@ -369,7 +370,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
               className="w-full sm:w-12 h-11 sm:h-14 md:h-16 rounded-xl bg-[#112D4E] hover:bg-sffl-red text-white flex items-center justify-center border border-white/20 transition-all active:scale-95 shadow-md cursor-pointer"
               aria-label="Previous player"
             >
-              <ChevronLeftIcon className="w-5 h-5 md:w-6 md:h-6" aria-hidden="true" />
+              <ChevronLeftIcon className="w-5 h-5 md:w-6 md:h-6" />
             </button>
 
             {/* Active Player Card */}
@@ -431,7 +432,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
               <div className="p-4 md:p-5 flex flex-col justify-center min-w-0">
                 {isActivePOTW && (
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-linear-to-r from-amber-500/25 via-yellow-400/20 to-amber-500/25 border border-amber-400/60 text-amber-300 font-black text-[10px] md:text-xs uppercase tracking-wider shadow-sm mb-2 w-fit animate-pulse">
-                    <StarSolidIcon className="w-3.5 h-3.5 md:w-4 md:h-4" aria-hidden="true" />
+                    <span className="text-xs md:text-sm">⭐</span>
                     <span>PLAYER OF THE WEEK</span>
                   </div>
                 )}
@@ -518,7 +519,7 @@ export const TeamOfTheWeekModule: React.FC<TeamOfTheWeekModuleProps> = ({
               className="w-full sm:w-12 h-11 sm:h-14 md:h-16 rounded-xl bg-[#112D4E] hover:bg-sffl-red text-white flex items-center justify-center border border-white/20 transition-all active:scale-95 shadow-md cursor-pointer"
               aria-label="Next player"
             >
-              <ChevronRightIcon className="w-5 h-5 md:w-6 md:h-6" aria-hidden="true" />
+              <ChevronRightIcon className="w-5 h-5 md:w-6 md:h-6" />
             </button>
           </div>
 
