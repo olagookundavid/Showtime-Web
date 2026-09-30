@@ -1977,7 +1977,8 @@ func (r *FantasyRepository) GetPlayerFantasySummary(ctx context.Context, seasonI
 			SELECT fl.gameweek_id, MAX(flp.points) AS pts
 			FROM fantasy_lineup_picks flp
 			JOIN fantasy_lineups fl ON fl.id = flp.lineup_id
-			WHERE flp.player_id = $2 AND fl.season_id = $1 AND fl.status = 'LOCKED'
+			JOIN fantasy_gameweeks fgw ON fgw.id = fl.gameweek_id
+			WHERE flp.player_id = $2 AND fgw.season_id = $1 AND fl.status = 'LOCKED'
 			  AND NOT EXISTS (
 			      SELECT 1 FROM fantasy_gw_points gwp
 			      WHERE gwp.gameweek_id = fl.gameweek_id AND gwp.player_id = $2
