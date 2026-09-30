@@ -44,9 +44,16 @@ export function FantasyLeagueConfirm() {
                 queryClient.invalidateQueries({ queryKey: ['publicFantasyLeagues'] });
                 queryClient.invalidateQueries({ queryKey: ['fantasyDashboard'] });
             })
-            .catch((err: any) => {
+            .catch((err: unknown) => {
                 setState('failed');
-                setMessage(err?.response?.data?.error || 'We could not confirm that payment.');
+                const error = err as {
+                    response?: { data?: { error?: unknown } };
+                };
+                setMessage(
+                    typeof error.response?.data?.error === 'string'
+                        ? error.response.data.error
+                        : 'We could not confirm that payment.'
+                );
             });
     }, [reference, queryClient]);
 

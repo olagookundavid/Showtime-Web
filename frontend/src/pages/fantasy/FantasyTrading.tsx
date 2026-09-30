@@ -65,7 +65,7 @@ export function FantasyTrading() {
             refresh(next);
             toast.success('Signed.');
         },
-        onError: (err: any) => toast.error(err?.response?.data?.error || 'Could not sign this player.'),
+        onError: (err: unknown) => toast.error((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Could not sign this player.'),
     });
 
     const sellMutation = useMutation({
@@ -75,7 +75,7 @@ export function FantasyTrading() {
             setConfirmSell(null);
             toast.success('Sold — the money is back in your bank.');
         },
-        onError: (err: any) => toast.error(err?.response?.data?.error || 'Could not sell this player.'),
+        onError: (err: unknown) => toast.error((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Could not sell this player.'),
     });
 
 

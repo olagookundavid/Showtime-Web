@@ -44,7 +44,7 @@ export const MatchDetail = () => {
         queryFn: () => getPublicMatchStats(id!),
         enabled: !!id,
     });
-    const playerStatsList = useMemo(() => statsData?.derived || statsData?.current || [], [statsData]);
+    const playerStatsList = useMemo(() => statsData?.derived || statsData?.current || [], [statsData?.derived, statsData?.current]);
 
     const match = matchDetail?.match;
     const team_sheet = matchDetail?.team_sheet;
@@ -124,7 +124,7 @@ export const MatchDetail = () => {
                     <div className="flex items-center justify-between gap-2 md:gap-8">
                         {/* Home */}
                         <div className="flex flex-col items-center gap-3 flex-1 min-w-0">
-                            <div className="w-16 h-16 md:w-28 md:h-28 bg-white rounded-full overflow-hidden shadow-xl ring-4 ring-white/10 flex-shrink-0 flex items-center justify-center">
+                            <div className="w-16 h-16 md:w-28 md:h-28 bg-white rounded-full overflow-hidden shadow-xl ring-4 ring-white/10 shrink-0 flex items-center justify-center">
                                 {homeTeam?.logo ? (
                                     <LightboxImage 
                                         src={homeTeam.logo} 
@@ -154,7 +154,7 @@ export const MatchDetail = () => {
                         </div>
 
                         {/* Score / Time */}
-                        <div className="flex flex-col items-center gap-1 md:gap-2 flex-shrink-0">
+                        <div className="flex flex-col items-center gap-1 md:gap-2 shrink-0">
                             {isBye ? (
                                 <div className="bg-white/10 backdrop-blur-sm px-4 md:px-8 py-2 md:py-4 rounded-xl md:rounded-2xl text-center border border-white/10">
                                     <div className="text-white font-black text-xl md:text-4xl tracking-tight">
@@ -181,7 +181,7 @@ export const MatchDetail = () => {
 
                         {/* Away */}
                         <div className="flex flex-col items-center gap-3 flex-1 min-w-0">
-                            <div className="w-16 h-16 md:w-28 md:h-28 bg-white rounded-full overflow-hidden shadow-xl ring-4 ring-white/10 flex-shrink-0 flex items-center justify-center">
+                            <div className="w-16 h-16 md:w-28 md:h-28 bg-white rounded-full overflow-hidden shadow-xl ring-4 ring-white/10 shrink-0 flex items-center justify-center">
                                 {isBye ? (
                                     <img 
                                         src="/images/default_football.png" 

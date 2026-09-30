@@ -376,7 +376,7 @@ export const PlayerDetail = () => {
                     </div>
 
                     {/* Unread notification style counter bubble on top-right */}
-                    <span className="absolute -top-1 -right-1 min-w-[22px] h-[22px] md:min-w-[26px] md:h-[26px] px-1.5 rounded-full bg-sffl-red text-white text-xs md:text-sm font-black flex items-center justify-center shadow-lg ring-2 ring-white dark:ring-gray-800 leading-none pointer-events-none select-none">
+                    <span className="absolute -top-1 -right-1 min-w-5.5 h-5.5 md:min-w-6.5 md:h-6.5 px-1.5 rounded-full bg-sffl-red text-white text-xs md:text-sm font-black flex items-center justify-center shadow-lg ring-2 ring-white dark:ring-gray-800 leading-none pointer-events-none select-none">
                       {count}
                     </span>
 

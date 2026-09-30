@@ -27,8 +27,12 @@ export const ClaimStatusPage: React.FC = () => {
         try {
             const res = await claimApi.getMyStatus();
             setClaim(res);
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Could not load your claim status');
+        } catch (err: unknown) {
+            const message =
+                typeof err === 'object' && err !== null && 'response' in err
+                    ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+                    : undefined;
+            toast.error(message || 'Could not load your claim status');
         } finally {
             setLoading(false);
         }
@@ -59,8 +63,12 @@ export const ClaimStatusPage: React.FC = () => {
             await claimApi.setMyPhoto(url);
             toast.success('Photo saved. Your manager can now see it.');
             fetchStatus();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Could not save your photo');
+        } catch (err: unknown) {
+            const message =
+                typeof err === 'object' && err !== null && 'response' in err
+                    ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+                    : undefined;
+            toast.error(message || 'Could not save your photo');
         }
     };
 
@@ -69,8 +77,12 @@ export const ClaimStatusPage: React.FC = () => {
         try {
             await claimApi.resendVerification();
             toast.success('Verification email sent.');
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Could not resend the verification email');
+        } catch (err: unknown) {
+            const message =
+                typeof err === 'object' && err !== null && 'response' in err
+                    ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+                    : undefined;
+            toast.error(message || 'Could not resend the verification email');
         } finally {
             setResending(false);
         }

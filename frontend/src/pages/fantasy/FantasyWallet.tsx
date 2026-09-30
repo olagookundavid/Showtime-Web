@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -90,10 +90,9 @@ export function FantasyWallet() {
     const [prefilled, setPrefilled] = useState(false);
     const [cancelTarget, setCancelTarget] = useState<PayoutRequest | null>(null);
 
-    // Prefill the bank fields once from the details used on the last request.
-    useEffect(() => {
-        const bank = wallet?.last_bank_details;
-        if (!bank || prefilled) return;
+    // Prefill saved bank details when they first become available.
+    const bank = wallet?.last_bank_details;
+    if (bank && !prefilled) {
         setForm((f) => ({
             ...f,
             bankName: f.bankName || bank.bank_name,
@@ -101,7 +100,7 @@ export function FantasyWallet() {
             accountName: f.accountName || bank.account_name,
         }));
         setPrefilled(true);
-    }, [wallet?.last_bank_details, prefilled]);
+    }
 
     const requestMutation = useMutation({
         mutationFn: async () => {
@@ -120,9 +119,10 @@ export function FantasyWallet() {
             queryClient.invalidateQueries({ queryKey: ['fantasyWallet'] });
             queryClient.invalidateQueries({ queryKey: ['fantasyMyPayouts'] });
         },
-        onError: (err: any) => {
+        onError: (err: unknown) => {
             // 409 == the server recomputed the balance and it no longer covers this.
-            toast.error(err?.response?.data?.error || err.message || 'Failed to request payout');
+            const errorMessage = err instanceof Error ? err.message : undefined;
+            toast.error(errorMessage || 'Failed to request payout');
         },
     });
 
@@ -134,8 +134,9 @@ export function FantasyWallet() {
             queryClient.invalidateQueries({ queryKey: ['fantasyWallet'] });
             queryClient.invalidateQueries({ queryKey: ['fantasyMyPayouts'] });
         },
-        onError: (err: any) => {
-            toast.error(err?.response?.data?.error || err.message || 'Failed to cancel payout request');
+        onError: (err: unknown) => {
+            const errorMessage = err instanceof Error ? err.message : undefined;
+            toast.error(errorMessage || 'Failed to cancel payout request');
         },
     });
 

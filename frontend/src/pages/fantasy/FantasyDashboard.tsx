@@ -1,157 +1,176 @@
-import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import {
-    TrophyIcon,
-    ShieldCheckIcon,
-    ClockIcon,
-    LockClosedIcon,
-    PencilSquareIcon,
-    UserGroupIcon,
-    ArrowRightIcon,
-    SparklesIcon,
-    ChartBarIcon,
-    ChevronLeftIcon,
-    ChevronRightIcon,
-    ChevronDownIcon,
-    ChevronDoubleLeftIcon,
-    ChevronDoubleRightIcon,
-    MapPinIcon,
-    BanknotesIcon,
-} from '@heroicons/react/24/outline';
+  TrophyIcon,
+  ShieldCheckIcon,
+  ClockIcon,
+  LockClosedIcon,
+  PencilSquareIcon,
+  UserGroupIcon,
+  ArrowRightIcon,
+  SparklesIcon,
+  ChartBarIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ChevronDownIcon,
+  ChevronDoubleLeftIcon,
+  ChevronDoubleRightIcon,
+  MapPinIcon,
+  BanknotesIcon,
+} from "@heroicons/react/24/outline";
 import {
-    fantasySeasonApi,
-    fantasyWalletApi,
-    formatKobo,
-    type FantasyLineupPick,
-    type DashboardLeagueRow,
-    type LeaderboardEntry,
-} from '../../services/api';
-import { Loader } from '../../components/ui/Loader';
-import { formatStatDecimal } from '../../utils/formatters';
-import { useAuth } from '../../contexts/AuthContext';
-import { FantasyBackLink } from '../../components/fantasy/FantasyBackLink';
-import { FantasyPitch } from '../../components/fantasy/FantasyPitch';
-import { FantasyTeamModal } from '../../components/fantasy/FantasyTeamModal';
-import { FantasyPlayerModal, type FantasyPlayerModalData } from '../../components/fantasy/FantasyPlayerModal';
+  fantasySeasonApi,
+  fantasyWalletApi,
+  formatKobo,
+  type FantasyLineupPick,
+  type DashboardLeagueRow,
+  type LeaderboardEntry,
+} from "../../services/api";
+import { Loader } from "../../components/ui/Loader";
+import { formatStatDecimal } from "../../utils/formatters";
+import { useAuth } from "../../contexts/AuthContext";
+import { FantasyBackLink } from "../../components/fantasy/FantasyBackLink";
+import { FantasyPitch } from "../../components/fantasy/FantasyPitch";
+import { FantasyTeamModal } from "../../components/fantasy/FantasyTeamModal";
 import {
-    useFantasyLeaderboard,
-    rankBadgeClass,
-    OVERALL,
-} from '../../hooks/useFantasyLeaderboard';
+  FantasyPlayerModal,
+  type FantasyPlayerModalData,
+} from "../../components/fantasy/FantasyPlayerModal";
+import {
+  useFantasyLeaderboard,
+  rankBadgeClass,
+  OVERALL,
+} from "../../hooks/useFantasyLeaderboard";
 
 /** Everything off the wire is treated as possibly-missing: a brand new season
  *  legitimately has no team, no lineup, no leagues and no managers. */
 const num = (v: number | null | undefined): number =>
-    typeof v === 'number' && Number.isFinite(v) ? v : 0;
+  typeof v === "number" && Number.isFinite(v) ? v : 0;
+
+type DashboardPick = FantasyLineupPick & {
+  player_image?: string | null;
+  photo_url?: string | null;
+  purchase_price?: number | null;
+  fantasy_price?: number | null;
+  price?: number | null;
+  gameweek_id?: string | null;
+};
 
 function formatDeadline(deadline?: string | null): string {
-    if (!deadline) return 'To be announced';
-    const d = new Date(deadline);
-    if (Number.isNaN(d.getTime())) return 'To be announced';
-    return d.toLocaleString();
+  if (!deadline) return "To be announced";
+  const d = new Date(deadline);
+  if (Number.isNaN(d.getTime())) return "To be announced";
+  return d.toLocaleString();
 }
 
 /** Cheap live countdown. Returns null when there is nothing sensible to count to. */
 function useCountdown(deadline?: string | null): string | null {
-    const [label, setLabel] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState<{
+    deadline: string;
+    label: string | null;
+  } | null>(null);
 
-    useEffect(() => {
-        if (!deadline) {
-            setLabel(null);
-            return;
-        }
-        const target = new Date(deadline).getTime();
-        if (Number.isNaN(target)) {
-            setLabel(null);
-            return;
-        }
+  useEffect(() => {
+    if (!deadline) return;
+    const target = new Date(deadline).getTime();
+    if (Number.isNaN(target)) return;
 
-        const tick = () => {
-            const ms = target - Date.now();
-            if (ms <= 0) {
-                setLabel(null);
-                return;
-            }
-            const totalSecs = Math.floor(ms / 1000);
-            const days = Math.floor(totalSecs / 86400);
-            const hours = Math.floor((totalSecs % 86400) / 3600);
-            const mins = Math.floor((totalSecs % 3600) / 60);
-            const secs = totalSecs % 60;
-            setLabel(
-                days > 0
-                    ? `${days}d ${hours}h ${mins}m`
-                    : `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
-            );
-        };
+    const tick = () => {
+      const ms = target - Date.now();
+      if (ms <= 0) {
+        setCountdown((previous) =>
+          previous?.deadline === deadline && previous.label === null
+            ? previous
+            : { deadline, label: null },
+        );
+        return;
+      }
+      const totalSecs = Math.floor(ms / 1000);
+      const days = Math.floor(totalSecs / 86400);
+      const hours = Math.floor((totalSecs % 86400) / 3600);
+      const mins = Math.floor((totalSecs % 3600) / 60);
+      const secs = totalSecs % 60;
+      setCountdown({
+        deadline,
+        label:
+          days > 0
+            ? `${days}d ${hours}h ${mins}m`
+            : `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`,
+      });
+    };
 
-        tick();
-        const id = window.setInterval(tick, 1000);
-        return () => window.clearInterval(id);
-    }, [deadline]);
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [deadline]);
 
-    return label;
+  return countdown && countdown.deadline === deadline ? countdown.label : null;
 }
 
 /** One leaderboard row, shared by the pinned podium and the paged window. */
 function LeaderboardRow({
-    entry,
-    fallbackRank,
-    isMe,
-    onSelect,
+  entry,
+  fallbackRank,
+  isMe,
+  onSelect,
 }: {
-    entry: LeaderboardEntry;
-    fallbackRank: number;
-    isMe: boolean;
-    onSelect?: (teamId: string) => void;
+  entry: LeaderboardEntry;
+  fallbackRank: number;
+  isMe: boolean;
+  onSelect?: (teamId: string) => void;
 }) {
-    const rank = num(entry?.rank) > 0 ? num(entry.rank) : fallbackRank;
-    const canClick = Boolean(onSelect && entry?.team_id);
-    return (
-        <div
-            onClick={canClick ? () => onSelect!(entry.team_id!) : undefined}
-            role={canClick ? 'button' : undefined}
-            tabIndex={canClick ? 0 : undefined}
-            onKeyDown={
-                canClick
-                    ? (e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              onSelect!(entry.team_id!);
-                          }
-                      }
-                    : undefined
+  const rank = num(entry?.rank) > 0 ? num(entry.rank) : fallbackRank;
+  const canClick = Boolean(onSelect && entry?.team_id);
+  return (
+    <div
+      onClick={canClick ? () => onSelect!(entry.team_id!) : undefined}
+      role={canClick ? "button" : undefined}
+      tabIndex={canClick ? 0 : undefined}
+      onKeyDown={
+        canClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelect!(entry.team_id!);
+              }
             }
-            title={canClick ? 'Click to inspect team formation and squad' : undefined}
-            className={`px-3 py-3 flex items-center justify-between gap-3 rounded-xl transition ${
-                isMe ? 'bg-emerald-50 dark:bg-emerald-950/30 ring-1 ring-inset ring-emerald-500/40' : ''
-            } ${canClick ? 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/60 group' : ''}`}
+          : undefined
+      }
+      title={canClick ? "Click to inspect team formation and squad" : undefined}
+      className={`px-3 py-3 flex items-center justify-between gap-3 rounded-xl transition ${
+        isMe
+          ? "bg-emerald-50 dark:bg-emerald-950/30 ring-1 ring-inset ring-emerald-500/40"
+          : ""
+      } ${canClick ? "cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/60 group" : ""}`}
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        <div
+          className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${rankBadgeClass(rank)}`}
         >
-            <div className="flex items-center gap-3 min-w-0">
-                <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${rankBadgeClass(rank)}`}
-                >
-                    {rank > 0 ? rank : '—'}
-                </div>
-                <div className="min-w-0">
-                    <p className="text-sm font-bold text-gray-900 dark:text-white truncate flex items-center gap-1.5">
-                        <span className="truncate group-hover:text-sffl-red transition-colors">{entry?.team_name || 'Unnamed squad'}</span>
-                        {isMe && (
-                            <span className="ml-2 text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
-                                You
-                            </span>
-                        )}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                        {entry?.user_name || '—'}
-                    </p>
-                </div>
-            </div>
-            <p className="text-sm font-black text-sffl-red shrink-0">
-                {formatStatDecimal(num(entry?.total_points), 2)} pts
-            </p>
+          {rank > 0 ? rank : "—"}
         </div>
-    );
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-gray-900 dark:text-white truncate flex items-center gap-1.5">
+            <span className="truncate group-hover:text-sffl-red transition-colors">
+              {entry?.team_name || "Unnamed squad"}
+            </span>
+            {isMe && (
+              <span className="ml-2 text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
+                You
+              </span>
+            )}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+            {entry?.user_name || "—"}
+          </p>
+        </div>
+      </div>
+      <p className="text-sm font-black text-sffl-red shrink-0">
+        {formatStatDecimal(num(entry?.total_points), 2)} pts
+      </p>
+    </div>
+  );
 }
 
 /**
@@ -159,695 +178,787 @@ function LeaderboardRow({
  * and a paged window that opens on the manager's own page.
  */
 function DashboardLeaderboard({
-    seasonId,
-    leagues,
-    myTeamId,
-    currentGameweekId,
+  seasonId,
+  leagues,
+  myTeamId,
+  currentGameweekId,
 }: {
-    seasonId: string;
-    leagues: DashboardLeagueRow[];
-    myTeamId?: string;
-    currentGameweekId?: string;
+  seasonId: string;
+  leagues: DashboardLeagueRow[];
+  myTeamId?: string;
+  currentGameweekId?: string;
 }) {
-    const { user } = useAuth();
-    const [scope, setScope] = useState<string>(OVERALL);
-    const [inspectingTeamId, setInspectingTeamId] = useState<string | null>(null);
+  const { user } = useAuth();
+  const [scope, setScope] = useState<string>(OVERALL);
+  const [inspectingTeamId, setInspectingTeamId] = useState<string | null>(null);
 
-    const leagueOptions = (leagues ?? [])
-        .filter((l) => !!l?.league_id && l.type !== 'OVERALL')
-        .map((l) => ({ id: l.league_id, name: l.name || 'Unnamed league' }));
+  const leagueOptions = (leagues ?? [])
+    .filter((l) => !!l?.league_id && l.type !== "OVERALL")
+    .map((l) => ({ id: l.league_id, name: l.name || "Unnamed league" }));
 
-    const {
-        isLoading, isEmpty, topThree, windowRows, total, totalPages, page,
-        myRank, canJumpToMe, allOnPodium, goToPage, jumpToMe, resetPaging, fallbackRankAt,
-    } = useFantasyLeaderboard({ seasonId, scope, queryPrefix: 'fantasyDashLeaderboard' });
+  const {
+    isLoading,
+    isEmpty,
+    topThree,
+    windowRows,
+    total,
+    totalPages,
+    page,
+    myRank,
+    canJumpToMe,
+    allOnPodium,
+    goToPage,
+    jumpToMe,
+    resetPaging,
+    fallbackRankAt,
+  } = useFantasyLeaderboard({
+    seasonId,
+    scope,
+    queryPrefix: "fantasyDashLeaderboard",
+  });
 
-    const safePage = page;
+  const safePage = page;
 
-    const selectScope = (next: string) => {
-        setScope(next);
-        resetPaging();
-    };
+  const selectScope = (next: string) => {
+    setScope(next);
+    resetPaging();
+  };
 
-    const isRowMe = (entry: LeaderboardEntry | undefined) => {
-        if (!entry) return false;
-        if (user?.id && entry.user_id && entry.user_id === user.id) return true;
-        if (myTeamId && entry.team_id && entry.team_id === myTeamId) return true;
-        return false;
-    };
+  const isRowMe = (entry: LeaderboardEntry | undefined) => {
+    if (!entry) return false;
+    if (user?.id && entry.user_id && entry.user_id === user.id) return true;
+    if (myTeamId && entry.team_id && entry.team_id === myTeamId) return true;
+    return false;
+  };
 
-    const myEntry = topThree.find(isRowMe) || windowRows.find(isRowMe);
-    const effectiveRank = myEntry?.rank ? num(myEntry.rank) : myRank;
+  const myEntry = topThree.find(isRowMe) || windowRows.find(isRowMe);
+  const effectiveRank = myEntry?.rank ? num(myEntry.rank) : myRank;
 
-    const fullTableTo =
-        scope === OVERALL ? `/fantasy/leaderboard/${seasonId}?type=overall` : `/fantasy/leaderboard/${scope}`;
+  const fullTableTo =
+    scope === OVERALL
+      ? `/fantasy/leaderboard/${seasonId}?type=overall`
+      : `/fantasy/leaderboard/${scope}`;
 
-    return (
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 md:p-6 shadow-sm">
-            <div className="flex items-center justify-between gap-3 mb-4">
-                <div>
-                    <h2 className="text-base font-black uppercase tracking-wider text-sffl-navy dark:text-white flex items-center gap-2">
-                        <ChartBarIcon className="w-5 h-5 text-sffl-red" /> Standings
-                    </h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                        {effectiveRank > 0
-                            ? `You are ranked #${effectiveRank.toLocaleString()}${total > 0 ? ` of ${total.toLocaleString()}` : ''} here`
-                            : 'Season leaders across the table you pick'}
-                    </p>
-                </div>
-                <Link
-                    to={fullTableTo}
-                    className="text-xs text-sffl-red hover:text-[#A52323] font-black uppercase inline-flex items-center gap-1 transition shrink-0"
-                >
-                    Full Table <ArrowRightIcon className="w-3.5 h-3.5" />
-                </Link>
-            </div>
-
-            {/* League filter */}
-            <div className="flex flex-wrap gap-2 pb-4 mb-2 border-b border-gray-100 dark:border-gray-700">
-                <button
-                    type="button"
-                    onClick={() => selectScope(OVERALL)}
-                    className={`px-3.5 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition ${
-                        scope === OVERALL
-                            ? 'bg-sffl-navy text-white shadow-sm'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
-                    }`}
-                >
-                    Overall
-                </button>
-                {leagueOptions.map((o) => (
-                    <button
-                        key={o.id}
-                        type="button"
-                        onClick={() => selectScope(o.id)}
-                        className={`px-3.5 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition ${
-                            scope === o.id
-                                ? 'bg-sffl-navy text-white shadow-sm'
-                                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
-                        }`}
-                    >
-                        {o.name}
-                    </button>
-                ))}
-            </div>
-
-            {isLoading ? (
-                <div className="py-10 flex justify-center">
-                    <div className="w-8 h-8 border-2 border-sffl-red border-t-transparent rounded-full animate-spin" />
-                </div>
-            ) : isEmpty ? (
-                <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-6">
-                    No manager has scored in this table yet. Be the first on the board.
-                </p>
-            ) : (
-                <>
-                    {/* Pinned top 3 */}
-                    {topThree.length > 0 && (
-                        <div className="mb-4">
-                            <p className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5 flex items-center gap-1.5">
-                                <TrophyIcon className="w-3.5 h-3.5 text-amber-500" /> Top 3
-                            </p>
-                            <div className="rounded-xl bg-gray-50 dark:bg-gray-700/40 divide-y divide-gray-100 dark:divide-gray-700">
-                                {topThree.map((entry, idx) => (
-                                    <LeaderboardRow
-                                        key={entry?.team_id ?? `top-${idx}`}
-                                        entry={entry}
-                                        fallbackRank={idx + 1}
-                                        isMe={isRowMe(entry)}
-                                        onSelect={(id) => setInspectingTeamId(id)}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Paged window */}
-                    <div className="flex items-center justify-between gap-3 mb-1.5">
-                        <p className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                            Rest of the table
-                        </p>
-                        {canJumpToMe && (
-                            <button
-                                type="button"
-                                onClick={jumpToMe}
-                                className="px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-sffl-red hover:text-white text-gray-700 dark:text-gray-200 text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1.5 transition"
-                            >
-                                <MapPinIcon className="w-3.5 h-3.5" /> Jump to me
-                            </button>
-                        )}
-                    </div>
-
-                    {windowRows.length === 0 ? (
-                        <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-6">
-                            {allOnPodium
-                                ? 'Everyone in this table is on the podium above.'
-                                : 'Nothing more to show on this page.'}
-                        </p>
-                    ) : (
-                        <div className="divide-y divide-gray-100 dark:divide-gray-700">
-                            {windowRows.map((entry, idx) => (
-                                <LeaderboardRow
-                                    key={entry?.team_id ?? `row-${idx}`}
-                                    entry={entry}
-                                    fallbackRank={fallbackRankAt(idx)}
-                                    isMe={isRowMe(entry)}
-                                    onSelect={(id) => setInspectingTeamId(id)}
-                                />
-                            ))}
-                        </div>
-                    )}
-
-                    <div className="pt-4 mt-2 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-between gap-3 text-xs text-gray-500 dark:text-gray-400">
-                        <span className="font-bold">
-                            Page {safePage} of {totalPages}
-                            {total > 0 ? ` • ${total.toLocaleString()} manager${total === 1 ? '' : 's'}` : ''}
-                        </span>
-                        <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={() => goToPage(1)}
-                                disabled={safePage === 1}
-                                title="First page"
-                                className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition"
-                            >
-                                <ChevronDoubleLeftIcon className="w-4 h-4" />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => goToPage(safePage - 1)}
-                                disabled={safePage <= 1}
-                                title="Previous page"
-                                className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition"
-                            >
-                                <ChevronLeftIcon className="w-4 h-4" />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => goToPage(safePage + 1)}
-                                disabled={safePage >= totalPages}
-                                title="Next page"
-                                className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition"
-                            >
-                                <ChevronRightIcon className="w-4 h-4" />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => goToPage(totalPages)}
-                                disabled={safePage >= totalPages}
-                                title="Last page"
-                                className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition"
-                            >
-                                <ChevronDoubleRightIcon className="w-4 h-4" />
-                            </button>
-                        </div>
-                    </div>
-                </>
-            )}
-
-            {/* Team Inspection Modal */}
-            <FantasyTeamModal
-                isOpen={Boolean(inspectingTeamId)}
-                onClose={() => setInspectingTeamId(null)}
-                teamId={inspectingTeamId}
-                seasonId={seasonId}
-                initialGameweekId={currentGameweekId}
-            />
+  return (
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 md:p-6 shadow-sm">
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div>
+          <h2 className="text-base font-black uppercase tracking-wider text-sffl-navy dark:text-white flex items-center gap-2">
+            <ChartBarIcon className="w-5 h-5 text-sffl-red" /> Standings
+          </h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            {effectiveRank > 0
+              ? `You are ranked #${effectiveRank.toLocaleString()}${total > 0 ? ` of ${total.toLocaleString()}` : ""} here`
+              : "Season leaders across the table you pick"}
+          </p>
         </div>
-    );
+        <Link
+          to={fullTableTo}
+          className="text-xs text-sffl-red hover:text-[#A52323] font-black uppercase inline-flex items-center gap-1 transition shrink-0"
+        >
+          Full Table <ArrowRightIcon className="w-3.5 h-3.5" />
+        </Link>
+      </div>
+
+      {/* League filter */}
+      <div className="flex flex-wrap gap-2 pb-4 mb-2 border-b border-gray-100 dark:border-gray-700">
+        <button
+          type="button"
+          onClick={() => selectScope(OVERALL)}
+          className={`px-3.5 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition ${
+            scope === OVERALL
+              ? "bg-sffl-navy text-white shadow-sm"
+              : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+          }`}
+        >
+          Overall
+        </button>
+        {leagueOptions.map((o) => (
+          <button
+            key={o.id}
+            type="button"
+            onClick={() => selectScope(o.id)}
+            className={`px-3.5 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition ${
+              scope === o.id
+                ? "bg-sffl-navy text-white shadow-sm"
+                : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+            }`}
+          >
+            {o.name}
+          </button>
+        ))}
+      </div>
+
+      {isLoading ? (
+        <div className="py-10 flex justify-center">
+          <div className="w-8 h-8 border-2 border-sffl-red border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : isEmpty ? (
+        <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-6">
+          No manager has scored in this table yet. Be the first on the board.
+        </p>
+      ) : (
+        <>
+          {/* Pinned top 3 */}
+          {topThree.length > 0 && (
+            <div className="mb-4">
+              <p className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5 flex items-center gap-1.5">
+                <TrophyIcon className="w-3.5 h-3.5 text-amber-500" /> Top 3
+              </p>
+              <div className="rounded-xl bg-gray-50 dark:bg-gray-700/40 divide-y divide-gray-100 dark:divide-gray-700">
+                {topThree.map((entry, idx) => (
+                  <LeaderboardRow
+                    key={entry?.team_id ?? `top-${idx}`}
+                    entry={entry}
+                    fallbackRank={idx + 1}
+                    isMe={isRowMe(entry)}
+                    onSelect={(id) => setInspectingTeamId(id)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Paged window */}
+          <div className="flex items-center justify-between gap-3 mb-1.5">
+            <p className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              Rest of the table
+            </p>
+            {canJumpToMe && (
+              <button
+                type="button"
+                onClick={jumpToMe}
+                className="px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-sffl-red hover:text-white text-gray-700 dark:text-gray-200 text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1.5 transition"
+              >
+                <MapPinIcon className="w-3.5 h-3.5" /> Jump to me
+              </button>
+            )}
+          </div>
+
+          {windowRows.length === 0 ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-6">
+              {allOnPodium
+                ? "Everyone in this table is on the podium above."
+                : "Nothing more to show on this page."}
+            </p>
+          ) : (
+            <div className="divide-y divide-gray-100 dark:divide-gray-700">
+              {windowRows.map((entry, idx) => (
+                <LeaderboardRow
+                  key={entry?.team_id ?? `row-${idx}`}
+                  entry={entry}
+                  fallbackRank={fallbackRankAt(idx)}
+                  isMe={isRowMe(entry)}
+                  onSelect={(id) => setInspectingTeamId(id)}
+                />
+              ))}
+            </div>
+          )}
+
+          <div className="pt-4 mt-2 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-between gap-3 text-xs text-gray-500 dark:text-gray-400">
+            <span className="font-bold">
+              Page {safePage} of {totalPages}
+              {total > 0
+                ? ` • ${total.toLocaleString()} manager${total === 1 ? "" : "s"}`
+                : ""}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => goToPage(1)}
+                disabled={safePage === 1}
+                title="First page"
+                className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition"
+              >
+                <ChevronDoubleLeftIcon className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => goToPage(safePage - 1)}
+                disabled={safePage <= 1}
+                title="Previous page"
+                className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition"
+              >
+                <ChevronLeftIcon className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => goToPage(safePage + 1)}
+                disabled={safePage >= totalPages}
+                title="Next page"
+                className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition"
+              >
+                <ChevronRightIcon className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => goToPage(totalPages)}
+                disabled={safePage >= totalPages}
+                title="Last page"
+                className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition"
+              >
+                <ChevronDoubleRightIcon className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Team Inspection Modal */}
+      <FantasyTeamModal
+        isOpen={Boolean(inspectingTeamId)}
+        onClose={() => setInspectingTeamId(null)}
+        teamId={inspectingTeamId}
+        seasonId={seasonId}
+        initialGameweekId={currentGameweekId}
+      />
+    </div>
+  );
 }
 
 export function FantasyDashboard() {
-    const { data: dashboard, isLoading, isError } = useQuery({
-        queryKey: ['fantasyDashboard'],
-        queryFn: () => fantasySeasonApi.getDashboard(),
-        refetchInterval: (query) => {
-            const gw = query.state.data?.current_gameweek;
-            // Only auto-poll during active match days when gameweek is locked or live
-            if (gw && (gw.status === 'LOCKED' || gw.status === 'LIVE')) {
-                return 30_000;
-            }
-            return false;
-        },
-    });
+  const {
+    data: dashboard,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["fantasyDashboard"],
+    queryFn: () => fantasySeasonApi.getDashboard(),
+    refetchInterval: (query) => {
+      const gw = query.state.data?.current_gameweek;
+      // Only auto-poll during active match days when gameweek is locked or live
+      if (gw && (gw.status === "LOCKED" || gw.status === "LIVE")) {
+        return 30_000;
+      }
+      return false;
+    },
+  });
 
-    // Prize money is the one thing on this page that a manager can actually lose
-    // track of, so the dashboard fetches the wallet and says so outright rather
-    // than leaving it a page away.
-    const { data: wallet } = useQuery({
-        queryKey: ['fantasyWallet'],
-        queryFn: fantasyWalletApi.getWallet,
-        retry: false,
-    });
+  // Prize money is the one thing on this page that a manager can actually lose
+  // track of, so the dashboard fetches the wallet and says so outright rather
+  // than leaving it a page away.
+  const { data: wallet } = useQuery({
+    queryKey: ["fantasyWallet"],
+    queryFn: fantasyWalletApi.getWallet,
+    retry: false,
+  });
 
-    const gameweek = dashboard?.current_gameweek;
-    const countdown = useCountdown(gameweek?.deadline);
-    const [inspectingPlayer, setInspectingPlayer] = useState<FantasyPlayerModalData | null>(null);
+  const gameweek = dashboard?.current_gameweek;
+  const countdown = useCountdown(gameweek?.deadline);
+  const [inspectingPlayer, setInspectingPlayer] =
+    useState<FantasyPlayerModalData | null>(null);
 
-    if (isLoading) {
-        return <Loader />;
-    }
+  if (isLoading) {
+    return <Loader />;
+  }
 
-    // No live season (or the call failed) — same shape of empty state the hub uses.
-    if (isError || !dashboard || !dashboard.season) {
-        return (
-            <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 bg-white dark:bg-gray-800 rounded-2xl md:rounded-3xl border border-gray-200 dark:border-gray-700 shadow-sm p-8 md:p-12">
-                <div className="w-16 h-16 rounded-2xl bg-sffl-red/10 dark:bg-sffl-red/20 flex items-center justify-center text-sffl-red mb-4">
-                    <ShieldCheckIcon className="w-10 h-10" />
-                </div>
-                <h1 className="text-2xl font-black uppercase tracking-tight text-sffl-navy dark:text-white mb-2">
-                    No Active Season
-                </h1>
-                <p className="text-gray-600 dark:text-gray-300 max-w-md mb-6 text-sm">
-                    There is no fantasy season running right now, so there is nothing to track yet. Check back when the next season opens.
-                </p>
-                <Link
-                    to="/fantasy"
-                    className="px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-sm shadow-md transition active:scale-95"
-                >
-                    Back to Fantasy
-                </Link>
-            </div>
-        );
-    }
-
-    const season = dashboard.season;
-
-    // Deliberate entry is required — never pretend a manager is playing.
-    if (!dashboard.entered) {
-        return (
-            <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 bg-white dark:bg-gray-800 rounded-2xl md:rounded-3xl border border-gray-200 dark:border-gray-700 shadow-sm p-8 md:p-12">
-                <div className="w-16 h-16 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 flex items-center justify-center text-amber-500 mb-4">
-                    <SparklesIcon className="w-10 h-10" />
-                </div>
-                <h1 className="text-2xl font-black uppercase tracking-tight text-sffl-navy dark:text-white mb-2">
-                    You Haven't Joined This Season
-                </h1>
-                <p className="text-gray-600 dark:text-gray-300 max-w-md mb-6 text-sm">
-                    {season.name} is open, but you haven't entered it yet. Nothing is created for you until you choose to join — head back and enter the season to unlock your dashboard.
-                </p>
-                <Link
-                    to="/fantasy"
-                    className="px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-sm shadow-md transition active:scale-95 inline-flex items-center gap-2"
-                >
-                    Join {season.name} <ArrowRightIcon className="w-4 h-4" />
-                </Link>
-            </div>
-        );
-    }
-
-    const team = dashboard.team;
-    const lineup = dashboard.lineup;
-    const picks: FantasyLineupPick[] = lineup?.picks ?? [];
-    const leagues: DashboardLeagueRow[] = dashboard.leagues ?? [];
-    const deadlinePassed = dashboard.deadline_passed === true;
-
-    const rank = num(team?.overall_rank);
-    const totalManagers = num(team?.total_managers);
-
+  // No live season (or the call failed) — same shape of empty state the hub uses.
+  if (isError || !dashboard || !dashboard.season) {
     return (
-        <div className="space-y-6 md:space-y-8 pb-36 md:pb-24">
-            <FantasyBackLink to="/fantasy" label="Back to Fantasy" />
-            {/* Hero: personal progress first */}
-            <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-6 md:p-8">
-                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                    <div>
-                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-yellow-400 text-xs font-black uppercase tracking-wider mb-2">
-                            <TrophyIcon className="w-3.5 h-3.5" /> {season.name}
-                        </div>
-                        <h1 className="text-3xl md:text-5xl font-black italic uppercase tracking-tight text-white">
-                            {team?.name || 'My Squad'}
-                        </h1>
-                        <p className="text-xs md:text-sm text-gray-300 mt-1 font-medium">
-                            Your weekly home — progress, deadline and standings in one place.
-                        </p>
-                    </div>
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 bg-white dark:bg-gray-800 rounded-2xl md:rounded-3xl border border-gray-200 dark:border-gray-700 shadow-sm p-8 md:p-12">
+        <div className="w-16 h-16 rounded-2xl bg-sffl-red/10 dark:bg-sffl-red/20 flex items-center justify-center text-sffl-red mb-4">
+          <ShieldCheckIcon className="w-10 h-10" />
+        </div>
+        <h1 className="text-2xl font-black uppercase tracking-tight text-sffl-navy dark:text-white mb-2">
+          No Active Season
+        </h1>
+        <p className="text-gray-600 dark:text-gray-300 max-w-md mb-6 text-sm">
+          There is no fantasy season running right now, so there is nothing to
+          track yet. Check back when the next season opens.
+        </p>
+        <Link
+          to="/fantasy"
+          className="px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-sm shadow-md transition active:scale-95"
+        >
+          Back to Fantasy
+        </Link>
+      </div>
+    );
+  }
 
-                    <div className="flex flex-wrap items-center gap-3">
-                        <Link
-                            to="/fantasy/leagues"
-                            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-sffl-navy font-black text-xs uppercase tracking-wider flex items-center gap-2 transition active:scale-95 shadow-lg shadow-amber-400/30 ring-1 ring-amber-300/70"
-                        >
-                            <TrophyIcon className="w-4 h-4 text-sffl-navy" /> Browse Leagues
-                        </Link>
-                        {!deadlinePassed && (
-                            <Link
-                                to="/fantasy/build"
-                                className="px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 transition active:scale-95 shadow-lg shadow-sffl-red/30"
-                            >
-                                <PencilSquareIcon className="w-3.5 h-3.5" /> My Team & Transfers
-                            </Link>
-                        )}
-                        <Link
-                            to="/fantasy/analytics"
-                            className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase flex items-center gap-2 transition backdrop-blur-md"
-                        >
-                            <ChartBarIcon className="w-3.5 h-3.5 text-yellow-400" /> Weekly Report
-                        </Link>
-                        <Link
-                            to="/fantasy/wallet"
-                            className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase flex items-center gap-2 transition backdrop-blur-md"
-                        >
-                            <BanknotesIcon className="w-3.5 h-3.5 text-yellow-400" /> Prize Wallet
-                        </Link>
-                        <Link
-                            to="/fantasy/my-team"
-                            className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase flex items-center gap-2 transition backdrop-blur-md"
-                        >
-                            <ShieldCheckIcon className="w-3.5 h-3.5 text-emerald-400" /> Full Squad
-                        </Link>
-                    </div>
-                </div>
+  const season = dashboard.season;
 
-                {/* Rank hero + points */}
-                <div className="mt-6 pt-6 border-t border-white/10 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="p-4 bg-white/10 rounded-xl sm:row-span-1">
-                        <span className="text-[10px] uppercase font-black tracking-wider text-gray-300 block">
-                            Overall Rank
-                        </span>
-                        <span className="text-4xl md:text-5xl font-black text-yellow-400 leading-tight">
-                            {rank > 0 ? `#${rank.toLocaleString()}` : '—'}
-                        </span>
-                        <span className="block text-xs text-gray-300 font-bold mt-0.5">
-                            {totalManagers > 0
-                                ? `of ${totalManagers.toLocaleString()} manager${totalManagers === 1 ? '' : 's'}`
-                                : 'Ranking starts once points are scored'}
-                        </span>
-                    </div>
+  // Deliberate entry is required — never pretend a manager is playing.
+  if (!dashboard.entered) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 bg-white dark:bg-gray-800 rounded-2xl md:rounded-3xl border border-gray-200 dark:border-gray-700 shadow-sm p-8 md:p-12">
+        <div className="w-16 h-16 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 flex items-center justify-center text-amber-500 mb-4">
+          <SparklesIcon className="w-10 h-10" />
+        </div>
+        <h1 className="text-2xl font-black uppercase tracking-tight text-sffl-navy dark:text-white mb-2">
+          You Haven't Joined This Season
+        </h1>
+        <p className="text-gray-600 dark:text-gray-300 max-w-md mb-6 text-sm">
+          {season.name} is open, but you haven't entered it yet. Nothing is
+          created for you until you choose to join — head back and enter the
+          season to unlock your dashboard.
+        </p>
+        <Link
+          to="/fantasy"
+          className="px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-sm shadow-md transition active:scale-95 inline-flex items-center gap-2"
+        >
+          Join {season.name} <ArrowRightIcon className="w-4 h-4" />
+        </Link>
+      </div>
+    );
+  }
 
-                    <div className="p-4 bg-white/10 rounded-xl">
-                        <span className="text-[10px] uppercase font-black tracking-wider text-gray-300 block">
-                            {gameweek ? `Gameweek ${gameweek.number} Points` : 'Gameweek Points'}
-                        </span>
-                        <span className="text-3xl md:text-4xl font-black text-white leading-tight">
-                            {formatStatDecimal(num(team?.gameweek_points), 2)}
-                        </span>
-                        <span className="block text-xs text-gray-300 font-bold mt-0.5">This match day</span>
-                    </div>
+  const team = dashboard.team;
+  const lineup = dashboard.lineup;
+  const picks: FantasyLineupPick[] = lineup?.picks ?? [];
+  const leagues: DashboardLeagueRow[] = dashboard.leagues ?? [];
+  const deadlinePassed = dashboard.deadline_passed === true;
 
-                    <div className="p-4 bg-white/10 rounded-xl">
-                        <span className="text-[10px] uppercase font-black tracking-wider text-gray-300 block">
-                            Season Total
-                        </span>
-                        <span className="text-3xl md:text-4xl font-black text-emerald-400 leading-tight">
-                            {formatStatDecimal(num(team?.total_points), 2)}
-                        </span>
-                        <span className="block text-xs text-gray-300 font-bold mt-0.5">All gameweeks</span>
-                    </div>
-                </div>
+  const rank = num(team?.overall_rank);
+  const totalManagers = num(team?.total_managers);
+
+  return (
+    <div className="space-y-6 md:space-y-8 pb-36 md:pb-24">
+      <FantasyBackLink to="/fantasy" label="Back to Fantasy" />
+      {/* Hero: personal progress first */}
+      <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-6 md:p-8">
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-yellow-400 text-xs font-black uppercase tracking-wider mb-2">
+              <TrophyIcon className="w-3.5 h-3.5" /> {season.name}
             </div>
+            <h1 className="text-3xl md:text-5xl font-black italic uppercase tracking-tight text-white">
+              {team?.name || "My Squad"}
+            </h1>
+            <p className="text-xs md:text-sm text-gray-300 mt-1 font-medium">
+              Your weekly home — progress, deadline and standings in one place.
+            </p>
+          </div>
 
-            {/* Winnings. Shown only when there is money involved — an empty wallet
-                is not news, but money sitting unclaimed is. */}
-            {wallet && (num(wallet.balance_kobo) > 0 || num(wallet.pending_payout_kobo) > 0) && (
-                <div className="bg-white dark:bg-gray-800 border border-emerald-200 dark:border-emerald-800 rounded-2xl md:rounded-3xl shadow-sm p-5 md:p-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="flex items-start gap-3 min-w-0">
-                            <div className="w-11 h-11 shrink-0 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                                <BanknotesIcon className="w-6 h-6" />
-                            </div>
-                            <div className="min-w-0">
-                                <p className="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                                    You've won prize money
-                                </p>
-                                <p className="text-2xl md:text-3xl font-black text-sffl-navy dark:text-white leading-tight tabular-nums">
-                                    {formatKobo(num(wallet.balance_kobo))}
-                                </p>
-                                <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">
-                                    {num(wallet.balance_kobo) > 0
-                                        ? 'Add your bank account and request a withdrawal — we pay it by transfer.'
-                                        : 'Your balance is fully requested.'}
-                                    {num(wallet.pending_payout_kobo) > 0 && (
-                                        <>
-                                            {' '}
-                                            <span className="font-bold text-amber-600 dark:text-amber-400">
-                                                {formatKobo(num(wallet.pending_payout_kobo))} is already being processed.
-                                            </span>
-                                        </>
-                                    )}
-                                </p>
-                            </div>
-                        </div>
-
-                        <Link
-                            to="/fantasy/wallet"
-                            className="shrink-0 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition active:scale-95 shadow-md"
-                        >
-                            {num(wallet.balance_kobo) > 0 ? 'Withdraw' : 'View Wallet'}
-                            <ArrowRightIcon className="w-4 h-4" />
-                        </Link>
-                    </div>
-                </div>
-            )}
-
-            {/* Standings — first thing under the hero, by design */}
-            <DashboardLeaderboard seasonId={season.id} leagues={leagues} myTeamId={team?.id} currentGameweekId={gameweek?.id} />
-
-            {/* Deadline */}
-            <div
-                className={`rounded-2xl border p-5 md:p-6 shadow-sm ${
-                    deadlinePassed
-                        ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
-                        : 'bg-white dark:bg-gray-800 border-emerald-500/40 dark:border-emerald-500/30'
-                }`}
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              to="/fantasy/leagues"
+              className="px-5 py-2.5 rounded-xl bg-linear-to-r from-amber-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-sffl-navy font-black text-xs uppercase tracking-wider flex items-center gap-2 transition active:scale-95 shadow-lg shadow-amber-400/30 ring-1 ring-amber-300/70"
             >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-start gap-3">
-                        <div
-                            className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
-                                deadlinePassed
-                                    ? 'bg-sffl-red/10 dark:bg-sffl-red/20 text-sffl-red'
-                                    : 'bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-                            }`}
-                        >
-                            {deadlinePassed ? <LockClosedIcon className="w-6 h-6" /> : <ClockIcon className="w-6 h-6" />}
-                        </div>
-                        <div>
-                            <h2 className="text-sm font-black uppercase tracking-wider text-sffl-navy dark:text-white">
-                                {gameweek ? `Gameweek ${gameweek.number}` : 'Next Gameweek'}
-                                {deadlinePassed ? ' — Locked' : ''}
-                            </h2>
-                            {deadlinePassed ? (
-                                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 leading-relaxed max-w-xl">
-                                    The deadline passed on <strong>{formatDeadline(gameweek?.deadline)}</strong>. Your squad is fixed for this gameweek and is now scoring live — changes reopen for the next gameweek.
-                                </p>
-                            ) : (
-                                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 leading-relaxed max-w-xl">
-                                    Deadline: <strong>{formatDeadline(gameweek?.deadline)}</strong>
-                                    {countdown ? (
-                                        <>
-                                            {' '}
-                                            <span className="font-mono font-black text-emerald-600 dark:text-emerald-400">
-                                                ({countdown} left)
-                                            </span>
-                                        </>
-                                    ) : null}
-                                    . Squads lock {season.lock_mins_before >= 60 ? `${season.lock_mins_before / 60} hours` : `${num(season.lock_mins_before)} minutes`} before kickoff.
-                                </p>
-                            )}
-                        </div>
-                    </div>
+              <TrophyIcon className="w-4 h-4 text-sffl-navy" /> Browse Leagues
+            </Link>
+            {!deadlinePassed && (
+              <Link
+                to="/fantasy/build"
+                className="px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 transition active:scale-95 shadow-lg shadow-sffl-red/30"
+              >
+                <PencilSquareIcon className="w-3.5 h-3.5" /> My Team & Transfers
+              </Link>
+            )}
+            <Link
+              to="/fantasy/analytics"
+              className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase flex items-center gap-2 transition backdrop-blur-md"
+            >
+              <ChartBarIcon className="w-3.5 h-3.5 text-yellow-400" /> Weekly
+              Report
+            </Link>
+            <Link
+              to="/fantasy/wallet"
+              className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase flex items-center gap-2 transition backdrop-blur-md"
+            >
+              <BanknotesIcon className="w-3.5 h-3.5 text-yellow-400" /> Prize
+              Wallet
+            </Link>
+            <Link
+              to="/fantasy/my-team"
+              className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase flex items-center gap-2 transition backdrop-blur-md"
+            >
+              <ShieldCheckIcon className="w-3.5 h-3.5 text-emerald-400" /> Full
+              Squad
+            </Link>
+          </div>
+        </div>
 
-                    {!deadlinePassed && (
-                        <Link
-                            to="/fantasy/build"
-                            className="shrink-0 px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase flex items-center justify-center gap-2 transition active:scale-95 shadow-md"
-                        >
-                            <PencilSquareIcon className="w-3.5 h-3.5" /> Edit Squad
-                        </Link>
-                    )}
+        {/* Rank hero + points */}
+        <div className="mt-6 pt-6 border-t border-white/10 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="p-4 bg-white/10 rounded-xl sm:row-span-1">
+            <span className="text-[10px] uppercase font-black tracking-wider text-gray-300 block">
+              Overall Rank
+            </span>
+            <span className="text-4xl md:text-5xl font-black text-yellow-400 leading-tight">
+              {rank > 0 ? `#${rank.toLocaleString()}` : "—"}
+            </span>
+            <span className="block text-xs text-gray-300 font-bold mt-0.5">
+              {totalManagers > 0
+                ? `of ${totalManagers.toLocaleString()} manager${totalManagers === 1 ? "" : "s"}`
+                : "Ranking starts once points are scored"}
+            </span>
+          </div>
+
+          <div className="p-4 bg-white/10 rounded-xl">
+            <span className="text-[10px] uppercase font-black tracking-wider text-gray-300 block">
+              {gameweek
+                ? `Gameweek ${gameweek.number} Points`
+                : "Gameweek Points"}
+            </span>
+            <span className="text-3xl md:text-4xl font-black text-white leading-tight">
+              {formatStatDecimal(num(team?.gameweek_points), 2)}
+            </span>
+            <span className="block text-xs text-gray-300 font-bold mt-0.5">
+              This match day
+            </span>
+          </div>
+
+          <div className="p-4 bg-white/10 rounded-xl">
+            <span className="text-[10px] uppercase font-black tracking-wider text-gray-300 block">
+              Season Total
+            </span>
+            <span className="text-3xl md:text-4xl font-black text-emerald-400 leading-tight">
+              {formatStatDecimal(num(team?.total_points), 2)}
+            </span>
+            <span className="block text-xs text-gray-300 font-bold mt-0.5">
+              All gameweeks
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Winnings. Shown only when there is money involved — an empty wallet
+                is not news, but money sitting unclaimed is. */}
+      {wallet &&
+        (num(wallet.balance_kobo) > 0 ||
+          num(wallet.pending_payout_kobo) > 0) && (
+          <div className="bg-white dark:bg-gray-800 border border-emerald-200 dark:border-emerald-800 rounded-2xl md:rounded-3xl shadow-sm p-5 md:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="w-11 h-11 shrink-0 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                  <BanknotesIcon className="w-6 h-6" />
                 </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                    You've won prize money
+                  </p>
+                  <p className="text-2xl md:text-3xl font-black text-sffl-navy dark:text-white leading-tight tabular-nums">
+                    {formatKobo(num(wallet.balance_kobo))}
+                  </p>
+                  <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">
+                    {num(wallet.balance_kobo) > 0
+                      ? "Add your bank account and request a withdrawal — we pay it by transfer."
+                      : "Your balance is fully requested."}
+                    {num(wallet.pending_payout_kobo) > 0 && (
+                      <>
+                        {" "}
+                        <span className="font-bold text-amber-600 dark:text-amber-400">
+                          {formatKobo(num(wallet.pending_payout_kobo))} is
+                          already being processed.
+                        </span>
+                      </>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                to="/fantasy/wallet"
+                className="shrink-0 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition active:scale-95 shadow-md"
+              >
+                {num(wallet.balance_kobo) > 0 ? "Withdraw" : "View Wallet"}
+                <ArrowRightIcon className="w-4 h-4" />
+              </Link>
             </div>
+          </div>
+        )}
 
-            {/* Squad snapshot */}
+      {/* Standings — first thing under the hero, by design */}
+      <DashboardLeaderboard
+        seasonId={season.id}
+        leagues={leagues}
+        myTeamId={team?.id}
+        currentGameweekId={gameweek?.id}
+      />
+
+      {/* Deadline */}
+      <div
+        className={`rounded-2xl border p-5 md:p-6 shadow-sm ${
+          deadlinePassed
+            ? "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+            : "bg-white dark:bg-gray-800 border-emerald-500/40 dark:border-emerald-500/30"
+        }`}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div
+              className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+                deadlinePassed
+                  ? "bg-sffl-red/10 dark:bg-sffl-red/20 text-sffl-red"
+                  : "bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+              }`}
+            >
+              {deadlinePassed ? (
+                <LockClosedIcon className="w-6 h-6" />
+              ) : (
+                <ClockIcon className="w-6 h-6" />
+              )}
+            </div>
             <div>
-                <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-black uppercase tracking-tight text-sffl-navy dark:text-white flex items-center gap-2">
-                        <ShieldCheckIcon className="w-5 h-5 text-sffl-red" /> Squad Snapshot
-                    </h2>
-                    {picks.length > 0 && (
-                        <Link
-                            to="/fantasy/my-team"
-                            className="text-xs text-sffl-red hover:text-[#A52323] font-black uppercase inline-flex items-center gap-1 transition"
-                        >
-                            Full Squad <ArrowRightIcon className="w-3.5 h-3.5" />
-                        </Link>
-                    )}
-                </div>
+              <h2 className="text-sm font-black uppercase tracking-wider text-sffl-navy dark:text-white">
+                {gameweek ? `Gameweek ${gameweek.number}` : "Next Gameweek"}
+                {deadlinePassed ? " — Locked" : ""}
+              </h2>
+              {deadlinePassed ? (
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 leading-relaxed max-w-xl">
+                  The deadline passed on{" "}
+                  <strong>{formatDeadline(gameweek?.deadline)}</strong>. Your
+                  squad is fixed for this gameweek and is now scoring live —
+                  changes reopen for the next gameweek.
+                </p>
+              ) : (
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 leading-relaxed max-w-xl">
+                  Deadline:{" "}
+                  <strong>{formatDeadline(gameweek?.deadline)}</strong>
+                  {countdown ? (
+                    <>
+                      {" "}
+                      <span className="font-mono font-black text-emerald-600 dark:text-emerald-400">
+                        ({countdown} left)
+                      </span>
+                    </>
+                  ) : null}
+                  . Squads lock{" "}
+                  {season.lock_mins_before >= 60
+                    ? `${season.lock_mins_before / 60} hours`
+                    : `${num(season.lock_mins_before)} minutes`}{" "}
+                  before kickoff.
+                </p>
+              )}
+            </div>
+          </div>
 
-                {picks.length === 0 ? (
-                    <div className="p-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 text-center shadow-sm">
-                        <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-                            No squad is set for {gameweek ? `Gameweek ${gameweek.number}` : 'this gameweek'} yet. Pick your{' '}
-                            {num(season.squad_size) > 0 ? `${num(season.squad_size)}-player` : ''} squad to start scoring points.
-                        </p>
-                        <Link
-                            to="/fantasy/build"
-                            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-sm shadow-md transition active:scale-95"
-                        >
-                            Build My Squad <ArrowRightIcon className="w-4 h-4" />
-                        </Link>
-                    </div>
-                ) : (
-                    <div className="space-y-4">
-                        {/* The formation, so the 7v7 shape and any empty position
+          {!deadlinePassed && (
+            <Link
+              to="/fantasy/build"
+              className="shrink-0 px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase flex items-center justify-center gap-2 transition active:scale-95 shadow-md"
+            >
+              <PencilSquareIcon className="w-3.5 h-3.5" /> Edit Squad
+            </Link>
+          )}
+        </div>
+      </div>
+
+      {/* Squad snapshot */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-black uppercase tracking-tight text-sffl-navy dark:text-white flex items-center gap-2">
+            <ShieldCheckIcon className="w-5 h-5 text-sffl-red" /> Squad Snapshot
+          </h2>
+          {picks.length > 0 && (
+            <Link
+              to="/fantasy/my-team"
+              className="text-xs text-sffl-red hover:text-[#A52323] font-black uppercase inline-flex items-center gap-1 transition"
+            >
+              Full Squad <ArrowRightIcon className="w-3.5 h-3.5" />
+            </Link>
+          )}
+        </div>
+
+        {picks.length === 0 ? (
+          <div className="p-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 text-center shadow-sm">
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+              No squad is set for{" "}
+              {gameweek ? `Gameweek ${gameweek.number}` : "this gameweek"} yet.
+              Pick your{" "}
+              {num(season.squad_size) > 0
+                ? `${num(season.squad_size)}-player`
+                : ""}{" "}
+              squad to start scoring points.
+            </p>
+            <Link
+              to="/fantasy/build"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-sm shadow-md transition active:scale-95"
+            >
+              Build My Squad <ArrowRightIcon className="w-4 h-4" />
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* The formation, so the 7v7 shape and any empty position
                             read at a glance. The list below still answers "who
                             scored what", which a pitch cannot do as compactly. */}
-                        <FantasyPitch
-                            picks={picks}
-                            gameweekLabel={gameweek ? `Gameweek ${gameweek.number}` : undefined}
-                            gameweekId={dashboard?.lineup?.gameweek_id || gameweek?.id}
-                            showPoints={deadlinePassed}
-                        />
-
-                        <details className="group bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm overflow-hidden">
-                            <summary className="px-4 py-3 cursor-pointer list-none flex items-center justify-between text-xs font-black uppercase tracking-wider text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
-                                <span>All {picks.length} players &amp; points</span>
-                                <ChevronDownIcon className="w-4 h-4 transition-transform group-open:rotate-180" />
-                            </summary>
-                            <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 divide-gray-100 dark:divide-gray-700 border-t border-gray-100 dark:border-gray-700">
-                            {picks.map((pick, idx) => (
-                                <div
-                                    key={`${pick.slot}-${pick.player_id ?? idx}`}
-                                    onClick={() => {
-                                        if (pick.player_id) {
-                                            setInspectingPlayer({
-                                                playerId: pick.player_id,
-                                                playerName: pick.player_name || 'Player',
-                                                playerImage: (pick as any).player_image || (pick as any).photo_url,
-                                                position: pick.position || pick.slot,
-                                                gender: pick.gender,
-                                                teamName: pick.team_name,
-                                                teamShortName: pick.team_short_name,
-                                                points: num(pick.points),
-                                                purchasePrice: (pick as any).purchase_price,
-                                                price: (pick as any).fantasy_price || (pick as any).price || (pick as any).purchase_price,
-                                                gameweekId: (pick as any).gameweek_id || dashboard?.lineup?.gameweek_id || gameweek?.id,
-                                                gameweekNumber: gameweek?.number,
-                                            });
-                                        }
-                                    }}
-                                    role={pick.player_id ? 'button' : undefined}
-                                    tabIndex={pick.player_id ? 0 : undefined}
-                                    onKeyDown={
-                                        pick.player_id
-                                            ? (e) => {
-                                                  if (e.key === 'Enter' || e.key === ' ') {
-                                                      e.preventDefault();
-                                                      setInspectingPlayer({
-                                                          playerId: pick.player_id,
-                                                          playerName: pick.player_name || 'Player',
-                                                          playerImage: (pick as any).player_image || (pick as any).photo_url,
-                                                          position: pick.position || pick.slot,
-                                                          gender: pick.gender,
-                                                          teamName: pick.team_name,
-                                                          teamShortName: pick.team_short_name,
-                                                          points: num(pick.points),
-                                                          purchasePrice: (pick as any).purchase_price,
-                                                          price: (pick as any).fantasy_price || (pick as any).price || (pick as any).purchase_price,
-                                                          gameweekId: (pick as any).gameweek_id || dashboard?.lineup?.gameweek_id || gameweek?.id,
-                                                          gameweekNumber: gameweek?.number,
-                                                      });
-                                                  }
-                                              }
-                                            : undefined
-                                    }
-                                    title={pick.player_id ? 'Click to view player fantasy profile' : undefined}
-                                    className={`px-4 py-3 flex items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition group ${
-                                        pick.player_id ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50' : ''
-                                    }`}
-                                >
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <span className="text-[10px] font-black px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-200 shrink-0">
-                                            {pick.slot}
-                                        </span>
-                                        <div className="min-w-0">
-                                            <p className="text-sm font-bold text-gray-900 dark:text-white truncate group-hover:text-sffl-red transition-colors">
-                                                {pick.player_name || 'Unnamed player'}
-                                            </p>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                                                {pick.team_short_name || pick.team_name || '—'}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <span className="text-sm font-black text-sffl-red shrink-0">
-                                        {num(pick.points).toFixed(2)}
-                                    </span>
-                                </div>
-                            ))}
-                            </div>
-                        </details>
-                    </div>
-                )}
-            </div>
-
-            {/* My leagues */}
-            <div>
-                <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-black uppercase tracking-tight text-sffl-navy dark:text-white flex items-center gap-2">
-                        <UserGroupIcon className="w-5 h-5 text-sffl-red" /> My Leagues
-                    </h2>
-                    <Link
-                        to="/fantasy/leagues"
-                        className="text-xs text-sffl-red hover:text-[#A52323] font-black uppercase inline-flex items-center gap-1 transition"
-                    >
-                        Browse Leagues <ArrowRightIcon className="w-3.5 h-3.5" />
-                    </Link>
-                </div>
-
-                {leagues.length === 0 ? (
-                    <div className="p-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm text-center">
-                        <p className="text-sm text-gray-600 dark:text-gray-300 max-w-lg mx-auto mb-4 leading-relaxed">
-                            You're not in any mini-leagues — and you don't have to be. <strong>Mini-leagues are entirely optional and separate from playing the season.</strong> Your squad already scores points and climbs the overall rankings without one.
-                        </p>
-                        <Link
-                            to="/fantasy/leagues"
-                            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-sffl-red hover:text-white text-gray-700 dark:text-gray-200 font-bold text-sm transition shadow-sm"
-                        >
-                            Browse or Create a League <ArrowRightIcon className="w-4 h-4" />
-                        </Link>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {leagues.map((l, idx) => (
-                            <Link
-                                key={l.league_id ?? idx}
-                                to={`/fantasy/leaderboard/${l.league_id}`}
-                                className="p-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-sffl-red/50 rounded-2xl shadow-sm flex items-center justify-between gap-3 transition"
-                            >
-                                <div className="min-w-0">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
-                                            {l.type || 'LEAGUE'}
-                                        </span>
-                                        {num(l.entry_fee_kobo) > 0 && (
-                                            <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
-                                                Entry {formatKobo(num(l.entry_fee_kobo))}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <h3 className="text-base font-bold text-gray-900 dark:text-white mt-1.5 truncate">
-                                        {l.name || 'Unnamed league'}
-                                    </h3>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                        {num(l.my_rank) > 0
-                                            ? `Rank ${num(l.my_rank).toLocaleString()} of ${num(l.member_count).toLocaleString()}`
-                                            : `${num(l.member_count).toLocaleString()} member${num(l.member_count) === 1 ? '' : 's'} • unranked so far`}
-                                    </p>
-                                </div>
-                                <ArrowRightIcon className="w-4 h-4 text-gray-400 shrink-0" />
-                            </Link>
-                        ))}
-                    </div>
-                )}
-            </div>
-
-            {/* Player Profile Modal */}
-            <FantasyPlayerModal
-                isOpen={Boolean(inspectingPlayer)}
-                onClose={() => setInspectingPlayer(null)}
-                player={inspectingPlayer}
+            <FantasyPitch
+              picks={picks}
+              gameweekLabel={
+                gameweek ? `Gameweek ${gameweek.number}` : undefined
+              }
+              gameweekId={dashboard?.lineup?.gameweek_id || gameweek?.id}
+              showPoints={deadlinePassed}
             />
+
+            <details className="group bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm overflow-hidden">
+              <summary className="px-4 py-3 cursor-pointer list-none flex items-center justify-between text-xs font-black uppercase tracking-wider text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                <span>All {picks.length} players &amp; points</span>
+                <ChevronDownIcon className="w-4 h-4 transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 divide-gray-100 dark:divide-gray-700 border-t border-gray-100 dark:border-gray-700">
+                {picks.map((pick, idx) => (
+                  <div
+                    key={`${pick.slot}-${pick.player_id ?? idx}`}
+                    onClick={() => {
+                      if (pick.player_id) {
+                        const dashboardPick = pick as DashboardPick;
+                        setInspectingPlayer({
+                          playerId: pick.player_id,
+                          playerName: pick.player_name || "Player",
+                          playerImage:
+                            dashboardPick.player_image || dashboardPick.photo_url,
+                          position: pick.position || pick.slot,
+                          gender: pick.gender,
+                          teamName: pick.team_name,
+                          teamShortName: pick.team_short_name,
+                          points: num(pick.points),
+                          purchasePrice: dashboardPick.purchase_price,
+                          price:
+                            dashboardPick.fantasy_price ||
+                            dashboardPick.price ||
+                            dashboardPick.purchase_price,
+                          gameweekId:
+                            dashboardPick.gameweek_id ||
+                            dashboard?.lineup?.gameweek_id ||
+                            gameweek?.id,
+                          gameweekNumber: gameweek?.number,
+                        });
+                      }
+                    }}
+                    role={pick.player_id ? "button" : undefined}
+                    tabIndex={pick.player_id ? 0 : undefined}
+                    onKeyDown={
+                      pick.player_id
+                        ? (e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              const dashboardPick = pick as DashboardPick;
+                              setInspectingPlayer({
+                                playerId: pick.player_id,
+                                playerName: pick.player_name || "Player",
+                                playerImage:
+                                  dashboardPick.player_image || dashboardPick.photo_url,
+                                position: pick.position || pick.slot,
+                                gender: pick.gender,
+                                teamName: pick.team_name,
+                                teamShortName: pick.team_short_name,
+                                points: num(pick.points),
+                                purchasePrice: dashboardPick.purchase_price,
+                                price:
+                                  dashboardPick.fantasy_price ||
+                                  dashboardPick.price ||
+                                  dashboardPick.purchase_price,
+                                gameweekId:
+                                  dashboardPick.gameweek_id ||
+                                  dashboard?.lineup?.gameweek_id ||
+                                  gameweek?.id,
+                                gameweekNumber: gameweek?.number,
+                              });
+                            }
+                          }
+                        : undefined
+                    }
+                    title={
+                      pick.player_id
+                        ? "Click to view player fantasy profile"
+                        : undefined
+                    }
+                    className={`px-4 py-3 flex items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition group ${
+                      pick.player_id
+                        ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                        : ""
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-[10px] font-black px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-200 shrink-0">
+                        {pick.slot}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-gray-900 dark:text-white truncate group-hover:text-sffl-red transition-colors">
+                          {pick.player_name || "Unnamed player"}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                          {pick.team_short_name || pick.team_name || "—"}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-sm font-black text-sffl-red shrink-0">
+                      {num(pick.points).toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </details>
+          </div>
+        )}
+      </div>
+
+      {/* My leagues */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-black uppercase tracking-tight text-sffl-navy dark:text-white flex items-center gap-2">
+            <UserGroupIcon className="w-5 h-5 text-sffl-red" /> My Leagues
+          </h2>
+          <Link
+            to="/fantasy/leagues"
+            className="text-xs text-sffl-red hover:text-[#A52323] font-black uppercase inline-flex items-center gap-1 transition"
+          >
+            Browse Leagues <ArrowRightIcon className="w-3.5 h-3.5" />
+          </Link>
         </div>
-    );
+
+        {leagues.length === 0 ? (
+          <div className="p-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm text-center">
+            <p className="text-sm text-gray-600 dark:text-gray-300 max-w-lg mx-auto mb-4 leading-relaxed">
+              You're not in any mini-leagues — and you don't have to be.{" "}
+              <strong>
+                Mini-leagues are entirely optional and separate from playing the
+                season.
+              </strong>{" "}
+              Your squad already scores points and climbs the overall rankings
+              without one.
+            </p>
+            <Link
+              to="/fantasy/leagues"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-sffl-red hover:text-white text-gray-700 dark:text-gray-200 font-bold text-sm transition shadow-sm"
+            >
+              Browse or Create a League <ArrowRightIcon className="w-4 h-4" />
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {leagues.map((l, idx) => (
+              <Link
+                key={l.league_id ?? idx}
+                to={`/fantasy/leaderboard/${l.league_id}`}
+                className="p-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-sffl-red/50 rounded-2xl shadow-sm flex items-center justify-between gap-3 transition"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                      {l.type || "LEAGUE"}
+                    </span>
+                    {num(l.entry_fee_kobo) > 0 && (
+                      <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
+                        Entry {formatKobo(num(l.entry_fee_kobo))}
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="text-base font-bold text-gray-900 dark:text-white mt-1.5 truncate">
+                    {l.name || "Unnamed league"}
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    {num(l.my_rank) > 0
+                      ? `Rank ${num(l.my_rank).toLocaleString()} of ${num(l.member_count).toLocaleString()}`
+                      : `${num(l.member_count).toLocaleString()} member${num(l.member_count) === 1 ? "" : "s"} • unranked so far`}
+                  </p>
+                </div>
+                <ArrowRightIcon className="w-4 h-4 text-gray-400 shrink-0" />
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Player Profile Modal */}
+      <FantasyPlayerModal
+        isOpen={Boolean(inspectingPlayer)}
+        onClose={() => setInspectingPlayer(null)}
+        player={inspectingPlayer}
+      />
+    </div>
+  );
 }

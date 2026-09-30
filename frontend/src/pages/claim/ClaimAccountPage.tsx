@@ -71,8 +71,9 @@ export const ClaimAccountPage: React.FC = () => {
             const res = await claimApi.verifyCode(code.trim());
             setTeam(res);
             setStep('player');
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'That code is not valid. Please check with your team manager.');
+        } catch (err: unknown) {
+            const error = err as { response?: { data?: { error?: string } } };
+            toast.error(error.response?.data?.error || 'That code is not valid. Please check with your team manager.');
         } finally {
             setSubmitting(false);
         }
@@ -131,8 +132,9 @@ export const ClaimAccountPage: React.FC = () => {
             // player_pending role before the status screen renders.
             // The dialog stays in its pending state until the page unloads, so it never flashes shut.
             window.location.assign('/claim/status');
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Could not submit your claim. Please try again.');
+        } catch (err: unknown) {
+            const error = err as { response?: { data?: { error?: string } } };
+            toast.error(error.response?.data?.error || 'Could not submit your claim. Please try again.');
             setSubmitting(false);
             setConfirmOpen(false);
         }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { 
@@ -44,15 +44,12 @@ export function FantasyMyTeam() {
         enabled: !!season?.id,
     });
 
-    const [selectedGWId, setSelectedGWId] = useState<string>('');
-
-    // Default to first scheduled or locked gameweek
-    useEffect(() => {
-        if (gameweeks.length > 0 && !selectedGWId) {
-            const current = gameweeks.find(gw => gw.status === 'SCHEDULED' || gw.status === 'LOCKED') || gameweeks[0];
-            setSelectedGWId(current.id);
-        }
-    }, [gameweeks, selectedGWId]);
+    const [requestedGWId, setRequestedGWId] = useState<string>('');
+    // Default to first scheduled or locked gameweek without setting state in an effect.
+    const selectedGWId = gameweeks.some(gw => gw.id === requestedGWId)
+        ? requestedGWId
+        : (gameweeks.find(gw => gw.status === 'SCHEDULED' || gw.status === 'LOCKED') || gameweeks[0])?.id ?? '';
+    const setSelectedGWId = setRequestedGWId;
 
     // Fetch Lineup for Selected Gameweek
     const { data: lineup, isLoading: lineupLoading } = useQuery({

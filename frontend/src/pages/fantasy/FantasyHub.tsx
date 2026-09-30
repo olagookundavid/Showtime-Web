@@ -1,417 +1,492 @@
-import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
 import {
-    TrophyIcon,
-    ShieldCheckIcon,
-    BoltIcon,
-    ArrowRightIcon,
-    SparklesIcon,
-    XMarkIcon,
-    CheckBadgeIcon,
-    LockClosedIcon,
-    ChartBarIcon,
-} from '@heroicons/react/24/outline';
-import { fantasySeasonApi, type LeaderboardEntry } from '../../services/api';
-import { useAuth } from '../../contexts/AuthContext';
-import { AuthRequiredDialog } from '../../components/auth/AuthRequiredDialog';
-import { Loader } from '../../components/ui/Loader';
-import { FantasyPitch } from '../../components/fantasy/FantasyPitch';
-import { FantasyTeamModal } from '../../components/fantasy/FantasyTeamModal';
+  TrophyIcon,
+  ShieldCheckIcon,
+  BoltIcon,
+  ArrowRightIcon,
+  SparklesIcon,
+  XMarkIcon,
+  CheckBadgeIcon,
+  LockClosedIcon,
+  ChartBarIcon,
+} from "@heroicons/react/24/outline";
+import { fantasySeasonApi, type LeaderboardEntry } from "../../services/api";
+import { useAuth } from "../../contexts/AuthContext";
+import { AuthRequiredDialog } from "../../components/auth/AuthRequiredDialog";
+import { Loader } from "../../components/ui/Loader";
+import { FantasyPitch } from "../../components/fantasy/FantasyPitch";
+import { FantasyTeamModal } from "../../components/fantasy/FantasyTeamModal";
 
 const num = (v: number | null | undefined): number =>
-    typeof v === 'number' && Number.isFinite(v) ? v : 0;
+  typeof v === "number" && Number.isFinite(v) ? v : 0;
 
-export function getDefaultTeamName(userName?: string | null): string {
-    const clean = (userName || '').trim();
-    return clean ? `${clean} Team` : 'Showtime Team';
+function getDefaultTeamName(userName?: string | null): string {
+  const clean = (userName || "").trim();
+  return clean ? `${clean} Team` : "Showtime Team";
 }
 
 export function FantasyHub() {
-    const { user, isAuthenticated } = useAuth();
-    const navigate = useNavigate();
-    const queryClient = useQueryClient();
+  const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-    const { data: dashboard, isLoading } = useQuery({
-        queryKey: ['fantasyDashboard'],
-        queryFn: () => fantasySeasonApi.getDashboard(),
-        enabled: isAuthenticated,
-        // A 401 is an answer, not a blip — retrying it just spams the log.
-        retry: false,
-    });
+  const { data: dashboard, isLoading } = useQuery({
+    queryKey: ["fantasyDashboard"],
+    queryFn: () => fantasySeasonApi.getDashboard(),
+    enabled: isAuthenticated,
+    // A 401 is an answer, not a blip — retrying it just spams the log.
+    retry: false,
+  });
 
-    // The gate opens on arrival: a signed-out visitor should be told why the
-    // page is empty, not left to work it out. Dismissing it leaves the same
-    // explanation on the page behind.
-    const [showGate, setShowGate] = useState(true);
-    const [showJoinModal, setShowJoinModal] = useState(false);
-    const [teamNameInput, setTeamNameInput] = useState('');
-    const [inspectingTeamId, setInspectingTeamId] = useState<string | null>(null);
+  // The gate opens on arrival: a signed-out visitor should be told why the
+  // page is empty, not left to work it out. Dismissing it leaves the same
+  // explanation on the page behind.
+  const [showGate, setShowGate] = useState(true);
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [teamNameInput, setTeamNameInput] = useState("");
+  const [inspectingTeamId, setInspectingTeamId] = useState<string | null>(null);
 
-    const season = dashboard?.season;
-    const entered = dashboard?.entered === true;
-    const topManagers: LeaderboardEntry[] = dashboard?.top_managers ?? [];
+  const season = dashboard?.season;
+  const entered = dashboard?.entered === true;
+  const topManagers: LeaderboardEntry[] = dashboard?.top_managers ?? [];
 
-    const trimmedName = teamNameInput.trim();
-    const nameValid = trimmedName.length >= 3 && trimmedName.length <= 40;
+  const trimmedName = teamNameInput.trim();
+  const nameValid = trimmedName.length >= 3 && trimmedName.length <= 40;
 
-    const enterMutation = useMutation({
-        mutationFn: async () => {
-            if (!season?.id) throw new Error('Season not loaded');
-            if (!nameValid) throw new Error('Team name must be 3–40 characters');
-            return fantasySeasonApi.enterSeason(season.id, trimmedName);
-        },
-        onSuccess: () => {
-            toast.success("You're in! Welcome to the season.");
-            setShowJoinModal(false);
-            setTeamNameInput('');
-            queryClient.invalidateQueries({ queryKey: ['fantasyDashboard'] });
-            navigate('/fantasy/dashboard');
-        },
-        onError: (err: any) => {
-            toast.error(err?.response?.data?.error || err.message || 'Failed to join the season');
-        },
-    });
+  const enterMutation = useMutation({
+    mutationFn: async () => {
+      if (!season?.id) throw new Error("Season not loaded");
+      if (!nameValid) throw new Error("Team name must be 3–40 characters");
+      return fantasySeasonApi.enterSeason(season.id, trimmedName);
+    },
+    onSuccess: () => {
+      toast.success("You're in! Welcome to the season.");
+      setShowJoinModal(false);
+      setTeamNameInput("");
+      queryClient.invalidateQueries({ queryKey: ["fantasyDashboard"] });
+      navigate("/fantasy/dashboard");
+    },
+    onError: (err: unknown) => {
+      const errorMessage = err instanceof Error ? err.message : undefined;
+      const apiError =
+        typeof err === "object" &&
+        err !== null &&
+        "response" in err &&
+        typeof err.response === "object" &&
+        err.response !== null &&
+        "data" in err.response &&
+        typeof err.response.data === "object" &&
+        err.response.data !== null &&
+        "error" in err.response.data &&
+        typeof err.response.data.error === "string"
+          ? err.response.data.error
+          : undefined;
 
-    // Fantasy belongs to a signed-in manager, so say so plainly instead of
-    // rendering a page whose every control is inert.
-    if (!isAuthenticated) {
-        return (
-            <>
-                <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 bg-white dark:bg-gray-800 rounded-2xl md:rounded-3xl border border-gray-200 dark:border-gray-700 shadow-sm p-8 md:p-12">
-                    <div className="w-16 h-16 rounded-2xl bg-sffl-red/10 dark:bg-sffl-red/20 flex items-center justify-center text-sffl-red mb-4">
-                        <LockClosedIcon className="w-10 h-10" />
-                    </div>
-                    <h1 className="text-3xl font-black uppercase tracking-tight text-sffl-navy dark:text-white mb-2">
-                        Fantasy Flag Football
-                    </h1>
-                    <p className="text-gray-600 dark:text-gray-300 max-w-md mb-6 text-sm">
-                        Pick a squad, join leagues with your friends and play for real prize money. You'll need an
-                        account to take part.
-                    </p>
-                    <div className="flex flex-wrap items-center justify-center gap-3">
-                        <Link
-                            to="/login?returnUrl=%2Ffantasy"
-                            state={{ returnUrl: '/fantasy' }}
-                            className="px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-sm shadow-md transition-all active:scale-95"
-                        >
-                            Go to Login
-                        </Link>
-                        <Link
-                            to="/signup?returnUrl=%2Ffantasy"
-                            state={{ returnUrl: '/fantasy' }}
-                            className="px-6 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100 font-bold text-sm transition-all active:scale-95"
-                        >
-                            Create an Account
-                        </Link>
-                    </div>
-                </div>
+      toast.error(apiError || errorMessage || "Failed to join the season");
+    },
+  });
 
-                <AuthRequiredDialog
-                    open={showGate}
-                    onClose={() => setShowGate(false)}
-                    returnUrl="/fantasy"
-                    actionText="play fantasy"
-                    closeLabel="Go Back"
-                />
-            </>
-        );
-    }
-
-    if (isLoading) {
-        return <Loader />;
-    }
-
-    if (!dashboard || !season) {
-        return (
-            <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 bg-white dark:bg-gray-800 rounded-2xl md:rounded-3xl border border-gray-200 dark:border-gray-700 shadow-sm p-8 md:p-12">
-                <div className="w-16 h-16 rounded-2xl bg-sffl-red/10 dark:bg-sffl-red/20 flex items-center justify-center text-sffl-red mb-4">
-                    <ShieldCheckIcon className="w-10 h-10 animate-bounce" />
-                </div>
-                <h1 className="text-3xl font-black uppercase tracking-tight text-sffl-navy dark:text-white mb-2">
-                    Fantasy Flag Football
-                </h1>
-                <p className="text-gray-600 dark:text-gray-300 max-w-md mb-6 text-sm">
-                    No active fantasy season is currently open. Fixtures and player pools are being finalized. Stay tuned for kickoff!
-                </p>
-                <Link
-                    to="/"
-                    className="px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-sm shadow-md transition-all active:scale-95"
-                >
-                    Return to Homepage
-                </Link>
-            </div>
-        );
-    }
-
-    const gameweek = dashboard.current_gameweek;
-    const picks = dashboard.lineup?.picks ?? [];
-
+  // Fantasy belongs to a signed-in manager, so say so plainly instead of
+  // rendering a page whose every control is inert.
+  if (!isAuthenticated) {
     return (
-        <div className="space-y-6 md:space-y-8 pb-36 md:pb-20">
-            {/* My Starting Lineup — positioned ABOVE the dashboard card when entered */}
-            {entered && (
-                <div>
-                    {picks.length > 0 ? (
-                        <FantasyPitch
-                            picks={picks}
-                            gameweekLabel={gameweek ? `Gameweek ${gameweek.number}` : undefined}
-                            gameweekId={gameweek?.id}
-                            showPoints={dashboard.deadline_passed}
-                        />
-                    ) : (
-                        <div className="p-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 text-center shadow-sm">
-                            <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-                                No squad is set for {gameweek ? `Gameweek ${gameweek.number}` : 'this gameweek'} yet. Pick your{' '}
-                                {num(season.squad_size) > 0 ? `${num(season.squad_size)}-player` : ''} squad to start scoring points.
-                            </p>
-                            <Link
-                                to="/fantasy/build"
-                                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-sm shadow-md transition active:scale-95"
-                            >
-                                Build My Squad <ArrowRightIcon className="w-4 h-4" />
-                            </Link>
-                        </div>
-                    )}
-                </div>
+      <>
+        <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 bg-white dark:bg-gray-800 rounded-2xl md:rounded-3xl border border-gray-200 dark:border-gray-700 shadow-sm p-8 md:p-12">
+          <div className="w-16 h-16 rounded-2xl bg-sffl-red/10 dark:bg-sffl-red/20 flex items-center justify-center text-sffl-red mb-4">
+            <LockClosedIcon className="w-10 h-10" />
+          </div>
+          <h1 className="text-3xl font-black uppercase tracking-tight text-sffl-navy dark:text-white mb-2">
+            Fantasy Flag Football
+          </h1>
+          <p className="text-gray-600 dark:text-gray-300 max-w-md mb-6 text-sm">
+            Pick a squad, join leagues with your friends and play for real prize
+            money. You'll need an account to take part.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Link
+              to="/login?returnUrl=%2Ffantasy"
+              state={{ returnUrl: "/fantasy" }}
+              className="px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-sm shadow-md transition-all active:scale-95"
+            >
+              Go to Login
+            </Link>
+            <Link
+              to="/signup?returnUrl=%2Ffantasy"
+              state={{ returnUrl: "/fantasy" }}
+              className="px-6 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100 font-bold text-sm transition-all active:scale-95"
+            >
+              Create an Account
+            </Link>
+          </div>
+        </div>
+
+        <AuthRequiredDialog
+          open={showGate}
+          onClose={() => setShowGate(false)}
+          returnUrl="/fantasy"
+          actionText="play fantasy"
+          closeLabel="Go Back"
+        />
+      </>
+    );
+  }
+
+  if (isLoading) {
+    return <Loader />;
+  }
+
+  if (!dashboard || !season) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 bg-white dark:bg-gray-800 rounded-2xl md:rounded-3xl border border-gray-200 dark:border-gray-700 shadow-sm p-8 md:p-12">
+        <div className="w-16 h-16 rounded-2xl bg-sffl-red/10 dark:bg-sffl-red/20 flex items-center justify-center text-sffl-red mb-4">
+          <ShieldCheckIcon className="w-10 h-10 animate-bounce" />
+        </div>
+        <h1 className="text-3xl font-black uppercase tracking-tight text-sffl-navy dark:text-white mb-2">
+          Fantasy Flag Football
+        </h1>
+        <p className="text-gray-600 dark:text-gray-300 max-w-md mb-6 text-sm">
+          No active fantasy season is currently open. Fixtures and player pools
+          are being finalized. Stay tuned for kickoff!
+        </p>
+        <Link
+          to="/"
+          className="px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-sm shadow-md transition-all active:scale-95"
+        >
+          Return to Homepage
+        </Link>
+      </div>
+    );
+  }
+
+  const gameweek = dashboard.current_gameweek;
+  const picks = dashboard.lineup?.picks ?? [];
+
+  return (
+    <div className="space-y-6 md:space-y-8 pb-36 md:pb-20">
+      {/* My Starting Lineup — positioned ABOVE the dashboard card when entered */}
+      {entered && (
+        <div>
+          {picks.length > 0 ? (
+            <FantasyPitch
+              picks={picks}
+              gameweekLabel={
+                gameweek ? `Gameweek ${gameweek.number}` : undefined
+              }
+              gameweekId={gameweek?.id}
+              showPoints={dashboard.deadline_passed}
+            />
+          ) : (
+            <div className="p-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 text-center shadow-sm">
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                No squad is set for{" "}
+                {gameweek ? `Gameweek ${gameweek.number}` : "this gameweek"}{" "}
+                yet. Pick your{" "}
+                {num(season.squad_size) > 0
+                  ? `${num(season.squad_size)}-player`
+                  : ""}{" "}
+                squad to start scoring points.
+              </p>
+              <Link
+                to="/fantasy/build"
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-sm shadow-md transition active:scale-95"
+              >
+                Build My Squad <ArrowRightIcon className="w-4 h-4" />
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Lean, compact Season Dashboard card */}
+      <div className="relative overflow-hidden bg-sffl-navy text-white rounded-xl md:rounded-2xl shadow-xl p-5 sm:p-6 md:p-8">
+        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 rounded-full bg-sffl-red/20 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-64 h-64 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6 text-center md:text-left">
+          <div>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black italic uppercase tracking-tighter text-white">
+              {season.name}
+            </h1>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center md:justify-end gap-2.5 sm:gap-3">
+            {entered ? (
+              <>
+                <Link
+                  to="/fantasy/dashboard"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase tracking-wider shadow-md shadow-sffl-red/30 transition active:scale-95"
+                >
+                  <CheckBadgeIcon className="w-4 h-4" /> Go To My Dashboard
+                </Link>
+                <Link
+                  to="/fantasy/leagues"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-amber-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-sffl-navy font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-400/30 transition active:scale-95 ring-1 ring-amber-300/70"
+                >
+                  <TrophyIcon className="w-4 h-4 text-sffl-navy" /> Browse
+                  Leagues
+                </Link>
+                <Link
+                  to={
+                    gameweek?.id
+                      ? `/fantasy/analytics?gw=${gameweek.id}`
+                      : "/fantasy/analytics"
+                  }
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs transition backdrop-blur-md"
+                >
+                  <ChartBarIcon className="w-4 h-4 text-yellow-400" /> Weekly
+                  Report
+                </Link>
+                <Link
+                  to="/fantasy/my-team"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs transition backdrop-blur-md"
+                >
+                  <ShieldCheckIcon className="w-4 h-4 text-emerald-400" /> My
+                  Active Squad
+                </Link>
+                <Link
+                  to="/fantasy/wallet"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs transition backdrop-blur-md"
+                >
+                  <SparklesIcon className="w-4 h-4 text-yellow-400" /> Prize
+                  Wallet
+                </Link>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => {
+                    setTeamNameInput(getDefaultTeamName(user?.name));
+                    setShowJoinModal(true);
+                  }}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase tracking-wider shadow-md shadow-sffl-red/30 transition active:scale-95 cursor-pointer"
+                >
+                  Join This Season <ArrowRightIcon className="w-4 h-4" />
+                </button>
+                <Link
+                  to="/fantasy/leagues"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-amber-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-sffl-navy font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-400/30 transition active:scale-95 ring-1 ring-amber-300/70"
+                >
+                  <TrophyIcon className="w-4 h-4 text-sffl-navy" /> Browse
+                  Leagues
+                </Link>
+                <Link
+                  to={
+                    gameweek?.id
+                      ? `/fantasy/analytics?gw=${gameweek.id}`
+                      : "/fantasy/analytics"
+                  }
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs transition backdrop-blur-md"
+                >
+                  <ChartBarIcon className="w-4 h-4 text-yellow-400" /> Weekly
+                  Report
+                </Link>
+              </>
             )}
+          </div>
+        </div>
+      </div>
 
-            {/* Lean, compact Season Dashboard card */}
-            <div className="relative overflow-hidden bg-sffl-navy text-white rounded-xl md:rounded-2xl shadow-xl p-5 sm:p-6 md:p-8">
-                <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 rounded-full bg-sffl-red/20 blur-3xl pointer-events-none" />
-                <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-64 h-64 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
+      {/* How Showtime Fantasy Works — for first-timers deciding whether to join */}
+      {!entered && (
+        <div>
+          <div className="mb-6">
+            <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-sffl-navy dark:text-white">
+              How Showtime Fantasy Works
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              Official co-ed flag football competition built for authentic
+              Nigerian gamedays.
+            </p>
+          </div>
 
-                <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6 text-center md:text-left">
-                    <div>
-                        <h1 className="text-2xl sm:text-3xl md:text-4xl font-black italic uppercase tracking-tighter text-white">
-                            {season.name}
-                        </h1>
-                    </div>
-
-                    <div className="flex flex-wrap items-center justify-center md:justify-end gap-2.5 sm:gap-3">
-                        {entered ? (
-                            <>
-                                <Link
-                                    to="/fantasy/dashboard"
-                                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase tracking-wider shadow-md shadow-sffl-red/30 transition active:scale-95"
-                                >
-                                    <CheckBadgeIcon className="w-4 h-4" /> Go To My Dashboard
-                                </Link>
-                                <Link
-                                    to="/fantasy/leagues"
-                                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-sffl-navy font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-400/30 transition active:scale-95 ring-1 ring-amber-300/70"
-                                >
-                                    <TrophyIcon className="w-4 h-4 text-sffl-navy" /> Browse Leagues
-                                </Link>
-                                <Link
-                                    to={gameweek?.id ? `/fantasy/analytics?gw=${gameweek.id}` : '/fantasy/analytics'}
-                                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs transition backdrop-blur-md"
-                                >
-                                    <ChartBarIcon className="w-4 h-4 text-yellow-400" /> Weekly Report
-                                </Link>
-                                <Link
-                                    to="/fantasy/my-team"
-                                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs transition backdrop-blur-md"
-                                >
-                                    <ShieldCheckIcon className="w-4 h-4 text-emerald-400" /> My Active Squad
-                                </Link>
-                                <Link
-                                    to="/fantasy/wallet"
-                                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs transition backdrop-blur-md"
-                                >
-                                    <SparklesIcon className="w-4 h-4 text-yellow-400" /> Prize Wallet
-                                </Link>
-                            </>
-                        ) : (
-                            <>
-                                <button
-                                    onClick={() => {
-                                        setTeamNameInput(getDefaultTeamName(user?.name));
-                                        setShowJoinModal(true);
-                                    }}
-                                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase tracking-wider shadow-md shadow-sffl-red/30 transition active:scale-95 cursor-pointer"
-                                >
-                                    Join This Season <ArrowRightIcon className="w-4 h-4" />
-                                </button>
-                                <Link
-                                    to="/fantasy/leagues"
-                                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-sffl-navy font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-400/30 transition active:scale-95 ring-1 ring-amber-300/70"
-                                >
-                                    <TrophyIcon className="w-4 h-4 text-sffl-navy" /> Browse Leagues
-                                </Link>
-                                <Link
-                                    to={gameweek?.id ? `/fantasy/analytics?gw=${gameweek.id}` : '/fantasy/analytics'}
-                                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs transition backdrop-blur-md"
-                                >
-                                    <ChartBarIcon className="w-4 h-4 text-yellow-400" /> Weekly Report
-                                </Link>
-                            </>
-                        )}
-                    </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="w-12 h-12 rounded-xl bg-sffl-red/10 dark:bg-sffl-red/20 border border-sffl-red/20 flex items-center justify-center text-sffl-red mb-4">
+                  <ShieldCheckIcon className="w-6 h-6" />
                 </div>
+                <h3 className="text-lg font-black text-sffl-navy dark:text-white mb-2">
+                  Strict 7/7 Coed Split
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                  7 Offense (1 Male QB, 1 Female QB or Receiver, 5 Receivers)
+                  and 7 Defense (1 Rusher, 6 Defenders). Minimum{" "}
+                  {num(season.min_female_offense)} female athletes on offense
+                  and {num(season.min_female_defense)} on defense.
+                </p>
+              </div>
             </div>
 
-            {/* How Showtime Fantasy Works — for first-timers deciding whether to join */}
-            {!entered && (
-                <div>
-                    <div className="mb-6">
-                        <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-sffl-navy dark:text-white">
-                            How Showtime Fantasy Works
-                        </h2>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                            Official co-ed flag football competition built for authentic Nigerian gamedays.
-                        </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
-                        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
-                            <div>
-                                <div className="w-12 h-12 rounded-xl bg-sffl-red/10 dark:bg-sffl-red/20 border border-sffl-red/20 flex items-center justify-center text-sffl-red mb-4">
-                                    <ShieldCheckIcon className="w-6 h-6" />
-                                </div>
-                                <h3 className="text-lg font-black text-sffl-navy dark:text-white mb-2">Strict 7/7 Coed Split</h3>
-                                <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-                                    7 Offense (1 Male QB, 1 Female QB or Receiver, 5 Receivers) and 7 Defense (1 Rusher, 6 Defenders). Minimum{' '}
-                                    {num(season.min_female_offense)} female athletes on offense and {num(season.min_female_defense)} on defense.
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
-                            <div>
-                                <div className="w-12 h-12 rounded-xl bg-sffl-navy/10 dark:bg-white/10 border border-sffl-navy/20 dark:border-white/20 flex items-center justify-center text-sffl-navy dark:text-white mb-4">
-                                    <BoltIcon className="w-6 h-6" />
-                                </div>
-                                <h3 className="text-lg font-black text-sffl-navy dark:text-white mb-2">Set & Forget or Edit Weekly</h3>
-                                <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-                                    Unedited lineups automatically roll over to the next match day and accumulate points all season long. You can also make free tactical adjustments before lock.
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
-                            <div>
-                                <div className="w-12 h-12 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-4">
-                                    <SparklesIcon className="w-6 h-6" />
-                                </div>
-                                <h3 className="text-lg font-black text-sffl-navy dark:text-white mb-2">Mini-Leagues Are Optional</h3>
-                                <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-                                    Entering the season is all you need to play — your squad scores in the overall rankings on its own. Private leagues and cash pools are a separate, optional extra.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="w-12 h-12 rounded-xl bg-sffl-navy/10 dark:bg-white/10 border border-sffl-navy/20 dark:border-white/20 flex items-center justify-center text-sffl-navy dark:text-white mb-4">
+                  <BoltIcon className="w-6 h-6" />
                 </div>
-            )}
+                <h3 className="text-lg font-black text-sffl-navy dark:text-white mb-2">
+                  Set & Forget or Edit Weekly
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                  Unedited lineups automatically roll over to the next match day
+                  and accumulate points all season long. You can also make free
+                  tactical adjustments before lock.
+                </p>
+              </div>
+            </div>
 
-            {/* Global Standings Preview Card */}
-            {topManagers && topManagers.length > 0 && (
-                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm">
-                    <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100 dark:border-gray-700">
-                        <div>
-                            <h2 className="text-xl font-black uppercase tracking-tight text-sffl-navy dark:text-white flex items-center gap-2">
-                                <TrophyIcon className="w-5 h-5 text-sffl-red" /> Global Standings Leaders
-                            </h2>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Top performing managers in the official league</p>
-                        </div>
-                        <Link
-                            to={`/fantasy/leaderboard/${season.id}?type=overall`}
-                            className="text-xs text-sffl-red hover:text-[#A52323] font-black uppercase inline-flex items-center gap-1 transition"
-                        >
-                            Full Table <ArrowRightIcon className="w-3.5 h-3.5" />
-                        </Link>
-                    </div>
-
-                    <div className="divide-y divide-gray-100 dark:divide-gray-700">
-                        {topManagers.map((entry, idx) => (
-                            <button
-                                key={entry.team_id ?? idx}
-                                type="button"
-                                onClick={() => entry.team_id && setInspectingTeamId(entry.team_id)}
-                                className="w-full text-left py-3.5 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 px-2 rounded-xl transition cursor-pointer"
-                            >
-                                <div className="flex items-center gap-3 min-w-0">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${entry.rank === 1 ? 'bg-amber-400 text-gray-900 shadow-md ring-2 ring-amber-400/50' :
-                                            entry.rank === 2 ? 'bg-gray-300 text-gray-800' :
-                                                entry.rank === 3 ? 'bg-amber-700 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
-                                        }`}>
-                                        {num(entry.rank) > 0 ? entry.rank : idx + 1}
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{entry.team_name || 'Unnamed squad'}</p>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{entry.user_name || '—'}</p>
-                                    </div>
-                                </div>
-                                <div className="text-right shrink-0">
-                                    <p className="text-base font-black text-sffl-red">{num(entry.total_points).toFixed(2)} pts</p>
-                                </div>
-                            </button>
-                        ))}
-                    </div>
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="w-12 h-12 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-4">
+                  <SparklesIcon className="w-6 h-6" />
                 </div>
-            )}
-
-            {/* Join Season Modal — the deliberate opt-in */}
-            {showJoinModal && (
-                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 pt-[calc(var(--chrome-h)+1rem)] transition-[padding] duration-300 motion-reduce:transition-none" data-dialog>
-                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 w-full max-w-md rounded-3xl p-6 shadow-2xl">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-black text-sffl-navy dark:text-white uppercase">Join {season.name}</h3>
-                            <button
-                                onClick={() => setShowJoinModal(false)}
-                                className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300 cursor-pointer"
-                            >
-                                <XMarkIcon className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        <p className="text-xs text-gray-600 dark:text-gray-300 mb-4 leading-relaxed">
-                            You are choosing to enter this season. This creates your manager team and puts you on the overall rankings — nothing happens until you confirm. Joining a mini-league is a separate, optional step.
-                        </p>
-
-                        <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">
-                            Team Name (3–40 characters)
-                        </label>
-                        <input
-                            type="text"
-                            value={teamNameInput}
-                            onChange={(e) => setTeamNameInput(e.target.value)}
-                            placeholder="e.g. Lagos Blitz"
-                            maxLength={40}
-                            className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
-                        />
-                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5 mb-4">
-                            {trimmedName.length === 0
-                                ? 'Team names must be unique across the season (3–40 characters).'
-                                : nameValid
-                                    ? `${trimmedName.length}/40 characters • Team names must be unique in this season`
-                                    : 'Team name must be between 3 and 40 characters.'}
-                        </p>
-
-                        <button
-                            onClick={() => enterMutation.mutate()}
-                            disabled={!nameValid || enterMutation.isPending}
-                            className="w-full py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-black text-xs uppercase transition shadow-md cursor-pointer"
-                        >
-                            {enterMutation.isPending ? (
-                                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
-                            ) : (
-                                'Confirm & Enter Season'
-                            )}
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* Team Inspection Modal */}
-            <FantasyTeamModal
-                isOpen={Boolean(inspectingTeamId)}
-                onClose={() => setInspectingTeamId(null)}
-                teamId={inspectingTeamId}
-                initialGameweekId={gameweek?.id}
-                seasonId={season?.id}
-            />
+                <h3 className="text-lg font-black text-sffl-navy dark:text-white mb-2">
+                  Mini-Leagues Are Optional
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                  Entering the season is all you need to play — your squad
+                  scores in the overall rankings on its own. Private leagues and
+                  cash pools are a separate, optional extra.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
-    );
+      )}
+
+      {/* Global Standings Preview Card */}
+      {topManagers && topManagers.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100 dark:border-gray-700">
+            <div>
+              <h2 className="text-xl font-black uppercase tracking-tight text-sffl-navy dark:text-white flex items-center gap-2">
+                <TrophyIcon className="w-5 h-5 text-sffl-red" /> Global
+                Standings Leaders
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                Top performing managers in the official league
+              </p>
+            </div>
+            <Link
+              to={`/fantasy/leaderboard/${season.id}?type=overall`}
+              className="text-xs text-sffl-red hover:text-[#A52323] font-black uppercase inline-flex items-center gap-1 transition"
+            >
+              Full Table <ArrowRightIcon className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          <div className="divide-y divide-gray-100 dark:divide-gray-700">
+            {topManagers.map((entry, idx) => (
+              <button
+                key={entry.team_id ?? idx}
+                type="button"
+                onClick={() =>
+                  entry.team_id && setInspectingTeamId(entry.team_id)
+                }
+                className="w-full text-left py-3.5 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 px-2 rounded-xl transition cursor-pointer"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
+                      entry.rank === 1
+                        ? "bg-amber-400 text-gray-900 shadow-md ring-2 ring-amber-400/50"
+                        : entry.rank === 2
+                          ? "bg-gray-300 text-gray-800"
+                          : entry.rank === 3
+                            ? "bg-amber-700 text-white"
+                            : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                    }`}
+                  >
+                    {num(entry.rank) > 0 ? entry.rank : idx + 1}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                      {entry.team_name || "Unnamed squad"}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                      {entry.user_name || "—"}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-base font-black text-sffl-red">
+                    {num(entry.total_points).toFixed(2)} pts
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Join Season Modal — the deliberate opt-in */}
+      {showJoinModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 pt-[calc(var(--chrome-h)+1rem)] transition-[padding] duration-300 motion-reduce:transition-none"
+          data-dialog
+        >
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 w-full max-w-md rounded-3xl p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-black text-sffl-navy dark:text-white uppercase">
+                Join {season.name}
+              </h3>
+              <button
+                onClick={() => setShowJoinModal(false)}
+                className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300 cursor-pointer"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-600 dark:text-gray-300 mb-4 leading-relaxed">
+              You are choosing to enter this season. This creates your manager
+              team and puts you on the overall rankings — nothing happens until
+              you confirm. Joining a mini-league is a separate, optional step.
+            </p>
+
+            <label className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase block mb-1">
+              Team Name (3–40 characters)
+            </label>
+            <input
+              type="text"
+              value={teamNameInput}
+              onChange={(e) => setTeamNameInput(e.target.value)}
+              placeholder="e.g. Lagos Blitz"
+              maxLength={40}
+              className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
+            />
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5 mb-4">
+              {trimmedName.length === 0
+                ? "Team names must be unique across the season (3–40 characters)."
+                : nameValid
+                  ? `${trimmedName.length}/40 characters • Team names must be unique in this season`
+                  : "Team name must be between 3 and 40 characters."}
+            </p>
+
+            <button
+              onClick={() => enterMutation.mutate()}
+              disabled={!nameValid || enterMutation.isPending}
+              className="w-full py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-black text-xs uppercase transition shadow-md cursor-pointer"
+            >
+              {enterMutation.isPending ? (
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+              ) : (
+                "Confirm & Enter Season"
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Team Inspection Modal */}
+      <FantasyTeamModal
+        isOpen={Boolean(inspectingTeamId)}
+        onClose={() => setInspectingTeamId(null)}
+        teamId={inspectingTeamId}
+        initialGameweekId={gameweek?.id}
+        seasonId={season?.id}
+      />
+    </div>
+  );
 }
