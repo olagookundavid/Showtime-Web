@@ -9,7 +9,7 @@ interface User {
     // player_pending is an account claimant awaiting their team manager's approval. It
     // grants no portal access — only the claim status screen — so route guards must
     // treat it as distinct from 'player'.
-    role: 'admin' | 'app_admin' | 'user' | 'player' | 'player_pending' | 'team_head' | 'ticketer' | 'referee' | 'stats' | 'seller';
+    role: 'admin' | 'app_admin' | 'broadcast' | 'user' | 'player' | 'player_pending' | 'team_head' | 'ticketer' | 'referee' | 'stats' | 'seller';
 }
 
 interface AuthContextType {

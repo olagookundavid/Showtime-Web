@@ -135,6 +135,21 @@ const AdminPlayByPlay = lazy(() =>
     default: m.AdminPlayByPlay,
   })),
 );
+const AdminBroadcastPicker = lazy(() =>
+  import("./pages/admin/AdminBroadcastPicker").then((m) => ({
+    default: m.AdminBroadcastPicker,
+  })),
+);
+const AdminBroadcastStudio = lazy(() =>
+  import("./pages/admin/AdminBroadcastStudio").then((m) => ({
+    default: m.AdminBroadcastStudio,
+  })),
+);
+const BroadcastOverlay = lazy(() =>
+  import("./pages/BroadcastOverlay").then((m) => ({
+    default: m.BroadcastOverlay,
+  })),
+);
 const AdminNews = lazy(() =>
   import("./pages/admin/AdminNews").then((m) => ({ default: m.AdminNews })),
 );
@@ -537,6 +552,7 @@ function App() {
                           requireRole={[
                             "admin",
                             "app_admin",
+                            "broadcast",
                             "ticketer",
                             "referee",
                             "stats",
@@ -553,6 +569,8 @@ function App() {
                         path="play-by-play"
                         element={<AdminPlayByPlay />}
                       />
+                      <Route path="broadcast" element={<AdminBroadcastPicker />} />
+                      <Route path="broadcast/:matchId" element={<AdminBroadcastStudio />} />
                       <Route path="news" element={<AdminNews />} />
                       {/* <Route path="gallery" element={<AdminGallery />} /> */}
                       <Route path="hero-slides" element={<AdminHeroSlides />} />
@@ -654,6 +672,12 @@ function App() {
                       <Route index element={<SellerLogSale />} />
                       <Route path="sales" element={<SellerSales />} />
                     </Route>
+
+                    {/* Public vMix Broadcast Overlay (Transparent, standalone) */}
+                    <Route
+                      path="/broadcast/:matchId/overlay"
+                      element={<BroadcastOverlay />}
+                    />
 
                     {/* Catch-all route to redirect back to home automatically */}
                     <Route path="*" element={<Navigate to="/" replace />} />

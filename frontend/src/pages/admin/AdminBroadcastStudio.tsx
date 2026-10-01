@@ -1,0 +1,724 @@
+import { useState, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import axios from 'axios';
+import { API_URL } from '../../services/api';
+import { useBroadcastProducer } from '../../hooks/useBroadcastProducer';
+import { formatClock, calculateClockNow, type GraphicEvent } from '../../types/broadcast';
+import { Loader } from '../../components/ui/Loader';
+import {
+  VideoCameraIcon,
+  ArrowLeftIcon,
+  PlayIcon,
+  PauseIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
+  ClipboardDocumentCheckIcon,
+  ClipboardDocumentIcon,
+  ArrowTopRightOnSquareIcon,
+  EyeSlashIcon,
+} from '@heroicons/react/24/outline';
+
+const CALL_BUTTONS = [
+  { label: 'Touchdown', call: 'TOUCHDOWN', red: true },
+  { label: 'First down', call: 'FIRST DOWN' },
+  { label: 'Second down', call: 'SECOND DOWN' },
+  { label: 'Third down', call: 'THIRD DOWN' },
+  { label: 'Fourth down', call: 'FOURTH DOWN' },
+  { label: '1st & Goal', call: '1ST & GOAL' },
+  { label: '2nd & Goal', call: '2ND & GOAL' },
+  { label: '3rd & Goal', call: '3RD & GOAL' },
+  { label: '4th & Goal', call: '4TH & GOAL' },
+  { label: '1 min warning', call: '1 MINUTE WARNING' },
+  { label: 'Safety', call: 'SAFETY' },
+  { label: 'Penalty', call: 'PENALTY' },
+  { label: 'Interception', call: 'INTERCEPTION' },
+  { label: 'Pick six', call: 'PICK SIX' },
+  { label: 'XP good', call: 'EXTRA POINT GOOD' },
+  { label: 'XP bad', call: 'EXTRA POINT NO GOOD' },
+  { label: 'Sack', call: 'SACK' },
+  { label: 'Bat down', call: 'BAT DOWN' },
+  { label: 'Flag pull', call: 'FLAG PULL' },
+];
+
+const PENALTIES = [
+  'Offside',
+  'Illegal participation',
+  'Unnecessary roughness',
+  'Pass interference',
+  'Holding',
+  'Delay of game',
+  'Unsportsmanlike conduct',
+  'Illegal forward pass',
+  'Other penalty',
+];
+
+interface PlayLogItem {
+  id: string;
+  seq: number;
+  quarter: number;
+  clock?: string;
+  play_type?: string;
+  result?: string;
+  notes?: string;
+  target?: { name: string; number?: number };
+  off_qb?: { name: string };
+  defender?: { name: string };
+  offense_team?: { name: string };
+}
+
+export function AdminBroadcastStudio() {
+  const { matchId } = useParams<{ matchId: string }>();
+  const id = matchId || '';
+
+  const {
+    state,
+    players,
+    isConnected,
+    error,
+    updateField,
+    updateScore,
+    toggleClock,
+    setClock,
+    fireGraphic,
+    hideGraphic,
+  } = useBroadcastProducer(id);
+
+  // Local controller form states
+  const [clockInput, setClockInput] = useState('12:00');
+  const [selectedPlayerId, setSelectedPlayerId] = useState('');
+  const [selectedTeam, setSelectedTeam] = useState('');
+  const [statInput, setStatInput] = useState('TOUCHDOWN RECEPTION');
+  const [selectedPenalty, setSelectedPenalty] = useState(PENALTIES[0]);
+  const [recentPlays, setRecentPlays] = useState<PlayLogItem[]>([]);
+  const [copied, setCopied] = useState(false);
+
+  // Sync clock input with state when state loads or clock is edited
+  useEffect(() => {
+    if (state) {
+      if (!state.clock_running) {
+        setClockInput(formatClock(state.clock_seconds));
+      }
+      if (!selectedTeam) {
+        setSelectedTeam(state.home || 'Home Team');
+      }
+    }
+  }, [state?.match_id, state?.clock_seconds, state?.clock_running]);
+
+  // Tick clock input display while running
+  useEffect(() => {
+    if (!state || !state.clock_running) return;
+    const interval = setInterval(() => {
+      setClockInput(formatClock(calculateClockNow(state)));
+    }, 500);
+    return () => clearInterval(interval);
+  }, [state?.clock_running, state?.clock_seconds, state?.clock_stamp]);
+
+  // Fetch recent play-by-play events
+  useEffect(() => {
+    if (!id) return;
+    async function loadPlays() {
+      try {
+        const res = await axios.get(`${API_URL}/matches/${id}/plays`);
+        const plays = Array.isArray(res.data) ? res.data : [];
+        setRecentPlays(plays.slice(-5).reverse());
+      } catch (err) {
+        // Silently continue if no plays entered yet
+      }
+    }
+    loadPlays();
+    const timer = setInterval(loadPlays, 5000);
+    return () => clearInterval(timer);
+  }, [id]);
+
+  if (!state) {
+    return (
+      <div className="py-24 flex flex-col items-center justify-center gap-4">
+        <Loader />
+        <span className="text-sm font-bold text-gray-500">Loading broadcast studio for match...</span>
+        {error && <span className="text-xs text-red-500">{error}</span>}
+      </div>
+    );
+  }
+
+  const overlayUrl = `${window.location.origin}/broadcast/${id}/overlay`;
+
+  const copyUrl = () => {
+    navigator.clipboard.writeText(overlayUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
+
+  const handleSetClock = () => {
+    const parts = clockInput.trim().split(':');
+    if (parts.length === 2) {
+      const mins = parseInt(parts[0], 10);
+      const secs = parseInt(parts[1], 10);
+      if (!isNaN(mins) && !isNaN(secs) && secs >= 0 && secs < 60) {
+        setClock(mins * 60 + secs);
+        return;
+      }
+    }
+    alert('Please enter time as MM:SS (e.g. 12:00 or 06:25)');
+  };
+
+  const handleTriggerCall = (callType: string) => {
+    const playerObj = players.find((p) => p.player_id === selectedPlayerId);
+    const noPlayer = /1 MINUTE WARNING|PENALTY|EXTRA POINT|SAFETY|GOAL|FIRST DOWN|SECOND DOWN|THIRD DOWN|FOURTH DOWN/.test(
+      callType
+    );
+
+    let statText = statInput;
+    if (callType === 'PENALTY') {
+      statText = selectedPenalty;
+    } else if (callType === '1 MINUTE WARNING') {
+      statText = `${state.period} · ONE MINUTE REMAINING`;
+    }
+
+    const graphic: GraphicEvent = {
+      type: callType,
+      number: noPlayer ? '' : playerObj ? String(playerObj.jersey_number) : '',
+      player: noPlayer ? '' : playerObj ? playerObj.name : '',
+      team: selectedTeam,
+      stat: statText,
+      photo: playerObj?.image || '',
+      compact: /DOWN|GOAL|EXTRA POINT|FLAG PULL|PENALTY|BAT DOWN/.test(callType),
+      duration: 5500,
+    };
+
+    fireGraphic(graphic);
+  };
+
+  // Prepare a play from the queue into the form (manual workflow)
+  const handlePreparePlay = (p: PlayLogItem) => {
+    const name = p.target?.name || p.off_qb?.name || p.defender?.name || '';
+    if (name) {
+      const matchPlayer = players.find((pl) => pl.name.toLowerCase() === name.toLowerCase());
+      if (matchPlayer) {
+        setSelectedPlayerId(matchPlayer.player_id);
+      }
+    }
+    if (p.offense_team?.name) {
+      setSelectedTeam(p.offense_team.name);
+    }
+    const playDesc = p.notes || `${p.play_type || 'PLAY'} ${p.result || ''}`.trim();
+    if (playDesc) {
+      setStatInput(playDesc);
+    }
+  };
+
+  const isScoreAligned = state.manual_home === state.pbp_home && state.manual_away === state.pbp_away;
+
+  return (
+    <div className="space-y-6">
+      {/* Top Banner */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-sffl-navy text-white p-5 md:p-6 rounded-xl md:rounded-2xl shadow-xl gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-xs text-gray-300 mb-1">
+            <Link to="/admin/broadcast" className="hover:text-white flex items-center gap-1 font-bold">
+              <ArrowLeftIcon className="w-3.5 h-3.5" /> Back to matches
+            </Link>
+          </div>
+          <h1 className="text-2xl md:text-4xl font-black italic tracking-tighter flex items-center gap-2">
+            <VideoCameraIcon className="w-7 h-7 text-sffl-red" />
+            BROADCAST STUDIO
+          </h1>
+          <p className="text-gray-300 text-xs md:text-sm mt-0.5">
+            {state.home} vs {state.away} · On-Air Graphics Control for vMix
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <span
+            className={`px-3 py-1 rounded-full text-xs font-black flex items-center gap-1.5 ${
+              isConnected ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+            }`}
+          >
+            <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+            {isConnected ? 'LIVE SYNC ACTIVE' : 'CONNECTING...'}
+          </span>
+          <button
+            onClick={copyUrl}
+            className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3 py-1.5 rounded-lg border border-white/20 flex items-center gap-1.5 transition-colors"
+            title="Copy public vMix transparent overlay URL"
+          >
+            {copied ? <ClipboardDocumentCheckIcon className="w-4 h-4 text-emerald-400" /> : <ClipboardDocumentIcon className="w-4 h-4" />}
+            {copied ? 'Copied URL!' : 'vMix Overlay URL'}
+          </button>
+        </div>
+      </div>
+
+      {/* Main Grid: Control Station on Left, Preview and Status on Right */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left Column: 7 Cols */}
+        <div className="lg:col-span-7 space-y-6">
+          {/* Section 1: Scoreboard Controls */}
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl md:rounded-2xl p-5 shadow-sm space-y-5">
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3">
+              <h2 className="font-black text-gray-900 dark:text-white text-base md:text-lg tracking-tight">
+                ON-AIR SCOREBOARD
+              </h2>
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-700 dark:text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={state.scorebug}
+                  onChange={(e) => updateField('scorebug', e.target.checked)}
+                  className="w-4 h-4 text-sffl-red rounded border-gray-300 focus:ring-sffl-red"
+                />
+                Show Scorebug on Air
+              </label>
+            </div>
+
+            {/* Score Inputs Home vs Away */}
+            <div className="grid grid-cols-5 items-center gap-3">
+              {/* Home Score */}
+              <div className="col-span-2 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-200 dark:border-gray-600 flex flex-col items-center">
+                <span className="text-xs font-black uppercase text-gray-500 dark:text-gray-400 truncate w-full text-center">
+                  {state.home}
+                </span>
+                <input
+                  type="number"
+                  min="0"
+                  value={state.manual_home}
+                  onChange={(e) => updateScore(parseInt(e.target.value, 10) || 0, state.manual_away)}
+                  className="w-20 text-center text-4xl font-black bg-transparent text-gray-900 dark:text-white border-0 focus:ring-0"
+                />
+                {/* Home Timeouts */}
+                <div className="flex items-center gap-1.5 mt-2">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase mr-1">TO:</span>
+                  {[0, 1, 2].map((idx) => (
+                    <button
+                      key={idx}
+                      onClick={() =>
+                        updateField('timeouts_home', state.timeouts_home > idx ? idx : idx + 1)
+                      }
+                      className={`w-3.5 h-3.5 rounded-full border transition-colors ${
+                        idx < state.timeouts_home
+                          ? 'bg-sffl-red border-sffl-red'
+                          : 'bg-gray-200 border-gray-300 dark:bg-gray-600 dark:border-gray-500'
+                      }`}
+                      title={`Toggle timeout ${idx + 1}`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* VS Divider */}
+              <div className="col-span-1 text-center font-black text-gray-400 text-lg">VS</div>
+
+              {/* Away Score */}
+              <div className="col-span-2 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-200 dark:border-gray-600 flex flex-col items-center">
+                <span className="text-xs font-black uppercase text-gray-500 dark:text-gray-400 truncate w-full text-center">
+                  {state.away}
+                </span>
+                <input
+                  type="number"
+                  min="0"
+                  value={state.manual_away}
+                  onChange={(e) => updateScore(state.manual_home, parseInt(e.target.value, 10) || 0)}
+                  className="w-20 text-center text-4xl font-black bg-transparent text-gray-900 dark:text-white border-0 focus:ring-0"
+                />
+                {/* Away Timeouts */}
+                <div className="flex items-center gap-1.5 mt-2">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase mr-1">TO:</span>
+                  {[0, 1, 2].map((idx) => (
+                    <button
+                      key={idx}
+                      onClick={() =>
+                        updateField('timeouts_away', state.timeouts_away > idx ? idx : idx + 1)
+                      }
+                      className={`w-3.5 h-3.5 rounded-full border transition-colors ${
+                        idx < state.timeouts_away
+                          ? 'bg-sffl-red border-sffl-red'
+                          : 'bg-gray-200 border-gray-300 dark:bg-gray-600 dark:border-gray-500'
+                      }`}
+                      title={`Toggle timeout ${idx + 1}`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Score Alignment Notice (Staff Only) */}
+            <div
+              className={`p-3 rounded-lg border text-xs flex items-center justify-between ${
+                isScoreAligned
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                  : 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {isScoreAligned ? (
+                  <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                ) : (
+                  <ExclamationTriangleIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                )}
+                <span>
+                  <b>{isScoreAligned ? 'Scores Aligned' : 'Score Discrepancy'}:</b> Manual ({state.manual_home}–{state.manual_away}) vs PBP ({state.pbp_home}–{state.pbp_away})
+                </span>
+              </div>
+              {!isScoreAligned && (
+                <button
+                  onClick={() => updateScore(state.pbp_home, state.pbp_away)}
+                  className="font-bold underline text-amber-800 dark:text-amber-200 hover:opacity-80 ml-2"
+                >
+                  Sync to PBP
+                </button>
+              )}
+            </div>
+
+            {/* Clock, Period, Down & Possession Rows */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* Period */}
+              <div>
+                <label className="block text-[11px] font-black uppercase text-gray-500 dark:text-gray-400 mb-1">
+                  Period
+                </label>
+                <select
+                  value={state.period}
+                  onChange={(e) => updateField('period', e.target.value)}
+                  className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-sm font-bold text-gray-900 dark:text-white"
+                >
+                  <option value="H1">1st Half (H1)</option>
+                  <option value="HALF">Halftime (HALF)</option>
+                  <option value="H2">2nd Half (H2)</option>
+                  <option value="OT">Overtime (OT)</option>
+                  <option value="FINAL">Final</option>
+                </select>
+              </div>
+
+              {/* Countdown Clock */}
+              <div>
+                <label className="block text-[11px] font-black uppercase text-gray-500 dark:text-gray-400 mb-1">
+                  Countdown Clock (MM:SS)
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    value={clockInput}
+                    onChange={(e) => setClockInput(e.target.value)}
+                    className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-sm font-black text-gray-900 dark:text-white text-center"
+                    placeholder="12:00"
+                  />
+                  <button
+                    onClick={handleSetClock}
+                    className="px-2.5 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-white font-bold text-xs rounded-lg transition-colors"
+                  >
+                    Set
+                  </button>
+                </div>
+              </div>
+
+              {/* Clock Action Toggle */}
+              <div className="flex flex-col justify-end">
+                <button
+                  onClick={toggleClock}
+                  className={`w-full py-2.5 px-4 rounded-lg font-black text-xs uppercase flex items-center justify-center gap-1.5 shadow-sm transition-all ${
+                    state.clock_running
+                      ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                      : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  }`}
+                >
+                  {state.clock_running ? (
+                    <>
+                      <PauseIcon className="w-4 h-4" /> Pause Clock
+                    </>
+                  ) : (
+                    <>
+                      <PlayIcon className="w-4 h-4" /> Start Clock
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Down & Possession */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+              <div>
+                <label className="block text-[11px] font-black uppercase text-gray-500 dark:text-gray-400 mb-1">
+                  Down & Distance
+                </label>
+                <select
+                  value={state.down}
+                  onChange={(e) => updateField('down', e.target.value)}
+                  className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-sm font-bold text-gray-900 dark:text-white"
+                >
+                  <option value="1">1st Down</option>
+                  <option value="2">2nd Down</option>
+                  <option value="3">3rd Down</option>
+                  <option value="4">4th Down</option>
+                  <option value="1G">1st & Goal</option>
+                  <option value="2G">2nd & Goal</option>
+                  <option value="3G">3rd & Goal</option>
+                  <option value="4G">4th & Goal</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-black uppercase text-gray-500 dark:text-gray-400 mb-1">
+                  Ball Possession
+                </label>
+                <select
+                  value={state.possession}
+                  onChange={(e) => updateField('possession', e.target.value)}
+                  className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-sm font-bold text-gray-900 dark:text-white"
+                >
+                  <option value={state.home}>{state.home} (Home)</option>
+                  <option value={state.away}>{state.away} (Away)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2: Player & Lower-Third Trigger Panel */}
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl md:rounded-2xl p-5 shadow-sm space-y-5">
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3">
+              <div>
+                <h2 className="font-black text-gray-900 dark:text-white text-base md:text-lg tracking-tight">
+                  LOWER-THIRD GRAPHIC
+                </h2>
+                <p className="text-xs text-gray-500">Configure player or event banner and fire on air</p>
+              </div>
+              <button
+                onClick={hideGraphic}
+                className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"
+              >
+                <EyeSlashIcon className="w-4 h-4" />
+                Hide Graphic Now
+              </button>
+            </div>
+
+            {/* Player Selection */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-black uppercase text-gray-500 dark:text-gray-400 mb-1">
+                  Select Player
+                </label>
+                <select
+                  value={selectedPlayerId}
+                  onChange={(e) => {
+                    const pid = e.target.value;
+                    setSelectedPlayerId(pid);
+                    const p = players.find((pl) => pl.player_id === pid);
+                    if (p) {
+                      setSelectedTeam(p.team_name);
+                    }
+                  }}
+                  className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-sm font-bold text-gray-900 dark:text-white"
+                >
+                  <option value="">-- No Specific Player --</option>
+                  {players.map((p) => (
+                    <option key={p.player_id} value={p.player_id}>
+                      #{p.jersey_number} {p.name} · {p.position} ({p.team_name})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-black uppercase text-gray-500 dark:text-gray-400 mb-1">
+                  Team
+                </label>
+                <select
+                  value={selectedTeam}
+                  onChange={(e) => setSelectedTeam(e.target.value)}
+                  className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-sm font-bold text-gray-900 dark:text-white"
+                >
+                  <option value={state.home}>{state.home}</option>
+                  <option value={state.away}>{state.away}</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Custom Stat Line & Penalty selector */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-black uppercase text-gray-500 dark:text-gray-400 mb-1">
+                  Stat Line / Subtitle
+                </label>
+                <input
+                  type="text"
+                  value={statInput}
+                  onChange={(e) => setStatInput(e.target.value)}
+                  placeholder="e.g. 42 YD TOUCHDOWN · 2 TD TODAY"
+                  className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-sm font-bold text-gray-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-black uppercase text-gray-500 dark:text-gray-400 mb-1">
+                  Penalty Call Type
+                </label>
+                <select
+                  value={selectedPenalty}
+                  onChange={(e) => setSelectedPenalty(e.target.value)}
+                  className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-sm font-bold text-gray-900 dark:text-white"
+                >
+                  {PENALTIES.map((pen) => (
+                    <option key={pen} value={pen}>
+                      {pen}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Event Button Grid */}
+            <div>
+              <span className="block text-[11px] font-black uppercase text-gray-500 dark:text-gray-400 mb-2">
+                Fast-Trigger Event Callouts
+              </span>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                {CALL_BUTTONS.map((btn) => (
+                  <button
+                    key={btn.call}
+                    onClick={() => handleTriggerCall(btn.call)}
+                    className={`p-2.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all transform active:scale-95 shadow-sm text-center ${
+                      btn.red
+                        ? 'bg-sffl-red hover:bg-[#A52323] text-white col-span-2 sm:col-span-3 md:col-span-4 py-3 text-sm'
+                        : 'bg-sffl-navy hover:bg-[#002b59] text-white'
+                    }`}
+                  >
+                    {btn.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Recent Play-by-Play Event Queue (Manual Mode) */}
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl md:rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3">
+              <div>
+                <h2 className="font-black text-gray-900 dark:text-white text-base md:text-lg tracking-tight">
+                  PLAY-BY-PLAY QUEUE
+                </h2>
+                <p className="text-xs text-gray-500">Click PREPARE to review and manually trigger lower-third graphic</p>
+              </div>
+              <span className="text-[10px] font-black px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 uppercase">
+                MANUAL TRIGGER MODE
+              </span>
+            </div>
+
+            {recentPlays.length === 0 ? (
+              <p className="text-xs text-gray-400 py-4 text-center">
+                No recent plays logged yet. New plays will appear here automatically.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {recentPlays.map((p) => {
+                  const playerName = p.target?.name || p.off_qb?.name || p.defender?.name || 'Play Event';
+                  const teamName = p.offense_team?.name || 'Offense';
+                  const summary = p.notes || `${p.play_type || ''} ${p.result || ''}`.trim();
+
+                  return (
+                    <div
+                      key={p.id}
+                      className="p-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg flex items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="min-w-0">
+                        <span className="font-black text-gray-900 dark:text-white truncate block">
+                          Q{p.quarter} · {playerName} ({teamName})
+                        </span>
+                        <span className="text-gray-500 dark:text-gray-400 block truncate">
+                          {summary}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => handlePreparePlay(p)}
+                        className="px-3 py-1.5 bg-sffl-navy hover:bg-[#002b59] text-white font-black text-[11px] rounded uppercase shrink-0 transition-colors"
+                      >
+                        PREPARE
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right Column: 5 Cols (Preview Monitor & vMix Info) */}
+        <div className="lg:col-span-5 space-y-6">
+          {/* vMix Live Output Preview Card */}
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl md:rounded-2xl p-5 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="font-black text-gray-900 dark:text-white text-base tracking-tight flex items-center gap-2">
+                <VideoCameraIcon className="w-5 h-5 text-sffl-red" />
+                vMix Output Monitor
+              </h2>
+              <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[10px] font-black rounded-full">
+                1920 × 1080 · ALPHA
+              </span>
+            </div>
+
+            {/* Simulated 16:9 monitor frame */}
+            <div className="aspect-video relative rounded-xl overflow-hidden border border-gray-300 dark:border-gray-600 bg-gradient-to-br from-emerald-950 via-slate-900 to-emerald-900 shadow-inner flex items-center justify-center">
+              {/* Field Grid Backdrop */}
+              <div className="absolute inset-0 opacity-20 pointer-events-none bg-[repeating-linear-gradient(90deg,transparent_0_15%,#fff_15%_16%)]" />
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-white/20 font-black tracking-widest text-xs">
+                SIMULATED BROADCAST FEED
+              </div>
+
+              {/* Embedded Live Transparent Overlay */}
+              <iframe
+                src={`/broadcast/${id}/overlay`}
+                title="Live Overlay Preview"
+                className="w-full h-full border-0 relative z-10 pointer-events-none"
+              />
+            </div>
+
+            <div className="flex items-center justify-between text-xs text-gray-500 pt-1">
+              <span>Transparent overlay floats above camera feed</span>
+              <a
+                href={overlayUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sffl-red hover:underline font-bold flex items-center gap-1"
+              >
+                Open in new tab <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
+              </a>
+            </div>
+          </div>
+
+          {/* vMix Setup Instructions */}
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl md:rounded-2xl p-5 shadow-sm space-y-4 text-xs">
+            <h3 className="font-black text-gray-900 dark:text-white uppercase tracking-wider text-sm">
+              vMix Operator Setup
+            </h3>
+
+            <div className="space-y-2 text-gray-600 dark:text-gray-300">
+              <p>
+                <b>1.</b> In vMix on your broadcast PC, click <b>Add Input</b> (bottom-left).
+              </p>
+              <p>
+                <b>2.</b> Select <b>Web Browser</b> from the left list.
+              </p>
+              <p>
+                <b>3.</b> Paste this overlay URL:
+              </p>
+              <div className="flex items-center gap-1.5 p-2 bg-gray-100 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 font-mono text-[11px] select-all break-all">
+                <span>{overlayUrl}</span>
+              </div>
+              <p>
+                <b>4.</b> Set Resolution: <b>1920 × 1080</b>.
+              </p>
+              <p>
+                <b>5.</b> Assign this Web Browser input to <b>Overlay 1</b> in vMix.
+              </p>
+            </div>
+
+            <button
+              onClick={copyUrl}
+              className="w-full py-2 bg-sffl-red hover:bg-[#A52323] text-white font-bold rounded-lg shadow-sm flex items-center justify-center gap-2 transition-colors"
+            >
+              {copied ? <ClipboardDocumentCheckIcon className="w-4 h-4" /> : <ClipboardDocumentIcon className="w-4 h-4" />}
+              {copied ? 'Overlay URL Copied!' : 'Copy Overlay URL for vMix'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default AdminBroadcastStudio;

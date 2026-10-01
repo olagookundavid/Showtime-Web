@@ -44,6 +44,10 @@ func Routes(app *api.Application) *gin.Engine {
 	// HEAD (e.g. UptimeRobot's default) get 200, not a NoRoute 404.
 	r.GET("/healthcheck", helpers.HealthcheckHandler(app.Config.Env))
 	r.HEAD("/healthcheck", helpers.HealthcheckHandler(app.Config.Env))
+
+	// Public broadcast overlay WebSocket and state for vMix and browser overlay displays
+	r.GET("/broadcast/:matchId/overlay/ws", app.Handlers.BroadcastHandler.ViewerWS)
+	r.GET("/broadcast/:matchId/overlay/state", app.Handlers.BroadcastHandler.GetState)
 	// expvar exposes runtime internals (and can leak command-line flags such as
 	// the DB DSN / token key) — lock it behind admin auth instead of public.
 	debugGroup := r.Group("/debug", commonAuth.TokenMiddleware(app.TokenMaker), middlewares.AdminOnlyMiddleware(app.AuthService))
@@ -330,6 +334,15 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		matchesGroup.POST("/standings", app.Handlers.MatchHandler.CreateStanding)
 		matchesGroup.PUT("/standings/:id", app.Handlers.MatchHandler.UpdateStanding)
 		matchesGroup.DELETE("/standings/:id", app.Handlers.MatchHandler.DeleteStanding)
+	}
+
+	broadcastAdminGroup := adminRoutes.Group("/matches/:id/broadcast")
+	broadcastAdminGroup.Use(middlewares.RolesAllowedMiddleware(app.AuthService, "admin", "broadcast"))
+	{
+		broadcastAdminGroup.GET("/state", app.Handlers.BroadcastHandler.GetState)
+		broadcastAdminGroup.PUT("/state", app.Handlers.BroadcastHandler.UpdateState)
+		broadcastAdminGroup.GET("/players", app.Handlers.BroadcastHandler.GetPlayers)
+		broadcastAdminGroup.GET("/ws", app.Handlers.BroadcastHandler.ProducerWS)
 	}
 
 	playersGroup := adminRoutes.Group("/players")

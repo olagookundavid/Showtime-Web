@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"showtime-backend/internal/broadcast"
 	"showtime-backend/internal/transport"
 )
 
@@ -37,6 +38,7 @@ type Handlers struct {
 	FantasyPayoutHandler        transport.IFantasyPayoutHandler
 	BadgeHandler                transport.IBadgeHandler
 	TOTWHandler                 transport.ITOTWHandler
+	BroadcastHandler            broadcast.IBroadcastHandler
 }
 
 func NewHandlers(
@@ -72,6 +74,7 @@ func NewHandlers(
 	fantasySquadHandler transport.IFantasySquadHandler,
 	badgeHandler transport.IBadgeHandler,
 	totwHandler transport.ITOTWHandler,
+	broadcastHandler broadcast.IBroadcastHandler,
 ) Handlers {
 	return Handlers{
 		AuthHandler:                 authHandler,
@@ -106,5 +109,6 @@ func NewHandlers(
 		FantasyPayoutHandler:        fantasyPayoutHandler,
 		BadgeHandler:                badgeHandler,
 		TOTWHandler:                 totwHandler,
+		BroadcastHandler:            broadcastHandler,
 	}
 }

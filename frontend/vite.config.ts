@@ -6,6 +6,19 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   base: '/', // Ensures the app handles routing from the root
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8089',
+        changeOrigin: true,
+      },
+      '/broadcast': {
+        target: 'http://localhost:8089',
+        changeOrigin: true,
+        ws: true,
+      },
+    },
+  },
   build: {
     chunkSizeWarningLimit: 1000,
     outDir: 'dist',

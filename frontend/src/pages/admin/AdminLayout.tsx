@@ -27,6 +27,8 @@ export const AdminLayout = () => {
         navigate("/admin/tickets");
       } else if (user.role === "referee" || user.role === "stats") {
         navigate("/admin/matches");
+      } else if (user.role === "broadcast") {
+        navigate("/admin/broadcast");
       }
     }
   }, [user, location.pathname, navigate]);

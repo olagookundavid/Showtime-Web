@@ -14,6 +14,7 @@ import (
 	"pkg-common/vcs"
 	"showtime-backend/cmd/api"
 	"showtime-backend/config"
+	"showtime-backend/internal/broadcast"
 	"showtime-backend/internal/handlers"
 	"showtime-backend/internal/ports"
 	"showtime-backend/internal/services"
@@ -380,7 +381,7 @@ func ExampleQueueProducer(log *logger.Logger) queue.MessagePublisher {
 
 // wireDependencies initializes and injects all dependencies (Repository -> Service -> Handler)
 // returning the fully assembled Handlers struct, the AuditService, and the TicketService.
-func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Logger) (handlers.Handlers, services.IAuditService, services.IAuthService, services.ITeamManagerService, *services.TicketService, ports.StorageService, services.IContractService, services.ITransferService, services.INotificationService, services.ITransferWindowService, services.IFantasyService, services.IBadgeService, services.ITOTWService) {
+func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Logger) (handlers.Handlers, services.IAuditService, services.IAuthService, services.ITeamManagerService, *services.TicketService, ports.StorageService, services.IContractService, services.ITransferService, services.INotificationService, services.ITransferWindowService, services.IFantasyService, services.IBadgeService, services.ITOTWService, *broadcast.Hub) {
 	// Infrastructure
 	auditRepo := ports.NewAuditRepository(pool)
 	authRepo := ports.NewAuthRepository(pool)
@@ -519,6 +520,9 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	badgeHandler := transport.NewBadgeHandler(badgeService)
 	totwHandler := transport.NewTOTWHandler(totwService)
 
+	broadcastHub := broadcast.NewHub()
+	broadcastHandler := broadcast.NewBroadcastHandler(broadcastHub, matchService, playService)
+
 	h := handlers.NewHandlers(
 		authHandler, newsHandler, galleryHandler, matchHandler, playerHandler,
 		ticketHandler, tmHandler, analyticsHandler, tmAllocHandler, statsHandler,
@@ -527,7 +531,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 		contractHandler, transferHandler, notifHandler, appSettingHandler,
 		claimHandler, commentHandler, discountHandler, liveHandler,
 		fantasyHandler, fantasyLeagueHandler, fantasyPayoutHandler, fantasySquadHandler,
-		badgeHandler, totwHandler,
+		badgeHandler, totwHandler, broadcastHandler,
 	)
-	return h, auditService, authService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService, fantasyService, badgeService, totwService
+	return h, auditService, authService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService, fantasyService, badgeService, totwService, broadcastHub
 }

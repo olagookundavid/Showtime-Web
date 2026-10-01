@@ -26,6 +26,7 @@ import {
   UsersIcon,
   Cog6ToothIcon,
   GiftIcon,
+  VideoCameraIcon,
 } from "@heroicons/react/24/outline";
 import {
   Squares2X2Icon as SquaresSolid,
@@ -35,6 +36,7 @@ import {
   ChartBarIcon as ChartBarSolid,
   UserGroupIcon as UserGroupSolid,
   ShieldCheckIcon as ShieldCheckSolid,
+  VideoCameraIcon as VideoCameraSolid,
 } from "@heroicons/react/24/solid";
 import type {
   DashboardBottomNavItem,
@@ -73,6 +75,11 @@ export const ADMIN_NAV_SECTIONS: DashboardNavSection[] = [
         name: "Play by Play",
         path: "/admin/play-by-play",
         icon: PlayCircleIcon,
+      },
+      {
+        name: "Broadcast Studio",
+        path: "/admin/broadcast",
+        icon: VideoCameraIcon,
       },
       { name: "Competitions", path: "/admin/competitions", icon: TrophyIcon },
       { name: "Teams", path: "/admin/teams", icon: ShieldCheckIcon },
@@ -149,6 +156,7 @@ const allowLink = (role: string | undefined, name: string) => {
   // admin sees everything an app_admin does EXCEPT Administrator (gift ticket) —
   // that section alone stays app_admin-only.
   if (role === "admin") return name !== "Administrator";
+  if (role === "broadcast") return ["Broadcast Studio", "Matches"].includes(name);
   if (role === "ticketer") return ["Tickets", "Referrals"].includes(name);
   if (role === "referee")
     return [
@@ -187,12 +195,19 @@ const STATS: DashboardBottomNavItem = {
   icon: ChartBarIcon,
   solidIcon: ChartBarSolid,
 };
+const BROADCAST: DashboardBottomNavItem = {
+  name: "Broadcast",
+  path: "/admin/broadcast",
+  icon: VideoCameraIcon,
+  solidIcon: VideoCameraSolid,
+};
 
 /** The phone bottom-nav shortcuts for a role. Ticketers have no bottom nav. */
 export const adminBottomNavFor = (
   role: string | undefined,
 ): DashboardBottomNavItem[] => {
   if (role === "ticketer") return [];
+  if (role === "broadcast") return [BROADCAST, MATCH];
   if (role === "referee")
     return [
       MATCH,

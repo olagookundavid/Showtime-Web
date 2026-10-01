@@ -9,6 +9,19 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+const (
+	RoleAdmin     = "admin"
+	RoleAppAdmin  = "app_admin"
+	RoleBroadcast = "broadcast"
+	RoleReferee   = "referee"
+	RoleStats     = "stats"
+	RoleTicketer  = "ticketer"
+	RoleTeamHead  = "team_head"
+	RolePlayer    = "player"
+	RoleSeller    = "seller"
+	RoleUser      = "user"
+)
+
 type User struct {
 	ID        string
 	FullName  string

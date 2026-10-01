@@ -1,0 +1,317 @@
+/* Full-frame broadcast graphics overlay styling (1920x1080 canvas) */
+
+.broadcast-canvas {
+  position: absolute;
+  width: 1920px;
+  height: 1080px;
+  top: 0;
+  left: 0;
+  color: #ffffff;
+  font-family: Impact, 'Arial Narrow', Arial, sans-serif;
+  pointer-events: none;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* ── 1. SCOREBUG ── */
+.scorebug-container {
+  position: absolute;
+  left: 52px;
+  top: 42px;
+  filter: drop-shadow(0 9px 15px rgba(0, 0, 0, 0.6));
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.scorebug-container.off {
+  opacity: 0;
+  transform: translateY(-35px);
+}
+
+.scorebug-main {
+  display: flex;
+  align-items: stretch;
+  height: 112px;
+}
+
+.bug-logo {
+  background: #081e3e;
+  width: 122px;
+  display: grid;
+  place-items: center;
+  border-left: 9px solid #e63931;
+}
+
+.bug-logo img {
+  width: 106px;
+  height: auto;
+  object-fit: contain;
+}
+
+.bug-team {
+  width: 204px;
+  background: #0b254e;
+  padding: 14px 15px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.bug-team.away {
+  background: #143968;
+}
+
+.bug-team small {
+  font: 800 15px Arial, sans-serif;
+  letter-spacing: 1px;
+  color: #b6c7dc;
+}
+
+.bug-team strong {
+  display: block;
+  margin-top: 5px;
+  font: 900 24px Arial, sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #ffffff;
+}
+
+.bug-score {
+  position: relative;
+  background: #ffffff;
+  color: #09244b;
+  width: 108px;
+  text-align: center;
+  font: 900 62px Arial, sans-serif;
+  line-height: 78px;
+}
+
+.timeout-dots {
+  position: absolute;
+  bottom: 13px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+}
+
+.timeout-dots i {
+  display: block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #d6dce6;
+  border: 2px solid #8998ae;
+}
+
+.timeout-dots i.live {
+  background: #e63c34;
+  border-color: #e63c34;
+}
+
+.bug-middle {
+  background: #e63c34;
+  width: 128px;
+  text-align: center;
+  padding-top: 17px;
+}
+
+.bug-middle b {
+  display: block;
+  font: 900 28px Arial, sans-serif;
+  color: #ffffff;
+}
+
+.bug-middle small {
+  display: block;
+  font: 800 17px Arial, sans-serif;
+  margin-top: 10px;
+  color: #ffffff;
+}
+
+/* Detail pill below scorebug (Down & Possession) */
+.bug-detail-pill {
+  position: absolute;
+  left: 122px;
+  top: 112px;
+  display: flex;
+  background: #f4f7fc;
+  color: #102a4f;
+  box-shadow: 0 7px 16px rgba(0, 0, 0, 0.4);
+  height: 47px;
+  font: 900 20px Arial, sans-serif;
+  align-items: center;
+}
+
+.bug-detail-pill span {
+  padding: 0 22px;
+  border-right: 1px solid #c4d0e1;
+  white-space: nowrap;
+}
+
+.bug-detail-pill span:last-child {
+  border: 0;
+  background: #e63c34;
+  color: #ffffff;
+}
+
+/* ── 2. LOWER-THIRD GRAPHIC BANNER ── */
+.graphic-banner {
+  position: absolute;
+  left: 58px;
+  bottom: 70px;
+  min-width: 950px;
+  max-width: 1510px;
+  height: 225px;
+  background: linear-gradient(108deg, #071b3b 0%, #103b76 76%, #e43b32 100%);
+  clip-path: polygon(0 0, 96% 0, 100% 100%, 0 100%);
+  filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.5));
+  display: flex;
+  align-items: center;
+  padding: 25px 110px 25px 36px;
+  gap: 32px;
+}
+
+.graphic-banner.enter {
+  animation: broadcast-enter 0.5s cubic-bezier(0.1, 0.8, 0.2, 1) both;
+}
+
+.graphic-banner.out {
+  animation: broadcast-leave 0.35s both;
+}
+
+.graphic-banner.hidden {
+  display: none !important;
+}
+
+.graphic-jersey-number {
+  font-size: 135px;
+  font-style: italic;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.2);
+  min-width: 160px;
+}
+
+.graphic-call {
+  font-size: 86px;
+  line-height: 0.9;
+  font-style: italic;
+  text-transform: uppercase;
+  text-shadow: 5px 6px #e43b32;
+  white-space: nowrap;
+}
+
+.graphic-call.long {
+  font-size: 66px;
+}
+
+.graphic-player-name {
+  font: 900 28px Arial, sans-serif;
+  letter-spacing: 1px;
+  margin-top: 18px;
+  text-transform: uppercase;
+  color: #ffffff;
+}
+
+.graphic-stat-line {
+  font: 700 19px Arial, sans-serif;
+  color: #d3e3fa;
+  margin-top: 8px;
+  text-transform: uppercase;
+}
+
+.graphic-avatar {
+  height: 180px;
+  width: 180px;
+  border: 5px solid rgba(255, 255, 255, 0.47);
+  border-radius: 50%;
+  background: #e43b32;
+  display: grid;
+  place-items: center;
+  font: 900 75px Arial, sans-serif;
+  flex: none;
+  overflow: hidden;
+  color: #ffffff;
+}
+
+.graphic-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.graphic-corner-logo {
+  position: absolute;
+  right: 110px;
+  bottom: 13px;
+  width: 115px;
+  opacity: 0.9;
+  object-fit: contain;
+}
+
+.graphic-tag {
+  position: absolute;
+  right: 128px;
+  top: 21px;
+  font: 900 18px Arial, sans-serif;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Compact mode (for Downs, Goals, Penalties) */
+.graphic-banner.compact-mode {
+  height: 160px;
+  bottom: 60px;
+  min-width: 900px;
+}
+
+.graphic-banner.compact-mode .graphic-call {
+  font-size: 79px;
+}
+
+.graphic-banner.compact-mode .graphic-jersey-number {
+  font-size: 108px;
+  min-width: 135px;
+}
+
+.graphic-banner.compact-mode .graphic-avatar {
+  display: none;
+}
+
+.graphic-banner.compact-mode .graphic-player-name {
+  font-size: 22px;
+}
+
+.graphic-banner.compact-mode .graphic-stat-line {
+  display: none;
+}
+
+.graphic-banner.compact-mode .graphic-corner-logo {
+  width: 94px;
+}
+
+.graphic-banner.no-avatar .graphic-avatar,
+.graphic-banner.no-avatar .graphic-jersey-number {
+  display: none;
+}
+
+/* Animations */
+@keyframes broadcast-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-1200px) skewX(-5deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes broadcast-leave {
+  to {
+    opacity: 0;
+    transform: translateX(-1100px);
+  }
+}

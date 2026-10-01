@@ -122,6 +122,11 @@ func TokenMiddleware(tokenMaker token.Maker) gin.HandlerFunc {
 			}
 		}
 
+		// Fallback to query parameter (e.g. for WebSocket connections that cannot set headers)
+		if accessToken == "" {
+			accessToken = c.Query("token")
+		}
+
 		if accessToken == "" {
 			helpers.UnAuthorizedResponse(c, "access token is missing")
 			c.Abort()
@@ -164,6 +169,10 @@ func OptionalTokenMiddleware(tokenMaker token.Maker) gin.HandlerFunc {
 					accessToken = fields[1]
 				}
 			}
+		}
+
+		if accessToken == "" {
+			accessToken = c.Query("token")
 		}
 
 		// No token at all — proceed as guest.

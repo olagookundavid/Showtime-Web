@@ -6,6 +6,7 @@ import (
 
 	"pkg-common/token"
 	"showtime-backend/config"
+	"showtime-backend/internal/broadcast"
 	"showtime-backend/internal/handlers"
 	"showtime-backend/internal/ports"
 	"showtime-backend/internal/services"
@@ -34,6 +35,7 @@ type Application struct {
 	FantasyService        services.IFantasyService
 	BadgeService          services.IBadgeService
 	TOTWService           services.ITOTWService
+	BroadcastHub          *broadcast.Hub
 
 	// Cron is the background scheduler. CronCancel cancels the context shared by
 	// all scheduled jobs. Both are stopped during shutdown, before the DB pool is
