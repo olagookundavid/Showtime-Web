@@ -3175,6 +3175,30 @@ export function FantasySquadBuilder() {
         />
       )}
 
+      <Modal
+        open={!!violationModal}
+        onClose={() => setViolationModal(null)}
+        title={violationModal?.title || "Selection Blocked"}
+        maxWidth="md"
+      >
+        {violationModal && (
+          <div>
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              {violationModal.message}
+            </p>
+            <div className="flex justify-end mt-5">
+              <button
+                type="button"
+                onClick={() => setViolationModal(null)}
+                className="min-h-11 px-4 py-2 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase transition cursor-pointer"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
       {/* ──────────────────────────────────────────────────────────────────
                 EDIT TEAM NAME MODAL
             ────────────────────────────────────────────────────────────────── */}
