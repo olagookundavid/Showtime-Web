@@ -5,6 +5,7 @@ import { DashboardShell } from "../../components/dashboard/DashboardShell";
 import {
   adminBottomNavFor,
   adminSectionsFor,
+  adminBrandLabelFor,
 } from "../../components/admin/adminNav";
 
 export const AdminLayout = () => {
@@ -34,7 +35,7 @@ export const AdminLayout = () => {
     <DashboardShell
       sections={sections}
       homePath={homePath}
-      brandLabel="Admin Panel"
+      brandLabel={adminBrandLabelFor(user?.role)}
       navLabel="Admin"
       drawerLabel="Admin menu"
       bottomNavLabel="Admin shortcuts"
