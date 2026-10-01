@@ -20,6 +20,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Loader } from '../../components/ui/Loader';
 import { FantasyBackLink } from '../../components/fantasy/FantasyBackLink';
 import { FantasyPitch } from '../../components/fantasy/FantasyPitch';
+import { Spinner } from '../../components/ui/Spinner';
 
 export function FantasyMyTeam() {
     // Shares the hub/dashboard query key, so this is a cache hit.
@@ -126,12 +127,12 @@ export function FantasyMyTeam() {
     const selectedGw = gameweeks.find(gw => gw.id === selectedGWId);
 
     return (
-        <div className="space-y-6 md:space-y-8 pb-36 md:pb-24">
+        <div className="space-y-6 md:space-y-8">
             <FantasyBackLink to="/fantasy/dashboard" label="Back to Dashboard" />
             {/* Header Showtime Navy Banner */}
-            <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-6 md:p-8">
+            <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-4 sm:p-6 md:p-8">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
+                    <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                             <span className={`text-xs font-black px-2.5 py-0.5 rounded uppercase flex items-center gap-1 ${
                                 isLocked ? 'bg-red-500/20 text-red-300 border border-red-400/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30'
@@ -145,7 +146,7 @@ export function FantasyMyTeam() {
                                 </span>
                             )}
                         </div>
-                        <h1 className="text-3xl md:text-5xl font-black italic uppercase tracking-tight text-white mt-2">
+                        <h1 className="text-2xl sm:text-3xl md:text-5xl font-black italic uppercase tracking-tight text-white mt-2 wrap-break-word">
                             {lineup.team_name}
                         </h1>
                         <p className="text-xs md:text-sm text-gray-300 mt-1 font-medium">
@@ -154,11 +155,12 @@ export function FantasyMyTeam() {
                     </div>
 
                     {/* Right Controls: GW Selector + Edit Button */}
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
                         <select
+                            aria-label="Gameweek"
                             value={selectedGWId}
                             onChange={(e) => setSelectedGWId(e.target.value)}
-                            className="bg-white/10 border border-white/20 text-white rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-sffl-red cursor-pointer"
+                            className="w-full sm:w-auto min-w-0 min-h-11 bg-white/10 border border-white/20 text-white rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-sffl-red cursor-pointer"
                         >
                             {gameweeks.map(gw => (
                                 <option key={gw.id} value={gw.id} className="text-gray-900 bg-white">
@@ -170,7 +172,7 @@ export function FantasyMyTeam() {
                         {!isLocked && (
                             <Link
                                 to="/fantasy/build"
-                                className="px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase flex items-center gap-1.5 transition active:scale-95 shadow-md"
+                                className="min-h-11 px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase flex items-center justify-center gap-1.5 transition active:scale-95 shadow-md"
                             >
                                 <PencilSquareIcon className="w-3.5 h-3.5" /> Edit Lineup
                             </Link>
@@ -179,22 +181,22 @@ export function FantasyMyTeam() {
                 </div>
 
                 {/* Points & Financial Strip */}
-                <div className="mt-6 pt-6 border-t border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="p-3 bg-white/10 rounded-xl">
+                <div className="mt-6 pt-6 border-t border-white/10 grid grid-cols-1 min-[400px]:grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-3 bg-white/10 rounded-xl min-w-0">
                         <span className="text-[10px] uppercase font-bold text-gray-300 block">Gameweek Score</span>
-                        <span className="text-2xl font-black text-yellow-400">{lineup.points.toFixed(2)} pts</span>
+                        <span className="block text-xl sm:text-2xl font-black text-yellow-400 wrap-break-word">{lineup.points.toFixed(2)} pts</span>
                     </div>
-                    <div className="p-3 bg-white/10 rounded-xl">
+                    <div className="p-3 bg-white/10 rounded-xl min-w-0">
                         <span className="text-[10px] uppercase font-bold text-gray-300 block">In the Bank</span>
-                        <span className="text-2xl font-black text-yellow-400">{formatFantasyPrice(mySquad?.bank ?? 0)}</span>
+                        <span className="block text-xl sm:text-2xl font-black text-yellow-400 wrap-break-word">{formatFantasyPrice(mySquad?.bank ?? 0)}</span>
                     </div>
-                    <div className="p-3 bg-white/10 rounded-xl">
+                    <div className="p-3 bg-white/10 rounded-xl min-w-0">
                         <span className="text-[10px] uppercase font-bold text-gray-300 block">Squad Value</span>
-                        <span className="text-2xl font-black text-emerald-400">{formatFantasyPrice(mySquad?.squad_value ?? lineup.total_spent)}</span>
+                        <span className="block text-xl sm:text-2xl font-black text-emerald-400 wrap-break-word">{formatFantasyPrice(mySquad?.squad_value ?? lineup.total_spent)}</span>
                     </div>
-                    <div className="p-3 bg-white/10 rounded-xl">
+                    <div className="p-3 bg-white/10 rounded-xl min-w-0">
                         <span className="text-[10px] uppercase font-bold text-gray-300 block">Club Value</span>
-                        <span className="text-2xl font-black text-white">{formatFantasyPrice((mySquad?.bank ?? 0) + (mySquad?.squad_value ?? lineup.total_spent))}</span>
+                        <span className="block text-xl sm:text-2xl font-black text-white wrap-break-word">{formatFantasyPrice((mySquad?.bank ?? 0) + (mySquad?.squad_value ?? lineup.total_spent))}</span>
                     </div>
                 </div>
             </div>
@@ -215,29 +217,29 @@ export function FantasyMyTeam() {
             {selectedPlayerForBreakdown && (
                 <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 pt-[calc(var(--chrome-h)+1rem)] transition-[padding] duration-300 motion-reduce:transition-none" data-dialog>
                     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[calc(100dvh-var(--chrome-h)-2rem)] flex flex-col overflow-hidden shadow-2xl">
-                        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                            <div>
+                        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex items-start justify-between gap-3">
+                            <div className="min-w-0">
                                 <span className="text-xs font-black text-sffl-red uppercase tracking-wider block">
                                     Showtime Points Breakdown
                                 </span>
-                                <h3 className="text-lg font-black text-sffl-navy dark:text-white">{selectedPlayerForBreakdown.player_name}</h3>
+                                <h3 className="text-lg font-black text-sffl-navy dark:text-white wrap-break-word">{selectedPlayerForBreakdown.player_name}</h3>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                                     Slot: <strong>{selectedPlayerForBreakdown.slot}</strong> • Purchase Price: <strong>{formatFantasyPrice(selectedPlayerForBreakdown.purchase_price)}</strong>
                                 </p>
                             </div>
                             <button
+                                type="button"
                                 onClick={() => setSelectedPlayerForBreakdown(null)}
-                                className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300 transition"
+                                aria-label="Close points breakdown"
+                                className="min-h-11 min-w-11 shrink-0 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300 transition"
                             >
-                                <XMarkIcon className="w-5 h-5" />
+                                <XMarkIcon className="w-5 h-5" aria-hidden="true" />
                             </button>
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
                             {breakdownLoading ? (
-                                <div className="py-12 flex justify-center">
-                                    <div className="w-8 h-8 border-2 border-sffl-red border-t-transparent rounded-full animate-spin" />
-                                </div>
+                                <Spinner label="Loading points breakdown…" className="py-12" />
                             ) : !breakdownData || (
                                 breakdownData.breakdown.net_total === 0 &&
                                 breakdownData.breakdown.offensive_total === 0 &&

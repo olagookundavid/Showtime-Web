@@ -9,7 +9,10 @@ import {
     ArrowTrendingUpIcon,
     ScaleIcon,
     BoltIcon,
+    ArrowPathIcon,
 } from '@heroicons/react/24/outline';
+import { FemaleIcon } from '../icons/FemaleIcon';
+import { MaleIcon } from '../icons/MaleIcon';
 import {
     fantasyApi,
     formatFantasyPrice,
@@ -133,11 +136,11 @@ export function FantasyPlayerModal({ isOpen, onClose, player }: FantasyPlayerMod
             <div className="fixed inset-0" onClick={onClose} />
 
             <div
-                className="relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[92vh] z-10 animate-in fade-in zoom-in-95 duration-200"
+                className="relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[calc(100dvh-var(--chrome-h,0px)-2rem)] z-10 animate-in fade-in zoom-in-95 duration-200"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header Banner */}
-                <div className="bg-sffl-navy text-white p-5 md:p-6 flex items-start justify-between gap-4 border-b border-white/10">
+                <div className="bg-sffl-navy text-white p-4 md:p-6 flex items-start justify-between gap-3 border-b border-white/10 shrink-0">
                     <div className="min-w-0 flex-1">
                         <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-white/15 text-gray-200 inline-block mb-1.5">
                             Fantasy Player Profile
@@ -156,10 +159,10 @@ export function FantasyPlayerModal({ isOpen, onClose, player }: FantasyPlayerMod
                     <button
                         type="button"
                         onClick={onClose}
-                        className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-gray-200 hover:text-white transition cursor-pointer shrink-0"
+                        className="min-h-11 min-w-11 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 text-gray-200 hover:text-white transition cursor-pointer shrink-0"
                         aria-label="Close dialog"
                     >
-                        <XMarkIcon className="w-5 h-5" />
+                        <XMarkIcon className="w-5 h-5" aria-hidden="true" />
                     </button>
                 </div>
 
@@ -176,11 +179,16 @@ export function FantasyPlayerModal({ isOpen, onClose, player }: FantasyPlayerMod
                         {/* Gender pip outside the photo */}
                         <span
                             aria-label={isFemale ? 'Female athlete' : 'Male athlete'}
-                            className={`absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs font-black text-white shadow ${
+                            role="img"
+                            className={`absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full border-2 border-white dark:border-gray-800 flex items-center justify-center text-white shadow ${
                                 isFemale ? 'bg-pink-500' : 'bg-blue-500'
                             }`}
                         >
-                            {isFemale ? '♀' : '♂'}
+                            {isFemale ? (
+                                <FemaleIcon className="w-3.5 h-3.5" strokeWidth={2.5} aria-hidden="true" />
+                            ) : (
+                                <MaleIcon className="w-3.5 h-3.5" strokeWidth={2.5} aria-hidden="true" />
+                            )}
                         </span>
                     </div>
 
@@ -270,7 +278,10 @@ export function FantasyPlayerModal({ isOpen, onClose, player }: FantasyPlayerMod
                             </div>
 
                             {loadingBreakdown ? (
-                                <p className="text-xs text-gray-500 py-3 text-center">Loading gameweek stats...</p>
+                                <p className="flex items-center justify-center gap-2 text-xs text-gray-500 py-3">
+                                    <ArrowPathIcon className="w-4 h-4 animate-spin" aria-hidden="true" />
+                                    Loading gameweek stats…
+                                </p>
                             ) : breakdown && (breakdown.net_total !== 0 || breakdown.offensive_total !== 0 || breakdown.defensive_total !== 0) ? (
                                 <div className="space-y-3 text-xs">
                                     {/* Offensive stats */}
@@ -341,7 +352,10 @@ export function FantasyPlayerModal({ isOpen, onClose, player }: FantasyPlayerMod
                         </div>
 
                         {loadingPriceHistory ? (
-                            <p className="text-xs text-gray-500 py-3 text-center">Loading price history...</p>
+                            <p className="flex items-center justify-center gap-2 text-xs text-gray-500 py-3">
+                                <ArrowPathIcon className="w-4 h-4 animate-spin" aria-hidden="true" />
+                                Loading price history…
+                            </p>
                         ) : priceHistoryData?.history && priceHistoryData.history.length > 0 ? (
                             <div className="space-y-2">
                                 <div className="overflow-x-auto">
@@ -404,18 +418,18 @@ export function FantasyPlayerModal({ isOpen, onClose, player }: FantasyPlayerMod
                 </div>
 
                 {/* Footer Actions */}
-                <div className="p-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3">
+                <div className="p-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-3 shrink-0">
                     <Link
                         to={`/players/${player.playerId}`}
-                        className="inline-flex items-center gap-1.5 text-xs font-bold text-sffl-navy dark:text-gray-200 hover:text-sffl-red transition"
+                        className="inline-flex items-center gap-1.5 min-h-11 text-xs font-bold text-sffl-navy dark:text-gray-200 hover:text-sffl-red transition"
                     >
-                        View Full Season Stats <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
+                        View Full Season Stats <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" aria-hidden="true" />
                     </Link>
 
                     <button
                         type="button"
                         onClick={onClose}
-                        className="px-4 py-2 rounded-xl bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 text-xs font-black uppercase tracking-wider transition cursor-pointer"
+                        className="min-h-11 px-4 py-2 rounded-xl bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 text-xs font-black uppercase tracking-wider transition cursor-pointer"
                     >
                         Close
                     </button>

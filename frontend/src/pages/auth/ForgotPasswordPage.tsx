@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
-import { ArrowLeftIcon, EnvelopeIcon, KeyIcon, LockClosedIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, ArrowPathIcon, EnvelopeIcon, KeyIcon, LockClosedIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 
 type Step = 'email' | 'otp' | 'password' | 'success';
 
@@ -103,8 +103,8 @@ export const ForgotPasswordPage = () => {
     };
 
     return (
-        <div className="min-h-[80vh] flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4 transition-colors py-12">
-            <div className="max-w-md w-full bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-xl p-8 relative overflow-hidden">
+        <div className="min-h-[80dvh] flex items-center justify-center transition-colors py-6 sm:py-12">
+            <div className="max-w-md w-full bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-xl p-5 sm:p-8 relative overflow-hidden">
                 
                 {/* Step Indicator */}
                 {step !== 'success' && (
@@ -122,15 +122,17 @@ export const ForgotPasswordPage = () => {
 
                 {/* Back Button */}
                 {step !== 'success' && (
-                    <button 
+                    <button
+                        type="button"
                         onClick={() => {
                             if (step === 'email') navigate('/login');
                             else if (step === 'otp') setStep('email');
                             else if (step === 'password') setStep('otp');
                         }}
-                        className="absolute top-6 left-6 text-gray-400 hover:text-sffl-red transition-colors"
+                        aria-label={step === 'email' ? 'Back to login' : 'Back to the previous step'}
+                        className="absolute top-2 left-2 sm:top-4 sm:left-4 min-h-11 min-w-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-sffl-red transition-colors"
                     >
-                        <ArrowLeftIcon className="w-5 h-5" />
+                        <ArrowLeftIcon className="w-5 h-5" aria-hidden="true" />
                     </button>
                 )}
 
@@ -163,9 +165,10 @@ export const ForgotPasswordPage = () => {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full bg-sffl-red hover:bg-red-700 text-white font-bold py-3 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                className="w-full min-h-11 bg-sffl-red hover:bg-red-700 text-white font-bold py-3 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                             >
-                                {loading ? 'Sending...' : 'Send Reset Code'}
+                                {loading && <ArrowPathIcon className="w-5 h-5 animate-spin" aria-hidden="true" />}
+                                {loading ? 'Sending…' : 'Send Reset Code'}
                             </button>
                         </form>
                     </div>
@@ -179,11 +182,11 @@ export const ForgotPasswordPage = () => {
                                 <KeyIcon className="w-8 h-8 text-blue-600 dark:text-blue-400" />
                             </div>
                             <h2 className="text-2xl font-black text-sffl-navy dark:text-white">Verify Code</h2>
-                            <p className="text-gray-600 dark:text-gray-400 mt-2">Enter the 6-digit code sent to <span className="font-bold text-gray-900 dark:text-white">{email}</span></p>
+                            <p className="text-gray-600 dark:text-gray-400 mt-2">Enter the 6-digit code sent to <span className="font-bold text-gray-900 dark:text-white break-all">{email}</span></p>
                         </div>
 
                         <form onSubmit={handleVerifyOtp} className="space-y-8">
-                            <div className="flex justify-between gap-2">
+                            <div className="flex justify-center gap-1.5 sm:gap-2">
                                 {otp.map((digit, idx) => (
                                     <input
                                         key={idx}
@@ -193,7 +196,8 @@ export const ForgotPasswordPage = () => {
                                         value={digit}
                                         onChange={(e) => handleOtpChange(idx, e.target.value)}
                                         onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                                        className="w-12 h-14 text-center text-2xl font-bold bg-white dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-sffl-red focus:border-transparent transition-all"
+                                        aria-label={`Digit ${idx + 1} of 6`}
+                                        className="flex-1 min-w-0 max-w-12 h-12 sm:h-14 text-center text-xl sm:text-2xl font-bold bg-white dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-sffl-red focus:border-transparent transition-all"
                                     />
                                 ))}
                             </div>
@@ -201,7 +205,7 @@ export const ForgotPasswordPage = () => {
                             <div className="space-y-4">
                                 <button
                                     type="submit"
-                                    className="w-full bg-sffl-red hover:bg-red-700 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                                    className="w-full min-h-11 bg-sffl-red hover:bg-red-700 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
                                 >
                                     Verify Code
                                 </button>
@@ -211,7 +215,7 @@ export const ForgotPasswordPage = () => {
                                         type="button"
                                         onClick={handleResend}
                                         disabled={resendTimer > 0 || loading}
-                                        className="text-sm font-bold text-sffl-red hover:underline disabled:text-gray-400 disabled:no-underline transition-colors"
+                                        className="min-h-11 px-2 text-sm font-bold text-sffl-red hover:underline disabled:text-gray-400 disabled:no-underline transition-colors"
                                     >
                                         {resendTimer > 0 ? `Resend code in ${resendTimer}s` : 'Resend code'}
                                     </button>
@@ -264,9 +268,10 @@ export const ForgotPasswordPage = () => {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full bg-sffl-red hover:bg-red-700 text-white font-bold py-3 rounded-lg transition-colors disabled:opacity-50"
+                                className="w-full min-h-11 inline-flex items-center justify-center gap-2 bg-sffl-red hover:bg-red-700 text-white font-bold py-3 rounded-lg transition-colors disabled:opacity-50"
                             >
-                                {loading ? 'Resetting...' : 'Reset Password'}
+                                {loading && <ArrowPathIcon className="w-5 h-5 animate-spin" aria-hidden="true" />}
+                                {loading ? 'Resetting…' : 'Reset Password'}
                             </button>
                         </form>
                     </div>
@@ -278,7 +283,7 @@ export const ForgotPasswordPage = () => {
                         <div className="w-20 h-20 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
                             <CheckCircleIcon className="w-12 h-12 text-green-500" />
                         </div>
-                        <h2 className="text-3xl font-black text-sffl-navy dark:text-white mb-2">Success!</h2>
+                        <h2 className="text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white mb-2">Success!</h2>
                         <p className="text-gray-600 dark:text-gray-400 mb-10">Your password has been reset successfully. You can now log in with your new credentials.</p>
                         
                         <Link 

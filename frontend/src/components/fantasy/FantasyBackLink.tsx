@@ -15,10 +15,10 @@ export function FantasyBackLink({ to, label, className }: FantasyBackLinkProps) 
             to={to}
             className={
                 className ??
-                'inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-sffl-navy dark:text-gray-400 dark:hover:text-white transition mb-3'
+                'inline-flex items-center gap-1.5 min-h-11 text-xs font-semibold text-gray-500 hover:text-sffl-navy dark:text-gray-400 dark:hover:text-white transition mb-1'
             }
         >
-            <ArrowLeftIcon className="w-3.5 h-3.5" /> {label}
+            <ArrowLeftIcon className="w-3.5 h-3.5" aria-hidden="true" /> {label}
         </Link>
     );
 }

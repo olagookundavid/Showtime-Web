@@ -17,7 +17,7 @@ import { SeasonStageTabs } from "../../components/common/SeasonStageTabs";
 import { getStatsForPosition } from "../../utils/positionStatsMatrix";
 import { BackButton } from "../../components/common/BackButton";
 import {
-  XMarkIcon,
+  ChartBarIcon,
   ListBulletIcon,
   Squares2X2Icon,
   StarIcon,
@@ -28,6 +28,7 @@ import { BadgeImage } from "../../components/common/BadgeImage";
 import { CrownIcon } from "../../components/icons/CrownIcon";
 import { SproutIcon } from "../../components/icons/SproutIcon";
 import { formatStatNumber } from "../../utils/formatters";
+import { Modal } from "../../components/ui/Modal";
 
 const StatCard = ({
   label,
@@ -188,18 +189,18 @@ export const PlayerDetail = () => {
 
       {/* Player Header */}
       <div className="bg-linear-to-r from-sffl-navy to-sffl-red rounded-2xl overflow-hidden">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 p-4 sm:p-6 md:p-8">
           {/* Player Image */}
           <div className="relative group">
             {player.image ? (
               <img
                 src={player.image}
                 alt={player.name}
-                className="w-full h-72 md:h-96 object-cover rounded-xl shadow-2xl transition-transform duration-500 group-hover:scale-[1.02]"
+                className="w-full h-64 sm:h-72 md:h-96 object-cover rounded-xl shadow-2xl transition-transform duration-500 group-hover:scale-[1.02]"
               />
             ) : (
-              <div className="w-full h-72 md:h-96 bg-gray-200 dark:bg-gray-700/50 rounded-xl flex items-center justify-center">
-                <div className="text-9xl font-black text-gray-300 dark:text-gray-600">
+              <div className="w-full h-64 sm:h-72 md:h-96 bg-gray-200 dark:bg-gray-700/50 rounded-xl flex items-center justify-center">
+                <div className="text-7xl md:text-9xl font-black text-gray-300 dark:text-gray-600">
                   #{player.jersey_number}
                 </div>
               </div>
@@ -210,8 +211,8 @@ export const PlayerDetail = () => {
           </div>
 
           {/* Player Info */}
-          <div className="text-white flex flex-col justify-center gap-1 md:gap-4">
-            <h1 className="text-3xl md:text-6xl font-black uppercase tracking-tighter leading-none">
+          <div className="text-white flex flex-col justify-center gap-2 md:gap-4 min-w-0">
+            <h1 className="text-3xl md:text-6xl font-black uppercase tracking-tighter leading-none wrap-break-word">
               {player.name}
             </h1>
             <div className="flex items-center gap-3 flex-wrap">
@@ -271,7 +272,7 @@ export const PlayerDetail = () => {
                   key={b.id || b.badge_id || b.code}
                   type="button"
                   onClick={() => setSelectedBadge(b)}
-                  className={`px-3 py-0.5 rounded-full text-xs font-black uppercase tracking-wider border flex items-center gap-1.5 shadow-sm transition-all hover:scale-105 cursor-pointer ${
+                  className={`min-h-11 max-w-full px-3 py-0.5 rounded-full text-xs font-black uppercase tracking-wider border flex items-center gap-1.5 shadow-sm transition-all hover:scale-105 cursor-pointer ${
                     b.color_scheme === "gold"
                       ? "bg-amber-400/25 text-amber-200 border-amber-400/50 hover:bg-amber-400/40"
                       : b.color_scheme === "red"
@@ -280,15 +281,15 @@ export const PlayerDetail = () => {
                           ? "bg-blue-500/25 text-blue-200 border-blue-500/50 hover:bg-blue-500/40"
                           : "bg-emerald-500/25 text-emerald-200 border-emerald-500/50 hover:bg-emerald-500/40"
                   }`}
-                  title={`Click to view ${b.name} details`}
+                  aria-label={`${b.name}, awarded ${b.count} ${b.count === 1 ? "time" : "times"}. View details`}
                 >
                   <BadgeImage
                     icon={b.icon}
                     name={b.name}
                     className="w-4 h-4 text-xs"
                   />
-                  <span>{b.name}</span>
-                  <span className="bg-white/20 px-1.5 py-0.2 rounded-full text-[10px]">
+                  <span className="min-w-0 truncate">{b.name}</span>
+                  <span className="shrink-0 bg-white/20 px-1.5 py-0.2 rounded-full text-[10px]">
                     ×{b.count}
                   </span>
                 </button>
@@ -297,7 +298,7 @@ export const PlayerDetail = () => {
             {player.team?.id ? (
               <Link
                 to={`/teams/${player.team.id}`}
-                className="text-sm md:text-xl font-bold text-gray-100 hover:text-sffl-red transition-colors"
+                className="inline-flex items-center min-h-11 self-start text-sm md:text-xl font-bold text-gray-100 hover:text-sffl-red transition-colors wrap-break-word"
               >
                 {player.team.name}
               </Link>
@@ -322,12 +323,12 @@ export const PlayerDetail = () => {
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-fade-in">
           {/* Header */}
           <div className="p-4 md:p-6 bg-gray-50 dark:bg-gray-900/40 border-b border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               <div className="w-10 h-10 rounded-xl bg-linear-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center shadow-md shrink-0">
                 <TrophyIcon className="w-5 h-5" aria-hidden="true" />
               </div>
               <div>
-                <h2 className="text-xl md:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight flex items-center gap-2">
+                <h2 className="text-lg sm:text-xl md:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight flex items-center gap-2">
                   <span>Career Honors & Achievements</span>
                 </h2>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
@@ -338,7 +339,7 @@ export const PlayerDetail = () => {
             </div>
 
             {/* Summary Pill Chips */}
-            <div className="flex items-center gap-2 self-start sm:self-auto">
+            <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
               <span className="px-3 py-1 rounded-full text-xs font-black bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600">
                 {playerBadges.length}{" "}
                 {playerBadges.length === 1 ? "Badge" : "Badges"}
@@ -355,7 +356,7 @@ export const PlayerDetail = () => {
 
           {/* Badges Display: Pure PNG emblem with phone notification-style counter */}
           <div className="p-4 md:p-6">
-            <div className="flex flex-wrap items-center gap-5 md:gap-7">
+            <div className="flex flex-wrap items-start gap-5 md:gap-7">
               {playerBadges.map((badge) => {
                 const count = badge.count || 1;
                 return (
@@ -363,8 +364,8 @@ export const PlayerDetail = () => {
                     key={badge.id || badge.badge_id || badge.code}
                     type="button"
                     onClick={() => setSelectedBadge(badge)}
-                    title={`${badge.name} (${count} won) — Click to view details`}
-                    className="group relative cursor-pointer focus:outline-none transition-transform duration-200 hover:scale-105 active:scale-95"
+                    aria-label={`${badge.name}, won ${count} ${count === 1 ? "time" : "times"}. View details`}
+                    className="group relative flex flex-col items-center w-20 sm:w-24 md:w-28 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-sffl-red rounded-xl transition-transform duration-200 hover:scale-105 active:scale-95"
                   >
                     {/* Badge PNG Artwork */}
                     <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 flex items-center justify-center p-1">
@@ -380,8 +381,8 @@ export const PlayerDetail = () => {
                       {count}
                     </span>
 
-                    {/* Hover tooltip label */}
-                    <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap px-2.5 py-1 rounded-lg bg-gray-900/90 text-white text-[11px] font-bold shadow-lg z-20">
+                    {/* Name under the badge, shown on every screen (not hover-only) */}
+                    <span className="mt-1 max-w-full text-center text-[11px] font-bold leading-tight text-gray-700 dark:text-gray-300 line-clamp-2">
                       {badge.name}
                     </span>
                   </button>
@@ -402,15 +403,19 @@ export const PlayerDetail = () => {
             </h2>
 
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex flex-col gap-2 sm:w-45">
-                <div className="flex flex-col gap-1 min-w-40">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">
+              <div className="flex flex-col gap-2 w-full sm:w-45">
+                <div className="flex flex-col gap-1 w-full">
+                  <label
+                    htmlFor="player-stats-competition"
+                    className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
+                  >
                     Competition
                   </label>
                   <select
+                    id="player-stats-competition"
                     value={compId}
                     onChange={(e) => handleCompChange(e.target.value)}
-                    className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-1.5 text-xs font-bold outline-none focus:ring-2 focus:ring-sffl-red transition-all"
+                    className="min-h-11 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-1.5 text-xs font-bold outline-none focus:ring-2 focus:ring-sffl-red transition-all"
                   >
                     <option value="">All Competitions</option>
                     {dropdownComps.map((c) => (
@@ -423,12 +428,16 @@ export const PlayerDetail = () => {
               </div>
 
               <div
-                className={`flex flex-col gap-1 min-w-35 transition-opacity duration-300 ${!compId ? "opacity-40" : "opacity-100"}`}
+                className={`flex flex-col gap-1 w-full sm:w-auto sm:min-w-35 transition-opacity duration-300 ${!compId ? "opacity-40" : "opacity-100"}`}
               >
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">
+                <label
+                  htmlFor="player-stats-match-day"
+                  className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
+                >
                   Match Day
                 </label>
                 <select
+                  id="player-stats-match-day"
                   value={matchDate}
                   onChange={(e) => {
                     const params = new URLSearchParams(searchParams);
@@ -437,7 +446,7 @@ export const PlayerDetail = () => {
                     params.delete("match");
                     setSearchParams(params, { replace: true });
                   }}
-                  className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-1.5 text-xs font-bold outline-none focus:ring-2 focus:ring-sffl-red transition-all disabled:cursor-not-allowed"
+                  className="min-h-11 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-1.5 text-xs font-bold outline-none focus:ring-2 focus:ring-sffl-red transition-all disabled:cursor-not-allowed"
                   disabled={!compId}
                 >
                   <option value="">Full Season</option>
@@ -470,9 +479,9 @@ export const PlayerDetail = () => {
           <div className="p-4 md:p-8">
             {/* Subheader: Active Scope + View Switcher */}
             <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-700/60 pb-4">
-              <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-sffl-red animate-pulse" />
-                <span className="text-xs font-black text-gray-400 uppercase tracking-widest">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="h-2 w-2 shrink-0 rounded-full bg-sffl-red animate-pulse" />
+                <span className="min-w-0 wrap-break-word text-xs font-black text-gray-400 uppercase tracking-widest">
                   {matchDate
                     ? `Viewing Match: ${matchDate}`
                     : compId
@@ -486,25 +495,27 @@ export const PlayerDetail = () => {
                 <button
                   type="button"
                   onClick={() => setStatViewMode("list")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                  aria-pressed={statViewMode === "list"}
+                  className={`flex items-center gap-1.5 min-h-11 px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
                     statViewMode === "list"
                       ? "bg-white dark:bg-gray-800 text-sffl-navy dark:text-white shadow-xs"
                       : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                   }`}
                 >
-                  <ListBulletIcon className="w-4 h-4" />
+                  <ListBulletIcon className="w-4 h-4" aria-hidden="true" />
                   <span>List</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setStatViewMode("grid")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                  aria-pressed={statViewMode === "grid"}
+                  className={`flex items-center gap-1.5 min-h-11 px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
                     statViewMode === "grid"
                       ? "bg-white dark:bg-gray-800 text-sffl-navy dark:text-white shadow-xs"
                       : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                   }`}
                 >
-                  <Squares2X2Icon className="w-4 h-4" />
+                  <Squares2X2Icon className="w-4 h-4" aria-hidden="true" />
                   <span>Grid</span>
                 </button>
               </div>
@@ -516,7 +527,8 @@ export const PlayerDetail = () => {
                 <button
                   type="button"
                   onClick={() => setSelectedStatCategory("ALL")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+                  aria-pressed={selectedStatCategory === "ALL"}
+                  className={`min-h-11 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
                     selectedStatCategory === "ALL"
                       ? "bg-sffl-navy text-white dark:bg-sffl-red shadow-xs"
                       : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-700/60 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600"
@@ -533,7 +545,8 @@ export const PlayerDetail = () => {
                       key={cat}
                       type="button"
                       onClick={() => setSelectedStatCategory(cat)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+                      aria-pressed={selectedStatCategory === cat}
+                      className={`min-h-11 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
                         selectedStatCategory === cat
                           ? "bg-sffl-navy text-white dark:bg-sffl-red shadow-xs"
                           : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-700/60 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600"
@@ -579,7 +592,7 @@ export const PlayerDetail = () => {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
+              <div className="grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
                 {displayedStats.map((statDef) => (
                   <StatCard
                     key={statDef.key}
@@ -591,9 +604,12 @@ export const PlayerDetail = () => {
             )}
           </div>
         ) : (
-          <div className="p-12 text-center opacity-60">
-            <div className="text-4xl mb-4">📊</div>
-            <p className="text-lg font-bold text-gray-500">
+          <div className="p-6 sm:p-12 text-center opacity-60">
+            <ChartBarIcon
+              className="w-10 h-10 mx-auto mb-4 text-gray-400"
+              aria-hidden="true"
+            />
+            <p className="text-base sm:text-lg font-bold text-gray-500">
               {matchDate
                 ? `No statistics recorded yet for ${matchDate}.`
                 : "No statistics recorded yet for this selection."}
@@ -603,16 +619,14 @@ export const PlayerDetail = () => {
       </div>
 
       {/* Badge Detail Modal */}
-      {selectedBadge && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-2xl p-6 max-w-md w-full shadow-2xl relative">
-            <button
-              type="button"
-              onClick={() => setSelectedBadge(null)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-white cursor-pointer"
-            >
-              <XMarkIcon className="w-5 h-5" />
-            </button>
+      <Modal
+        open={!!selectedBadge}
+        onClose={() => setSelectedBadge(null)}
+        title="Badge details"
+        maxWidth="md"
+      >
+        {selectedBadge && (
+          <div className="text-gray-900 dark:text-white">
             <div className="text-center">
               <div className="w-20 h-20 mx-auto mb-2 flex items-center justify-center">
                 <BadgeImage
@@ -621,7 +635,7 @@ export const PlayerDetail = () => {
                   className="w-16 h-16 text-5xl"
                 />
               </div>
-              <h3 className="text-2xl font-black text-sffl-navy dark:text-white">
+              <h3 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white wrap-break-word">
                 {selectedBadge.name}
               </h3>
               {selectedBadge.category && (
@@ -647,7 +661,7 @@ export const PlayerDetail = () => {
                 <h4 className="text-[10px] font-black uppercase tracking-wider text-gray-400 mb-2.5">
                   Award History & Occurrences
                 </h4>
-                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                <div className="space-y-2">
                   {selectedBadge.awards.map((award, i) => (
                     <div
                       key={award.id || i}
@@ -681,8 +695,8 @@ export const PlayerDetail = () => {
               </div>
             )}
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { CalendarDaysIcon, TicketIcon } from '@heroicons/react/24/outline';
 import type { Match } from '../../services/api';
 import { generateGoogleCalendarLink } from '../../utils/calendarUtils';
 import { formatMatchTime, formatMatchDate } from '../../utils/dateUtils';
@@ -96,7 +97,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
                                 e.stopPropagation();
                                 if (match.highlights_url) window.open(match.highlights_url, '_blank', 'noopener,noreferrer');
                             }}
-                            className="px-3 py-1.5 bg-sffl-red text-white text-[10px] md:text-sm font-bold flex items-center justify-center min-h-[36px] md:min-h-[44px] rounded-lg hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 w-full"
+                            className="px-3 py-1.5 bg-sffl-red text-white text-xs md:text-sm font-bold flex items-center justify-center min-h-11 rounded-lg hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 w-full"
                         >
                             Highlights
                         </button>
@@ -105,19 +106,21 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
                             <Link
                                 to={`/tickets?date=${match.date.split('T')[0]}`}
                                 onClick={(e) => e.stopPropagation()}
-                                className="px-3 py-1.5 bg-sffl-navy text-white text-[10px] md:text-sm font-bold flex items-center justify-center min-h-[36px] md:min-h-[44px] rounded-lg hover:bg-blue-900 transition-all duration-300 hover:scale-[1.02] active:scale-95 w-full block"
+                                className="px-3 py-1.5 bg-sffl-navy text-white text-xs md:text-sm font-bold flex items-center justify-center min-h-11 rounded-lg hover:bg-blue-900 transition-all duration-300 hover:scale-[1.02] active:scale-95 w-full block"
                             >
-                                🎟️ Tickets
+                                <TicketIcon className="w-4 h-4 mr-1.5 shrink-0" aria-hidden="true" />
+                                Tickets
                             </Link>
                             <button
-                                className="px-3 py-1.5 bg-white text-sffl-navy border border-gray-300 text-[10px] md:text-sm font-bold flex items-center justify-center min-h-[36px] md:min-h-[44px] rounded-lg hover:bg-gray-50 dark:bg-gray-800 dark:text-white dark:border-gray-600 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 w-full"
+                                className="px-3 py-1.5 bg-white text-sffl-navy border border-gray-300 text-xs md:text-sm font-bold flex items-center justify-center min-h-11 rounded-lg hover:bg-gray-50 dark:bg-gray-800 dark:text-white dark:border-gray-600 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 w-full"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     const link = generateGoogleCalendarLink(match);
                                     window.open(link, '_blank', 'noopener,noreferrer');
                                 }}
                             >
-                                + Calendar
+                                <CalendarDaysIcon className="w-4 h-4 mr-1.5 shrink-0" aria-hidden="true" />
+                                Add to Calendar
                             </button>
                         </>
                     )}

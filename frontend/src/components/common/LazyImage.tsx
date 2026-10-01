@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 interface LazyImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
     src: string;
@@ -46,7 +47,7 @@ export const LazyImage: React.FC<LazyImageProps> = ({
             {/* Error state fallback */}
             {isError ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 text-gray-400 dark:text-gray-600 p-4 text-center select-none">
-                    <span className="text-2xl mb-1">⚠️</span>
+                    <ExclamationTriangleIcon className="w-7 h-7 mb-1" aria-hidden="true" />
                     <span className="text-[10px] font-black uppercase tracking-wider">Image Unavailable</span>
                 </div>
             ) : (

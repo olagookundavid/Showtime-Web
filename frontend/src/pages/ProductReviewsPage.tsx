@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { useParams, Link, Navigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  CheckBadgeIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  InformationCircleIcon,
+  TrashIcon,
+} from "@heroicons/react/24/outline";
+import toast from "react-hot-toast";
 import { useAuth } from "../contexts/AuthContext";
 import {
   getStoreProduct,
@@ -14,6 +22,8 @@ import {
 import { StarRating } from "../components/store/StarRating";
 import { Loader } from "../components/ui/Loader";
 import { BackButton } from "../components/common/BackButton";
+import { ConfirmDialog } from "../components/ui/ConfirmDialog";
+import { ConfirmSummary } from "../components/ui/ConfirmSummary";
 
 export const ProductReviewsPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -32,6 +42,14 @@ export const ProductReviewsPage = () => {
   const [formError, setFormError] = useState("");
   const [formSuccess, setFormSuccess] = useState("");
   const [prefilled, setPrefilled] = useState(false);
+
+  // Admin-only: the review waiting on the delete confirmation.
+  const [pendingDelete, setPendingDelete] = useState<{
+    id: string;
+    author: string;
+    title?: string;
+  } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const { data: product, isLoading: loadingProduct } = useQuery<StoreProduct>({
     queryKey: ["storeProduct", id],
@@ -112,7 +130,7 @@ export const ProductReviewsPage = () => {
 
   if (!product) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-16 text-center space-y-4">
+      <div className="max-w-2xl mx-auto py-16 text-center space-y-4">
         <p className="text-gray-500">Product not found.</p>
         <BackButton fallback="/store">Back to Store</BackButton>
       </div>
@@ -121,28 +139,59 @@ export const ProductReviewsPage = () => {
 
   const totalPages = reviews?.total_pages || 1;
 
+  const handleDeleteReview = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      await deleteAdminProductReview(pendingDelete.id);
+      queryClient.invalidateQueries({ queryKey: ["productReviews", id] });
+      queryClient.invalidateQueries({
+        queryKey: ["productReviewsPreview", id],
+      });
+      queryClient.invalidateQueries({ queryKey: ["storeProduct", id] });
+      toast.success("Review deleted.");
+      setPendingDelete(null);
+    } catch (err: unknown) {
+      const errorResponse = err as {
+        response?: { data?: { error?: string } };
+      };
+      toast.error(
+        errorResponse.response?.data?.error ||
+          (err instanceof Error ? err.message : undefined) ||
+          "Failed to delete review",
+      );
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* Breadcrumbs + Back Nav */}
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <BackButton fallback={`/store/products/${product.id}`} />
-          <div className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-wider">
-            <Link to="/store" className="hover:text-sffl-red transition-colors">
+          <div className="flex items-center gap-2 min-w-0 text-xs font-bold text-gray-500 uppercase tracking-wider">
+            <Link
+              to="/store"
+              className="inline-flex items-center min-h-11 shrink-0 hover:text-sffl-red transition-colors"
+            >
               Store
             </Link>
-            <span>/</span>
+            <span aria-hidden="true">/</span>
             <Link
               to={`/store/products/${product.id}`}
-              className="hover:text-sffl-red transition-colors truncate max-w-xs md:max-w-md"
+              className="inline-flex items-center min-h-11 min-w-0 hover:text-sffl-red transition-colors max-w-[40vw] md:max-w-md"
             >
-              {product.name}
+              <span className="truncate">{product.name}</span>
             </Link>
-            <span>/</span>
-            <span className="text-gray-900 dark:text-white">Reviews</span>
+            <span aria-hidden="true">/</span>
+            <span className="text-gray-900 dark:text-white shrink-0">
+              Reviews
+            </span>
           </div>
         </div>
-        <h1 className="text-3xl font-black italic tracking-tighter text-sffl-navy dark:text-white uppercase">
+        <h1 className="text-2xl sm:text-3xl font-black italic tracking-tighter text-sffl-navy dark:text-white uppercase wrap-break-word">
           Reviews — {product.name}
         </h1>
       </div>
@@ -150,11 +199,11 @@ export const ProductReviewsPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* Left: summary + reviews list */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60 rounded-2xl p-6 shadow-sm space-y-4">
+          <div className="bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60 rounded-2xl p-4 sm:p-6 shadow-sm space-y-4">
             {product.rating_count > 0 ? (
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center gap-4">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-5xl font-black text-sffl-navy dark:text-white">
+                  <span className="text-4xl sm:text-5xl font-black text-sffl-navy dark:text-white">
                     {(product.rating_avg ?? 0).toFixed(1)}
                   </span>
                   <span className="text-sm text-gray-500">/ 5</span>
@@ -174,7 +223,7 @@ export const ProductReviewsPage = () => {
             )}
           </div>
 
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
             <h2 className="text-sm font-black uppercase tracking-wider text-sffl-navy dark:text-gray-300">
               All Reviews
             </h2>
@@ -184,7 +233,8 @@ export const ProductReviewsPage = () => {
                 setSort(e.target.value as ReviewSort);
                 setPage(1);
               }}
-              className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-xs px-3 py-2 rounded-xl font-bold dark:text-white"
+              aria-label="Sort reviews"
+              className="min-h-11 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-xs px-3 py-2 rounded-xl font-bold dark:text-white"
             >
               <option value="newest">Newest</option>
               <option value="highest">Highest rated</option>
@@ -206,13 +256,13 @@ export const ProductReviewsPage = () => {
                 {reviews.data.map((r) => (
                   <div
                     key={r.id}
-                    className="bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60 rounded-2xl p-5 space-y-2"
+                    className="bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60 rounded-2xl p-4 sm:p-5 space-y-2"
                   >
                     <div className="flex items-center justify-between gap-3 flex-wrap">
-                      <div className="flex items-center gap-3 flex-wrap">
+                      <div className="flex items-center gap-3 flex-wrap min-w-0">
                         <StarRating value={r.rating} size="sm" />
                         {r.title && (
-                          <span className="font-black text-base text-sffl-navy dark:text-white">
+                          <span className="font-black text-base text-sffl-navy dark:text-white wrap-break-word min-w-0">
                             {r.title}
                           </span>
                         )}
@@ -220,46 +270,30 @@ export const ProductReviewsPage = () => {
                       {isAdmin && (
                         <button
                           type="button"
-                          onClick={async () => {
-                            if (
-                              !confirm(
-                                "Delete this review? This cannot be undone.",
-                              )
-                            )
-                              return;
-                            try {
-                              await deleteAdminProductReview(r.id);
-                              queryClient.invalidateQueries({
-                                queryKey: ["productReviews", id],
-                              });
-                              queryClient.invalidateQueries({
-                                queryKey: ["productReviewsPreview", id],
-                              });
-                              queryClient.invalidateQueries({
-                                queryKey: ["storeProduct", id],
-                              });
-                            } catch (err: unknown) {
-                                const errorResponse = err as {
-                                  response?: { data?: { error?: string } };
-                                };
-                                alert(
-                                  errorResponse.response?.data?.error ||
-                                    (err instanceof Error ? err.message : undefined) ||
-                                    "Failed to delete review",
-                                );
-                            }
-                          }}
-                          className="text-[10px] font-black uppercase tracking-wider text-red-600 hover:text-white hover:bg-red-600 border border-red-200 dark:border-red-900 px-2 py-1 rounded transition-colors"
+                          onClick={() =>
+                            setPendingDelete({
+                              id: r.id,
+                              author: r.user_name,
+                              title: r.title || undefined,
+                            })
+                          }
+                          className="inline-flex items-center gap-1.5 min-h-11 text-[11px] font-black uppercase tracking-wider text-red-600 hover:text-white hover:bg-red-600 border border-red-200 dark:border-red-900 px-3 py-1 rounded transition-colors"
                         >
+                          <TrashIcon className="w-4 h-4" aria-hidden="true" />
                           Admin · Delete
                         </button>
                       )}
                     </div>
                     <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 font-bold flex-wrap">
-                      <span>{r.user_name}</span>
+                      <span className="min-w-0 break-all">{r.user_name}</span>
                       {r.verified_purchase && (
-                        <span className="text-emerald-600 dark:text-emerald-400">
-                          · ✓ Verified Purchase
+                        <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                          <span aria-hidden="true">·</span>
+                          <CheckBadgeIcon
+                            className="w-4 h-4"
+                            aria-hidden="true"
+                          />
+                          Verified Purchase
                         </span>
                       )}
                       <span className="text-gray-400">
@@ -267,7 +301,7 @@ export const ProductReviewsPage = () => {
                       </span>
                     </div>
                     {r.body && (
-                      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line pt-1">
+                      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line pt-1 wrap-break-word">
                         {r.body}
                       </p>
                     )}
@@ -276,23 +310,29 @@ export const ProductReviewsPage = () => {
               </div>
 
               {totalPages > 1 && (
-                <div className="flex justify-between items-center pt-4 border-t dark:border-gray-700">
+                <div className="flex justify-between items-center gap-2 pt-4 border-t dark:border-gray-700">
                   <button
+                    type="button"
                     disabled={page === 1}
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-xs font-bold rounded-xl disabled:opacity-50 dark:text-white"
+                    aria-label="Previous page"
+                    className="inline-flex items-center gap-1.5 min-h-11 min-w-11 justify-center px-3 sm:px-4 py-2 bg-gray-100 dark:bg-gray-700 text-xs font-bold rounded-xl disabled:opacity-50 dark:text-white"
                   >
-                    Previous
+                    <ChevronLeftIcon className="w-4 h-4" aria-hidden="true" />
+                    <span className="hidden sm:inline">Previous</span>
                   </button>
                   <span className="text-xs text-gray-500 font-bold">
                     Page {page} of {totalPages}
                   </span>
                   <button
+                    type="button"
                     disabled={page >= totalPages}
                     onClick={() => setPage((p) => p + 1)}
-                    className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-xs font-bold rounded-xl disabled:opacity-50 dark:text-white"
+                    aria-label="Next page"
+                    className="inline-flex items-center gap-1.5 min-h-11 min-w-11 justify-center px-3 sm:px-4 py-2 bg-gray-100 dark:bg-gray-700 text-xs font-bold rounded-xl disabled:opacity-50 dark:text-white"
                   >
-                    Next
+                    <span className="hidden sm:inline">Next</span>
+                    <ChevronRightIcon className="w-4 h-4" aria-hidden="true" />
                   </button>
                 </div>
               )}
@@ -302,8 +342,8 @@ export const ProductReviewsPage = () => {
 
         {/* Right: leave a review form. Verified-purchase gate is enforced
                     server-side; here we just guide the user to log in. */}
-        <div className="space-y-4 lg:sticky lg:top-24">
-          <div className="bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60 rounded-2xl p-6 shadow-sm space-y-4">
+        <div className="space-y-4 lg:sticky lg:top-[calc(var(--chrome-h,8rem)+1rem)]">
+          <div className="bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60 rounded-2xl p-4 sm:p-6 shadow-sm space-y-4">
             <h2 className="text-sm font-black uppercase tracking-wider text-sffl-navy dark:text-gray-300">
               {myReview ? "Update Your Review" : "Leave a Review"}
             </h2>
@@ -316,7 +356,7 @@ export const ProductReviewsPage = () => {
                 </p>
                 <Link
                   to={`/login?redirect=${encodeURIComponent(`/store/products/${product.id}/reviews`)}`}
-                  className="inline-block bg-sffl-navy hover:bg-sffl-red text-white text-xs font-bold uppercase tracking-wider px-5 py-2.5 rounded-full transition-all"
+                  className="inline-flex items-center justify-center min-h-11 bg-sffl-navy hover:bg-sffl-red text-white text-xs font-bold uppercase tracking-wider px-5 py-2.5 rounded-full transition-all"
                 >
                   Log in to review
                 </Link>
@@ -340,7 +380,7 @@ export const ProductReviewsPage = () => {
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="e.g. Fits great, fast delivery"
                     maxLength={120}
-                    className="w-full px-3 py-2 text-sm border rounded-xl dark:bg-gray-800 dark:border-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
+                    className="w-full min-h-11 px-3 py-2 text-sm border rounded-xl dark:bg-gray-800 dark:border-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-sffl-red/40"
                   />
                 </div>
 
@@ -377,7 +417,7 @@ export const ProductReviewsPage = () => {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full bg-sffl-red hover:bg-red-700 text-white py-3 rounded-full font-bold text-xs uppercase tracking-wider transition-all transform active:scale-95 shadow-md disabled:opacity-50"
+                  className="w-full min-h-11 bg-sffl-red hover:bg-red-700 text-white py-3 rounded-full font-bold text-xs uppercase tracking-wider transition-all transform active:scale-95 shadow-md disabled:opacity-50"
                 >
                   {submitting
                     ? "Saving…"
@@ -387,7 +427,10 @@ export const ProductReviewsPage = () => {
                 </button>
 
                 <div className="flex items-start gap-2 bg-sffl-navy/5 dark:bg-sffl-navy/30 border border-sffl-navy/15 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-sffl-navy dark:text-gray-200 leading-relaxed">
-                  <span className="text-sffl-red font-black mt-0.5">ⓘ</span>
+                  <InformationCircleIcon
+                    className="w-4 h-4 mt-0.5 shrink-0 text-sffl-red"
+                    aria-hidden="true"
+                  />
                   <p>
                     Only customers who have purchased this product can leave a
                     review. Your name appears as your first name + last initial
@@ -399,6 +442,29 @@ export const ProductReviewsPage = () => {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        title="Delete this review?"
+        description="The review is removed from the product page for good. This can't be undone."
+        body={
+          pendingDelete && (
+            <ConfirmSummary
+              rows={[
+                ["Product", product.name],
+                ["Reviewer", pendingDelete.author],
+                ["Headline", pendingDelete.title],
+              ]}
+            />
+          )
+        }
+        confirmLabel="Delete review"
+        tone="warning"
+        icon={TrashIcon}
+        pending={deleting}
+        onConfirm={handleDeleteReview}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { TagIcon, XMarkIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon, TagIcon, XMarkIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { discountsApi, type CheckoutItemPayload, type DiscountPreview } from '../../services/api';
 
 interface DiscountCodeInputProps {
@@ -146,10 +146,10 @@ export const DiscountCodeInput: React.FC<DiscountCodeInputProps> = ({
                         type="button"
                         onClick={remove}
                         disabled={disabled}
-                        className="text-green-700 dark:text-green-400 hover:text-green-900 dark:hover:text-green-200 p-1 rounded-lg flex-shrink-0 disabled:opacity-50"
-                        title="Remove code"
+                        className="min-h-11 min-w-11 -m-2 flex items-center justify-center text-green-700 dark:text-green-400 hover:text-green-900 dark:hover:text-green-200 rounded-lg shrink-0 disabled:opacity-50"
+                        aria-label="Remove code"
                     >
-                        <XMarkIcon className="w-4 h-4" />
+                        <XMarkIcon className="w-5 h-5" aria-hidden="true" />
                     </button>
                 </div>
             </div>
@@ -181,15 +181,16 @@ export const DiscountCodeInput: React.FC<DiscountCodeInputProps> = ({
                     placeholder="Enter code"
                     autoCapitalize="characters"
                     disabled={disabled || checking}
-                    className="flex-1 min-w-0 px-3.5 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl text-sm uppercase placeholder:normal-case focus:outline-none focus:ring-2 focus:ring-sffl-red transition-colors disabled:opacity-60"
+                    className="flex-1 min-w-0 min-h-11 px-3.5 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl text-sm uppercase placeholder:normal-case focus:outline-none focus:ring-2 focus:ring-sffl-red transition-colors disabled:opacity-60"
                 />
                 <button
                     type="button"
                     onClick={apply}
                     disabled={disabled || checking || !code.trim()}
-                    className="px-4 py-2.5 bg-sffl-navy dark:bg-gray-600 hover:bg-sffl-navy/90 dark:hover:bg-gray-500 text-white font-bold rounded-xl text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                    className="min-h-11 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-sffl-navy dark:bg-gray-600 hover:bg-sffl-navy/90 dark:hover:bg-gray-500 text-white font-bold rounded-xl text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
                 >
-                    {checking ? 'Checking...' : 'Apply'}
+                    {checking && <ArrowPathIcon className="w-4 h-4 animate-spin" aria-hidden="true" />}
+                    {checking ? 'Checking' : 'Apply'}
                 </button>
             </div>
             {error && <p className="text-xs font-semibold text-red-600 dark:text-red-400">{error}</p>}

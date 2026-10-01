@@ -5,6 +5,8 @@ import { Link } from 'react-router-dom';
 import { LightboxImage, Spinner } from '../ui';
 import { normalizePosition, ALL_STAT_DEFINITIONS, POSITION_STAT_KEYS } from '../../utils/positionStatsMatrix';
 import { formatStatNumber } from '../../utils/formatters';
+import { ChevronDownIcon } from '@heroicons/react/24/outline';
+import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 
 interface StatsTableProps {
     type: 'players' | 'teams';
@@ -117,11 +119,12 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                                 type="button"
                                 onClick={() => handleHeaderClick(col.key)}
                                 title={isActive ? `${col.title} — click to clear sort` : `${col.title} — click to sort by leaders`}
-                                className={`flex flex-col items-center justify-center leading-tight py-3 px-1 w-full whitespace-nowrap cursor-pointer select-none transition-colors hover:text-sffl-red ${isActive ? 'text-sffl-red font-black' : ''}`}
+                                className={`flex flex-col items-center justify-center leading-tight min-h-11 py-3 px-1 w-full whitespace-nowrap cursor-pointer select-none transition-colors hover:text-sffl-red ${isActive ? 'text-sffl-red font-black' : ''}`}
                             >
                                 {col.top && <span className="text-[9px] md:text-[10px] font-semibold opacity-70">{col.top}</span>}
-                                <span className="font-bold">
-                                    {col.bottom}{isActive ? ' ▾' : ''}
+                                <span className="font-bold inline-flex items-center gap-0.5">
+                                    {col.bottom}
+                                    {isActive && <ChevronDownIcon className="w-3 h-3" strokeWidth={2.5} aria-label="sorted" />}
                                 </span>
                             </button>
                         </th>
@@ -154,7 +157,7 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                 "name" column has a predictable right edge regardless of
                 content length. Player view: # + Player stick; Team chip
                 scrolls with the stats. Team view: # + Team stick. */}
-            <div className="overflow-x-auto max-h-[70vh]">
+            <div className="overflow-x-auto max-h-[70dvh]">
                 <table className="w-max text-xs md:text-sm text-center border-collapse table-fixed">
                     {colgroupEl}
                     {theadEl}
@@ -213,7 +216,8 @@ export const StatsTable: React.FC<StatsTableProps> = ({ type, playerStats = [], 
                                                             className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 shrink-0"
                                                             title={`Appearing via secondary role: ${row.player_secondary_position}`}
                                                         >
-                                                            <span>⭐</span> Sec Role
+                                                            <StarSolidIcon className="w-2.5 h-2.5" aria-hidden="true" />
+                                                            Sec Role
                                                         </span>
                                                     )}
                                                 </div>

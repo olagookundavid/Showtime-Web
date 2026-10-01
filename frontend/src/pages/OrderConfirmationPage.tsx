@@ -1,6 +1,13 @@
 import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams, Link } from "react-router-dom";
+import {
+  ArrowLeftIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  PrinterIcon,
+  XCircleIcon,
+} from "@heroicons/react/24/outline";
 import { getOrderByReference, verifyStorePayment } from "../services/api";
 import { Loader } from "../components/ui/Loader";
 import { OrderLifecycleStepper } from "../components/store/OrderLifecycleStepper";
@@ -69,10 +76,10 @@ export const OrderConfirmationPage = () => {
 
   if (loading) {
     return (
-      <div className="px-4 py-16 flex flex-col items-center justify-center space-y-4">
+      <div className="py-16 flex flex-col items-center justify-center space-y-4 text-center">
         <Loader />
         <p className="text-sm font-bold text-gray-500 dark:text-gray-400">
-          Verifying secure payment with merchant gateways...
+          Verifying your payment…
         </p>
       </div>
     );
@@ -80,8 +87,11 @@ export const OrderConfirmationPage = () => {
 
   if (error) {
     return (
-      <div className="max-w-2xl mx-auto text-center py-24 px-4 space-y-6">
-        <div className="text-6xl animate-bounce">❌</div>
+      <div className="max-w-2xl mx-auto text-center py-16 sm:py-24 space-y-6">
+        <XCircleIcon
+          className="w-16 h-16 mx-auto text-red-600"
+          aria-hidden="true"
+        />
         <h2 className="text-2xl font-black text-red-600 mb-2 uppercase tracking-tight">
           Something Went Wrong
         </h2>
@@ -90,7 +100,7 @@ export const OrderConfirmationPage = () => {
         </p>
         <Link
           to="/store"
-          className="inline-block bg-sffl-navy hover:bg-sffl-red text-white px-8 py-3 rounded-full font-bold transition shadow-md"
+          className="inline-flex items-center justify-center min-h-11 bg-sffl-navy hover:bg-sffl-red text-white px-8 py-3 rounded-full font-bold transition shadow-md"
         >
           Back to Store
         </Link>
@@ -109,7 +119,7 @@ export const OrderConfirmationPage = () => {
     <div className="space-y-8 animate-fadeIn print:py-0 print:px-0">
       {/* Status Header - Hidden during print */}
       <div
-        className={`text-center p-8 rounded-3xl shadow-xl print:hidden ${
+        className={`text-center p-5 sm:p-8 rounded-3xl shadow-xl print:hidden ${
           isPaid
             ? "bg-linear-to-r from-emerald-500 to-teal-600 text-white"
             : isPending
@@ -117,10 +127,14 @@ export const OrderConfirmationPage = () => {
               : "bg-linear-to-r from-red-500 to-rose-600 text-white"
         }`}
       >
-        <div className="text-6xl mb-4">
-          {isPaid ? "✅" : isPending ? "⏳" : "❌"}
-        </div>
-        <h1 className="text-3xl font-black uppercase tracking-tight mb-2">
+        {isPaid ? (
+          <CheckCircleIcon className="w-16 h-16 mx-auto mb-4" aria-hidden="true" />
+        ) : isPending ? (
+          <ClockIcon className="w-16 h-16 mx-auto mb-4" aria-hidden="true" />
+        ) : (
+          <XCircleIcon className="w-16 h-16 mx-auto mb-4" aria-hidden="true" />
+        )}
+        <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight mb-2">
           {isPaid
             ? "Order Confirmed!"
             : isPending
@@ -137,9 +151,10 @@ export const OrderConfirmationPage = () => {
         {!isPaid && !isPending && (
           <Link
             to="/store/cart"
-            className="inline-block mt-5 bg-white text-sffl-red hover:bg-gray-100 px-6 py-2.5 rounded-full font-black uppercase tracking-wider text-xs shadow-md transition"
+            className="inline-flex items-center gap-1.5 min-h-11 mt-5 bg-white text-sffl-red hover:bg-gray-100 px-6 py-2.5 rounded-full font-black uppercase tracking-wider text-xs shadow-md transition"
           >
-            ← Try Again
+            <ArrowLeftIcon className="w-4 h-4" aria-hidden="true" />
+            Try Again
           </Link>
         )}
       </div>
@@ -160,7 +175,7 @@ export const OrderConfirmationPage = () => {
           {/* Header Banner — logo + brand on the left, invoice meta on
                         the right. In print this becomes the document letterhead
                         and stays as the first thing on page 1. */}
-          <div className="invoice-header bg-sffl-navy text-white p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-700 print:bg-white print:text-sffl-navy print:border-b-2 print:border-sffl-navy print:p-0 print:pb-4">
+          <div className="invoice-header bg-sffl-navy text-white p-4 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-700 print:bg-white print:text-sffl-navy print:border-b-2 print:border-sffl-navy print:p-0 print:pb-4">
             <div className="flex items-center gap-4">
               <img
                 src="/images/branding/showtime-logo.png"
@@ -176,11 +191,11 @@ export const OrderConfirmationPage = () => {
                 </h2>
               </div>
             </div>
-            <div className="text-left md:text-right">
+            <div className="text-left md:text-right min-w-0">
               <p className="text-xs text-gray-400 font-bold uppercase print:text-gray-600">
                 Order Reference
               </p>
-              <p className="font-mono text-sm font-black tracking-widest text-sffl-red print:text-base">
+              <p className="font-mono text-sm font-black tracking-wider sm:tracking-widest text-sffl-red print:text-base break-all">
                 {order.order_reference}
               </p>
               <p className="text-[10px] text-gray-400 font-bold uppercase mt-1 print:text-gray-600">
@@ -194,28 +209,28 @@ export const OrderConfirmationPage = () => {
           </div>
 
           {/* Details Breakdown */}
-          <div className="p-6 space-y-6 print:p-0 print:pt-4">
+          <div className="p-4 sm:p-6 space-y-6 print:p-0 print:pt-4">
             {/* Customer & Shipping Summary */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b dark:border-gray-700/40">
-              <div className="space-y-1">
+              <div className="space-y-1 min-w-0">
                 <span className="text-[10px] text-gray-400 uppercase font-black tracking-wider">
                   Customer Contact
                 </span>
-                <p className="font-bold text-sffl-navy dark:text-white">
+                <p className="font-bold text-sffl-navy dark:text-white wrap-break-word">
                   {order.customer_name}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
+                <p className="text-xs text-gray-500 dark:text-gray-400 break-all">
                   {order.customer_email}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   {order.customer_phone}
                 </p>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 min-w-0">
                 <span className="text-[10px] text-gray-400 uppercase font-black tracking-wider">
                   Delivery Address
                 </span>
-                <p className="font-bold text-sffl-navy dark:text-white leading-tight">
+                <p className="font-bold text-sffl-navy dark:text-white leading-tight wrap-break-word">
                   {order.shipping_address}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -237,10 +252,10 @@ export const OrderConfirmationPage = () => {
                 {order.items?.map((item) => (
                   <div
                     key={item.id}
-                    className="invoice-item py-3 flex items-center justify-between text-sm"
+                    className="invoice-item py-3 flex items-center justify-between gap-3 text-sm"
                   >
-                    <div className="space-y-0.5">
-                      <p className="font-bold text-sffl-navy dark:text-white uppercase">
+                    <div className="space-y-0.5 min-w-0">
+                      <p className="font-bold text-sffl-navy dark:text-white uppercase wrap-break-word">
                         {item.product_name}
                       </p>
                       {item.variant_label && (
@@ -249,7 +264,7 @@ export const OrderConfirmationPage = () => {
                         </p>
                       )}
                     </div>
-                    <div className="text-right">
+                    <div className="text-right shrink-0">
                       <p className="font-bold text-gray-900 dark:text-white">
                         ₦{item.unit_price?.toLocaleString()}{" "}
                         <span className="text-xs text-gray-400">
@@ -267,15 +282,15 @@ export const OrderConfirmationPage = () => {
 
             {/* Invoice Summary Calculation */}
             <div className="invoice-summary pt-6 border-t dark:border-gray-700/40 flex flex-col items-end space-y-2">
-              <div className="flex justify-between w-64 text-xs font-bold text-gray-500">
+              <div className="flex justify-between w-full sm:w-64 text-xs font-bold text-gray-500">
                 <span>Subtotal</span>
                 <span>₦{order.total_amount?.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between w-64 text-xs font-bold text-green-500">
+              <div className="flex justify-between w-full sm:w-64 text-xs font-bold text-green-500">
                 <span>Shipping (Promo)</span>
                 <span>FREE</span>
               </div>
-              <div className="flex justify-between w-64 pt-3 border-t dark:border-gray-700/40 text-base font-black text-sffl-navy dark:text-white">
+              <div className="flex justify-between w-full sm:w-64 pt-3 border-t dark:border-gray-700/40 text-base font-black text-sffl-navy dark:text-white">
                 <span>Total Paid</span>
                 <span className="text-sffl-red text-lg">
                   ₦{order.total_amount?.toLocaleString()}
@@ -285,7 +300,9 @@ export const OrderConfirmationPage = () => {
 
             {/* Order Reference details footer */}
             <div className="border-t dark:border-gray-700/40 pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-gray-400">
-              <span>Reference: {order.paystack_reference || "—"}</span>
+              <span className="break-all">
+                Reference: {order.paystack_reference || "—"}
+              </span>
               <span
                 className={`px-3 py-1 rounded-full font-black uppercase text-[10px] self-start sm:self-center ${
                   isPaid
@@ -305,16 +322,19 @@ export const OrderConfirmationPage = () => {
       {/* Print & Back actions */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 print:hidden">
         <button
+          type="button"
           onClick={handlePrint}
-          className="w-full sm:w-auto bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 px-8 py-3 rounded-full font-bold transition flex items-center justify-center gap-2 shadow"
+          className="w-full sm:w-auto min-h-11 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 px-8 py-3 rounded-full font-bold transition flex items-center justify-center gap-2 shadow"
         >
-          <span>🖨️</span> Print Invoice
+          <PrinterIcon className="w-5 h-5" aria-hidden="true" />
+          Print Invoice
         </button>
         <Link
           to="/store"
-          className="w-full sm:w-auto text-center bg-sffl-navy hover:bg-sffl-red text-white px-8 py-3 rounded-full font-bold transition shadow"
+          className="w-full sm:w-auto min-h-11 inline-flex items-center justify-center gap-2 bg-sffl-navy hover:bg-sffl-red text-white px-8 py-3 rounded-full font-bold transition shadow"
         >
-          ← Back to Store
+          <ArrowLeftIcon className="w-4 h-4" aria-hidden="true" />
+          Back to Store
         </Link>
       </div>
     </div>

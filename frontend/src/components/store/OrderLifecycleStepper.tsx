@@ -1,3 +1,4 @@
+import { NoSymbolIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import type { Order } from '../../services/api';
 
 type StepState = 'done' | 'current' | 'upcoming';
@@ -69,7 +70,7 @@ export const OrderLifecycleStepper = ({ order }: Props) => {
     if (order.payment_status === 'failed') {
         return (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900 rounded-2xl p-5 flex items-start gap-4">
-                <div className="text-3xl flex-shrink-0">❌</div>
+                <XCircleIcon className="w-8 h-8 shrink-0 text-red-600 dark:text-red-400" aria-hidden="true" />
                 <div className="space-y-1">
                     <h3 className="font-black text-red-700 dark:text-red-300 uppercase tracking-wider text-sm">Payment Failed</h3>
                     <p className="text-xs text-red-700/80 dark:text-red-300/80 leading-relaxed">
@@ -83,7 +84,7 @@ export const OrderLifecycleStepper = ({ order }: Props) => {
     if (order.fulfillment_status === 'cancelled') {
         return (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900 rounded-2xl p-5 flex items-start gap-4">
-                <div className="text-3xl flex-shrink-0">🚫</div>
+                <NoSymbolIcon className="w-8 h-8 shrink-0 text-red-600 dark:text-red-400" aria-hidden="true" />
                 <div className="space-y-1">
                     <h3 className="font-black text-red-700 dark:text-red-300 uppercase tracking-wider text-sm">Order Cancelled</h3>
                     <p className="text-xs text-red-700/80 dark:text-red-300/80 leading-relaxed">
@@ -97,7 +98,7 @@ export const OrderLifecycleStepper = ({ order }: Props) => {
     const steps = stepsForOrder(order);
 
     return (
-        <div className="bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60 rounded-2xl p-6 shadow-sm">
+        <div className="bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60 rounded-2xl p-4 sm:p-6 shadow-sm">
             <h3 className="text-[10px] uppercase font-black tracking-widest text-sffl-navy dark:text-gray-400 mb-5">Order Status</h3>
 
             {/* Stepper. Steps render as a flex row; on narrow screens the labels
@@ -110,9 +111,9 @@ export const OrderLifecycleStepper = ({ order }: Props) => {
                         className={`flex items-start ${i < steps.length - 1 ? 'flex-1' : 'flex-initial'}`}
                     >
                         {/* Circle + label column */}
-                        <div className="flex flex-col items-center gap-2 flex-shrink-0 w-16 sm:w-20">
+                        <div className="flex flex-col items-center gap-2 shrink-0 w-12 sm:w-20">
                             <div
-                                className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full border-2 flex items-center justify-center transition-all ${circleClass(step.state)}`}
+                                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 flex items-center justify-center transition-all ${circleClass(step.state)}`}
                                 aria-label={`${step.label}: ${step.state}`}
                             >
                                 {step.state === 'done' ? (
@@ -123,7 +124,7 @@ export const OrderLifecycleStepper = ({ order }: Props) => {
                                     <span className="text-xs font-black">{i + 1}</span>
                                 )}
                             </div>
-                            <span className={`text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-center leading-tight ${
+                            <span className={`text-[9px] sm:text-[11px] font-black uppercase tracking-normal sm:tracking-wider text-center leading-tight wrap-break-word ${
                                 step.state === 'upcoming' ? 'text-gray-400' : 'text-sffl-navy dark:text-white'
                             }`}>
                                 {step.label}

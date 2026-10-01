@@ -1,6 +1,12 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useMemo, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
+import {
+  ArrowRightIcon,
+  QuestionMarkCircleIcon,
+  TrophyIcon,
+} from "@heroicons/react/24/outline";
+import { FootballIcon } from "../icons/FootballIcon";
 import { useQuery } from "@tanstack/react-query";
 import { getMatches, type Match } from "../../services/api";
 import { Spinner } from "../ui";
@@ -236,9 +242,12 @@ const TeamRow = ({
         />
       ) : (
         <div className="w-6 h-6 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-[9px] font-black text-gray-500 dark:text-gray-400 shrink-0">
-          {isTbd
-            ? "?"
-            : isBye && !team?.id
+          {isTbd ? (
+            <QuestionMarkCircleIcon
+              className="w-5 h-5"
+              aria-label="Team to be decided"
+            />
+          ) : isBye && !team?.id
               ? "BYE"
               : (team.short_name || team.name.substring(0, 2))
                   .toUpperCase()
@@ -371,8 +380,10 @@ export const ChampionCard = ({
         <div className="font-black text-base md:text-lg uppercase tracking-tight text-amber-900 dark:text-amber-200 leading-tight">
           {team.name}
         </div>
-        <div className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-amber-700 dark:text-amber-400">
-          🏆 Winner 🏆
+        <div className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-amber-700 dark:text-amber-400">
+          <TrophyIcon className="w-4 h-4" aria-hidden="true" />
+          Winner
+          <TrophyIcon className="w-4 h-4" aria-hidden="true" />
         </div>
       </div>
     </div>
@@ -393,9 +404,9 @@ export const MatchCard = ({
   >
     <Link
       to={`/matches/${m.id}`}
-      className="flex items-center justify-between px-3 py-1.5 bg-gray-50 dark:bg-gray-900/40 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+      className="flex items-center justify-between gap-2 px-3 py-1.5 min-h-11 bg-gray-50 dark:bg-gray-900/40 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
     >
-      <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
+      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
         {new Date(m.date).toLocaleDateString("en-US", {
           month: "short",
           day: "numeric",
@@ -510,7 +521,10 @@ export const BracketView = ({
   if (columns.length === 0) {
     return (
       <div className="bg-gray-100 dark:bg-gray-800 p-8 rounded-xl text-center">
-        <div className="text-4xl mb-3">🏈</div>
+        <FootballIcon
+          className="w-10 h-10 mx-auto mb-3 text-gray-400"
+          aria-hidden="true"
+        />
         <p className="text-gray-500 font-semibold">
           The bracket hasn't been set yet.
         </p>
@@ -521,16 +535,17 @@ export const BracketView = ({
   if (compact) {
     return (
       <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 bg-sffl-navy text-white">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2 bg-sffl-navy text-white">
           <h3 className="text-sm font-black uppercase tracking-wider">
             Playoff Bracket
           </h3>
           {viewAllLink && (
             <Link
               to={viewAllLink}
-              className="text-[10px] font-black uppercase tracking-wider text-sffl-red hover:underline"
+              className="inline-flex items-center gap-1 min-h-11 text-[11px] font-black uppercase tracking-wider text-sffl-red hover:underline"
             >
-              Full Bracket →
+              Full Bracket
+              <ArrowRightIcon className="w-3.5 h-3.5" aria-hidden="true" />
             </Link>
           )}
         </div>
@@ -538,9 +553,12 @@ export const BracketView = ({
         <div className="p-3 space-y-4">
           {compactColumns.map((col) => (
             <div key={col.title}>
-              <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 px-1 mb-2">
+              <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 px-1 mb-2">
+                {col.title === "Bowl" && (
+                  <TrophyIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                )}
                 {col.title === "Bowl"
-                  ? "🏆 Bowl — Final"
+                  ? "Bowl — Final"
                   : col.title.startsWith("Playoffs")
                     ? "Playoffs"
                     : col.title}
@@ -564,8 +582,9 @@ export const BracketView = ({
 
   return (
     <div>
-      <div className="md:hidden text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 px-1">
-        Swipe to follow the road to the Bowl →
+      <div className="md:hidden flex items-center gap-1 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 px-1">
+        Swipe to follow the road to the Bowl
+        <ArrowRightIcon className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
       </div>
       <div ref={scrollContainerRef} className="overflow-x-auto pb-4 -mx-2 px-2">
         <div className="flex gap-4 md:gap-8 min-w-max items-stretch">
@@ -579,10 +598,13 @@ export const BracketView = ({
             return (
               <div key={col.title} className={`flex flex-col ${colWidth}`}>
                 <div
-                  className={`text-center text-[10px] md:text-xs font-black uppercase tracking-widest mb-3 py-1.5 rounded-lg ${isLast ? "bg-sffl-red text-white" : "bg-sffl-navy text-white"}`}
+                  className={`flex items-center justify-center gap-1.5 text-[10px] md:text-xs font-black uppercase tracking-widest mb-3 py-1.5 rounded-lg ${isLast ? "bg-sffl-red text-white" : "bg-sffl-navy text-white"}`}
                 >
+                  {isLast && (
+                    <TrophyIcon className="w-4 h-4" aria-hidden="true" />
+                  )}
                   {isLast
-                    ? `🏆 ${col.title}`
+                    ? col.title
                     : col.title.startsWith("Playoffs")
                       ? "Playoffs"
                       : col.title}

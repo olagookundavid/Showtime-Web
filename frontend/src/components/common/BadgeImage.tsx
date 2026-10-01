@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { TrophyIcon } from '@heroicons/react/24/outline';
 
 // Filenames actually mirrored under frontend/public/badges/ (the official preset
 // artwork). Any other "/badges/" path is a custom R2 upload with no local mirror,
@@ -20,7 +21,6 @@ interface BadgeImageProps {
     icon?: string;
     name?: string;
     className?: string;
-    fallbackEmoji?: string;
 }
 
 export const isBadgeImageUrl = (icon?: string): boolean => {
@@ -38,11 +38,12 @@ export const BadgeImage: React.FC<BadgeImageProps> = ({
     icon,
     name = 'Badge',
     className = 'w-6 h-6',
-    fallbackEmoji = '🏆',
 }) => {
+    // The src that failed to load, so a new badge gets a fresh attempt.
+    const [failedSrc, setFailedSrc] = useState<string | null>(null);
     const isImage = isBadgeImageUrl(icon);
 
-    if (isImage && icon) {
+    if (isImage && icon && failedSrc !== icon) {
         return (
             <div className={`relative flex items-center justify-center shrink-0 ${className}`}>
                 <img
@@ -62,24 +63,30 @@ export const BadgeImage: React.FC<BadgeImageProps> = ({
                                 return;
                             }
                         }
-                        // Fallback to emoji if image fails to load completely
-                        target.style.display = 'none';
-                        const parent = target.parentElement;
-                        if (parent && !parent.querySelector('.badge-fallback-emoji')) {
-                            const fallback = document.createElement('span');
-                            fallback.innerText = fallbackEmoji;
-                            fallback.className = 'badge-fallback-emoji leading-none select-none';
-                            parent.appendChild(fallback);
-                        }
+                        // Nothing left to try: show the trophy fallback below.
+                        setFailedSrc(icon);
                     }}
                 />
             </div>
         );
     }
 
+    // An admin can set a badge's icon to a short text mark instead of artwork.
+    if (icon && !isImage) {
+        return (
+            <span className={`inline-flex items-center justify-center leading-none select-none shrink-0 ${className}`}>
+                {icon}
+            </span>
+        );
+    }
+
     return (
-        <span className={`inline-flex items-center justify-center leading-none select-none shrink-0 ${className}`}>
-            {icon || fallbackEmoji}
+        <span
+            role="img"
+            aria-label={name}
+            className={`inline-flex items-center justify-center shrink-0 text-amber-500 ${className}`}
+        >
+            <TrophyIcon className="w-full h-full" aria-hidden="true" />
         </span>
     );
 };

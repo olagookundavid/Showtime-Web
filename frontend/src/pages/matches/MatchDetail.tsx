@@ -11,6 +11,8 @@ import { MatchTeamSheetTab } from '../../components/matches/MatchTeamSheetTab';
 import { CommentSection } from '../../components/comments/CommentSection';
 import { BackButton } from '../../components/common/BackButton';
 import { formatMatchTime, formatMatchDate } from '../../utils/dateUtils';
+import { FootballIcon } from '../../components/icons/FootballIcon';
+import { MapPinIcon, PlayIcon, TicketIcon } from '@heroicons/react/24/outline';
 
 export const MatchDetail = () => {
     const { id } = useParams<{ id: string }>();
@@ -54,11 +56,11 @@ export const MatchDetail = () => {
 
     if (isError || !matchDetail) {
         return (
-            <div className="text-center py-20 max-w-lg mx-auto px-4">
-                <div className="text-6xl mb-6">🏈</div>
-                <h1 className="text-3xl font-black text-sffl-navy dark:text-white mb-3">Match Not Found</h1>
+            <div className="text-center py-16 sm:py-20 max-w-lg mx-auto">
+                <FootballIcon className="w-14 h-14 mx-auto mb-6 text-gray-400" aria-hidden="true" />
+                <h1 className="text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white mb-3">Match Not Found</h1>
                 <p className="text-gray-500 mb-8">This match could not be loaded. It may have been removed.</p>
-                <BackButton fallback={backLink} className="inline-flex items-center gap-2 px-6 py-3 bg-sffl-red text-white font-bold rounded-xl hover:bg-red-700 transition-colors">
+                <BackButton fallback={backLink} className="inline-flex items-center gap-2 min-h-11 px-6 py-3 bg-sffl-red text-white font-bold rounded-xl hover:bg-red-700 transition-colors">
                     Back to Matches
                 </BackButton>
             </div>
@@ -93,7 +95,7 @@ export const MatchDetail = () => {
     const statusInfo = isBye ? { label: 'PLAYOFF BYE', cls: 'bg-emerald-600' } : (statusConfig[match.status as keyof typeof statusConfig] ?? { label: match.status, cls: 'bg-gray-500' });
 
     return (
-        <div className="space-y-4 md:space-y-8 pb-36 md:pb-16">
+        <div className="space-y-4 md:space-y-8">
 
             {/* Back nav */}
             <div className="px-1">
@@ -103,20 +105,23 @@ export const MatchDetail = () => {
             {/* Match Card Header */}
             <div className="bg-sffl-navy rounded-2xl shadow-2xl overflow-hidden border border-white/5 relative">
                 <div className="absolute inset-0 bg-cover bg-center opacity-10" style={{ backgroundImage: `url('/images/card_pattern.svg')` }} />
-                <div className="relative p-6 md:p-12">
+                <div className="relative p-4 sm:p-6 md:p-12">
                     {/* Competition + date */}
-                    <div className="text-center mb-8">
+                    <div className="text-center mb-6 sm:mb-8">
                         <span className={`inline-block px-4 py-1.5 rounded-full text-xs font-black tracking-widest ${statusInfo.cls} text-white mb-3`}>
                             {statusInfo.label}
                         </span>
-                        <p className="text-gray-300 text-sm font-semibold flex items-center justify-center gap-2">
+                        <p className="text-gray-300 text-xs sm:text-sm font-semibold flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5">
                             {match.competition?.logo && (
                                 <img src={match.competition.logo} alt={match.competition.name} className="w-5 h-5 object-contain" />
                             )}
                             <span>{match.competition?.name}</span> {!isBye && ` • ${formatMatchDate(match.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`}
                         </p>
                         {match.venue && !isBye && (
-                            <p className="text-gray-500 text-xs mt-1">📍 {match.venue}</p>
+                            <p className="inline-flex items-center justify-center gap-1 text-gray-400 text-xs mt-1">
+                                <MapPinIcon className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                                {match.venue}
+                            </p>
                         )}
                     </div>
 
@@ -232,9 +237,9 @@ export const MatchDetail = () => {
                             href={match.highlights_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 px-5 py-3 bg-sffl-red text-white font-bold text-sm rounded-xl shadow-lg hover:bg-red-700 hover:shadow-xl transition-all duration-200 hover:scale-[1.02] active:scale-95"
+                            className="inline-flex items-center gap-2 min-h-11 px-5 py-3 bg-sffl-red text-white font-bold text-sm rounded-xl shadow-lg hover:bg-red-700 hover:shadow-xl transition-all duration-200 hover:scale-[1.02] active:scale-95"
                         >
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            <PlayIcon className="w-4 h-4" aria-hidden="true" />
                             Watch Highlights
                         </a>
                     )}
@@ -243,9 +248,10 @@ export const MatchDetail = () => {
                             href={match.ticket_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 px-5 py-3 bg-white dark:bg-gray-800 text-sffl-navy dark:text-white font-bold text-sm rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-200 hover:scale-[1.02] active:scale-95"
+                            className="inline-flex items-center gap-2 min-h-11 px-5 py-3 bg-white dark:bg-gray-800 text-sffl-navy dark:text-white font-bold text-sm rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-200 hover:scale-[1.02] active:scale-95"
                         >
-                            🎟️ Get Tickets
+                            <TicketIcon className="w-4 h-4" aria-hidden="true" />
+                            Get Tickets
                         </a>
                     )}
                 </div>
@@ -268,6 +274,7 @@ export const MatchDetail = () => {
                                 <button
                                     key={key}
                                     type="button"
+                                    aria-pressed={isActive}
                                     onClick={() => {
                                         setActiveTab(key);
                                         setSearchParams(prev => {
@@ -276,7 +283,7 @@ export const MatchDetail = () => {
                                             return next;
                                         }, { replace: true });
                                     }}
-                                    className={`py-2.5 px-3 rounded-xl text-center font-black text-xs md:text-sm uppercase tracking-tight transition-all duration-200 ${
+                                    className={`min-h-11 py-2.5 px-2 sm:px-3 rounded-xl text-center font-black text-xs md:text-sm uppercase tracking-tight transition-all duration-200 ${
                                         isActive
                                             ? 'bg-sffl-red text-white shadow-md shadow-sffl-red/20 scale-[1.01]'
                                             : 'text-gray-600 dark:text-gray-300 hover:text-sffl-navy dark:hover:text-white hover:bg-gray-100/70 dark:hover:bg-gray-700/60'

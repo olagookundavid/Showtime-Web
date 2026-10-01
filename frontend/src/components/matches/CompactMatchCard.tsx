@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { MapPinIcon } from '@heroicons/react/24/outline';
 import type { Match } from '../../services/api';
 import { formatMatchTime, formatMatchDate } from '../../utils/dateUtils';
 import { LightboxImage } from '../ui';
@@ -90,8 +91,9 @@ export const CompactMatchCard: React.FC<CompactMatchCardProps> = ({ match, onCli
             {/* Tiny Venue badge */}
             {!hideHeaderAndVenue && (
                 <div className="px-4 pb-2 text-center">
-                    <span className="text-[8px] uppercase text-gray-400 dark:text-gray-500 font-bold tracking-tighter">
-                        🏟️ {match.venue || 'Main Stadium'}
+                    <span className="inline-flex items-center gap-1 max-w-full text-[10px] uppercase text-gray-400 dark:text-gray-500 font-bold tracking-tight">
+                        <MapPinIcon className="w-3 h-3 shrink-0" aria-hidden="true" />
+                        <span className="truncate">{match.venue || 'Main Stadium'}</span>
                     </span>
                 </div>
             )}

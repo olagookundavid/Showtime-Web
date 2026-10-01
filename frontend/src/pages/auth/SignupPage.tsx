@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { ArrowPathIcon, CheckIcon } from "@heroicons/react/24/outline";
 import { useAuth } from "../../contexts/AuthContext";
 import { useReturnUrl, withReturnUrl } from "../../hooks/useReturnUrl";
 
@@ -48,8 +49,8 @@ export const SignupPage = () => {
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center bg-transparent px-4 transition-colors">
-      <div className="max-w-md w-full bg-white/10 dark:bg-slate-900/50 backdrop-blur-sm border border-white/10 dark:border-white/10 rounded-2xl shadow-xl p-8">
+    <div className="min-h-[80dvh] flex items-center justify-center bg-transparent transition-colors">
+      <div className="max-w-md w-full bg-white/10 dark:bg-slate-900/50 backdrop-blur-sm border border-white/10 dark:border-white/10 rounded-2xl shadow-xl p-5 sm:p-8">
         {/* Header */}
         <div className="text-center mb-8">
           <img
@@ -57,7 +58,7 @@ export const SignupPage = () => {
             alt="SFFL Logo"
             className="w-20 h-20 mx-auto mb-4 bg-white rounded-full p-2"
           />
-          <h1 className="text-3xl font-black text-sffl-navy dark:text-white">
+          <h1 className="text-2xl sm:text-3xl font-black text-sffl-navy dark:text-white">
             Join SFFL
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">
@@ -133,9 +134,12 @@ export const SignupPage = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-sffl-red hover:bg-red-700 text-white font-bold py-3 rounded-lg transition-colors disabled:opacity-50"
+            className="w-full min-h-11 inline-flex items-center justify-center gap-2 bg-sffl-red hover:bg-red-700 text-white font-bold py-3 rounded-lg transition-colors disabled:opacity-50"
           >
-            {loading ? "Creating account..." : "Create Account"}
+            {loading && (
+              <ArrowPathIcon className="w-5 h-5 animate-spin" aria-hidden="true" />
+            )}
+            {loading ? "Creating account…" : "Create Account"}
           </button>
         </form>
 
@@ -143,9 +147,16 @@ export const SignupPage = () => {
         <div className="mt-6 p-4 bg-linear-to-r from-sffl-navy to-sffl-red text-white rounded-lg">
           <p className="font-bold mb-2">Fan Benefits:</p>
           <ul className="text-sm space-y-1">
-            <li>✓ Exclusive ticket discounts</li>
-            <li>✓ Early access to match tickets</li>
-            <li>✓ Special fan zone content</li>
+            {[
+              "Exclusive ticket discounts",
+              "Early access to match tickets",
+              "Special fan zone content",
+            ].map((benefit) => (
+              <li key={benefit} className="flex items-center gap-1.5">
+                <CheckIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                {benefit}
+              </li>
+            ))}
           </ul>
         </div>
 
@@ -155,7 +166,7 @@ export const SignupPage = () => {
           <Link
             to={withReturnUrl("/login", returnUrl)}
             state={{ returnUrl }}
-            className="text-sffl-red font-bold hover:text-red-600 dark:hover:text-red-400 hover:underline transition-colors"
+            className="relative after:absolute after:-inset-y-3 after:inset-x-0 text-sffl-red font-bold hover:text-red-600 dark:hover:text-red-400 hover:underline transition-colors"
           >
             Sign in
           </Link>

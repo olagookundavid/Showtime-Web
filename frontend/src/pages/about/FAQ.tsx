@@ -1,10 +1,42 @@
-import { useState } from "react";
+import { useState, type ComponentType, type SVGProps } from "react";
+import {
+  ChevronDownIcon,
+  RocketLaunchIcon,
+  TicketIcon,
+} from "@heroicons/react/24/outline";
 import { CopyableEmail } from "../../components/common/CopyableEmail";
+import { FootballIcon } from "../../components/icons/FootballIcon";
+import { PitchIcon } from "../../components/icons/PitchIcon";
 
-const faqCategories = [
+// Heroicons has no handshake, so the partnerships mark is drawn in their
+// outline style: two forearms meeting in a clasp.
+const HandshakeIcon = (props: SVGProps<SVGSVGElement>) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.5}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <path d="M1.5 11.25 5.25 7.5h3l1.5 1.13" />
+    <path d="M22.5 11.25 18.75 7.5H15l-4.72 3.94a1.5 1.5 0 0 0 1.97 2.26l2.25-1.7" />
+    <path d="m18.75 12.75-4.97 4.97a1.5 1.5 0 0 1-2.12 0L5.25 11.25" />
+    <path d="m9.19 15.19 1.31 1.31M7.31 13.31l1.32 1.32" />
+  </svg>
+);
+
+type FaqCategory = {
+  title: string;
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
+  faqs: { q: string; a: string }[];
+};
+
+const faqCategories: FaqCategory[] = [
   {
     title: "About Showtime Flag Football",
-    icon: "🏈",
+    icon: FootballIcon,
     faqs: [
       {
         q: "What is flag football?",
@@ -42,7 +74,7 @@ const faqCategories = [
   },
   {
     title: "Games & Attendance",
-    icon: "🎟️",
+    icon: TicketIcon,
     faqs: [
       {
         q: "When and where are games held?",
@@ -72,7 +104,7 @@ const faqCategories = [
   },
   {
     title: "Sponsorships & Partnerships",
-    icon: "🤝",
+    icon: HandshakeIcon,
     faqs: [
       {
         q: "How can my brand partner with Showtime?",
@@ -94,7 +126,7 @@ const faqCategories = [
   },
   {
     title: "Players & Development (Incubator)",
-    icon: "🚀",
+    icon: RocketLaunchIcon,
     faqs: [
       {
         q: "How do I join the Showtime Incubator?",
@@ -120,7 +152,7 @@ const faqCategories = [
   },
   {
     title: "Own A Team",
-    icon: "🏟️",
+    icon: PitchIcon,
     faqs: [
       {
         q: "How can I own a team in Showtime Flag Football?",
@@ -153,27 +185,30 @@ const FAQItem = ({
       className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border ${isOpen ? "border-sffl-red" : "border-gray-200 dark:border-gray-700"} overflow-hidden transition-all duration-300`}
     >
       <button
+        type="button"
         onClick={onToggle}
-        className="w-full text-left px-6 py-4 flex items-center justify-between focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+        className="w-full min-h-11 text-left px-4 sm:px-6 py-4 flex items-center justify-between gap-3 focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
         aria-expanded={isOpen}
       >
         <span
-          className={`font-bold pr-8 text-lg ${isOpen ? "text-sffl-red" : "text-sffl-navy dark:text-gray-200"}`}
+          className={`font-bold text-base sm:text-lg min-w-0 ${isOpen ? "text-sffl-red" : "text-sffl-navy dark:text-gray-200"}`}
         >
           {faq.q}
         </span>
-        <span
-          className={`text-2xl transform transition-transform duration-300 ${isOpen ? "rotate-180 text-sffl-red" : "text-gray-400"}`}
-        >
-          ↓
-        </span>
+        <ChevronDownIcon
+          aria-hidden="true"
+          className={`w-6 h-6 shrink-0 transform transition-transform duration-300 ${isOpen ? "rotate-180 text-sffl-red" : "text-gray-400"}`}
+        />
       </button>
+      {/* Grows to the answer's own height, so a long answer is never cut off. */}
       <div
-        className={`px-6 overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? "max-h-125 py-4 border-t border-gray-100 dark:border-gray-700" : "max-h-0 py-0"}`}
+        className={`grid transition-[grid-template-rows] duration-300 ease-in-out motion-reduce:transition-none ${isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
       >
-        <p className="text-gray-600 dark:text-gray-300 leading-relaxed text-base">
-          {faq.a}
-        </p>
+        <div className="overflow-hidden">
+          <p className="px-4 sm:px-6 py-4 border-t border-gray-100 dark:border-gray-700 text-gray-600 dark:text-gray-300 leading-relaxed text-base wrap-break-word">
+            {faq.a}
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -189,28 +224,31 @@ export const FAQ = () => {
   };
 
   return (
-    <div className="space-y-4 md:space-y-8 pb-36 md:pb-16">
-      <div className="bg-linear-to-r from-sffl-navy to-blue-900 text-white p-12 rounded-3xl shadow-2xl text-center relative overflow-hidden">
+    <div className="space-y-4 md:space-y-8">
+      <div className="bg-linear-to-r from-sffl-navy to-blue-900 text-white p-6 md:p-12 rounded-3xl shadow-2xl text-center relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=2069&auto=format&fit=crop')] bg-cover bg-center opacity-10 mix-blend-overlay"></div>
         <div className="relative z-10">
           <span className="inline-block bg-sffl-red text-white text-xs font-black px-3 py-1 rounded-full uppercase tracking-widest mb-4 mt-2">
             Help Center
           </span>
-          <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter mb-4 text-white">
+          <h1 className="text-2xl sm:text-3xl md:text-5xl font-black italic tracking-tighter mb-4 text-white wrap-break-word">
             FREQUENTLY ASKED QUESTIONS
           </h1>
-          <p className="text-xl text-gray-200 font-medium">
+          <p className="text-base sm:text-xl text-gray-200 font-medium">
             Everything you need to know about Showtime Flag Football
           </p>
         </div>
       </div>
 
-      <div className="space-y-12">
+      <div className="space-y-8 md:space-y-12">
         {faqCategories.map((category, catIndex) => (
           <section key={catIndex} className="scroll-mt-24">
-            <div className="flex items-center gap-3 mb-6 border-b-2 border-gray-100 dark:border-gray-800 pb-2">
-              <span className="text-3xl">{category.icon}</span>
-              <h2 className="text-3xl font-black italic tracking-tight text-sffl-navy dark:text-white">
+            <div className="flex items-center gap-3 mb-4 md:mb-6 border-b-2 border-gray-100 dark:border-gray-800 pb-2">
+              <category.icon
+                className="w-7 h-7 md:w-8 md:h-8 shrink-0 text-sffl-red"
+                aria-hidden="true"
+              />
+              <h2 className="min-w-0 text-xl sm:text-2xl md:text-3xl font-black italic tracking-tight text-sffl-navy dark:text-white">
                 {category.title}
               </h2>
             </div>
@@ -239,7 +277,7 @@ export const FAQ = () => {
           <CopyableEmail
             email="showtime@showtimeflag.football"
             label="Contact Support:"
-            className="bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-sffl-navy dark:text-white px-6 py-3 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm transition"
+            className="bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-sffl-navy dark:text-white px-4 sm:px-6 py-2 rounded-3xl sm:rounded-full justify-center text-sm border border-gray-200 dark:border-gray-700 shadow-sm transition"
           />
         </div>
       </div>

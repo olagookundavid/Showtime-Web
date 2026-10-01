@@ -99,8 +99,8 @@ export const NewsletterPopup = () => {
             />
 
             {/* Sits top-right above page chrome (z-[70]) */}
-            <div className="fixed inset-x-0 top-0 z-[70] p-3 sm:p-5 flex justify-end pointer-events-none">
-                <div className="w-full max-w-sm sm:max-w-md pointer-events-auto bg-white dark:bg-[#0B111E] rounded-2xl shadow-[0_20px_50px_-10px_rgba(0,31,63,0.18)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] border border-neutral-200/90 dark:border-neutral-800 overflow-hidden animate-newsletter-in transition-all">
+            <div className="fixed inset-x-0 top-0 z-[70] p-3 sm:p-5 pt-[max(0.75rem,env(safe-area-inset-top))] sm:pt-[max(1.25rem,env(safe-area-inset-top))] flex justify-end pointer-events-none">
+                <div className="w-full max-w-sm sm:max-w-md max-h-[calc(100dvh-1.5rem)] overflow-y-auto overscroll-contain pointer-events-auto bg-white dark:bg-[#0B111E] rounded-2xl shadow-[0_20px_50px_-10px_rgba(0,31,63,0.18)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] border border-neutral-200/90 dark:border-neutral-800 overflow-hidden animate-newsletter-in transition-all">
                     {/* Editorial SFFL Red Accent Header Stripe */}
                     <div className="h-1 w-full bg-gradient-to-r from-sffl-red via-red-500 to-sffl-navy" />
 
@@ -115,11 +115,12 @@ export const NewsletterPopup = () => {
                                         </span>
                                     </div>
                                     <button
+                                        type="button"
                                         onClick={close}
                                         aria-label="Close"
-                                        className="p-1 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 rounded-full transition-colors"
+                                        className="min-h-11 min-w-11 -mr-3 flex items-center justify-center text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 rounded-full transition-colors"
                                     >
-                                        <XMarkIcon className="w-4 h-4" />
+                                        <XMarkIcon className="w-5 h-5" aria-hidden="true" />
                                     </button>
                                 </div>
                                 <h3 className="font-serif text-xl font-bold tracking-tight text-sffl-navy dark:text-white leading-tight">
@@ -140,11 +141,12 @@ export const NewsletterPopup = () => {
                                         </span>
                                     </div>
                                     <button
+                                        type="button"
                                         onClick={dismiss}
                                         aria-label="Close"
-                                        className="p-1.5 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800/70 rounded-full transition-all active:scale-95 cursor-pointer"
+                                        className="min-h-11 min-w-11 -mr-3 flex items-center justify-center text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800/70 rounded-full transition-all active:scale-95 cursor-pointer"
                                     >
-                                        <XMarkIcon className="w-4 h-4" />
+                                        <XMarkIcon className="w-5 h-5" aria-hidden="true" />
                                     </button>
                                 </div>
 
@@ -186,7 +188,7 @@ export const NewsletterPopup = () => {
                                                     setEmail('');
                                                     setFirstName('');
                                                 }}
-                                                className="text-[11px] font-bold text-sffl-red hover:text-red-700 dark:hover:text-red-400 hover:underline shrink-0 cursor-pointer"
+                                                className="min-h-11 px-2 -mr-2 text-xs font-bold text-sffl-red hover:text-red-700 dark:hover:text-red-400 hover:underline shrink-0 cursor-pointer"
                                             >
                                                 Change
                                             </button>

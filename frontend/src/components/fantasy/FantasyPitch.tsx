@@ -11,6 +11,8 @@ import {
     ArrowsRightLeftIcon,
     ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
+import { FemaleIcon } from '../icons/FemaleIcon';
+import { MaleIcon } from '../icons/MaleIcon';
 
 /**
  * The starting fourteen, laid out on a flag football field.
@@ -25,6 +27,8 @@ interface PitchSpot {
     slot: FantasySlot;
     /** Short label on the shirt. */
     code: string;
+    /** The slot is reserved for a woman; the label gets the female sign. */
+    female?: boolean;
     /** Full role name, for the detail strip and screen readers. */
     role: string;
     unit: 'OFFENSE' | 'DEFENSE';
@@ -58,9 +62,19 @@ const PITCH_SPOTS: PitchSpot[] = [
     { slot: 'REC_2', code: 'WR 2', role: 'Wide Receiver 2', unit: 'OFFENSE', x: 30, y: 64 },
     { slot: 'REC_4', code: 'WR 4', role: 'Wide Receiver 4', unit: 'OFFENSE', x: 70, y: 64 },
     { slot: 'REC_5', code: 'WR 5', role: 'Wide Receiver 5', unit: 'OFFENSE', x: 89, y: 61 },
-    { slot: 'QB_F', code: 'QB ♀', role: 'Female QB or Receiver', unit: 'OFFENSE', x: 50, y: 69.5 },
+    { slot: 'QB_F', code: 'QB', female: true, role: 'Female QB or Receiver', unit: 'OFFENSE', x: 50, y: 69.5 },
     { slot: 'QB_M', code: 'QB', role: 'Male Starting QB', unit: 'OFFENSE', x: 50, y: 83.5 },
 ];
+
+/** A slot's short label, with the female sign on the women's slot. */
+function SpotCode({ spot }: { spot: PitchSpot }) {
+    return (
+        <span className="inline-flex items-center justify-center gap-0.5">
+            {spot.code}
+            {spot.female && <FemaleIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3" strokeWidth={2.5} aria-label="women's slot" />}
+        </span>
+    );
+}
 
 /** Surname only, so a name fits under a 50px shirt without wrapping to three lines. */
 function shortName(full?: string): string {
@@ -350,41 +364,47 @@ export function FantasyPitch({
 
             {/* Filter Controls & Formation Info */}
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-5 py-3 bg-[#102746] text-xs text-[#dbe5f1] border-b border-white/10">
-                <div className="flex items-center gap-1.5 p-1 rounded-xl bg-white/5 border border-white/10">
+                <div className="grid grid-cols-3 w-full sm:inline-flex sm:w-auto items-stretch gap-1.5 p-1 rounded-xl bg-white/5 border border-white/10">
                     <button
                         type="button"
                         onClick={() => handleUnitChange('ALL')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition cursor-pointer ${
+                        aria-pressed={currentUnitTab === 'ALL'}
+                        className={`flex flex-wrap items-center justify-center gap-x-1 min-h-11 px-1.5 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wide sm:tracking-wider leading-tight text-center transition cursor-pointer ${
                             currentUnitTab === 'ALL'
                                 ? 'bg-sffl-navy text-white shadow-sm ring-1 ring-white/30'
                                 : 'text-[#afc1d4] hover:text-white hover:bg-white/10'
                         }`}
                     >
-                        Full Roster ({filled}/14)
+                        <span><span className="hidden sm:inline">Full </span>Roster</span>
+                        <span>({filled}/14)</span>
                     </button>
                     <button
                         type="button"
                         onClick={() => handleUnitChange('OFFENSE')}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition cursor-pointer ${
+                        aria-pressed={currentUnitTab === 'OFFENSE'}
+                        className={`flex flex-wrap items-center justify-center gap-x-1.5 min-h-11 px-1.5 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wide sm:tracking-wider leading-tight text-center transition cursor-pointer ${
                             currentUnitTab === 'OFFENSE'
                                 ? 'bg-sffl-red text-white shadow-sm ring-1 ring-white/30'
                                 : 'text-[#afc1d4] hover:text-white hover:bg-white/10'
                         }`}
                     >
-                        <span className="w-2 h-2 rounded-full bg-sffl-red" />
-                        Offense ({offenseFilled}/7)
+                        <span className="w-2 h-2 shrink-0 rounded-full bg-sffl-red" />
+                        <span>Offense</span>
+                        <span>({offenseFilled}/7)</span>
                     </button>
                     <button
                         type="button"
                         onClick={() => handleUnitChange('DEFENSE')}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition cursor-pointer ${
+                        aria-pressed={currentUnitTab === 'DEFENSE'}
+                        className={`flex flex-wrap items-center justify-center gap-x-1.5 min-h-11 px-1.5 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wide sm:tracking-wider leading-tight text-center transition cursor-pointer ${
                             currentUnitTab === 'DEFENSE'
                                 ? 'bg-[#2563eb] text-white shadow-sm ring-1 ring-white/30'
                                 : 'text-[#afc1d4] hover:text-white hover:bg-white/10'
                         }`}
                     >
-                        <span className="w-2 h-2 rounded-full bg-[#7fbbfa]" />
-                        Defense ({defenseFilled}/7)
+                        <span className="w-2 h-2 shrink-0 rounded-full bg-[#7fbbfa]" />
+                        <span>Defense</span>
+                        <span>({defenseFilled}/7)</span>
                     </button>
                 </div>
 
@@ -454,9 +474,9 @@ export function FantasyPitch({
                                 aria-label={
                                     empty
                                         ? `${spot.role} — ${mode === 'builder' ? 'Tap to draft athlete' : 'no player selected'}`
-                                        : `${spot.role}: ${pick.player_name ?? 'Unnamed player'}, ${positionLabel}, ${isFemale ? 'female' : 'male'} - ${mode === 'builder' ? 'click to manage' : 'click to view details'}`
+                                        : `${spot.role}: ${pick.player_name ?? 'Unnamed player'}, ${positionLabel}, ${isFemale ? 'female' : 'male'}${pick.isDeleted ? ', deleted player' : pick.isInactiveClub ? ', club inactive' : ''} - ${mode === 'builder' ? 'click to manage' : 'click to view details'}`
                                 }
-                                className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-0.5 sm:gap-1 w-[68px] sm:w-[86px] px-0.5 py-0.5 cursor-pointer transition-all duration-200 hover:brightness-110 focus-visible:outline-none focus-visible:brightness-110 z-[3] ${
+                                className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-0.5 sm:gap-1 w-14 min-[400px]:w-17 sm:w-21.5 px-0.5 py-0.5 cursor-pointer transition-all duration-200 hover:brightness-110 focus-visible:outline-none focus-visible:brightness-110 z-3 ${
                                     isDimmed ? 'opacity-20 pointer-events-none filter grayscale scale-90' : 'opacity-100 scale-100'
                                 }`}
                                 style={{ left: `${spot.x}%`, top: `${spot.y}%` }}
@@ -464,7 +484,7 @@ export function FantasyPitch({
                                 {/* Shirt / Avatar circle */}
                                 <div className="relative">
                                     <span
-                                        className={`relative block w-10 h-10 sm:w-[46px] sm:h-[46px] rounded-full border-2 overflow-hidden transition-transform ${
+                                        className={`relative block w-9 h-9 min-[400px]:w-10 min-[400px]:h-10 sm:w-11.5 sm:h-11.5 rounded-full border-2 overflow-hidden transition-transform ${
                                             empty
                                                 ? 'border-dashed border-white/50 bg-white/10 hover:border-white hover:bg-white/20'
                                                 : 'border-white/75'
@@ -497,11 +517,15 @@ export function FantasyPitch({
                                     {!empty && (
                                         <span
                                             aria-hidden="true"
-                                            className={`absolute -top-1 -right-1 z-10 flex items-center justify-center w-[15px] h-[15px] sm:w-[17px] sm:h-[17px] rounded-full border-2 border-white shadow text-[8px] sm:text-[9px] font-black leading-none ${
+                                            className={`absolute -top-1 -right-1 z-10 flex items-center justify-center w-3.75 h-3.75 sm:w-4.25 sm:h-4.25 rounded-full border-2 border-white shadow ${
                                                 isFemale ? 'bg-pink-500 text-white' : 'bg-blue-500 text-white'
                                             }`}
                                         >
-                                            {isFemale ? '♀' : '♂'}
+                                            {isFemale ? (
+                                                <FemaleIcon className="w-2.5 h-2.5" strokeWidth={2.5} />
+                                            ) : (
+                                                <MaleIcon className="w-2.5 h-2.5" strokeWidth={2.5} />
+                                            )}
                                         </span>
                                     )}
 
@@ -510,7 +534,7 @@ export function FantasyPitch({
                                         <span
                                             aria-hidden="true"
                                             title={pick.isDeleted ? 'Deleted Player' : 'Inactive Club'}
-                                            className="absolute -top-1 -left-1 z-10 flex items-center justify-center w-[15px] h-[15px] sm:w-[17px] sm:h-[17px] rounded-full border-2 border-white shadow bg-red-600 text-white text-[8px]"
+                                            className="absolute -top-1 -left-1 z-10 flex items-center justify-center w-3.75 h-3.75 sm:w-4.25 sm:h-4.25 rounded-full border-2 border-white shadow bg-red-600 text-white text-[8px]"
                                         >
                                             <ExclamationTriangleIcon className="w-2.5 h-2.5" />
                                         </span>
@@ -524,7 +548,7 @@ export function FantasyPitch({
                                     </span>
                                 ) : (
                                     <span className="block max-w-full text-center text-[8px] sm:text-[9px] font-black uppercase text-white/80 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-                                        {spot.code}
+                                        <SpotCode spot={spot} />
                                     </span>
                                 )}
 
@@ -557,13 +581,13 @@ export function FantasyPitch({
 
             {/* Detail strip */}
             <div
-                className="flex items-center gap-3 px-5 py-3 border-t border-white/15 bg-[#0c203a] min-h-[64px]"
+                className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 sm:px-5 py-3 border-t border-white/15 bg-[#0c203a] min-h-16"
                 aria-live="polite"
             >
                 <span
-                    className={`flex items-center justify-center min-w-[46px] h-9 px-1.5 rounded text-[11px] font-black shrink-0 ${activeStyle.chipBg} ${activeStyle.chipText}`}
+                    className={`flex items-center justify-center min-w-11.5 h-9 px-1.5 rounded text-[11px] font-black shrink-0 ${activeStyle.chipBg} ${activeStyle.chipText}`}
                 >
-                    {activeSpot.code}
+                    <SpotCode spot={activeSpot} />
                 </span>
 
                 <div className="min-w-0 flex-1">
@@ -572,7 +596,7 @@ export function FantasyPitch({
                     </strong>
                     <small className="block mt-0.5 text-[11px] text-[#afc1d4] truncate">
                         {activePick
-                            ? `${activeSpot.role} · ${activePick.team_short_name || activePick.team_name || '—'}`
+                            ? `${activeSpot.role} · ${activePick.team_short_name || activePick.team_name || '—'}${activePick.isDeleted ? ' · Deleted player' : activePick.isInactiveClub ? ' · Club inactive' : ''}`
                             : mode === 'builder'
                             ? `Empty slot · Tap here or on the pitch to draft an athlete`
                             : 'No player in this position yet'}
@@ -608,18 +632,18 @@ export function FantasyPitch({
                         <button
                             type="button"
                             onClick={() => onSlotClick?.(activeSpot.slot, activePick)}
-                            className="px-3 py-1.5 rounded-lg bg-sffl-red hover:bg-[#A52323] text-white text-[11px] font-black uppercase tracking-wider transition cursor-pointer shrink-0 ml-1 flex items-center gap-1.5 shadow-sm"
+                            className="min-h-11 px-3 py-1.5 rounded-lg bg-sffl-red hover:bg-[#A52323] text-white text-[11px] font-black uppercase tracking-wider transition cursor-pointer shrink-0 ml-auto flex items-center gap-1.5 shadow-sm"
                         >
-                            <ArrowsRightLeftIcon className="w-3.5 h-3.5" />
+                            <ArrowsRightLeftIcon className="w-3.5 h-3.5" aria-hidden="true" />
                             Manage
                         </button>
                     ) : (
                         <button
                             type="button"
                             onClick={() => onSlotClick?.(activeSpot.slot, null)}
-                            className="px-3 py-1.5 rounded-lg bg-sffl-red hover:bg-[#A52323] text-white text-[11px] font-black uppercase tracking-wider transition cursor-pointer shrink-0 ml-1 flex items-center gap-1.5 shadow-sm"
+                            className="min-h-11 px-3 py-1.5 rounded-lg bg-sffl-red hover:bg-[#A52323] text-white text-[11px] font-black uppercase tracking-wider transition cursor-pointer shrink-0 ml-auto flex items-center gap-1.5 shadow-sm"
                         >
-                            <PlusIcon className="w-3.5 h-3.5" />
+                            <PlusIcon className="w-3.5 h-3.5" aria-hidden="true" />
                             Draft
                         </button>
                     )
@@ -628,7 +652,7 @@ export function FantasyPitch({
                         <button
                             type="button"
                             onClick={() => handleSpotClick(activeSpot)}
-                            className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[10px] font-black uppercase tracking-wider transition cursor-pointer shrink-0 ml-1"
+                            className="min-h-11 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[11px] font-black uppercase tracking-wider transition cursor-pointer shrink-0 ml-auto"
                         >
                             {onPlayerClick ? 'Breakdown' : 'View Profile'}
                         </button>

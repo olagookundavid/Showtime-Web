@@ -18,7 +18,7 @@ export interface BackButtonProps {
 export function BackButton({
     fallback = '/',
     label = 'Back',
-    className = 'inline-flex items-center gap-1.5 text-sffl-red hover:underline font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer py-1',
+    className = 'inline-flex items-center gap-1.5 min-h-11 text-sffl-red hover:underline font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer py-1',
     children,
 }: BackButtonProps) {
     const navigate = useNavigate();

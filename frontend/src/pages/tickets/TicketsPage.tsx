@@ -14,6 +14,20 @@ import {
   type DiscountPreview,
 } from "../../services/api";
 import { DiscountCodeInput } from "../../components/discounts/DiscountCodeInput";
+import { Spinner } from "../../components/ui/Spinner";
+import { FootballIcon } from "../../components/icons/FootballIcon";
+import {
+  ArrowPathIcon,
+  CalendarDaysIcon,
+  CreditCardIcon,
+  LockClosedIcon,
+  MapPinIcon,
+  MinusIcon,
+  PlusIcon,
+  SparklesIcon,
+  TicketIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
 import {
   newsletterEnabled,
   subscribeToNewsletter,
@@ -228,7 +242,7 @@ export const TicketsPage = () => {
   };
 
   return (
-    <div className="space-y-4 md:space-y-8 pb-36 md:pb-12">
+    <div className="space-y-4 md:space-y-8">
       {/* Header - Compact for Mobile */}
       <div className="bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="text-center md:text-left">
@@ -249,11 +263,13 @@ export const TicketsPage = () => {
               value={accessCode}
               onChange={(e) => setAccessCode(e.target.value)}
               placeholder="CODE"
-              className="px-3 py-1.5 rounded-lg bg-white/20 text-white placeholder-gray-400 border border-white/30 focus:outline-none focus:ring-1 focus:ring-white/50 w-full md:w-48 uppercase text-xs"
+              aria-label="Access code"
+              className="min-w-0 min-h-11 px-3 py-1.5 rounded-lg bg-white/20 text-white placeholder-gray-400 border border-white/30 focus:outline-none focus:ring-1 focus:ring-white/50 w-full md:w-48 uppercase text-xs"
             />
             <button
+              type="button"
               onClick={() => setAppliedCode(accessCode.trim())}
-              className="bg-white text-sffl-navy font-bold px-4 py-1.5 rounded-lg text-xs hover:bg-gray-100 transition shadow-sm"
+              className="shrink-0 min-h-11 bg-white text-sffl-navy font-bold px-4 py-1.5 rounded-lg text-xs hover:bg-gray-100 transition shadow-sm"
             >
               Apply
             </button>
@@ -268,10 +284,14 @@ export const TicketsPage = () => {
         </div>
       )}
 
-      <div className="bg-linear-to-r from-red-600/10 to-transparent border border-red-500/20 p-4 rounded-xl flex justify-between items-center gap-4 dark:text-gray-200">
-        <div>
-          <h4 className="font-bold text-sm">
-            Earn rewards by inviting friends! 🏈
+      <div className="bg-linear-to-r from-red-600/10 to-transparent border border-red-500/20 p-4 rounded-xl flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4 dark:text-gray-200">
+        <div className="min-w-0">
+          <h4 className="flex items-center gap-1.5 font-bold text-sm">
+            <FootballIcon
+              className="w-4 h-4 shrink-0 text-sffl-red"
+              aria-hidden="true"
+            />
+            Earn rewards by inviting friends!
           </h4>
           <p className="text-xs text-gray-500 dark:text-gray-400">
             Generate a referral code and get payouts for every ticket sold.
@@ -279,19 +299,20 @@ export const TicketsPage = () => {
         </div>
         <Link
           to="/tickets/referrals"
-          className="bg-sffl-red hover:bg-[#A52323] text-white text-xs font-bold px-4 py-2 rounded-lg transition shrink-0"
+          className="inline-flex items-center justify-center min-h-11 bg-sffl-red hover:bg-[#A52323] text-white text-xs font-bold px-4 py-2 rounded-lg transition shrink-0"
         >
           Get Referral Link
         </Link>
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-16">
-          <div className="w-12 h-12 border-4 border-sffl-red border-t-transparent rounded-full animate-spin"></div>
-        </div>
+        <Spinner size="lg" className="py-16" label="Loading events…" />
       ) : eventDays.length === 0 ? (
-        <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-2xl shadow-lg">
-          <div className="text-6xl mb-4">🎟️</div>
+        <div className="text-center py-16 px-4 bg-white dark:bg-gray-800 rounded-2xl shadow-lg">
+          <TicketIcon
+            className="w-16 h-16 mx-auto mb-4 text-gray-400"
+            aria-hidden="true"
+          />
           <h2 className="text-2xl font-bold text-gray-700 dark:text-white mb-2">
             No Upcoming Events
           </h2>
@@ -300,7 +321,7 @@ export const TicketsPage = () => {
           </p>
           <Link
             to="/matches"
-            className="inline-block mt-6 bg-sffl-navy text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-900 transition"
+            className="inline-flex items-center justify-center min-h-11 mt-6 bg-sffl-navy text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-900 transition"
           >
             View Matches
           </Link>
@@ -313,15 +334,18 @@ export const TicketsPage = () => {
               className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden border border-gray-100 dark:border-gray-700"
             >
               {/* Event Day Header */}
-              <div className="bg-sffl-navy text-white p-6">
+              <div className="bg-sffl-navy text-white p-4 sm:p-6">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                  <div>
-                    <h2 className="text-lg md:text-2xl font-black uppercase tracking-tight">
+                  <div className="min-w-0">
+                    <h2 className="text-lg md:text-2xl font-black uppercase tracking-tight wrap-break-word">
                       {eventDay.title}
                     </h2>
-                    <div className="flex flex-wrap items-center gap-3 mt-1 text-gray-400 text-[10px] md:text-sm">
-                      <span>
-                        📅{" "}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-gray-300 text-xs md:text-sm">
+                      <span className="inline-flex items-center gap-1">
+                        <CalendarDaysIcon
+                          className="w-4 h-4 shrink-0"
+                          aria-hidden="true"
+                        />
                         {new Date(
                           eventDay.date + "T00:00:00",
                         ).toLocaleDateString("en-US", {
@@ -330,7 +354,15 @@ export const TicketsPage = () => {
                           day: "numeric",
                         })}
                       </span>
-                      {eventDay.venue && <span>📍 {eventDay.venue}</span>}
+                      {eventDay.venue && (
+                        <span className="inline-flex items-center gap-1 min-w-0">
+                          <MapPinIcon
+                            className="w-4 h-4 shrink-0"
+                            aria-hidden="true"
+                          />
+                          {eventDay.venue}
+                        </span>
+                      )}
                     </div>
                   </div>
                   {eventDay.matches && eventDay.matches.length > 0 && (
@@ -351,7 +383,7 @@ export const TicketsPage = () => {
                     {eventDay.matches.map((m) => (
                       <span
                         key={m.id}
-                        className="bg-white/10 px-3 py-1 rounded-full text-xs font-semibold"
+                        className="bg-white/10 px-3 py-1 rounded-full text-xs font-semibold max-w-full wrap-break-word"
                       >
                         {m.home_team} vs {m.away_team} •{" "}
                         {formatMatchTime(m.start_time)}
@@ -374,7 +406,7 @@ export const TicketsPage = () => {
                     </p>
                   </div>
                 ) : (
-                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {eventDay.tiers.map((tier) => {
                       const isSoldOut =
                         tier.capacity > 0 && tier.available <= 0;
@@ -416,7 +448,7 @@ export const TicketsPage = () => {
                             <button
                               onClick={() => openPurchaseModal(eventDay, tier)}
                               disabled={isSoldOut}
-                              className="w-full bg-sffl-red hover:bg-[#A52323] text-white font-black py-2 md:py-3 rounded-lg text-sm transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="w-full min-h-11 bg-sffl-red hover:bg-[#A52323] text-white font-black py-2 md:py-3 rounded-lg text-sm transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               {isSoldOut ? "Sold Out" : "Buy Now"}
                             </button>
@@ -444,7 +476,7 @@ export const TicketsPage = () => {
             aria-modal="true"
           >
             <div
-              className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full max-h-[calc(100dvh-5rem)] sm:max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in border border-gray-100 dark:border-gray-700 my-auto"
+              className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full max-h-[calc(100dvh-5rem)] sm:max-h-[85dvh] flex flex-col shadow-2xl overflow-hidden animate-in border border-gray-100 dark:border-gray-700 my-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="p-4 sm:p-6 pb-3 sm:pb-4 border-b border-gray-100 dark:border-gray-700 shrink-0 flex items-center justify-between">
@@ -452,18 +484,19 @@ export const TicketsPage = () => {
                   Purchase Tickets
                 </h3>
                 <button
+                  type="button"
                   onClick={closePurchaseModal}
                   aria-label="Close"
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-white text-2xl leading-none p-1"
+                  className="min-h-11 min-w-11 -mr-2 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white"
                 >
-                  ✕
+                  <XMarkIcon className="w-6 h-6" aria-hidden="true" />
                 </button>
               </div>
 
               <div className="p-4 sm:p-6 pb-10 sm:pb-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
                 {/* Event Info */}
                 <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                  <div className="font-bold text-sffl-navy dark:text-white">
+                  <div className="font-bold text-sffl-navy dark:text-white wrap-break-word">
                     {selectedEventDay.title}
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-300">
@@ -486,17 +519,17 @@ export const TicketsPage = () => {
 
                 {/* Auth Toggle */}
                 {userProfile && (
-                  <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
+                  <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/30 px-3 py-1 rounded-lg border border-blue-100 dark:border-blue-800">
                     <input
                       type="checkbox"
                       id="useAccountEmail"
                       checked={useAccountEmail}
                       onChange={(e) => setUseAccountEmail(e.target.checked)}
-                      className="w-4 h-4 text-sffl-red rounded border-gray-300 focus:ring-sffl-red"
+                      className="w-5 h-5 shrink-0 text-sffl-red rounded border-gray-300 focus:ring-sffl-red"
                     />
                     <label
                       htmlFor="useAccountEmail"
-                      className="text-xs font-bold text-blue-800 dark:text-blue-300 cursor-pointer"
+                      className="flex-1 min-h-11 flex items-center text-xs font-bold text-blue-800 dark:text-blue-300 cursor-pointer"
                     >
                       Use my account information
                     </label>
@@ -513,7 +546,7 @@ export const TicketsPage = () => {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g. John Doe"
-                    className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none transition-opacity ${useAccountEmail ? "opacity-60 cursor-not-allowed bg-gray-50" : ""}`}
+                    className={`w-full min-h-11 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none transition-opacity ${useAccountEmail ? "opacity-60 cursor-not-allowed bg-gray-50" : ""}`}
                     required
                     disabled={useAccountEmail}
                   />
@@ -529,7 +562,7 @@ export const TicketsPage = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="e.g. example@mail.com"
-                    className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none transition-opacity ${useAccountEmail ? "opacity-60 cursor-not-allowed bg-gray-50" : ""}`}
+                    className={`w-full min-h-11 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none transition-opacity ${useAccountEmail ? "opacity-60 cursor-not-allowed bg-gray-50" : ""}`}
                     required
                     disabled={useAccountEmail}
                   />
@@ -548,7 +581,7 @@ export const TicketsPage = () => {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="e.g. +234..."
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none"
+                    className="w-full min-h-11 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none"
                     required
                   />
                   <p className="text-xs text-gray-500 mt-1">
@@ -569,7 +602,7 @@ export const TicketsPage = () => {
                     value={referralCode}
                     onChange={(e) => setReferralCode(e.target.value)}
                     placeholder="SFFL-XXXX"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none uppercase"
+                    className="w-full min-h-11 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none uppercase"
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     If you were referred, enter the referrer's code
@@ -583,19 +616,26 @@ export const TicketsPage = () => {
                   </label>
                   <div className="flex items-center gap-4">
                     <button
+                      type="button"
                       onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-white w-10 h-10 rounded-lg font-bold text-lg"
+                      aria-label="Decrease quantity"
+                      className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-white w-11 h-11 flex items-center justify-center rounded-lg"
                     >
-                      −
+                      <MinusIcon className="w-5 h-5" aria-hidden="true" />
                     </button>
-                    <span className="font-bold text-xl w-12 text-center dark:text-white">
+                    <span
+                      className="font-bold text-xl w-12 text-center dark:text-white"
+                      aria-live="polite"
+                    >
                       {quantity}
                     </span>
                     <button
+                      type="button"
                       onClick={() => setQuantity(Math.min(10, quantity + 1))}
-                      className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-white w-10 h-10 rounded-lg font-bold text-lg"
+                      aria-label="Increase quantity"
+                      className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 dark:text-white w-11 h-11 flex items-center justify-center rounded-lg"
                     >
-                      +
+                      <PlusIcon className="w-5 h-5" aria-hidden="true" />
                     </button>
                   </div>
                 </div>
@@ -625,8 +665,8 @@ export const TicketsPage = () => {
                           ₦{ticketSubtotal.toLocaleString()}
                         </span>
                       </div>
-                      <div className="flex justify-between items-baseline text-sm">
-                        <span className="text-gray-500 dark:text-gray-400">
+                      <div className="flex justify-between items-baseline gap-3 text-sm">
+                        <span className="min-w-0 break-all text-gray-500 dark:text-gray-400">
                           Discount ({discount?.code})
                         </span>
                         <span className="font-bold text-emerald-600 dark:text-emerald-400">
@@ -639,7 +679,7 @@ export const TicketsPage = () => {
                     <span className="text-gray-700 dark:text-gray-300 font-semibold">
                       Total:
                     </span>
-                    <span className="text-3xl font-black text-sffl-red">
+                    <span className="text-2xl sm:text-3xl font-black text-sffl-red">
                       ₦{ticketTotal.toLocaleString()}
                     </span>
                   </div>
@@ -659,7 +699,7 @@ export const TicketsPage = () => {
                       type="checkbox"
                       checked={joinNewsletter}
                       onChange={(e) => setJoinNewsletter(e.target.checked)}
-                      className="mt-0.5 w-4 h-4 shrink-0 accent-sffl-red cursor-pointer"
+                      className="mt-0.5 w-5 h-5 shrink-0 accent-sffl-red cursor-pointer"
                     />
                     <span className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
                       <span className="font-bold text-gray-800 dark:text-white">
@@ -675,8 +715,9 @@ export const TicketsPage = () => {
 
               {/* Buttons */}
               <div className="p-4 sm:p-6 border-t border-gray-100 dark:border-gray-700 shrink-0 bg-gray-50/90 dark:bg-gray-800/90 space-y-3">
-                <div className="flex gap-3">
+                <div className="flex flex-col-reverse sm:flex-row gap-3">
                   <button
+                    type="button"
                     onClick={closePurchaseModal}
                     className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white font-bold py-3 rounded-lg transition min-h-11"
                     disabled={purchasing}
@@ -684,27 +725,42 @@ export const TicketsPage = () => {
                     Cancel
                   </button>
                   <button
+                    type="button"
                     onClick={handlePurchase}
                     disabled={purchasing || !email || !name || !phone.trim()}
                     className="flex-1 bg-sffl-red hover:bg-[#A52323] text-white font-bold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-h-11"
                   >
                     {purchasing ? (
                       <>
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>{" "}
-                        Processing...
+                        <ArrowPathIcon
+                          className="w-5 h-5 animate-spin"
+                          aria-hidden="true"
+                        />
+                        Processing…
                       </>
                     ) : ticketTotal === 0 ? (
-                      "🎟️ Get Free Ticket"
+                      <>
+                        <TicketIcon className="w-5 h-5" aria-hidden="true" />
+                        Get Free Ticket
+                      </>
                     ) : (
-                      "💳 Pay with Paystack"
+                      <>
+                        <CreditCardIcon className="w-5 h-5" aria-hidden="true" />
+                        Pay with Paystack
+                      </>
                     )}
                   </button>
                 </div>
 
-                <p className="text-[11px] text-gray-500 text-center">
+                <p className="flex items-center justify-center gap-1.5 text-[11px] text-gray-500 text-center">
+                  {ticketTotal === 0 ? (
+                    <SparklesIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                  ) : (
+                    <LockClosedIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                  )}
                   {ticketTotal === 0
-                    ? "✨ Your free ticket will be sent instantly"
-                    : "🔒 You will be redirected to Paystack for secure payment"}
+                    ? "Your free ticket will be sent instantly"
+                    : "You will be redirected to Paystack for secure payment"}
                 </p>
               </div>
             </div>

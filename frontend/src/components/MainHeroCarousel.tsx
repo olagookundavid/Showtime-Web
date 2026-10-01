@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
+import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { getHeroSlides } from "../services/api";
 
 export const MainHeroCarousel = () => {
@@ -94,61 +95,47 @@ export const MainHeroCarousel = () => {
           </Link>
         );
       })}
-
       {/* Navigation Controls - Only if multiple slides */}
       {hasMultipleSlides && (
         <>
           <button
+            type="button"
             onClick={() =>
               setCurrentSlide(
                 (prev) => (prev - 1 + slides.length) % slides.length,
               )
             }
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-black/20 hover:bg-sffl-red text-white p-2 md:p-3 rounded-full backdrop-blur-md transition-all border border-white/10"
+            aria-label="Previous slide"
+            className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-20 min-h-11 min-w-11 flex items-center justify-center bg-black/20 hover:bg-sffl-red text-white p-2 md:p-3 rounded-full backdrop-blur-md transition-all border border-white/10"
           >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
+            <ChevronLeftIcon className="w-6 h-6" aria-hidden="true" />
           </button>
           <button
+            type="button"
             onClick={() =>
               setCurrentSlide((prev) => (prev + 1) % slides.length)
             }
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-black/20 hover:bg-sffl-red text-white p-2 md:p-3 rounded-full backdrop-blur-md transition-all border border-white/10"
+            aria-label="Next slide"
+            className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-20 min-h-11 min-w-11 flex items-center justify-center bg-black/20 hover:bg-sffl-red text-white p-2 md:p-3 rounded-full backdrop-blur-md transition-all border border-white/10"
           >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
+            <ChevronRightIcon className="w-6 h-6" aria-hidden="true" />
           </button>
 
-          {/* Dots */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+          {/* Dots: small marks inside 44px tap areas */}
+          <div className="absolute bottom-1 md:bottom-3 left-1/2 -translate-x-1/2 z-20 flex">
             {slides.map((_, index) => (
               <button
                 key={index}
+                type="button"
                 onClick={() => setCurrentSlide(index)}
-                className={`w-2 md:w-3 h-2 md:h-3 rounded-full transition-all ${index === activeSlide ? "bg-sffl-red w-6 md:w-8" : "bg-white/50 hover:bg-white"}`}
-              />
+                aria-label={`Go to slide ${index + 1}`}
+                aria-current={index === currentSlide ? "true" : undefined}
+                className="group min-h-11 min-w-11 flex items-center justify-center"
+              >
+                <span
+                  className={`h-2 md:h-3 rounded-full transition-all ${index === currentSlide ? "bg-sffl-red w-6 md:w-8" : "w-2 md:w-3 bg-white/50 group-hover:bg-white"}`}
+                />
+              </button>
             ))}
           </div>
         </>

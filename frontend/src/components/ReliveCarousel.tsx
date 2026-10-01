@@ -74,7 +74,7 @@ export const ReliveCarousel = () => {
                 {/* Left Arrow Button */}
                 <button
                     onClick={scrollLeft}
-                    className="hidden sm:flex absolute -left-3 md:-left-4 top-1/2 -translate-y-1/2 z-20 bg-sffl-navy/90 hover:bg-sffl-red text-white p-2 rounded-full shadow-2xl backdrop-blur-md transition-all duration-300 items-center justify-center cursor-pointer border border-white/20 hover:scale-110 active:scale-95"
+                    className="hidden sm:flex absolute -left-3 md:-left-4 top-1/2 -translate-y-1/2 z-20 bg-sffl-navy/90 hover:bg-sffl-red text-white p-2 min-h-11 min-w-11 rounded-full shadow-2xl backdrop-blur-md transition-all duration-300 items-center justify-center cursor-pointer border border-white/20 hover:scale-110 active:scale-95"
                     aria-label="Scroll left"
                 >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -147,7 +147,7 @@ export const ReliveCarousel = () => {
                 {/* Right Arrow Button */}
                 <button
                     onClick={scrollRight}
-                    className="hidden sm:flex absolute -right-3 md:-right-4 top-1/2 -translate-y-1/2 z-20 bg-sffl-navy/90 hover:bg-sffl-red text-white p-2 rounded-full shadow-2xl backdrop-blur-md transition-all duration-300 items-center justify-center cursor-pointer border border-white/20 hover:scale-110 active:scale-95"
+                    className="hidden sm:flex absolute -right-3 md:-right-4 top-1/2 -translate-y-1/2 z-20 bg-sffl-navy/90 hover:bg-sffl-red text-white p-2 min-h-11 min-w-11 rounded-full shadow-2xl backdrop-blur-md transition-all duration-300 items-center justify-center cursor-pointer border border-white/20 hover:scale-110 active:scale-95"
                     aria-label="Scroll right"
                 >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -159,9 +159,9 @@ export const ReliveCarousel = () => {
             {/* In-App Interactive Video Player Modal */}
             {selectedVideo && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn" data-dialog onClick={() => setSelectedVideo(null)}>
-                    <div className="relative w-full max-w-4xl bg-sffl-navy dark:bg-gray-900 rounded-2xl overflow-hidden shadow-2xl border border-white/10" onClick={e => e.stopPropagation()}>
+                    <div className="relative w-full max-w-4xl max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain bg-sffl-navy dark:bg-gray-900 rounded-2xl shadow-2xl border border-white/10" onClick={e => e.stopPropagation()}>
                         {/* Modal Header */}
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 text-white">
+                        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-white/10 text-white">
                             <div className="flex items-center gap-2 min-w-0 pr-4">
                                 <span className="w-2.5 h-2.5 rounded-full bg-sffl-red animate-ping" />
                                 <h3 className="font-black text-base md:text-xl italic truncate">
@@ -170,10 +170,11 @@ export const ReliveCarousel = () => {
                             </div>
                             <button
                                 onClick={() => setSelectedVideo(null)}
-                                className="p-2 rounded-full bg-white/10 hover:bg-sffl-red text-white transition-all duration-200 cursor-pointer flex-shrink-0"
+                                type="button"
+                                className="min-h-11 min-w-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-sffl-red text-white transition-all duration-200 cursor-pointer shrink-0"
                                 aria-label="Close video player"
                             >
-                                <XMarkIcon className="w-6 h-6" />
+                                <XMarkIcon className="w-6 h-6" aria-hidden="true" />
                             </button>
                         </div>
 

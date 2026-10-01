@@ -26,37 +26,37 @@ export const Footer = () => {
                 </div>
 
                 {/* About — who/what Showtime is */}
-                <div className="flex flex-col space-y-1 md:space-y-2">
+                <div className="flex flex-col">
                     <h4 className="font-bold uppercase text-sffl-red text-xs md:text-base mb-1 md:mb-2 tracking-widest">About</h4>
-                    <Link to="/about/showtime-flag" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">About Showtime</Link>
-                    <Link to="/totw" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Team of the Week</Link>
-                    <Link to="/about/our-team" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Our Team</Link>
-                    <Link to="/about/arena" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Showtime Arena</Link>
-                    <Link to="/about/education" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Education</Link>
-                    <Link to="/about/sponsorships" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Sponsorships</Link>
+                    <Link to="/about/showtime-flag" className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start">About Showtime</Link>
+                    <Link to="/totw" className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start">Team of the Week</Link>
+                    <Link to="/about/our-team" className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start">Our Team</Link>
+                    <Link to="/about/arena" className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start">Showtime Arena</Link>
+                    <Link to="/about/education" className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start">Education</Link>
+                    <Link to="/about/sponsorships" className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start">Sponsorships</Link>
                 </div>
 
                 {/* Rules & Policy — game rules + conduct + media */}
-                <div className="flex flex-col space-y-1 md:space-y-2">
+                <div className="flex flex-col">
                     <h4 className="font-bold uppercase text-sffl-red text-xs md:text-base mb-1 md:mb-2 tracking-widest">Rules &amp; Policy</h4>
-                    <Link to="/about/rules" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Gameplay Rules</Link>
-                    <Link to="/about/byelaws" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Showtime Byelaws</Link>
-                    <Link to="/about/media-guidelines" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Media Guidelines</Link>
-                    <Link to="/about/faq" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">FAQs</Link>
-                    <Link to="/about/whistleblower" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Whistleblower</Link>
-                    <Link to="/about/privacy" className="text-gray-300 hover:text-white text-xs md:text-sm py-1 md:py-0 block">Privacy Policy</Link>
+                    <Link to="/about/rules" className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start">Gameplay Rules</Link>
+                    <Link to="/about/byelaws" className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start">Showtime Byelaws</Link>
+                    <Link to="/about/media-guidelines" className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start">Media Guidelines</Link>
+                    <Link to="/about/faq" className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start">FAQs</Link>
+                    <Link to="/about/whistleblower" className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start">Whistleblower</Link>
+                    <Link to="/about/privacy" className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start">Privacy Policy</Link>
                 </div>
 
                 {/* Socials / Contact */}
                 <div className="flex flex-col items-center sm:items-start">
                     <h4 className="font-bold uppercase text-sffl-red text-xs md:text-base mb-1 md:mb-2 tracking-widest">Connect</h4>
-                    <p className="text-gray-400 text-[10px] md:text-sm">Follow us on social media for live updates.</p>
-                    <div className="mt-3 md:mt-4 flex space-x-3 md:space-x-4">
+                    <p className="text-gray-400 text-xs md:text-sm">Follow us on social media for live updates.</p>
+                    <div className="mt-3 md:mt-4 flex flex-wrap justify-center sm:justify-start gap-3 md:gap-4">
                         <a
                             href="https://www.youtube.com/@ShowtimeFlagFootball"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="w-10 h-10 bg-gray-700 hover:bg-[#FF0000] rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110"
+                            className="w-11 h-11 bg-gray-700 hover:bg-[#FF0000] rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110"
                             aria-label="YouTube"
                         >
                             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -67,7 +67,7 @@ export const Footer = () => {
                             href="https://www.instagram.com/showtimeffl/"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="w-10 h-10 bg-gray-700 hover:bg-gradient-to-br hover:from-[#833AB4] hover:via-[#FD1D1D] hover:to-[#F77737] rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-lg"
+                            className="w-11 h-11 bg-gray-700 hover:bg-gradient-to-br hover:from-[#833AB4] hover:via-[#FD1D1D] hover:to-[#F77737] rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-lg"
                             aria-label="Instagram"
                         >
                             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -78,7 +78,7 @@ export const Footer = () => {
                             href="https://twitter.com/showtimeffl"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="w-10 h-10 bg-gray-700 hover:bg-black rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-lg"
+                            className="w-11 h-11 bg-gray-700 hover:bg-black rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-lg"
                             aria-label="X (Twitter)"
                         >
                             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -89,7 +89,7 @@ export const Footer = () => {
                             href="https://web.facebook.com/Showtimeffl"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="w-10 h-10 bg-gray-700 hover:bg-[#1877F2] rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-lg"
+                            className="w-11 h-11 bg-gray-700 hover:bg-[#1877F2] rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-lg"
                             aria-label="Facebook"
                         >
                             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -98,7 +98,7 @@ export const Footer = () => {
                         </a>
                     </div>
                     <div className="mt-4 md:mt-6">
-                        <CopyableEmail email="showtime@showtimeflag.football" label="Contact Us:" className="bg-gray-800 dark:bg-gray-900 border border-gray-700 text-gray-300 hover:text-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-[10px] md:text-sm transition-colors" />
+                        <CopyableEmail email="showtime@showtimeflag.football" label="Contact Us:" className="bg-gray-800 dark:bg-gray-900 border border-gray-700 text-gray-300 hover:text-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-xs md:text-sm transition-colors" />
                     </div>
                 </div>
             </div>

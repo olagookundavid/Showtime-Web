@@ -68,7 +68,7 @@ export const NewsDetail = () => {
                     }
                     const heroImg = article.featured_image || (article.category === "Commissioner's Note" ? '/images/leadership/adebare_adejumo.jpg' : null);
                     return (
-                        <div className="h-96 overflow-hidden relative">
+                        <div className="h-56 sm:h-72 md:h-96 overflow-hidden relative">
                             {heroImg ? (
                                 <LightboxImage
                                     src={heroImg}
@@ -84,26 +84,26 @@ export const NewsDetail = () => {
                 })()}
 
                 {/* Content */}
-                <div className="p-8 md:p-12">
+                <div className="p-4 sm:p-8 md:p-12">
                     {/* Category */}
-                    <div className="w-fit bg-sffl-red text-white text-sm font-bold px-4 py-2 rounded-full mb-4 uppercase">
+                    <div className="w-fit max-w-full wrap-break-word bg-sffl-red text-white text-xs sm:text-sm font-bold px-4 py-2 rounded-full mb-4 uppercase">
                         {article.category}
                     </div>
 
                     {/* Title */}
-                    <h1 className="text-4xl md:text-5xl font-black text-sffl-navy dark:text-white mb-4 leading-tight">
+                    <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-sffl-navy dark:text-white mb-4 leading-tight wrap-break-word">
                         {article.title}
                     </h1>
 
                     {/* Meta */}
-                    <div className="flex items-center gap-4 text-gray-600 dark:text-gray-400 mb-8 pb-6 border-b dark:border-gray-700">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-6 sm:mb-8 pb-6 border-b dark:border-gray-700">
                         <span className="font-semibold">{article.author}</span>
-                        <span>•</span>
+                        <span aria-hidden="true">•</span>
                         <span>{new Date(article.published_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
                     </div>
 
                     {/* Article Body */}
-                    <div className="prose prose-lg max-w-none text-gray-700 dark:text-gray-300 leading-relaxed space-y-4">
+                    <div className="prose sm:prose-lg max-w-none text-gray-700 dark:text-gray-300 leading-relaxed space-y-4 wrap-break-word">
                         <NewsContent content={article.content} />
                     </div>
 
@@ -113,7 +113,7 @@ export const NewsDetail = () => {
             </div>
 
             {/* Related Articles */}
-            <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-xl">
+            <div className="bg-gray-50 dark:bg-gray-800 p-4 sm:p-6 rounded-xl">
                 <h3 className="font-bold text-xl text-sffl-navy dark:text-white mb-4">More News</h3>
                 <div className="space-y-3">
                     {relatedNews
@@ -123,7 +123,7 @@ export const NewsDetail = () => {
                             <Link
                                 key={relatedArticle.id}
                                 to={`/news/${relatedArticle.slug}`}
-                                className="block hover:bg-white dark:hover:bg-gray-700 p-3 rounded-lg transition"
+                                className="block min-h-11 hover:bg-white dark:hover:bg-gray-700 p-3 rounded-lg transition"
                             >
                                 <div className="font-bold text-sffl-navy dark:text-white hover:text-sffl-red line-clamp-1">
                                     {relatedArticle.title}

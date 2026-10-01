@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { claimApi } from "../../services/api";
+import { CheckCircleIcon, XCircleIcon } from "@heroicons/react/24/outline";
+import { Spinner } from "../../components/ui/Spinner";
 
 /**
  * Landing page for the confirm-your-email link. Verification is informational: it proves
@@ -48,15 +50,18 @@ export const ClaimVerifyEmailPage: React.FC = () => {
   }, [token]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
+    <div className="min-h-dvh flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
       <div className="max-w-md text-center">
         {state === "working" && (
-          <div className="text-gray-400">Confirming your email…</div>
+          <Spinner label="Confirming your email…" />
         )}
 
         {state === "done" && (
           <>
-            <div className="text-4xl mb-3">✓</div>
+            <CheckCircleIcon
+              className="w-12 h-12 mx-auto mb-3 text-green-600 dark:text-green-400"
+              aria-hidden="true"
+            />
             <h1 className="text-xl font-black text-gray-900 dark:text-white">
               Email confirmed
             </h1>
@@ -66,7 +71,7 @@ export const ClaimVerifyEmailPage: React.FC = () => {
             </p>
             <Link
               to="/claim/status"
-              className="inline-block mt-6 px-5 py-3 bg-sffl-red hover:bg-red-700 text-white font-bold rounded-lg"
+              className="inline-flex items-center justify-center min-h-11 mt-6 px-5 py-3 bg-sffl-red hover:bg-red-700 text-white font-bold rounded-lg"
             >
               View my claim status
             </Link>
@@ -75,7 +80,10 @@ export const ClaimVerifyEmailPage: React.FC = () => {
 
         {state === "failed" && (
           <>
-            <div className="text-4xl mb-3">✕</div>
+            <XCircleIcon
+              className="w-12 h-12 mx-auto mb-3 text-red-600 dark:text-red-400"
+              aria-hidden="true"
+            />
             <h1 className="text-xl font-black text-gray-900 dark:text-white">
               Could not confirm
             </h1>
@@ -88,7 +96,7 @@ export const ClaimVerifyEmailPage: React.FC = () => {
             </p>
             <Link
               to="/claim/status"
-              className="inline-block mt-6 px-5 py-3 bg-sffl-red hover:bg-red-700 text-white font-bold rounded-lg"
+              className="inline-flex items-center justify-center min-h-11 mt-6 px-5 py-3 bg-sffl-red hover:bg-red-700 text-white font-bold rounded-lg"
             >
               Go to my claim status
             </Link>

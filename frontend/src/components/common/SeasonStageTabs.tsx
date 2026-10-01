@@ -1,3 +1,5 @@
+import type { ComponentType, SVGProps } from "react";
+import { TrophyIcon } from "@heroicons/react/24/outline";
 import type { Competition } from "../../services/api";
 
 interface SeasonStageTabsProps {
@@ -7,10 +9,14 @@ interface SeasonStageTabsProps {
   className?: string;
 }
 
-const STAGES: { format: string; label: string }[] = [
+const STAGES: {
+  format: string;
+  label: string;
+  icon?: ComponentType<SVGProps<SVGSVGElement>>;
+}[] = [
   { format: "PRESEASON", label: "Preseason" },
   { format: "SEASON", label: "Season" },
-  { format: "PLAYOFFS", label: "🏆 Playoffs" },
+  { format: "PLAYOFFS", label: "Playoffs", icon: TrophyIcon },
   { format: "CUP", label: "Cup" },
 ];
 
@@ -46,7 +52,7 @@ export const SeasonStageTabs = ({
   // Bigger, separated pills. Active = solid red (urgency); inactive = outlined
   // and clickable; disabled = muted.
   const base =
-    "flex-1 sm:flex-none px-6 md:px-10 py-2 md:py-2 rounded-xl text-sm md:text-base font-black uppercase tracking-wide transition-all duration-200";
+    "flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 min-h-11 px-4 sm:px-6 md:px-10 py-2 rounded-xl text-sm md:text-base font-black uppercase tracking-wide transition-all duration-200";
   const active =
     "bg-sffl-red text-white shadow-lg shadow-sffl-red/30 hover:bg-red-700 scale-[1.02]";
   const inactive =
@@ -58,7 +64,7 @@ export const SeasonStageTabs = ({
     <div
       className={`flex flex-wrap gap-2 sm:gap-3 w-full sm:w-auto ${className}`}
     >
-      {stageComps.map(({ format, label, comp }) => {
+      {stageComps.map(({ format, label, icon: Icon, comp }) => {
         const isActive = comp?.id === currentId;
         return (
           <button
@@ -70,6 +76,7 @@ export const SeasonStageTabs = ({
             disabled={!comp}
             className={`${base} ${isActive ? active : comp ? inactive : disabled}`}
           >
+            {Icon && <Icon className="w-5 h-5 shrink-0" aria-hidden="true" />}
             {label}
           </button>
         );

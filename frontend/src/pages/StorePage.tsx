@@ -1,6 +1,18 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, type ComponentType, type SVGProps } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
+import {
+  ArchiveBoxIcon,
+  BoltIcon,
+  CalendarDaysIcon,
+  CreditCardIcon,
+  FireIcon,
+  MagnifyingGlassIcon,
+  ShieldCheckIcon,
+  SparklesIcon,
+  TagIcon,
+  TruckIcon,
+} from "@heroicons/react/24/outline";
 import { getStoreProducts, type StoreProduct } from "../services/api";
 import { LazyImage } from "../components/common/LazyImage";
 import { getAvailableStock } from "../utils/storeStock";
@@ -10,8 +22,13 @@ type GroupByOption = "ALL" | "TAGS" | "DATE";
 
 const STANDARD_TAGS = ["Jerseys", "Merch", "Books", "Others"];
 
+type ProductGroup = {
+  title: string;
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
+  items: StoreProduct[];
+};
+
 export const StorePage = () => {
-  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState("All");
   const [groupBy, setGroupBy] = useState<GroupByOption>("ALL");
@@ -114,21 +131,27 @@ export const StorePage = () => {
       }
     });
 
-    const groups = [];
+    const groups: ProductGroup[] = [];
     if (newArrivals.length > 0) {
       groups.push({
-        title: "🔥 New Arrivals (Last 7 Days)",
+        title: "New Arrivals (Last 7 Days)",
+        icon: FireIcon,
         items: newArrivals,
       });
     }
     if (recentReleases.length > 0) {
       groups.push({
-        title: "✨ Recent Drops (Last 30 Days)",
+        title: "Recent Drops (Last 30 Days)",
+        icon: SparklesIcon,
         items: recentReleases,
       });
     }
     if (classicDrops.length > 0) {
-      groups.push({ title: "📦 Classic Drops", items: classicDrops });
+      groups.push({
+        title: "Classic Drops",
+        icon: ArchiveBoxIcon,
+        items: classicDrops,
+      });
     }
     return groups;
   }, [filteredProducts, groupBy]);
@@ -148,13 +171,18 @@ export const StorePage = () => {
     return (
       <div
         key={product.id}
-        onClick={() =>
-          !isOutOfStock && navigate(`/store/products/${product.id}`)
-        }
         className={`group relative flex flex-col bg-white dark:bg-gray-800/30 rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-700/50 shadow-md hover:shadow-xl dark:hover:border-sffl-red/30 transition-all duration-300 transform hover:-translate-y-1 ${
           isOutOfStock ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
         }`}
       >
+        {/* The whole card opens the product; sold-out items have nothing to open. */}
+        {!isOutOfStock && (
+          <Link
+            to={`/store/products/${product.id}`}
+            aria-label={`View ${product.name}`}
+            className="absolute inset-0 z-20 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sffl-red"
+          />
+        )}
         {/* Image and Badges */}
         <div className="relative aspect-square w-full overflow-hidden bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center border-b dark:border-gray-700/30">
           {imgUrl ? (
@@ -195,7 +223,7 @@ export const StorePage = () => {
         <div className="p-4 flex-1 flex flex-col justify-between space-y-2">
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-2">
-              <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-sffl-red transition-colors line-clamp-1">
+              <h3 className="min-w-0 font-bold text-gray-900 dark:text-white group-hover:text-sffl-red transition-colors line-clamp-1">
                 {product.name}
               </h3>
             </div>
@@ -227,7 +255,7 @@ export const StorePage = () => {
                 "Official Showtime Flag Football merchandise."}
             </p>
           </div>
-          <div className="flex items-center justify-between pt-1">
+          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 pt-1">
             <span className="text-base font-black text-sffl-navy dark:text-white">
               ₦{product.price.toLocaleString()}
             </span>
@@ -265,11 +293,12 @@ export const StorePage = () => {
           aria-hidden="true"
         />
 
-        <div className="relative z-10 space-y-4 max-w-2xl p-8 md:p-12">
-          <div className="inline-flex items-center gap-1.5 bg-sffl-red/10 border border-sffl-red/30 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-black text-sffl-red uppercase tracking-wider">
-            <span>⚡</span> OFFICIAL SHOWTIME MERCHANDISE
+        <div className="relative z-10 space-y-4 max-w-2xl p-5 sm:p-8 md:p-12">
+          <div className="inline-flex items-center gap-1.5 bg-sffl-red/10 border border-sffl-red/30 backdrop-blur-sm px-3 py-1 rounded-full text-[11px] sm:text-xs font-black text-sffl-red uppercase tracking-wider">
+            <BoltIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
+            OFFICIAL SHOWTIME MERCHANDISE
           </div>
-          <h1 className="text-4xl md:text-6xl font-black italic tracking-tighter text-white uppercase leading-none drop-shadow-lg">
+          <h1 className="text-3xl sm:text-4xl md:text-6xl font-black italic tracking-tighter text-white uppercase leading-none drop-shadow-lg">
             Gear Up For <span className="text-sffl-red">Showtime</span>
           </h1>
           <p className="text-sm md:text-base text-gray-200 drop-shadow">
@@ -285,26 +314,29 @@ export const StorePage = () => {
           {/* Search Field */}
           <div className="relative w-full md:w-80">
             <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-              🔍
+              <MagnifyingGlassIcon className="w-4 h-4" aria-hidden="true" />
             </span>
             <input
-              type="text"
+              type="search"
+              aria-label="Search products"
               placeholder="Search gear..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 dark:border-gray-700/60 rounded-xl bg-white dark:bg-gray-800/50 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sffl-red/50 transition-all"
+              className="w-full min-h-11 pl-9 pr-4 py-2 text-sm border border-gray-200 dark:border-gray-700/60 rounded-xl bg-white dark:bg-gray-800/50 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sffl-red/50 transition-all"
             />
           </div>
 
           {/* Group By Selector */}
-          <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 w-full md:w-auto md:justify-end">
             <span className="text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
               Group By:
             </span>
-            <div className="inline-flex p-1 bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+            <div className="grid grid-cols-3 sm:inline-flex w-full sm:w-auto p-1 bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
               <button
+                type="button"
                 onClick={() => setGroupBy("ALL")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                aria-pressed={groupBy === "ALL"}
+                className={`inline-flex items-center justify-center gap-1.5 min-h-11 px-2 sm:px-3 py-1.5 rounded-lg text-xs font-bold leading-tight text-center transition-all ${
                   groupBy === "ALL"
                     ? "bg-sffl-navy dark:bg-sffl-red text-white shadow"
                     : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
@@ -313,24 +345,33 @@ export const StorePage = () => {
                 All Products
               </button>
               <button
+                type="button"
                 onClick={() => setGroupBy("TAGS")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                aria-pressed={groupBy === "TAGS"}
+                className={`inline-flex items-center justify-center gap-1.5 min-h-11 px-2 sm:px-3 py-1.5 rounded-lg text-xs font-bold leading-tight text-center transition-all ${
                   groupBy === "TAGS"
                     ? "bg-sffl-navy dark:bg-sffl-red text-white shadow"
                     : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                 }`}
               >
-                🏷️ Tags
+                <TagIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                Tags
               </button>
               <button
+                type="button"
                 onClick={() => setGroupBy("DATE")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                aria-pressed={groupBy === "DATE"}
+                className={`inline-flex items-center justify-center gap-1.5 min-h-11 px-2 sm:px-3 py-1.5 rounded-lg text-xs font-bold leading-tight text-center transition-all ${
                   groupBy === "DATE"
                     ? "bg-sffl-navy dark:bg-sffl-red text-white shadow"
                     : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                 }`}
               >
-                📅 Creation Date
+                <CalendarDaysIcon
+                  className="w-4 h-4 shrink-0"
+                  aria-hidden="true"
+                />
+                Creation Date
               </button>
             </div>
           </div>
@@ -338,22 +379,27 @@ export const StorePage = () => {
 
         {/* Tag Filter Pills */}
         <div className="pt-2 border-t border-gray-100 dark:border-gray-700/40 flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mr-1">
+          <span className="shrink-0 text-xs font-bold text-gray-400 uppercase tracking-wider mr-1">
             Filter:
           </span>
           {allAvailableTags.map((tag) => {
             const isSelected = selectedTag === tag;
             return (
               <button
+                type="button"
                 key={tag}
                 onClick={() => setSelectedTag(tag)}
-                className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                aria-pressed={isSelected}
+                className={`inline-flex items-center gap-1.5 shrink-0 min-h-11 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
                   isSelected
                     ? "bg-sffl-red text-white shadow-md scale-105"
                     : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-sffl-red/40 hover:text-sffl-red"
                 }`}
               >
-                {tag === "All" ? "🌐 All Tags" : `🏷️ ${tag}`}
+                {tag !== "All" && (
+                  <TagIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                )}
+                {tag === "All" ? "All Tags" : tag}
               </button>
             );
           })}
@@ -385,7 +431,10 @@ export const StorePage = () => {
         <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 max-w-md mx-auto">
           <div className="relative w-28 h-28 bg-linear-to-br from-sffl-navy to-black rounded-3xl border border-white/10 flex items-center justify-center shadow-xl">
             <div className="absolute inset-0 bg-sffl-red/20 rounded-3xl blur-xl animate-pulse"></div>
-            <span className="text-5xl relative z-10">📦</span>
+            <ArchiveBoxIcon
+              className="w-14 h-14 relative z-10 text-white"
+              aria-hidden="true"
+            />
           </div>
           <div className="space-y-2">
             <h2 className="text-2xl font-black text-sffl-navy dark:text-white uppercase italic tracking-tight">
@@ -397,11 +446,12 @@ export const StorePage = () => {
             </p>
           </div>
           <button
+            type="button"
             onClick={() => {
               setSelectedTag("All");
               setSearchQuery("");
             }}
-            className="bg-sffl-navy hover:bg-sffl-red text-white text-xs font-bold uppercase tracking-wider px-6 py-3 rounded-full shadow-lg transition-all"
+            className="min-h-11 bg-sffl-navy hover:bg-sffl-red text-white text-xs font-bold uppercase tracking-wider px-6 py-3 rounded-full shadow-lg transition-all"
           >
             Reset Filters
           </button>
@@ -411,9 +461,12 @@ export const StorePage = () => {
         <div className="space-y-10">
           {groupedByTags.map(({ tag, items }) => (
             <section key={tag} className="space-y-4">
-              <div className="flex items-center gap-3 border-b-2 border-sffl-red/20 pb-3">
-                <span className="text-2xl">🏷️</span>
-                <h2 className="text-2xl font-black italic tracking-tight text-sffl-navy dark:text-white uppercase">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b-2 border-sffl-red/20 pb-3">
+                <TagIcon
+                  className="w-6 h-6 shrink-0 text-sffl-red"
+                  aria-hidden="true"
+                />
+                <h2 className="min-w-0 text-xl sm:text-2xl font-black italic tracking-tight text-sffl-navy dark:text-white uppercase wrap-break-word">
                   {tag}
                 </h2>
                 <span className="bg-sffl-red text-white text-xs font-black px-2.5 py-0.5 rounded-full shadow-sm">
@@ -429,10 +482,14 @@ export const StorePage = () => {
       ) : groupBy === "DATE" ? (
         /* Grouped By Date View */
         <div className="space-y-10">
-          {groupedByDate.map(({ title, items }) => (
+          {groupedByDate.map(({ title, icon: Icon, items }) => (
             <section key={title} className="space-y-4">
-              <div className="flex items-center gap-3 border-b-2 border-sffl-red/20 pb-3">
-                <h2 className="text-2xl font-black italic tracking-tight text-sffl-navy dark:text-white uppercase">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b-2 border-sffl-red/20 pb-3">
+                <Icon
+                  className="w-6 h-6 shrink-0 text-sffl-red"
+                  aria-hidden="true"
+                />
+                <h2 className="min-w-0 text-xl sm:text-2xl font-black italic tracking-tight text-sffl-navy dark:text-white uppercase">
                   {title}
                 </h2>
                 <span className="bg-sffl-navy dark:bg-sffl-red text-white text-xs font-black px-2.5 py-0.5 rounded-full shadow-sm">
@@ -454,27 +511,30 @@ export const StorePage = () => {
 
       {/* Informational grid footer */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8 border-t border-gray-100 dark:border-gray-700/40">
-        <div className="bg-white/5 dark:bg-gray-800/20 border border-white/5 p-6 rounded-2xl space-y-2">
-          <h3 className="font-bold text-sm text-sffl-navy dark:text-white">
-            🚚 Swift Delivery
+        <div className="bg-white/5 dark:bg-gray-800/20 border border-white/5 p-4 sm:p-6 rounded-2xl space-y-2">
+          <h3 className="flex items-center gap-1.5 font-bold text-sm text-sffl-navy dark:text-white">
+            <TruckIcon className="w-5 h-5 shrink-0" aria-hidden="true" />
+            Swift Delivery
           </h3>
           <p className="text-xs text-gray-500 dark:text-gray-400">
             Reliable shipping across Lagos and regional locations. Orders
             typically ship within 3-5 business days with live tracking details.
           </p>
         </div>
-        <div className="bg-white/5 dark:bg-gray-800/20 border border-white/5 p-6 rounded-2xl space-y-2">
-          <h3 className="font-bold text-sm text-sffl-navy dark:text-white">
-            💳 Paystack Secured
+        <div className="bg-white/5 dark:bg-gray-800/20 border border-white/5 p-4 sm:p-6 rounded-2xl space-y-2">
+          <h3 className="flex items-center gap-1.5 font-bold text-sm text-sffl-navy dark:text-white">
+            <CreditCardIcon className="w-5 h-5 shrink-0" aria-hidden="true" />
+            Paystack Secured
           </h3>
           <p className="text-xs text-gray-500 dark:text-gray-400">
             Integrated native checking powered securely by Paystack. We process
             Visa, Mastercard, Verve, and direct electronic transfers safely.
           </p>
         </div>
-        <div className="bg-white/5 dark:bg-gray-800/20 border border-white/5 p-6 rounded-2xl space-y-2">
-          <h3 className="font-bold text-sm text-sffl-navy dark:text-white">
-            🛡️ Genuine Merchandise
+        <div className="bg-white/5 dark:bg-gray-800/20 border border-white/5 p-4 sm:p-6 rounded-2xl space-y-2">
+          <h3 className="flex items-center gap-1.5 font-bold text-sm text-sffl-navy dark:text-white">
+            <ShieldCheckIcon className="w-5 h-5 shrink-0" aria-hidden="true" />
+            Genuine Merchandise
           </h3>
           <p className="text-xs text-gray-500 dark:text-gray-400">
             All clothing products are official Showtime Flag Football items.

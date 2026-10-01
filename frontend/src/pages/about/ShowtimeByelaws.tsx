@@ -1,3 +1,5 @@
+import { BookOpenIcon, DocumentArrowDownIcon } from "@heroicons/react/24/outline";
+
 export const ShowtimeByelaws = () => {
   const pdfUrl =
     "https://cdn.showtimeflag.football/pdfs/showtime_bye_laws_and_constitution.pdf";
@@ -27,9 +29,9 @@ export const ShowtimeByelaws = () => {
             href={pdfUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-sffl-red hover:bg-red-700 text-white font-bold py-2.5 px-5 rounded-lg shadow transition active:scale-95"
+            className="inline-flex items-center gap-2 min-h-11 bg-sffl-red hover:bg-red-700 text-white font-bold py-2.5 px-5 rounded-lg shadow transition active:scale-95"
           >
-            <span>📥</span>
+            <DocumentArrowDownIcon className="w-5 h-5" aria-hidden="true" />
             <span>Download PDF</span>
           </a>
         </div>
@@ -45,8 +47,8 @@ export const ShowtimeByelaws = () => {
       </section>
 
       {/* Mobile Layout: Premium Preview Card */}
-      <section className="block md:hidden bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md space-y-6">
-        <div className="bg-linear-to-br from-sffl-navy to-blue-900 text-white p-6 rounded-xl relative overflow-hidden shadow-lg">
+      <section className="block md:hidden bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md space-y-6">
+        <div className="bg-linear-to-br from-sffl-navy to-blue-900 text-white p-5 rounded-xl relative overflow-hidden shadow-lg">
           {/* Decorative Background Icon */}
           <div className="absolute -right-5 -bottom-50 text-white/10 text-9xl font-black pointer-events-none select-none">
             PDF
@@ -71,7 +73,7 @@ export const ShowtimeByelaws = () => {
                 rel="noopener noreferrer"
                 className="w-full text-center bg-sffl-red hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition active:scale-95 shadow-md flex items-center justify-center gap-2"
               >
-                <span>📖</span>
+                <BookOpenIcon className="w-5 h-5" aria-hidden="true" />
                 <span>Open Byelaws</span>
               </a>
               <a
@@ -79,7 +81,7 @@ export const ShowtimeByelaws = () => {
                 download
                 className="w-full text-center bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold py-3 px-6 rounded-lg transition active:scale-95 flex items-center justify-center gap-2"
               >
-                <span>📥</span>
+                <DocumentArrowDownIcon className="w-5 h-5" aria-hidden="true" />
                 <span>Download PDF</span>
               </a>
             </div>

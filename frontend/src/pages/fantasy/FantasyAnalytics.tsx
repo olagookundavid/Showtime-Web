@@ -118,12 +118,12 @@ export function FantasyAnalytics() {
   const isLoading = seasonLoading || gwLoading || reportLoading;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 space-y-6">
+    <div className="space-y-6">
       <FantasyBackLink to="/fantasy" label="Back to Fantasy Hub" />
 
       {/* Hero Header Banner */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-sffl-navy text-white p-6 md:p-8 rounded-2xl shadow-xl gap-4">
-        <div>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-sffl-navy text-white p-4 sm:p-6 md:p-8 rounded-2xl shadow-xl gap-4">
+        <div className="min-w-0">
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-yellow-400 text-xs font-black uppercase tracking-wider mb-2">
             <ChartBarIcon className="w-3.5 h-3.5 text-yellow-400" />{" "}
             Week-by-Week Intelligence
@@ -139,13 +139,17 @@ export function FantasyAnalytics() {
 
         {/* Gameweek Selector Dropdown */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 self-stretch md:self-auto">
-          <span className="text-xs text-gray-300 font-bold uppercase">
+          <label
+            htmlFor="analytics-gw"
+            className="text-xs text-gray-300 font-bold uppercase"
+          >
             Gameweek:
-          </span>
+          </label>
           <select
+            id="analytics-gw"
             value={selectedGwId}
             onChange={(e) => handleSelectGw(e.target.value)}
-            className="bg-white/10 border border-white/20 text-white rounded-xl px-4 py-2 text-xs sm:text-sm font-bold focus:outline-none focus:ring-2 focus:ring-sffl-red cursor-pointer w-full sm:w-auto"
+            className="min-h-11 bg-white/10 border border-white/20 text-white rounded-xl px-4 py-2 text-xs sm:text-sm font-bold focus:outline-none focus:ring-2 focus:ring-sffl-red cursor-pointer w-full sm:w-auto"
           >
             {(gameweeks || []).map((gw) => (
               <option
@@ -182,15 +186,15 @@ export function FantasyAnalytics() {
         <div className="flex items-center gap-3">
           <Link
             to={`/fantasy/leaderboard/${seasonId}?type=overall`}
-            className="text-sffl-navy dark:text-gray-200 hover:text-sffl-red dark:hover:text-white font-bold transition inline-flex items-center gap-1"
+            className="min-h-11 text-sffl-navy dark:text-gray-200 hover:text-sffl-red dark:hover:text-white font-bold transition inline-flex items-center gap-1"
           >
-            <TrophyIcon className="w-3.5 h-3.5" /> View Standings
+            <TrophyIcon className="w-3.5 h-3.5" aria-hidden="true" /> View Standings
           </Link>
         </div>
       </div>
 
       {/* KPI Metric Cards Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 min-[400px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         {/* Average Points */}
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-sm">
           <span className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-xs font-black uppercase tracking-wider block">
@@ -276,7 +280,7 @@ export function FantasyAnalytics() {
         <button
           type="button"
           onClick={() => setSelectedTab("ownership")}
-          className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
+          className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 min-h-11 px-3 sm:px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap transition cursor-pointer ${
             selectedTab === "ownership"
               ? "bg-sffl-navy text-white shadow-sm"
               : "bg-gray-100 dark:bg-gray-700/60 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
@@ -288,7 +292,7 @@ export function FantasyAnalytics() {
         <button
           type="button"
           onClick={() => setSelectedTab("top_scorers")}
-          className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
+          className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 min-h-11 px-3 sm:px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap transition cursor-pointer ${
             selectedTab === "top_scorers"
               ? "bg-sffl-navy text-white shadow-sm"
               : "bg-gray-100 dark:bg-gray-700/60 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
@@ -300,7 +304,7 @@ export function FantasyAnalytics() {
         <button
           type="button"
           onClick={() => setSelectedTab("club_points")}
-          className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
+          className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 min-h-11 px-3 sm:px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap transition cursor-pointer ${
             selectedTab === "club_points"
               ? "bg-sffl-navy text-white shadow-sm"
               : "bg-gray-100 dark:bg-gray-700/60 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
@@ -313,7 +317,7 @@ export function FantasyAnalytics() {
         <button
           type="button"
           onClick={() => setSelectedTab("dream_team")}
-          className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
+          className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 min-h-11 px-3 sm:px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap transition cursor-pointer ${
             selectedTab === "dream_team"
               ? "bg-sffl-navy text-white shadow-sm"
               : "bg-gray-100 dark:bg-gray-700/60 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
@@ -325,7 +329,7 @@ export function FantasyAnalytics() {
         <button
           type="button"
           onClick={() => setSelectedTab("differentials")}
-          className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
+          className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 min-h-11 px-3 sm:px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap transition cursor-pointer ${
             selectedTab === "differentials"
               ? "bg-sffl-navy text-white shadow-sm"
               : "bg-gray-100 dark:bg-gray-700/60 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
@@ -341,7 +345,7 @@ export function FantasyAnalytics() {
           <div className="py-24 flex flex-col items-center justify-center gap-3 text-gray-500 dark:text-gray-400">
             <ArrowPathIcon className="w-8 h-8 animate-spin text-sffl-red" />
             <p className="text-xs font-bold uppercase tracking-wider">
-              Compiling gameweek analytics...
+              Compiling gameweek analytics…
             </p>
           </div>
         ) : isError ? (
@@ -350,7 +354,7 @@ export function FantasyAnalytics() {
             <button
               type="button"
               onClick={() => refetch()}
-              className="mt-3 px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-xs font-bold hover:bg-gray-200 dark:hover:bg-gray-600 cursor-pointer"
+              className="mt-3 min-h-11 px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-xs font-bold hover:bg-gray-200 dark:hover:bg-gray-600 cursor-pointer"
             >
               Try again
             </button>
@@ -515,7 +519,8 @@ export function FantasyAnalytics() {
                         key={pos.id}
                         type="button"
                         onClick={() => setPositionFilter(pos.id)}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-black uppercase tracking-wider transition cursor-pointer ${
+                        aria-pressed={positionFilter === pos.id}
+                        className={`min-h-11 px-3 py-1 rounded-lg text-[11px] font-black uppercase tracking-wider transition cursor-pointer ${
                           positionFilter === pos.id
                             ? "bg-sffl-navy text-white"
                             : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600"

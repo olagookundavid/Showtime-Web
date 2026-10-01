@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowRightIcon } from '@heroicons/react/24/outline';
 import { useQuery } from '@tanstack/react-query';
 import { getMatches, type Match } from '../../services/api';
 import { Spinner } from '../ui';
@@ -67,20 +68,21 @@ export const CompactMatchesWidget = ({
 
     return (
         <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 bg-sffl-navy text-white">
-                <h3 className="text-sm font-black uppercase tracking-wider">{title}</h3>
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2 bg-sffl-navy text-white">
+                <h3 className="min-w-0 text-sm font-black uppercase tracking-wider">{title}</h3>
                 <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold text-gray-300">
                         {sortedMatches.length} {sortedMatches.length === 1 ? 'Game' : 'Games'}
                     </span>
                     {viewAllLink && (
-                        <Link to={viewAllLink} className="text-[10px] font-black uppercase tracking-wider text-sffl-red hover:underline">
-                            View All →
+                        <Link to={viewAllLink} className="inline-flex items-center gap-1 min-h-11 text-[11px] font-black uppercase tracking-wider text-sffl-red hover:underline">
+                            View All
+                            <ArrowRightIcon className="w-3.5 h-3.5" aria-hidden="true" />
                         </Link>
                     )}
                 </div>
             </div>
-            <div className="p-3 space-y-2 max-h-[620px] overflow-y-auto custom-scrollbar">
+            <div className="p-3 space-y-2 max-h-155 overflow-y-auto custom-scrollbar">
                 {sortedMatches.map(m => (
                     <MatchCard
                         key={m.id}

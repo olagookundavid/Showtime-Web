@@ -2,6 +2,16 @@ import { useMemo, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
+  ArrowRightIcon,
+  ArrowUpTrayIcon,
+  CheckBadgeIcon,
+  CheckIcon,
+  ExclamationTriangleIcon,
+  LockClosedIcon,
+  MinusIcon,
+  PlusIcon,
+} from "@heroicons/react/24/outline";
+import {
   getStoreProduct,
   getProductReviews,
   type StoreProduct,
@@ -19,6 +29,7 @@ import {
 import { getVariantPrice, findVariantByValues } from "../utils/storeStock";
 import { useCart } from "../contexts/CartContext";
 import { BackButton } from "../components/common/BackButton";
+import { Spinner } from "../components/ui/Spinner";
 
 export const ProductDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -106,19 +117,17 @@ export const ProductDetailPage = () => {
 
   if (isLoading) {
     return (
-      <div className="px-4 py-16 flex flex-col items-center justify-center space-y-4">
-        <div className="w-12 h-12 border-4 border-sffl-red border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-sm font-bold text-gray-500 dark:text-gray-400">
-          Loading catalog item details...
-        </p>
-      </div>
+      <Spinner size="lg" className="py-16" label="Loading product details…" />
     );
   }
 
   if (error || !product) {
     return (
-      <div className="max-w-md mx-auto px-4 py-16 text-center space-y-6">
-        <span className="text-5xl">⚠️</span>
+      <div className="max-w-md mx-auto py-16 text-center space-y-6">
+        <ExclamationTriangleIcon
+          className="w-14 h-14 mx-auto text-amber-500"
+          aria-hidden="true"
+        />
         <div className="space-y-2">
           <h2 className="text-xl font-bold dark:text-white">
             Gear Item Not Found
@@ -130,7 +139,7 @@ export const ProductDetailPage = () => {
         </div>
         <BackButton
           fallback="/store"
-          className="inline-block bg-sffl-navy hover:bg-sffl-red text-white text-xs font-bold uppercase tracking-wider px-6 py-3 rounded-full shadow transition-all"
+          className="inline-flex items-center justify-center min-h-11 bg-sffl-navy hover:bg-sffl-red text-white text-xs font-bold uppercase tracking-wider px-6 py-3 rounded-full shadow transition-all"
         >
           Back to Store
         </BackButton>
@@ -252,12 +261,15 @@ export const ProductDetailPage = () => {
       {/* Breadcrumbs & Back Nav */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <BackButton fallback="/store" />
-        <div className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-wider">
-          <Link to="/store" className="hover:text-sffl-red transition-colors">
+        <div className="flex items-center gap-2 min-w-0 text-xs font-bold text-gray-500 uppercase tracking-wider">
+          <Link
+            to="/store"
+            className="inline-flex items-center min-h-11 hover:text-sffl-red transition-colors"
+          >
             Store
           </Link>
-          <span>/</span>
-          <span className="text-gray-900 dark:text-white truncate max-w-xs md:max-w-md">
+          <span aria-hidden="true">/</span>
+          <span className="text-gray-900 dark:text-white truncate min-w-0 max-w-[60vw] md:max-w-md">
             {product.name}
           </span>
         </div>
@@ -269,7 +281,7 @@ export const ProductDetailPage = () => {
                     description. Sticky on desktop. `lg:self-start` is critical
                     — grid items default to `stretch`, which silently breaks
                     `position:sticky`. */}
-        <div className="lg:col-span-3 lg:row-span-2 space-y-4 lg:sticky lg:top-24 lg:self-start">
+        <div className="lg:col-span-3 lg:row-span-2 space-y-4 lg:sticky lg:top-[calc(var(--chrome-h,8rem)+1rem)] lg:self-start">
           {/* Big Showcase Box */}
           <div className="relative aspect-square w-full rounded-3xl overflow-hidden bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700/50 flex items-center justify-center shadow-lg">
             {productImages.length > 0 ? (
@@ -303,8 +315,11 @@ export const ProductDetailPage = () => {
               {productImages.map((img, idx) => (
                 <button
                   key={img.id}
+                  type="button"
                   onClick={() => setActiveImageIndex(idx)}
-                  className={`relative w-20 h-20 rounded-xl overflow-hidden bg-gray-100 border-2 shrink-0 transition-all ${
+                  aria-label={`Show image ${idx + 1} of ${productImages.length}`}
+                  aria-current={displayedImageIndex === idx ? "true" : undefined}
+                  className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-gray-100 border-2 shrink-0 transition-all ${
                     displayedImageIndex === idx
                       ? "border-sffl-red scale-95 shadow-md"
                       : "border-transparent hover:border-gray-300 dark:hover:border-gray-600"
@@ -354,7 +369,7 @@ export const ProductDetailPage = () => {
         {/* Middle top (cols 4-9): Title only. On mobile this falls
                     directly after the image and before the buy box. */}
         <div className="lg:col-span-6 lg:col-start-4">
-          <h1 className="text-3xl md:text-4xl font-black italic tracking-tighter text-sffl-navy dark:text-white uppercase leading-tight">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black italic tracking-tighter text-sffl-navy dark:text-white uppercase leading-tight wrap-break-word">
             {product.name}
           </h1>
         </div>
@@ -363,8 +378,8 @@ export const ProductDetailPage = () => {
                     price, stock, quantity, Buy Now. Sticky on desktop so the
                     shopper can change the variant and hit buy without scroll
                     no matter how long the description is. */}
-        <div className="lg:col-span-3 lg:col-start-10 lg:row-span-2 lg:sticky lg:top-24 lg:self-start">
-          <div className="bg-white dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700/60 rounded-2xl p-5 shadow-lg space-y-5">
+        <div className="lg:col-span-3 lg:col-start-10 lg:row-span-2 lg:sticky lg:top-[calc(var(--chrome-h,8rem)+1rem)] lg:self-start">
+          <div className="bg-white dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700/60 rounded-2xl p-4 sm:p-5 shadow-lg space-y-5">
             {/* Price */}
             <div className="text-2xl font-black text-sffl-red leading-none">
               ₦{(activePrice ?? 0).toLocaleString()}
@@ -375,7 +390,7 @@ export const ProductDetailPage = () => {
             {product.rating_count > 0 ? (
               <Link
                 to={`/store/products/${product.id}/reviews`}
-                className="flex items-center gap-2 text-xs font-bold text-sffl-navy dark:text-gray-300 hover:text-sffl-red transition-colors"
+                className="flex flex-wrap items-center gap-2 min-h-11 text-xs font-bold text-sffl-navy dark:text-gray-300 hover:text-sffl-red transition-colors"
               >
                 <StarRating value={product.rating_avg ?? 0} size="sm" />
                 <span>{(product.rating_avg ?? 0).toFixed(1)}</span>
@@ -388,7 +403,7 @@ export const ProductDetailPage = () => {
             ) : (
               <Link
                 to={`/store/products/${product.id}/reviews`}
-                className="inline-flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-sffl-red transition-colors"
+                className="inline-flex items-center gap-2 min-h-11 text-xs font-bold text-gray-500 hover:text-sffl-red transition-colors"
               >
                 <StarRating value={0} size="sm" />
                 <span>No reviews yet</span>
@@ -411,8 +426,10 @@ export const ProductDetailPage = () => {
                         const isValueSoldOut = stockForVal === 0;
                         return (
                           <button
+                            type="button"
                             key={val.value}
                             disabled={isValueSoldOut}
+                            aria-pressed={isSelected}
                             onClick={() => {
                               if (isValueSoldOut) return;
                               setSelectedValues((prev) => {
@@ -421,8 +438,12 @@ export const ProductDetailPage = () => {
                                 return next;
                               });
                             }}
-                            title={isValueSoldOut ? "Sold out" : undefined}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-md border transition-all uppercase ${
+                            aria-label={
+                              isValueSoldOut
+                                ? `${val.value}, sold out`
+                                : undefined
+                            }
+                            className={`min-h-11 min-w-11 px-3 py-1.5 text-xs font-bold rounded-md border transition-all uppercase ${
                               isValueSoldOut
                                 ? "bg-gray-100 dark:bg-gray-800/30 border-gray-200 dark:border-gray-700 text-gray-400 line-through cursor-not-allowed"
                                 : isSelected
@@ -469,11 +490,15 @@ export const ProductDetailPage = () => {
                   <button
                     type="button"
                     onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
-                    className="px-3 py-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm font-bold"
+                    aria-label="Decrease quantity"
+                    className="min-h-11 min-w-11 flex items-center justify-center text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
                   >
-                    −
+                    <MinusIcon className="w-4 h-4" aria-hidden="true" />
                   </button>
-                  <span className="px-3 text-sm font-bold text-gray-900 dark:text-white">
+                  <span
+                    className="px-2 min-w-8 text-center text-sm font-bold text-gray-900 dark:text-white"
+                    aria-live="polite"
+                  >
                     {quantity}
                   </span>
                   <button
@@ -481,9 +506,10 @@ export const ProductDetailPage = () => {
                     onClick={() =>
                       setQuantity((prev) => Math.min(activeStock, prev + 1))
                     }
-                    className="px-3 py-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm font-bold"
+                    aria-label="Increase quantity"
+                    className="min-h-11 min-w-11 flex items-center justify-center text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
                   >
-                    +
+                    <PlusIcon className="w-4 h-4" aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -495,7 +521,7 @@ export const ProductDetailPage = () => {
               {isVariantOutOfStock ? (
                 <button
                   disabled
-                  className="w-full bg-gray-200 dark:bg-gray-700 text-gray-500 py-2.5 rounded-full font-bold text-xs uppercase tracking-wider cursor-not-allowed shadow-sm"
+                  className="w-full min-h-11 bg-gray-200 dark:bg-gray-700 text-gray-500 py-2.5 rounded-full font-bold text-xs uppercase tracking-wider cursor-not-allowed shadow-sm"
                 >
                   Out of Stock
                 </button>
@@ -505,24 +531,33 @@ export const ProductDetailPage = () => {
                     type="button"
                     onClick={handleAddToCart}
                     aria-live="polite"
-                    className={`w-full py-2.5 rounded-full font-bold text-xs uppercase tracking-wider transition-all transform active:scale-95 shadow-md ${
+                    className={`w-full min-h-11 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-full font-bold text-xs uppercase tracking-wider transition-all transform active:scale-95 shadow-md ${
                       addedToast
                         ? "bg-emerald-500 hover:bg-emerald-600 text-white"
                         : "bg-amber-400 hover:bg-amber-500 text-sffl-navy"
                     }`}
                   >
-                    {addedToast ? `✓ ${addedToast}` : "Add to Cart"}
+                    {addedToast && (
+                      <CheckIcon className="w-4 h-4" aria-hidden="true" />
+                    )}
+                    {addedToast || "Add to Cart"}
                   </button>
                   <button
+                    type="button"
                     onClick={handleBuyNow}
-                    className="w-full bg-sffl-red hover:bg-red-700 text-white py-2.5 rounded-full font-bold text-xs uppercase tracking-wider transition-all transform active:scale-95 shadow-md hover:shadow-sffl-red/20"
+                    className="w-full min-h-11 inline-flex items-center justify-center gap-1.5 bg-sffl-red hover:bg-red-700 text-white py-2.5 rounded-full font-bold text-xs uppercase tracking-wider transition-all transform active:scale-95 shadow-md hover:shadow-sffl-red/20"
                   >
-                    Buy Now →
+                    Buy Now
+                    <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
                   </button>
                 </>
               )}
               <p className="text-center text-[10px] text-sffl-navy dark:text-gray-400 font-bold uppercase tracking-wider flex items-center justify-center gap-1.5">
-                <span className="text-sffl-red">🔒</span> Secured by Paystack
+                <LockClosedIcon
+                  className="w-4 h-4 text-sffl-red"
+                  aria-hidden="true"
+                />
+                Secured by Paystack
               </p>
             </div>
 
@@ -532,7 +567,7 @@ export const ProductDetailPage = () => {
                 type="button"
                 onClick={handleShare}
                 aria-live="polite"
-                className={`inline-flex items-center gap-2 text-xs font-bold transition-colors ${
+                className={`inline-flex items-center gap-2 min-h-11 text-xs font-bold transition-colors ${
                   shareToast
                     ? "text-emerald-600 dark:text-emerald-400"
                     : "text-sffl-navy dark:text-gray-200 hover:text-sffl-red"
@@ -540,36 +575,12 @@ export const ProductDetailPage = () => {
               >
                 {shareToast ? (
                   <>
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2.5}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
+                    <CheckIcon className="w-4 h-4" aria-hidden="true" />
                     {shareToast}
                   </>
                 ) : (
                   <>
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M16 8l-4-4m0 0L8 8m4-4v12"
-                      />
-                    </svg>
+                    <ArrowUpTrayIcon className="w-4 h-4" aria-hidden="true" />
                     Share
                   </>
                 )}
@@ -585,7 +596,7 @@ export const ProductDetailPage = () => {
                 <button
                   type="button"
                   onClick={() => setOpenPolicy("return")}
-                  className="text-sffl-navy dark:text-white underline underline-offset-2 hover:text-sffl-red font-bold"
+                  className="relative after:absolute after:-inset-y-3 after:inset-x-0 text-sffl-navy dark:text-white underline underline-offset-2 hover:text-sffl-red font-bold"
                 >
                   Return Policy
                 </button>
@@ -596,7 +607,7 @@ export const ProductDetailPage = () => {
                 <button
                   type="button"
                   onClick={() => setOpenPolicy("shipping")}
-                  className="text-sffl-navy dark:text-white underline underline-offset-2 hover:text-sffl-red font-bold"
+                  className="relative after:absolute after:-inset-y-3 after:inset-x-0 text-sffl-navy dark:text-white underline underline-offset-2 hover:text-sffl-red font-bold"
                 >
                   Shipping Policy
                 </button>
@@ -607,7 +618,7 @@ export const ProductDetailPage = () => {
                 <button
                   type="button"
                   onClick={() => setOpenPolicy("privacy")}
-                  className="text-sffl-navy dark:text-white underline underline-offset-2 hover:text-sffl-red font-bold"
+                  className="relative after:absolute after:-inset-y-3 after:inset-x-0 text-sffl-navy dark:text-white underline underline-offset-2 hover:text-sffl-red font-bold"
                 >
                   Privacy Policy
                 </button>
@@ -641,23 +652,23 @@ export const ProductDetailPage = () => {
                         still surface the entry point so a verified customer can
                         write the first one. */}
           <div className="space-y-4 pt-6 border-t dark:border-gray-700/40">
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
               <h3 className="text-xs uppercase font-black text-sffl-navy dark:text-gray-400 tracking-wider">
                 Customer Reviews
               </h3>
               <Link
                 to={`/store/products/${product.id}/reviews`}
-                className="text-xs font-black uppercase tracking-wider text-sffl-red hover:underline"
+                className="inline-flex items-center gap-1 min-h-11 text-xs font-black uppercase tracking-wider text-sffl-red hover:underline"
               >
                 {product.rating_count > 0
                   ? `See all ${product.rating_count}`
-                  : "Write a review"}{" "}
-                →
+                  : "Write a review"}
+                <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
               </Link>
             </div>
 
             {product.rating_count > 0 && (
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <StarRating value={product.rating_avg} size="md" />
                 <span className="text-lg font-black text-sffl-navy dark:text-white">
                   {(product.rating_avg ?? 0).toFixed(1)}
@@ -689,11 +700,16 @@ export const ProductDetailPage = () => {
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 text-[11px] text-gray-500 dark:text-gray-400 font-bold">
-                      <span>{r.user_name}</span>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-gray-500 dark:text-gray-400 font-bold">
+                      <span className="min-w-0 break-all">{r.user_name}</span>
                       {r.verified_purchase && (
-                        <span className="text-emerald-600 dark:text-emerald-400">
-                          · ✓ Verified Purchase
+                        <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                          <span aria-hidden="true">·</span>
+                          <CheckBadgeIcon
+                            className="w-3.5 h-3.5"
+                            aria-hidden="true"
+                          />
+                          Verified Purchase
                         </span>
                       )}
                       <span className="text-gray-400">
@@ -701,7 +717,7 @@ export const ProductDetailPage = () => {
                       </span>
                     </div>
                     {r.body && (
-                      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
+                      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line wrap-break-word">
                         {r.body}
                       </p>
                     )}

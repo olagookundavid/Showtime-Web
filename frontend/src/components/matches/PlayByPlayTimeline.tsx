@@ -2,7 +2,8 @@ import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { API_URL, getMatchPlays, type GamePlay } from '../../services/api';
 import { Spinner } from '../ui';
-import { ClockIcon } from '@heroicons/react/24/outline';
+import { ClockIcon, FlagIcon } from '@heroicons/react/24/outline';
+import { FootballIcon } from '../icons/FootballIcon';
 import { isScore, isPickSix, isReturnTD, isTurnover, isOneMinWarning, isInjury } from '../../utils/playClassification';
 
 const who = (p?: { name: string; jersey_number: number }) => (p ? (p.jersey_number ? `#${p.jersey_number} ${p.name}` : p.name) : '');
@@ -38,7 +39,7 @@ function describe(p: GamePlay): string {
         if (isReturnTD(p)) {
             parts.push(`Return TD: ${who(p.target)}`);
         } else {
-            parts.push(`→ ${who(p.target)}`);
+            parts.push(`to ${who(p.target)}`);
         }
     }
     if (p.batted_down) {
@@ -104,7 +105,7 @@ export const PlayByPlayTimeline = ({ matchId, isLive, showEmpty = false }: { mat
         if (!showEmpty) return null;
         return (
             <div className="bg-white dark:bg-gray-800/80 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/50 py-14 text-center">
-                <div className="text-4xl mb-4">🏈</div>
+                <FootballIcon className="w-10 h-10 mx-auto mb-4 text-gray-400" aria-hidden="true" />
                 <p className="text-gray-500 dark:text-gray-400 font-semibold text-sm">No play-by-play logged for this match yet.</p>
             </div>
         );
@@ -123,7 +124,7 @@ export const PlayByPlayTimeline = ({ matchId, isLive, showEmpty = false }: { mat
 
     return (
         <div className="bg-white dark:bg-gray-800/80 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/50 overflow-hidden">
-            <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-700/50 flex items-center justify-between">
+            <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100 dark:border-gray-700/50 flex items-center justify-between gap-3">
                 <h3 className="text-xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">Play by Play</h3>
                 {isLive && <span className="inline-flex items-center gap-1.5 text-xs font-black text-red-500"><span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /> LIVE</span>}
             </div>
@@ -144,7 +145,7 @@ export const PlayByPlayTimeline = ({ matchId, isLive, showEmpty = false }: { mat
 
                                 if (endPeriod) {
                                     return (
-                                        <li key={p.id} className="my-5 py-3 px-4 bg-slate-900 dark:bg-slate-950 text-white rounded-xl border border-slate-700 text-center font-black tracking-widest text-xs uppercase shadow-md flex items-center justify-between">
+                                        <li key={p.id} className="my-5 py-3 px-3 sm:px-4 bg-slate-900 dark:bg-slate-950 text-white rounded-xl border border-slate-700 text-center font-black tracking-wider sm:tracking-widest text-xs uppercase shadow-md flex flex-wrap items-center justify-between gap-2">
                                             <span className="text-[11px] font-bold text-slate-400">H{p.quarter}{p.clock ? ` · ${p.clock}` : ''}</span>
                                             <span className="flex-1 text-center font-extrabold text-amber-300 tracking-widest inline-flex items-center justify-center gap-1.5">
                                                 <ClockIcon className="w-4 h-4" aria-hidden="true" />
@@ -160,7 +161,7 @@ export const PlayByPlayTimeline = ({ matchId, isLive, showEmpty = false }: { mat
                                 }
 
                                 return (
-                                    <li key={p.id} className={`flex items-start gap-2.5 sm:gap-3 rounded-xl p-2.5 transition-colors ${
+                                    <li key={p.id} className={`flex flex-wrap sm:flex-nowrap items-start gap-x-2.5 gap-y-1 sm:gap-3 rounded-xl p-2.5 transition-colors ${
                                         scored
                                             ? 'bg-emerald-50/90 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/40'
                                             : turnover
@@ -171,7 +172,7 @@ export const PlayByPlayTimeline = ({ matchId, isLive, showEmpty = false }: { mat
                                                         ? 'bg-amber-100/90 dark:bg-amber-950/50 border-2 border-amber-400/80 dark:border-amber-700'
                                                         : 'hover:bg-gray-50/80 dark:hover:bg-gray-700/40'
                                     }`}>
-                                        <div className="flex flex-col items-start gap-1 shrink-0 w-20 sm:w-24 pt-0.5">
+                                        <div className="flex flex-col items-start gap-1 shrink-0 w-14 sm:w-24 pt-0.5">
                                             <span className="text-[11px] font-bold text-gray-400 tabular-nums">
                                                 H{p.quarter}{p.clock ? ` ${p.clock}` : ''}
                                             </span>
@@ -182,7 +183,7 @@ export const PlayByPlayTimeline = ({ matchId, isLive, showEmpty = false }: { mat
                                             )}
                                         </div>
                                         <div className="min-w-0 flex-1">
-                                            <span className="text-xs sm:text-sm text-gray-800 dark:text-gray-100">
+                                            <span className="text-xs sm:text-sm text-gray-800 dark:text-gray-100 wrap-break-word">
                                                 {p.play_type && <span className="font-bold text-sffl-navy dark:text-white">{PLAY_LABEL[p.play_type] || p.play_type}: </span>}
                                                 {describe(p)}
                                             </span>
@@ -208,10 +209,13 @@ export const PlayByPlayTimeline = ({ matchId, isLive, showEmpty = false }: { mat
                                                 </span>
                                             )}
                                             {p.penalty && p.play_type && (
-                                                <span className="ml-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">⚑ {p.penalty}</span>
+                                                <span className="ml-1.5 inline-flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400">
+                                                    <FlagIcon className="w-3.5 h-3.5 shrink-0" aria-label="Penalty" />
+                                                    {p.penalty}
+                                                </span>
                                             )}
                                         </div>
-                                        <div className="flex items-center gap-2 shrink-0 pt-0.5">
+                                        <div className="flex items-center justify-end gap-2 w-full sm:w-auto shrink-0 pt-0.5">
                                             {p.yards != null && (p.play_type === 'CP' || p.play_type === 'TDP' || p.play_type === 'RUN' || p.play_type === 'QBR' || p.play_type === 'SACK') && (
                                                 <span className="text-[11px] font-mono font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700/80 px-1.5 py-0.5 rounded">
                                                     {p.yards >= 0 ? '+' : ''}{p.yards} yd

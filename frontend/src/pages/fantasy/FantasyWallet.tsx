@@ -10,10 +10,13 @@ import {
     TrophyIcon,
     ReceiptRefundIcon,
     InformationCircleIcon,
-    XMarkIcon,
     BuildingLibraryIcon,
     ArrowRightIcon,
+    ArrowPathIcon,
 } from '@heroicons/react/24/outline';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
+import { Spinner } from '../../components/ui/Spinner';
 import {
     fantasyWalletApi,
     formatKobo,
@@ -193,14 +196,14 @@ export function FantasyWallet() {
     const transactions = wallet.transactions || [];
 
     return (
-        <div className="space-y-6 md:space-y-8 pb-36 md:pb-24">
+        <div className="space-y-6 md:space-y-8">
             <FantasyBackLink to="/fantasy/dashboard" label="Back to Dashboard" />
             {/* Header Showtime Navy Banner */}
-            <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-6 md:p-8">
+            <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-4 sm:p-6 md:p-8">
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-yellow-400 text-xs font-bold uppercase mb-2">
                     <BanknotesIcon className="w-3.5 h-3.5" /> Fantasy Wallet
                 </div>
-                <h1 className="text-3xl md:text-5xl font-black italic uppercase tracking-tight text-white">Your Winnings</h1>
+                <h1 className="text-2xl sm:text-3xl md:text-5xl font-black italic uppercase tracking-tight text-white">Your Winnings</h1>
                 <p className="text-xs md:text-sm text-gray-300 mt-1 font-medium">
                     Prize money from your leagues lands here. Request a payout and we'll transfer it directly to your bank account.
                 </p>
@@ -208,13 +211,13 @@ export function FantasyWallet() {
 
             <div className="space-y-8">
                 {/* ── Balance Hero ──────────────────────────────────────────── */}
-                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 sm:p-8 shadow-sm">
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 sm:p-8 shadow-sm">
                     <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
-                        <div>
+                        <div className="min-w-0">
                             <span className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                 Available Balance
                             </span>
-                            <p className="text-4xl sm:text-5xl font-black text-sffl-red mt-1 tracking-tight">
+                            <p className="text-3xl sm:text-5xl font-black text-sffl-red mt-1 tracking-tight break-all">
                                 {formatKobo(wallet.balance_kobo)}
                             </p>
                             {wallet.pending_payout_kobo > 0 && (
@@ -231,12 +234,12 @@ export function FantasyWallet() {
                             )}
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 lg:min-w-[320px]">
+                        <div className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-3 lg:min-w-80">
                             <div className="bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3">
                                 <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-1">
                                     <TrophyIcon className="w-3.5 h-3.5 text-amber-500" /> Lifetime Won
                                 </span>
-                                <p className="text-lg font-black text-gray-900 dark:text-white mt-1">
+                                <p className="text-lg font-black text-gray-900 dark:text-white mt-1 break-all">
                                     {formatKobo(wallet.lifetime_won_kobo)}
                                 </p>
                             </div>
@@ -244,7 +247,7 @@ export function FantasyWallet() {
                                 <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-1">
                                     <ArrowUpTrayIcon className="w-3.5 h-3.5 text-emerald-500" /> Lifetime Paid Out
                                 </span>
-                                <p className="text-lg font-black text-gray-900 dark:text-white mt-1">
+                                <p className="text-lg font-black text-gray-900 dark:text-white mt-1 break-all">
                                     {formatKobo(wallet.lifetime_paid_kobo)}
                                 </p>
                             </div>
@@ -254,7 +257,7 @@ export function FantasyWallet() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
                     {/* ── Request Payout ────────────────────────────────────── */}
-                    <div className="lg:col-span-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm">
+                    <div className="lg:col-span-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 sm:p-6 shadow-sm">
                         <h2 className="text-xl font-black uppercase tracking-wider text-sffl-navy dark:text-white mb-1 flex items-center gap-2">
                             <ArrowDownTrayIcon className="w-5 h-5 text-sffl-red" /> Request Payout
                         </h2>
@@ -280,7 +283,7 @@ export function FantasyWallet() {
                                 </p>
                                 <Link
                                     to="/fantasy/leagues"
-                                    className="mt-4 inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-extrabold text-xs uppercase transition shadow-md"
+                                    className="mt-4 inline-flex items-center gap-1.5 min-h-11 px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-extrabold text-xs uppercase transition shadow-md"
                                 >
                                     Find a Prize League <ArrowRightIcon className="w-3.5 h-3.5" />
                                 </Link>
@@ -299,7 +302,7 @@ export function FantasyWallet() {
                                         value={form.amountNaira}
                                         onChange={(e) => setForm({ ...form, amountNaira: e.target.value })}
                                         placeholder="e.g. 5000"
-                                        className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
+                                        className="w-full min-h-11 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                                     />
                                     <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
                                         Minimum {formatKobo(wallet.min_payout_kobo)} · Available{' '}
@@ -316,7 +319,7 @@ export function FantasyWallet() {
                                         value={form.bankName}
                                         onChange={(e) => setForm({ ...form, bankName: e.target.value })}
                                         placeholder="e.g. Guaranty Trust Bank"
-                                        className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
+                                        className="w-full min-h-11 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                                     />
                                 </div>
 
@@ -331,7 +334,7 @@ export function FantasyWallet() {
                                         onChange={(e) => setForm({ ...form, accountNumber: e.target.value })}
                                         placeholder="10-digit NUBAN"
                                         maxLength={20}
-                                        className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm font-mono tracking-wider text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
+                                        className="w-full min-h-11 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm font-mono tracking-wider text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                                     />
                                 </div>
 
@@ -344,7 +347,7 @@ export function FantasyWallet() {
                                         value={form.accountName}
                                         onChange={(e) => setForm({ ...form, accountName: e.target.value })}
                                         placeholder="Exactly as your bank has it"
-                                        className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
+                                        className="w-full min-h-11 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
                                     />
                                 </div>
 
@@ -358,7 +361,7 @@ export function FantasyWallet() {
                                         rows={3}
                                         maxLength={500}
                                         placeholder="Anything you want us to know about this transfer."
-                                        className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red resize-none"
+                                        className="w-full min-h-11 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red resize-none"
                                     />
                                     <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 text-right">
                                         {form.userNotes.length} / 500
@@ -366,15 +369,15 @@ export function FantasyWallet() {
                                 </div>
 
                                 <button
+                                    type="button"
                                     onClick={() => requestMutation.mutate()}
                                     disabled={!canSubmit}
-                                    className="w-full py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:text-gray-500 text-white font-black text-xs uppercase transition active:scale-95 disabled:active:scale-100 shadow-md cursor-pointer disabled:cursor-not-allowed"
+                                    className="w-full min-h-11 inline-flex items-center justify-center gap-2 py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:text-gray-500 text-white font-black text-xs uppercase transition active:scale-95 disabled:active:scale-100 shadow-md cursor-pointer disabled:cursor-not-allowed"
                                 >
-                                    {requestMutation.isPending ? (
-                                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
-                                    ) : (
-                                        'Request Payout'
+                                    {requestMutation.isPending && (
+                                        <ArrowPathIcon className="w-4 h-4 animate-spin" aria-hidden="true" />
                                     )}
+                                    {requestMutation.isPending ? 'Sending request…' : 'Request Payout'}
                                 </button>
 
                                 {disabledReason && (
@@ -394,9 +397,7 @@ export function FantasyWallet() {
                         </h2>
 
                         {payoutsLoading ? (
-                            <div className="py-8 flex justify-center">
-                                <div className="w-8 h-8 border-2 border-sffl-red border-t-transparent rounded-full animate-spin" />
-                            </div>
+                            <Spinner label="Loading payout requests…" className="py-8" />
                         ) : payouts.length === 0 ? (
                             <div className="p-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 text-center shadow-sm">
                                 <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -408,10 +409,10 @@ export function FantasyWallet() {
                                 {payouts.map((p) => (
                                     <div
                                         key={p.id}
-                                        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 shadow-sm"
+                                        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 sm:p-5 shadow-sm"
                                     >
                                         <div className="flex flex-wrap items-start justify-between gap-3">
-                                            <div>
+                                            <div className="min-w-0">
                                                 <div className="flex items-center gap-2">
                                                     <span
                                                         className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${STATUS_STYLES[p.status]}`}
@@ -422,10 +423,10 @@ export function FantasyWallet() {
                                                         {formatDate(p.created_at)}
                                                     </span>
                                                 </div>
-                                                <p className="text-2xl font-black text-sffl-red mt-1.5">
+                                                <p className="text-xl sm:text-2xl font-black text-sffl-red mt-1.5 break-all">
                                                     {formatKobo(p.amount_kobo)}
                                                 </p>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 wrap-break-word">
                                                     {p.bank_name}
                                                     <span className="text-gray-300 dark:text-gray-600"> · </span>
                                                     <span className="font-mono font-bold text-gray-900 dark:text-white">{p.account_number}</span>
@@ -436,8 +437,9 @@ export function FantasyWallet() {
 
                                             {p.status === 'PENDING' && (
                                                 <button
+                                                    type="button"
                                                     onClick={() => setCancelTarget(p)}
-                                                    className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-sffl-red border border-gray-200 dark:border-gray-600 text-xs font-bold text-gray-700 dark:text-gray-200 transition cursor-pointer"
+                                                    className="min-h-11 px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-sffl-red border border-gray-200 dark:border-gray-600 text-xs font-bold text-gray-700 dark:text-gray-200 transition cursor-pointer"
                                                 >
                                                     Cancel Request
                                                 </button>
@@ -469,7 +471,7 @@ export function FantasyWallet() {
                         )}
 
                         {(payoutsPaged?.total_pages ?? 0) > 1 && (
-                            <div className="mt-4 flex items-center justify-between gap-3">
+                            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                                 <span className="text-[11px] text-gray-500 dark:text-gray-400">
                                     Page {payoutsPaged?.page || payoutsPage} of {payoutsPaged?.total_pages} ·{' '}
                                     {payoutsPaged?.total ?? 0} requests
@@ -479,7 +481,7 @@ export function FantasyWallet() {
                                         type="button"
                                         onClick={() => setPayoutsPage((p) => Math.max(1, p - 1))}
                                         disabled={payoutsPage <= 1}
-                                        className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-[11px] font-black uppercase transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                        className="min-h-11 px-4 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-[11px] font-black uppercase transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                                     >
                                         Prev
                                     </button>
@@ -489,7 +491,7 @@ export function FantasyWallet() {
                                             setPayoutsPage((p) => Math.min(payoutsPaged?.total_pages ?? 1, p + 1))
                                         }
                                         disabled={payoutsPage >= (payoutsPaged?.total_pages ?? 1)}
-                                        className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-[11px] font-black uppercase transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                        className="min-h-11 px-4 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-[11px] font-black uppercase transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                                     >
                                         Next
                                     </button>
@@ -517,7 +519,7 @@ export function FantasyWallet() {
                                 {transactions.map((tx) => (
                                     <div
                                         key={tx.id}
-                                        className="px-4 sm:px-5 py-3.5 flex items-start justify-between gap-4 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition"
+                                        className="px-4 sm:px-5 py-3.5 flex items-start justify-between gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition"
                                     >
                                         <div className="min-w-0">
                                             <div className="flex items-center gap-2 flex-wrap">
@@ -530,7 +532,7 @@ export function FantasyWallet() {
                                                     </span>
                                                 )}
                                             </div>
-                                            <p className="text-sm font-bold text-gray-900 dark:text-white mt-1">{tx.description}</p>
+                                            <p className="text-sm font-bold text-gray-900 dark:text-white mt-1 wrap-break-word">{tx.description}</p>
                                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                                                 {formatDateTime(tx.created_at)}
                                             </p>
@@ -550,47 +552,29 @@ export function FantasyWallet() {
                 </div>
             </div>
 
-            {/* Cancel Confirmation Modal */}
-            {cancelTarget && (
-                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 pt-[calc(var(--chrome-h)+1rem)] transition-[padding] duration-300 motion-reduce:transition-none" data-dialog>
-                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 w-full max-w-md rounded-3xl p-6 shadow-2xl">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-black text-sffl-navy dark:text-white uppercase">Cancel Payout Request</h3>
-                            <button
-                                onClick={() => setCancelTarget(null)}
-                                className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300"
-                            >
-                                <XMarkIcon className="w-5 h-5" />
-                            </button>
-                        </div>
-                        <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
-                            Cancel your{' '}
-                            <span className="text-sffl-red font-bold">{formatKobo(cancelTarget.amount_kobo)}</span> request
-                            to {cancelTarget.bank_name}? The full amount returns to your wallet balance straight away
-                            and you can request it again whenever you like.
-                        </p>
-                        <div className="flex items-center gap-3">
-                            <button
-                                onClick={() => setCancelTarget(null)}
-                                className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold text-xs uppercase transition cursor-pointer"
-                            >
-                                Keep Request
-                            </button>
-                            <button
-                                onClick={() => cancelMutation.mutate(cancelTarget.id)}
-                                disabled={cancelMutation.isPending}
-                                className="flex-1 py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-black text-xs uppercase transition shadow-md cursor-pointer"
-                            >
-                                {cancelMutation.isPending ? (
-                                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
-                                ) : (
-                                    'Cancel & Refund'
-                                )}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Cancel Confirmation */}
+            <ConfirmDialog
+                open={!!cancelTarget}
+                title="Cancel this payout request?"
+                description="The full amount returns to your wallet balance straight away, and you can request it again whenever you like."
+                body={
+                    cancelTarget && (
+                        <ConfirmSummary
+                            rows={[
+                                ['Amount', formatKobo(cancelTarget.amount_kobo)],
+                                ['Bank', cancelTarget.bank_name],
+                                ['Account', `${cancelTarget.account_number} · ${cancelTarget.account_name}`],
+                            ]}
+                        />
+                    )
+                }
+                confirmLabel="Cancel & refund"
+                tone="warning"
+                icon={BanknotesIcon}
+                pending={cancelMutation.isPending}
+                onConfirm={() => cancelTarget && cancelMutation.mutate(cancelTarget.id)}
+                onCancel={() => setCancelTarget(null)}
+            />
         </div>
     );
 }

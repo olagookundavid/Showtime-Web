@@ -1,15 +1,16 @@
+import { EnvelopeIcon } from '@heroicons/react/24/outline';
 import { CopyableEmail } from '../../components/common/CopyableEmail';
 
 export const PrivacyPolicy = () => {
     return (
-        <div className="space-y-4 md:space-y-8 pb-36 md:pb-16">
+        <div className="space-y-4 md:space-y-8">
             <div className="bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
                 <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">PRIVACY POLICY</h1>
                 <p className="text-gray-300 mt-2">How we collect, use, and protect your information</p>
                 <p className="text-gray-400 text-sm mt-1">Last updated: 27 June 2026</p>
             </div>
 
-            <section className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-xl shadow-md space-y-6 text-gray-700 dark:text-gray-100 leading-relaxed">
+            <section className="bg-white dark:bg-gray-800 p-4 sm:p-6 md:p-8 rounded-xl shadow-md space-y-6 text-gray-700 dark:text-gray-100 leading-relaxed wrap-break-word">
                 <p>
                     This Privacy Policy explains how the Showtime Flag Football League ("Showtime", "we",
                     "us", or "our") collects, uses, and safeguards your information when you visit
@@ -128,7 +129,7 @@ export const PrivacyPolicy = () => {
                         If you have any questions about this Privacy Policy or how we handle your information,
                         please reach out:
                     </p>
-                    <CopyableEmail email="showtime@showtimeflag.football" label="✉️" className="text-sffl-red font-bold text-lg" />
+                    <CopyableEmail email="showtime@showtimeflag.football" label={<EnvelopeIcon className="w-5 h-5" aria-label="Email" />} className="text-sffl-red font-bold text-base sm:text-lg" />
                 </div>
             </section>
         </div>

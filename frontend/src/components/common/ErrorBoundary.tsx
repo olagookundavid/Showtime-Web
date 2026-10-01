@@ -1,4 +1,15 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import {
+    ArrowPathIcon,
+    ArrowRightIcon,
+    BoltIcon,
+    ClockIcon,
+    ChevronDownIcon,
+    ChevronUpIcon,
+    HomeIcon,
+    TrashIcon,
+    WrenchScrewdriverIcon,
+} from '@heroicons/react/24/outline';
 
 interface Props {
     children?: ReactNode;
@@ -159,7 +170,8 @@ export class ErrorBoundary extends Component<Props, State> {
 
                                 {/* Status Tag */}
                                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 text-[11px] font-black uppercase tracking-wider border border-amber-200 dark:border-amber-900/40">
-                                    <span>⏱️ Quick Timeout on the Play</span>
+                                    <ClockIcon className="w-4 h-4" aria-hidden="true" />
+                                    <span>Quick Timeout on the Play</span>
                                 </div>
 
                                 {/* Main Heading & Narrative */}
@@ -177,23 +189,26 @@ export class ErrorBoundary extends Component<Props, State> {
                                     <button
                                         type="button"
                                         onClick={this.handleReload}
-                                        className="w-full sm:w-auto px-6 py-3 bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-sffl-red/30 active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                                        className="w-full sm:w-auto min-h-11 px-6 py-3 bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-sffl-red/30 active:scale-95 cursor-pointer flex items-center justify-center gap-2"
                                     >
-                                        <span>⚡ Kindly Refresh</span>
+                                        <BoltIcon className="w-4 h-4" aria-hidden="true" />
+                                        <span>Kindly Refresh</span>
                                     </button>
                                     <button
                                         type="button"
                                         onClick={this.handleReset}
-                                        className="w-full sm:w-auto px-5 py-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold text-xs rounded-xl border border-gray-200 dark:border-gray-700 transition-all shadow-sm active:scale-95 cursor-pointer"
+                                        className="w-full sm:w-auto min-h-11 inline-flex items-center justify-center gap-2 px-5 py-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold text-xs rounded-xl border border-gray-200 dark:border-gray-700 transition-all shadow-sm active:scale-95 cursor-pointer"
                                     >
-                                        🔄 Try again
+                                        <ArrowPathIcon className="w-4 h-4" aria-hidden="true" />
+                                        Try again
                                     </button>
                                     <button
                                         type="button"
                                         onClick={this.handleGoHome}
-                                        className="w-full sm:w-auto px-5 py-3 bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold text-xs rounded-xl border border-gray-300 dark:border-gray-700 transition-all shadow-sm active:scale-95 cursor-pointer"
+                                        className="w-full sm:w-auto min-h-11 inline-flex items-center justify-center gap-2 px-5 py-3 bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold text-xs rounded-xl border border-gray-300 dark:border-gray-700 transition-all shadow-sm active:scale-95 cursor-pointer"
                                     >
-                                        🏠 Home
+                                        <HomeIcon className="w-4 h-4" aria-hidden="true" />
+                                        Home
                                     </button>
                                 </div>
 
@@ -205,9 +220,10 @@ export class ErrorBoundary extends Component<Props, State> {
                                             recordRefreshAttempt();
                                             this.setState({ stage: 'developer_working' });
                                         }}
-                                        className="text-xs font-semibold text-gray-500 hover:text-sffl-red dark:text-gray-400 dark:hover:text-gray-200 underline decoration-dotted transition-colors cursor-pointer"
+                                        className="min-h-11 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-sffl-red dark:text-gray-400 dark:hover:text-gray-200 underline decoration-dotted transition-colors cursor-pointer"
                                     >
-                                        Refresh didn't work? It might be on our end →
+                                        Refresh didn't work? It might be on our end
+                                        <ArrowRightIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
                                     </button>
                                 </div>
                             </>
@@ -235,7 +251,8 @@ export class ErrorBoundary extends Component<Props, State> {
 
                                 {/* Status Tag */}
                                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 text-[11px] font-black uppercase tracking-wider border border-red-200 dark:border-red-900/40">
-                                    <span>🛠️ It's Not You, It's Us</span>
+                                    <WrenchScrewdriverIcon className="w-4 h-4" aria-hidden="true" />
+                                    <span>It's Not You, It's Us</span>
                                 </div>
 
                                 {/* Main Heading & Narrative */}
@@ -253,24 +270,27 @@ export class ErrorBoundary extends Component<Props, State> {
                                     <button
                                         type="button"
                                         onClick={this.handleGoHome}
-                                        className="w-full sm:w-auto px-6 py-3 bg-sffl-navy hover:bg-sffl-navy/90 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
+                                        className="w-full sm:w-auto min-h-11 inline-flex items-center justify-center gap-2 px-6 py-3 bg-sffl-navy hover:bg-sffl-navy/90 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
                                     >
-                                        🏠 Return Home
+                                        <HomeIcon className="w-4 h-4" aria-hidden="true" />
+                                        Return Home
                                     </button>
                                     <button
                                         type="button"
                                         onClick={this.handleClearCacheReload}
-                                        className="w-full sm:w-auto px-5 py-3 bg-sffl-red hover:bg-[#A52323] text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
+                                        className="w-full sm:w-auto min-h-11 inline-flex items-center justify-center gap-2 px-5 py-3 bg-sffl-red hover:bg-[#A52323] text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
                                         title="Flush browser cache and reload the application fresh"
                                     >
-                                        🧹 Clear Cache &amp; Reload
+                                        <TrashIcon className="w-4 h-4" aria-hidden="true" />
+                                        Clear Cache &amp; Reload
                                     </button>
                                     <button
                                         type="button"
                                         onClick={this.handleReset}
-                                        className="w-full sm:w-auto px-4 py-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold text-xs rounded-xl border border-gray-200 dark:border-gray-700 transition-all shadow-sm active:scale-95 cursor-pointer"
+                                        className="w-full sm:w-auto min-h-11 inline-flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold text-xs rounded-xl border border-gray-200 dark:border-gray-700 transition-all shadow-sm active:scale-95 cursor-pointer"
                                     >
-                                        🔄 Try Again
+                                        <ArrowPathIcon className="w-4 h-4" aria-hidden="true" />
+                                        Try Again
                                     </button>
                                 </div>
 
@@ -295,9 +315,13 @@ export class ErrorBoundary extends Component<Props, State> {
                                 <button
                                     type="button"
                                     onClick={this.toggleDetails}
-                                    className="text-[11px] font-bold text-gray-400 hover:text-sffl-navy dark:hover:text-white transition-colors cursor-pointer"
+                                    aria-expanded={showDetails}
+                                    className="min-h-11 inline-flex items-center gap-1 text-[11px] font-bold text-gray-400 hover:text-sffl-navy dark:hover:text-white transition-colors cursor-pointer"
                                 >
-                                    {showDetails ? 'Hide technical log ▲' : 'Show technical log ▼'}
+                                    {showDetails ? 'Hide technical log' : 'Show technical log'}
+                                    {showDetails
+                                        ? <ChevronUpIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                                        : <ChevronDownIcon className="w-3.5 h-3.5" aria-hidden="true" />}
                                 </button>
                                 {showDetails && (
                                     <div className="mt-3 p-3 bg-gray-950 text-red-300 rounded-xl text-left font-mono text-[11px] leading-snug overflow-x-auto max-h-40 border border-gray-800">

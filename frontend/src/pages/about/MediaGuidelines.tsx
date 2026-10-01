@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import { CopyableEmail } from "../../components/common/CopyableEmail";
 
 interface GuidelineSection {
@@ -271,24 +272,24 @@ export const MediaGuidelines = () => {
   ];
 
   return (
-    <div className="space-y-4 md:space-y-8 pb-36 md:pb-16">
+    <div className="space-y-4 md:space-y-8">
       {/* Header */}
-      <div className="bg-sffl-navy text-white p-8 md:p-12 rounded-3xl shadow-2xl flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
+      <div className="bg-sffl-navy text-white p-5 sm:p-8 md:p-12 rounded-3xl shadow-2xl flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-10" />
-        <div className="text-center md:text-left z-10">
-          <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase">
+        <div className="text-center md:text-left z-10 min-w-0">
+          <h1 className="text-2xl sm:text-3xl md:text-5xl font-black italic tracking-tighter uppercase wrap-break-word">
             Media Accreditation
           </h1>
-          <p className="text-xl text-gray-300 mt-2 font-semibold tracking-wider uppercase">
+          <p className="text-sm sm:text-xl text-gray-300 mt-2 font-semibold tracking-wider uppercase">
             Guidelines for Content Creators & Journalists
           </p>
         </div>
       </div>
 
       {/* Purpose Section */}
-      <section className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl border-l-8 border-sffl-red">
-        <h2 className="text-2xl font-black text-sffl-navy dark:text-white mb-4 flex items-center gap-2">
-          <span className="text-sffl-red">📌</span> PURPOSE
+      <section className="bg-white dark:bg-gray-800 p-5 sm:p-8 rounded-2xl shadow-xl border-l-8 border-sffl-red">
+        <h2 className="text-xl sm:text-2xl font-black text-sffl-navy dark:text-white mb-4">
+          PURPOSE
         </h2>
         <div className="text-gray-700 dark:text-gray-300 leading-relaxed font-medium space-y-4">
           <p>
@@ -309,7 +310,7 @@ export const MediaGuidelines = () => {
 
       {/* Accordion Framework */}
       <section className="space-y-4">
-        <h2 className="text-3xl font-black text-sffl-navy dark:text-white mb-6">
+        <h2 className="text-xl sm:text-3xl font-black text-sffl-navy dark:text-white mb-4 sm:mb-6 wrap-break-word">
           MEDIA ACCREDITATION FRAMEWORK
         </h2>
         {sections.map((section) => (
@@ -318,21 +319,25 @@ export const MediaGuidelines = () => {
             className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 overflow-hidden"
           >
             <button
-              className="w-full flex justify-between items-center px-6 py-4 text-left font-bold text-lg text-sffl-navy dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              type="button"
+              className="w-full min-h-11 flex justify-between items-center gap-3 px-4 sm:px-6 py-4 text-left font-bold text-base sm:text-lg text-sffl-navy dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               onClick={() => toggleSection(section.id)}
+              aria-expanded={openSection === section.id}
             >
-              <span>{section.title}</span>
-              <span
-                className={`text-2xl transition-transform duration-300 transform ${openSection === section.id ? "rotate-225" : "rotate-45"}`}
-              >
-                🏈
-              </span>
+              <span className="min-w-0">{section.title}</span>
+              <ChevronDownIcon
+                aria-hidden="true"
+                className={`w-6 h-6 shrink-0 transition-transform duration-300 ${openSection === section.id ? "rotate-180 text-sffl-red" : "text-gray-400"}`}
+              />
             </button>
+            {/* Grows to the section's own height, so long sections are never cut off. */}
             <div
-              className={`transition-all duration-300 ease-in-out ${openSection === section.id ? "max-h-250 opacity-100 p-6 border-t border-gray-100 dark:border-gray-700" : "max-h-0 opacity-0 overflow-hidden"}`}
+              className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out motion-reduce:transition-none ${openSection === section.id ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
             >
-              <div className="text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
-                {section.content}
+              <div className="overflow-hidden">
+                <div className="p-4 sm:p-6 border-t border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300 leading-relaxed font-medium wrap-break-word">
+                  {section.content}
+                </div>
               </div>
             </div>
           </div>
@@ -341,7 +346,7 @@ export const MediaGuidelines = () => {
 
       {/* Application CTA */}
       <div className="bg-sffl-navy text-white p-6 md:p-8 rounded-2xl shadow-xl flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
-        <div className="space-y-1">
+        <div className="space-y-1 min-w-0">
           <h3 className="font-black text-xl md:text-2xl tracking-tight">
             Ready to Apply?
           </h3>
@@ -354,7 +359,7 @@ export const MediaGuidelines = () => {
           <CopyableEmail
             email="showtime@showtimeflag.football"
             label="Inquiries?"
-            className="w-full sm:w-auto inline-block bg-white text-sffl-navy px-8 py-3 font-bold rounded-xl text-center shadow-md hover:bg-gray-100 transition-all cursor-pointer text-base"
+            className="w-full sm:w-auto justify-center bg-white text-sffl-navy px-4 sm:px-8 py-2 font-bold rounded-xl text-center shadow-md hover:bg-gray-100 transition-all text-sm sm:text-base"
           />
         </div>
       </div>

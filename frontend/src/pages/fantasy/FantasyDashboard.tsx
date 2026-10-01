@@ -33,6 +33,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { FantasyBackLink } from "../../components/fantasy/FantasyBackLink";
 import { FantasyPitch } from "../../components/fantasy/FantasyPitch";
 import { FantasyTeamModal } from "../../components/fantasy/FantasyTeamModal";
+import { Spinner } from "../../components/ui/Spinner";
 import {
   FantasyPlayerModal,
   type FantasyPlayerModalData,
@@ -137,8 +138,12 @@ function LeaderboardRow({
             }
           : undefined
       }
-      title={canClick ? "Click to inspect team formation and squad" : undefined}
-      className={`px-3 py-3 flex items-center justify-between gap-3 rounded-xl transition ${
+      aria-label={
+        canClick
+          ? `${entry?.team_name || "Unnamed squad"}, rank ${rank > 0 ? rank : "unranked"}. View their squad`
+          : undefined
+      }
+      className={`min-h-11 px-3 py-3 flex items-center justify-between gap-3 rounded-xl transition ${
         isMe
           ? "bg-emerald-50 dark:bg-emerald-950/30 ring-1 ring-inset ring-emerald-500/40"
           : ""
@@ -151,12 +156,12 @@ function LeaderboardRow({
           {rank > 0 ? rank : "—"}
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-bold text-gray-900 dark:text-white truncate flex items-center gap-1.5">
-            <span className="truncate group-hover:text-sffl-red transition-colors">
+          <p className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-1.5 min-w-0">
+            <span className="min-w-0 truncate group-hover:text-sffl-red transition-colors">
               {entry?.team_name || "Unnamed squad"}
             </span>
             {isMe && (
-              <span className="ml-2 text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
+              <span className="ml-1 shrink-0 text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
                 You
               </span>
             )}
@@ -254,9 +259,9 @@ function DashboardLeaderboard({
         </div>
         <Link
           to={fullTableTo}
-          className="text-xs text-sffl-red hover:text-[#A52323] font-black uppercase inline-flex items-center gap-1 transition shrink-0"
+          className="min-h-11 text-xs text-sffl-red hover:text-[#A52323] font-black uppercase inline-flex items-center gap-1 transition shrink-0"
         >
-          Full Table <ArrowRightIcon className="w-3.5 h-3.5" />
+          Full Table <ArrowRightIcon className="w-3.5 h-3.5" aria-hidden="true" />
         </Link>
       </div>
 
@@ -265,7 +270,8 @@ function DashboardLeaderboard({
         <button
           type="button"
           onClick={() => selectScope(OVERALL)}
-          className={`px-3.5 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition ${
+          aria-pressed={scope === OVERALL}
+          className={`min-h-11 px-3.5 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition ${
             scope === OVERALL
               ? "bg-sffl-navy text-white shadow-sm"
               : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
@@ -278,7 +284,8 @@ function DashboardLeaderboard({
             key={o.id}
             type="button"
             onClick={() => selectScope(o.id)}
-            className={`px-3.5 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition ${
+            aria-pressed={scope === o.id}
+            className={`min-h-11 px-3.5 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition ${
               scope === o.id
                 ? "bg-sffl-navy text-white shadow-sm"
                 : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
@@ -290,9 +297,7 @@ function DashboardLeaderboard({
       </div>
 
       {isLoading ? (
-        <div className="py-10 flex justify-center">
-          <div className="w-8 h-8 border-2 border-sffl-red border-t-transparent rounded-full animate-spin" />
-        </div>
+        <Spinner label="Loading the table…" className="py-10" />
       ) : isEmpty ? (
         <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-6">
           No manager has scored in this table yet. Be the first on the board.
@@ -328,9 +333,9 @@ function DashboardLeaderboard({
               <button
                 type="button"
                 onClick={jumpToMe}
-                className="px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-sffl-red hover:text-white text-gray-700 dark:text-gray-200 text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1.5 transition"
+                className="min-h-11 px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-sffl-red hover:text-white text-gray-700 dark:text-gray-200 text-[11px] font-black uppercase tracking-wider inline-flex items-center gap-1.5 transition"
               >
-                <MapPinIcon className="w-3.5 h-3.5" /> Jump to me
+                <MapPinIcon className="w-3.5 h-3.5" aria-hidden="true" /> Jump to me
               </button>
             )}
           </div>
@@ -367,8 +372,8 @@ function DashboardLeaderboard({
                 type="button"
                 onClick={() => goToPage(1)}
                 disabled={safePage === 1}
-                title="First page"
-                className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition"
+                aria-label="First page"
+                className="min-h-11 min-w-11 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition"
               >
                 <ChevronDoubleLeftIcon className="w-4 h-4" />
               </button>
@@ -376,8 +381,8 @@ function DashboardLeaderboard({
                 type="button"
                 onClick={() => goToPage(safePage - 1)}
                 disabled={safePage <= 1}
-                title="Previous page"
-                className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition"
+                aria-label="Previous page"
+                className="min-h-11 min-w-11 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition"
               >
                 <ChevronLeftIcon className="w-4 h-4" />
               </button>
@@ -385,8 +390,8 @@ function DashboardLeaderboard({
                 type="button"
                 onClick={() => goToPage(safePage + 1)}
                 disabled={safePage >= totalPages}
-                title="Next page"
-                className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition"
+                aria-label="Next page"
+                className="min-h-11 min-w-11 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition"
               >
                 <ChevronRightIcon className="w-4 h-4" />
               </button>
@@ -394,8 +399,8 @@ function DashboardLeaderboard({
                 type="button"
                 onClick={() => goToPage(totalPages)}
                 disabled={safePage >= totalPages}
-                title="Last page"
-                className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition"
+                aria-label="Last page"
+                className="min-h-11 min-w-11 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition"
               >
                 <ChevronDoubleRightIcon className="w-4 h-4" />
               </button>
@@ -513,16 +518,16 @@ export function FantasyDashboard() {
   const totalManagers = num(team?.total_managers);
 
   return (
-    <div className="space-y-6 md:space-y-8 pb-36 md:pb-24">
+    <div className="space-y-6 md:space-y-8">
       <FantasyBackLink to="/fantasy" label="Back to Fantasy" />
       {/* Hero: personal progress first */}
-      <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-6 md:p-8">
+      <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-4 sm:p-6 md:p-8">
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-          <div>
+          <div className="min-w-0">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-yellow-400 text-xs font-black uppercase tracking-wider mb-2">
               <TrophyIcon className="w-3.5 h-3.5" /> {season.name}
             </div>
-            <h1 className="text-3xl md:text-5xl font-black italic uppercase tracking-tight text-white">
+            <h1 className="text-2xl sm:text-3xl md:text-5xl font-black italic uppercase tracking-tight text-white wrap-break-word">
               {team?.name || "My Squad"}
             </h1>
             <p className="text-xs md:text-sm text-gray-300 mt-1 font-medium">
@@ -533,35 +538,35 @@ export function FantasyDashboard() {
           <div className="flex flex-wrap items-center gap-3">
             <Link
               to="/fantasy/leagues"
-              className="px-5 py-2.5 rounded-xl bg-linear-to-r from-amber-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-sffl-navy font-black text-xs uppercase tracking-wider flex items-center gap-2 transition active:scale-95 shadow-lg shadow-amber-400/30 ring-1 ring-amber-300/70"
+              className="min-h-11 px-5 py-2.5 rounded-xl bg-linear-to-r from-amber-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-sffl-navy font-black text-xs uppercase tracking-wider flex items-center gap-2 transition active:scale-95 shadow-lg shadow-amber-400/30 ring-1 ring-amber-300/70"
             >
               <TrophyIcon className="w-4 h-4 text-sffl-navy" /> Browse Leagues
             </Link>
             {!deadlinePassed && (
               <Link
                 to="/fantasy/build"
-                className="px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 transition active:scale-95 shadow-lg shadow-sffl-red/30"
+                className="min-h-11 px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 transition active:scale-95 shadow-lg shadow-sffl-red/30"
               >
                 <PencilSquareIcon className="w-3.5 h-3.5" /> My Team & Transfers
               </Link>
             )}
             <Link
               to="/fantasy/analytics"
-              className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase flex items-center gap-2 transition backdrop-blur-md"
+              className="min-h-11 px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase flex items-center gap-2 transition backdrop-blur-md"
             >
               <ChartBarIcon className="w-3.5 h-3.5 text-yellow-400" /> Weekly
               Report
             </Link>
             <Link
               to="/fantasy/wallet"
-              className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase flex items-center gap-2 transition backdrop-blur-md"
+              className="min-h-11 px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase flex items-center gap-2 transition backdrop-blur-md"
             >
               <BanknotesIcon className="w-3.5 h-3.5 text-yellow-400" /> Prize
               Wallet
             </Link>
             <Link
               to="/fantasy/my-team"
-              className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase flex items-center gap-2 transition backdrop-blur-md"
+              className="min-h-11 px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase flex items-center gap-2 transition backdrop-blur-md"
             >
               <ShieldCheckIcon className="w-3.5 h-3.5 text-emerald-400" /> Full
               Squad
@@ -575,7 +580,7 @@ export function FantasyDashboard() {
             <span className="text-[10px] uppercase font-black tracking-wider text-gray-300 block">
               Overall Rank
             </span>
-            <span className="text-4xl md:text-5xl font-black text-yellow-400 leading-tight">
+            <span className="text-3xl sm:text-4xl md:text-5xl font-black text-yellow-400 leading-tight break-all">
               {rank > 0 ? `#${rank.toLocaleString()}` : "—"}
             </span>
             <span className="block text-xs text-gray-300 font-bold mt-0.5">
@@ -591,7 +596,7 @@ export function FantasyDashboard() {
                 ? `Gameweek ${gameweek.number} Points`
                 : "Gameweek Points"}
             </span>
-            <span className="text-3xl md:text-4xl font-black text-white leading-tight">
+            <span className="text-2xl sm:text-3xl md:text-4xl font-black text-white leading-tight break-all">
               {formatStatDecimal(num(team?.gameweek_points), 2)}
             </span>
             <span className="block text-xs text-gray-300 font-bold mt-0.5">
@@ -603,7 +608,7 @@ export function FantasyDashboard() {
             <span className="text-[10px] uppercase font-black tracking-wider text-gray-300 block">
               Season Total
             </span>
-            <span className="text-3xl md:text-4xl font-black text-emerald-400 leading-tight">
+            <span className="text-2xl sm:text-3xl md:text-4xl font-black text-emerald-400 leading-tight break-all">
               {formatStatDecimal(num(team?.total_points), 2)}
             </span>
             <span className="block text-xs text-gray-300 font-bold mt-0.5">
@@ -650,7 +655,7 @@ export function FantasyDashboard() {
 
               <Link
                 to="/fantasy/wallet"
-                className="shrink-0 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition active:scale-95 shadow-md"
+                className="shrink-0 min-h-11 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition active:scale-95 shadow-md"
               >
                 {num(wallet.balance_kobo) > 0 ? "Withdraw" : "View Wallet"}
                 <ArrowRightIcon className="w-4 h-4" />
@@ -727,7 +732,7 @@ export function FantasyDashboard() {
           {!deadlinePassed && (
             <Link
               to="/fantasy/build"
-              className="shrink-0 px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase flex items-center justify-center gap-2 transition active:scale-95 shadow-md"
+              className="shrink-0 min-h-11 px-5 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase flex items-center justify-center gap-2 transition active:scale-95 shadow-md"
             >
               <PencilSquareIcon className="w-3.5 h-3.5" /> Edit Squad
             </Link>

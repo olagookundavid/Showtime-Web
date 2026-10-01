@@ -30,6 +30,8 @@ import {
 } from "../../hooks/useFantasyLeaderboard";
 import { FantasyTeamModal } from "../../components/fantasy/FantasyTeamModal";
 import { BackButton } from "../../components/common/BackButton";
+import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
+import { Spinner } from "../../components/ui/Spinner";
 import { formatStatDecimal } from "../../utils/formatters";
 
 const pts = (v: number | null | undefined): string =>
@@ -203,25 +205,25 @@ export function FantasyLeaderboard() {
       : (leagueOptions.find((o) => o.id === scope)?.name ?? "League");
 
   return (
-    <div className="space-y-6 md:space-y-8 pb-36 md:pb-24">
+    <div className="space-y-6 md:space-y-8">
       {/* Header Showtime Navy Banner */}
-      <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-6 md:p-8">
-        <div className="mb-3">
+      <div className="bg-sffl-navy text-white rounded-2xl md:rounded-3xl shadow-xl p-4 sm:p-6 md:p-8">
+        <div className="mb-1">
           <BackButton
             fallback="/fantasy/leagues"
-            className="inline-flex items-center gap-1.5 text-xs text-gray-300 hover:text-white font-semibold transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 min-h-11 text-xs text-gray-300 hover:text-white font-semibold transition cursor-pointer"
           >
             Back to Leagues
           </BackButton>
         </div>
 
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="min-w-0">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-yellow-400 text-xs font-black uppercase tracking-wider mb-2">
               <TrophyIcon className="w-3 h-3 text-yellow-400" /> Official
               Standings
             </div>
-            <h1 className="text-2xl sm:text-4xl font-black italic uppercase tracking-tight text-white">
+            <h1 className="text-2xl sm:text-4xl font-black italic uppercase tracking-tight text-white wrap-break-word">
               {scope === OVERALL
                 ? "Global Showtime Leaderboard"
                 : activeLeagueName || "League Standings"}
@@ -239,22 +241,26 @@ export function FantasyLeaderboard() {
               <button
                 type="button"
                 onClick={() => setConfirmLeave(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-xs font-black uppercase tracking-wider text-gray-200 hover:bg-red-600 hover:border-red-600 hover:text-white transition cursor-pointer"
+                className="inline-flex items-center gap-1.5 min-h-11 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-xs font-black uppercase tracking-wider text-gray-200 hover:bg-red-600 hover:border-red-600 hover:text-white transition cursor-pointer"
               >
                 <ArrowRightStartOnRectangleIcon className="w-3.5 h-3.5" /> Leave
                 League
               </button>
             )}
-            <span className="text-xs text-gray-300 font-bold uppercase">
+            <label
+              htmlFor="leaderboard-gw-filter"
+              className="text-xs text-gray-300 font-bold uppercase"
+            >
               Filter:
-            </span>
+            </label>
             <select
+              id="leaderboard-gw-filter"
               value={selectedGWId}
               onChange={(e) => {
                 setSelectedGWId(e.target.value);
                 resetPaging();
               }}
-              className="bg-white/10 border border-white/20 text-white rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-sffl-red cursor-pointer"
+              className="min-w-0 min-h-11 bg-white/10 border border-white/20 text-white rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-sffl-red cursor-pointer"
             >
               <option value="" className="text-gray-900 bg-white">
                 Season Overall
@@ -271,7 +277,7 @@ export function FantasyLeaderboard() {
             </select>
             <Link
               to={`/fantasy/analytics${selectedGWId ? `?gw=${selectedGWId}` : ""}`}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white text-xs font-black uppercase tracking-wider transition shadow-sm cursor-pointer"
+              className="inline-flex items-center gap-1.5 min-h-11 px-3 py-2 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white text-xs font-black uppercase tracking-wider transition shadow-sm cursor-pointer"
             >
               <ChartBarIcon className="w-3.5 h-3.5" /> Weekly Report
             </Link>
@@ -291,7 +297,8 @@ export function FantasyLeaderboard() {
           <button
             type="button"
             onClick={() => selectScope(OVERALL)}
-            className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
+            aria-pressed={scope === OVERALL}
+            className={`min-h-11 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
               scope === OVERALL
                 ? "bg-sffl-navy text-white shadow-sm"
                 : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
@@ -304,7 +311,8 @@ export function FantasyLeaderboard() {
               key={o.id}
               type="button"
               onClick={() => selectScope(o.id)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
+              aria-pressed={scope === o.id}
+              className={`min-h-11 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
                 scope === o.id
                   ? "bg-sffl-navy text-white shadow-sm"
                   : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
@@ -346,7 +354,7 @@ export function FantasyLeaderboard() {
             <button
               type="button"
               onClick={jumpToMe}
-              className="px-3.5 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-sffl-red hover:text-white text-gray-700 dark:text-gray-200 text-[11px] font-black uppercase tracking-wider inline-flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+              className="min-h-11 px-3.5 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-sffl-red hover:text-white text-gray-700 dark:text-gray-200 text-[11px] font-black uppercase tracking-wider inline-flex items-center gap-1.5 transition shadow-sm cursor-pointer"
             >
               <MapPinIcon className="w-3.5 h-3.5" /> Jump to my rank{" "}
               {effectiveRank > 0 ? `(#${effectiveRank})` : ""}
@@ -355,9 +363,7 @@ export function FantasyLeaderboard() {
         </div>
 
         {isLoading ? (
-          <div className="py-16 flex justify-center">
-            <div className="w-8 h-8 border-2 border-sffl-red border-t-transparent rounded-full animate-spin" />
-          </div>
+          <Spinner label="Loading standings…" className="py-16" />
         ) : isEmpty ? (
           <div className="py-16 text-center text-gray-500 dark:text-gray-400 text-sm">
             No team rankings available for this selection yet.
@@ -387,7 +393,6 @@ export function FantasyLeaderboard() {
                       myEntry.team_id && setInspectingTeamId(myEntry.team_id)
                     }
                     className="bg-emerald-50/90 dark:bg-emerald-950/40 border-b-2 border-emerald-500/30 hover:bg-emerald-100/70 dark:hover:bg-emerald-900/50 transition cursor-pointer group"
-                    title="Click to view your lineup"
                   >
                     <td className="py-3.5 px-4 text-center">
                       <span
@@ -397,10 +402,10 @@ export function FantasyLeaderboard() {
                       </span>
                     </td>
                     <td className="py-3.5 px-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-bold text-gray-900 dark:text-white text-sm group-hover:text-sffl-red transition-colors flex items-center gap-2">
-                            <span>{myEntry.team_name || "My Squad"}</span>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-bold text-gray-900 dark:text-white text-sm group-hover:text-sffl-red transition-colors flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                            <span className="wrap-break-word">{myEntry.team_name || "My Squad"}</span>
                             <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-600 text-white tracking-wider shadow-xs">
                               Your Position
                             </span>
@@ -409,9 +414,18 @@ export function FantasyLeaderboard() {
                             {myEntry.user_name || user?.name || "You"}
                           </p>
                         </div>
-                        <span className="text-[11px] text-emerald-700 dark:text-emerald-300 font-bold items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:inline-flex">
-                          <EyeIcon className="w-3.5 h-3.5" /> View Lineup
-                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (myEntry.team_id) setInspectingTeamId(myEntry.team_id);
+                          }}
+                          aria-label="View your lineup"
+                          className="shrink-0 inline-flex items-center justify-center gap-1 min-h-11 min-w-11 px-2 rounded-lg text-[11px] text-emerald-700 dark:text-emerald-300 font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
+                        >
+                          <EyeIcon className="w-4 h-4" aria-hidden="true" />
+                          <span className="hidden sm:inline">View Lineup</span>
+                        </button>
                       </div>
                     </td>
                     {showGWColumn && (
@@ -452,7 +466,6 @@ export function FantasyLeaderboard() {
                           ? "bg-emerald-50/70 dark:bg-emerald-950/30 hover:bg-emerald-100/60 dark:hover:bg-emerald-950/50"
                           : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
                       }`}
-                      title="Click to inspect team formation and picks"
                     >
                       <td className="py-3.5 px-4 text-center">
                         <span
@@ -462,10 +475,10 @@ export function FantasyLeaderboard() {
                         </span>
                       </td>
                       <td className="py-3.5 px-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-bold text-gray-900 dark:text-white text-sm group-hover:text-sffl-red transition-colors flex items-center gap-1.5">
-                              <span>{entry?.team_name || "Unnamed squad"}</span>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-bold text-gray-900 dark:text-white text-sm group-hover:text-sffl-red transition-colors flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                              <span className="wrap-break-word">{entry?.team_name || "Unnamed squad"}</span>
                               {isMe && (
                                 <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
                                   You
@@ -476,9 +489,20 @@ export function FantasyLeaderboard() {
                               {entry?.user_name || "—"}
                             </p>
                           </div>
-                          <span className="text-[11px] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center gap-1 dark:text-gray-300 font-bold sm:inline-flex">
-                            <EyeIcon className="w-3.5 h-3.5" /> View Team
-                          </span>
+                          {entry?.team_id && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setInspectingTeamId(entry.team_id!);
+                              }}
+                              aria-label={`View ${entry.team_name || "this team"}'s squad`}
+                              className="shrink-0 inline-flex items-center justify-center gap-1 min-h-11 min-w-11 px-2 rounded-lg text-[11px] text-gray-500 dark:text-gray-300 font-bold hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors"
+                            >
+                              <EyeIcon className="w-4 h-4" aria-hidden="true" />
+                              <span className="hidden sm:inline">View Team</span>
+                            </button>
+                          )}
                         </div>
                       </td>
                       {showGWColumn && (
@@ -509,8 +533,8 @@ export function FantasyLeaderboard() {
                 type="button"
                 onClick={() => goToPage(1)}
                 disabled={safePage === 1}
-                title="First page"
-                className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition cursor-pointer"
+                aria-label="First page"
+                className="min-h-11 min-w-11 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition cursor-pointer"
               >
                 <ChevronDoubleLeftIcon className="w-4 h-4" />
               </button>
@@ -518,8 +542,8 @@ export function FantasyLeaderboard() {
                 type="button"
                 onClick={() => goToPage(safePage - 1)}
                 disabled={safePage === 1}
-                title="Previous page"
-                className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition cursor-pointer"
+                aria-label="Previous page"
+                className="min-h-11 min-w-11 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition cursor-pointer"
               >
                 <ChevronLeftIcon className="w-4 h-4" />
               </button>
@@ -527,8 +551,8 @@ export function FantasyLeaderboard() {
                 type="button"
                 onClick={() => goToPage(safePage + 1)}
                 disabled={safePage >= totalPages}
-                title="Next page"
-                className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition cursor-pointer"
+                aria-label="Next page"
+                className="min-h-11 min-w-11 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition cursor-pointer"
               >
                 <ChevronRightIcon className="w-4 h-4" />
               </button>
@@ -536,8 +560,8 @@ export function FantasyLeaderboard() {
                 type="button"
                 onClick={() => goToPage(totalPages)}
                 disabled={safePage >= totalPages}
-                title="Last page"
-                className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition cursor-pointer"
+                aria-label="Last page"
+                className="min-h-11 min-w-11 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 transition cursor-pointer"
               >
                 <ChevronDoubleRightIcon className="w-4 h-4" />
               </button>
@@ -549,27 +573,22 @@ export function FantasyLeaderboard() {
       {/* Leave confirmation. What leaving costs differs sharply between a
                 free league and a paid one, so each is spelled out rather than
                 hidden behind one generic "are you sure". */}
-      {confirmLeave && leavableLeague && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 pt-[calc(var(--chrome-h)+1rem)] transition-[padding] duration-300 motion-reduce:transition-none"
-          data-dialog
-        >
-          <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
-              <h2 className="text-base font-black uppercase italic tracking-tight text-sffl-navy dark:text-white">
-                Leave {leavableLeague.name || "this league"}?
-              </h2>
-            </div>
-
-            <div className="p-5 space-y-4">
-              <p className="text-sm text-gray-700 dark:text-gray-200">
-                You'll come out of this league's table straight away. Your squad
-                and your points in the overall table are untouched.
-              </p>
+      <ConfirmDialog
+        open={confirmLeave && !!leavableLeague}
+        title={`Leave ${leavableLeague?.name || "this league"}?`}
+        description="You'll come out of this league's table straight away. Your squad and your points in the overall table are untouched."
+        confirmLabel="Yes, leave"
+        tone="warning"
+        icon={ArrowRightStartOnRectangleIcon}
+        pending={leaveMutation.isPending}
+        onConfirm={() => leaveMutation.mutate()}
+        onCancel={() => setConfirmLeave(false)}
+        body={
+            <div>
 
               {leaveEntryFeeKobo > 0 ? (
                 <div className="p-3 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 flex items-start gap-2">
-                  <ExclamationTriangleIcon className="w-5 h-5 shrink-0 text-red-600 dark:text-red-400" />
+                  <ExclamationTriangleIcon className="w-5 h-5 shrink-0 text-red-600 dark:text-red-400" aria-hidden="true" />
                   <div>
                     <p className="text-xs font-black uppercase tracking-wider text-red-700 dark:text-red-300">
                       You forfeit your {formatKobo(leaveEntryFeeKobo)} entry
@@ -589,29 +608,9 @@ export function FantasyLeaderboard() {
                   </p>
                 </div>
               )}
-
-              <div className="flex items-center gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setConfirmLeave(false)}
-                  disabled={leaveMutation.isPending}
-                  className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-black text-xs uppercase disabled:opacity-50 transition cursor-pointer"
-                >
-                  Stay In
-                </button>
-                <button
-                  type="button"
-                  onClick={() => leaveMutation.mutate()}
-                  disabled={leaveMutation.isPending}
-                  className="flex-1 py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase disabled:opacity-50 transition cursor-pointer"
-                >
-                  {leaveMutation.isPending ? "Leaving…" : "Yes, Leave"}
-                </button>
-              </div>
             </div>
-          </div>
-        </div>
-      )}
+        }
+      />
 
       {/* Team Inspector Modal */}
       <FantasyTeamModal

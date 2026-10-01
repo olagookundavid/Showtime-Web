@@ -4,6 +4,16 @@ import toast from 'react-hot-toast';
 import { claimApi, type MyClaimStatusData } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useImageUpload } from '../../hooks/useImageUpload';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { Spinner } from '../../components/ui/Spinner';
+import {
+    ArrowPathIcon,
+    ArrowRightOnRectangleIcon,
+    CameraIcon,
+    CheckCircleIcon,
+    ClockIcon,
+    XCircleIcon,
+} from '@heroicons/react/24/outline';
 
 /**
  * The one screen a player_pending user can see.
@@ -18,6 +28,7 @@ export const ClaimStatusPage: React.FC = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const { uploadImage, isUploading } = useImageUpload();
+    const [confirmLogout, setConfirmLogout] = useState(false);
 
     const [claim, setClaim] = useState<MyClaimStatusData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -90,15 +101,15 @@ export const ClaimStatusPage: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-                <div className="text-gray-400">Loading your claim…</div>
+            <div className="min-h-dvh flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+                <Spinner label="Loading your claim…" />
             </div>
         );
     }
 
     if (!claim?.has_claim) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
+            <div className="min-h-dvh flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
                 <div className="max-w-md text-center">
                     <h1 className="text-xl font-black text-gray-900 dark:text-white">No claim found</h1>
                     <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
@@ -106,7 +117,7 @@ export const ClaimStatusPage: React.FC = () => {
                     </p>
                     <Link
                         to="/claim"
-                        className="inline-block mt-6 px-5 py-3 bg-sffl-red hover:bg-red-700 text-white font-bold rounded-lg"
+                        className="inline-flex items-center justify-center min-h-11 mt-6 px-5 py-3 bg-sffl-red hover:bg-red-700 text-white font-bold rounded-lg"
                     >
                         Start a claim
                     </Link>
@@ -122,11 +133,11 @@ export const ClaimStatusPage: React.FC = () => {
     const isNewPlayerRequest = claim.claim_kind === 'NEW_PLAYER';
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-10 px-4">
+        <div className="min-h-dvh bg-gray-50 dark:bg-gray-900 py-6 sm:py-10 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
             <div className="max-w-lg mx-auto">
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
                     <div
-                        className={`p-6 text-center ${
+                        className={`p-4 sm:p-6 text-center ${
                             isPending
                                 ? 'bg-amber-50 dark:bg-amber-900/20'
                                 : isRejected
@@ -134,7 +145,13 @@ export const ClaimStatusPage: React.FC = () => {
                                 : 'bg-green-50 dark:bg-green-900/20'
                         }`}
                     >
-                        <div className="text-3xl mb-2">{isPending ? '⏳' : isRejected ? '✕' : '✓'}</div>
+                        {isPending ? (
+                            <ClockIcon className="w-9 h-9 mx-auto mb-2 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+                        ) : isRejected ? (
+                            <XCircleIcon className="w-9 h-9 mx-auto mb-2 text-red-600 dark:text-red-400" aria-hidden="true" />
+                        ) : (
+                            <CheckCircleIcon className="w-9 h-9 mx-auto mb-2 text-green-600 dark:text-green-400" aria-hidden="true" />
+                        )}
                         <h1 className="text-lg font-black text-gray-900 dark:text-white">
                             {isPending
                                 ? isNewPlayerRequest
@@ -155,24 +172,24 @@ export const ClaimStatusPage: React.FC = () => {
                         </p>
                     </div>
 
-                    <div className="p-6 space-y-4">
+                    <div className="p-4 sm:p-6 space-y-4">
                         <dl className="space-y-3 text-sm">
                             {claim.player_name && (
                                 <div className="flex justify-between gap-4">
                                     <dt className="text-gray-500 dark:text-gray-400">Name</dt>
-                                    <dd className="font-bold text-gray-900 dark:text-white">{claim.player_name}</dd>
+                                    <dd className="min-w-0 text-right wrap-break-word font-bold text-gray-900 dark:text-white">{claim.player_name}</dd>
                                 </div>
                             )}
                             {claim.team_name && (
                                 <div className="flex justify-between gap-4">
                                     <dt className="text-gray-500 dark:text-gray-400">Team</dt>
-                                    <dd className="font-bold text-gray-900 dark:text-white">{claim.team_name}</dd>
+                                    <dd className="min-w-0 text-right wrap-break-word font-bold text-gray-900 dark:text-white">{claim.team_name}</dd>
                                 </div>
                             )}
                             <div className="flex justify-between gap-4">
                                 <dt className="text-gray-500 dark:text-gray-400">Email</dt>
-                                <dd className="text-right">
-                                    <span className="font-bold text-gray-900 dark:text-white">{claim.claimed_email}</span>
+                                <dd className="min-w-0 text-right">
+                                    <span className="font-bold text-gray-900 dark:text-white break-all">{claim.claimed_email}</span>
                                     {claim.email_verified ? (
                                         <span className="ml-2 text-xs font-bold text-green-600 dark:text-green-400">confirmed</span>
                                     ) : (
@@ -195,10 +212,12 @@ export const ClaimStatusPage: React.FC = () => {
                                     reset your password later.
                                 </p>
                                 <button
+                                    type="button"
                                     onClick={handleResend}
                                     disabled={resending}
-                                    className="mt-2 text-xs font-bold text-sffl-red hover:underline disabled:opacity-50"
+                                    className="mt-1 min-h-11 inline-flex items-center gap-1.5 text-xs font-bold text-sffl-red hover:underline disabled:opacity-50"
                                 >
+                                    {resending && <ArrowPathIcon className="w-4 h-4 animate-spin" aria-hidden="true" />}
                                     {resending ? 'Sending…' : 'Resend confirmation email'}
                                 </button>
                             </div>
@@ -206,33 +225,34 @@ export const ClaimStatusPage: React.FC = () => {
 
                         {isPending && (
                             <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-start gap-3 sm:gap-4">
                                     {claim.claimed_photo ? (
                                         <img
                                             src={claim.claimed_photo}
                                             alt="Your photo"
-                                            className="w-16 h-16 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600"
+                                            className="w-16 h-16 shrink-0 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600"
                                         />
                                     ) : (
-                                        <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-2xl">
-                                            📷
+                                        <div className="w-16 h-16 shrink-0 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400">
+                                            <CameraIcon className="w-7 h-7" aria-hidden="true" />
                                         </div>
                                     )}
-                                    <div className="flex-1">
+                                    <div className="flex-1 min-w-0">
                                         <div className="text-sm font-bold text-gray-900 dark:text-white">
                                             {claim.claimed_photo ? 'Your photo' : 'Add a photo of yourself'}
                                         </div>
                                         <p className="text-xs text-gray-500 dark:text-gray-400">
                                             This is how your manager recognises you. It speeds up approval a lot.
                                         </p>
-                                        <label className="inline-block mt-2 px-3 py-1.5 bg-sffl-navy/10 hover:bg-sffl-navy/20 text-sffl-navy dark:text-blue-400 text-xs font-bold rounded-lg cursor-pointer">
+                                        <label className="inline-flex items-center gap-1.5 min-h-11 mt-2 px-4 py-1.5 bg-sffl-navy/10 hover:bg-sffl-navy/20 text-sffl-navy dark:text-blue-400 text-xs font-bold rounded-lg cursor-pointer focus-within:ring-2 focus-within:ring-sffl-red">
+                                            {isUploading && <ArrowPathIcon className="w-4 h-4 animate-spin" aria-hidden="true" />}
                                             {isUploading ? 'Uploading…' : claim.claimed_photo ? 'Replace photo' : 'Upload photo'}
                                             <input
                                                 type="file"
                                                 accept="image/*,.heic,.heif"
                                                 onChange={handlePhoto}
                                                 disabled={isUploading}
-                                                className="hidden"
+                                                className="sr-only"
                                             />
                                         </label>
                                     </div>
@@ -247,34 +267,51 @@ export const ClaimStatusPage: React.FC = () => {
                                     cached profile has to be re-fetched before the portal's role
                                     guard will let them through. */}
                                 <button
+                                    type="button"
                                     onClick={() => window.location.assign('/player-portal')}
-                                    className="w-full py-3 bg-sffl-red hover:bg-red-700 text-white font-bold rounded-lg transition-colors"
+                                    className="w-full min-h-11 py-3 bg-sffl-red hover:bg-red-700 text-white font-bold rounded-lg transition-colors"
                                 >
                                     Go to my player portal
                                 </button>
                             </div>
                         )}
 
-                        <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-700">
+                        <div className="flex items-center justify-between gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
                             <button
+                                type="button"
                                 onClick={fetchStatus}
-                                className="text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                                className="min-h-11 inline-flex items-center gap-1.5 -ml-2 px-2 text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
                             >
+                                <ArrowPathIcon className="w-4 h-4" aria-hidden="true" />
                                 Refresh status
                             </button>
                             <button
-                                onClick={async () => {
-                                    await logout();
-                                    navigate('/');
-                                }}
-                                className="text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                                type="button"
+                                onClick={() => setConfirmLogout(true)}
+                                className="min-h-11 inline-flex items-center gap-1.5 -mr-2 px-2 text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
                             >
+                                <ArrowRightOnRectangleIcon className="w-4 h-4" aria-hidden="true" />
                                 Sign out
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <ConfirmDialog
+                open={confirmLogout}
+                title="Log out?"
+                description="Your claim stays as it is. Sign back in any time to check on it."
+                confirmLabel="Log out"
+                tone="info"
+                icon={ArrowRightOnRectangleIcon}
+                onConfirm={async () => {
+                    setConfirmLogout(false);
+                    await logout();
+                    navigate('/');
+                }}
+                onCancel={() => setConfirmLogout(false)}
+            />
         </div>
     );
 };

@@ -8,7 +8,7 @@ import {
   BoltIcon,
   ArrowRightIcon,
   SparklesIcon,
-  XMarkIcon,
+  ArrowPathIcon,
   CheckBadgeIcon,
   LockClosedIcon,
   ChartBarIcon,
@@ -19,6 +19,7 @@ import { AuthRequiredDialog } from "../../components/auth/AuthRequiredDialog";
 import { Loader } from "../../components/ui/Loader";
 import { FantasyPitch } from "../../components/fantasy/FantasyPitch";
 import { FantasyTeamModal } from "../../components/fantasy/FantasyTeamModal";
+import { Modal } from "../../components/ui/Modal";
 
 const num = (v: number | null | undefined): number =>
   typeof v === "number" && Number.isFinite(v) ? v : 0;
@@ -165,7 +166,7 @@ export function FantasyHub() {
   const picks = dashboard.lineup?.picks ?? [];
 
   return (
-    <div className="space-y-6 md:space-y-8 pb-36 md:pb-20">
+    <div className="space-y-6 md:space-y-8">
       {/* My Starting Lineup — positioned ABOVE the dashboard card when entered */}
       {entered && (
         <div>
@@ -261,9 +262,10 @@ export function FantasyHub() {
                     setTeamNameInput(getDefaultTeamName(user?.name));
                     setShowJoinModal(true);
                   }}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase tracking-wider shadow-md shadow-sffl-red/30 transition active:scale-95 cursor-pointer"
+                  type="button"
+                  className="inline-flex items-center gap-2 min-h-11 px-6 py-2.5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-black text-xs uppercase tracking-wider shadow-md shadow-sffl-red/30 transition active:scale-95 cursor-pointer"
                 >
-                  Join This Season <ArrowRightIcon className="w-4 h-4" />
+                  Join This Season <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
                 </button>
                 <Link
                   to="/fantasy/leagues"
@@ -384,7 +386,7 @@ export function FantasyHub() {
                 onClick={() =>
                   entry.team_id && setInspectingTeamId(entry.team_id)
                 }
-                className="w-full text-left py-3.5 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 px-2 rounded-xl transition cursor-pointer"
+                className="w-full min-h-11 text-left py-3.5 flex items-center justify-between gap-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-2 rounded-xl transition cursor-pointer"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div
@@ -421,24 +423,13 @@ export function FantasyHub() {
       )}
 
       {/* Join Season Modal — the deliberate opt-in */}
-      {showJoinModal && (
-        <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 pt-[calc(var(--chrome-h)+1rem)] transition-[padding] duration-300 motion-reduce:transition-none"
-          data-dialog
-        >
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 w-full max-w-md rounded-3xl p-6 shadow-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-black text-sffl-navy dark:text-white uppercase">
-                Join {season.name}
-              </h3>
-              <button
-                onClick={() => setShowJoinModal(false)}
-                className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300 cursor-pointer"
-              >
-                <XMarkIcon className="w-5 h-5" />
-              </button>
-            </div>
-
+      <Modal
+        open={showJoinModal}
+        onClose={() => setShowJoinModal(false)}
+        title={`Join ${season.name}`}
+        maxWidth="md"
+      >
+          <div>
             <p className="text-xs text-gray-600 dark:text-gray-300 mb-4 leading-relaxed">
               You are choosing to enter this season. This creates your manager
               team and puts you on the overall rankings — nothing happens until
@@ -450,11 +441,12 @@ export function FantasyHub() {
             </label>
             <input
               type="text"
+              aria-label="Team name"
               value={teamNameInput}
               onChange={(e) => setTeamNameInput(e.target.value)}
               placeholder="e.g. Lagos Blitz"
               maxLength={40}
-              className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
+              className="w-full min-h-11 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
             />
             <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5 mb-4">
               {trimmedName.length === 0
@@ -465,19 +457,18 @@ export function FantasyHub() {
             </p>
 
             <button
+              type="button"
               onClick={() => enterMutation.mutate()}
               disabled={!nameValid || enterMutation.isPending}
-              className="w-full py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-black text-xs uppercase transition shadow-md cursor-pointer"
+              className="w-full min-h-11 inline-flex items-center justify-center gap-2 py-3 rounded-xl bg-sffl-red hover:bg-[#A52323] disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-black text-xs uppercase transition shadow-md cursor-pointer"
             >
-              {enterMutation.isPending ? (
-                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
-              ) : (
-                "Confirm & Enter Season"
+              {enterMutation.isPending && (
+                <ArrowPathIcon className="w-4 h-4 animate-spin" aria-hidden="true" />
               )}
+              {enterMutation.isPending ? "Entering season…" : "Confirm & Enter Season"}
             </button>
           </div>
-        </div>
-      )}
+      </Modal>
 
       {/* Team Inspection Modal */}
       <FantasyTeamModal

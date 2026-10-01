@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowRightIcon, TrophyIcon } from '@heroicons/react/24/outline';
 import type { Standing } from '../../services/api';
 import { formatStatNumber } from '../../utils/formatters';
 
@@ -18,9 +19,9 @@ export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({ standi
 
     return (
         <div className="overflow-hidden rounded-lg md:rounded-xl shadow-lg bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700">
-            <div className="px-3 py-2.5 md:px-6 md:py-4 bg-sffl-navy text-white font-bold text-sm md:text-lg flex items-center justify-between">
+            <div className="px-3 py-2 md:px-6 md:py-3 bg-sffl-navy text-white font-bold text-sm md:text-lg flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                 <div className="flex items-center gap-2">
-                    <span className="text-yellow-500">🏆</span>
+                    <TrophyIcon className="w-5 h-5 text-yellow-500" aria-hidden="true" />
                     <span>Team Standings</span>
                 </div>
                 <div className="flex items-center gap-3">
@@ -29,8 +30,9 @@ export const MatchStandingsTable: React.FC<MatchStandingsTableProps> = ({ standi
                         <span className="text-[11px] font-bold">Wildcard spot</span>
                     </div>
                     {viewAllLink && (
-                        <Link to={viewAllLink} className="text-[10px] md:text-xs bg-white/10 hover:bg-white/20 text-white px-2 py-1 rounded transition-colors uppercase tracking-tight">
-                            View All →
+                        <Link to={viewAllLink} className="inline-flex items-center gap-1 min-h-11 text-[11px] md:text-xs bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded transition-colors uppercase tracking-tight">
+                            View All
+                            <ArrowRightIcon className="w-3.5 h-3.5" aria-hidden="true" />
                         </Link>
                     )}
                 </div>

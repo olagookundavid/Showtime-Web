@@ -9,7 +9,25 @@ import {
 } from '../../services/api';
 import { calculatePlayerFantasyPoints } from './MatchSummaryTab';
 import { isDeletedPlayer, DELETED_TITLE } from '../common/DeletedPlayer';
-import { XMarkIcon, ChevronUpDownIcon } from '@heroicons/react/24/outline';
+import {
+    ArrowDownIcon,
+    ArrowPathIcon,
+    ArrowRightIcon,
+    ArrowUpIcon,
+    BoltIcon,
+    CheckIcon,
+    ChevronUpDownIcon,
+    ClipboardDocumentListIcon,
+    LightBulbIcon,
+    ListBulletIcon,
+    QuestionMarkCircleIcon,
+    ShieldCheckIcon,
+} from '@heroicons/react/24/outline';
+import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
+import type { ComponentType, SVGProps } from 'react';
+import { FootballIcon } from '../icons/FootballIcon';
+import { PitchIcon } from '../icons/PitchIcon';
+import { Modal } from '../ui/Modal';
 
 interface MatchTeamSheetTabProps {
     match: Match;
@@ -21,10 +39,10 @@ type UnitFilter = 'ALL' | 'OFFENSE' | 'DEFENSE';
 type ViewFormat = 'pitch' | 'list';
 type RatingSort = 'default' | 'high' | 'low';
 
-const RATING_SORT_LABEL: Record<RatingSort, string> = {
-    default: '↕ By Number',
-    high: '▼ Highest Rated',
-    low: '▲ Lowest Rated',
+const RATING_SORT_LABEL: Record<RatingSort, { label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }> = {
+    default: { label: 'By Number', icon: ChevronUpDownIcon },
+    high: { label: 'Highest Rated', icon: ArrowDownIcon },
+    low: { label: 'Lowest Rated', icon: ArrowUpIcon },
 };
 
 // Defensive coordinate formations for 7 players: 1 Rusher + 6 Defenders
@@ -410,11 +428,12 @@ export const MatchTeamSheetTab = ({ match, teamSheet, mvpPlayerId }: MatchTeamSh
                 <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
 
                     {/* Team Selector Pills */}
-                    <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700/60 p-1.5 rounded-xl">
+                    <div className="grid grid-cols-2 sm:flex items-center gap-2 w-full sm:w-auto bg-gray-100 dark:bg-gray-700/60 p-1.5 rounded-xl">
                         <button
                             type="button"
                             onClick={() => setSelectedTeam('home')}
-                            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg font-black text-xs md:text-sm uppercase tracking-tight transition-all ${
+                            aria-pressed={selectedTeam === 'home'}
+                            className={`flex items-center justify-center gap-2 min-w-0 min-h-11 px-3 py-2 rounded-lg font-black text-xs md:text-sm uppercase tracking-tight transition-all ${
                                 selectedTeam === 'home'
                                     ? 'bg-sffl-navy text-white shadow-sm'
                                     : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
@@ -425,13 +444,14 @@ export const MatchTeamSheetTab = ({ match, teamSheet, mvpPlayerId }: MatchTeamSh
                             ) : (
                                 <span className="w-4 h-4 rounded-full bg-sffl-navy text-white text-[9px] flex items-center justify-center font-black">H</span>
                             )}
-                            <span className="truncate max-w-[130px] md:max-w-[180px]">{homeTeam?.name || 'Home'}</span>
+                            <span className="truncate min-w-0 md:max-w-45">{homeTeam?.name || 'Home'}</span>
                         </button>
 
                         <button
                             type="button"
                             onClick={() => setSelectedTeam('away')}
-                            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg font-black text-xs md:text-sm uppercase tracking-tight transition-all ${
+                            aria-pressed={selectedTeam === 'away'}
+                            className={`flex items-center justify-center gap-2 min-w-0 min-h-11 px-3 py-2 rounded-lg font-black text-xs md:text-sm uppercase tracking-tight transition-all ${
                                 selectedTeam === 'away'
                                     ? 'bg-sffl-red text-white shadow-sm'
                                     : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
@@ -442,49 +462,60 @@ export const MatchTeamSheetTab = ({ match, teamSheet, mvpPlayerId }: MatchTeamSh
                             ) : (
                                 <span className="w-4 h-4 rounded-full bg-sffl-red text-white text-[9px] flex items-center justify-center font-black">A</span>
                             )}
-                            <span className="truncate max-w-[130px] md:max-w-[180px]">{awayTeam?.name || 'Away'}</span>
+                            <span className="truncate min-w-0 md:max-w-45">{awayTeam?.name || 'Away'}</span>
                         </button>
                     </div>
 
                     {/* Status Pill & View Controls */}
                     <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto justify-between lg:justify-end">
                         <span
-                            className={`px-3 py-1 rounded-full text-[10px] md:text-xs font-black uppercase tracking-wider border ${
+                            className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] md:text-xs font-black uppercase tracking-wider border ${
                                 hasConfirmedStarters
                                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
                                     : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
                             }`}
                         >
+                            {hasConfirmedStarters ? (
+                                <CheckIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                            ) : match.status === 'FINISHED' ? (
+                                <ClipboardDocumentListIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                            ) : (
+                                <BoltIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                            )}
                             {hasConfirmedStarters
-                                ? '✓ Confirmed Lineup'
+                                ? 'Confirmed Lineup'
                                 : match.status === 'FINISHED'
-                                ? '📋 Historical Squad'
-                                : '⚡ Projected Lineup'}
+                                ? 'Historical Squad'
+                                : 'Projected Lineup'}
                         </span>
 
                         {/* View Mode Toggle: Pitch vs Detailed List */}
-                        <div className="flex items-center bg-gray-100 dark:bg-gray-700/60 p-1 rounded-xl">
+                        <div className="flex items-center w-full sm:w-auto bg-gray-100 dark:bg-gray-700/60 p-1 rounded-xl">
                             <button
                                 type="button"
                                 onClick={() => setViewFormat('pitch')}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                aria-pressed={viewFormat === 'pitch'}
+                                className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 min-h-11 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                                     viewFormat === 'pitch'
                                         ? 'bg-white dark:bg-gray-800 text-sffl-navy dark:text-white shadow-sm font-black'
                                         : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'
                                 }`}
                             >
-                                🏟️ Pitch
+                                <PitchIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                                Pitch
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setViewFormat('list')}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                aria-pressed={viewFormat === 'list'}
+                                className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 min-h-11 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                                     viewFormat === 'list'
                                         ? 'bg-white dark:bg-gray-800 text-sffl-navy dark:text-white shadow-sm font-black'
                                         : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'
                                 }`}
                             >
-                                📋 Detailed List
+                                <ListBulletIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                                Detailed List
                             </button>
                         </div>
                     </div>
@@ -492,48 +523,57 @@ export const MatchTeamSheetTab = ({ match, teamSheet, mvpPlayerId }: MatchTeamSh
 
                 {/* Sub-bar: Unit Filter Pills (Full Lineup / Attack / Defense) & Tactical Details */}
                 <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700/60 p-1 rounded-xl">
+                    <div className="grid grid-cols-3 w-full sm:inline-flex sm:w-auto items-center gap-1.5 bg-gray-100 dark:bg-gray-700/60 p-1 rounded-xl">
                         <button
                             type="button"
                             onClick={() => setUnitFilter('ALL')}
-                            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-tight transition-all cursor-pointer ${
+                            aria-pressed={unitFilter === 'ALL'}
+                            className={`flex items-center justify-center gap-1.5 min-h-11 px-2 sm:px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-tight transition-all cursor-pointer ${
                                 unitFilter === 'ALL'
                                     ? 'bg-sffl-navy text-white shadow-sm'
                                     : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
                             }`}
                         >
-                            <span>Full Lineup (14)</span>
+                            <span><span className="hidden min-[400px]:inline">Full </span>Lineup (14)</span>
                         </button>
                         <button
                             type="button"
                             onClick={() => setUnitFilter('OFFENSE')}
-                            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-tight transition-all cursor-pointer ${
+                            aria-pressed={unitFilter === 'OFFENSE'}
+                            className={`flex items-center justify-center gap-1.5 min-h-11 px-2 sm:px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-tight transition-all cursor-pointer ${
                                 unitFilter === 'OFFENSE'
                                     ? 'bg-sffl-red text-white shadow-sm ring-1 ring-white/30'
                                     : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
                             }`}
                         >
-                            <span className="w-2 h-2 rounded-full bg-sffl-red" />
+                            <span className="w-2 h-2 shrink-0 rounded-full bg-sffl-red" />
                             <span>Attack (7)</span>
                         </button>
                         <button
                             type="button"
                             onClick={() => setUnitFilter('DEFENSE')}
-                            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-tight transition-all cursor-pointer ${
+                            aria-pressed={unitFilter === 'DEFENSE'}
+                            className={`flex items-center justify-center gap-1.5 min-h-11 px-2 sm:px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-tight transition-all cursor-pointer ${
                                 unitFilter === 'DEFENSE'
                                     ? 'bg-[#2563eb] text-white shadow-sm ring-1 ring-white/30'
                                     : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
                             }`}
                         >
-                            <span className="w-2 h-2 rounded-full bg-[#7fbbfa]" />
+                            <span className="w-2 h-2 shrink-0 rounded-full bg-[#7fbbfa]" />
                             <span>Defense (7)</span>
                         </button>
                     </div>
 
                     <div className="text-xs text-gray-500 dark:text-gray-400 font-bold flex flex-wrap items-center gap-2">
-                        <span>🛡️ Scheme: {DEFENSIVE_SCHEMES[activeCoverage]?.name}</span>
-                        <span className="text-gray-300 dark:text-gray-600">•</span>
-                        <span>🏈 Offense: 2 QBs · 1 C · 4 WRs</span>
+                        <span className="inline-flex items-center gap-1">
+                            <ShieldCheckIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                            Scheme: {DEFENSIVE_SCHEMES[activeCoverage]?.name}
+                        </span>
+                        <span className="text-gray-300 dark:text-gray-600" aria-hidden="true">•</span>
+                        <span className="inline-flex items-center gap-1">
+                            <FootballIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                            Offense: 2 QBs · 1 C · 4 WRs
+                        </span>
                     </div>
                 </div>
             </div>
@@ -541,7 +581,7 @@ export const MatchTeamSheetTab = ({ match, teamSheet, mvpPlayerId }: MatchTeamSh
             {/* Context Note when Projected */}
             {!hasConfirmedStarters && (
                 <div className="p-3.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs flex items-center gap-2.5">
-                    <span className="text-base flex-shrink-0">💡</span>
+                    <LightBulbIcon className="w-5 h-5 shrink-0" aria-hidden="true" />
                     <span>
                         {match.status === 'FINISHED' ? (
                             <>
@@ -572,21 +612,27 @@ export const MatchTeamSheetTab = ({ match, teamSheet, mvpPlayerId }: MatchTeamSh
                         <div className="absolute top-[10%] bottom-[10%] left-[3%] right-[3%] border border-white/30 rounded-lg pointer-events-none" />
 
                         {/* Top End Zone: Defense */}
-                        <div className="absolute inset-x-0 top-0 h-[10%] flex items-center justify-center bg-black/25 border-b border-white/20 text-white/30 font-black italic tracking-[0.24em] text-sm sm:text-lg md:text-xl pointer-events-none select-none">
-                            DEFENSE · {DEFENSIVE_SCHEMES[activeCoverage]?.name.toUpperCase()}
+                        <div className="absolute inset-x-0 top-0 h-[10%] flex items-center justify-center bg-black/25 border-b border-white/20 text-white/30 font-black italic tracking-widest sm:tracking-[0.24em] text-xs sm:text-lg md:text-xl pointer-events-none select-none px-4">
+                            <span className="truncate">DEFENSE · {DEFENSIVE_SCHEMES[activeCoverage]?.name.toUpperCase()}</span>
                         </div>
 
                         {/* Bottom End Zone: Offense */}
-                        <div className="absolute inset-x-0 bottom-0 h-[10%] flex items-center justify-center bg-black/25 border-t border-white/20 text-white/30 font-black italic tracking-[0.24em] text-sm sm:text-lg md:text-xl pointer-events-none select-none">
-                            OFFENSE · {activeTeam?.name?.toUpperCase() || 'ATTACK'}
+                        <div className="absolute inset-x-0 bottom-0 h-[10%] flex items-center justify-center bg-black/25 border-t border-white/20 text-white/30 font-black italic tracking-widest sm:tracking-[0.24em] text-xs sm:text-lg md:text-xl pointer-events-none select-none px-4">
+                            <span className="truncate">OFFENSE · {activeTeam?.name?.toUpperCase() || 'ATTACK'}</span>
                         </div>
 
                         {/* Unit Half Markers */}
                         <span className="absolute left-[4.5%] top-[11.5%] text-[9px] sm:text-[10px] md:text-xs font-black tracking-widest text-white/40 uppercase pointer-events-none">
-                            🛡️ DEFENSIVE HALF
+                            <span className="inline-flex items-center gap-1">
+                                <ShieldCheckIcon className="w-3 h-3 md:w-3.5 md:h-3.5" aria-hidden="true" />
+                                DEFENSIVE HALF
+                            </span>
                         </span>
                         <span className="absolute left-[4.5%] top-[51%] text-[9px] sm:text-[10px] md:text-xs font-black tracking-widest text-white/40 uppercase pointer-events-none">
-                            🏈 OFFENSIVE HALF
+                            <span className="inline-flex items-center gap-1">
+                                <FootballIcon className="w-3 h-3 md:w-3.5 md:h-3.5" aria-hidden="true" />
+                                OFFENSIVE HALF
+                            </span>
                         </span>
 
                         {/* Line of Scrimmage (LOS) */}
@@ -609,8 +655,8 @@ export const MatchTeamSheetTab = ({ match, teamSheet, mvpPlayerId }: MatchTeamSh
                                             isDimmed ? 'opacity-20 pointer-events-none filter blur-[1.5px] grayscale scale-90 z-0' : 'opacity-80 scale-100 z-10'
                                         }`}
                                     >
-                                        <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full border-2 border-dashed border-white/40 flex items-center justify-center bg-black/20 text-white/50 text-xs font-bold mx-auto">
-                                            ?
+                                        <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full border-2 border-dashed border-white/40 flex items-center justify-center bg-black/20 text-white/50 mx-auto">
+                                            <QuestionMarkCircleIcon className="w-5 h-5" aria-label="No player in this position" />
                                         </div>
                                         <span className="text-[9px] sm:text-[10px] font-bold text-white/70 block mt-1">{item.role}</span>
                                     </div>
@@ -626,6 +672,7 @@ export const MatchTeamSheetTab = ({ match, teamSheet, mvpPlayerId }: MatchTeamSh
                                     key={`${item.unit}-${item.slotKey}-${p.player_id}`}
                                     type="button"
                                     onClick={() => setModalPlayer({ player: p, isStarter: true, assignedRole: item.role })}
+                                    aria-label={`${p.name}, #${p.jersey_number}, ${item.role}${isMvp ? ', match MVP' : ''}`}
                                     style={{ left: `${item.x}%`, top: `${item.y}%` }}
                                     className={`absolute -translate-x-1/2 -translate-y-1/2 text-center transition-all duration-300 group focus:outline-none ${
                                         isDimmed
@@ -658,25 +705,23 @@ export const MatchTeamSheetTab = ({ match, teamSheet, mvpPlayerId }: MatchTeamSh
 
                                         {/* MVP Star */}
                                         {isMvp && (
-                                            <span className="absolute -top-2 -left-2 text-sm md:text-base drop-shadow-md animate-bounce">
-                                                ⭐
-                                            </span>
+                                            <StarSolidIcon className="absolute -top-2 -left-2 w-4 h-4 md:w-5 md:h-5 text-amber-400 drop-shadow-md animate-bounce" aria-hidden="true" />
                                         )}
                                     </div>
 
                                     {/* Player Name Tag */}
-                                    <div className="mt-1 bg-white/95 dark:bg-gray-900/95 px-1.5 sm:px-2 py-0.5 rounded-t-md shadow-sm max-w-[80px] sm:max-w-[100px] md:max-w-[120px] mx-auto truncate text-[9px] sm:text-[10px] md:text-xs font-black text-sffl-navy dark:text-white group-hover:text-sffl-red transition-colors">
+                                    <div className="mt-1 bg-white/95 dark:bg-gray-900/95 px-1.5 sm:px-2 py-0.5 rounded-t-md sm:rounded-t-md rounded-b-md sm:rounded-b-none shadow-sm max-w-14 sm:max-w-25 md:max-w-30 mx-auto truncate text-[9px] sm:text-[10px] md:text-xs font-black text-sffl-navy dark:text-white group-hover:text-sffl-red transition-colors">
                                         {p.name}
                                     </div>
 
                                     {/* Role Tag */}
-                                    <div className="bg-white/95 dark:bg-gray-900/95 px-1 sm:px-1.5 py-0.5 rounded-b-md shadow-sm max-w-[80px] sm:max-w-[100px] md:max-w-[120px] mx-auto truncate text-[8px] sm:text-[9px] font-semibold text-gray-500 dark:text-gray-400">
+                                    <div className="hidden sm:block bg-white/95 dark:bg-gray-900/95 px-1 sm:px-1.5 py-0.5 rounded-b-md shadow-sm max-w-25 md:max-w-30 mx-auto truncate text-[9px] font-semibold text-gray-500 dark:text-gray-400">
                                         #{p.jersey_number} · {item.role}
                                     </div>
 
                                     {/* Rating Badge */}
                                     <div className="inline-flex items-center gap-1 mt-0.5 sm:mt-1 bg-sffl-navy text-white px-1.5 sm:px-2 py-0.5 rounded-full text-[8px] sm:text-[9px] md:text-[10px] font-black border border-white/80 shadow-md">
-                                        <span className="text-amber-400">★</span>
+                                        <StarSolidIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-400" aria-hidden="true" />
                                         <span>{ratingText}</span>
                                     </div>
                                 </button>
@@ -684,20 +729,29 @@ export const MatchTeamSheetTab = ({ match, teamSheet, mvpPlayerId }: MatchTeamSh
                         })}
 
                         {/* Formation Badge on Pitch bottom */}
-                        <div className="absolute left-1/2 bottom-3 -translate-x-1/2 px-4 py-1.5 rounded-full bg-sffl-navy/90 border border-white/20 text-white font-bold text-[9px] sm:text-xs shadow-lg backdrop-blur-sm whitespace-nowrap z-[6]">
-                            {unitFilter === 'ALL'
-                                ? '🏟️ Showtime 7v7 Lineup · 14 Starters (7 Defense / 7 Attack)'
-                                : unitFilter === 'OFFENSE'
-                                ? '🏈 Showtime Attack · 7 Starters (2 QBs · 1 Center · 4 Receivers)'
-                                : `🛡️ Showtime Defense · ${DEFENSIVE_SCHEMES[activeCoverage]?.name} (1 Rusher · 6 Defenders)`}
+                        <div className="absolute left-1/2 bottom-3 -translate-x-1/2 max-w-[90%] inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-2xl sm:rounded-full bg-sffl-navy/90 border border-white/20 text-white font-bold text-[9px] sm:text-xs text-center shadow-lg backdrop-blur-sm z-6">
+                            {unitFilter === 'ALL' ? (
+                                <PitchIcon className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                            ) : unitFilter === 'OFFENSE' ? (
+                                <FootballIcon className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                            ) : (
+                                <ShieldCheckIcon className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                            )}
+                            <span className="min-w-0">
+                                {unitFilter === 'ALL'
+                                    ? 'Showtime 7v7 Lineup · 14 Starters (7 Defense / 7 Attack)'
+                                    : unitFilter === 'OFFENSE'
+                                    ? 'Showtime Attack · 7 Starters (2 QBs · 1 Center · 4 Receivers)'
+                                    : `Showtime Defense · ${DEFENSIVE_SCHEMES[activeCoverage]?.name} (1 Rusher · 6 Defenders)`}
+                            </span>
                         </div>
                     </div>
 
                     {/* Substitutes Section */}
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
-                        <div className="flex items-center justify-between mb-4 border-b border-gray-100 dark:border-gray-700 pb-3">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-5">
+                        <div className="flex flex-wrap items-center justify-between gap-2 mb-4 border-b border-gray-100 dark:border-gray-700 pb-3">
                             <div className="flex items-center gap-2">
-                                <span className="text-base">🔄</span>
+                                <ArrowPathIcon className="w-5 h-5 text-gray-500" aria-hidden="true" />
                                 <h3 className="text-sm font-black text-sffl-navy dark:text-white uppercase tracking-tight">
                                     Substitutes
                                 </h3>
@@ -717,7 +771,7 @@ export const MatchTeamSheetTab = ({ match, teamSheet, mvpPlayerId }: MatchTeamSh
                         {filteredSubstitutes.length === 0 ? (
                             <p className="text-center py-6 text-xs text-gray-400 italic">No substitutes listed for this selection.</p>
                         ) : (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                            <div className="grid grid-cols-1 min-[400px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                                 {filteredSubstitutes.map(sub => {
                                     const ratingText = getRatingDisplay(sub);
                                     const isFemale = (sub.gender || '').toUpperCase().startsWith('F');
@@ -726,7 +780,7 @@ export const MatchTeamSheetTab = ({ match, teamSheet, mvpPlayerId }: MatchTeamSh
                                             key={sub.player_id}
                                             type="button"
                                             onClick={() => setModalPlayer({ player: sub, isStarter: false, assignedRole: sub.position || 'Sub' })}
-                                            className="flex items-center gap-2.5 p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-sffl-red/40 dark:hover:border-sffl-red/40 hover:bg-gray-50/80 dark:hover:bg-gray-700/40 transition-all text-left group"
+                                            className="flex items-center gap-2.5 min-w-0 min-h-11 p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-sffl-red/40 dark:hover:border-sffl-red/40 hover:bg-gray-50/80 dark:hover:bg-gray-700/40 transition-all text-left group"
                                         >
                                             <div className="relative w-9 h-9 rounded-full overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-gray-700">
                                                 {sub.image ? (
@@ -754,9 +808,10 @@ export const MatchTeamSheetTab = ({ match, teamSheet, mvpPlayerId }: MatchTeamSh
                                                 </div>
                                             </div>
 
-                                            <div className="flex-shrink-0 text-right">
-                                                <span className="text-[11px] font-black text-sffl-navy dark:text-gray-200 tabular-nums">
-                                                    ★ {ratingText}
+                                            <div className="shrink-0 text-right">
+                                                <span className="inline-flex items-center gap-0.5 text-[11px] font-black text-sffl-navy dark:text-gray-200 tabular-nums">
+                                                    {ratingText !== '-' && <StarSolidIcon className="w-3 h-3 text-amber-400" aria-hidden="true" />}
+                                                    {ratingText}
                                                 </span>
                                             </div>
                                         </button>
@@ -771,9 +826,9 @@ export const MatchTeamSheetTab = ({ match, teamSheet, mvpPlayerId }: MatchTeamSh
             {/* ── VIEW 2: Detailed Sorted Roster Table (Previous Tab Capability) ── */}
             {viewFormat === 'list' && (
                 <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <div className="p-4 md:p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <h3 className="text-base font-black text-sffl-navy dark:text-white uppercase tracking-tight">
+                    <div className="p-4 md:p-5 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
+                            <h3 className="min-w-0 wrap-break-word text-base font-black text-sffl-navy dark:text-white uppercase tracking-tight">
                                 {activeTeam?.name} Team Sheet Roster
                             </h3>
                             <span className="text-xs bg-sffl-navy/10 dark:bg-white/10 text-sffl-navy dark:text-gray-300 font-bold px-2 py-0.5 rounded-full">
@@ -787,10 +842,13 @@ export const MatchTeamSheetTab = ({ match, teamSheet, mvpPlayerId }: MatchTeamSh
                             <button
                                 type="button"
                                 onClick={() => setRatingSort(s => (s === 'default' ? 'high' : s === 'high' ? 'low' : 'default'))}
-                                className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-600 text-sffl-navy dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors tabular-nums"
+                                className="inline-flex items-center gap-1.5 min-h-11 text-xs font-bold px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-600 text-sffl-navy dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors tabular-nums"
                             >
-                                <ChevronUpDownIcon className="w-3.5 h-3.5" />
-                                {RATING_SORT_LABEL[ratingSort]}
+                                {(() => {
+                                    const SortIcon = RATING_SORT_LABEL[ratingSort].icon;
+                                    return <SortIcon className="w-3.5 h-3.5" aria-hidden="true" />;
+                                })()}
+                                {RATING_SORT_LABEL[ratingSort].label}
                             </button>
                         </div>
                     </div>
@@ -805,7 +863,7 @@ export const MatchTeamSheetTab = ({ match, teamSheet, mvpPlayerId }: MatchTeamSh
                                 <Link
                                     key={player.player_id}
                                     to={getPlayerProfileLink(player.player_id)}
-                                    className="flex items-center justify-between p-3.5 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors group"
+                                    className="flex items-center justify-between gap-2 p-3 sm:p-3.5 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors group"
                                 >
                                     <div className="flex items-center gap-3 min-w-0">
                                         {player.image ? (
@@ -819,7 +877,7 @@ export const MatchTeamSheetTab = ({ match, teamSheet, mvpPlayerId }: MatchTeamSh
                                         )}
 
                                         <div className="min-w-0">
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-2 min-w-0">
                                                 <span
                                                     title={isDeletedPlayer(player) ? DELETED_TITLE : undefined}
                                                     className={`font-black text-sm text-sffl-navy dark:text-white truncate group-hover:text-sffl-red transition-colors ${
@@ -828,9 +886,9 @@ export const MatchTeamSheetTab = ({ match, teamSheet, mvpPlayerId }: MatchTeamSh
                                                 >
                                                     {player.name}
                                                 </span>
-                                                {isMvp && <span title="Match MVP">⭐</span>}
+                                                {isMvp && <StarSolidIcon className="w-4 h-4 shrink-0 text-amber-400" aria-label="Match MVP" />}
                                                 <span
-                                                    className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                                    className={`shrink-0 text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                                                         isStarter
                                                             ? 'bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800'
                                                             : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
@@ -846,9 +904,10 @@ export const MatchTeamSheetTab = ({ match, teamSheet, mvpPlayerId }: MatchTeamSh
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-3 flex-shrink-0 ml-3">
-                                        <span className="text-sm font-black tabular-nums text-sffl-navy dark:text-white">
-                                            {ratingVal === '-' ? '-' : `★ ${ratingVal}`}
+                                    <div className="flex items-center gap-3 shrink-0 ml-1 sm:ml-3">
+                                        <span className="inline-flex items-center gap-0.5 text-sm font-black tabular-nums text-sffl-navy dark:text-white">
+                                            {ratingVal !== '-' && <StarSolidIcon className="w-3.5 h-3.5 text-amber-400" aria-hidden="true" />}
+                                            {ratingVal}
                                         </span>
                                     </div>
                                 </Link>
@@ -859,31 +918,18 @@ export const MatchTeamSheetTab = ({ match, teamSheet, mvpPlayerId }: MatchTeamSh
             )}
 
             {/* ── Player Summary Lightbox Modal ── */}
-            {modalPlayer && (
-                <div
-                    className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
-                    onClick={() => setModalPlayer(null)}
-                >
-                    <div
-                        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-2xl md:rounded-3xl shadow-2xl max-w-sm w-full p-5 space-y-4 animate-in fade-in zoom-in-95 duration-150"
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3">
-                            <span className="text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                Player Card
-                            </span>
-                            <button
-                                type="button"
-                                onClick={() => setModalPlayer(null)}
-                                className="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
-                            >
-                                <XMarkIcon className="w-4 h-4" />
-                            </button>
-                        </div>
+            <Modal
+                open={!!modalPlayer}
+                onClose={() => setModalPlayer(null)}
+                title="Player Card"
+                maxWidth="md"
+            >
+                {modalPlayer && (
+                    <div className="space-y-4 text-gray-900 dark:text-white">
 
                         {/* Profile Header */}
                         <div className="flex items-center gap-3.5">
-                            <div className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0 border-2 border-sffl-navy dark:border-white shadow-md bg-gray-100 dark:bg-gray-700">
+                            <div className="w-16 h-16 rounded-full overflow-hidden shrink-0 border-2 border-sffl-navy dark:border-white shadow-md bg-gray-100 dark:bg-gray-700">
                                 {modalPlayer.player.image ? (
                                     <img src={modalPlayer.player.image} alt={modalPlayer.player.name} className="w-full h-full object-cover" />
                                 ) : (
@@ -912,11 +958,12 @@ export const MatchTeamSheetTab = ({ match, teamSheet, mvpPlayerId }: MatchTeamSh
                             const rating = getRatingDisplay(modalPlayer.player);
 
                             return (
-                                <div className="grid grid-cols-3 gap-2 text-center pt-1">
+                                <div className="grid grid-cols-1 min-[360px]:grid-cols-3 gap-2 text-center pt-1">
                                     <div className="bg-gray-50 dark:bg-gray-700/50 p-2.5 rounded-xl border border-gray-100 dark:border-gray-600">
                                         <span className="text-[10px] font-black uppercase text-gray-400 block tracking-tight">Rating</span>
-                                        <strong className="text-sm font-black text-sffl-navy dark:text-white">
-                                            {rating === '-' ? '-' : `★ ${rating}`}
+                                        <strong className="inline-flex items-center justify-center gap-0.5 text-sm font-black text-sffl-navy dark:text-white">
+                                            {rating !== '-' && <StarSolidIcon className="w-3.5 h-3.5 text-amber-400" aria-hidden="true" />}
+                                            {rating}
                                         </strong>
                                     </div>
                                     <div className="bg-gray-50 dark:bg-gray-700/50 p-2.5 rounded-xl border border-gray-100 dark:border-gray-600">
@@ -939,14 +986,15 @@ export const MatchTeamSheetTab = ({ match, teamSheet, mvpPlayerId }: MatchTeamSh
                         <div className="pt-2">
                             <Link
                                 to={getPlayerProfileLink(modalPlayer.player.player_id)}
-                                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-xs uppercase tracking-tight shadow-md transition-all"
+                                className="w-full min-h-11 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white font-bold text-xs uppercase tracking-tight shadow-md transition-all"
                             >
-                                View Player Profile →
+                                View Player Profile
+                                <ArrowRightIcon className="w-4 h-4" aria-hidden="true" />
                             </Link>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
+            </Modal>
         </div>
     );
 };

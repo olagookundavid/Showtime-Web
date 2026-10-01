@@ -5,7 +5,10 @@ import {
     ArrowPathIcon,
     ListBulletIcon,
     Squares2X2Icon,
+    UserIcon,
 } from '@heroicons/react/24/outline';
+import { FemaleIcon } from '../icons/FemaleIcon';
+import { MaleIcon } from '../icons/MaleIcon';
 import {
     fantasyApi,
     formatFantasyPrice,
@@ -107,11 +110,11 @@ export function FantasyTeamModal({
             <div className="fixed inset-0" onClick={onClose} />
 
             <div
-                className="relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh] z-10 animate-in fade-in zoom-in-95 duration-200"
+                className="relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[calc(100dvh-var(--chrome-h,0px)-2rem)] z-10 animate-in fade-in zoom-in-95 duration-200"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header Banner */}
-                <div className="bg-sffl-navy text-white p-5 md:p-6 flex items-start justify-between gap-4 border-b border-white/10">
+                <div className="bg-sffl-navy text-white p-4 md:p-6 flex items-start justify-between gap-3 border-b border-white/10 shrink-0">
                     <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                             <span className="text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-white/15 text-gray-200">
@@ -144,21 +147,41 @@ export function FantasyTeamModal({
                         </div>
 
                         <h2 className="text-xl md:text-2xl font-black italic tracking-tight truncate text-white">
-                            {data?.team_name || 'Loading Squad...'}
+                            {data?.team_name || 'Loading squad…'}
                         </h2>
 
-                        <div className="flex items-center gap-3 mt-1 text-xs text-gray-300">
-                            <span>Manager: <strong className="text-white">{data?.manager_name || '—'}</strong></span>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-gray-300 min-w-0">
+                            <span className="truncate">Manager: <strong className="text-white">{data?.manager_name || '—'}</strong></span>
                         </div>
+
+                        {/* Gameweek selector: under the title on phones so the name keeps its width */}
+                        {activeGameweeks.length > 0 && (
+                            <div className="mt-2 sm:hidden">
+                                <label className="sr-only" htmlFor="team-modal-gw-mobile">Gameweek</label>
+                                <select
+                                    id="team-modal-gw-mobile"
+                                    value={selectedGwId}
+                                    onChange={(e) => setSelectedGwId(e.target.value)}
+                                    className="w-full min-h-11 bg-white/10 border border-white/20 text-white rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-sffl-red cursor-pointer"
+                                >
+                                    {activeGameweeks.map((gw) => (
+                                        <option key={gw.id} value={gw.id} className="text-gray-900 bg-white">
+                                            Gameweek {gw.number}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
                         {/* Gameweek Selector Dropdown */}
                         {activeGameweeks.length > 0 && (
                             <select
+                                aria-label="Gameweek"
                                 value={selectedGwId}
                                 onChange={(e) => setSelectedGwId(e.target.value)}
-                                className="bg-white/10 border border-white/20 text-white rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-sffl-red cursor-pointer"
+                                className="hidden sm:block min-h-11 bg-white/10 border border-white/20 text-white rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-sffl-red cursor-pointer"
                             >
                                 {activeGameweeks.map((gw) => (
                                     <option key={gw.id} value={gw.id} className="text-gray-900 bg-white">
@@ -171,17 +194,17 @@ export function FantasyTeamModal({
                         <button
                             type="button"
                             onClick={onClose}
-                            className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-gray-200 hover:text-white transition cursor-pointer"
+                            className="min-h-11 min-w-11 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 text-gray-200 hover:text-white transition cursor-pointer"
                             aria-label="Close dialog"
                         >
-                            <XMarkIcon className="w-5 h-5" />
+                            <XMarkIcon className="w-5 h-5" aria-hidden="true" />
                         </button>
                     </div>
                 </div>
 
                 {/* KPI Overview Strip */}
                 {data && (
-                    <div className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700 px-5 py-3 grid grid-cols-3 gap-2 text-center text-xs">
+                    <div className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700 px-3 sm:px-5 py-3 grid grid-cols-3 gap-2 text-center text-xs shrink-0">
                         <div className="border-r border-gray-200 dark:border-gray-700/80 pr-2">
                             <span className="text-gray-500 dark:text-gray-400 font-bold block text-[10px] uppercase tracking-wider">
                                 Formation
@@ -213,29 +236,31 @@ export function FantasyTeamModal({
 
                 {/* View Switcher Strip */}
                 {data && picks.length > 0 && (
-                    <div className="flex items-center justify-between px-5 py-2.5 bg-gray-100/70 dark:bg-gray-700/40 border-b border-gray-200 dark:border-gray-700">
+                    <div className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-5 py-2 bg-gray-100/70 dark:bg-gray-700/40 border-b border-gray-200 dark:border-gray-700 shrink-0">
                         <div className="flex items-center gap-1 bg-white dark:bg-gray-800 p-0.5 rounded-xl border border-gray-200 dark:border-gray-700">
                             <button
                                 type="button"
                                 onClick={() => setViewMode('pitch')}
-                                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                                aria-pressed={viewMode === 'pitch'}
+                                className={`flex items-center gap-1.5 min-h-11 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
                                     viewMode === 'pitch'
                                         ? 'bg-sffl-navy text-white shadow-sm'
                                         : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'
                                 }`}
                             >
-                                <Squares2X2Icon className="w-3.5 h-3.5" /> Formation
+                                <Squares2X2Icon className="w-3.5 h-3.5" aria-hidden="true" /> Formation
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setViewMode('list')}
-                                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                                aria-pressed={viewMode === 'list'}
+                                className={`flex items-center gap-1.5 min-h-11 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
                                     viewMode === 'list'
                                         ? 'bg-sffl-navy text-white shadow-sm'
                                         : 'text-gray-600 dark:text-gray-300 hover:text-gray-900'
                                 }`}
                             >
-                                <ListBulletIcon className="w-3.5 h-3.5" /> Squad List
+                                <ListBulletIcon className="w-3.5 h-3.5" aria-hidden="true" /> Squad List
                             </button>
                         </div>
 
@@ -325,13 +350,17 @@ export function FantasyTeamModal({
                                                         {pick.player_image ? (
                                                             <img src={pick.player_image} alt="" className="w-full h-full object-cover" />
                                                         ) : (
-                                                            <span className="text-[10px] font-black text-gray-400">P</span>
+                                                            <UserIcon className="w-5 h-5 text-gray-400" aria-hidden="true" />
                                                         )}
                                                     </div>
-                                                    <span className={`absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full border border-white text-[7px] font-black flex items-center justify-center text-white ${
+                                                    <span className={`absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full border border-white flex items-center justify-center text-white ${
                                                         (pick.gender || '').toUpperCase().startsWith('F') ? 'bg-pink-500' : 'bg-blue-500'
                                                     }`}>
-                                                        {(pick.gender || '').toUpperCase().startsWith('F') ? '♀' : '♂'}
+                                                        {(pick.gender || '').toUpperCase().startsWith('F') ? (
+                                                            <FemaleIcon className="w-2.5 h-2.5" strokeWidth={2.5} aria-label="Woman" />
+                                                        ) : (
+                                                            <MaleIcon className="w-2.5 h-2.5" strokeWidth={2.5} aria-label="Man" />
+                                                        )}
                                                     </span>
                                                 </div>
                                                 <div className="min-w-0">
@@ -396,13 +425,17 @@ export function FantasyTeamModal({
                                                         {pick.player_image ? (
                                                             <img src={pick.player_image} alt="" className="w-full h-full object-cover" />
                                                         ) : (
-                                                            <span className="text-[10px] font-black text-gray-400">P</span>
+                                                            <UserIcon className="w-5 h-5 text-gray-400" aria-hidden="true" />
                                                         )}
                                                     </div>
-                                                    <span className={`absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full border border-white text-[7px] font-black flex items-center justify-center text-white ${
+                                                    <span className={`absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full border border-white flex items-center justify-center text-white ${
                                                         (pick.gender || '').toUpperCase().startsWith('F') ? 'bg-pink-500' : 'bg-blue-500'
                                                     }`}>
-                                                        {(pick.gender || '').toUpperCase().startsWith('F') ? '♀' : '♂'}
+                                                        {(pick.gender || '').toUpperCase().startsWith('F') ? (
+                                                            <FemaleIcon className="w-2.5 h-2.5" strokeWidth={2.5} aria-label="Woman" />
+                                                        ) : (
+                                                            <MaleIcon className="w-2.5 h-2.5" strokeWidth={2.5} aria-label="Man" />
+                                                        )}
                                                     </span>
                                                 </div>
                                                 <div className="min-w-0">

@@ -14,7 +14,16 @@ import { Loader } from "../../components/ui/Loader";
 import { StatsTable } from "../../components/stats/StatsTable";
 import { SeasonStageTabs } from "../../components/common/SeasonStageTabs";
 import { useSearchParams } from "react-router-dom";
-import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import {
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ChevronUpIcon,
+  InformationCircleIcon,
+  MagnifyingGlassIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
+import { FootballIcon } from "../../components/icons/FootballIcon";
 
 export const StatsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -255,11 +264,11 @@ export const StatsPage = () => {
   };
 
   return (
-    <div className="space-y-4 md:space-y-8 pb-36 md:pb-20">
+    <div className="space-y-4 md:space-y-8">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row items-start lg:items-center bg-sffl-navy text-white p-6 md:p-8 rounded-xl md:rounded-2xl shadow-xl gap-8 lg:gap-12">
-        <div className="shrink-0">
-          <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase whitespace-nowrap">
+      <div className="flex flex-col xl:flex-row items-start xl:items-center bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl gap-5 md:gap-8 xl:gap-12">
+        <div className="xl:shrink-0 min-w-0">
+          <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase">
             League Stats
           </h1>
           <p className="text-gray-300 mt-0.5 text-xs md:text-lg">
@@ -268,16 +277,20 @@ export const StatsPage = () => {
         </div>
 
         {/* Filters Group */}
-        <div className="flex flex-col sm:flex-row items-end gap-4 md:gap-6 w-full lg:w-auto">
+        <div className="flex flex-col md:flex-row md:items-end gap-4 md:gap-6 w-full xl:w-auto">
           <div
-            className={`w-full sm:w-auto overflow-visible transition-opacity duration-300 ${activeTab === "players" ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+            className={`w-full md:w-auto min-w-0 overflow-visible transition-opacity duration-300 ${activeTab === "players" ? "opacity-100" : "opacity-0 pointer-events-none"}`}
           >
-            <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">
+            <label
+              htmlFor="stats-player-search"
+              className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider"
+            >
               Search Players
             </label>
             <div className="relative group/search">
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within/search:text-sffl-red transition-colors" />
               <input
+                id="stats-player-search"
                 type="text"
                 placeholder="Player name..."
                 value={searchQuery}
@@ -293,7 +306,7 @@ export const StatsPage = () => {
                   }
                   setSearchParams(params, { replace: true });
                 }}
-                className="bg-white/10 border border-white/20 text-white pl-9 pr-10 py-2 rounded-lg font-bold text-sm min-w-full sm:min-w-60 outline-none focus:ring-2 focus:ring-sffl-red transition-all"
+                className="w-full min-h-11 bg-white/10 border border-white/20 text-white pl-9 pr-11 py-2 rounded-lg font-bold text-sm md:min-w-60 outline-none focus:ring-2 focus:ring-sffl-red transition-all"
               />
               {searchQuery && (
                 <button
@@ -305,25 +318,30 @@ export const StatsPage = () => {
                     params.delete("player_id");
                     setSearchParams(params, { replace: true });
                   }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-white/10 rounded-full transition-colors"
-                  title="Clear search"
+                  type="button"
+                  className="absolute right-0 top-0 h-full min-w-11 flex items-center justify-center hover:bg-white/10 rounded-r-lg transition-colors"
+                  aria-label="Clear search"
                 >
-                  <XMarkIcon className="w-4 h-4 text-gray-400 hover:text-white" />
+                  <XMarkIcon className="w-4 h-4 text-gray-400 hover:text-white" aria-hidden="true" />
                 </button>
               )}
             </div>
           </div>
 
-          <div className="w-full flex flex-col gap-2 sm:w-50">
-            <div className="min-w-45">
-              <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">
+          <div className="w-full flex flex-col gap-2 md:w-50">
+            <div className="w-full">
+              <label
+                htmlFor="stats-competition"
+                className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider"
+              >
                 Competition
               </label>
               <div className="relative">
                 <select
+                  id="stats-competition"
                   value={selectedCompetitionId}
                   onChange={(e) => handleCompChange(e.target.value)}
-                  className="w-full appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm cursor-pointer hover:bg-white/20 transition-colors"
+                  className="w-full min-h-11 appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm cursor-pointer hover:bg-white/20 transition-colors"
                 >
                   <option value="" className="text-black bg-white">
                     All Competitions
@@ -342,32 +360,24 @@ export const StatsPage = () => {
                   ))}
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-white">
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
+                  <ChevronDownIcon className="w-4 h-4" aria-hidden="true" />
                 </div>
               </div>
             </div>
           </div>
 
           <div
-            className={`w-full sm:w-auto transition-opacity duration-300 ${!selectedCompetitionId ? "opacity-40" : "opacity-100"}`}
+            className={`w-full md:w-auto transition-opacity duration-300 ${!selectedCompetitionId ? "opacity-40" : "opacity-100"}`}
           >
-            <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">
+            <label
+              htmlFor="stats-event-day"
+              className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider"
+            >
               Event Day
             </label>
             <div className="relative">
               <select
+                id="stats-event-day"
                 value={selectedDate}
                 onChange={(e) => {
                   setSelectedDate(e.target.value);
@@ -376,7 +386,7 @@ export const StatsPage = () => {
                   setSearchParams(params, { replace: true });
                 }}
                 disabled={!selectedCompetitionId}
-                className="w-full appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm min-w-full sm:min-w-37.5 cursor-pointer hover:bg-white/20 transition-colors disabled:cursor-not-allowed"
+                className="w-full min-h-11 appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm md:min-w-37.5 cursor-pointer hover:bg-white/20 transition-colors disabled:cursor-not-allowed"
               >
                 <option value="" className="text-black bg-white">
                   All Event Days
@@ -392,19 +402,7 @@ export const StatsPage = () => {
                 ))}
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-white">
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
+                <ChevronDownIcon className="w-4 h-4" aria-hidden="true" />
               </div>
             </div>
           </div>
@@ -412,16 +410,18 @@ export const StatsPage = () => {
       </div>
 
       {filterTeam && (
-        <div className="flex items-center justify-between gap-3 bg-sffl-red/10 border border-sffl-red/30 text-sffl-red dark:bg-sffl-red/20 dark:text-white px-4 py-2.5 rounded-xl">
-          <div className="flex items-center gap-2 text-xs md:text-sm font-bold uppercase tracking-wider">
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-sffl-red/10 border border-sffl-red/30 text-sffl-red dark:bg-sffl-red/20 dark:text-white px-4 py-2 rounded-xl">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0 text-xs md:text-sm font-bold uppercase tracking-wider">
             <span>Filtering stats for</span>
             <span className="font-black">{filterTeam.name}</span>
           </div>
           <button
+            type="button"
             onClick={clearTeamFilter}
-            className="text-[10px] md:text-xs font-black uppercase tracking-wider bg-white text-sffl-red hover:bg-gray-100 px-3 py-1 rounded-full transition"
+            className="inline-flex items-center gap-1 min-h-11 text-[11px] md:text-xs font-black uppercase tracking-wider bg-white text-sffl-red hover:bg-gray-100 px-4 py-1 rounded-full transition"
           >
-            Clear ✕
+            Clear
+            <XMarkIcon className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
       )}
@@ -436,8 +436,10 @@ export const StatsPage = () => {
       {/* Tabs */}
       <div className="flex space-x-2 border-b border-gray-200 dark:border-gray-700 overflow-x-auto scrollbar-hide">
         <button
+          type="button"
           onClick={() => handleTabChange("players")}
-          className={`px-4 md:px-6 py-3 font-black text-sm md:text-base border-b-4 transition-colors whitespace-nowrap ${
+          aria-pressed={activeTab === "players"}
+          className={`min-h-11 px-4 md:px-6 py-3 font-black text-sm md:text-base border-b-4 transition-colors whitespace-nowrap ${
             activeTab === "players"
               ? "border-sffl-red text-sffl-red"
               : "border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-300"
@@ -446,8 +448,10 @@ export const StatsPage = () => {
           Player Stats
         </button>
         <button
+          type="button"
           onClick={() => handleTabChange("teams")}
-          className={`px-4 md:px-6 py-3 font-black text-sm md:text-base border-b-4 transition-colors whitespace-nowrap ${
+          aria-pressed={activeTab === "teams"}
+          className={`min-h-11 px-4 md:px-6 py-3 font-black text-sm md:text-base border-b-4 transition-colors whitespace-nowrap ${
             activeTab === "teams"
               ? "border-sffl-red text-sffl-red"
               : "border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-300"
@@ -464,33 +468,33 @@ export const StatsPage = () => {
         <div className="space-y-4">
           {/* Legend / Key - Pro Style (Togglable) */}
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-            <div
-              className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+            <button
+              type="button"
+              aria-expanded={showLegend}
+              className="w-full min-h-11 p-4 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
               onClick={() => setShowLegend(!showLegend)}
             >
-              <div className="flex items-center gap-2">
-                <svg
-                  className="w-4 h-4 text-sffl-red"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                <h3 className="font-black text-xs md:text-sm text-sffl-navy dark:text-white uppercase tracking-wider">
+              <span className="flex items-center gap-2">
+                <InformationCircleIcon
+                  className="w-5 h-5 text-sffl-red"
+                  aria-hidden="true"
+                />
+                <span className="font-black text-xs md:text-sm text-sffl-navy dark:text-white uppercase tracking-wider">
                   Statistical Key
-                </h3>
-              </div>
-              <button className="text-[10px] font-black uppercase tracking-tight text-sffl-red hover:underline">
-                {showLegend ? "Close Info ↑" : "See Info ↓"}
-              </button>
-            </div>
+                </span>
+              </span>
+              <span className="inline-flex items-center gap-1 shrink-0 text-[11px] font-black uppercase tracking-tight text-sffl-red">
+                {showLegend ? "Close Info" : "See Info"}
+                {showLegend ? (
+                  <ChevronUpIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                ) : (
+                  <ChevronDownIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                )}
+              </span>
+            </button>
 
             {showLegend && (
-              <div className="p-6 pt-0 border-t border-gray-50 dark:border-gray-700">
+              <div className="p-4 sm:p-6 pt-0 sm:pt-0 border-t border-gray-50 dark:border-gray-700">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 py-4">
                   {/* Category: General */}
                   <div className="space-y-2">
@@ -605,7 +609,8 @@ export const StatsPage = () => {
           {activeTab === "players" && (
             <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide py-1 bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
               <span className="text-xs font-black uppercase tracking-wider text-gray-400 dark:text-gray-400 shrink-0 mr-1 flex items-center gap-1.5">
-                <span>🏈</span> Position:
+                <FootballIcon className="w-4 h-4" aria-hidden="true" />
+                Position:
               </span>
               {[
                 { id: "QB", label: "Quarterbacks (QB)" },
@@ -627,7 +632,8 @@ export const StatsPage = () => {
                       params.set("pos", pos.id);
                       setSearchParams(params, { replace: true });
                     }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all shrink-0 cursor-pointer ${
+                    aria-pressed={isActive}
+                    className={`min-h-11 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all shrink-0 cursor-pointer ${
                       isActive
                         ? "bg-sffl-navy dark:bg-sffl-red text-white shadow-md scale-105"
                         : "bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600"
@@ -668,25 +674,15 @@ export const StatsPage = () => {
                 </span>{" "}
                 entries
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-center gap-1 sm:gap-2">
                 <button
+                  type="button"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  aria-label="Previous page"
+                  className="min-h-11 min-w-11 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 19l-7-7 7-7"
-                    />
-                  </svg>
+                  <ChevronLeftIcon className="w-5 h-5" aria-hidden="true" />
                 </button>
                 {[...Array(totalPages)].map((_, i) => {
                   const p = i + 1;
@@ -694,17 +690,28 @@ export const StatsPage = () => {
                   if (totalPages > 5) {
                     if (p !== 1 && p !== totalPages && Math.abs(p - page) > 1) {
                       if (p === 2 && page > 3)
-                        return <span key="dots1">...</span>;
+                        return (
+                          <span key="dots1" aria-hidden="true">
+                            …
+                          </span>
+                        );
                       if (p === totalPages - 1 && page < totalPages - 2)
-                        return <span key="dots2">...</span>;
+                        return (
+                          <span key="dots2" aria-hidden="true">
+                            …
+                          </span>
+                        );
                       return null;
                     }
                   }
                   return (
                     <button
+                      type="button"
                       key={p}
                       onClick={() => setPage(p)}
-                      className={`w-9 h-9 rounded-lg font-bold text-sm transition-all ${
+                      aria-label={`Page ${p}`}
+                      aria-current={page === p ? "page" : undefined}
+                      className={`w-11 h-11 rounded-lg font-bold text-sm transition-all ${
                         page === p
                           ? "bg-sffl-red text-white shadow-md shadow-red-500/20"
                           : "hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
@@ -715,23 +722,13 @@ export const StatsPage = () => {
                   );
                 })}
                 <button
+                  type="button"
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  aria-label="Next page"
+                  className="min-h-11 min-w-11 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
+                  <ChevronRightIcon className="w-5 h-5" aria-hidden="true" />
                 </button>
               </div>
             </div>

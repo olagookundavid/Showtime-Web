@@ -14,6 +14,13 @@ import { StandingsTable } from "../../components/matches/StandingsTable";
 import { BracketView } from "../../components/matches/BracketView";
 import { MatchCard } from "../../components/matches/MatchCard";
 import { SeasonStageTabs } from "../../components/common/SeasonStageTabs";
+import { Spinner } from "../../components/ui/Spinner";
+import { FootballIcon } from "../../components/icons/FootballIcon";
+import {
+  ChevronDownIcon,
+  ChevronUpIcon,
+  TrophyIcon,
+} from "@heroicons/react/24/outline";
 
 export const StandingsPage = () => {
   const navigate = useNavigate();
@@ -169,10 +176,10 @@ export const StandingsPage = () => {
   if (loading && competitions.length === 0) return <Loader />;
 
   return (
-    <div className="space-y-4 md:space-y-8 pb-36 md:pb-20">
+    <div className="space-y-4 md:space-y-8">
       {/* Header - Condensed */}
-      <div className="flex flex-col md:flex-row justify-between items-center bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
-        <div>
+      <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
+        <div className="min-w-0">
           <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">
             {isKnockout
               ? "PLAYOFFS"
@@ -195,16 +202,20 @@ export const StandingsPage = () => {
 
         {/* Competition Selector - Mobile Optimized */}
         {competitions.length > 0 && (
-          <div className="mt-3 md:mt-0 w-full md:w-auto flex flex-col md:flex-row md:items-end gap-3">
-            <div className="flex-1 min-w-65">
-              <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">
+          <div className="w-full md:w-auto flex flex-col md:flex-row md:items-end gap-3">
+            <div className="flex-1 w-full md:min-w-65">
+              <label
+                htmlFor="standings-competition"
+                className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider"
+              >
                 Competition
               </label>
               <div className="relative">
                 <select
+                  id="standings-competition"
                   value={selectedCompetitionId}
                   onChange={(e) => handleCompetitionChange(e.target.value)}
-                  className="w-full appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm cursor-pointer hover:bg-white/20 transition-colors"
+                  className="w-full min-h-11 appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm cursor-pointer hover:bg-white/20 transition-colors"
                 >
                   {dropdownComps.map((c) => (
                     <option
@@ -220,19 +231,7 @@ export const StandingsPage = () => {
                   ))}
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-white">
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
+                  <ChevronDownIcon className="w-4 h-4" aria-hidden="true" />
                 </div>
               </div>
             </div>
@@ -249,25 +248,22 @@ export const StandingsPage = () => {
       )}
 
       {dataLoading && !isKnockout && !isMatchesOnly && (
-        <div className="flex justify-center items-center gap-2 text-gray-500 py-12">
-          <div className="w-5 h-5 border-2 border-sffl-red border-t-transparent rounded-full animate-spin"></div>
-          <span className="font-semibold">Loading standings...</span>
-        </div>
+        <Spinner label="Loading standings…" className="py-12" />
       )}
 
       {matchesLoading && isMatchesOnly && (
-        <div className="flex justify-center items-center gap-2 text-gray-500 py-12">
-          <div className="w-5 h-5 border-2 border-sffl-red border-t-transparent rounded-full animate-spin"></div>
-          <span className="font-semibold">Loading matches...</span>
-        </div>
+        <Spinner label="Loading matches…" className="py-12" />
       )}
 
       {/* Knockout: bracket replaces the standings table */}
       {isKnockout && selectedCompetitionId && (
         <div className="space-y-3 md:space-y-6">
-          <div className="flex items-center gap-2">
-            <span className="text-base md:text-2xl">🏈</span>
-            <h2 className="text-sm md:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">
+          <div className="flex items-center gap-2 min-w-0">
+            <FootballIcon
+              className="w-5 h-5 md:w-7 md:h-7 shrink-0 text-sffl-red"
+              aria-hidden="true"
+            />
+            <h2 className="min-w-0 wrap-break-word text-sm md:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">
               {selectedCompetition?.name}
             </h2>
           </div>
@@ -278,8 +274,8 @@ export const StandingsPage = () => {
       {/* Matches-only (Preseason & Cup): matches list sorted latest first */}
       {isMatchesOnly && selectedCompetitionId && !matchesLoading && (
         <div className="space-y-4 md:space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
               {selectedCompetition?.logo ? (
                 <img
                   src={selectedCompetition.logo}
@@ -287,11 +283,19 @@ export const StandingsPage = () => {
                   className="w-6 h-6 md:w-8 md:h-8 object-contain"
                 />
               ) : (
-                <span className="text-base md:text-2xl">
-                  {isPreseason ? "🏈" : "🏆"}
-                </span>
+                isPreseason ? (
+                  <FootballIcon
+                    className="w-5 h-5 md:w-7 md:h-7 shrink-0 text-sffl-red"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <TrophyIcon
+                    className="w-5 h-5 md:w-7 md:h-7 shrink-0 text-amber-500"
+                    aria-hidden="true"
+                  />
+                )
               )}
-              <h2 className="text-sm md:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">
+              <h2 className="min-w-0 wrap-break-word text-sm md:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">
                 {selectedCompetition?.name}
                 {selectedCompetition?.status &&
                   !["active", "completed"].includes(
@@ -309,9 +313,19 @@ export const StandingsPage = () => {
           </div>
 
           {matches.length === 0 ? (
-            <div className="bg-gray-100 dark:bg-gray-800 p-16 rounded-xl text-center">
-              <div className="text-5xl mb-4">{isPreseason ? "🏈" : "🏆"}</div>
-              <p className="text-gray-500 text-lg font-semibold">
+            <div className="bg-gray-100 dark:bg-gray-800 p-8 sm:p-16 rounded-xl text-center">
+              {isPreseason ? (
+                <FootballIcon
+                  className="w-12 h-12 mx-auto mb-4 text-gray-400"
+                  aria-hidden="true"
+                />
+              ) : (
+                <TrophyIcon
+                  className="w-12 h-12 mx-auto mb-4 text-gray-400"
+                  aria-hidden="true"
+                />
+              )}
+              <p className="text-gray-500 text-base sm:text-lg font-semibold">
                 No matches scheduled for this competition yet.
               </p>
               <p className="text-gray-400 mt-2">
@@ -340,7 +354,7 @@ export const StandingsPage = () => {
       {/* Standings Table with Compact Legend */}
       {!isKnockout && !isMatchesOnly && !dataLoading && standings.length > 0 ? (
         <div className="space-y-3 md:space-y-6">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
             {selectedCompetition?.logo ? (
               <img
                 src={selectedCompetition.logo}
@@ -348,9 +362,12 @@ export const StandingsPage = () => {
                 className="w-6 h-6 md:w-8 md:h-8 object-contain"
               />
             ) : (
-              <span className="text-base md:text-2xl">🏆</span>
+              <TrophyIcon
+                className="w-5 h-5 md:w-7 md:h-7 shrink-0 text-amber-500"
+                aria-hidden="true"
+              />
             )}
-            <h2 className="text-sm md:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">
+            <h2 className="min-w-0 wrap-break-word text-sm md:text-2xl font-black text-sffl-navy dark:text-white uppercase tracking-tight">
               {selectedCompetition?.name || "League"}
               {selectedCompetition?.status &&
                 !["active", "completed"].includes(
@@ -365,26 +382,33 @@ export const StandingsPage = () => {
 
           {/* Abbreviation Legend - Descriptive and Colorful (Togglable) */}
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden mb-6">
-            <div
-              className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+            <button
+              type="button"
+              aria-expanded={showLegend}
+              className="w-full min-h-11 p-4 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
               onClick={() => setShowLegend(!showLegend)}
             >
-              <div className="flex items-center gap-2">
+              <span className="flex items-center gap-2">
                 <span className="p-1 px-2 bg-sffl-navy text-white text-[10px] font-black rounded box-border leading-none uppercase">
                   Legend
                 </span>
-                <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                <span className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
                   Table Key
-                </h3>
-              </div>
-              <button className="text-[10px] font-black uppercase tracking-tight text-sffl-red hover:underline">
-                {showLegend ? "Close Info ↑" : "See Info ↓"}
-              </button>
-            </div>
+                </span>
+              </span>
+              <span className="inline-flex items-center gap-1 shrink-0 text-[11px] font-black uppercase tracking-tight text-sffl-red">
+                {showLegend ? "Close Info" : "See Info"}
+                {showLegend ? (
+                  <ChevronUpIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                ) : (
+                  <ChevronDownIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                )}
+              </span>
+            </button>
 
             {showLegend && (
-              <div className="p-4 pt-0 border-t border-gray-50 dark:border-gray-700 overflow-x-auto scrollbar-hide">
-                <div className="flex items-center gap-3 whitespace-nowrap min-w-max text-[10px] md:text-xs py-3">
+              <div className="p-4 pt-0 border-t border-gray-50 dark:border-gray-700">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-[10px] md:text-xs py-3">
                   {[
                     {
                       abbr: "GP",
@@ -448,9 +472,12 @@ export const StandingsPage = () => {
           />
         </div>
       ) : !isKnockout && !isMatchesOnly && !dataLoading ? (
-        <div className="bg-gray-100 dark:bg-gray-800 p-16 rounded-xl text-center">
-          <div className="text-5xl mb-4">🏆</div>
-          <p className="text-gray-500 text-lg font-semibold">
+        <div className="bg-gray-100 dark:bg-gray-800 p-8 sm:p-16 rounded-xl text-center">
+          <TrophyIcon
+            className="w-12 h-12 mx-auto mb-4 text-gray-400"
+            aria-hidden="true"
+          />
+          <p className="text-gray-500 text-base sm:text-lg font-semibold">
             No standings available for this competition yet.
           </p>
           <p className="text-gray-400 mt-2">

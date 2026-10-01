@@ -1,6 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRef, useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
+import {
+  ArrowRightIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from "@heroicons/react/24/outline";
 import { getMatches, type Match } from "../../services/api";
 import { Loader } from "../ui/Loader";
 import { formatMatchTime } from "../../utils/dateUtils";
@@ -209,25 +214,16 @@ export const LatestMatchesCarousel = () => {
         <div className="relative flex items-center h-13 sm:h-14 w-full">
           {/* Left Arrow */}
           <button
+            type="button"
             onClick={scrollLeft}
-            className={`flex absolute left-0.5 sm:left-1 top-1/2 -translate-y-1/2 z-20 bg-sffl-navy/95 dark:bg-gray-800/95 hover:bg-sffl-red text-white p-1.5 sm:p-1 rounded-full shadow-lg transition-all duration-200 items-center justify-center cursor-pointer border border-white/20 hover:scale-110 active:scale-95 ${
+            className={`group/arrow flex absolute left-0 top-1/2 -translate-y-1/2 z-20 w-11 h-11 items-center justify-center cursor-pointer transition-opacity duration-200 ${
               canScrollLeft ? "opacity-100" : "opacity-0 pointer-events-none"
             }`}
             aria-label="Scroll left"
           >
-            <svg
-              className="w-3 h-3"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.5}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
+            <span className="bg-sffl-navy/95 dark:bg-gray-800/95 group-hover/arrow:bg-sffl-red text-white p-1.5 rounded-full shadow-lg border border-white/20 transition-all duration-200 group-hover/arrow:scale-110 group-active/arrow:scale-95">
+              <ChevronLeftIcon className="w-3 h-3" strokeWidth={2.5} aria-hidden="true" />
+            </span>
           </button>
 
           {/* Scroll Container */}
@@ -261,13 +257,13 @@ export const LatestMatchesCarousel = () => {
                   key={match.id}
                   to={`/matches/${match.id}`}
                   draggable={false}
-                  className="flex-none w-28.5 sm:w-30 rounded-lg px-2 py-1 flex items-center justify-between gap-1.5 transition-all duration-300 cursor-pointer group h-9.5 sm:h-10 bg-white/5 dark:bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 select-none"
+                  className="flex-none w-32 sm:w-34 rounded-lg px-2 py-1 flex items-center justify-between gap-1.5 transition-all duration-300 cursor-pointer group h-11 bg-white/5 dark:bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 select-none"
                 >
                   <div className="flex flex-col justify-center gap-0.5 flex-1 min-w-0">
                     {/* Home Team */}
                     <div className="flex items-center gap-1 min-w-0 h-3.5 sm:h-3.75">
                       {!match.home_team?.id && isBye ? (
-                        <span className="font-bold text-[9px] text-gray-400 italic uppercase truncate">
+                        <span className="font-bold text-[10px] text-gray-400 italic uppercase truncate">
                           BYE
                         </span>
                       ) : (
@@ -283,12 +279,12 @@ export const LatestMatchesCarousel = () => {
                               className="w-3 h-3 sm:w-3.5 sm:h-3.5 object-contain shrink-0 pointer-events-none select-none"
                             />
                           ) : (
-                            <span className="w-3 h-3 sm:w-3.5 sm:h-3.5 bg-white/10 rounded flex items-center justify-center text-[7.5px] text-gray-400 shrink-0">
+                            <span className="w-3 h-3 sm:w-3.5 sm:h-3.5 bg-white/10 rounded flex items-center justify-center text-[8px] text-gray-400 shrink-0">
                               T1
                             </span>
                           )}
                           <span
-                            className="font-bold text-[9.5px] sm:text-[10px] text-white truncate leading-none"
+                            className="font-bold text-[10px] sm:text-[11px] text-white truncate leading-none"
                             title={match.home_team?.name}
                           >
                             {match.home_team?.short_name ||
@@ -300,7 +296,7 @@ export const LatestMatchesCarousel = () => {
                     {/* Away Team */}
                     <div className="flex items-center gap-1 min-w-0 h-3.5 sm:h-3.75">
                       {!match.away_team?.id && isBye ? (
-                        <span className="font-bold text-[9px] text-gray-400 italic uppercase truncate">
+                        <span className="font-bold text-[10px] text-gray-400 italic uppercase truncate">
                           BYE
                         </span>
                       ) : (
@@ -316,12 +312,12 @@ export const LatestMatchesCarousel = () => {
                               className="w-3 h-3 sm:w-3.5 sm:h-3.5 object-contain shrink-0 pointer-events-none select-none"
                             />
                           ) : (
-                            <span className="w-3 h-3 sm:w-3.5 sm:h-3.5 bg-white/10 rounded flex items-center justify-center text-[7.5px] text-gray-400 shrink-0">
+                            <span className="w-3 h-3 sm:w-3.5 sm:h-3.5 bg-white/10 rounded flex items-center justify-center text-[8px] text-gray-400 shrink-0">
                               T2
                             </span>
                           )}
                           <span
-                            className="font-bold text-[9.5px] sm:text-[10px] text-white truncate leading-none"
+                            className="font-bold text-[10px] sm:text-[11px] text-white truncate leading-none"
                             title={match.away_team?.name}
                           >
                             {match.away_team?.short_name ||
@@ -334,28 +330,28 @@ export const LatestMatchesCarousel = () => {
                   {/* Action / Status / Score Column */}
                   {match.status === "FINISHED" ? (
                     <div className="flex flex-col justify-center shrink-0 border-l border-white/10 pl-1 sm:pl-1.5 text-right min-w-3.5 sm:min-w-4 gap-0.5">
-                      <span className="font-black text-[9.5px] sm:text-[10px] text-white/95 tabular-nums leading-none h-3.5 sm:h-3.75 flex items-center justify-end">
+                      <span className="font-black text-[10px] sm:text-[11px] text-white/95 tabular-nums leading-none h-3.5 sm:h-3.75 flex items-center justify-end">
                         {match.home_score ?? 0}
                       </span>
-                      <span className="font-black text-[9.5px] sm:text-[10px] text-white/95 tabular-nums leading-none h-3.5 sm:h-3.75 flex items-center justify-end">
+                      <span className="font-black text-[10px] sm:text-[11px] text-white/95 tabular-nums leading-none h-3.5 sm:h-3.75 flex items-center justify-end">
                         {match.away_score ?? 0}
                       </span>
                     </div>
                   ) : isLive ? (
                     <div className="flex flex-col items-center justify-center shrink-0 border-l border-white/10 pl-1 sm:pl-1.5 text-center min-w-5.5 sm:min-w-6.5">
-                      <span className="bg-sffl-red text-white text-[6.5px] sm:text-[7px] font-black uppercase px-1 py-0.5 rounded animate-pulse">
+                      <span className="bg-sffl-red text-white text-[9px] font-black uppercase px-1 py-0.5 rounded animate-pulse">
                         LIVE
                       </span>
                     </div>
                   ) : isBye ? (
                     <div className="flex flex-col items-center justify-center shrink-0 border-l border-white/10 pl-1 sm:pl-1.5 text-center min-w-5.5 sm:min-w-6.5">
-                      <span className="text-[7px] font-black text-emerald-400 uppercase">
+                      <span className="text-[9px] font-black text-emerald-400 uppercase">
                         BYE
                       </span>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center shrink-0 border-l border-white/10 pl-1 sm:pl-1.5 text-center min-w-6.5 sm:min-w-7.5 leading-tight gap-0.5">
-                      <span className="text-[7.5px] sm:text-[8px] font-bold text-gray-300 whitespace-nowrap">
+                      <span className="text-[10px] font-bold text-gray-300 whitespace-nowrap">
                         {match.date
                           ? new Date(match.date).toLocaleDateString(undefined, {
                               month: "short",
@@ -365,7 +361,7 @@ export const LatestMatchesCarousel = () => {
                       </span>
                       {match.start_time &&
                         formatMatchTime(match.start_time) !== "TBD" && (
-                          <span className="text-[6.5px] sm:text-[7px] font-medium text-gray-400 whitespace-nowrap">
+                          <span className="text-[9px] font-medium text-gray-400 whitespace-nowrap">
                             {formatMatchTime(match.start_time)}
                           </span>
                         )}
@@ -378,25 +374,16 @@ export const LatestMatchesCarousel = () => {
 
           {/* Right Arrow */}
           <button
+            type="button"
             onClick={scrollRight}
-            className={`flex absolute right-0.5 sm:right-1 top-1/2 -translate-y-1/2 z-20 bg-sffl-navy/95 dark:bg-gray-800/95 hover:bg-sffl-red text-white p-1.5 sm:p-1 rounded-full shadow-lg transition-all duration-200 items-center justify-center cursor-pointer border border-white/20 hover:scale-110 active:scale-95 ${
+            className={`group/arrow flex absolute right-0 top-1/2 -translate-y-1/2 z-20 w-11 h-11 items-center justify-center cursor-pointer transition-opacity duration-200 ${
               canScrollRight ? "opacity-100" : "opacity-0 pointer-events-none"
             }`}
             aria-label="Scroll right"
           >
-            <svg
-              className="w-3 h-3"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.5}
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
+            <span className="bg-sffl-navy/95 dark:bg-gray-800/95 group-hover/arrow:bg-sffl-red text-white p-1.5 rounded-full shadow-lg border border-white/20 transition-all duration-200 group-hover/arrow:scale-110 group-active/arrow:scale-95">
+              <ChevronRightIcon className="w-3 h-3" strokeWidth={2.5} aria-hidden="true" />
+            </span>
           </button>
         </div>
       </div>
@@ -425,23 +412,23 @@ export const LatestMatchesInfoStrip = () => {
       <div className="max-w-shell mx-auto px-2 sm:px-8">
         <div className="flex items-center justify-between border-t border-white/5 py-1.5 px-2 sm:px-4 w-full">
           <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-[7.5px] sm:text-[9px] md:text-[10px] font-black tracking-widest text-white/95 uppercase whitespace-nowrap">
+            <span className="text-[10px] font-black tracking-widest text-white/95 uppercase whitespace-nowrap">
               LATEST RESULTS
             </span>
             {latestMatch?.competition && (
               <>
-                <span className="text-white/20 text-[7px] sm:text-[9px]">
+                <span className="text-white/20 text-[10px]" aria-hidden="true">
                   •
                 </span>
-                <span className="text-[6.5px] sm:text-[8px] md:text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider truncate max-w-37.5 sm:max-w-none">
+                <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider truncate min-w-0 sm:max-w-none">
                   {latestMatch.competition.name}
                 </span>
                 {latestMatch.date && (
                   <>
-                    <span className="text-white/20 text-[7px] sm:text-[9px]">
+                    <span className="text-white/20 text-[10px]" aria-hidden="true">
                       •
                     </span>
-                    <span className="text-[6.5px] sm:text-[8px] md:text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    <span className="hidden min-[400px]:inline text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider whitespace-nowrap">
                       {new Date(latestMatch.date).toLocaleDateString(
                         undefined,
                         { month: "short", day: "numeric" },
@@ -457,18 +444,19 @@ export const LatestMatchesInfoStrip = () => {
               href="https://www.youtube.com/@ShowtimeFlagFootball/streams"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 bg-[#FF0000] hover:bg-[#CC0000] text-white text-[7.5px] sm:text-[8.5px] md:text-[9px] font-black uppercase tracking-wider px-3.5 py-1 rounded shadow-sm transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer whitespace-nowrap"
+              className="flex items-center gap-1 min-h-11 bg-[#FF0000] hover:bg-[#CC0000] text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded shadow-sm transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer whitespace-nowrap"
             >
-              <svg className="w-2.5 h-2.5 fill-current" viewBox="0 0 24 24">
+              <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816-.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 4-8 4z" />
               </svg>
               <span>Watch Highlights</span>
             </a>
             <Link
               to={resultsViewAllHref}
-              className="hidden sm:inline text-[7.5px] sm:text-[8.5px] md:text-[9px] font-black uppercase tracking-wider text-sffl-red hover:text-white transition-colors"
+              className="hidden sm:inline-flex items-center gap-1 min-h-11 text-[10px] font-black uppercase tracking-wider text-sffl-red hover:text-white transition-colors"
             >
-              View All &rarr;
+              View All
+              <ArrowRightIcon className="w-3 h-3" aria-hidden="true" />
             </Link>
           </div>
         </div>

@@ -141,7 +141,7 @@ export const ClaimAccountPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 sm:py-10 px-4">
+        <div className="min-h-dvh bg-gray-50 dark:bg-gray-900 py-8 sm:py-10 px-4 pb-[max(2rem,env(safe-area-inset-bottom))]">
             <div className="max-w-lg mx-auto">
                 <div className="text-center mb-8">
                     <h1 className="text-2xl font-black text-gray-900 dark:text-white">Claim your player account</h1>

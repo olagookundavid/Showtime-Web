@@ -1,35 +1,56 @@
+import { EyeIcon } from "@heroicons/react/24/outline";
 import { FAQSection } from "./FAQSection";
+
+// Heroicons has no target, so the mission mark is drawn in their outline
+// style: three rings around a centre point.
+const TargetIcon = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.5}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    aria-hidden="true"
+  >
+    <circle cx="12" cy="12" r="9" />
+    <circle cx="12" cy="12" r="5.25" />
+    <circle cx="12" cy="12" r="1.5" />
+  </svg>
+);
 
 export const AboutShowtimeFlag = () => {
   return (
-    <div className="space-y-4 md:space-y-8 pb-36 md:pb-12">
+    <div className="space-y-4 md:space-y-8">
       {/* Header Area */}
-      <div className="bg-sffl-navy text-white p-10 rounded-3xl shadow-2xl flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
+      <div className="bg-sffl-navy text-white p-5 sm:p-8 md:p-10 rounded-3xl shadow-2xl flex flex-col md:flex-row items-center gap-6 md:gap-8 relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=2069&auto=format&fit=crop')] bg-cover bg-center opacity-10" />
 
         <img
           src="/images/branding/showtime-logo.png"
           alt="SFFL Logo"
-          className="w-40 h-40 object-contain bg-white rounded-full p-4 shadow-xl z-10"
+          className="w-28 h-28 sm:w-40 sm:h-40 object-contain bg-white rounded-full p-3 sm:p-4 shadow-xl z-10"
         />
-        <div className="z-10 text-center md:text-left">
+        <div className="z-10 text-center md:text-left min-w-0">
           <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">
             ABOUT SHOWTIME
           </h1>
-          <p className="text-xl text-gray-300 mt-4 font-semibold uppercase tracking-widest">
+          <p className="text-base sm:text-xl text-gray-300 mt-3 sm:mt-4 font-semibold uppercase tracking-wider sm:tracking-widest">
             The Standard of Co-Ed Flag Football
           </p>
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
         {/* Mission & Vision */}
-        <div className="space-y-8">
-          <section className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl border-l-8 border-sffl-red hover:-translate-y-1 transition duration-300">
+        <div className="space-y-6 md:space-y-8">
+          <section className="bg-white dark:bg-gray-800 p-5 sm:p-8 rounded-2xl shadow-xl border-l-8 border-sffl-red hover:-translate-y-1 transition duration-300">
             <h2 className="text-2xl font-black text-sffl-navy dark:text-white mb-4 flex items-center gap-3">
-              <span className="text-3xl">🎯</span> MISSION
+              <TargetIcon className="w-8 h-8 text-sffl-red shrink-0" />
+              MISSION
             </h2>
-            <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
+            <p className="text-base sm:text-lg text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
               To build a structured, professional, and commercially viable flag
               football ecosystem that develops athletes, delivers high-quality
               sporting experiences, and creates meaningful opportunities for
@@ -37,11 +58,12 @@ export const AboutShowtimeFlag = () => {
             </p>
           </section>
 
-          <section className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl border-l-8 border-blue-600 hover:-translate-y-1 transition duration-300">
+          <section className="bg-white dark:bg-gray-800 p-5 sm:p-8 rounded-2xl shadow-xl border-l-8 border-blue-600 hover:-translate-y-1 transition duration-300">
             <h2 className="text-2xl font-black text-sffl-navy dark:text-white mb-4 flex items-center gap-3">
-              <span className="text-3xl">👁️</span> VISION
+              <EyeIcon className="w-8 h-8 text-blue-600 shrink-0" aria-hidden="true" />
+              VISION
             </h2>
-            <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
+            <p className="text-base sm:text-lg text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
               To become the leading flag football platform in the World and a
               globally recognized standard for how emerging sports are
               organized, experienced, and scaled.
@@ -50,7 +72,7 @@ export const AboutShowtimeFlag = () => {
         </div>
 
         {/* About Us */}
-        <section className="bg-linear-to-br from-sffl-navy to-blue-900 text-white p-8 rounded-2xl shadow-xl">
+        <section className="bg-linear-to-br from-sffl-navy to-blue-900 text-white p-5 sm:p-8 rounded-2xl shadow-xl">
           <h2 className="text-2xl font-black italic mb-6">ABOUT US</h2>
           <div className="space-y-4 text-gray-200 leading-relaxed">
             <p>
@@ -80,18 +102,18 @@ export const AboutShowtimeFlag = () => {
       </div>
 
       {/* Incubator Program */}
-      <section className="bg-linear-to-r from-gray-900 to-sffl-navy text-white p-10 rounded-3xl shadow-xl overflow-hidden relative">
+      <section className="bg-linear-to-r from-gray-900 to-sffl-navy text-white p-5 sm:p-8 md:p-10 rounded-3xl shadow-xl overflow-hidden relative">
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=2069&auto=format&fit=crop')] bg-cover bg-center opacity-20 mix-blend-overlay" />
         <div className="relative z-10">
           <div className="inline-block bg-sffl-red text-white text-xs font-black px-3 py-1 rounded-full uppercase tracking-widest mb-4">
             Development
           </div>
-          <h2 className="text-4xl font-black italic mb-6">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-black italic mb-6 wrap-break-word">
             THE SHOWTIME INCUBATOR PROGRAM
           </h2>
 
-          <div className="space-y-6 text-lg text-gray-200 lg:w-3/4">
-            <p className="font-semibold text-xl text-white">
+          <div className="space-y-6 text-base sm:text-lg text-gray-200 lg:w-3/4">
+            <p className="font-semibold text-lg sm:text-xl text-white">
               The Showtime Incubator is our talent and ecosystem development
               platform.
             </p>

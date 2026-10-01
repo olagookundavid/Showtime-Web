@@ -12,7 +12,16 @@ import {
   type Player,
 } from "../../services/api";
 import { Loader } from "../../components/ui/Loader";
-import { LightboxImage } from "../../components/ui";
+import { LightboxImage, Spinner } from "../../components/ui";
+import { FootballIcon } from "../../components/icons/FootballIcon";
+import { CrownIcon } from "../../components/icons/CrownIcon";
+import {
+  ArrowRightIcon,
+  ChevronDownIcon,
+  ShieldCheckIcon,
+  TrophyIcon,
+} from "@heroicons/react/24/outline";
+import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 
 const PAGE_SIZE = 20;
 
@@ -105,10 +114,10 @@ export const PlayersPage = () => {
   if (loadingTeams) return <Loader />;
 
   return (
-    <div className="space-y-8 pb-36 md:pb-16">
+    <div className="space-y-6 md:space-y-8">
       {/* Header - High Density */}
-      <div className="flex flex-col md:flex-row justify-between items-center bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
-        <div>
+      <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
+        <div className="min-w-0">
           <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">
             PLAYERS
           </h1>
@@ -119,15 +128,19 @@ export const PlayersPage = () => {
 
         {/* Team Filter - Condensed */}
         {teams.length > 0 && (
-          <div className="mt-3 md:mt-0 w-full md:w-auto">
-            <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">
+          <div className="w-full md:w-auto">
+            <label
+              htmlFor="players-team-filter"
+              className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider"
+            >
               Filter by Team
             </label>
             <div className="relative">
               <select
+                id="players-team-filter"
                 value={selectedTeamId}
                 onChange={(e) => handleTeamChange(e.target.value)}
-                className="appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm min-w-full md:min-w-65 cursor-pointer hover:bg-white/20 transition-colors"
+                className="w-full min-h-11 appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm md:min-w-65 cursor-pointer hover:bg-white/20 transition-colors"
               >
                 <option value="" className="text-black bg-white">
                   All Teams
@@ -143,19 +156,7 @@ export const PlayersPage = () => {
                 ))}
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-white">
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
+                <ChevronDownIcon className="w-4 h-4" aria-hidden="true" />
               </div>
             </div>
           </div>
@@ -164,16 +165,16 @@ export const PlayersPage = () => {
 
       {/* Initial-load Indicator */}
       {initialPlayersLoading && (
-        <div className="flex justify-center items-center gap-2 text-gray-500">
-          <div className="w-5 h-5 border-2 border-sffl-red border-t-transparent rounded-full animate-spin"></div>
-          <span className="font-semibold">Loading players...</span>
-        </div>
+        <Spinner label="Loading players…" className="py-8" />
       )}
 
       {/* Players List View (Universal List View starting with photo) */}
       {!initialPlayersLoading && players.length === 0 ? (
         <div className="bg-gray-100 dark:bg-gray-800 p-8 md:p-16 rounded-xl text-center">
-          <div className="text-3xl md:text-5xl mb-4">🏈</div>
+          <FootballIcon
+            className="w-10 h-10 md:w-14 md:h-14 mx-auto mb-4 text-gray-400"
+            aria-hidden="true"
+          />
           <p className="text-gray-500 text-base md:text-lg font-semibold">
             No players found.
           </p>
@@ -198,7 +199,7 @@ export const PlayersPage = () => {
                     <LightboxImage
                       src={player.image}
                       alt={player.name}
-                      thumbnailClassName="w-14 h-14 sm:w-16 sm:h-16 rounded-xl object-cover border border-gray-200 dark:border-gray-700 shadow-sm flex-shrink-0"
+                      thumbnailClassName="w-14 h-14 sm:w-16 sm:h-16 rounded-xl object-cover border border-gray-200 dark:border-gray-700 shadow-sm shrink-0"
                     />
                   ) : (
                     <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-sffl-navy/10 dark:bg-sffl-navy/50 border border-sffl-navy/20 dark:border-gray-700 flex items-center justify-center text-lg font-black text-sffl-navy dark:text-gray-200 shrink-0">
@@ -211,7 +212,7 @@ export const PlayersPage = () => {
                     <div className="flex flex-wrap items-center gap-2">
                       <Link
                         to={profileUrl}
-                        className={`text-base sm:text-lg font-black transition-colors truncate ${
+                        className={`min-w-0 max-w-full text-base sm:text-lg font-black transition-colors truncate ${
                           isDeletedPlayer(player)
                             ? "text-gray-400 dark:text-gray-500 line-through decoration-1"
                             : "text-sffl-navy dark:text-white hover:text-sffl-red dark:hover:text-sffl-red"
@@ -253,7 +254,7 @@ export const PlayersPage = () => {
                       )}
                       {player.tier && player.tier !== "Prospect" && (
                         <span
-                          className={`px-2 py-0.5 rounded-md text-[11px] font-black uppercase tracking-wider border ${
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black uppercase tracking-wider border ${
                             player.tier === "Superstar"
                               ? "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800"
                               : player.tier === "Star"
@@ -261,21 +262,35 @@ export const PlayersPage = () => {
                                 : "bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800"
                           }`}
                         >
+                          {player.tier === "Superstar" ? (
+                            <CrownIcon className="w-3.5 h-3.5" />
+                          ) : player.tier === "Star" ? (
+                            <StarSolidIcon
+                              className="w-3.5 h-3.5"
+                              aria-hidden="true"
+                            />
+                          ) : (
+                            <ShieldCheckIcon
+                              className="w-3.5 h-3.5"
+                              aria-hidden="true"
+                            />
+                          )}
                           {player.tier === "Superstar"
-                            ? "👑 Superstar"
+                            ? "Superstar"
                             : player.tier === "Star"
-                              ? "⭐ Star"
-                              : "🛡️ Starter"}
+                              ? "Star"
+                              : "Starter"}
                         </span>
                       )}
                       {(player.mvp_count ?? 0) > 0 && (
-                        <span className="bg-yellow-50 text-yellow-800 border border-yellow-300 dark:bg-yellow-950/40 dark:text-yellow-300 dark:border-yellow-700 px-2 py-0.5 rounded-md text-xs font-black">
-                          🏆 {player.mvp_count} MVP
+                        <span className="inline-flex items-center gap-1 bg-yellow-50 text-yellow-800 border border-yellow-300 dark:bg-yellow-950/40 dark:text-yellow-300 dark:border-yellow-700 px-2 py-0.5 rounded-md text-xs font-black">
+                          <TrophyIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                          {player.mvp_count} MVP
                           {player.mvp_count === 1 ? "" : "s"}
                         </span>
                       )}
                       {player.team?.name && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-gray-50 dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 rounded-md text-xs font-bold text-gray-700 dark:text-gray-200">
+                        <span className="inline-flex items-center gap-1.5 max-w-full min-w-0 px-2.5 py-0.5 bg-gray-50 dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 rounded-md text-xs font-bold text-gray-700 dark:text-gray-200">
                           {player.team.logo && (
                             <img
                               src={player.team.logo}
@@ -283,7 +298,7 @@ export const PlayersPage = () => {
                               className="w-3.5 h-3.5 rounded-full object-cover"
                             />
                           )}
-                          <span>{player.team.name}</span>
+                          <span className="truncate">{player.team.name}</span>
                         </span>
                       )}
                     </div>
@@ -300,12 +315,13 @@ export const PlayersPage = () => {
                 <div className="flex items-center self-start sm:self-auto shrink-0">
                   <Link
                     to={profileUrl}
-                    className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-sffl-red hover:text-[#A52323] px-3.5 py-2 rounded-xl bg-sffl-red/5 hover:bg-sffl-red/10 dark:bg-sffl-red/10 dark:hover:bg-sffl-red/20 border border-sffl-red/20 transition-all group"
+                    className="flex items-center gap-1.5 min-h-11 text-xs sm:text-sm font-bold text-sffl-red hover:text-[#A52323] px-3.5 py-2 rounded-xl bg-sffl-red/5 hover:bg-sffl-red/10 dark:bg-sffl-red/10 dark:hover:bg-sffl-red/20 border border-sffl-red/20 transition-all group"
                   >
                     <span>View Profile</span>
-                    <span className="group-hover:translate-x-1 transition-transform">
-                      →
-                    </span>
+                    <ArrowRightIcon
+                      className="w-4 h-4 group-hover:translate-x-1 transition-transform"
+                      aria-hidden="true"
+                    />
                   </Link>
                 </div>
               </div>
@@ -316,12 +332,7 @@ export const PlayersPage = () => {
 
       {/* Infinite Scroll Loader */}
       {playersLoadingMore && (
-        <div className="flex justify-center items-center py-6">
-          <div className="flex items-center gap-2 text-gray-500 font-semibold">
-            <div className="w-6 h-6 border-2 border-sffl-red border-t-transparent rounded-full animate-spin"></div>
-            Loading more players...
-          </div>
-        </div>
+        <Spinner size="sm" label="Loading more players…" className="py-6" />
       )}
 
       {!hasMore && players.length > 0 && (

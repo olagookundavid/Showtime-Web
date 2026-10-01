@@ -65,7 +65,7 @@ export const StarRating = ({ value, onChange, size = 'md', className = '' }: Pro
                         onClick={() => onChange?.(i)}
                         onMouseEnter={() => setHover(i)}
                         onMouseLeave={() => setHover(null)}
-                        className="leading-none p-0 bg-transparent border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-sffl-red/40 rounded"
+                        className="leading-none p-2.5 -m-1 min-h-11 min-w-11 flex items-center justify-center bg-transparent border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-sffl-red/40 rounded"
                     >
                         <Star fill={fill >= 0.5 ? 1 : 0} sizeCls={sizeCls} />
                     </button>

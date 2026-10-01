@@ -14,6 +14,17 @@ import {
 import { Loader } from "../../components/ui/Loader";
 import { BackButton } from "../../components/common/BackButton";
 import { formatStatNumber } from "../../utils/formatters";
+import { Spinner } from "../../components/ui/Spinner";
+import { FootballIcon } from "../../components/icons/FootballIcon";
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  ChartBarIcon,
+  ChevronDownIcon,
+  ShieldCheckIcon,
+  TrophyIcon,
+} from "@heroicons/react/24/outline";
+import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 
 // Team Hub — lightweight navigation page for a single team. Header shows the
 // team's current standing snapshot; the 4 quick-links route into the global
@@ -115,8 +126,11 @@ export const TeamDetail = () => {
         <div className="bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
           <h1 className="text-3xl md:text-5xl font-black italic">TEAM</h1>
         </div>
-        <div className="bg-gray-100 dark:bg-gray-800 p-12 rounded-xl text-center">
-          <div className="text-4xl mb-3">🛡️</div>
+        <div className="bg-gray-100 dark:bg-gray-800 p-6 sm:p-12 rounded-xl text-center">
+          <ShieldCheckIcon
+            className="w-10 h-10 mx-auto mb-3 text-gray-400"
+            aria-hidden="true"
+          />
           <p className="text-gray-500 text-lg font-semibold">Team not found.</p>
           <div className="mt-4">
             <BackButton fallback="/teams">Back to Teams</BackButton>
@@ -133,7 +147,7 @@ export const TeamDetail = () => {
     : `/standings?team=${team.id}`;
 
   return (
-    <div className="space-y-4 md:space-y-6 pb-36 md:pb-16">
+    <div className="space-y-4 md:space-y-6">
       {/* Back Button */}
       <div className="px-1">
         <BackButton fallback="/teams" />
@@ -141,21 +155,21 @@ export const TeamDetail = () => {
 
       {/* ── Header ─────────────────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6 bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
-        <div className="flex items-center gap-4 md:gap-6">
+        <div className="flex items-center gap-4 md:gap-6 min-w-0">
           {team.logo ? (
             <img
               src={team.logo}
               alt={team.name}
-              className="w-20 h-20 md:w-28 md:h-28 object-contain rounded-lg bg-white/10 p-2"
+              className="w-16 h-16 sm:w-20 sm:h-20 md:w-28 md:h-28 shrink-0 object-contain rounded-lg bg-white/10 p-2"
             />
           ) : (
-            <div className="w-20 h-20 md:w-28 md:h-28 bg-white/10 rounded-lg flex items-center justify-center text-3xl md:text-4xl font-black">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-28 md:h-28 shrink-0 bg-white/10 rounded-lg flex items-center justify-center text-2xl sm:text-3xl md:text-4xl font-black">
               {team.short_name?.toUpperCase() ||
                 team.name.substring(0, 3).toUpperCase()}
             </div>
           )}
-          <div>
-            <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl md:text-5xl font-black italic tracking-tighter wrap-break-word">
               {team.name.toUpperCase()}
             </h1>
             {team.short_name && (
@@ -184,16 +198,20 @@ export const TeamDetail = () => {
 
         {/* Competition Selector */}
         {competitions.length > 0 && (
-          <div className="mt-3 md:mt-0 w-full md:w-auto flex flex-col md:flex-row md:items-end gap-3">
-            <div className="flex-1 min-w-50">
-              <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">
+          <div className="w-full md:w-auto flex flex-col md:flex-row md:items-end gap-3">
+            <div className="flex-1 w-full md:min-w-50">
+              <label
+                htmlFor="team-competition"
+                className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider"
+              >
                 Competition
               </label>
               <div className="relative">
                 <select
+                  id="team-competition"
                   value={selectedCompetitionId}
                   onChange={(e) => setSelectedCompetitionId(e.target.value)}
-                  className="w-full appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm cursor-pointer hover:bg-white/20 transition-colors"
+                  className="w-full min-h-11 appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm cursor-pointer hover:bg-white/20 transition-colors"
                 >
                   {dropdownComps.map((c) => (
                     <option
@@ -206,38 +224,29 @@ export const TeamDetail = () => {
                   ))}
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-white">
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
+                  <ChevronDownIcon className="w-4 h-4" aria-hidden="true" />
                 </div>
               </div>
             </div>
             {(linkedPlayoff || parentLeague) && (
               <button
+                type="button"
                 onClick={() =>
                   setSelectedCompetitionId(
                     linkedPlayoff ? linkedPlayoff.id : parentLeague!.id,
                   )
                 }
-                className="px-4 py-2 h-9.5 bg-sffl-red text-white font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap text-xs w-full sm:w-auto"
+                className="px-4 py-2 min-h-11 bg-sffl-red text-white font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap text-xs w-full sm:w-auto"
               >
                 {linkedPlayoff ? (
                   <>
-                    <span>🏆</span> Switch to Playoffs
+                    <TrophyIcon className="w-4 h-4" aria-hidden="true" />
+                    Switch to Playoffs
                   </>
                 ) : (
                   <>
-                    <span>←</span> Back to Season
+                    <ArrowLeftIcon className="w-4 h-4" aria-hidden="true" />
+                    Back to Season
                   </>
                 )}
               </button>
@@ -254,18 +263,24 @@ export const TeamDetail = () => {
               ? `/stats?comp=${activeCompetitionId}&team=${team.id}`
               : `/stats?team=${team.id}`
           }
-          className="bg-white dark:bg-gray-800 hover:bg-sffl-navy hover:text-white dark:hover:bg-sffl-navy border border-gray-100 dark:border-gray-700 rounded-xl p-3 md:p-4 text-center transition-all group shadow-sm hover:shadow-md"
+          className="flex flex-col items-center justify-center min-h-11 bg-white dark:bg-gray-800 hover:bg-sffl-navy hover:text-white dark:hover:bg-sffl-navy border border-gray-100 dark:border-gray-700 rounded-xl p-3 md:p-4 text-center transition-all group shadow-sm hover:shadow-md"
         >
-          <div className="text-xl md:text-2xl mb-1">📊</div>
+          <ChartBarIcon
+            className="w-6 h-6 md:w-7 md:h-7 mb-1 text-sffl-navy dark:text-white group-hover:text-white"
+            aria-hidden="true"
+          />
           <div className="text-[10px] md:text-xs uppercase font-black tracking-wider text-sffl-navy dark:text-white group-hover:text-white">
             Stats
           </div>
         </Link>
         <Link
           to={standingsHref}
-          className="bg-white dark:bg-gray-800 hover:bg-sffl-navy hover:text-white dark:hover:bg-sffl-navy border border-gray-100 dark:border-gray-700 rounded-xl p-3 md:p-4 text-center transition-all group shadow-sm hover:shadow-md"
+          className="flex flex-col items-center justify-center min-h-11 bg-white dark:bg-gray-800 hover:bg-sffl-navy hover:text-white dark:hover:bg-sffl-navy border border-gray-100 dark:border-gray-700 rounded-xl p-3 md:p-4 text-center transition-all group shadow-sm hover:shadow-md"
         >
-          <div className="text-xl md:text-2xl mb-1">🏆</div>
+          <TrophyIcon
+            className="w-6 h-6 md:w-7 md:h-7 mb-1 text-sffl-navy dark:text-white group-hover:text-white"
+            aria-hidden="true"
+          />
           <div className="text-[10px] md:text-xs uppercase font-black tracking-wider text-sffl-navy dark:text-white group-hover:text-white">
             Standings
           </div>
@@ -276,9 +291,12 @@ export const TeamDetail = () => {
               ? `/matches?comp=${activeCompetitionId}&team=${team.id}`
               : `/matches?team=${team.id}`
           }
-          className="bg-white dark:bg-gray-800 hover:bg-sffl-navy hover:text-white dark:hover:bg-sffl-navy border border-gray-100 dark:border-gray-700 rounded-xl p-3 md:p-4 text-center transition-all group shadow-sm hover:shadow-md"
+          className="flex flex-col items-center justify-center min-h-11 bg-white dark:bg-gray-800 hover:bg-sffl-navy hover:text-white dark:hover:bg-sffl-navy border border-gray-100 dark:border-gray-700 rounded-xl p-3 md:p-4 text-center transition-all group shadow-sm hover:shadow-md"
         >
-          <div className="text-xl md:text-2xl mb-1">🏈</div>
+          <FootballIcon
+            className="w-6 h-6 md:w-7 md:h-7 mb-1 text-sffl-navy dark:text-white group-hover:text-white"
+            aria-hidden="true"
+          />
           <div className="text-[10px] md:text-xs uppercase font-black tracking-wider text-sffl-navy dark:text-white group-hover:text-white">
             Matches
           </div>
@@ -290,7 +308,11 @@ export const TeamDetail = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-200 dark:border-gray-700 pb-3">
           <div>
             <h2 className="text-xl md:text-2xl font-black text-sffl-navy dark:text-white flex items-center gap-2">
-              <span className="text-sffl-red">●</span> TEAM ROSTER
+              <span
+                className="w-2.5 h-2.5 rounded-full bg-sffl-red shrink-0"
+                aria-hidden="true"
+              />
+              TEAM ROSTER
             </h2>
             <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
               Official team roster with 25-player main squad and active
@@ -298,7 +320,7 @@ export const TeamDetail = () => {
             </p>
           </div>
           {players.length > 0 && (
-            <div className="flex items-center gap-3 text-xs font-bold text-gray-600 dark:text-gray-400">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs font-bold text-gray-600 dark:text-gray-400">
               <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                 Main: {mainSquad.length}/25
               </span>
@@ -312,9 +334,7 @@ export const TeamDetail = () => {
         </div>
 
         {loadingPlayers ? (
-          <div className="flex justify-center py-8">
-            <div className="w-6 h-6 border-2 border-sffl-red border-t-transparent rounded-full animate-spin"></div>
-          </div>
+          <Spinner size="sm" label="Loading roster…" className="py-8" />
         ) : players.length === 0 ? (
           <div className="bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700 rounded-xl p-8 text-center text-gray-500">
             No players listed for this team yet.
@@ -325,7 +345,13 @@ export const TeamDetail = () => {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-black uppercase tracking-wider text-sffl-navy dark:text-white flex items-center gap-2">
-                  <span>⭐ Main Squad</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <StarSolidIcon
+                      className="w-4 h-4 text-amber-500"
+                      aria-hidden="true"
+                    />
+                    Main Squad
+                  </span>
                   <span className="text-xs text-gray-400 font-normal">
                     ({mainSquad.length}/25)
                   </span>
@@ -361,7 +387,7 @@ export const TeamDetail = () => {
                           <div className="flex flex-wrap items-center gap-2">
                             <Link
                               to={`/players/${player.id}?team=${team.id}`}
-                              className="text-base sm:text-lg font-black text-sffl-navy dark:text-white hover:text-sffl-red dark:hover:text-sffl-red transition-colors truncate uppercase"
+                              className="min-w-0 max-w-full text-base sm:text-lg font-black text-sffl-navy dark:text-white hover:text-sffl-red dark:hover:text-sffl-red transition-colors truncate uppercase"
                             >
                               {player.name}
                             </Link>
@@ -391,8 +417,12 @@ export const TeamDetail = () => {
                                   : "Male (M)"}
                               </span>
                             )}
-                            <span className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[11px] font-black px-2 py-0.5 rounded-full">
-                              ⭐ Main
+                            <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[11px] font-black px-2 py-0.5 rounded-full">
+                              <StarSolidIcon
+                                className="w-3 h-3"
+                                aria-hidden="true"
+                              />
+                              Main
                             </span>
                           </div>
 
@@ -408,12 +438,13 @@ export const TeamDetail = () => {
                       <div className="flex items-center self-start sm:self-auto shrink-0">
                         <Link
                           to={`/players/${player.id}?team=${team.id}`}
-                          className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-sffl-red hover:text-[#A52323] px-3.5 py-2 rounded-xl bg-sffl-red/5 hover:bg-sffl-red/10 dark:bg-sffl-red/10 dark:hover:bg-sffl-red/20 border border-sffl-red/20 transition-all group"
+                          className="flex items-center gap-1.5 min-h-11 text-xs sm:text-sm font-bold text-sffl-red hover:text-[#A52323] px-3.5 py-2 rounded-xl bg-sffl-red/5 hover:bg-sffl-red/10 dark:bg-sffl-red/10 dark:hover:bg-sffl-red/20 border border-sffl-red/20 transition-all group"
                         >
                           <span>Profile</span>
-                          <span className="group-hover:translate-x-1 transition-transform">
-                            →
-                          </span>
+                          <ArrowRightIcon
+                            className="w-4 h-4 group-hover:translate-x-1 transition-transform"
+                            aria-hidden="true"
+                          />
                         </Link>
                       </div>
                     </div>
@@ -427,7 +458,13 @@ export const TeamDetail = () => {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-black uppercase tracking-wider text-sffl-navy dark:text-white flex items-center gap-2">
-                    <span>🛡️ Reserve Squad</span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <ShieldCheckIcon
+                        className="w-4 h-4 text-amber-500"
+                        aria-hidden="true"
+                      />
+                      Reserve Squad
+                    </span>
                     <span className="text-xs text-amber-600 dark:text-amber-400 font-bold">
                       ({reserveSquad.length})
                     </span>
@@ -458,7 +495,7 @@ export const TeamDetail = () => {
                           <div className="flex flex-wrap items-center gap-2">
                             <Link
                               to={`/players/${player.id}?team=${team.id}`}
-                              className="text-base sm:text-lg font-black text-sffl-navy dark:text-white hover:text-sffl-red dark:hover:text-sffl-red transition-colors truncate uppercase"
+                              className="min-w-0 max-w-full text-base sm:text-lg font-black text-sffl-navy dark:text-white hover:text-sffl-red dark:hover:text-sffl-red transition-colors truncate uppercase"
                             >
                               {player.name}
                             </Link>
@@ -488,8 +525,12 @@ export const TeamDetail = () => {
                                   : "Male (M)"}
                               </span>
                             )}
-                            <span className="bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-[11px] font-black px-2.5 py-0.5 rounded-full">
-                              🛡️ Reserve
+                            <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-[11px] font-black px-2.5 py-0.5 rounded-full">
+                              <ShieldCheckIcon
+                                className="w-3 h-3"
+                                aria-hidden="true"
+                              />
+                              Reserve
                             </span>
                           </div>
 
@@ -505,12 +546,13 @@ export const TeamDetail = () => {
                       <div className="flex items-center self-start sm:self-auto shrink-0">
                         <Link
                           to={`/players/${player.id}?team=${team.id}`}
-                          className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-sffl-red hover:text-[#A52323] px-3.5 py-2 rounded-xl bg-sffl-red/5 hover:bg-sffl-red/10 dark:bg-sffl-red/10 dark:hover:bg-sffl-red/20 border border-sffl-red/20 transition-all group"
+                          className="flex items-center gap-1.5 min-h-11 text-xs sm:text-sm font-bold text-sffl-red hover:text-[#A52323] px-3.5 py-2 rounded-xl bg-sffl-red/5 hover:bg-sffl-red/10 dark:bg-sffl-red/10 dark:hover:bg-sffl-red/20 border border-sffl-red/20 transition-all group"
                         >
                           <span>Profile</span>
-                          <span className="group-hover:translate-x-1 transition-transform">
-                            →
-                          </span>
+                          <ArrowRightIcon
+                            className="w-4 h-4 group-hover:translate-x-1 transition-transform"
+                            aria-hidden="true"
+                          />
                         </Link>
                       </div>
                     </div>

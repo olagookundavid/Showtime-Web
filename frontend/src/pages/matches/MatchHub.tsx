@@ -19,6 +19,12 @@ import { MatchStandingsTable } from "../../components/matches/MatchStandingsTabl
 import { BracketView } from "../../components/matches/BracketView";
 import { CompactMatchesWidget } from "../../components/matches/CompactMatchesWidget";
 import { SeasonStageTabs } from "../../components/common/SeasonStageTabs";
+import { FootballIcon } from "../../components/icons/FootballIcon";
+import {
+  ChevronDownIcon,
+  TrophyIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
 
 export const MatchHub = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -257,22 +263,26 @@ export const MatchHub = () => {
   if (loading && competitions.length === 0) return <Loader />;
 
   return (
-    <div className="space-y-4 md:space-y-8 pb-36 md:pb-16">
+    <div className="space-y-4 md:space-y-8">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-center bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
-        <div>
+      <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
+        <div className="min-w-0">
           <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">
             MATCH HUB
           </h1>
-          <p className="text-gray-300 mt-2 text-lg">
+          <p className="text-gray-300 mt-2 text-sm md:text-lg">
             Scores, Fixtures & Standings
           </p>
           <div className="mt-4 lg:hidden">
             <Link
               to={`/standings?comp=${selectedCompetitionId}`}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full text-xs font-bold transition-all border border-white/20"
+              className="inline-flex items-center gap-2 min-h-11 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full text-xs font-bold transition-all border border-white/20"
             >
-              <span>{isKnockout || isMatchesOnly ? "🏈" : "🏆"}</span>
+              {isKnockout || isMatchesOnly ? (
+                <FootballIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
+              ) : (
+                <TrophyIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
+              )}
               {isKnockout
                 ? "View Playoff Bracket"
                 : isPreseason
@@ -287,16 +297,20 @@ export const MatchHub = () => {
         {/* Competition Selector — picks which competition/season. The
                     Season|Playoffs toggle now lives in the content area below. */}
         {competitions.length > 0 && (
-          <div className="mt-4 md:mt-0 flex flex-col gap-2 md:w-70">
-            <div className="min-w-65">
-              <label className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider">
+          <div className="flex flex-col gap-2 w-full md:w-70 shrink-0">
+            <div className="w-full">
+              <label
+                htmlFor="match-hub-competition"
+                className="block text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-wider"
+              >
                 Competition
               </label>
               <div className="relative">
                 <select
+                  id="match-hub-competition"
                   value={selectedCompetitionId}
                   onChange={(e) => handleCompetitionChange(e.target.value)}
-                  className="w-full appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm cursor-pointer hover:bg-white/20 transition-colors"
+                  className="w-full min-h-11 appearance-none bg-white/10 border border-white/20 text-white py-2 px-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-sffl-red font-bold text-sm cursor-pointer hover:bg-white/20 transition-colors"
                 >
                   {dropdownComps.map((c: Competition) => (
                     <option
@@ -312,19 +326,7 @@ export const MatchHub = () => {
                   ))}
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-white">
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
+                  <ChevronDownIcon className="w-4 h-4" aria-hidden="true" />
                 </div>
               </div>
             </div>
@@ -333,16 +335,18 @@ export const MatchHub = () => {
       </div>
 
       {filterTeam && (
-        <div className="flex items-center justify-between gap-3 bg-sffl-red/10 border border-sffl-red/30 text-sffl-red dark:bg-sffl-red/20 dark:text-white px-4 py-2.5 rounded-xl">
-          <div className="flex items-center gap-2 text-xs md:text-sm font-bold uppercase tracking-wider">
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-sffl-red/10 border border-sffl-red/30 text-sffl-red dark:bg-sffl-red/20 dark:text-white px-4 py-2 rounded-xl">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0 text-xs md:text-sm font-bold uppercase tracking-wider">
             <span>Filtering matches for</span>
             <span className="font-black">{filterTeam.name}</span>
           </div>
           <button
+            type="button"
             onClick={clearTeamFilter}
-            className="text-[10px] md:text-xs font-black uppercase tracking-wider bg-white text-sffl-red hover:bg-gray-100 px-3 py-1 rounded-full transition"
+            className="inline-flex items-center gap-1 min-h-11 text-[11px] md:text-xs font-black uppercase tracking-wider bg-white text-sffl-red hover:bg-gray-100 px-4 py-1 rounded-full transition"
           >
-            Clear ✕
+            Clear
+            <XMarkIcon className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
       )}
@@ -357,17 +361,23 @@ export const MatchHub = () => {
             onChange={handleCompetitionChange}
           />
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <h2 className="text-2xl font-bold text-sffl-navy dark:text-white flex items-center gap-2">
-              <span className="text-sffl-red">●</span> Fixtures & Results
+            <h2 className="text-xl sm:text-2xl font-bold text-sffl-navy dark:text-white flex items-center gap-2">
+              <span
+                className="w-2.5 h-2.5 rounded-full bg-sffl-red shrink-0"
+                aria-hidden="true"
+              />
+              Fixtures & Results
             </h2>
 
             {/* Status Filter */}
             <div className="bg-gray-100 dark:bg-gray-800 p-1 rounded-lg flex gap-1 w-full sm:w-auto">
               {(["ALL", "LIVE", "FINISHED", "SCHEDULED"] as const).map((f) => (
                 <button
+                  type="button"
                   key={f}
                   onClick={() => setStatusFilter(f)}
-                  className={`flex-1 sm:flex-none px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
+                  aria-pressed={statusFilter === f}
+                  className={`flex-1 sm:flex-none min-h-11 px-2 sm:px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
                     statusFilter === f
                       ? "bg-sffl-navy text-white shadow-sm"
                       : "text-gray-500 dark:text-gray-400 hover:text-sffl-navy dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700"
@@ -384,9 +394,12 @@ export const MatchHub = () => {
               <Spinner label="Loading matches…" className="py-16" />
             </div>
           ) : matches.length === 0 && !matchesLoading ? (
-            <div className="bg-gray-100 dark:bg-gray-800 p-12 rounded-xl text-center">
-              <div className="text-4xl mb-3">🏈</div>
-              <p className="text-gray-500 text-lg font-semibold">
+            <div className="bg-gray-100 dark:bg-gray-800 p-6 sm:p-12 rounded-xl text-center">
+              <FootballIcon
+                className="w-10 h-10 mx-auto mb-3 text-gray-400"
+                aria-hidden="true"
+              />
+              <p className="text-gray-500 text-base sm:text-lg font-semibold">
                 No matches found for this filter.
               </p>
             </div>
@@ -399,14 +412,16 @@ export const MatchHub = () => {
                     className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl overflow-hidden shadow-sm"
                   >
                     <button
+                      type="button"
                       onClick={() => toggleDateCollapse(dateStr)}
-                      className="w-full flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border-b border-gray-100 dark:border-gray-700/50"
+                      aria-expanded={!collapsedDates[dateStr]}
+                      className="w-full flex items-center justify-between gap-2 p-3 sm:p-4 bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border-b border-gray-100 dark:border-gray-700/50"
                     >
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-gray-500 dark:text-gray-400 text-lg">
+                      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                        <span className="font-bold text-gray-500 dark:text-gray-400 text-base sm:text-lg">
                           {new Date(dateStr).getFullYear()}
                         </span>
-                        <div className="bg-sffl-navy text-white w-10 h-10 rounded-lg flex flex-col items-center justify-center font-bold">
+                        <div className="bg-sffl-navy text-white w-10 h-10 shrink-0 rounded-lg flex flex-col items-center justify-center font-bold">
                           <span className="text-xs tracking-wider uppercase">
                             {new Date(dateStr).toLocaleString("default", {
                               month: "short",
@@ -416,31 +431,23 @@ export const MatchHub = () => {
                             {new Date(dateStr).getDate()}
                           </span>
                         </div>
-                        <span className="font-bold text-gray-800 dark:text-gray-200 text-lg">
+                        <span className="font-bold text-gray-800 dark:text-gray-200 text-base sm:text-lg truncate">
                           {new Date(dateStr).toLocaleDateString("default", {
                             weekday: "long",
                           })}
                         </span>
                       </div>
-                      <div className="text-gray-400 dark:text-gray-500 bg-white dark:bg-gray-700 w-8 h-8 rounded-full flex items-center justify-center shadow-sm">
-                        <svg
+                      <div className="text-gray-400 dark:text-gray-500 bg-white dark:bg-gray-700 w-8 h-8 shrink-0 rounded-full flex items-center justify-center shadow-sm">
+                        <ChevronDownIcon
                           className={`w-5 h-5 transition-transform duration-200 ${collapsedDates[dateStr] ? "rotate-180" : ""}`}
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2.5}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
+                          strokeWidth={2.5}
+                          aria-hidden="true"
+                        />
                       </div>
                     </button>
 
                     {!collapsedDates[dateStr] && (
-                      <div className="p-4 grid grid-cols-1 gap-4">
+                      <div className="p-3 sm:p-4 grid grid-cols-1 gap-4">
                         {dayMatches.map((match: Match, index: number) => {
                           // Check if this is the absolute last match globally to attach the infinite scroll ref
                           const isLastOverall =
@@ -478,12 +485,7 @@ export const MatchHub = () => {
 
           {/* Infinite Scroll Loader */}
           {matchesLoading && (
-            <div className="flex justify-center items-center py-6">
-              <div className="flex items-center gap-2 text-gray-500 font-semibold">
-                <div className="w-6 h-6 border-2 border-sffl-red border-t-transparent rounded-full animate-spin"></div>
-                Loading more matches...
-              </div>
-            </div>
+            <Spinner size="sm" label="Loading more matches…" className="py-6" />
           )}
 
           {!hasMore && matches.length > 0 && (
@@ -494,7 +496,7 @@ export const MatchHub = () => {
         </div>
 
         {/* Right Column: Standings, Bracket, or Matches Widget (1/3 width) — sticky sidebar */}
-        <div className="hidden lg:block lg:col-span-1 lg:sticky lg:top-22.5 self-start space-y-6">
+        <div className="hidden lg:block lg:col-span-1 lg:sticky lg:top-[calc(var(--chrome-h,8rem)+1rem)] self-start space-y-6">
           {isKnockout ? (
             <div className="space-y-6">
               <BracketView
@@ -510,7 +512,7 @@ export const MatchHub = () => {
                 </p>
                 <Link
                   to="/tickets"
-                  className="w-full py-2 bg-white text-indigo-700 font-bold rounded-lg hover:bg-purple-50 transition-colors block text-center"
+                  className="w-full min-h-11 py-2 bg-white text-indigo-700 font-bold rounded-lg hover:bg-purple-50 transition-colors flex items-center justify-center"
                 >
                   Get Tickets
                 </Link>
@@ -537,7 +539,7 @@ export const MatchHub = () => {
                 </p>
                 <Link
                   to="/tickets"
-                  className="w-full py-2 bg-white text-indigo-700 font-bold rounded-lg hover:bg-purple-50 transition-colors block text-center"
+                  className="w-full min-h-11 py-2 bg-white text-indigo-700 font-bold rounded-lg hover:bg-purple-50 transition-colors flex items-center justify-center"
                 >
                   Get Tickets
                 </Link>
@@ -563,7 +565,7 @@ export const MatchHub = () => {
                 </p>
                 <Link
                   to="/tickets"
-                  className="w-full py-2 bg-white text-indigo-700 font-bold rounded-lg hover:bg-purple-50 transition-colors block text-center"
+                  className="w-full min-h-11 py-2 bg-white text-indigo-700 font-bold rounded-lg hover:bg-purple-50 transition-colors flex items-center justify-center"
                 >
                   Get Tickets
                 </Link>

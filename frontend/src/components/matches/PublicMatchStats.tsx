@@ -145,33 +145,36 @@ export const PublicMatchStats = ({ matchId }: { matchId: string }) => {
             {/* Controls Bar: Sub-tabs (Player vs Team) + Order By + Team Filter Pills */}
             <div className="flex items-center justify-between gap-3 flex-wrap bg-white dark:bg-gray-800 p-3 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
                 {/* Player vs Team Sub-tabs */}
-                <div className="flex gap-2">
+                <div className="grid grid-cols-2 sm:flex gap-2 w-full sm:w-auto">
                     <button
                         type="button"
                         onClick={() => setActiveTab('players')}
-                        className={`px-4 py-2 rounded-xl font-bold text-xs transition-all shadow-sm ${activeTab === 'players' ? 'bg-sffl-navy text-white dark:bg-sffl-red' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
+                        aria-pressed={activeTab === 'players'}
+                        className={`min-h-11 px-3 sm:px-4 py-2 rounded-xl font-bold text-xs transition-all shadow-sm ${activeTab === 'players' ? 'bg-sffl-navy text-white dark:bg-sffl-red' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
                     >
                         Player Stats ({derived.length})
                     </button>
                     <button
                         type="button"
                         onClick={() => setActiveTab('teams')}
-                        className={`px-4 py-2 rounded-xl font-bold text-xs transition-all shadow-sm ${activeTab === 'teams' ? 'bg-sffl-navy text-white dark:bg-sffl-red' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
+                        aria-pressed={activeTab === 'teams'}
+                        className={`min-h-11 px-3 sm:px-4 py-2 rounded-xl font-bold text-xs transition-all shadow-sm ${activeTab === 'teams' ? 'bg-sffl-navy text-white dark:bg-sffl-red' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
                     >
                         Team Stats ({derivedTeamStats.length})
                     </button>
                 </div>
 
-                <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-3 flex-wrap w-full sm:w-auto">
                     {/* Order By Dropdown */}
-                    <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] font-bold text-gray-400">Order By:</span>
+                    <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                        <label htmlFor={`match-stats-order-${matchId}`} className="shrink-0 text-[11px] font-bold text-gray-400">Order By:</label>
                         <select
+                            id={`match-stats-order-${matchId}`}
                             value={sortBy}
                             onChange={(e) => setSortBy(e.target.value)}
-                            className="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-2.5 py-1.5 text-xs font-bold border border-gray-200 dark:border-gray-600 cursor-pointer"
+                            className="flex-1 sm:flex-none min-w-0 min-h-11 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-2.5 py-1.5 text-xs font-bold border border-gray-200 dark:border-gray-600 cursor-pointer"
                         >
-                            <option value="">Default (A → Z)</option>
+                            <option value="">Default (A to Z)</option>
                             <option value="passing_yards">Pass Yards (YDS)</option>
                             <option value="passing_tds">Pass Touchdowns (TDs)</option>
                             <option value="completed_passes">Completions (COMP)</option>
@@ -196,7 +199,8 @@ export const PublicMatchStats = ({ matchId }: { matchId: string }) => {
                             <button
                                 type="button"
                                 onClick={() => setSelectedTeamId('all')}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${selectedTeamId === 'all' ? 'bg-sffl-red text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200'}`}
+                                aria-pressed={selectedTeamId === 'all'}
+                                className={`min-h-11 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${selectedTeamId === 'all' ? 'bg-sffl-red text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200'}`}
                             >
                                 All Teams
                             </button>
@@ -205,7 +209,8 @@ export const PublicMatchStats = ({ matchId }: { matchId: string }) => {
                                     key={t.id}
                                     type="button"
                                     onClick={() => setSelectedTeamId(t.id)}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${selectedTeamId === t.id ? 'bg-sffl-red text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200'}`}
+                                    aria-pressed={selectedTeamId === t.id}
+                                    className={`min-h-11 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${selectedTeamId === t.id ? 'bg-sffl-red text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200'}`}
                                 >
                                     {t.shortName}
                                 </button>
@@ -227,7 +232,8 @@ export const PublicMatchStats = ({ matchId }: { matchId: string }) => {
                                     key={p.id}
                                     type="button"
                                     onClick={() => setPositionFilter(p.id)}
-                                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${positionFilter === p.id ? 'bg-sffl-navy dark:bg-sffl-red text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200'}`}
+                                    aria-pressed={positionFilter === p.id}
+                                    className={`min-h-11 px-3 py-1 rounded-lg text-xs font-bold transition-colors ${positionFilter === p.id ? 'bg-sffl-navy dark:bg-sffl-red text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200'}`}
                                 >
                                     {p.label}
                                 </button>

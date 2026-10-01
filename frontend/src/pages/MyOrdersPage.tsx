@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import { getCustomerOrders } from '../services/api';
 import { BackButton } from '../components/common/BackButton';
@@ -39,7 +40,7 @@ export const MyOrdersPage = () => {
         <div className="space-y-6 animate-fadeIn">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b dark:border-gray-800">
                 <div>
-                    <h1 className="text-3xl font-black italic tracking-tighter text-sffl-navy dark:text-white uppercase leading-none">
+                    <h1 className="text-2xl sm:text-3xl font-black italic tracking-tighter text-sffl-navy dark:text-white uppercase leading-none">
                         My Orders
                     </h1>
                     <p className="text-xs text-gray-500 uppercase font-black tracking-widest mt-1.5">
@@ -61,12 +62,12 @@ export const MyOrdersPage = () => {
                 </div>
             ) : orders.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center space-y-4 max-w-md mx-auto">
-                    <div className="text-5xl">🧾</div>
+                    <ClipboardDocumentListIcon className="w-14 h-14 text-gray-400" aria-hidden="true" />
                     <h2 className="text-xl font-black text-sffl-navy dark:text-white uppercase">No Orders Yet</h2>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
                         When you buy something from the Showtime Store, it'll show up here.
                     </p>
-                    <Link to="/store" className="inline-block bg-sffl-navy hover:bg-sffl-red text-white text-xs font-bold uppercase tracking-wider px-6 py-3 rounded-full shadow-lg transition-all">
+                    <Link to="/store" className="inline-flex items-center justify-center min-h-11 bg-sffl-navy hover:bg-sffl-red text-white text-xs font-bold uppercase tracking-wider px-6 py-3 rounded-full shadow-lg transition-all">
                         Browse the store
                     </Link>
                 </div>
@@ -77,12 +78,12 @@ export const MyOrdersPage = () => {
                             <Link
                                 key={order.id}
                                 to={`/store/confirm?reference=${encodeURIComponent(order.order_reference)}`}
-                                className="block p-5 bg-white dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700/50 hover:border-sffl-red/40 rounded-2xl shadow-sm hover:shadow-md transition-all"
+                                className="block p-4 sm:p-5 bg-white dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700/50 hover:border-sffl-red/40 rounded-2xl shadow-sm hover:shadow-md transition-all"
                             >
                                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                                    <div className="space-y-2">
+                                    <div className="space-y-2 min-w-0">
                                         <div className="flex items-center gap-2 flex-wrap">
-                                            <span className="font-black text-sm text-sffl-red font-mono">{order.order_reference}</span>
+                                            <span className="min-w-0 break-all font-black text-sm text-sffl-red font-mono">{order.order_reference}</span>
                                             <span className={statusBadge('payment', order.payment_status)}>{order.payment_status}</span>
                                             <span className={statusBadge('fulfillment', order.fulfillment_status)}>{order.fulfillment_status}</span>
                                         </div>
@@ -95,9 +96,12 @@ export const MyOrdersPage = () => {
                                             </div>
                                         )}
                                     </div>
-                                    <div className="text-right">
+                                    <div className="flex items-center justify-between gap-3 md:block md:text-right shrink-0">
                                         <div className="font-black text-lg text-sffl-navy dark:text-white">₦{order.total_amount.toLocaleString()}</div>
-                                        <div className="text-[10px] text-gray-400 mt-0.5 uppercase tracking-wider">View details →</div>
+                                        <div className="inline-flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400 md:mt-0.5 uppercase tracking-wider">
+                                            View details
+                                            <ArrowRightIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                                        </div>
                                     </div>
                                 </div>
                             </Link>
@@ -105,21 +109,27 @@ export const MyOrdersPage = () => {
                     </div>
 
                     {totalPages > 1 && (
-                        <div className="flex justify-between items-center pt-4 border-t dark:border-gray-700">
+                        <div className="flex justify-between items-center gap-2 pt-4 border-t dark:border-gray-700">
                             <button
+                                type="button"
                                 disabled={page === 1}
                                 onClick={() => setPage(p => Math.max(1, p - 1))}
-                                className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-xs font-bold rounded-xl disabled:opacity-50 dark:text-white"
+                                aria-label="Previous page"
+                                className="inline-flex items-center justify-center gap-1.5 min-h-11 min-w-11 px-3 sm:px-4 py-2 bg-gray-100 dark:bg-gray-700 text-xs font-bold rounded-xl disabled:opacity-50 dark:text-white"
                             >
-                                Previous
+                                <ChevronLeftIcon className="w-4 h-4" aria-hidden="true" />
+                                <span className="hidden sm:inline">Previous</span>
                             </button>
                             <span className="text-xs text-gray-500 font-bold">Page {page} of {totalPages}</span>
                             <button
+                                type="button"
                                 disabled={page >= totalPages}
                                 onClick={() => setPage(p => p + 1)}
-                                className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-xs font-bold rounded-xl disabled:opacity-50 dark:text-white"
+                                aria-label="Next page"
+                                className="inline-flex items-center justify-center gap-1.5 min-h-11 min-w-11 px-3 sm:px-4 py-2 bg-gray-100 dark:bg-gray-700 text-xs font-bold rounded-xl disabled:opacity-50 dark:text-white"
                             >
-                                Next
+                                <span className="hidden sm:inline">Next</span>
+                                <ChevronRightIcon className="w-4 h-4" aria-hidden="true" />
                             </button>
                         </div>
                     )}

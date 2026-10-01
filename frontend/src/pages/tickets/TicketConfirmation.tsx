@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams, Link } from "react-router-dom";
+import {
+  ArrowLeftIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  XCircleIcon,
+} from "@heroicons/react/24/outline";
 import { getTicketByReference } from "../../services/api";
 import { Loader } from "../../components/ui/Loader";
 
@@ -42,15 +48,18 @@ export const TicketConfirmation = () => {
 
   if (error) {
     return (
-      <div className="max-w-2xl mx-auto text-center py-24">
-        <div className="text-6xl mb-4">❌</div>
+      <div className="text-center py-16 sm:py-24">
+        <XCircleIcon
+          className="w-16 h-16 mx-auto mb-4 text-red-600"
+          aria-hidden="true"
+        />
         <h2 className="text-2xl font-black text-red-600 mb-2">
           Something Went Wrong
         </h2>
         <p className="text-gray-500 mb-6">{error}</p>
         <Link
           to="/tickets"
-          className="bg-sffl-navy text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-900 transition"
+          className="inline-flex items-center justify-center min-h-11 bg-sffl-navy text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-900 transition"
         >
           Back to Tickets
         </Link>
@@ -62,22 +71,26 @@ export const TicketConfirmation = () => {
   const isPending = ticket?.status === "PENDING";
 
   return (
-    <div className="max-w-2xl mx-auto py-12 space-y-8">
+    <div className="max-w-2xl mx-auto py-4 sm:py-12 space-y-8">
       {/* Status Header */}
       <div
-        className={`text-center p-8 rounded-2xl shadow-xl ${isPaid ? "bg-linear-to-r from-green-500 to-emerald-600" : isPending ? "bg-linear-to-r from-yellow-500 to-amber-500" : "bg-linear-to-r from-red-500 to-red-700"} text-white`}
+        className={`text-center p-5 sm:p-8 rounded-2xl shadow-xl ${isPaid ? "bg-linear-to-r from-green-500 to-emerald-600" : isPending ? "bg-linear-to-r from-yellow-500 to-amber-500" : "bg-linear-to-r from-red-500 to-red-700"} text-white`}
       >
-        <div className="text-6xl mb-4">
-          {isPaid ? "✅" : isPending ? "⏳" : "❌"}
-        </div>
-        <h1 className="text-3xl font-black mb-2">
+        {isPaid ? (
+          <CheckCircleIcon className="w-16 h-16 mx-auto mb-4" aria-hidden="true" />
+        ) : isPending ? (
+          <ClockIcon className="w-16 h-16 mx-auto mb-4" aria-hidden="true" />
+        ) : (
+          <XCircleIcon className="w-16 h-16 mx-auto mb-4" aria-hidden="true" />
+        )}
+        <h1 className="text-2xl sm:text-3xl font-black mb-2">
           {isPaid
             ? "Payment Successful!"
             : isPending
               ? "Payment Pending"
               : "Payment Failed"}
         </h1>
-        <p className="text-lg opacity-90">
+        <p className="text-base sm:text-lg opacity-90">
           {isPaid
             ? "Your tickets are confirmed"
             : isPending
@@ -91,11 +104,11 @@ export const TicketConfirmation = () => {
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden border border-gray-100 dark:border-gray-700">
           {/* Ticket Code Banner */}
           {isPaid && ticket.ticket_code && (
-            <div className="bg-sffl-navy text-white text-center py-6">
+            <div className="bg-sffl-navy text-white text-center py-6 px-4">
               <p className="text-xs uppercase tracking-wider text-gray-300 mb-2">
                 Your Ticket Code
               </p>
-              <p className="text-4xl font-black tracking-widest">
+              <p className="text-2xl sm:text-4xl font-black tracking-wider sm:tracking-widest break-all">
                 {ticket.ticket_code}
               </p>
               <p className="text-xs text-gray-400 mt-2">
@@ -105,29 +118,29 @@ export const TicketConfirmation = () => {
           )}
 
           {/* Details */}
-          <div className="p-6 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
+          <div className="p-4 sm:p-6 space-y-4">
+            <div className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-4">
+              <div className="min-w-0">
                 <span className="text-xs text-gray-500 uppercase font-bold">
                   Event
                 </span>
-                <p className="font-bold text-sffl-navy dark:text-white">
+                <p className="font-bold text-sffl-navy dark:text-white wrap-break-word">
                   {ticket.event_title || "—"}
                 </p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <span className="text-xs text-gray-500 uppercase font-bold">
                   Venue
                 </span>
-                <p className="font-bold text-sffl-navy dark:text-white">
+                <p className="font-bold text-sffl-navy dark:text-white wrap-break-word">
                   {ticket.event_venue || "—"}
                 </p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <span className="text-xs text-gray-500 uppercase font-bold">
                   Date
                 </span>
-                <p className="font-bold text-sffl-navy dark:text-white">
+                <p className="font-bold text-sffl-navy dark:text-white ">
                   {ticket.event_date
                     ? new Date(
                         ticket.event_date + "T00:00:00",
@@ -139,47 +152,47 @@ export const TicketConfirmation = () => {
                     : "—"}
                 </p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <span className="text-xs text-gray-500 uppercase font-bold">
                   Tier
                 </span>
-                <p className="font-bold text-sffl-navy dark:text-white">
+                <p className="font-bold text-sffl-navy dark:text-white ">
                   {ticket.tier_name || "—"}
                 </p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <span className="text-xs text-gray-500 uppercase font-bold">
                   Name
                 </span>
-                <p className="font-bold text-sffl-navy dark:text-white">
+                <p className="font-bold text-sffl-navy dark:text-white wrap-break-word">
                   {ticket.name || "—"}
                 </p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <span className="text-xs text-gray-500 uppercase font-bold">
                   Email
                 </span>
-                <p className="font-bold text-sffl-navy dark:text-white">
+                <p className="font-bold text-sffl-navy dark:text-white break-all">
                   {ticket.email}
                 </p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <span className="text-xs text-gray-500 uppercase font-bold">
                   Phone
                 </span>
-                <p className="font-bold text-sffl-navy dark:text-white">
+                <p className="font-bold text-sffl-navy dark:text-white ">
                   {ticket.phone || "—"}
                 </p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <span className="text-xs text-gray-500 uppercase font-bold">
                   Qty
                 </span>
-                <p className="font-bold text-sffl-navy dark:text-white">
+                <p className="font-bold text-sffl-navy dark:text-white ">
                   {ticket.quantity}
                 </p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <span className="text-xs text-gray-500 uppercase font-bold">
                   Total Paid
                 </span>
@@ -189,8 +202,8 @@ export const TicketConfirmation = () => {
               </div>
             </div>
 
-            <div className="border-t dark:border-gray-700 pt-4 flex items-center justify-between">
-              <span className="text-xs text-gray-500">
+            <div className="border-t dark:border-gray-700 pt-4 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs text-gray-500 min-w-0 break-all">
                 Reference: {ticket.paystack_reference}
               </span>
               <span
@@ -206,9 +219,10 @@ export const TicketConfirmation = () => {
       <div className="text-center">
         <Link
           to="/tickets"
-          className="text-blue-600 dark:text-blue-400 font-bold hover:underline"
+          className="inline-flex items-center gap-1.5 min-h-11 text-blue-600 dark:text-blue-400 font-bold hover:underline"
         >
-          ← Buy More Tickets
+          <ArrowLeftIcon className="w-4 h-4" aria-hidden="true" />
+          Buy More Tickets
         </Link>
       </div>
     </div>

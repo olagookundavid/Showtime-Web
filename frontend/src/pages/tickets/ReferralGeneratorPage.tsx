@@ -1,6 +1,16 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  ArrowLeftIcon,
+  ArrowPathIcon,
+  BoltIcon,
+  CheckIcon,
+  EnvelopeIcon,
+  LinkIcon,
+  MagnifyingGlassIcon,
+  TicketIcon,
+} from "@heroicons/react/24/outline";
+import {
   createReferralCode,
   lookupReferrals,
   type ReferralResponse,
@@ -100,11 +110,11 @@ export const ReferralGeneratorPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto my-8 p-4">
+    <div className="max-w-2xl mx-auto sm:py-4">
       {/* Header */}
-      <div className="bg-sffl-navy text-white p-6 md:p-8 rounded-2xl shadow-xl text-center mb-8 relative overflow-hidden">
+      <div className="bg-sffl-navy text-white p-5 md:p-8 rounded-2xl shadow-xl text-center mb-6 sm:mb-8 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-48 h-48 bg-sffl-red/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
-        <h1 className="text-3xl md:text-4xl font-black italic tracking-tighter relative z-10">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-black italic tracking-tighter relative z-10 wrap-break-word">
           SFFL REFERRAL PROGRAM
         </h1>
         <p className="text-gray-300 mt-2 text-xs md:text-sm max-w-md mx-auto relative z-10">
@@ -114,9 +124,10 @@ export const ReferralGeneratorPage: React.FC = () => {
         <div className="mt-4 inline-block">
           <Link
             to="/tickets"
-            className="text-sffl-red hover:underline text-xs font-bold"
+            className="relative z-10 inline-flex items-center gap-1.5 min-h-11 text-sffl-red hover:underline text-xs font-bold"
           >
-            &larr; Back to Tickets Page
+            <ArrowLeftIcon className="w-4 h-4" aria-hidden="true" />
+            Back to Tickets Page
           </Link>
         </div>
       </div>
@@ -124,29 +135,35 @@ export const ReferralGeneratorPage: React.FC = () => {
       {/* Tab Control */}
       <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-xl mb-6 border border-gray-200/50 dark:border-gray-700/50">
         <button
+          type="button"
           onClick={() => setActiveTab("generate")}
-          className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all ${
+          aria-pressed={activeTab === "generate"}
+          className={`flex-1 inline-flex items-center justify-center gap-1.5 min-h-11 px-2 py-2.5 text-xs font-bold rounded-lg transition-all ${
             activeTab === "generate"
               ? "bg-white dark:bg-gray-700 text-sffl-navy dark:text-white shadow-sm"
               : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
           }`}
         >
-          🎟️ Generate Code
+          <TicketIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
+          Generate Code
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab("lookup")}
-          className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all ${
+          aria-pressed={activeTab === "lookup"}
+          className={`flex-1 inline-flex items-center justify-center gap-1.5 min-h-11 px-2 py-2.5 text-xs font-bold rounded-lg transition-all ${
             activeTab === "lookup"
               ? "bg-white dark:bg-gray-700 text-sffl-navy dark:text-white shadow-sm"
               : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
           }`}
         >
-          🔍 Look Up Code
+          <MagnifyingGlassIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
+          Look Up Code
         </button>
       </div>
 
       {/* Content Container */}
-      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-md p-6 md:p-8">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-md p-4 sm:p-6 md:p-8">
         {activeTab === "generate" ? (
           <div className="space-y-6">
             {!generatedCode ? (
@@ -164,7 +181,7 @@ export const ReferralGeneratorPage: React.FC = () => {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g. John Doe"
-                    className="w-full px-3.5 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-950 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none text-sm transition-all"
+                    className="w-full min-w-0 min-h-11 px-3.5 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-950 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none text-sm transition-all"
                   />
                 </div>
                 <div>
@@ -179,7 +196,7 @@ export const ReferralGeneratorPage: React.FC = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="e.g. john@example.com"
-                    className="w-full px-3.5 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-950 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none text-sm transition-all"
+                    className="w-full min-w-0 min-h-11 px-3.5 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-950 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none text-sm transition-all"
                   />
                   <p className="text-[10px] text-gray-500 mt-1">
                     If provided, we will send your code and link via email.
@@ -195,58 +212,67 @@ export const ReferralGeneratorPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={generating}
-                  className="w-full bg-sffl-red hover:bg-[#A52323] text-white font-bold py-2.5 rounded-lg text-sm transition disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
+                  className="w-full min-h-11 bg-sffl-red hover:bg-[#A52323] text-white font-bold py-2.5 rounded-lg text-sm transition disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
                 >
                   {generating ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>{" "}
-                      Generating...
+                      <ArrowPathIcon
+                        className="w-4 h-4 animate-spin"
+                        aria-hidden="true"
+                      />
+                      Generating…
                     </>
                   ) : (
-                    "⚡ Generate Referral Code"
+                    <>
+                      <BoltIcon className="w-4 h-4" aria-hidden="true" />
+                      Generate Referral Code
+                    </>
                   )}
                 </button>
               </form>
             ) : (
               <div className="space-y-6 text-center animate-fade-in">
-                <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 text-green-600 rounded-full flex items-center justify-center text-xl mx-auto">
-                  ✓
+                <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 text-green-600 rounded-full flex items-center justify-center mx-auto">
+                  <CheckIcon className="w-6 h-6" aria-hidden="true" />
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">
                     Referral Code Created!
                   </h3>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 mt-1 wrap-break-word">
                     Hello {generatedCode.name}, your code is active and ready to
                     share.
                   </p>
                 </div>
 
-                <div className="bg-linear-to-r from-sffl-navy to-slate-800 p-6 rounded-xl border border-sffl-red/30">
+                <div className="bg-linear-to-r from-sffl-navy to-slate-800 p-4 sm:p-6 rounded-xl border border-sffl-red/30">
                   <span className="text-[10px] font-bold text-sffl-red uppercase tracking-wider block mb-1">
                     Your Code
                   </span>
-                  <span className="text-3xl font-extrabold text-white tracking-widest block font-mono uppercase">
+                  <span className="text-2xl sm:text-3xl font-extrabold text-white tracking-wider sm:tracking-widest block font-mono uppercase break-all">
                     {generatedCode.code}
                   </span>
                 </div>
 
                 <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-xl border border-gray-150 dark:border-gray-700 text-left">
-                  <span className="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1.5">
-                    🔗 Share this ticket link:
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                    <LinkIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                    Share this ticket link:
                   </span>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <input
                       type="text"
                       readOnly
+                      aria-label="Your referral link"
                       value={getReferralLink(generatedCode.code)}
-                      className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400 text-xs font-mono select-all outline-none"
+                      className="w-full min-w-0 min-h-11 px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400 text-xs font-mono select-all outline-none"
                     />
                     <button
+                      type="button"
                       onClick={() =>
                         handleCopy(getReferralLink(generatedCode.code))
                       }
-                      className={`font-bold px-4 py-1.5 rounded text-xs transition shrink-0 shadow-sm ${
+                      className={`min-h-11 font-bold px-4 py-1.5 rounded text-xs transition shrink-0 shadow-sm ${
                         copied
                           ? "bg-green-600 text-white hover:bg-green-700"
                           : "bg-sffl-navy text-white hover:bg-slate-800"
@@ -258,18 +284,25 @@ export const ReferralGeneratorPage: React.FC = () => {
                 </div>
 
                 {generatedCode.email && (
-                  <p className="text-xs text-gray-500 italic">
-                    📨 We have sent this details to{" "}
-                    <span className="font-semibold text-gray-700 dark:text-gray-300">
+                  <p className="flex items-start justify-center gap-1.5 text-xs text-gray-500 italic">
+                    <EnvelopeIcon
+                      className="w-4 h-4 shrink-0 not-italic"
+                      aria-hidden="true"
+                    />
+                    <span className="min-w-0">
+                    We have sent these details to{" "}
+                    <span className="font-semibold text-gray-700 dark:text-gray-300 break-all">
                       {generatedCode.email}
                     </span>
                     .
+                    </span>
                   </p>
                 )}
 
                 <button
+                  type="button"
                   onClick={() => setGeneratedCode(null)}
-                  className="text-xs text-gray-500 hover:text-sffl-red font-bold underline"
+                  className="min-h-11 px-2 text-xs text-gray-500 hover:text-sffl-red font-bold underline"
                 >
                   Generate another code
                 </button>
@@ -286,24 +319,27 @@ export const ReferralGeneratorPage: React.FC = () => {
                 <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
                   Enter Registered Name <span className="text-red-500">*</span>
                 </label>
-                <div className="flex gap-2">
+                <div className="flex flex-col min-[400px]:flex-row gap-2">
                   <input
                     type="text"
                     required
                     value={searchName}
                     onChange={(e) => setSearchName(e.target.value)}
                     placeholder="e.g. John Doe"
-                    className="w-full px-3.5 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-950 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none text-sm transition-all"
+                    className="w-full min-w-0 min-h-11 px-3.5 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-950 dark:text-white focus:ring-2 focus:ring-sffl-red outline-none text-sm transition-all"
                   />
                   <button
                     type="submit"
                     disabled={lookingUp}
-                    className="bg-sffl-navy hover:bg-slate-800 text-white font-bold px-6 py-2 rounded-lg text-xs transition disabled:opacity-50 shrink-0 shadow-sm flex items-center gap-1.5"
+                    className="min-h-11 bg-sffl-navy hover:bg-slate-800 text-white font-bold px-6 py-2 rounded-lg text-xs transition disabled:opacity-50 shrink-0 shadow-sm flex items-center justify-center gap-1.5"
                   >
                     {lookingUp ? (
                       <>
-                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>{" "}
-                        searching...
+                        <ArrowPathIcon
+                          className="w-4 h-4 animate-spin"
+                          aria-hidden="true"
+                        />
+                        Searching…
                       </>
                     ) : (
                       "Search"
@@ -330,8 +366,8 @@ export const ReferralGeneratorPage: React.FC = () => {
                       key={rc.id}
                       className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm"
                     >
-                      <div>
-                        <p className="font-bold text-gray-900 dark:text-white">
+                      <div className="min-w-0">
+                        <p className="font-bold text-gray-900 dark:text-white wrap-break-word">
                           {rc.name}
                         </p>
                         <p className="text-[10px] text-gray-500 font-mono">
@@ -343,10 +379,11 @@ export const ReferralGeneratorPage: React.FC = () => {
                       </div>
                       <div className="flex gap-2">
                         <button
+                          type="button"
                           onClick={() =>
                             handleCopy(getReferralLink(rc.code), idx)
                           }
-                          className={`px-3 py-1 rounded text-xs font-bold transition shadow-sm ${
+                          className={`min-h-11 px-4 py-1 rounded text-xs font-bold transition shadow-sm ${
                             copiedIndex === idx
                               ? "bg-green-600 text-white hover:bg-green-700"
                               : "bg-sffl-red text-white hover:bg-[#A52323]"

@@ -64,7 +64,7 @@ const TeamMemberCard = ({ member }: { member: TeamMember }) => (
   <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden group">
     <div className="flex flex-col md:flex-row items-stretch">
       {/* Image Container */}
-      <div className="w-full md:w-2/5 min-h-90 md:min-h-115 relative overflow-hidden bg-gray-100 dark:bg-gray-900">
+      <div className="w-full md:w-2/5 min-h-72 sm:min-h-90 md:min-h-115 relative overflow-hidden bg-gray-100 dark:bg-gray-900">
         {member.image ? (
           <img
             src={member.image}
@@ -90,7 +90,7 @@ const TeamMemberCard = ({ member }: { member: TeamMember }) => (
         <div className="absolute inset-0 bg-linear-to-t from-gray-900/50 via-transparent to-transparent" />
       </div>
       {/* Content */}
-      <div className="w-full md:w-3/5 p-6 md:p-10 flex flex-col justify-center space-y-4">
+      <div className="w-full md:w-3/5 p-4 sm:p-6 md:p-10 flex flex-col justify-center space-y-4 min-w-0">
         <div>
           {member.badge && (
             <span className="px-3 py-1 bg-sffl-red text-white text-[10px] md:text-xs font-black uppercase rounded-full tracking-wider">
@@ -98,7 +98,7 @@ const TeamMemberCard = ({ member }: { member: TeamMember }) => (
             </span>
           )}
           <h2
-            className={`text-2xl md:text-4xl font-black text-sffl-navy dark:text-white uppercase tracking-tight ${member.badge ? "mt-3" : ""}`}
+            className={`text-2xl md:text-4xl font-black text-sffl-navy dark:text-white uppercase tracking-tight wrap-break-word ${member.badge ? "mt-3" : ""}`}
           >
             {member.name}
           </h2>
@@ -124,15 +124,15 @@ const TeamMemberCard = ({ member }: { member: TeamMember }) => (
 
 export const OurTeam = () => {
   return (
-    <div className="space-y-8 md:space-y-12 pb-36 md:pb-12">
+    <div className="space-y-8 md:space-y-12">
       {/* Header */}
-      <div className="bg-sffl-navy text-white p-10 rounded-3xl shadow-2xl relative overflow-hidden">
+      <div className="bg-sffl-navy text-white p-5 sm:p-8 md:p-10 rounded-3xl shadow-2xl relative overflow-hidden">
         <div className="absolute inset-0 bg-linear-to-r from-sffl-red/20 to-blue-900/30" />
         <div className="relative z-10 text-center md:text-left">
           <h1 className="text-3xl md:text-5xl font-black italic tracking-tighter">
             OUR TEAM
           </h1>
-          <p className="text-sm md:text-xl text-gray-300 mt-2 font-semibold uppercase tracking-widest">
+          <p className="text-sm md:text-xl text-gray-300 mt-2 font-semibold uppercase tracking-wider md:tracking-widest">
             Showtime Leadership & Sporting Operations
           </p>
         </div>

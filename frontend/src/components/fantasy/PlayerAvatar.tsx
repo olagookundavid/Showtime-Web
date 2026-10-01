@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { FemaleIcon } from '../icons/FemaleIcon';
+import { MaleIcon } from '../icons/MaleIcon';
 
 interface Props {
     name: string;
@@ -60,12 +62,17 @@ export function PlayerAvatar({ name, image, gender, size = 'md', className = '' 
             )}
             {gender != null && gender !== '' && (
                 <span
-                    title={female ? 'Woman' : 'Man'}
-                    className={`absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black text-white ring-2 ring-white dark:ring-gray-800 ${
+                    role="img"
+                    aria-label={female ? 'Woman' : 'Man'}
+                    className={`absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-white ring-2 ring-white dark:ring-gray-800 ${
                         female ? 'bg-amber-600' : 'bg-sffl-navy'
                     }`}
                 >
-                    {female ? '♀' : '♂'}
+                    {female ? (
+                        <FemaleIcon className="w-3 h-3" strokeWidth={2.5} aria-hidden="true" />
+                    ) : (
+                        <MaleIcon className="w-3 h-3" strokeWidth={2.5} aria-hidden="true" />
+                    )}
                 </span>
             )}
         </span>

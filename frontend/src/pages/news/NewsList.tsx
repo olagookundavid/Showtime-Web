@@ -5,6 +5,7 @@ import { getNews } from '../../services/api';
 import { Pagination } from '../../components/ui/Pagination';
 import { LightboxImage, Spinner } from '../../components/ui';
 import { parseYouTubeId, youTubeThumbnailUrl } from '../../utils/newsContent';
+import { NewspaperIcon, PlayIcon } from '@heroicons/react/24/solid';
 
 export const NewsList = () => {
     const [currentPage, setCurrentPage] = useState(1);
@@ -26,16 +27,16 @@ export const NewsList = () => {
     return (
         <div className="space-y-4 md:space-y-8">
             {/* Header */}
-            <div className="bg-sffl-navy text-white p-8 rounded-2xl shadow-xl">
-                <h1 className="text-5xl font-black italic">LEAGUE NEWS</h1>
-                <p className="text-gray-300 mt-2 text-lg">Latest updates from the SFFL</p>
+            <div className="bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
+                <h1 className="text-3xl md:text-5xl font-black italic">LEAGUE NEWS</h1>
+                <p className="text-gray-300 mt-2 text-sm md:text-lg">Latest updates from the SFFL</p>
             </div>
 
             {loading && <Spinner label="Loading news…" className="py-16" />}
 
             {/* News Grid */}
             {!loading && (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 {news.map((article) => (
                     <div
                         key={article.id}
@@ -57,9 +58,7 @@ export const NewsList = () => {
                                             />
                                             <div className="absolute inset-0 flex items-center justify-center">
                                                 <div className="w-14 h-14 bg-sffl-red/90 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                                                    <svg className="w-6 h-6 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
-                                                        <path d="M8 5v14l11-7z" />
-                                                    </svg>
+                                                    <PlayIcon className="w-6 h-6 text-white ml-1" aria-hidden="true" />
                                                 </div>
                                             </div>
                                         </Link>
@@ -87,11 +86,11 @@ export const NewsList = () => {
                         {/* Content */}
                         <Link 
                             to={`/news/${article.slug}`}
-                            className="p-6 flex flex-col cursor-pointer"
+                            className="p-4 sm:p-6 flex flex-col cursor-pointer"
                         >
 
                             {/* Title */}
-                            <h2 className="font-black text-xl text-sffl-navy dark:text-white mb-2 group-hover:text-sffl-red transition-colors line-clamp-2">
+                            <h2 className="font-black text-lg sm:text-xl wrap-break-word text-sffl-navy dark:text-white mb-2 group-hover:text-sffl-red transition-colors line-clamp-2">
                                 {article.title}
                             </h2>
 
@@ -101,8 +100,8 @@ export const NewsList = () => {
                             </p>
 
                             {/* Meta */}
-                            <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                                <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                <div className="flex flex-wrap items-center gap-2 min-w-0">
                                     <span>{article.author}</span>
                                     {article.category && (
                                         <span className="bg-sffl-red/10 text-sffl-red text-[10px] font-bold px-2 py-0.5 rounded-md uppercase">
@@ -120,8 +119,8 @@ export const NewsList = () => {
 
             {/* Empty state */}
             {!loading && news.length === 0 && (
-                <div className="bg-gray-100 dark:bg-gray-800 p-12 rounded-xl text-center">
-                    <div className="text-4xl mb-3">📰</div>
+                <div className="bg-gray-100 dark:bg-gray-800 p-6 sm:p-12 rounded-xl text-center">
+                    <NewspaperIcon className="w-10 h-10 mx-auto mb-3 text-gray-400" aria-hidden="true" />
                     <p className="text-gray-500 text-lg font-semibold">No news articles yet.</p>
                 </div>
             )}

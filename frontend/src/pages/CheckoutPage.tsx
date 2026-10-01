@@ -1,6 +1,16 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  ArrowRightIcon,
+  CheckIcon,
+  ChevronRightIcon,
+  ClipboardDocumentListIcon,
+  InformationCircleIcon,
+  LockClosedIcon,
+  ShoppingCartIcon,
+  TruckIcon,
+} from "@heroicons/react/24/outline";
 import { useAuth } from "../contexts/AuthContext";
 import { useCart } from "../contexts/CartContext";
 import {
@@ -21,6 +31,7 @@ import {
 import { LazyImage } from "../components/common/LazyImage";
 import { DiscountCodeInput } from "../components/discounts/DiscountCodeInput";
 import { formatVariantLabel } from "../utils/storeStock";
+import { Spinner } from "../components/ui/Spinner";
 
 export const CheckoutPage = () => {
   const [searchParams] = useSearchParams();
@@ -125,8 +136,11 @@ export const CheckoutPage = () => {
   // mode (URL points at nothing).
   if (isCartCheckout ? cartItems.length === 0 : !product) {
     return (
-      <div className="max-w-md mx-auto px-4 py-16 text-center space-y-6">
-        <span className="text-5xl">🛒</span>
+      <div className="max-w-md mx-auto py-16 text-center space-y-6">
+        <ShoppingCartIcon
+          className="w-14 h-14 mx-auto text-gray-400"
+          aria-hidden="true"
+        />
         <div className="space-y-2">
           <h2 className="text-xl font-bold dark:text-white">
             Your Cart is Empty
@@ -138,7 +152,7 @@ export const CheckoutPage = () => {
         </div>
         <Link
           to="/store"
-          className="inline-block bg-sffl-navy hover:bg-sffl-red text-white text-xs font-bold uppercase tracking-wider px-6 py-3 rounded-full shadow transition-all"
+          className="inline-flex items-center justify-center min-h-11 bg-sffl-navy hover:bg-sffl-red text-white text-xs font-bold uppercase tracking-wider px-6 py-3 rounded-full shadow transition-all"
         >
           Go to Store
         </Link>
@@ -335,14 +349,19 @@ export const CheckoutPage = () => {
         </div>
 
         {/* Progress Indicators */}
-        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider">
+        <div className="flex flex-wrap items-center gap-2 text-[11px] sm:text-xs font-bold uppercase tracking-wider">
           <span
+            aria-current={checkoutStep === 1 ? "step" : undefined}
             className={`px-3 py-1.5 rounded-lg ${checkoutStep === 1 ? "bg-sffl-navy text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-400"}`}
           >
             1. Shipping Address
           </span>
-          <span className="text-gray-300">➔</span>
+          <ChevronRightIcon
+            className="w-4 h-4 text-gray-300 shrink-0"
+            aria-hidden="true"
+          />
           <span
+            aria-current={checkoutStep === 2 ? "step" : undefined}
             className={`px-3 py-1.5 rounded-lg ${checkoutStep === 2 ? "bg-sffl-navy text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-400"}`}
           >
             2. Invoice & Payment
@@ -354,44 +373,57 @@ export const CheckoutPage = () => {
         {/* Left: Interactive checkout panel */}
         <div className="lg:col-span-8 space-y-6">
           {checkoutStep === 1 ? (
-            <div className="bg-white dark:bg-gray-800/30 backdrop-blur-md rounded-3xl p-6 border border-gray-100 dark:border-gray-700/50 shadow-lg space-y-6">
-              <h2 className="text-lg font-black text-sffl-navy dark:text-white uppercase tracking-tight">
-                🚚 Shipping & Contact Information
+            <div className="bg-white dark:bg-gray-800/30 backdrop-blur-md rounded-3xl p-4 sm:p-6 border border-gray-100 dark:border-gray-700/50 shadow-lg space-y-6">
+              <h2 className="flex items-center gap-2 text-base sm:text-lg font-black text-sffl-navy dark:text-white uppercase tracking-tight">
+                <TruckIcon className="w-5 h-5 shrink-0" aria-hidden="true" />
+                Shipping & Contact Information
               </h2>
 
               {/* Saved Address Panel for Logged in Profiles */}
               {isAuthenticated && savedAddresses.length > 0 && (
                 <div className="space-y-3">
-                  <label className="text-xs font-black uppercase text-gray-400 tracking-wider">
-                    📋 Select a Saved Shipping Address
-                  </label>
+                  <p className="flex items-center gap-1.5 text-xs font-black uppercase text-gray-400 tracking-wider">
+                    <ClipboardDocumentListIcon
+                      className="w-4 h-4 shrink-0"
+                      aria-hidden="true"
+                    />
+                    Select a Saved Shipping Address
+                  </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {savedAddresses.map((addr) => {
                       const isSelected = selectedSavedAddressId === addr.id;
                       return (
-                        <div
+                        <button
+                          type="button"
                           key={addr.id}
                           onClick={() => handleSelectAddress(addr)}
-                          className={`p-4 rounded-2xl cursor-pointer transition-all duration-300 group ${
+                          aria-pressed={isSelected}
+                          className={`w-full min-w-0 text-left p-4 rounded-2xl cursor-pointer transition-all duration-300 group ${
                             isSelected
                               ? "bg-sffl-red/5 border-2 border-sffl-red shadow-md"
                               : "bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 hover:border-sffl-red/40 hover:shadow-md"
                           }`}
                         >
-                          <div className="flex justify-between items-start">
+                          <div className="flex justify-between items-start gap-2">
                             <span
-                              className={`font-bold text-sm transition-colors ${isSelected ? "text-sffl-red" : "text-sffl-navy dark:text-white group-hover:text-sffl-red"}`}
+                              className={`min-w-0 truncate font-bold text-sm transition-colors ${isSelected ? "text-sffl-red" : "text-sffl-navy dark:text-white group-hover:text-sffl-red"}`}
                             >
                               {addr.recipient_name}
                             </span>
                             <span
-                              className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${
+                              className={`inline-flex items-center gap-1 shrink-0 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${
                                 isSelected
                                   ? "bg-sffl-red text-white"
                                   : "bg-gray-200 dark:bg-gray-700 text-gray-500"
                               }`}
                             >
-                              {isSelected ? "✓ Using" : "Use"}
+                              {isSelected && (
+                                <CheckIcon
+                                  className="w-3 h-3"
+                                  aria-hidden="true"
+                                />
+                              )}
+                              {isSelected ? "Using" : "Use"}
                             </span>
                           </div>
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 truncate">
@@ -403,7 +435,7 @@ export const CheckoutPage = () => {
                           <p className="text-[10px] text-gray-400 mt-1">
                             {addr.phone}
                           </p>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -411,13 +443,18 @@ export const CheckoutPage = () => {
               )}
 
               {!isAuthenticated && (
-                <div className="bg-sffl-navy/5 border border-sffl-navy/20 p-4 rounded-2xl text-xs flex justify-between items-center text-gray-500">
-                  <span>
-                    💡 Checked out as Guest. Log in to use your saved addresses.
+                <div className="bg-sffl-navy/5 border border-sffl-navy/20 p-4 rounded-2xl text-xs flex flex-wrap justify-between items-center gap-2 text-gray-500">
+                  <span className="flex items-start gap-1.5 min-w-0">
+                    <InformationCircleIcon
+                      className="w-4 h-4 shrink-0"
+                      aria-hidden="true"
+                    />
+                    Checking out as a guest. Log in to use your saved
+                    addresses.
                   </span>
                   <Link
                     to="/login"
-                    className="text-sffl-red font-black hover:underline uppercase ml-2"
+                    className="inline-flex items-center min-h-11 px-2 -mr-2 text-sffl-red font-black hover:underline uppercase"
                   >
                     Login
                   </Link>
@@ -552,38 +589,40 @@ export const CheckoutPage = () => {
                 </div>
 
                 {isAuthenticated && !selectedSavedAddressId && (
-                  <label className="flex items-center gap-2 text-xs font-bold text-gray-600 dark:text-gray-300 cursor-pointer select-none">
+                  <label className="flex items-center gap-2 min-h-11 text-xs font-bold text-gray-600 dark:text-gray-300 cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={saveAddress}
                       onChange={(e) => setSaveAddress(e.target.checked)}
-                      className="w-4 h-4 accent-sffl-red"
+                      className="w-5 h-5 shrink-0 accent-sffl-red"
                     />
-                    💾 Save this address for next time
+                    Save this address for next time
                   </label>
                 )}
 
                 <button
                   type="submit"
-                  className="w-full bg-sffl-navy hover:bg-sffl-red text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-colors shadow-lg"
+                  className="w-full min-h-11 inline-flex items-center justify-center gap-1.5 bg-sffl-navy hover:bg-sffl-red text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-colors shadow-lg"
                 >
-                  Continue to Invoice & Payment →
+                  Continue to Invoice & Payment
+                  <ArrowRightIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
                 </button>
               </form>
             </div>
           ) : (
             /* Stage 2: Invoice Place Order Panel */
-            <div className="bg-white dark:bg-gray-800/30 backdrop-blur-md rounded-3xl p-6 border border-gray-100 dark:border-gray-700/50 shadow-lg space-y-6">
-              <h2 className="text-lg font-black text-sffl-navy dark:text-white uppercase tracking-tight">
-                🔒 Secure Invoice Validation
+            <div className="bg-white dark:bg-gray-800/30 backdrop-blur-md rounded-3xl p-4 sm:p-6 border border-gray-100 dark:border-gray-700/50 shadow-lg space-y-6">
+              <h2 className="flex items-center gap-2 text-base sm:text-lg font-black text-sffl-navy dark:text-white uppercase tracking-tight">
+                <LockClosedIcon className="w-5 h-5 shrink-0" aria-hidden="true" />
+                Secure Invoice Validation
               </h2>
 
-              <div className="bg-gray-50 dark:bg-gray-800/50 border p-5 rounded-2xl space-y-4">
+              <div className="bg-gray-50 dark:bg-gray-800/50 border p-4 sm:p-5 rounded-2xl space-y-4">
                 <div className="border-b pb-2">
                   <h3 className="text-xs font-black uppercase text-gray-400 tracking-wider">
                     Shipping Destination Details
                   </h3>
-                  <div className="text-xs text-gray-700 dark:text-gray-300 mt-2 font-medium">
+                  <div className="text-xs text-gray-700 dark:text-gray-300 mt-2 font-medium wrap-break-word">
                     <p className="font-bold text-sm text-sffl-navy dark:text-white">
                       {shippingForm.recipient_name}
                     </p>
@@ -592,7 +631,7 @@ export const CheckoutPage = () => {
                       {shippingForm.city}, {shippingForm.state},{" "}
                       {shippingForm.country}
                     </p>
-                    <p className="mt-1 text-gray-500">
+                    <p className="mt-1 text-gray-500 break-all">
                       Contact: {shippingForm.phone} | {shippingForm.email}
                     </p>
                   </div>
@@ -622,7 +661,7 @@ export const CheckoutPage = () => {
                               </div>
                             )}
                           </div>
-                          <div className="text-xs flex-1">
+                          <div className="text-xs flex-1 min-w-0 wrap-break-word">
                             <p className="font-bold text-sffl-navy dark:text-white">
                               {line.product_name}
                             </p>
@@ -656,7 +695,7 @@ export const CheckoutPage = () => {
                             </div>
                           )}
                         </div>
-                        <div className="text-xs">
+                        <div className="text-xs min-w-0 wrap-break-word">
                           <p className="font-bold text-sffl-navy dark:text-white">
                             {product.name}
                           </p>
@@ -692,7 +731,7 @@ export const CheckoutPage = () => {
                     type="checkbox"
                     checked={joinNewsletter}
                     onChange={(e) => setJoinNewsletter(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 shrink-0 accent-sffl-red cursor-pointer"
+                    className="mt-0.5 w-5 h-5 shrink-0 accent-sffl-red cursor-pointer"
                   />
                   <span className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
                     <span className="font-black text-sffl-navy dark:text-white uppercase tracking-wider">
@@ -705,31 +744,31 @@ export const CheckoutPage = () => {
               )}
 
               {isSubmitting ? (
-                <div className="text-center py-6 space-y-4">
-                  <div className="w-10 h-10 border-4 border-sffl-red border-t-transparent rounded-full animate-spin mx-auto"></div>
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider animate-pulse">
-                    {totalAmount === 0
-                      ? "Confirming your order..."
-                      : "Connecting safely to Paystack payment gateway..."}
-                  </p>
-                </div>
+                <Spinner
+                  size="lg"
+                  className="py-6"
+                  label={
+                    totalAmount === 0
+                      ? "Confirming your order…"
+                      : "Connecting safely to the Paystack payment gateway…"
+                  }
+                />
               ) : (
-                <div className="flex gap-4">
+                <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4">
                   <button
                     type="button"
                     onClick={() => setCheckoutStep(1)}
-                    className="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-300 py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-colors border"
+                    className="flex-1 min-h-11 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-300 py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-colors border"
                   >
                     Back
                   </button>
                   <button
                     type="button"
                     onClick={handlePayNow}
-                    className="flex-2 bg-sffl-red hover:bg-red-700 text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all transform active:scale-95 shadow-xl hover:shadow-sffl-red/20"
+                    className="flex-2 min-h-11 inline-flex items-center justify-center gap-1.5 bg-sffl-red hover:bg-red-700 text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all transform active:scale-95 shadow-xl hover:shadow-sffl-red/20"
                   >
-                    {totalAmount === 0
-                      ? "Complete Order →"
-                      : "Pay With Paystack →"}
+                    {totalAmount === 0 ? "Complete Order" : "Pay With Paystack"}
+                    <ArrowRightIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
                   </button>
                 </div>
               )}
@@ -738,9 +777,10 @@ export const CheckoutPage = () => {
         </div>
 
         {/* Right: Cart Summary Column */}
-        <div className="lg:col-span-4 bg-white dark:bg-gray-800/30 backdrop-blur-md rounded-3xl p-6 border border-gray-100 dark:border-gray-700/50 shadow-lg space-y-4">
-          <h2 className="text-xs uppercase font-black text-gray-400 tracking-wider">
-            🛒 Checkout Cart Summary
+        <div className="lg:col-span-4 bg-white dark:bg-gray-800/30 backdrop-blur-md rounded-3xl p-4 sm:p-6 border border-gray-100 dark:border-gray-700/50 shadow-lg space-y-4">
+          <h2 className="flex items-center gap-1.5 text-xs uppercase font-black text-gray-400 tracking-wider">
+            <ShoppingCartIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
+            Checkout Cart Summary
           </h2>
 
           {isCartCheckout ? (
@@ -791,7 +831,7 @@ export const CheckoutPage = () => {
                     </div>
                   )}
                 </div>
-                <div className="text-xs space-y-1">
+                <div className="text-xs space-y-1 min-w-0">
                   <p className="font-bold text-gray-900 dark:text-white line-clamp-1">
                     {product.name}
                   </p>
@@ -824,8 +864,8 @@ export const CheckoutPage = () => {
               </span>
             </div>
             {discountAmount > 0 && (
-              <div className="flex justify-between text-gray-500">
-                <span>Discount ({discount?.code})</span>
+              <div className="flex justify-between gap-3 text-gray-500">
+                <span className="min-w-0 break-all">Discount ({discount?.code})</span>
                 <span className="font-bold text-emerald-600 dark:text-emerald-400">
                   −₦{discountAmount.toLocaleString()}
                 </span>

@@ -7,6 +7,8 @@ import {
   type Team,
 } from "../../services/api";
 import { Loader } from "../../components/ui/Loader";
+import { Spinner } from "../../components/ui/Spinner";
+import { ShieldCheckIcon } from "@heroicons/react/24/outline";
 
 const PAGE_SIZE = 20;
 
@@ -55,7 +57,7 @@ export const TeamsPage = () => {
   if (initialTeamsLoading) return <Loader />;
 
   return (
-    <div className="space-y-8 pb-36 md:pb-16">
+    <div className="space-y-6 md:space-y-8">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-center bg-sffl-navy text-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-xl">
         <div>
@@ -70,13 +72,16 @@ export const TeamsPage = () => {
 
       {teams.length === 0 ? (
         <div className="bg-gray-100 dark:bg-gray-800 p-8 md:p-16 rounded-xl text-center">
-          <div className="text-3xl md:text-5xl mb-4">🛡️</div>
+          <ShieldCheckIcon
+            className="w-10 h-10 md:w-14 md:h-14 mx-auto mb-4 text-gray-400"
+            aria-hidden="true"
+          />
           <p className="text-gray-500 text-base md:text-lg font-semibold">
             No teams yet.
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
+        <div className="grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
           {teams.map((team: Team, idx: number) => {
             const isLast = idx === teams.length - 1;
             return (
@@ -117,12 +122,7 @@ export const TeamsPage = () => {
       )}
 
       {teamsLoadingMore && (
-        <div className="flex justify-center items-center py-6">
-          <div className="flex items-center gap-2 text-gray-500 font-semibold">
-            <div className="w-6 h-6 border-2 border-sffl-red border-t-transparent rounded-full animate-spin"></div>
-            Loading more teams...
-          </div>
-        </div>
+        <Spinner size="sm" label="Loading more teams…" className="py-6" />
       )}
 
       {!hasMore && teams.length > 0 && (
