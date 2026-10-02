@@ -22,7 +22,9 @@ export function useBroadcastProducer(matchId: string) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stateRef = useRef<BroadcastState | null>(null);
-  stateRef.current = state;
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   const token = localStorage.getItem('showtime_access_token') || '';
 
@@ -38,9 +40,12 @@ export function useBroadcastProducer(matchId: string) {
       setState(stateRes.data);
       setPlayers(playersRes.data || []);
       setError(null);
-    } catch (err: any) {
+    } catch (err) {
       console.error('[useBroadcastProducer] fetch error:', err);
-      setError(err?.response?.data?.error || err.message || 'Failed to load broadcast data');
+      const message = axios.isAxiosError(err)
+        ? err.response?.data?.error || err.message
+        : 'Failed to load broadcast data';
+      setError(message || 'Failed to load broadcast data');
     }
   }, [matchId, token]);
 

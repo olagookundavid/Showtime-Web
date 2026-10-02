@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { API_URL } from '../../services/api';
 import { useBroadcastProducer } from '../../hooks/useBroadcastProducer';
 import { formatClock, calculateClockNow, type GraphicEvent } from '../../types/broadcast';
@@ -121,7 +122,7 @@ export function AdminBroadcastStudio() {
         const res = await axios.get(`${API_URL}/matches/${id}/plays`);
         const plays = Array.isArray(res.data) ? res.data : [];
         setRecentPlays(plays.slice(-5).reverse());
-      } catch (err) {
+      } catch {
         // Silently continue if no plays entered yet
       }
     }
@@ -158,7 +159,7 @@ export function AdminBroadcastStudio() {
         return;
       }
     }
-    alert('Please enter time as MM:SS (e.g. 12:00 or 06:25)');
+    toast.error('Please enter time as MM:SS (e.g. 12:00 or 06:25)');
   };
 
   const handleTriggerCall = (callType: string) => {

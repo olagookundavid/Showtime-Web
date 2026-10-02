@@ -31,14 +31,14 @@ export function useBroadcastViewer(matchId: string) {
         if (isMounted && res.data) {
           setState(res.data);
         }
-      } catch (err) {
+      } catch {
         // Fallback to /api/v1 endpoint
         try {
           const res = await axios.get(`${API_URL}/matches/${matchId}/broadcast/state`);
           if (isMounted && res.data) {
             setState(res.data);
           }
-        } catch (e) {
+        } catch {
           // Will be populated when WebSocket connects
         }
       }
