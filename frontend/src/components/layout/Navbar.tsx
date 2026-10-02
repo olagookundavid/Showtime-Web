@@ -39,6 +39,23 @@ const PORTAL_LINKS: Record<string, { to: string; label: string }> = {
 const menuItemClass =
   "flex items-center gap-3 px-3 py-2 min-h-11 rounded-xl font-bold hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors";
 
+const navItemBase =
+  "relative min-h-11 inline-flex items-center font-bold transition-colors duration-300 " +
+  "after:absolute after:left-0 after:bottom-1 after:h-0.75 after:w-full after:rounded-full " +
+  "after:bg-sffl-red after:origin-left after:scale-x-0 after:transition-transform " +
+  "after:duration-300 after:ease-out motion-reduce:after:transition-none " +
+  "hover:after:scale-x-100 focus-visible:after:scale-x-100 " +
+  "outline-none focus-visible:text-sffl-red";
+
+// Active keeps its own colour and holds the bar; idle turns red on hover.
+const navItem = (active: boolean, color = "text-white") =>
+  `${navItemBase} ${color} ${active ? "after:scale-x-100" : "hover:text-sffl-red"}`;
+
+// Dropdown rows: the hover style, held permanently for the current page.
+const dropdownItem = (active: boolean) =>
+  `block px-4 py-2 font-bold transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red ${
+    active ? "bg-gray-100 dark:bg-gray-700 text-sffl-red" : ""
+  }`;
 interface NavbarProps {
   onMoreClick?: () => void;
 }
@@ -56,6 +73,15 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
   const location = useLocation();
   const closeTimeoutRef = useRef<number | null>(null);
   const menusRef = useRef<HTMLDivElement>(null);
+
+  const { pathname, search } = location;
+  const isActive = (path: string) =>
+    pathname === path || pathname.startsWith(`${path}/`);
+  const tab = new URLSearchParams(search).get("tab");
+
+  const leagueActive = ["/matches", "/standings", "/teams"].some(isActive);
+  const statsActive = isActive("/stats");
+  const storeActive = ["/tickets", "/store"].some(isActive);
 
   const openOnHover = (menu: Menu) => {
     if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
@@ -123,11 +149,13 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
           <div className="hidden lg:flex items-center gap-9 xl:gap-12 uppercase font-bold text-xs xl:text-sm tracking-wide">
             <Link
               to="/"
-              className="min-h-11 inline-flex items-center hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105"
+              aria-current={pathname === "/" ? "page" : undefined}
+              className={navItem(pathname === "/")}
             >
               Home
             </Link>
-            {/* League Dropdown — groups Matches, Standings, Teams */}
+
+            {/* League */}
             <div
               className="relative group"
               onMouseEnter={() => openOnHover("league")}
@@ -138,7 +166,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                 onClick={() => toggleMenu("league")}
                 aria-expanded={openMenu === "league"}
                 aria-haspopup="true"
-                className="min-h-11 hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105 flex items-center gap-1 uppercase"
+                className={`${navItem(leagueActive)} gap-1 uppercase aria-expanded:after:scale-x-100`}
               >
                 League
                 <ChevronDownIcon className="w-3 h-3" aria-hidden="true" />
@@ -149,19 +177,22 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                   <div className="bg-white dark:bg-gray-800 text-sffl-navy dark:text-white rounded-lg shadow-2xl py-2 normal-case font-bold text-sm border border-gray-200 dark:border-gray-700">
                     <Link
                       to="/matches"
-                      className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors font-bold"
+                      aria-current={isActive("/matches") ? "page" : undefined}
+                      className={dropdownItem(isActive("/matches"))}
                     >
                       Matches
                     </Link>
                     <Link
                       to="/standings"
-                      className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors font-bold"
+                      aria-current={isActive("/standings") ? "page" : undefined}
+                      className={dropdownItem(isActive("/standings"))}
                     >
                       Standings
                     </Link>
                     <Link
                       to="/teams"
-                      className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors font-bold"
+                      aria-current={isActive("/teams") ? "page" : undefined}
+                      className={dropdownItem(isActive("/teams"))}
                     >
                       Teams
                     </Link>
@@ -169,7 +200,8 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                 </div>
               )}
             </div>
-            {/* Stats Dropdown */}
+
+            {/* Stats */}
             <div
               className="relative group"
               onMouseEnter={() => openOnHover("stats")}
@@ -180,7 +212,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                 onClick={() => toggleMenu("stats")}
                 aria-expanded={openMenu === "stats"}
                 aria-haspopup="true"
-                className="min-h-11 hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105 flex items-center gap-1 uppercase"
+                className={`${navItem(statsActive)} gap-1 uppercase aria-expanded:after:scale-x-100`}
               >
                 Stats
                 <ChevronDownIcon className="w-3 h-3" aria-hidden="true" />
@@ -191,19 +223,26 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                   <div className="bg-white dark:bg-gray-800 text-sffl-navy dark:text-white rounded-lg shadow-2xl py-2 normal-case font-bold text-sm border border-gray-200 dark:border-gray-700">
                     <Link
                       to="/stats"
-                      className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors font-bold"
+                      aria-current={statsActive && !tab ? "page" : undefined}
+                      className={dropdownItem(statsActive && !tab)}
                     >
                       Stats Hub
                     </Link>
                     <Link
                       to="/stats?tab=players"
-                      className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors font-bold"
+                      aria-current={
+                        statsActive && tab === "players" ? "page" : undefined
+                      }
+                      className={dropdownItem(statsActive && tab === "players")}
                     >
                       Player Stats
                     </Link>
                     <Link
                       to="/stats?tab=teams"
-                      className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors font-bold"
+                      aria-current={
+                        statsActive && tab === "teams" ? "page" : undefined
+                      }
+                      className={dropdownItem(statsActive && tab === "teams")}
                     >
                       Team Stats
                     </Link>
@@ -211,26 +250,30 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                 </div>
               )}
             </div>
+
             <Link
               to="/totw"
-              className="min-h-11 inline-flex items-center hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105"
+              aria-current={isActive("/totw") ? "page" : undefined}
+              className={navItem(isActive("/totw"))}
             >
               Team of the Week
             </Link>
             <Link
               to="/news"
-              className="min-h-11 inline-flex items-center hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105"
+              aria-current={isActive("/news") ? "page" : undefined}
+              className={navItem(isActive("/news"))}
             >
               News
             </Link>
             <Link
               to="/fantasy"
-              className="min-h-11 inline-flex items-center hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105 uppercase text-yellow-400"
+              aria-current={isActive("/fantasy") ? "page" : undefined}
+              className={navItem(isActive("/fantasy"), "text-yellow-400")}
             >
               Fantasy
             </Link>
 
-            {/* Store Dropdown */}
+            {/* Store */}
             <div
               className="relative group"
               onMouseEnter={() => openOnHover("store")}
@@ -241,7 +284,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                 onClick={() => toggleMenu("store")}
                 aria-expanded={openMenu === "store"}
                 aria-haspopup="true"
-                className="min-h-11 hover:text-sffl-red font-bold transition-all duration-300 hover:scale-105 flex items-center gap-1 uppercase"
+                className={`${navItem(storeActive)} gap-1 uppercase aria-expanded:after:scale-x-100`}
               >
                 STORE
                 <ChevronDownIcon className="w-3 h-3" aria-hidden="true" />
@@ -252,20 +295,31 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                   <div className="bg-white dark:bg-gray-800 text-sffl-navy dark:text-white rounded-lg shadow-2xl py-2 normal-case font-bold text-sm border border-gray-200 dark:border-gray-700">
                     <Link
                       to="/tickets"
-                      className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors font-bold"
+                      aria-current={isActive("/tickets") ? "page" : undefined}
+                      className={dropdownItem(isActive("/tickets"))}
                     >
                       Gameday Tickets
                     </Link>
                     <Link
                       to="/store"
-                      className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors font-bold"
+                      aria-current={
+                        isActive("/store") && !isActive("/store/orders")
+                          ? "page"
+                          : undefined
+                      }
+                      className={dropdownItem(
+                        isActive("/store") && !isActive("/store/orders"),
+                      )}
                     >
                       Merch Store
                     </Link>
                     {isAuthenticated && (
                       <Link
                         to="/store/orders"
-                        className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-sffl-red transition-colors font-bold"
+                        aria-current={
+                          isActive("/store/orders") ? "page" : undefined
+                        }
+                        className={dropdownItem(isActive("/store/orders"))}
                       >
                         My Orders
                       </Link>
