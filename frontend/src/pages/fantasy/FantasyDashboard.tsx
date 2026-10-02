@@ -794,97 +794,122 @@ export function FantasyDashboard() {
                 <ChevronDownIcon className="w-4 h-4 transition-transform group-open:rotate-180" />
               </summary>
               <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 divide-gray-100 dark:divide-gray-700 border-t border-gray-100 dark:border-gray-700">
-                {picks.map((pick, idx) => (
-                  <div
-                    key={`${pick.slot}-${pick.player_id ?? idx}`}
-                    onClick={() => {
-                      if (pick.player_id) {
-                        const dashboardPick = pick as DashboardPick;
-                        setInspectingPlayer({
-                          playerId: pick.player_id,
-                          playerName: pick.player_name || "Player",
-                          playerImage:
-                            dashboardPick.player_image || dashboardPick.photo_url,
-                          position: pick.position || pick.slot,
-                          gender: pick.gender,
-                          teamName: pick.team_name,
-                          teamShortName: pick.team_short_name,
-                          points: num(pick.points),
-                          purchasePrice: dashboardPick.purchase_price,
-                          price:
-                            dashboardPick.fantasy_price ||
-                            dashboardPick.price ||
-                            dashboardPick.purchase_price,
-                          gameweekId:
-                            dashboardPick.gameweek_id ||
-                            dashboard?.lineup?.gameweek_id ||
-                            gameweek?.id,
-                          gameweekNumber: gameweek?.number,
-                        });
-                      }
-                    }}
-                    role={pick.player_id ? "button" : undefined}
-                    tabIndex={pick.player_id ? 0 : undefined}
-                    onKeyDown={
-                      pick.player_id
-                        ? (e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              const dashboardPick = pick as DashboardPick;
-                              setInspectingPlayer({
-                                playerId: pick.player_id,
-                                playerName: pick.player_name || "Player",
-                                playerImage:
-                                  dashboardPick.player_image || dashboardPick.photo_url,
-                                position: pick.position || pick.slot,
-                                gender: pick.gender,
-                                teamName: pick.team_name,
-                                teamShortName: pick.team_short_name,
-                                points: num(pick.points),
-                                purchasePrice: dashboardPick.purchase_price,
-                                price:
-                                  dashboardPick.fantasy_price ||
-                                  dashboardPick.price ||
-                                  dashboardPick.purchase_price,
-                                gameweekId:
-                                  dashboardPick.gameweek_id ||
-                                  dashboard?.lineup?.gameweek_id ||
-                                  gameweek?.id,
-                                gameweekNumber: gameweek?.number,
-                              });
+                {picks.map((pick, idx) => {
+                  const isInvalidPick =
+                    pick.is_eligible === false ||
+                    pick.team_active === false ||
+                    pick.player_status === "inactive" ||
+                    pick.player_status === "deleted" ||
+                    !!pick.is_reserve;
+                  return (
+                    <div
+                      key={`${pick.slot}-${pick.player_id ?? idx}`}
+                      onClick={() => {
+                        if (pick.player_id) {
+                          const dashboardPick = pick as DashboardPick;
+                          setInspectingPlayer({
+                            playerId: pick.player_id,
+                            playerName: pick.player_name || "Player",
+                            playerImage:
+                              dashboardPick.player_image || dashboardPick.photo_url,
+                            position: pick.position || pick.slot,
+                            gender: pick.gender,
+                            teamName: pick.team_name,
+                            teamShortName: pick.team_short_name,
+                            points: num(pick.points),
+                            purchasePrice: dashboardPick.purchase_price,
+                            price:
+                              dashboardPick.fantasy_price ||
+                              dashboardPick.price ||
+                              dashboardPick.purchase_price,
+                            gameweekId:
+                              dashboardPick.gameweek_id ||
+                              dashboard?.lineup?.gameweek_id ||
+                              gameweek?.id,
+                            gameweekNumber: gameweek?.number,
+                          });
+                        }
+                      }}
+                      role={pick.player_id ? "button" : undefined}
+                      tabIndex={pick.player_id ? 0 : undefined}
+                      onKeyDown={
+                        pick.player_id
+                          ? (e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                const dashboardPick = pick as DashboardPick;
+                                setInspectingPlayer({
+                                  playerId: pick.player_id,
+                                  playerName: pick.player_name || "Player",
+                                  playerImage:
+                                    dashboardPick.player_image || dashboardPick.photo_url,
+                                  position: pick.position || pick.slot,
+                                  gender: pick.gender,
+                                  teamName: pick.team_name,
+                                  teamShortName: pick.team_short_name,
+                                  points: num(pick.points),
+                                  purchasePrice: dashboardPick.purchase_price,
+                                  price:
+                                    dashboardPick.fantasy_price ||
+                                    dashboardPick.price ||
+                                    dashboardPick.purchase_price,
+                                  gameweekId:
+                                    dashboardPick.gameweek_id ||
+                                    dashboard?.lineup?.gameweek_id ||
+                                    gameweek?.id,
+                                  gameweekNumber: gameweek?.number,
+                                });
+                              }
                             }
-                          }
-                        : undefined
-                    }
-                    title={
-                      pick.player_id
-                        ? "Click to view player fantasy profile"
-                        : undefined
-                    }
-                    className={`px-4 py-3 flex items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition group ${
-                      pick.player_id
-                        ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                        : ""
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="text-[10px] font-black px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-200 shrink-0">
-                        {pick.slot}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-gray-900 dark:text-white truncate group-hover:text-sffl-red transition-colors">
-                          {pick.player_name || "Unnamed player"}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                          {pick.team_short_name || pick.team_name || "—"}
-                        </p>
+                          : undefined
+                      }
+                      title={
+                        pick.player_id
+                          ? "Click to view player fantasy profile"
+                          : undefined
+                      }
+                      className={`px-4 py-3 flex items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition group ${
+                        pick.player_id
+                          ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                          : ""
+                      } ${
+                        isInvalidPick
+                          ? "bg-red-50/40 dark:bg-red-950/20 opacity-75"
+                          : ""
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="text-[10px] font-black px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-200 shrink-0">
+                          {pick.slot}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p
+                              className={`text-sm font-bold truncate group-hover:text-sffl-red transition-colors ${
+                                isInvalidPick
+                                  ? "text-gray-500 dark:text-gray-400 line-through"
+                                  : "text-gray-900 dark:text-white"
+                              }`}
+                            >
+                              {pick.player_name || "Unnamed player"}
+                            </p>
+                            {isInvalidPick && (
+                              <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800">
+                                Inactive
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                            {pick.team_short_name || pick.team_name || "—"}
+                          </p>
+                        </div>
                       </div>
+                      <span className="text-sm font-black text-sffl-red shrink-0">
+                        {num(pick.points).toFixed(2)}
+                      </span>
                     </div>
-                    <span className="text-sm font-black text-sffl-red shrink-0">
-                      {num(pick.points).toFixed(2)}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </details>
           </div>

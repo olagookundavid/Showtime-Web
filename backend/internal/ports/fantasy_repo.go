@@ -1389,7 +1389,9 @@ func (r *FantasyRepository) GetLineup(ctx context.Context, teamID, gameweekID st
 		SELECT flp.id, flp.lineup_id, flp.player_id, flp.slot, flp.purchase_price, flp.points, flp.created_at,
 		       p.id, p.name, COALESCE(p.image, ''), COALESCE(p.position, '-'), COALESCE(p.gender, 'M'),
 		       COALESCE(p.status, 'active'),
-		       COALESCE(t.id::text, ''), COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, '')
+		       COALESCE(t.id::text, ''), COALESCE(t.name, ''), COALESCE(t.short_name, ''), COALESCE(t.logo, ''),
+		       COALESCE(t.status, 'active'),
+		       EXISTS (SELECT 1 FROM team_reserves tr WHERE tr.player_id = p.id)
 		FROM fantasy_lineup_picks flp
 		JOIN players p ON flp.player_id = p.id
 		LEFT JOIN teams t ON p.team_id = t.id
@@ -1411,6 +1413,8 @@ func (r *FantasyRepository) GetLineup(ctx context.Context, teamID, gameweekID st
 			&pl.ID, &pl.Name, &pl.Image, &pl.Position, &pl.Gender,
 			&pl.Status,
 			&tm.ID, &tm.Name, &tm.ShortName, &tm.Logo,
+			&tm.Status,
+			&pl.IsReserve,
 		); err != nil {
 			return nil, err
 		}

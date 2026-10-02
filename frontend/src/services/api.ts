@@ -2998,6 +2998,10 @@ export interface FantasyLineupPick {
     purchase_price: number;
     current_price: number;
     points: number;
+    player_status?: string;
+    team_active?: boolean;
+    is_reserve?: boolean;
+    is_eligible?: boolean;
 }
 
 export interface FantasyLineupResponse {

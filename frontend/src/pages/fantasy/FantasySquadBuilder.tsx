@@ -569,60 +569,6 @@ export function FantasySquadBuilder() {
     }
   }, [hasJoined, dashboard?.team?.name, currentLineup?.team_name, user?.name]);
 
-  // Buying from inside the picker, for a squad that has no one for this slot.
-  const buyMutation = useMutation({
-    mutationFn: (playerId: string) =>
-      fantasySquadApi.buyPlayer(season!.id, playerId),
-    onSuccess: (next, playerId) => {
-      refreshSquad(next);
-      const signed = next.players.find((p) => p.player_id === playerId);
-      if (signed) toast.success(`Signed ${signed.name}.`);
-    },
-    onError: (err: unknown) => {
-      const responseError = err as {
-        response?: { data?: { error?: unknown } };
-      };
-      const errorMessage = responseError.response?.data?.error;
-      toast.error(
-        typeof errorMessage === "string"
-          ? errorMessage
-          : "Could not sign this player.",
-      );
-    },
-  });
-
-  // Selling a player from the squad
-  const sellMutation = useMutation({
-    mutationFn: (playerId: string) =>
-      fantasySquadApi.sellPlayer(season!.id, playerId),
-    onSuccess: (next) => {
-      refreshSquad(next);
-      setConfirmSell(null);
-      toast.success("Sold — the money is back in your bank.");
-
-      // If this was a "Transfer Out" from a starting slot, the starter only
-      // leaves the slot now that the sale has gone through, then the market
-      // opens for a replacement.
-      if (pendingTransferOutSlot) {
-        const soldSlot = pendingTransferOutSlot.slot;
-        commitSquad((prev) => ({ ...prev, [soldSlot]: null }));
-        setActiveModalSlot(pendingTransferOutSlot);
-        setPendingTransferOutSlot(null);
-      }
-    },
-    onError: (err: unknown) => {
-      const responseError = err as {
-        response?: { data?: { error?: unknown } };
-      };
-      const errorMessage = responseError.response?.data?.error;
-      toast.error(
-        typeof errorMessage === "string"
-          ? errorMessage
-          : "Could not sell this player.",
-      );
-    },
-  });
-
   // Player Market Query for Active Modal Slot
   const { data: marketData, isLoading: marketLoading } = useQuery({
     queryKey: [
@@ -697,6 +643,134 @@ export function FantasySquadBuilder() {
     enabled: !!season?.id && showBenchMarket,
   });
 
+  // Helper to look up a player's real name and slot across starting squad, bench, and market
+  const getPlayerFriendlyInfo = (
+    id: string,
+  ): { name: string; slotLabel?: string } | null => {
+    // 1. Check current starting slots
+    for (const def of SLOT_DEFINITIONS) {
+      const p = squad[def.slot];
+      if (p && p.player_id === id) {
+        return { name: p.player_name, slotLabel: def.label };
+      }
+    }
+    // 2. Check mySquad owned players
+    if (mySquad?.players) {
+      const sp = mySquad.players.find((p) => p.player_id === id);
+      if (sp) {
+        return { name: sp.name };
+      }
+    }
+    // 3. Check current lineup picks
+    if (currentLineup?.picks) {
+      const cp = currentLineup.picks.find((p) => p.player_id === id);
+      if (cp) {
+        const slotDef = SLOT_DEFINITIONS.find((d) => d.slot === cp.slot);
+        return { name: cp.player_name || "Player", slotLabel: slotDef?.label };
+      }
+    }
+    // 4. Check market players (all market cache, or current filtered page)
+    const amp = allMarketPlayers?.data?.find((p) => p.player_id === id);
+    if (amp) {
+      return { name: amp.player_name };
+    }
+    const mp = marketData?.data?.find((p) => p.player_id === id);
+    if (mp) {
+      return { name: mp.player_name };
+    }
+    const bp = benchMarketData?.data?.find((p) => p.player_id === id);
+    if (bp) {
+      return { name: bp.player_name };
+    }
+    return null;
+  };
+
+  // Format any raw API / validation error into a clear, meaningful message without raw UUIDs
+  const formatErrorMessage = (raw: unknown, fallback: string): string => {
+    let msg = "";
+    if (typeof raw === "string") {
+      msg = raw;
+    } else if (raw && typeof raw === "object") {
+      const errObj = raw as {
+        response?: { data?: { error?: unknown } };
+        message?: unknown;
+      };
+      if (typeof errObj.response?.data?.error === "string") {
+        msg = errObj.response.data.error;
+      } else if (typeof errObj.message === "string") {
+        msg = errObj.message;
+      }
+    }
+    if (!msg) return fallback;
+
+    // Pattern 1: "player <UUID> not found or belongs to an inactive team"
+    const inactiveMatch = msg.match(
+      /player\s+([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\s+(?:was\s+)?not found or belongs to an inactive team/i,
+    );
+    if (inactiveMatch) {
+      const id = inactiveMatch[1];
+      const info = getPlayerFriendlyInfo(id);
+      if (info) {
+        if (info.slotLabel) {
+          return `${info.name} (${info.slotLabel}) is not eligible to play because the player or their team is inactive. Please replace them.`;
+        }
+        return `${info.name} is not eligible to play because the player or their team is inactive. Please replace them.`;
+      }
+      return "One of your selected players is not eligible to play because they or their team is inactive. Please replace them in your lineup.";
+    }
+
+    // Pattern 2: Replace any remaining raw UUID in the error message with the player's name if known, or "selected player"
+    const uuidRegex =
+      /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+    msg = msg.replace(uuidRegex, (id) => {
+      const info = getPlayerFriendlyInfo(id);
+      return info ? info.name : "selected player";
+    });
+
+    // Clean up grammatical artifacts like "player selected player"
+    msg = msg.replace(/\bplayer\s+selected player\b/gi, "selected player");
+
+    return msg;
+  };
+
+  // Buying from inside the picker, for a squad that has no one for this slot.
+  const buyMutation = useMutation({
+    mutationFn: (playerId: string) =>
+      fantasySquadApi.buyPlayer(season!.id, playerId),
+    onSuccess: (next, playerId) => {
+      refreshSquad(next);
+      const signed = next.players.find((p) => p.player_id === playerId);
+      if (signed) toast.success(`Signed ${signed.name}.`);
+    },
+    onError: (err: unknown) => {
+      toast.error(formatErrorMessage(err, "Could not sign this player."));
+    },
+  });
+
+  // Selling a player from the squad
+  const sellMutation = useMutation({
+    mutationFn: (playerId: string) =>
+      fantasySquadApi.sellPlayer(season!.id, playerId),
+    onSuccess: (next) => {
+      refreshSquad(next);
+      setConfirmSell(null);
+      toast.success("Sold — the money is back in your bank.");
+
+      // If this was a "Transfer Out" from a starting slot, the starter only
+      // leaves the slot now that the sale has gone through, then the market
+      // opens for a replacement.
+      if (pendingTransferOutSlot) {
+        const soldSlot = pendingTransferOutSlot.slot;
+        commitSquad((prev) => ({ ...prev, [soldSlot]: null }));
+        setActiveModalSlot(pendingTransferOutSlot);
+        setPendingTransferOutSlot(null);
+      }
+    },
+    onError: (err: unknown) => {
+      toast.error(formatErrorMessage(err, "Could not sell this player."));
+    },
+  });
+
   // Calculations & Invariant Validations
   const calculations = useMemo(() => {
     let totalSpent = 0;
@@ -759,24 +833,24 @@ export function FantasySquadBuilder() {
     );
 
     let hasInactiveStartingPlayer = false;
-    if (mySquad?.players) {
-      // A deleted player is as unfieldable as one whose club went inactive,
-      // so both block a lineup in exactly the same way.
-      const inactiveIds = new Set(
-        mySquad.players
-          .filter(
-            (p) =>
-              p.team_active === false ||
-              isDeletedPlayer({ status: p.player_status }),
-          )
-          .map((p) => p.player_id),
-      );
-      for (const pid of chosenPlayerIds) {
-        if (inactiveIds.has(pid)) {
+    for (const def of SLOT_DEFINITIONS) {
+      const p = squad[def.slot];
+      if (!p) continue;
+
+      if (mySquad?.players) {
+        const squadMember = mySquad.players.find(
+          (sp) => sp.player_id === p.player_id,
+        );
+        if (
+          !squadMember ||
+          squadMember.team_active === false ||
+          isDeletedPlayer({ status: squadMember.player_status })
+        ) {
           hasInactiveStartingPlayer = true;
           break;
         }
       }
+
     }
     const clubsActiveValid = !hasInactiveStartingPlayer;
 
@@ -1011,15 +1085,7 @@ export function FantasySquadBuilder() {
       queryClient.invalidateQueries({ queryKey: ["myFantasyLineup"] });
     },
     onError: (err: unknown) => {
-      const error = err as {
-        message?: string;
-        response?: { data?: { error?: string } };
-      };
-      toast.error(
-        error.response?.data?.error ||
-          error.message ||
-          "Failed to update team name",
-      );
+      toast.error(formatErrorMessage(err, "Failed to update team name"));
     },
   });
 
@@ -1039,13 +1105,7 @@ export function FantasySquadBuilder() {
       queryClient.invalidateQueries({ queryKey: ["myFantasyLineup"] });
     },
     onError: (err: unknown) => {
-      const error = err as {
-        message?: string;
-        response?: { data?: { error?: string } };
-      };
-      toast.error(
-        error.response?.data?.error || error.message || "Failed to join season",
-      );
+      toast.error(formatErrorMessage(err, "Failed to join season"));
     },
   });
 
@@ -1092,15 +1152,11 @@ export function FantasySquadBuilder() {
     onError: (err: unknown) => {
       // An autosave failure has to be loud: the manager would otherwise
       // carry on picking against a sheet the server never received.
-      const error = err as {
-        message?: string;
-        response?: { data?: { error?: string } };
-      };
-      toast.error(
-        error.response?.data?.error ||
-          error.message ||
-          "Couldn't save that pick — check your connection.",
+      const formatted = formatErrorMessage(
+        err,
+        "Couldn't save that pick — check your connection.",
       );
+      toast.error(formatted);
       queryClient.invalidateQueries({ queryKey: ["myFantasyLineup"] });
     },
   });
@@ -1234,10 +1290,13 @@ export function FantasySquadBuilder() {
         p?.player_id === candidateId && slotKey !== targetSlot.slot,
     );
     if (existingSlotEntry) {
+      const existingDef = SLOT_DEFINITIONS.find(
+        (def) => def.slot === existingSlotEntry[0],
+      );
       return {
         valid: false,
         title: "Player Already Selected",
-        error: `${candidateName} is already selected in slot ${existingSlotEntry[0]}.`,
+        error: `${candidateName} is already selected in slot ${existingDef?.label || existingSlotEntry[0]}.`,
       };
     }
 
@@ -2004,11 +2063,41 @@ export function FantasySquadBuilder() {
           actionSlot={actionSlot}
           onSlotClick={(slot, player) => {
             if (player) {
+              // 1-A: If clicking an inactive/invalid starter, directly open replacement picker
+              if (player.isInvalid) {
+                const def = SLOT_DEFINITIONS.find((d) => d.slot === slot);
+                if (def) {
+                  setActionSlot(null);
+                  setActiveModalSlot(def);
+                  return;
+                }
+              }
               setActionSlot(actionSlot === slot ? null : slot);
             } else {
               const def = SLOT_DEFINITIONS.find((d) => d.slot === slot);
               if (def) setActiveModalSlot(def);
             }
+          }}
+          isSlotInvalid={(slot) => {
+            const player = squad[slot];
+            if (!player) return false;
+
+            if (mySquad?.players) {
+              const squadMember = mySquad.players.find(
+                (sp) => sp.player_id === player.player_id,
+              );
+              if (!squadMember) {
+                return { invalid: true, reason: "Not Owned" };
+              }
+              if (squadMember.team_active === false) {
+                return { invalid: true, reason: "Club Inactive" };
+              }
+              if (isDeletedPlayer({ status: squadMember.player_status })) {
+                return { invalid: true, reason: "Unavailable" };
+              }
+            }
+
+            return false;
           }}
           isSlotInactive={(slot) => {
             const player = squad[slot];
@@ -2350,10 +2439,12 @@ export function FantasySquadBuilder() {
           <div className="divide-y divide-gray-100 dark:divide-gray-700">
             {benchPlayers.map((p) => {
               const isReserveAllrounder = isAllrounderPosition(p.position);
+              const isReserveInactive =
+                p.team_active === false ||
+                isDeletedPlayer({ status: p.player_status });
               // Can this reserve be promoted into an open matching slot?
               const hasOpenSlot =
-                p.team_active !== false &&
-                !isDeletedPlayer({ status: p.player_status }) &&
+                !isReserveInactive &&
                 SLOT_DEFINITIONS.some((def) => {
                   if (squad[def.slot] !== null) return false;
                   if (!positionFitsSlot(def, p.position)) return false;
@@ -2374,43 +2465,57 @@ export function FantasySquadBuilder() {
               return (
                 <div
                   key={p.player_id}
-                  className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                  className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition ${
+                    isReserveInactive
+                      ? "bg-red-50/40 dark:bg-red-950/20 opacity-80"
+                      : ""
+                  }`}
                 >
-                  <PlayerAvatar
-                    name={p.name}
-                    image={
-                      p.image ||
-                      playerMetadataLookup.get(p.player_id)?.image ||
-                      undefined
-                    }
-                    gender={p.gender}
-                  />
+                  <div className={`relative ${isReserveInactive ? "filter grayscale opacity-60" : ""}`}>
+                    <PlayerAvatar
+                      name={p.name}
+                      image={
+                        p.image ||
+                        playerMetadataLookup.get(p.player_id)?.image ||
+                        undefined
+                      }
+                      gender={p.gender}
+                    />
+                    {isReserveInactive && (
+                      <span
+                        aria-hidden="true"
+                        title="Inactive player"
+                        className="absolute -top-1 -left-1 z-10 flex items-center justify-center w-4 h-4 rounded-full border-2 border-white shadow bg-red-600 text-white"
+                      >
+                        <ExclamationTriangleIcon className="w-2.5 h-2.5" />
+                      </span>
+                    )}
+                  </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="text-sm font-bold text-gray-900 dark:text-white wrap-break-word">
-                      {p.name}
-                    </h3>
-                    {(isFemale(p.gender) ||
-                      p.team_active === false ||
-                      isDeletedPlayer({ status: p.player_status })) && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3
+                        className={`text-sm font-bold wrap-break-word ${
+                          isReserveInactive
+                            ? "text-gray-500 dark:text-gray-400 line-through"
+                            : "text-gray-900 dark:text-white"
+                        }`}
+                      >
+                        {p.name}
+                      </h3>
+                      {isReserveInactive && (
+                        <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-300 dark:bg-red-950/60 dark:text-red-300 dark:border-red-800">
+                          Inactive {p.team_active === false ? "Club" : "Player"}
+                        </span>
+                      )}
+                    </div>
+                    {isFemale(p.gender) && !isReserveInactive && (
                       <div className="flex flex-wrap gap-1.5 mt-1">
-                        {isFemale(p.gender) && (
-                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
-                            {unitOf(p.position)} quota
-                          </span>
-                        )}
-                        {p.team_active === false && (
-                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800">
-                            Inactive Club
-                          </span>
-                        )}
-                        {isDeletedPlayer({ status: p.player_status }) && (
-                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-300 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600">
-                            Deleted player
-                          </span>
-                        )}
+                        <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
+                          {unitOf(p.position)} quota
+                        </span>
                       </div>
                     )}
-                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
                       {p.position} · {formatFantasyPrice(p.purchase_price)}
                       {(p.current_price ?? 0) !== p.purchase_price && (
                         <span
@@ -2427,7 +2532,16 @@ export function FantasySquadBuilder() {
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
-                    {hasOpenSlot && (
+                    {isReserveInactive ? (
+                      <button
+                        type="button"
+                        disabled
+                        title="Cannot start an inactive or deleted player"
+                        className="min-h-11 px-3.5 py-2 rounded-xl bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 font-black text-[10px] uppercase tracking-wider cursor-not-allowed border border-gray-300 dark:border-gray-600"
+                      >
+                        Inactive
+                      </button>
+                    ) : hasOpenSlot && (
                       <button
                         type="button"
                         onClick={() => handleStartReserve(p)}

@@ -970,6 +970,35 @@ func TestLineupValidation(t *testing.T) {
 		assertErrContains(t, err, "not found")
 	})
 
+	t.Run("rejects an inactive player with meaningful name instead of raw UUID", func(t *testing.T) {
+		squad := validSquad()
+		req := saveRequest(squad)
+		req.Picks[0].PlayerID = "inactive-p1"
+		repo, leagues, _ := newServiceWith(squad)
+		playerMock := &mockPlayerRepo{
+			players: map[string]*domain.Player{
+				"inactive-p1": {
+					ID:     "inactive-p1",
+					Name:   "Arenah",
+					TeamID: "rebels-team",
+					Team:   &domain.Team{ID: "rebels-team", Name: "Rebels", Status: "inactive"},
+					Status: "active",
+				},
+			},
+		}
+		svc := NewFantasyService(repo, leagues, playerMock, nil, ownsPool(repo))
+
+		_, err := svc.SaveLineup(context.Background(), "user-1", req)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if strings.Contains(err.Error(), "inactive-p1") {
+			t.Errorf("error must not contain raw UUID, got: %v", err)
+		}
+		assertErrContains(t, err, "Arenah")
+		assertErrContains(t, err, "Rebels")
+	})
+
 	t.Run("rejects a submission after the deadline", func(t *testing.T) {
 		repo, _, svc := newServiceWith(validSquad())
 		repo.gameweeks["gw-1"].Deadline = time.Now().Add(-time.Minute)

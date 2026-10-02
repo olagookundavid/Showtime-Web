@@ -165,6 +165,10 @@ type FantasyLineupPickResponse struct {
 	PurchasePrice float64 `json:"purchase_price"`
 	CurrentPrice  float64 `json:"current_price"`
 	Points        float64 `json:"points"`
+	PlayerStatus  string  `json:"player_status,omitempty"`
+	TeamActive    *bool   `json:"team_active,omitempty"`
+	IsReserve     bool    `json:"is_reserve,omitempty"`
+	IsEligible    *bool   `json:"is_eligible,omitempty"`
 }
 
 type FantasyLineupResponse struct {

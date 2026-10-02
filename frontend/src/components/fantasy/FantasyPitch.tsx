@@ -163,6 +163,9 @@ export interface PitchPlayerItem {
     points?: number;
     isInactiveClub?: boolean;
     isDeleted?: boolean;
+    isReserve?: boolean;
+    isInvalid?: boolean;
+    invalidReason?: string;
 }
 
 export interface FantasyPitchProps {
@@ -191,6 +194,7 @@ export interface FantasyPitchProps {
     /** Status predicates for squad builder */
     isSlotInactive?: (slot: FantasySlot) => boolean;
     isSlotDeleted?: (slot: FantasySlot) => boolean;
+    isSlotInvalid?: (slot: FantasySlot) => { invalid: boolean; reason?: string } | boolean;
 }
 
 export function FantasyPitch({
@@ -208,11 +212,22 @@ export function FantasyPitch({
     actionSlot,
     isSlotInactive,
     isSlotDeleted,
+    isSlotInvalid,
 }: FantasyPitchProps) {
     const bySlot = useMemo(() => {
         const map = new Map<FantasySlot, PitchPlayerItem>();
         if (picks && picks.length > 0) {
             for (const p of picks) {
+                const isInactiveClub = p.team_active === false;
+                const isDeleted = p.player_status === 'inactive' || p.player_status === 'deleted';
+                const isReserve = !!p.is_reserve;
+                const isInvalid = p.is_eligible === false || isInactiveClub || isDeleted || isReserve;
+                let invalidReason = '';
+                if (isDeleted) invalidReason = 'Player deactivated';
+                else if (isInactiveClub) invalidReason = 'Inactive club';
+                else if (isReserve) invalidReason = 'On team reserves';
+                else if (isInvalid) invalidReason = 'Ineligible to play';
+
                 map.set(p.slot, {
                     slot: p.slot,
                     player_id: p.player_id,
@@ -228,12 +243,26 @@ export function FantasyPitch({
                     current_price: p.current_price,
                     purchase_price: p.purchase_price,
                     points: p.points,
+                    isInactiveClub,
+                    isDeleted,
+                    isReserve,
+                    isInvalid,
+                    invalidReason,
                 });
             }
         } else if (squad) {
             for (const spot of PITCH_SPOTS) {
                 const player = squad[spot.slot];
                 if (player) {
+                    const slotInvalidRes = isSlotInvalid ? isSlotInvalid(spot.slot) : undefined;
+                    const customInvalid = typeof slotInvalidRes === 'object' ? slotInvalidRes.invalid : !!slotInvalidRes;
+                    const customReason = typeof slotInvalidRes === 'object' ? slotInvalidRes.reason : undefined;
+
+                    const isInactiveClub = isSlotInactive ? isSlotInactive(spot.slot) : false;
+                    const isDeleted = isSlotDeleted ? isSlotDeleted(spot.slot) : false;
+                    const isInvalid = customInvalid || isInactiveClub || isDeleted;
+                    const invalidReason = customReason || (isDeleted ? 'Player deactivated' : isInactiveClub ? 'Inactive club' : isInvalid ? 'Ineligible' : '');
+
                     map.set(spot.slot, {
                         slot: spot.slot,
                         player_id: player.player_id,
@@ -247,14 +276,16 @@ export function FantasyPitch({
                         team_logo: player.team_logo,
                         price: player.price,
                         points: player.total_points,
-                        isInactiveClub: isSlotInactive ? isSlotInactive(spot.slot) : false,
-                        isDeleted: isSlotDeleted ? isSlotDeleted(spot.slot) : false,
+                        isInactiveClub,
+                        isDeleted,
+                        isInvalid,
+                        invalidReason,
                     });
                 }
             }
         }
         return map;
-    }, [picks, squad, isSlotInactive, isSlotDeleted]);
+    }, [picks, squad, isSlotInactive, isSlotDeleted, isSlotInvalid]);
 
     // Unit tabs state (internal or controlled via props)
     const [internalUnitTab, setInternalUnitTab] = useState<'ALL' | 'OFFENSE' | 'DEFENSE'>('ALL');
@@ -456,6 +487,7 @@ export function FantasyPitch({
                         const pick = bySlot.get(spot.slot);
                         const isSpotSelected = selected === spot.slot || actionSlot === spot.slot;
                         const empty = !pick;
+                        const isSpotInvalid = !empty && !!pick?.isInvalid;
                         const style = styleFor(pick?.position, spot.unit);
                         const isFemale = (pick?.gender || '').toUpperCase().startsWith('F');
                         const positionLabel = empty
@@ -474,7 +506,7 @@ export function FantasyPitch({
                                 aria-label={
                                     empty
                                         ? `${spot.role} — ${mode === 'builder' ? 'Tap to draft athlete' : 'no player selected'}`
-                                        : `${spot.role}: ${pick.player_name ?? 'Unnamed player'}, ${positionLabel}, ${isFemale ? 'female' : 'male'}${pick.isDeleted ? ', deleted player' : pick.isInactiveClub ? ', club inactive' : ''} - ${mode === 'builder' ? 'click to manage' : 'click to view details'}`
+                                        : `${spot.role}: ${pick.player_name ?? 'Unnamed player'}, ${positionLabel}, ${isFemale ? 'female' : 'male'}${isSpotInvalid ? `, INELIGIBLE: ${pick.invalidReason}` : ''} - ${mode === 'builder' ? 'click to manage' : 'click to view details'}`
                                 }
                                 className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-0.5 sm:gap-1 w-14 min-[400px]:w-17 sm:w-21.5 px-0.5 py-0.5 cursor-pointer transition-all duration-200 hover:brightness-110 focus-visible:outline-none focus-visible:brightness-110 z-3 ${
                                     isDimmed ? 'opacity-20 pointer-events-none filter grayscale scale-90' : 'opacity-100 scale-100'
@@ -484,16 +516,28 @@ export function FantasyPitch({
                                 {/* Shirt / Avatar circle */}
                                 <div className="relative">
                                     <span
-                                        className={`relative block w-9 h-9 min-[400px]:w-10 min-[400px]:h-10 sm:w-11.5 sm:h-11.5 rounded-full border-2 overflow-hidden transition-transform ${
+                                        className={`relative block w-9 h-9 min-[400px]:w-10 min-[400px]:h-10 sm:w-11.5 sm:h-11.5 rounded-full border-2 overflow-hidden transition-all ${
                                             empty
                                                 ? 'border-dashed border-white/50 bg-white/10 hover:border-white hover:bg-white/20'
+                                                : isSpotInvalid
+                                                ? 'border-red-500 ring-2 ring-red-500/80 shadow-[0_0_12px_rgba(239,68,68,0.6)]'
                                                 : 'border-white/75'
                                         } ${
                                             isSpotSelected
-                                                ? 'ring-[3px] ring-white ring-offset-2 ring-offset-sffl-red scale-105 shadow-lg'
+                                                ? isSpotInvalid
+                                                    ? 'ring-[3px] ring-red-400 ring-offset-2 ring-offset-sffl-navy scale-105'
+                                                    : 'ring-[3px] ring-white ring-offset-2 ring-offset-sffl-red scale-105 shadow-lg'
                                                 : ''
                                         }`}
-                                        style={empty ? undefined : { backgroundImage: style.avatar, boxShadow: '0 5px 13px #051a13a8' }}
+                                        style={
+                                            empty
+                                                ? undefined
+                                                : {
+                                                    backgroundImage: style.avatar,
+                                                    boxShadow: isSpotInvalid ? '0 0 14px rgba(220,38,38,0.8)' : '0 5px 13px #051a13a8',
+                                                    filter: isSpotInvalid ? 'grayscale(85%) contrast(85%) opacity(60%)' : undefined,
+                                                }
+                                        }
                                     >
                                         {pick?.player_image ? (
                                             <img
@@ -530,20 +574,22 @@ export function FantasyPitch({
                                     )}
 
                                     {/* Inactive club or deleted player warning icon */}
-                                    {(pick?.isInactiveClub || pick?.isDeleted) && (
+                                    {isSpotInvalid && (
                                         <span
                                             aria-hidden="true"
-                                            title={pick.isDeleted ? 'Deleted Player' : 'Inactive Club'}
-                                            className="absolute -top-1 -left-1 z-10 flex items-center justify-center w-3.75 h-3.75 sm:w-4.25 sm:h-4.25 rounded-full border-2 border-white shadow bg-red-600 text-white text-[8px]"
+                                            title={pick.invalidReason || 'Ineligible Player'}
+                                            className="absolute -top-1.5 -left-1.5 z-20 flex items-center justify-center w-4.5 h-4.5 sm:w-5 sm:h-5 rounded-full border-2 border-white shadow-lg bg-red-600 text-white animate-pulse"
                                         >
-                                            <ExclamationTriangleIcon className="w-2.5 h-2.5" />
+                                            <ExclamationTriangleIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
                                         </span>
                                     )}
                                 </div>
 
                                 {/* Name or Empty CTA */}
                                 {!empty ? (
-                                    <span className="block max-w-full truncate text-[9px] sm:text-[10px] font-bold text-white leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                                    <span className={`block max-w-full truncate text-[9px] sm:text-[10px] font-bold leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] ${
+                                        isSpotInvalid ? 'text-red-200 line-through decoration-red-500 decoration-2' : 'text-white'
+                                    }`}>
                                         {shortName(pick.player_name)}
                                     </span>
                                 ) : (
@@ -552,16 +598,22 @@ export function FantasyPitch({
                                     </span>
                                 )}
 
-                                {/* Position or Price in brackets */}
-                                <span
-                                    className="block max-w-full text-center text-[8px] sm:text-[9px] font-bold leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] truncate"
-                                    style={{ color: empty ? 'rgba(255,255,255,0.75)' : style.label }}
-                                >
-                                    {empty ? `(${positionLabel})` : `(${positionLabel})`}
-                                </span>
+                                {/* Position, Price or Inactive status in brackets */}
+                                {isSpotInvalid ? (
+                                    <span className="block max-w-full truncate px-1 py-0.5 rounded bg-red-600 text-white text-[7px] sm:text-[8px] font-black uppercase tracking-wider shadow leading-none border border-red-400/50 mt-0.5">
+                                        {pick.invalidReason ? pick.invalidReason.replace(/player/i, '').trim() : 'INACTIVE'}
+                                    </span>
+                                ) : (
+                                    <span
+                                        className="block max-w-full text-center text-[8px] sm:text-[9px] font-bold leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] truncate"
+                                        style={{ color: empty ? 'rgba(255,255,255,0.75)' : style.label }}
+                                    >
+                                        ({positionLabel})
+                                    </span>
+                                )}
 
                                 {/* Builder price tag */}
-                                {mode === 'builder' && pick && pick.price !== undefined && (
+                                {mode === 'builder' && pick && pick.price !== undefined && !isSpotInvalid && (
                                     <span className="block text-[8px] sm:text-[9px] font-black text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] tabular-nums">
                                         {formatFantasyPrice(pick.price)}
                                     </span>
@@ -591,12 +643,24 @@ export function FantasyPitch({
                 </span>
 
                 <div className="min-w-0 flex-1">
-                    <strong className="block text-sm text-white truncate">
-                        {activePick?.player_name ?? activeSpot.role}
-                    </strong>
-                    <small className="block mt-0.5 text-[11px] text-[#afc1d4] truncate">
+                    <div className="flex items-center gap-2">
+                        <strong className="block text-sm text-white truncate">
+                            {activePick?.player_name ?? activeSpot.role}
+                        </strong>
+                        {activePick?.isInvalid && (
+                            <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-red-600 text-white shadow shrink-0">
+                                {activePick.invalidReason || 'Inactive'}
+                            </span>
+                        )}
+                    </div>
+                    <small className={`flex items-center gap-1 mt-0.5 text-[11px] truncate ${activePick?.isInvalid ? 'text-red-300 font-bold' : 'text-[#afc1d4]'}`}>
+                        {activePick?.isInvalid && (
+                            <ExclamationTriangleIcon className="w-3 h-3 shrink-0" aria-hidden="true" />
+                        )}
                         {activePick
-                            ? `${activeSpot.role} · ${activePick.team_short_name || activePick.team_name || '—'}${activePick.isDeleted ? ' · Deleted player' : activePick.isInactiveClub ? ' · Club inactive' : ''}`
+                            ? activePick.isInvalid
+                                ? `${activePick.invalidReason || 'Player or club is inactive'} — replace or transfer out.`
+                                : `${activeSpot.role} · ${activePick.team_short_name || activePick.team_name || '—'}`
                             : mode === 'builder'
                             ? `Empty slot · Tap here or on the pitch to draft an athlete`
                             : 'No player in this position yet'}
@@ -632,10 +696,23 @@ export function FantasyPitch({
                         <button
                             type="button"
                             onClick={() => onSlotClick?.(activeSpot.slot, activePick)}
-                            className="min-h-11 px-3 py-1.5 rounded-lg bg-sffl-red hover:bg-[#A52323] text-white text-[11px] font-black uppercase tracking-wider transition cursor-pointer shrink-0 ml-auto flex items-center gap-1.5 shadow-sm"
+                            className={`min-h-11 px-3 py-1.5 rounded-lg text-white text-[11px] font-black uppercase tracking-wider transition cursor-pointer shrink-0 ml-auto flex items-center gap-1.5 shadow-sm ${
+                                activePick.isInvalid
+                                    ? 'bg-red-600 hover:bg-red-700 animate-pulse'
+                                    : 'bg-sffl-red hover:bg-[#A52323]'
+                            }`}
                         >
-                            <ArrowsRightLeftIcon className="w-3.5 h-3.5" aria-hidden="true" />
-                            Manage
+                            {activePick.isInvalid ? (
+                                <>
+                                    <ExclamationTriangleIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                                    Replace Player
+                                </>
+                            ) : (
+                                <>
+                                    <ArrowsRightLeftIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                                    Manage
+                                </>
+                            )}
                         </button>
                     ) : (
                         <button

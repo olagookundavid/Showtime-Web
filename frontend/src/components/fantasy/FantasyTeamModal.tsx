@@ -319,7 +319,9 @@ export function FantasyTeamModal({
                                     </span>
                                 </div>
                                 <div className="divide-y divide-gray-100 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden bg-white dark:bg-gray-800">
-                                    {offensePicks.map((pick: FantasyLineupPick) => (
+                                    {offensePicks.map((pick: FantasyLineupPick) => {
+                                        const isInvalidPick = pick.is_eligible === false || pick.team_active === false || pick.player_status === 'inactive' || pick.player_status === 'deleted' || !!pick.is_reserve;
+                                        return (
                                         <button
                                             key={pick.slot}
                                             type="button"
@@ -339,14 +341,18 @@ export function FantasyTeamModal({
                                                 gameweekId: selectedGwId,
                                                 gameweekNumber: selectedGw?.number,
                                             })}
-                                            className="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 flex items-center justify-between gap-3 transition cursor-pointer"
+                                            className={`w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 flex items-center justify-between gap-3 transition cursor-pointer ${
+                                                isInvalidPick ? 'bg-red-50/40 dark:bg-red-950/20 opacity-75' : ''
+                                            }`}
                                         >
                                             <div className="flex items-center gap-2.5 min-w-0">
                                                 <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 shrink-0">
                                                     {pick.slot}
                                                 </span>
                                                 <div className="relative shrink-0">
-                                                    <div className="w-9 h-9 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center">
+                                                    <div className={`w-9 h-9 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center ${
+                                                        isInvalidPick ? 'filter grayscale opacity-60' : ''
+                                                    }`}>
                                                         {pick.player_image ? (
                                                             <img src={pick.player_image} alt="" className="w-full h-full object-cover" />
                                                         ) : (
@@ -364,9 +370,18 @@ export function FantasyTeamModal({
                                                     </span>
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <p className="text-xs font-bold text-gray-900 dark:text-white truncate">
-                                                        {pick.player_name}
-                                                    </p>
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        <p className={`text-xs font-bold truncate ${
+                                                            isInvalidPick ? 'text-gray-500 dark:text-gray-400 line-through' : 'text-gray-900 dark:text-white'
+                                                        }`}>
+                                                            {pick.player_name}
+                                                        </p>
+                                                        {isInvalidPick && (
+                                                            <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800">
+                                                                Inactive
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
                                                         {pick.position} · {pick.team_short_name || pick.team_name || '—'}
                                                     </p>
@@ -382,7 +397,8 @@ export function FantasyTeamModal({
                                                 </span>
                                             </div>
                                         </button>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
 
@@ -394,7 +410,9 @@ export function FantasyTeamModal({
                                     </span>
                                 </div>
                                 <div className="divide-y divide-gray-100 dark:divide-gray-700 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden bg-white dark:bg-gray-800">
-                                    {defensePicks.map((pick: FantasyLineupPick) => (
+                                    {defensePicks.map((pick: FantasyLineupPick) => {
+                                        const isInvalidPick = pick.is_eligible === false || pick.team_active === false || pick.player_status === 'inactive' || pick.player_status === 'deleted' || !!pick.is_reserve;
+                                        return (
                                         <button
                                             key={pick.slot}
                                             type="button"
@@ -414,14 +432,18 @@ export function FantasyTeamModal({
                                                 gameweekId: selectedGwId,
                                                 gameweekNumber: selectedGw?.number,
                                             })}
-                                            className="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 flex items-center justify-between gap-3 transition cursor-pointer"
+                                            className={`w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 flex items-center justify-between gap-3 transition cursor-pointer ${
+                                                isInvalidPick ? 'bg-red-50/40 dark:bg-red-950/20 opacity-75' : ''
+                                            }`}
                                         >
                                             <div className="flex items-center gap-2.5 min-w-0">
                                                 <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 shrink-0">
                                                     {pick.slot}
                                                 </span>
                                                 <div className="relative shrink-0">
-                                                    <div className="w-9 h-9 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center">
+                                                    <div className={`w-9 h-9 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center ${
+                                                        isInvalidPick ? 'filter grayscale opacity-60' : ''
+                                                    }`}>
                                                         {pick.player_image ? (
                                                             <img src={pick.player_image} alt="" className="w-full h-full object-cover" />
                                                         ) : (
@@ -439,9 +461,18 @@ export function FantasyTeamModal({
                                                     </span>
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <p className="text-xs font-bold text-gray-900 dark:text-white truncate">
-                                                        {pick.player_name}
-                                                    </p>
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        <p className={`text-xs font-bold truncate ${
+                                                            isInvalidPick ? 'text-gray-500 dark:text-gray-400 line-through' : 'text-gray-900 dark:text-white'
+                                                        }`}>
+                                                            {pick.player_name}
+                                                        </p>
+                                                        {isInvalidPick && (
+                                                            <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800">
+                                                                Inactive
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
                                                         {pick.position} · {pick.team_short_name || pick.team_name || '—'}
                                                     </p>
@@ -457,7 +488,8 @@ export function FantasyTeamModal({
                                                 </span>
                                             </div>
                                         </button>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>

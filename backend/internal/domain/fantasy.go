@@ -351,7 +351,7 @@ func displayName(p LineupCandidate) string {
 	if p.Name != "" {
 		return p.Name
 	}
-	return "player " + p.PlayerID
+	return "This player"
 }
 
 func genderWord(g string) string {

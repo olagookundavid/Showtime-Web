@@ -1001,7 +1001,37 @@ func (s *FantasyService) SaveLineup(ctx context.Context, userID string, req dto.
 	for _, p := range req.Picks {
 		c, ok := candidates[p.PlayerID]
 		if !ok {
-			return nil, fmt.Errorf("player %s not found or belongs to an inactive team", p.PlayerID)
+			playerName := ""
+			teamName := ""
+			isDeactivated := false
+			isReserve := false
+
+			if s.playerRepo != nil {
+				if pl, err := s.playerRepo.GetPlayerByID(ctx, p.PlayerID); err == nil && pl != nil {
+					playerName = pl.Name
+					if pl.Team != nil && pl.Team.Name != "" {
+						teamName = pl.Team.Name
+					}
+					if pl.Status != "active" {
+						isDeactivated = true
+					}
+					isReserve = pl.IsReserve
+				}
+			}
+
+			if playerName != "" {
+				if isDeactivated {
+					return nil, fmt.Errorf("%s has been deactivated and cannot be selected", playerName)
+				}
+				if isReserve {
+					return nil, fmt.Errorf("%s is on team reserves and cannot be selected for a fantasy lineup", playerName)
+				}
+				if teamName == "" {
+					return nil, fmt.Errorf("%s is not assigned to an active club and cannot be selected", playerName)
+				}
+				return nil, fmt.Errorf("%s is not eligible to play (player or %s is inactive)", playerName, teamName)
+			}
+			return nil, errors.New("one of the selected players was not found or belongs to an inactive team")
 		}
 		c.Slot = p.Slot
 		picks = append(picks, c)
@@ -1089,6 +1119,8 @@ func (s *FantasyService) SaveLineup(ctx context.Context, userID string, req dto.
 			Slot:          p.Slot,
 			PurchasePrice: p.Price,
 		})
+		teamActive := true
+		isEligible := true
 		responsePicks = append(responsePicks, dto.FantasyLineupPickResponse{
 			Slot:          string(p.Slot),
 			PlayerID:      p.PlayerID,
@@ -1098,6 +1130,10 @@ func (s *FantasyService) SaveLineup(ctx context.Context, userID string, req dto.
 			TeamID:        p.TeamID,
 			PurchasePrice: p.Price,
 			CurrentPrice:  p.Price,
+			PlayerStatus:  "active",
+			TeamActive:    &teamActive,
+			IsReserve:     false,
+			IsEligible:    &isEligible,
 		})
 	}
 
@@ -1222,11 +1258,23 @@ func (s *FantasyService) GetMyLineup(ctx context.Context, userID, seasonID, game
 			item.Position = p.Player.Position
 			item.Gender = domain.NormalizeGender(p.Player.Gender)
 			item.TeamID = p.Player.TeamID
+			item.PlayerStatus = p.Player.Status
+			item.IsReserve = p.Player.IsReserve
+
+			var teamActive bool
 			if p.Player.Team != nil {
 				item.TeamName = p.Player.Team.Name
 				item.TeamShortName = p.Player.Team.ShortName
 				item.TeamLogo = p.Player.Team.Logo
+				teamActive = p.Player.Team.Status == "active"
+				item.TeamActive = &teamActive
+			} else {
+				teamActive = false
+				item.TeamActive = &teamActive
 			}
+
+			isEligible := p.Player.Status == "active" && !p.Player.IsReserve && p.Player.TeamID != "" && teamActive
+			item.IsEligible = &isEligible
 		}
 		picks = append(picks, item)
 	}
@@ -1368,11 +1416,23 @@ func (s *FantasyService) GetTeamLineup(ctx context.Context, requestingUserID, te
 			item.Position = p.Player.Position
 			item.Gender = domain.NormalizeGender(p.Player.Gender)
 			item.TeamID = p.Player.TeamID
+			item.PlayerStatus = p.Player.Status
+			item.IsReserve = p.Player.IsReserve
+
+			var teamActive bool
 			if p.Player.Team != nil {
 				item.TeamName = p.Player.Team.Name
 				item.TeamShortName = p.Player.Team.ShortName
 				item.TeamLogo = p.Player.Team.Logo
+				teamActive = p.Player.Team.Status == "active"
+				item.TeamActive = &teamActive
+			} else {
+				teamActive = false
+				item.TeamActive = &teamActive
 			}
+
+			isEligible := p.Player.Status == "active" && !p.Player.IsReserve && p.Player.TeamID != "" && teamActive
+			item.IsEligible = &isEligible
 		}
 		resp.Picks = append(resp.Picks, item)
 	}
@@ -1679,8 +1739,13 @@ func (s *FantasyService) assertOwned(ctx context.Context, teamID string, picks [
 	for _, p := range picks {
 		if !owned[p.PlayerID] {
 			name := p.Name
+			if name == "" && s.playerRepo != nil {
+				if pl, err := s.playerRepo.GetPlayerByID(ctx, p.PlayerID); err == nil && pl != nil && pl.Name != "" {
+					name = pl.Name
+				}
+			}
 			if name == "" {
-				name = p.PlayerID
+				name = "an unowned player"
 			}
 			missing = append(missing, name)
 		}
