@@ -386,6 +386,7 @@ export function FantasySquadBuilder() {
   // at a time. A slot's position/gender are fixed by the slot itself; team is
   // the one axis a manager still wants to narrow by.
   const [marketTeamFilter, setMarketTeamFilter] = useState("");
+  const [marketGenderFilter, setMarketGenderFilter] = useState<"" | "F" | "M">("");
   // Role filter for the bench picker only — a slot already fixes position.
   const [benchPositionFilter, setBenchPositionFilter] = useState("");
   // Player action popover: which slot's player is showing actions
@@ -632,6 +633,7 @@ export function FantasySquadBuilder() {
       marketSearch,
       marketSort,
       marketTeamFilter,
+      marketGenderFilter,
     ],
     queryFn: () => {
       if (!season?.id || !activeModalSlot)
@@ -641,6 +643,10 @@ export function FantasySquadBuilder() {
           total_pages: 0,
           my_rank: 0,
         });
+      const resolvedGender =
+        activeModalSlot.requiredGender ||
+        (marketGenderFilter ? (marketGenderFilter as "M" | "F") : undefined);
+
       return fantasyApi.listPlayerMarket(season.id, {
         // Every eligible position, not just the first: a receiver slot
         // takes Receivers and Centers, and sending only "Receiver"
@@ -648,7 +654,7 @@ export function FantasySquadBuilder() {
         // the slot, applied the instant the modal opens — not
         // something the manager sets, since the slot already answers it.
         position: activeModalSlot.allowedPositions.join(","),
-        gender: activeModalSlot.requiredGender,
+        gender: resolvedGender,
         team_id: marketTeamFilter || undefined,
         search: marketSearch,
         sort: marketSort,
@@ -667,6 +673,7 @@ export function FantasySquadBuilder() {
       marketSort,
       marketTeamFilter,
       benchPositionFilter,
+      marketGenderFilter,
     ],
     queryFn: () => {
       if (!season?.id)
@@ -678,6 +685,9 @@ export function FantasySquadBuilder() {
         });
       return fantasyApi.listPlayerMarket(season.id, {
         position: benchPositionFilter || undefined,
+        gender: marketGenderFilter
+          ? (marketGenderFilter as "M" | "F")
+          : undefined,
         team_id: marketTeamFilter || undefined,
         search: marketSearch,
         sort: marketSort,
@@ -941,13 +951,26 @@ export function FantasySquadBuilder() {
             .toUpperCase()
             .startsWith(activeModalSlot.requiredGender),
       )
+      .filter((p) => {
+        if (activeModalSlot.requiredGender) return true;
+        if (!marketGenderFilter) return true;
+        return (p.gender || "M")
+          .toUpperCase()
+          .startsWith(marketGenderFilter);
+      })
       .filter((p) => !marketTeamFilter || p.club_id === marketTeamFilter)
       .filter(
         (p) =>
           !marketSearch ||
           p.name.toLowerCase().includes(marketSearch.toLowerCase()),
       );
-  }, [activeModalSlot, mySquad, marketSearch, marketTeamFilter]);
+  }, [
+    activeModalSlot,
+    mySquad,
+    marketSearch,
+    marketTeamFilter,
+    marketGenderFilter,
+  ]);
 
   const ownedIds = useMemo(
     () => new Set((mySquad?.players ?? []).map((p) => p.player_id)),
@@ -1390,6 +1413,7 @@ export function FantasySquadBuilder() {
     }));
     setActiveModalSlot(null);
     setMarketTeamFilter("");
+    setMarketGenderFilter("");
   };
 
   // "Move to Bench" — remove from starting slot
@@ -1668,6 +1692,9 @@ export function FantasySquadBuilder() {
       await buyMutation.mutateAsync(playerId);
       setShowBenchMarket(false);
       setMarketSearch("");
+      setMarketTeamFilter("");
+      setBenchPositionFilter("");
+      setMarketGenderFilter("");
     } catch {
       // The mutation already surfaced the reason.
     }
@@ -2479,6 +2506,7 @@ export function FantasySquadBuilder() {
                 onClick={() => {
                   setActiveModalSlot(null);
                   setMarketTeamFilter("");
+                  setMarketGenderFilter("");
                 }}
                 type="button"
                 aria-label="Close player list"
@@ -2522,6 +2550,33 @@ export function FantasySquadBuilder() {
                       {t.name}
                     </option>
                   ))}
+                </select>
+                <label htmlFor="slot-gender-filter" className="sr-only">
+                  Filter by gender
+                </label>
+                <select
+                  id="slot-gender-filter"
+                  value={activeModalSlot.requiredGender || marketGenderFilter}
+                  disabled={!!activeModalSlot.requiredGender}
+                  onChange={(e) =>
+                    setMarketGenderFilter(e.target.value as "" | "F" | "M")
+                  }
+                  aria-label="Filter by gender"
+                  className="w-full min-[400px]:w-auto min-[400px]:max-w-34 min-h-11 shrink-0 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {activeModalSlot.requiredGender ? (
+                    <option value={activeModalSlot.requiredGender}>
+                      {activeModalSlot.requiredGender === "F"
+                        ? "Women only"
+                        : "Men only"}
+                    </option>
+                  ) : (
+                    <>
+                      <option value="">All genders</option>
+                      <option value="F">Women</option>
+                      <option value="M">Men</option>
+                    </>
+                  )}
                 </select>
               </div>
 
@@ -2941,6 +2996,7 @@ export function FantasySquadBuilder() {
                   setMarketSearch("");
                   setMarketTeamFilter("");
                   setBenchPositionFilter("");
+                  setMarketGenderFilter("");
                 }}
                 type="button"
                 aria-label="Close player list"
@@ -2969,8 +3025,8 @@ export function FantasySquadBuilder() {
                 </div>
               </div>
 
-              {/* Role & Team Filters */}
-              <div className="flex flex-col min-[400px]:flex-row gap-2">
+              {/* Role, Team & Gender Filters */}
+              <div className="flex flex-col min-[480px]:flex-row gap-2">
                 <label htmlFor="bench-role-filter" className="sr-only">
                   Filter by role
                 </label>
@@ -3004,6 +3060,22 @@ export function FantasySquadBuilder() {
                       {t.name}
                     </option>
                   ))}
+                </select>
+                <label htmlFor="bench-gender-filter" className="sr-only">
+                  Filter by gender
+                </label>
+                <select
+                  id="bench-gender-filter"
+                  value={marketGenderFilter}
+                  onChange={(e) =>
+                    setMarketGenderFilter(e.target.value as "" | "F" | "M")
+                  }
+                  aria-label="Filter by gender"
+                  className="flex-1 min-w-0 min-h-11 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-sffl-red focus:ring-1 focus:ring-sffl-red"
+                >
+                  <option value="">All genders</option>
+                  <option value="F">Women</option>
+                  <option value="M">Men</option>
                 </select>
               </div>
 
