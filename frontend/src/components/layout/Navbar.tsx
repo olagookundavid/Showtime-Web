@@ -9,6 +9,7 @@ import {
   SunIcon,
   Squares2X2Icon,
   ShoppingBagIcon,
+  UserCircleIcon,
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCart } from "../../contexts/CartContext";
@@ -25,6 +26,14 @@ const PORTAL_LINKS: Record<string, { to: string; label: string }> = {
   player: { to: "/player-portal", label: "Player Portal" },
   ticketer: { to: "/admin/tickets", label: "Ticketing Portal" },
   seller: { to: "/seller", label: "Store Portal" },
+  commissioner: { to: "/admin", label: "Commissioner Portal" },
+  fantasy_commissioner: { to: "/admin/fantasy", label: "Fantasy Portal" },
+  head_referee: { to: "/admin/matches", label: "Head Referee Portal" },
+  news_head: { to: "/admin/news", label: "News Portal" },
+  content_creator: { to: "/admin/news", label: "Content Portal" },
+  store_manager: { to: "/admin/store", label: "Store Portal" },
+  // `user` has no business-side portal — their only landing page is their own profile.
+  user: { to: "/account", label: "My Account" },
 };
 
 const menuItemClass =
@@ -357,6 +366,13 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                             aria-hidden="true"
                           />
                           My Orders
+                        </Link>
+                        <Link to="/account" className={menuItemClass}>
+                          <UserCircleIcon
+                            className="w-5 h-5 text-sffl-red"
+                            aria-hidden="true"
+                          />
+                          Edit Profile
                         </Link>
                       </div>
 

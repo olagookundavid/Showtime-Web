@@ -13,11 +13,14 @@ import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ConfirmSummary } from '../ui/ConfirmSummary';
 import { Spinner } from '../ui/Spinner';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { usePermissions } from '../../hooks/usePermissions';
 
 type PendingAction = { kind: 'save' } | { kind: 'delete'; allocation: TeamTicketAllocation };
 
 export const AllocationsManager = ({ eventDayId, eventDayTitle }: { eventDayId: string, eventDayTitle: string }) => {
     const queryClient = useQueryClient();
+    const { canEdit } = usePermissions();
+    const canManage = canEdit('event_days');
     const [teamId, setTeamId] = useState('');
     const [allocatedCount, setAllocatedCount] = useState('');
     const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
@@ -49,6 +52,11 @@ export const AllocationsManager = ({ eventDayId, eventDayTitle }: { eventDayId: 
 
     const confirmPendingAction = async () => {
         if (!pendingAction) return;
+        if (!canManage) {
+            toast.error('View-only access: your role can view Event Days but not make changes.');
+            setPendingAction(null);
+            return;
+        }
         setBusy(true);
         try {
             if (pendingAction.kind === 'save') {
@@ -125,8 +133,10 @@ export const AllocationsManager = ({ eventDayId, eventDayTitle }: { eventDayId: 
                                     <button
                                         type="button"
                                         onClick={() => setPendingAction({ kind: 'delete', allocation: a })}
+                                        disabled={!canManage}
+                                        title={canManage ? undefined : 'View-only access to Event Days'}
                                         aria-label={`Revoke allocation for ${a.team_name || 'this team'}`}
-                                        className="shrink-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg min-h-11 min-w-11 flex justify-center items-center transition-colors"
+                                        className="shrink-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg min-h-11 min-w-11 flex justify-center items-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                     >
                                         <TrashIcon className="w-5 h-5" aria-hidden="true" />
                                     </button>
@@ -162,7 +172,8 @@ export const AllocationsManager = ({ eventDayId, eventDayTitle }: { eventDayId: 
                         <button
                             type="button"
                             onClick={requestSave}
-                            disabled={busy || !teamId || !allocatedCount}
+                            disabled={busy || !teamId || !allocatedCount || !canManage}
+                            title={canManage ? undefined : 'View-only access to Event Days'}
                             className="bg-sffl-navy text-white px-4 py-2 min-h-11 rounded-lg text-sm font-bold shadow hover:bg-blue-900 disabled:opacity-50 transition-all duration-300 hover:scale-[1.02] active:scale-95"
                         >
                             Set Allocation

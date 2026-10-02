@@ -42,6 +42,7 @@ import type {
   DashboardBottomNavItem,
   DashboardNavSection,
 } from "../dashboard/dashboardNav";
+import { accessFor, type FeatureKey, type Role } from "../../config/featureAccess";
 
 const ADMIN_BRAND_LABELS: Record<string, string> = {
   app_admin: "Super Admin Panel",
@@ -150,34 +151,46 @@ export const ADMIN_NAV_SECTIONS: DashboardNavSection[] = [
   },
 ];
 
-const allowLink = (role: string | undefined, name: string) => {
-  // app_admin is the superuser: sees everything, including the Administrator (gift) section.
-  if (role === "app_admin") return true;
-  // admin sees everything an app_admin does EXCEPT Administrator (gift ticket) —
-  // that section alone stays app_admin-only.
-  if (role === "admin") return name !== "Administrator";
-  if (role === "broadcast") return ["Broadcast Studio", "Matches"].includes(name);
-  if (role === "ticketer") return ["Tickets", "Referrals"].includes(name);
-  if (role === "referee")
-    return [
-      "Matches",
-      "Play by Play",
-      "Standings",
-      "Stats",
-      "Players",
-      "Teams",
-    ].includes(name);
-  if (role === "stats")
-    return ["Matches", "Play by Play", "Standings", "Stats", "Teams"].includes(
-      name,
-    );
-  return false;
+/** Every nav link's name mapped to the shared feature-access key that gates it. */
+const NAV_FEATURE: Record<string, FeatureKey> = {
+  Dashboard: "dashboard",
+  Analytics: "dashboard",
+  Matches: "matches",
+  "Play by Play": "play_by_play",
+  "Broadcast Studio": "broadcast_studio",
+  Competitions: "competitions",
+  Teams: "teams_standings",
+  Standings: "teams_standings",
+  Stats: "stats_edit",
+  "Team of the Week": "totw",
+  "Badges & Honors": "badges",
+  Fantasy: "fantasy",
+  Players: "players",
+  "Account Claims": "claims",
+  Contracts: "contracts",
+  Transfers: "transfers",
+  "Transfer Windows": "transfer_windows",
+  Tickets: "tickets",
+  "Event Days": "event_days",
+  Referrals: "referrals",
+  "Online Store": "store",
+  Inventory: "inventory",
+  News: "news",
+  "Hero Slides": "hero_slides",
+  "Live Stream": "live_stream",
+  Users: "user_management",
+  "App Settings": "app_settings",
+  Administrator: "administrator_tools",
+};
+
+const allowLink = (role: Role | undefined, name: string) => {
+  const feature = NAV_FEATURE[name];
+  if (!feature) return false;
+  return accessFor(role, feature) !== "none";
 };
 
 /** The sections a role may see, with their disallowed links and any empty sections removed. */
-export const adminSectionsFor = (
-  role: string | undefined,
-): DashboardNavSection[] =>
+export const adminSectionsFor = (role: Role | undefined): DashboardNavSection[] =>
   ADMIN_NAV_SECTIONS.map((s) => ({
     ...s,
     links: s.links.filter((l) => allowLink(role, l.name)),
@@ -203,9 +216,7 @@ const BROADCAST: DashboardBottomNavItem = {
 };
 
 /** The phone bottom-nav shortcuts for a role. Ticketers have no bottom nav. */
-export const adminBottomNavFor = (
-  role: string | undefined,
-): DashboardBottomNavItem[] => {
+export const adminBottomNavFor = (role: Role | undefined): DashboardBottomNavItem[] => {
   if (role === "ticketer") return [];
   if (role === "broadcast") return [BROADCAST, MATCH];
   if (role === "referee")
@@ -220,36 +231,20 @@ export const adminBottomNavFor = (
       },
     ];
   if (role === "stats")
+    return [MATCH, STATS, { name: "Teams", path: "/admin/teams", icon: ShieldCheckIcon, solidIcon: ShieldCheckSolid }];
+  if (role === "admin" || role === "app_admin") {
     return [
+      { name: "Dash", path: "/admin", end: true, icon: Squares2X2Icon, solidIcon: SquaresSolid },
       MATCH,
-      STATS,
-      {
-        name: "Teams",
-        path: "/admin/teams",
-        icon: ShieldCheckIcon,
-        solidIcon: ShieldCheckSolid,
-      },
+      { name: "Ticket", path: "/admin/tickets", icon: TicketIcon, solidIcon: TicketSolid },
+      { name: "News", path: "/admin/news", icon: NewspaperIcon, solidIcon: NewspaperSolid },
     ];
-  return [
-    {
-      name: "Dash",
-      path: "/admin",
-      end: true,
-      icon: Squares2X2Icon,
-      solidIcon: SquaresSolid,
-    },
-    MATCH,
-    {
-      name: "Ticket",
-      path: "/admin/tickets",
-      icon: TicketIcon,
-      solidIcon: TicketSolid,
-    },
-    {
-      name: "News",
-      path: "/admin/news",
-      icon: NewspaperIcon,
-      solidIcon: NewspaperSolid,
-    },
-  ];
+  }
+  // Every other role (team_head, seller, and the newer commissioner-family
+  // roles) gets a generic shortcut bar built from whatever it can see — the
+  // fixed lists above would otherwise point at pages those roles can't open.
+  return adminSectionsFor(role)
+    .flatMap((s) => s.links)
+    .slice(0, 4)
+    .map((l) => ({ name: l.name, path: l.path, end: l.end, icon: l.icon, solidIcon: l.icon }));
 };

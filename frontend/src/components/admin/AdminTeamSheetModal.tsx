@@ -18,6 +18,7 @@ import {
 } from '../../services/api';
 import { Spinner } from '../ui/Spinner';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { usePermissions } from '../../hooks/usePermissions';
 
 interface AdminTeamSheetModalProps {
     match: Match;
@@ -45,6 +46,7 @@ const playerCount = (n: number) => `${n} player${n !== 1 ? 's' : ''}`;
 
 export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps) => {
     const queryClient = useQueryClient();
+    const { canEdit } = usePermissions();
     const [activeTab, setActiveTab] = useState<'home' | 'away'>('home');
     const [selectedHomePlayers, setSelectedHomePlayers] = useState<string[]>([]);
     const [selectedAwayPlayers, setSelectedAwayPlayers] = useState<string[]>([]);
@@ -128,6 +130,10 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
     // ── Create player mutation ───────────────────────────────────────────────
     const createMutation = useMutation({
         mutationFn: async (form: QuickAddForm) => {
+            // createPlayer hits the Players feature (routes.go: playersGroup), a
+            // narrower role set than Matches — e.g. broadcast can manage matches
+            // but has no Players access, so this needs its own check.
+            if (!canEdit('players')) throw new Error('View-only access: your role can view Matches but not add players.');
             const res = await createPlayer({
                 name: form.name.trim(),
                 position: form.position,
@@ -147,7 +153,7 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
             setSearchQuery('');
         },
         onError: (err: any) => {
-            toast.error(err.response?.data?.error || 'Failed to create player');
+            toast.error(err.response?.data?.error || err.message || 'Failed to create player');
         },
     });
 
@@ -186,6 +192,7 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
     // ── Save BOTH team sheets in one shot ───────────────────────────────────
     const saveBothMutation = useMutation({
         mutationFn: async () => {
+            if (!canEdit('matches')) throw new Error('View-only access: your role can view Matches but not make changes.');
             const homeTeamId = match.home_team?.id;
             const awayTeamId = match.away_team?.id;
             if (!homeTeamId || !awayTeamId) throw new Error('Team IDs not found');
@@ -199,7 +206,7 @@ export const AdminTeamSheetModal = ({ match, onClose }: AdminTeamSheetModalProps
             queryClient.invalidateQueries({ queryKey: ['adminTeamSheet', match.id] });
         },
         onError: (err: any) => {
-            toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to save');
+            toast.error(err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to save');
         },
     });
 

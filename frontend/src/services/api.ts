@@ -84,6 +84,10 @@ export const getUserProfile = async (): Promise<AuthUser> => {
     return response.data.data;
 };
 
+export const updateOwnProfile = async (fullName: string, phone: string): Promise<void> => {
+    await api.put('/auth/profile', { fullname: fullName, phone });
+};
+
 export interface ResetPasswordPayload {
     email: string;
     otp: string;

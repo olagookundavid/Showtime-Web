@@ -13,12 +13,15 @@ import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { DataTable, type Column } from '../../components/ui/DataTable';
 import { RowActions } from '../../components/ui/RowActions';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import { usePermissions } from '../../hooks/usePermissions';
 
 // A stable empty list, so the table isn't handed a fresh array on every render.
 const NO_STANDINGS: Standing[] = [];
 
 export const AdminStandings = () => {
     const queryClient = useQueryClient();
+    const { canEdit } = usePermissions();
+    const canManage = canEdit('teams_standings');
     const [selectedComp, setSelectedComp] = useState('');
 
     const { data: compsData, isLoading: loadingComps } = useQuery({
@@ -133,15 +136,15 @@ export const AdminStandings = () => {
                             label: 'Delete',
                             icon: TrashIcon,
                             danger: true,
-                            disabled: isCompleted,
-                            hint: isCompleted ? 'Competition is completed' : undefined,
+                            disabled: isCompleted || !canManage,
+                            hint: isCompleted ? 'Competition is completed' : !canManage ? 'View-only access to Standings' : undefined,
                             onSelect: () => setPendingDelete(s),
                         }]}
                     />
                 ),
             },
         ];
-    }, [isCompleted]);
+    }, [isCompleted, canManage]);
 
     return (
         <div className="space-y-6">

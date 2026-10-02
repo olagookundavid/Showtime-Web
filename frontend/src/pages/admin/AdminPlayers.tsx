@@ -36,6 +36,7 @@ import {
   deletedRowClass,
 } from "../../components/common/DeletedPlayer";
 import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
+import { usePermissions } from "../../hooks/usePermissions";
 
 interface FormData {
   name: string;
@@ -113,6 +114,8 @@ const filterClass =
 
 export const AdminPlayers = () => {
   const queryClient = useQueryClient();
+  const { canEdit } = usePermissions();
+  const canManage = canEdit("players");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [searchTerm, setSearchTerm] = useState("");
@@ -311,6 +314,11 @@ export const AdminPlayers = () => {
   // dialog always closes afterwards (a failed save leaves the form open).
   const confirmPendingAction = async () => {
     if (!pendingAction) return;
+    if (!canManage) {
+      toast.error("View-only access: your role can view Players but not make changes.");
+      setPendingAction(null);
+      return;
+    }
     if (pendingAction.kind === "save") {
       await handleSave();
     } else {
@@ -463,6 +471,7 @@ export const AdminPlayers = () => {
         cell: (p) => {
           const deleted = isDeletedPlayer(p);
           const onTeam = !!p.team?.id && !deleted;
+          const hint = canManage ? undefined : "View-only access to Players";
           return (
             <RowActions
               label={`Actions for ${p.name}`}
@@ -473,22 +482,28 @@ export const AdminPlayers = () => {
                         ? {
                             label: "Graduate to main squad",
                             icon: ArrowUpCircleIcon,
+                            disabled: !canManage,
+                            hint,
                             onSelect: () =>
                               setPendingAction({ kind: "graduate", player: p }),
                           }
                         : {
                             label: "Move to reserves",
                             icon: ArrowDownCircleIcon,
+                            disabled: !canManage,
+                            hint,
                             onSelect: () =>
                               setPendingAction({ kind: "reserve", player: p }),
                           },
                     ]
                   : []),
-                { label: "Edit", icon: PencilSquareIcon, onSelect: () => openEdit(p) },
+                { label: "Edit", icon: PencilSquareIcon, disabled: !canManage, hint, onSelect: () => openEdit(p) },
                 deleted
                   ? {
                       label: "Restore to roster",
                       icon: ArrowUturnLeftIcon,
+                      disabled: !canManage,
+                      hint,
                       onSelect: () =>
                         setPendingAction({ kind: "restore", player: p }),
                     }
@@ -496,6 +511,8 @@ export const AdminPlayers = () => {
                       label: "Delete",
                       icon: TrashIcon,
                       danger: true,
+                      disabled: !canManage,
+                      hint,
                       onSelect: () =>
                         setPendingAction({ kind: "delete", player: p }),
                     },
@@ -505,7 +522,7 @@ export const AdminPlayers = () => {
         },
       },
     ],
-    [openEdit],
+    [openEdit, canManage],
   );
 
   const playerRows = (p: Player): [string, string | undefined][] => [
@@ -609,7 +626,9 @@ export const AdminPlayers = () => {
           <button
             type="button"
             onClick={openCreate}
-            className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 min-h-11 whitespace-nowrap"
+            disabled={!canManage}
+            title={canManage ? undefined : "View-only access to Players"}
+            className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 min-h-11 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <PlusIcon className="w-4 h-4" aria-hidden="true" />
             Add Player

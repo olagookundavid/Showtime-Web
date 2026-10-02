@@ -27,6 +27,7 @@ import {
   type Team,
 } from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
+import { usePermissions } from "../../hooks/usePermissions";
 import { adminSectionsFor } from "../../components/admin/adminNav";
 import {
   MAX_MAIN_SQUAD,
@@ -75,9 +76,9 @@ const FORMAT_LABEL: Record<string, string> = {
 const cardClass =
   "bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6 min-w-0";
 const primaryButton =
-  "inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 min-h-11 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-colors";
+  "inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 min-h-11 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none";
 const secondaryButton =
-  "inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 min-h-11 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-sm font-bold rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors";
+  "inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 min-h-11 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-sm font-bold rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
 const textLink =
   "inline-flex items-center gap-1 min-h-11 text-sm font-bold text-sffl-red hover:underline";
 
@@ -235,6 +236,8 @@ export const AdminTeamDetail = () => {
   const { id = "" } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { canEdit } = usePermissions();
+  const canManage = canEdit("teams_standings");
   const actions = useTeamActions({ onDeleted: () => navigate("/admin/teams") });
 
   // Only link to dashboard pages this role can open.
@@ -478,11 +481,11 @@ export const AdminTeamDetail = () => {
         back={{ to: "/admin/teams", label: "Back to Teams" }}
         actions={
           <>
-            <button type="button" onClick={() => actions.openEdit(team)} className={primaryButton}>
+            <button type="button" disabled={!canManage} title={canManage ? undefined : "View-only access to Teams"} onClick={() => actions.openEdit(team)} className={primaryButton}>
               <PencilSquareIcon className="w-4 h-4" aria-hidden="true" />
               Edit Team
             </button>
-            <button type="button" onClick={() => actions.openTeamHeads(team)} className={secondaryButton}>
+            <button type="button" disabled={!canManage} title={canManage ? undefined : "View-only access to Teams"} onClick={() => actions.openTeamHeads(team)} className={secondaryButton}>
               <UserGroupIcon className="w-4 h-4" aria-hidden="true" />
               Team Heads
             </button>
@@ -589,7 +592,7 @@ export const AdminTeamDetail = () => {
                   </li>
                 ))}
               </ul>
-              <button type="button" onClick={() => actions.openTeamHeads(team)} className={secondaryButton}>
+              <button type="button" disabled={!canManage} title={canManage ? undefined : "View-only access to Teams"} onClick={() => actions.openTeamHeads(team)} className={secondaryButton}>
                 <UserGroupIcon className="w-4 h-4" aria-hidden="true" />
                 Manage Team Heads
               </button>
@@ -597,7 +600,7 @@ export const AdminTeamDetail = () => {
           ) : (
             <EmptyState
               action={
-                <button type="button" onClick={() => actions.openTeamHeads(team)} className={primaryButton}>
+                <button type="button" disabled={!canManage} title={canManage ? undefined : "View-only access to Teams"} onClick={() => actions.openTeamHeads(team)} className={primaryButton}>
                   <UserPlusIcon className="w-4 h-4" aria-hidden="true" />
                   Assign a Team Head
                 </button>
@@ -704,7 +707,7 @@ export const AdminTeamDetail = () => {
           <div className={cardClass}>
             <EmptyState
               action={
-                <button type="button" onClick={() => actions.askToggleStatus(team)} className={primaryButton}>
+                <button type="button" disabled={!canManage} title={canManage ? undefined : "View-only access to Teams"} onClick={() => actions.askToggleStatus(team)} className={primaryButton}>
                   <EyeIcon className="w-4 h-4" aria-hidden="true" />
                   Mark Active
                 </button>
@@ -742,7 +745,7 @@ export const AdminTeamDetail = () => {
               ? "This team is inactive: it's hidden from public pages and selection dropdowns. Nothing has been deleted."
               : "This team is active: it appears on public pages and in selection dropdowns. Mark it inactive to hide it without deleting anything."}
           </p>
-          <button type="button" onClick={() => actions.askToggleStatus(team)} className={`${secondaryButton} shrink-0`}>
+          <button type="button" disabled={!canManage} title={canManage ? undefined : "View-only access to Teams"} onClick={() => actions.askToggleStatus(team)} className={`${secondaryButton} shrink-0`}>
             {inactive ? (
               <EyeIcon className="w-4 h-4" aria-hidden="true" />
             ) : (
@@ -758,8 +761,10 @@ export const AdminTeamDetail = () => {
           </p>
           <button
             type="button"
+            disabled={!canManage}
+            title={canManage ? undefined : "View-only access to Teams"}
             onClick={() => actions.askDelete(team)}
-            className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto shrink-0 px-4 py-2 min-h-11 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 text-sm font-bold rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+            className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto shrink-0 px-4 py-2 min-h-11 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 text-sm font-bold rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <TrashIcon className="w-4 h-4" aria-hidden="true" />
             Delete Team

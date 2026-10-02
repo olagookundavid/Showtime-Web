@@ -56,6 +56,17 @@ import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { Pagination } from '../../components/ui/Pagination';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import { usePermissions } from '../../hooks/usePermissions';
+
+/**
+ * Commissioner has view-only access to Fantasy (backend: routes.go's
+ * adminFantasy group, feature "fantasy") — every mutation in this file must
+ * check this before calling the API, the same way the existing client-side
+ * checks below ("Select a competition", etc.) throw inside mutationFn so
+ * errorText() surfaces them. Without it a view-only Commissioner could click
+ * a mutating button and get a confusing 403 instead of a clear message.
+ */
+const VIEW_ONLY_FANTASY_ERROR = 'View-only access: your role can view Fantasy but not make changes.';
 
 /** `datetime-local` gives a local wall-clock string; the API wants RFC3339. */
 const toRFC3339 = (localValue: string): string => new Date(localValue).toISOString();
@@ -352,8 +363,12 @@ export function AdminFantasy() {
  */
 function useReleaseSeasonMutation(onSettled?: () => void) {
     const queryClient = useQueryClient();
+    const { canEdit } = usePermissions();
     return useMutation({
-        mutationFn: async (seasonId: string) => fantasyApi.adminActivateSeason(seasonId),
+        mutationFn: async (seasonId: string) => {
+            if (!canEdit('fantasy')) throw new Error(VIEW_ONLY_FANTASY_ERROR);
+            return fantasyApi.adminActivateSeason(seasonId);
+        },
         onSuccess: () => {
             toast.success('Season released — players can see it now.');
             queryClient.invalidateQueries({ queryKey: ['adminFantasySeason'] });
@@ -404,13 +419,17 @@ function SeasonsIndex({ seasons, onManage }: {
     onManage: (seasonId: string) => void;
 }) {
     const queryClient = useQueryClient();
+    const { canEdit } = usePermissions();
     const [releasing, setReleasing] = useState<FantasySeason | null>(null);
     const [deleting, setDeleting] = useState<FantasySeason | null>(null);
 
     const releaseMutation = useReleaseSeasonMutation(() => setReleasing(null));
 
     const deleteMutation = useMutation({
-        mutationFn: async (seasonId: string) => fantasyAdminApi.deleteSeason(seasonId),
+        mutationFn: async (seasonId: string) => {
+            if (!canEdit('fantasy')) throw new Error(VIEW_ONLY_FANTASY_ERROR);
+            return fantasyAdminApi.deleteSeason(seasonId);
+        },
         onSuccess: () => {
             toast.success('Season deleted.');
             queryClient.invalidateQueries({ queryKey: ['adminFantasySeason'] });
@@ -551,6 +570,7 @@ function SeasonsIndex({ seasons, onManage }: {
 
 function CreateSeasonCard() {
     const queryClient = useQueryClient();
+    const { canEdit } = usePermissions();
     const [confirming, setConfirming] = useState(false);
 
     const { data: competitionsData } = useQuery({
@@ -570,6 +590,7 @@ function CreateSeasonCard() {
 
     const createSeasonMutation = useMutation({
         mutationFn: async () => {
+            if (!canEdit('fantasy')) throw new Error(VIEW_ONLY_FANTASY_ERROR);
             if (!seasonForm.competition_id) throw new Error("Select a competition");
             return fantasyApi.adminCreateSeason({
                 competition_id: seasonForm.competition_id,
@@ -811,6 +832,7 @@ type SetupAction =
 
 function SetupTab({ season }: { season: FantasySeason }) {
     const queryClient = useQueryClient();
+    const { canEdit } = usePermissions();
 
     const { data: gameweeks = [], isLoading: gwLoading } = useQuery({
         queryKey: ['adminFantasyGameweeks', season.id],
@@ -865,14 +887,20 @@ function SetupTab({ season }: { season: FantasySeason }) {
 
     // Mutations
     const initPricesMutation = useMutation({
-        mutationFn: async (seasonId: string) => fantasyApi.adminInitializePrices(seasonId),
+        mutationFn: async (seasonId: string) => {
+            if (!canEdit('fantasy')) throw new Error(VIEW_ONLY_FANTASY_ERROR);
+            return fantasyApi.adminInitializePrices(seasonId);
+        },
         onSuccess: () => toast.success("Player prices initialized!"),
         onError: (err: unknown) => toast.error(errorText(err)),
         onSettled: () => setAction(null),
     });
 
     const autoScheduleMutation = useMutation({
-        mutationFn: async () => fantasyApi.adminAutoScheduleGameweeks(season.id),
+        mutationFn: async () => {
+            if (!canEdit('fantasy')) throw new Error(VIEW_ONLY_FANTASY_ERROR);
+            return fantasyApi.adminAutoScheduleGameweeks(season.id);
+        },
         onSuccess: (gws) => {
             toast.success(`Successfully auto-scheduled ${gws.length} gameweek(s) from match fixtures!`);
             invalidateGameweeks();
@@ -883,6 +911,7 @@ function SetupTab({ season }: { season: FantasySeason }) {
 
     const createGwMutation = useMutation({
         mutationFn: async () => {
+            if (!canEdit('fantasy')) throw new Error(VIEW_ONLY_FANTASY_ERROR);
             if (!gwForm.match_date) throw new Error("Select a Match Date from the competition schedule");
             return fantasyApi.adminCreateGameweek(season.id, {
                 number: gwNumber,
@@ -902,6 +931,7 @@ function SetupTab({ season }: { season: FantasySeason }) {
 
     const updateDeadlineMutation = useMutation({
         mutationFn: async ({ gwId, deadline }: { gwId: string; deadline: string }) => {
+            if (!canEdit('fantasy')) throw new Error(VIEW_ONLY_FANTASY_ERROR);
             if (!deadline) throw new Error("Pick a new deadline first");
             return fantasyApi.adminUpdateGameweekDeadline(gwId, toRFC3339(deadline));
         },
@@ -916,7 +946,10 @@ function SetupTab({ season }: { season: FantasySeason }) {
     });
 
     const finalizeGwMutation = useMutation({
-        mutationFn: async (gwId: string) => fantasyApi.adminFinalizeGameweek(gwId),
+        mutationFn: async (gwId: string) => {
+            if (!canEdit('fantasy')) throw new Error(VIEW_ONLY_FANTASY_ERROR);
+            return fantasyApi.adminFinalizeGameweek(gwId);
+        },
         onSuccess: () => {
             toast.success("Gameweek finalized and official scores computed!");
             queryClient.invalidateQueries({ queryKey: ['adminFantasyGameweeks', season.id] });
@@ -926,7 +959,10 @@ function SetupTab({ season }: { season: FantasySeason }) {
     });
 
     const deleteGwMutation = useMutation({
-        mutationFn: async (gwId: string) => fantasyApi.adminDeleteGameweek(gwId),
+        mutationFn: async (gwId: string) => {
+            if (!canEdit('fantasy')) throw new Error(VIEW_ONLY_FANTASY_ERROR);
+            return fantasyApi.adminDeleteGameweek(gwId);
+        },
         onSuccess: () => {
             toast.success("Gameweek deleted and remaining schedule re-synced!");
             invalidateGameweeks();
@@ -1492,6 +1528,7 @@ function LeagueDetailView({ league, seasonId, onBack }: { league: AdminLeagueRow
  */
 function CreateLeagueCard({ seasonId }: { seasonId: string }) {
     const queryClient = useQueryClient();
+    const { canEdit } = usePermissions();
     const [open, setOpen] = useState(false);
     const [confirming, setConfirming] = useState(false);
     const [form, setForm] = useState({
@@ -1503,6 +1540,7 @@ function CreateLeagueCard({ seasonId }: { seasonId: string }) {
 
     const createLeagueMutation = useMutation({
         mutationFn: async () => {
+            if (!canEdit('fantasy')) throw new Error(VIEW_ONLY_FANTASY_ERROR);
             if (!form.name.trim()) throw new Error('Give the league a name');
             return fantasyApi.createLeague({
                 season_id: seasonId,
@@ -1701,6 +1739,7 @@ const MEMBERS_PAGE_SIZE = 25;
 
 function LeagueDetailPanel({ league, seasonId }: { league: AdminLeagueRow; seasonId: string }) {
     const queryClient = useQueryClient();
+    const { canEdit } = usePermissions();
     const leagueId = league.league_id;
 
     const { data: finance, isLoading: financeLoading } = useQuery({
@@ -1731,7 +1770,10 @@ function LeagueDetailPanel({ league, seasonId }: { league: AdminLeagueRow; seaso
         setTierDraft(next.map((t, i) => ({ rank: i + 1, percent: t.percent })));
 
     const savePrizesMutation = useMutation({
-        mutationFn: async () => fantasyAdminApi.setPrizeStructure(leagueId, tiers),
+        mutationFn: async () => {
+            if (!canEdit('fantasy')) throw new Error(VIEW_ONLY_FANTASY_ERROR);
+            return fantasyAdminApi.setPrizeStructure(leagueId, tiers);
+        },
         onSuccess: () => {
             toast.success('Prize structure saved!');
             setTierDraft(null);
@@ -1743,7 +1785,10 @@ function LeagueDetailPanel({ league, seasonId }: { league: AdminLeagueRow; seaso
     });
 
     const settleMutation = useMutation({
-        mutationFn: async () => fantasyAdminApi.settleLeague(leagueId),
+        mutationFn: async () => {
+            if (!canEdit('fantasy')) throw new Error(VIEW_ONLY_FANTASY_ERROR);
+            return fantasyAdminApi.settleLeague(leagueId);
+        },
         onSuccess: (res) => {
             toast.success(`League settled — ${settlementSummary(res)}`);
             queryClient.invalidateQueries({ queryKey: ['adminLeagueFinance', leagueId] });
@@ -2092,6 +2137,7 @@ function ManagersTab({ seasonId }: { seasonId: string }) {
 
 function FinanceTab({ seasonId }: { seasonId: string }) {
     const queryClient = useQueryClient();
+    const { canEdit } = usePermissions();
     const [confirmMode, setConfirmMode] = useState<'settle' | 'complete' | null>(null);
 
     const { data: overview, isLoading } = useQuery({
@@ -2109,7 +2155,10 @@ function FinanceTab({ seasonId }: { seasonId: string }) {
     };
 
     const settleSeasonMutation = useMutation({
-        mutationFn: async () => fantasyAdminApi.settleSeason(seasonId),
+        mutationFn: async () => {
+            if (!canEdit('fantasy')) throw new Error(VIEW_ONLY_FANTASY_ERROR);
+            return fantasyAdminApi.settleSeason(seasonId);
+        },
         onSuccess: (res) => {
             toast.success(`Season settled — ${settlementSummary(res)}`);
             invalidateAfterSettlement();
@@ -2119,7 +2168,10 @@ function FinanceTab({ seasonId }: { seasonId: string }) {
     });
 
     const completeSeasonMutation = useMutation({
-        mutationFn: async () => fantasyAdminApi.completeSeason(seasonId),
+        mutationFn: async () => {
+            if (!canEdit('fantasy')) throw new Error(VIEW_ONLY_FANTASY_ERROR);
+            return fantasyAdminApi.completeSeason(seasonId);
+        },
         onSuccess: (res) => {
             toast.success(`Season completed — ${settlementSummary(res)}`);
             invalidateAfterSettlement();
@@ -2326,6 +2378,7 @@ const PRICING_PAGE_SIZE = 25;
 
 function PricingTab({ seasonId }: { seasonId: string }) {
     const queryClient = useQueryClient();
+    const { canEdit } = usePermissions();
     const [search, setSearch] = useState('');
     const [position, setPosition] = useState('');
     const [overrideStatus, setOverrideStatus] = useState<'all' | 'overridden' | 'calculated'>('all');
@@ -2348,8 +2401,10 @@ function PricingTab({ seasonId }: { seasonId: string }) {
     });
 
     const overrideMutation = useMutation({
-        mutationFn: ({ playerId, price }: { playerId: string; price: number }) =>
-            fantasyAdminApi.overridePlayerPrice(seasonId, playerId, { price }),
+        mutationFn: ({ playerId, price }: { playerId: string; price: number }) => {
+            if (!canEdit('fantasy')) throw new Error(VIEW_ONLY_FANTASY_ERROR);
+            return fantasyAdminApi.overridePlayerPrice(seasonId, playerId, { price });
+        },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['adminPlayerPrices', seasonId] });
             toast.success('Player price override saved');
@@ -2363,8 +2418,10 @@ function PricingTab({ seasonId }: { seasonId: string }) {
     });
 
     const resetMutation = useMutation({
-        mutationFn: (playerId: string) =>
-            fantasyAdminApi.overridePlayerPrice(seasonId, playerId, { reset: true }),
+        mutationFn: (playerId: string) => {
+            if (!canEdit('fantasy')) throw new Error(VIEW_ONLY_FANTASY_ERROR);
+            return fantasyAdminApi.overridePlayerPrice(seasonId, playerId, { reset: true });
+        },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['adminPlayerPrices', seasonId] });
             toast.success('Player price reset to calculated value');
@@ -2919,6 +2976,7 @@ type PayoutConfirm = 'processing' | 'paid' | 'reject';
 
 function PayoutRow({ payout }: { payout: PayoutRequest }) {
     const queryClient = useQueryClient();
+    const { canEdit } = usePermissions();
     const [mode, setMode] = useState<'paid' | 'reject' | null>(null);
     const [paymentReference, setPaymentReference] = useState('');
     const [adminNotes, setAdminNotes] = useState('');
@@ -2929,6 +2987,7 @@ function PayoutRow({ payout }: { payout: PayoutRequest }) {
 
     const updateMutation = useMutation({
         mutationFn: async (payload: { status: 'PROCESSING' | 'PAID' | 'REJECTED'; admin_notes?: string; payment_reference?: string }) => {
+            if (!canEdit('fantasy')) throw new Error(VIEW_ONLY_FANTASY_ERROR);
             if (payload.status === 'PAID' && !payload.payment_reference?.trim()) {
                 throw new Error('A bank transfer reference is required to mark a payout paid.');
             }

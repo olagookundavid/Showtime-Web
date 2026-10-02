@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { loginUser, registerUser, logoutUser, getUserProfile, type AuthUser } from '../services/api';
 
-interface User {
+export interface User {
     id: string;
     name: string;
     email: string;
@@ -9,7 +9,8 @@ interface User {
     // player_pending is an account claimant awaiting their team manager's approval. It
     // grants no portal access — only the claim status screen — so route guards must
     // treat it as distinct from 'player'.
-    role: 'admin' | 'app_admin' | 'broadcast' | 'user' | 'player' | 'player_pending' | 'team_head' | 'ticketer' | 'referee' | 'stats' | 'seller';
+    role: 'admin' | 'app_admin' | 'broadcast' | 'user' | 'player' | 'player_pending' | 'team_head' | 'ticketer' | 'referee' | 'stats' | 'seller'
+        | 'commissioner' | 'fantasy_commissioner' | 'head_referee' | 'news_head' | 'content_creator' | 'store_manager';
 }
 
 interface AuthContextType {
@@ -21,6 +22,8 @@ interface AuthContextType {
     logout: () => Promise<void>;
     forgotPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
     resetPasswordWithOTP: (email: string, otp: string, new_password: string) => Promise<{ success: boolean; error?: string }>;
+    /** Re-pulls /auth/profile and updates the cached user — call after editing your own profile. */
+    refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -116,16 +119,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
+    const refreshUser = async () => {
+        try {
+            const profile = await getUserProfile();
+            setUser(mapAuthUser(profile));
+        } catch {
+            // Session probably expired; leave the stale user in place rather than
+            // bouncing them mid-edit — the next protected request will 401 and
+            // the global interceptor handles signing them out.
+        }
+    };
+
     return (
-        <AuthContext.Provider value={{ 
-            user, 
-            isAuthenticated: !!user, 
-            isLoading, 
-            login, 
-            signup, 
+        <AuthContext.Provider value={{
+            user,
+            isAuthenticated: !!user,
+            isLoading,
+            login,
+            signup,
             logout,
             forgotPassword,
-            resetPasswordWithOTP
+            resetPasswordWithOTP,
+            refreshUser,
         }}>
             {children}
         </AuthContext.Provider>

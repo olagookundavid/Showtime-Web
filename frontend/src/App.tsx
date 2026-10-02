@@ -5,6 +5,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { FontProvider } from "./contexts/FontContext";
 import { CartProvider } from "./contexts/CartContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import { FeatureGuard } from "./components/admin/FeatureGuard";
 import { Layout } from "./components/layout/Layout";
 import { ScrollToTop } from "./components/common/ScrollToTop";
 import { LandingPage } from "./pages/LandingPage";
@@ -29,6 +30,9 @@ const OrderConfirmationPage = lazy(() =>
 );
 const MyOrdersPage = lazy(() =>
   import("./pages/MyOrdersPage").then((m) => ({ default: m.MyOrdersPage })),
+);
+const MyProfilePage = lazy(() =>
+  import("./pages/account/MyProfilePage").then((m) => ({ default: m.MyProfilePage })),
 );
 const ProductReviewsPage = lazy(() =>
   import("./pages/ProductReviewsPage").then((m) => ({
@@ -422,6 +426,7 @@ function App() {
                         element={<OrderConfirmationPage />}
                       />
                       <Route path="/store/orders" element={<MyOrdersPage />} />
+                      <Route path="/account" element={<MyProfilePage />} />
 
                       {/* Fantasy Flag Football */}
                       {/* The hub is public so a signed-out visitor can see what fantasy
@@ -556,66 +561,72 @@ function App() {
                             "ticketer",
                             "referee",
                             "stats",
+                            "commissioner",
+                            "fantasy_commissioner",
+                            "head_referee",
+                            "news_head",
+                            "content_creator",
+                            "store_manager",
                           ]}
                         >
                           <AdminLayout />
                         </ProtectedRoute>
                       }
                     >
-                      <Route index element={<Dashboard />} />
-                      <Route path="analytics" element={<AdminAnalytics />} />
-                      <Route path="matches" element={<AdminMatches />} />
+                      <Route index element={<FeatureGuard feature="dashboard"><Dashboard /></FeatureGuard>} />
+                      <Route path="analytics" element={<FeatureGuard feature="dashboard"><AdminAnalytics /></FeatureGuard>} />
+                      <Route path="matches" element={<FeatureGuard feature="matches"><AdminMatches /></FeatureGuard>} />
                       <Route
                         path="play-by-play"
-                        element={<AdminPlayByPlay />}
+                        element={<FeatureGuard feature="play_by_play"><AdminPlayByPlay /></FeatureGuard>}
                       />
-                      <Route path="broadcast" element={<AdminBroadcastPicker />} />
-                      <Route path="broadcast/:matchId" element={<AdminBroadcastStudio />} />
-                      <Route path="news" element={<AdminNews />} />
+                      <Route path="broadcast" element={<FeatureGuard feature="broadcast_studio"><AdminBroadcastPicker /></FeatureGuard>} />
+                      <Route path="broadcast/:matchId" element={<FeatureGuard feature="broadcast_studio"><AdminBroadcastStudio /></FeatureGuard>} />
+                      <Route path="news" element={<FeatureGuard feature="news"><AdminNews /></FeatureGuard>} />
                       {/* <Route path="gallery" element={<AdminGallery />} /> */}
-                      <Route path="hero-slides" element={<AdminHeroSlides />} />
-                      <Route path="live-stream" element={<AdminLiveStream />} />
-                      <Route path="players" element={<AdminPlayers />} />
-                      <Route path="stats" element={<AdminStats />} />
-                      <Route path="standings" element={<AdminStandings />} />
-                      <Route path="totw" element={<AdminTOTW />} />
-                      <Route path="badges" element={<AdminBadges />} />
-                      <Route path="tickets" element={<AdminTickets />} />
-                      <Route path="referrals" element={<AdminReferrals />} />
+                      <Route path="hero-slides" element={<FeatureGuard feature="hero_slides"><AdminHeroSlides /></FeatureGuard>} />
+                      <Route path="live-stream" element={<FeatureGuard feature="live_stream"><AdminLiveStream /></FeatureGuard>} />
+                      <Route path="players" element={<FeatureGuard feature="players"><AdminPlayers /></FeatureGuard>} />
+                      <Route path="stats" element={<FeatureGuard feature="stats_edit"><AdminStats /></FeatureGuard>} />
+                      <Route path="standings" element={<FeatureGuard feature="teams_standings"><AdminStandings /></FeatureGuard>} />
+                      <Route path="totw" element={<FeatureGuard feature="totw"><AdminTOTW /></FeatureGuard>} />
+                      <Route path="badges" element={<FeatureGuard feature="badges"><AdminBadges /></FeatureGuard>} />
+                      <Route path="tickets" element={<FeatureGuard feature="tickets"><AdminTickets /></FeatureGuard>} />
+                      <Route path="referrals" element={<FeatureGuard feature="referrals"><AdminReferrals /></FeatureGuard>} />
                       <Route
                         path="administrator"
-                        element={<AdminGiftTicket />}
+                        element={<FeatureGuard feature="administrator_tools"><AdminGiftTicket /></FeatureGuard>}
                       />
-                      <Route path="event-days" element={<AdminEventDays />} />
-                      <Route path="users" element={<AdminUsers />} />
-                      <Route path="teams" element={<AdminTeams />} />
-                      <Route path="teams/:id" element={<AdminTeamDetail />} />
+                      <Route path="event-days" element={<FeatureGuard feature="event_days"><AdminEventDays /></FeatureGuard>} />
+                      <Route path="users" element={<FeatureGuard feature="user_management"><AdminUsers /></FeatureGuard>} />
+                      <Route path="teams" element={<FeatureGuard feature="teams_standings"><AdminTeams /></FeatureGuard>} />
+                      <Route path="teams/:id" element={<FeatureGuard feature="teams_standings"><AdminTeamDetail /></FeatureGuard>} />
                       <Route
                         path="competitions"
-                        element={<AdminCompetitions />}
+                        element={<FeatureGuard feature="competitions"><AdminCompetitions /></FeatureGuard>}
                       />
                       <Route
                         path="competitions/:id/teams"
-                        element={<AdminCompetitionTeams />}
+                        element={<FeatureGuard feature="competitions"><AdminCompetitionTeams /></FeatureGuard>}
                       />
-                      <Route path="inventory" element={<AdminInventory />} />
-                      <Route path="store" element={<AdminStore />} />
+                      <Route path="inventory" element={<FeatureGuard feature="inventory"><AdminInventory /></FeatureGuard>} />
+                      <Route path="store" element={<FeatureGuard feature="store"><AdminStore /></FeatureGuard>} />
                       <Route
                         path="store/orders/:id"
-                        element={<AdminOrderDetail />}
+                        element={<FeatureGuard feature="store"><AdminOrderDetail /></FeatureGuard>}
                       />
-                      <Route path="contracts" element={<AdminContracts />} />
+                      <Route path="contracts" element={<FeatureGuard feature="contracts"><AdminContracts /></FeatureGuard>} />
                       <Route
                         path="player-claims"
-                        element={<AdminPlayerClaims />}
+                        element={<FeatureGuard feature="claims"><AdminPlayerClaims /></FeatureGuard>}
                       />
-                      <Route path="transfers" element={<AdminTransfers />} />
+                      <Route path="transfers" element={<FeatureGuard feature="transfers"><AdminTransfers /></FeatureGuard>} />
                       <Route
                         path="transfer-windows"
-                        element={<AdminTransferWindows />}
+                        element={<FeatureGuard feature="transfer_windows"><AdminTransferWindows /></FeatureGuard>}
                       />
-                      <Route path="fantasy" element={<AdminFantasy />} />
-                      <Route path="settings" element={<AdminSettings />} />
+                      <Route path="fantasy" element={<FeatureGuard feature="fantasy"><AdminFantasy /></FeatureGuard>} />
+                      <Route path="settings" element={<FeatureGuard feature="app_settings"><AdminSettings /></FeatureGuard>} />
                     </Route>
 
                     {/* Team Head Routes */}

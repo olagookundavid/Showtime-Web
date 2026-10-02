@@ -147,6 +147,12 @@ const AdminUsers = () => {
                     <option value="referee">Referee</option>
                     <option value="stats">Stats Admin</option>
                     <option value="seller">Store Seller</option>
+                    <option value="commissioner">Commissioner</option>
+                    <option value="fantasy_commissioner">Fantasy Commissioner</option>
+                    <option value="head_referee">Head Referee</option>
+                    <option value="news_head">News Head</option>
+                    <option value="content_creator">Content Creator</option>
+                    <option value="store_manager">Store Manager</option>
                     <option value="app_admin">App Admin</option>
                     <option value="admin">Admin</option>
                 </select>
@@ -227,10 +233,19 @@ const AdminUsers = () => {
                         >
                             <option value="">All Roles</option>
                             <option value="admin">Admin</option>
+                            <option value="app_admin">App Admin</option>
                             <option value="team_head">Team Head</option>
                             <option value="player">Player</option>
                             <option value="referee">Referee</option>
                             <option value="stats">Stats</option>
+                            <option value="ticketer">Ticketer</option>
+                            <option value="seller">Store Seller</option>
+                            <option value="commissioner">Commissioner</option>
+                            <option value="fantasy_commissioner">Fantasy Commissioner</option>
+                            <option value="head_referee">Head Referee</option>
+                            <option value="news_head">News Head</option>
+                            <option value="content_creator">Content Creator</option>
+                            <option value="store_manager">Store Manager</option>
                             <option value="user">User</option>
                         </select>
                     </>

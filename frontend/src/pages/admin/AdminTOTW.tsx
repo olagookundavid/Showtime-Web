@@ -53,6 +53,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { StarIcon } from "@heroicons/react/24/solid";
 import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
+import { usePermissions } from "../../hooks/usePermissions";
 
 interface TOTWSlotDef {
   slot_code: string;
@@ -463,6 +464,8 @@ const metaFieldClass =
 
 export const AdminTOTW = () => {
   const queryClient = useQueryClient();
+  const { canEdit } = usePermissions();
+  const canManage = canEdit("totw");
 
   // Filters & Mode State
   const [selectedCompId, setSelectedCompId] = useState<string>("");
@@ -651,6 +654,11 @@ export const AdminTOTW = () => {
       // Only the form changes; nothing is saved until the edition is.
       setSlots(emptySlots());
       setSelectedSlotIndex(0);
+      setPendingAction(null);
+      return;
+    }
+    if (!canManage) {
+      toast.error("View-only access: your role can view Team of the Week but not make changes.");
       setPendingAction(null);
       return;
     }
@@ -1273,6 +1281,8 @@ export const AdminTOTW = () => {
                 ? {
                     label: "Unpublish",
                     icon: EyeSlashIcon,
+                    disabled: !canManage,
+                    hint: canManage ? undefined : "View-only access to Team of the Week",
                     onSelect: () =>
                       setPendingAction({
                         kind: "publish",
@@ -1283,6 +1293,8 @@ export const AdminTOTW = () => {
                 : {
                     label: "Publish",
                     icon: CheckCircleIcon,
+                    disabled: !canManage,
+                    hint: canManage ? undefined : "View-only access to Team of the Week",
                     onSelect: () =>
                       setPendingAction({
                         kind: "publish",
@@ -1294,6 +1306,8 @@ export const AdminTOTW = () => {
                 label: "Delete",
                 icon: TrashIcon,
                 danger: true,
+                disabled: !canManage,
+                hint: canManage ? undefined : "View-only access to Team of the Week",
                 onSelect: () => setPendingAction({ kind: "delete", item }),
               },
             ]}
@@ -1301,7 +1315,7 @@ export const AdminTOTW = () => {
         ),
       },
     ],
-    [handleEditTOTW],
+    [handleEditTOTW, canManage],
   );
 
   const dialog = (() => {
@@ -1493,7 +1507,8 @@ export const AdminTOTW = () => {
               <button
                 type="button"
                 onClick={requestSave}
-                disabled={busy}
+                disabled={busy || !canManage}
+                title={canManage ? undefined : "View-only access to Team of the Week"}
                 className="px-6 min-h-11 bg-sffl-red hover:bg-[#A52323] text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md transition-colors cursor-pointer disabled:opacity-50"
               >
                 {editingTotwId ? "Save Changes" : "Create & Save"}
@@ -2504,7 +2519,8 @@ export const AdminTOTW = () => {
             <button
               type="button"
               onClick={requestSave}
-              disabled={busy}
+              disabled={busy || !canManage}
+              title={canManage ? undefined : "View-only access to Team of the Week"}
               className="px-6 min-h-11 bg-sffl-red hover:bg-[#A52323] text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md transition-colors cursor-pointer disabled:opacity-50"
             >
               {editingTotwId ? "Save Changes" : "Create & Save"}

@@ -30,6 +30,7 @@ import { TeamActionDialogs } from "../../components/admin/TeamActionDialogs";
 import { TeamStatusBadge } from "../../components/admin/TeamStatusBadge";
 import { getApiErrorMessage } from "../../utils/apiError";
 import { isDeletedPlayer } from "../../components/common/DeletedPlayer";
+import { usePermissions } from "../../hooks/usePermissions";
 
 const NO_TEAMS: Team[] = [];
 const PAGE_SIZE = 20;
@@ -40,6 +41,9 @@ type Squad = { main: number; reserves: number };
 
 const AdminTeams = () => {
   const navigate = useNavigate();
+  const { canEdit } = usePermissions();
+  const canManage = canEdit("teams_standings");
+  const viewOnlyHint = "View-only access to Teams";
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [page, setPage] = useState(1);
@@ -201,24 +205,41 @@ const AdminTeams = () => {
                   icon: IdentificationIcon,
                   onSelect: () => navigate(`/admin/teams/${t.id}`),
                 },
-                { label: "Edit team", icon: PencilSquareIcon, onSelect: () => openEdit(t) },
+                {
+                  label: "Edit team",
+                  icon: PencilSquareIcon,
+                  disabled: !canManage,
+                  hint: canManage ? undefined : viewOnlyHint,
+                  onSelect: () => openEdit(t),
+                },
                 {
                   label: "Manage team heads",
                   icon: UserGroupIcon,
+                  disabled: !canManage,
+                  hint: canManage ? undefined : viewOnlyHint,
                   onSelect: () => openTeamHeads(t),
                 },
                 inactive
-                  ? { label: "Mark active", icon: EyeIcon, onSelect: () => askToggleStatus(t) }
+                  ? {
+                      label: "Mark active",
+                      icon: EyeIcon,
+                      disabled: !canManage,
+                      hint: canManage ? undefined : viewOnlyHint,
+                      onSelect: () => askToggleStatus(t),
+                    }
                   : {
                       label: "Mark inactive",
                       icon: EyeSlashIcon,
-                      hint: "Hides it from public pages",
+                      hint: canManage ? "Hides it from public pages" : viewOnlyHint,
+                      disabled: !canManage,
                       onSelect: () => askToggleStatus(t),
                     },
                 {
                   label: "Delete team",
                   icon: TrashIcon,
                   danger: true,
+                  disabled: !canManage,
+                  hint: canManage ? undefined : viewOnlyHint,
                   onSelect: () => askDelete(t),
                 },
               ]}
@@ -237,6 +258,7 @@ const AdminTeams = () => {
       openTeamHeads,
       askToggleStatus,
       askDelete,
+      canManage,
     ],
   );
 
@@ -246,14 +268,16 @@ const AdminTeams = () => {
         title="Teams"
         subtitle="Every team in the league with its team heads, squad and status. Select a team's name to see its full profile."
         actions={
-          <button
-            type="button"
-            onClick={openCreate}
-            className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 bg-sffl-red text-white text-sm font-bold min-h-11 rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
-          >
-            <PlusIcon className="w-4 h-4" aria-hidden="true" />
-            Add Team
-          </button>
+          canManage ? (
+            <button
+              type="button"
+              onClick={openCreate}
+              className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 bg-sffl-red text-white text-sm font-bold min-h-11 rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95"
+            >
+              <PlusIcon className="w-4 h-4" aria-hidden="true" />
+              Add Team
+            </button>
+          ) : undefined
         }
       />
 

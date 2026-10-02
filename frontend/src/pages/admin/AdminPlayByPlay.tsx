@@ -61,6 +61,7 @@ import { Spinner } from "../../components/ui/Spinner";
 import { FootballIcon } from "../../components/icons/FootballIcon";
 import { RunnerIcon } from "../../components/icons/RunnerIcon";
 import { useAuth } from "../../contexts/AuthContext";
+import { usePermissions } from "../../hooks/usePermissions";
 import { getPlayStatAccruals } from "../../utils/statAccrualDeriver";
 import { formatMatchDate, formatMatchTime } from "../../utils/dateUtils";
 import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
@@ -3918,8 +3919,14 @@ const ScoreTools = ({
   plays = [],
   teamSheet,
 }: ScoreToolsProps) => {
-  const { user } = useAuth();
-  const isAppAdmin = user?.role === "app_admin";
+  const { canEdit } = usePermissions();
+  // These two buttons hit different backend routes with different role sets
+  // (routes.go: /:id/stats-commit and /:id/commit-score are gated to
+  // "play_by_play_commit"; /:id/mvp has no such override and is gated to the
+  // broader "matches" group) — kept as two flags so neither button is shown
+  // to a role the backend would 403.
+  const isAppAdmin = canEdit("play_by_play_commit");
+  const canOverrideMVP = canEdit("matches");
   const queryClient = useQueryClient();
   const [recomputing, setRecomputing] = useState(false);
   const [editingRules, setEditingRules] = useState(false);
@@ -4318,7 +4325,7 @@ const ScoreTools = ({
               </p>
             </div>
           </div>
-          {(match?.mvp_overridden || match?.mvp_player_id) && isAppAdmin && (
+          {(match?.mvp_overridden || match?.mvp_player_id) && canOverrideMVP && (
             <button
               type="button"
               onClick={() => setPendingAction("mvp-reset")}
@@ -4330,7 +4337,7 @@ const ScoreTools = ({
           )}
         </div>
 
-        {isAppAdmin && (
+        {canOverrideMVP && (
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1 border-t border-gray-200 dark:border-gray-700">
             <select
               value={selectedMVP}

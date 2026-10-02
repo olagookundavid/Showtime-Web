@@ -33,6 +33,7 @@ import { ConfirmSummary } from '../../components/ui/ConfirmSummary';
 import { useDebounced } from '../../hooks/useDebounced';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { DashboardPageHeader } from '../../components/dashboard/DashboardPageHeader';
+import { usePermissions } from '../../hooks/usePermissions';
 
 type EventDayPayload = Parameters<typeof updateEventDay>[1];
 type TierPayload = Parameters<typeof updateTicketTier>[2];
@@ -405,6 +406,8 @@ const inlineInputClass = 'w-full min-h-11 px-3 py-2 border border-gray-300 dark:
 
 export const AdminEventDays = () => {
     const queryClient = useQueryClient();
+    const { canEdit } = usePermissions();
+    const canManage = canEdit('event_days');
 
     // This list grows by a match day forever, so it is paged and searched on
     // the server rather than fetched whole and filtered here.
@@ -475,6 +478,11 @@ export const AdminEventDays = () => {
     const confirmPendingAction = async () => {
         const action = pendingAction;
         if (!action) return;
+        if (!canManage) {
+            toast.error('View-only access: your role can view Event Days but not make changes.');
+            setPendingAction(null);
+            return;
+        }
         setBusy(true);
         try {
             switch (action.kind) {

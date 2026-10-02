@@ -10,16 +10,22 @@ import (
 )
 
 const (
-	RoleAdmin     = "admin"
-	RoleAppAdmin  = "app_admin"
-	RoleBroadcast = "broadcast"
-	RoleReferee   = "referee"
-	RoleStats     = "stats"
-	RoleTicketer  = "ticketer"
-	RoleTeamHead  = "team_head"
-	RolePlayer    = "player"
-	RoleSeller    = "seller"
-	RoleUser      = "user"
+	RoleAdmin               = "admin"
+	RoleAppAdmin            = "app_admin"
+	RoleBroadcast           = "broadcast"
+	RoleReferee             = "referee"
+	RoleStats               = "stats"
+	RoleTicketer            = "ticketer"
+	RoleTeamHead            = "team_head"
+	RolePlayer              = "player"
+	RoleSeller              = "seller"
+	RoleUser                = "user"
+	RoleCommissioner        = "commissioner"
+	RoleFantasyCommissioner = "fantasy_commissioner"
+	RoleHeadReferee         = "head_referee"
+	RoleNewsHead            = "news_head"
+	RoleContentCreator      = "content_creator"
+	RoleStoreManager        = "store_manager"
 )
 
 type User struct {

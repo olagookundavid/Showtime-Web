@@ -23,6 +23,7 @@ type IAuthHandler interface {
 	GetUsers(c *gin.Context)
 	UpdateUserRole(c *gin.Context)
 	UpdateUserInfo(c *gin.Context)
+	UpdateOwnProfile(c *gin.Context)
 	SendPasswordResetOTP(c *gin.Context)
 }
 
@@ -301,6 +302,41 @@ func (h *AuthHandler) UpdateUserInfo(c *gin.Context) {
 	}
 
 	helpers.SuccessOK(c, "User info updated successfully", nil)
+}
+
+// UpdateOwnProfile godoc
+// @Summary      Update my own profile (fullname, phone)
+// @Tags         auth
+// @Security     BearerAuth
+// @Param        request body dto.UpdateUserInfoRequest true "Update Info Payload"
+// @Produce      json
+// @Success      200 {object} map[string]string
+// @Router       /api/v1/auth/profile [put]
+func (h *AuthHandler) UpdateOwnProfile(c *gin.Context) {
+	tokenPayload, err := helpers.GetTokenPayloadFromContext(c)
+	if err != nil {
+		helpers.ServerErrorResponse(c, err)
+		return
+	}
+
+	var req dto.UpdateUserInfoRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helpers.BadResponse(c, err.Error())
+		return
+	}
+
+	err = h.AuthService.UpdateUserInfo(c.Request.Context(), tokenPayload.UserId, req.FullName, req.Phone)
+	if err != nil {
+		switch {
+		case errors.Is(err, appErrors.ErrNoUserRecordExist):
+			helpers.BadResponse(c, "User not found")
+		default:
+			helpers.ServerErrorResponse(c, err)
+		}
+		return
+	}
+
+	helpers.SuccessOK(c, "Profile updated successfully", nil)
 }
 
 // SendPasswordResetOTP godoc

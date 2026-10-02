@@ -20,6 +20,7 @@ import { DataTable, type Column } from "../../components/ui/DataTable";
 import { RowActions } from "../../components/ui/RowActions";
 import { Spinner } from "../../components/ui/Spinner";
 import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
+import { usePermissions } from "../../hooks/usePermissions";
 
 const FREE_AGENTS_PER_PAGE = 24;
 
@@ -52,6 +53,8 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
 };
 
 export const AdminTransferWindows: React.FC = () => {
+  const { canEdit } = usePermissions();
+  const canManage = canEdit("transfer_windows");
   const [windows, setWindows] = useState<TransferWindowData[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [showModal, setShowModal] = useState<boolean>(false);
@@ -233,6 +236,11 @@ export const AdminTransferWindows: React.FC = () => {
   // dialog always closes afterwards (a failed create or edit leaves its form open).
   const confirmPendingAction = async () => {
     if (!pendingAction) return;
+    if (!canManage) {
+      toast.error("View-only access: your role can view Transfer Windows but not make changes.");
+      setPendingAction(null);
+      return;
+    }
     if (pendingAction.kind === "create") {
       await handleCreateWindow();
     } else if (pendingAction.kind === "update") {
@@ -319,12 +327,16 @@ export const AdminTransferWindows: React.FC = () => {
               {
                 label: w.is_active ? "Deactivate" : "Activate",
                 icon: PowerIcon,
+                disabled: !canManage,
+                hint: canManage ? undefined : "View-only access to Transfer Windows",
                 onSelect: () => setPendingAction({ kind: "toggle", target: w }),
               },
               {
                 label: "Delete",
                 icon: TrashIcon,
                 danger: true,
+                disabled: !canManage,
+                hint: canManage ? undefined : "View-only access to Transfer Windows",
                 onSelect: () => setPendingAction({ kind: "delete", target: w }),
               },
             ]}
@@ -332,7 +344,7 @@ export const AdminTransferWindows: React.FC = () => {
         ),
       },
     ],
-    [openEditModal],
+    [openEditModal, canManage],
   );
 
   const dialog = (() => {
@@ -435,7 +447,9 @@ export const AdminTransferWindows: React.FC = () => {
           <button
             type="button"
             onClick={() => setShowModal(true)}
-            className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto shrink-0 px-4 py-2.5 min-h-11 bg-sffl-red hover:bg-sffl-red/90 text-white font-bold text-sm rounded-xl shadow-md transition-colors"
+            disabled={!canManage}
+            title={canManage ? undefined : "View-only access to Transfer Windows"}
+            className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto shrink-0 px-4 py-2.5 min-h-11 bg-sffl-red hover:bg-sffl-red/90 text-white font-bold text-sm rounded-xl shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <PlusIcon className="w-4 h-4" aria-hidden="true" />
             Create Transfer Window

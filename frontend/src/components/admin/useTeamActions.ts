@@ -11,6 +11,7 @@ import {
   type TeamManager,
 } from "../../services/api";
 import { getApiErrorMessage } from "../../utils/apiError";
+import { usePermissions } from "../../hooks/usePermissions";
 
 // Shared with the Teams table and the team page, so an assignment made in the
 // dialog shows up on both without a reload.
@@ -42,6 +43,7 @@ export function useTeamActions({
   onDeleted,
 }: { onDeleted?: (team: Team) => void } = {}) {
   const queryClient = useQueryClient();
+  const { canEdit } = usePermissions();
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
@@ -172,6 +174,14 @@ export function useTeamActions({
   // dialog always closes afterwards (a failed save leaves the form open).
   const confirmPendingAction = async () => {
     if (!pendingAction) return;
+    // Every team write (backend: teamsGroup, feature "teams_standings") funnels
+    // through this one function, so a single check here covers all of them —
+    // no need to repeat it in every page that uses this hook.
+    if (!canEdit("teams_standings")) {
+      toast.error("View-only access: your role can view Teams but not make changes.");
+      setPendingAction(null);
+      return;
+    }
     if (pendingAction.kind === "save") {
       await handleSave();
     } else {

@@ -37,6 +37,7 @@ import { AdminKnockoutBracket } from "../../components/admin/AdminKnockoutBracke
 import { KNOCKOUT_STAGES } from "../../components/matches/BracketView";
 import { formatMatchDate, formatMatchTime } from "../../utils/dateUtils";
 import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
+import { usePermissions } from "../../hooks/usePermissions";
 
 interface FormData {
   competition_id: string;
@@ -195,6 +196,8 @@ const FantasyDeleteWarning = ({
 
 export const AdminMatches = () => {
   const queryClient = useQueryClient();
+  const { canEdit } = usePermissions();
+  const canManage = canEdit("matches");
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
   const [showModal, setShowModal] = useState(false);
@@ -551,6 +554,11 @@ export const AdminMatches = () => {
   // dialog always closes afterwards (a failed save leaves the form open).
   const confirmPendingAction = async () => {
     if (!pendingAction) return;
+    if (!canManage) {
+      toast.error("View-only access: your role can view Matches but not make changes.");
+      setPendingAction(null);
+      return;
+    }
     if (pendingAction.kind === "save") await handleSave();
     else await handleDelete(pendingAction.match.id);
     setPendingAction(null);
@@ -635,7 +643,11 @@ export const AdminMatches = () => {
         header: "Actions",
         align: "right",
         cell: (m) => {
-          const locked = isCompleted ? "Competition is completed" : undefined;
+          const locked = isCompleted
+            ? "Competition is completed"
+            : !canManage
+              ? "View-only access to Matches"
+              : undefined;
           return (
             <RowActions
               label={`Actions for ${m.home_team?.short_name || "TBD"} vs ${m.away_team?.short_name || "TBD"}`}
@@ -644,13 +656,13 @@ export const AdminMatches = () => {
                   label: "Team Sheet",
                   icon: ClipboardDocumentListIcon,
                   disabled: isCompleted,
-                  hint: locked,
+                  hint: isCompleted ? "Competition is completed" : undefined,
                   onSelect: () => setTeamSheetMatch(m),
                 },
                 {
                   label: "Edit",
                   icon: PencilSquareIcon,
-                  disabled: isCompleted,
+                  disabled: isCompleted || !canManage,
                   hint: locked,
                   onSelect: () => openEdit(m),
                 },
@@ -658,7 +670,7 @@ export const AdminMatches = () => {
                   label: "Delete",
                   icon: TrashIcon,
                   danger: true,
-                  disabled: isCompleted,
+                  disabled: isCompleted || !canManage,
                   hint: locked,
                   onSelect: () => setPendingAction({ kind: "delete", match: m }),
                 },
@@ -668,7 +680,7 @@ export const AdminMatches = () => {
         },
       },
     ],
-    [isCompleted, openEdit],
+    [isCompleted, openEdit, canManage],
   );
 
   // Names for the save dialog. The comp-scoped list is tried first, then every team.
@@ -719,7 +731,8 @@ export const AdminMatches = () => {
           <button
             type="button"
             onClick={() => openCreate()}
-            disabled={isCompleted}
+            disabled={isCompleted || !canManage}
+            title={canManage ? undefined : "View-only access to Matches"}
             className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2 min-h-11 bg-sffl-red text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-red-700 transition-all duration-300 hover:scale-[1.02] active:scale-95 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <PlusIcon className="w-4 h-4" aria-hidden="true" />

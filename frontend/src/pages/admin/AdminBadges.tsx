@@ -40,6 +40,7 @@ import {
   SparklesIcon,
 } from "@heroicons/react/24/outline";
 import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
+import { usePermissions } from "../../hooks/usePermissions";
 
 const COLOR_SCHEMES = [
   {
@@ -223,6 +224,8 @@ const closeButtonClass =
 
 export const AdminBadges = () => {
   const queryClient = useQueryClient();
+  const { canEdit } = usePermissions();
+  const canManage = canEdit("badges");
 
   // View state
   const [activeTab, setActiveTab] = useState<"catalog" | "awards">("catalog");
@@ -326,6 +329,11 @@ export const AdminBadges = () => {
   const confirmPendingAction = async () => {
     const action = pendingAction;
     if (!action) return;
+    if (!canManage) {
+      toast.error("View-only access: your role can view Badges but not make changes.");
+      setPendingAction(null);
+      return;
+    }
     setBusy(true);
     try {
       switch (action.kind) {
@@ -528,6 +536,8 @@ export const AdminBadges = () => {
                     label: "Revoke award",
                     icon: TrashIcon,
                     danger: true,
+                    disabled: !canManage,
+                    hint: canManage ? undefined : "View-only access to Badges",
                     onSelect: () => setPendingAction({ kind: "revoke", award }),
                   },
             ]}
@@ -535,7 +545,7 @@ export const AdminBadges = () => {
         ),
       },
     ],
-    [],
+    [canManage],
   );
 
   const dialog = (() => {
@@ -658,9 +668,9 @@ export const AdminBadges = () => {
             <button
               type="button"
               onClick={() => setPendingAction({ kind: "backfill" })}
-              disabled={busy}
+              disabled={busy || !canManage}
               className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-              title="Scan finished 2026 matches and award MVP badges to players"
+              title={canManage ? "Scan finished 2026 matches and award MVP badges to players" : "View-only access to Badges"}
             >
               <SparklesIcon className="w-4 h-4" />
               <span>
@@ -816,10 +826,12 @@ export const AdminBadges = () => {
                       {!b.is_system && (
                         <button
                           type="button"
+                          disabled={!canManage}
+                          title={canManage ? undefined : "View-only access to Badges"}
                           onClick={() =>
                             setPendingAction({ kind: "deleteBadge", badge: b })
                           }
-                          className="min-h-11 min-w-11 flex items-center justify-center rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 cursor-pointer"
+                          className="min-h-11 min-w-11 flex items-center justify-center rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                           aria-label={`Delete ${b.name}`}
                         >
                           <TrashIcon className="w-5 h-5" aria-hidden="true" />

@@ -29,7 +29,7 @@ import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
 import { LightboxImage } from "../../components/ui";
 import { DataTable, type Column } from "../../components/ui/DataTable";
 import { RowActions } from "../../components/ui/RowActions";
-import { useAuth } from "../../contexts/AuthContext";
+import { usePermissions } from "../../hooks/usePermissions";
 import {
   ALL_STAT_DEFINITIONS,
   getStatsForPosition,
@@ -49,10 +49,11 @@ const emptyForm: FormState = STAT_FIELDS.reduce((acc, field) => {
 const NO_PLAYERS: TeamSheetPlayer[] = [];
 
 export const AdminStats = () => {
-  const { user } = useAuth();
-  // Manual stat editing is reserved for App Admins — everyone else sees the
-  // numbers read-only. (Play-by-play remains the primary way stats are set.)
-  const isAppAdmin = user?.role === "app_admin";
+  const { canEdit } = usePermissions();
+  // Manual stat editing is reserved for roles with full access to this
+  // feature — everyone else sees the numbers read-only. (Play-by-play
+  // remains the primary way stats are set.)
+  const isAppAdmin = canEdit("stats_edit");
   const [selectedComp, setSelectedComp] = useState<string>("");
   const [selectedMatch, setSelectedMatch] = useState<string>("");
   const [selectedTeamId, setSelectedTeamId] = useState<string>("");
