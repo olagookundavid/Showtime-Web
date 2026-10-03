@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { isDeletedPlayer } from "../../components/common/DeletedPlayer";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
@@ -47,6 +48,7 @@ import {
 import { formatStatNumber } from "../../utils/formatters";
 import { useAuth } from "../../contexts/AuthContext";
 import { Loader } from "../../components/ui/Loader";
+import { useReserveDrag } from "../../hooks/useReserveDrag";
 
 const getDefaultTeamName = (userName?: string | null): string => {
   const clean = (userName || "").trim();
@@ -386,7 +388,9 @@ export function FantasySquadBuilder() {
   // at a time. A slot's position/gender are fixed by the slot itself; team is
   // the one axis a manager still wants to narrow by.
   const [marketTeamFilter, setMarketTeamFilter] = useState("");
-  const [marketGenderFilter, setMarketGenderFilter] = useState<"" | "F" | "M">("");
+  const [marketGenderFilter, setMarketGenderFilter] = useState<"" | "F" | "M">(
+    "",
+  );
   // Role filter for the bench picker only — a slot already fixes position.
   const [benchPositionFilter, setBenchPositionFilter] = useState("");
   // Player action popover: which slot's player is showing actions
@@ -850,7 +854,6 @@ export function FantasySquadBuilder() {
           break;
         }
       }
-
     }
     const clubsActiveValid = !hasInactiveStartingPlayer;
 
@@ -1028,9 +1031,7 @@ export function FantasySquadBuilder() {
       .filter((p) => {
         if (activeModalSlot.requiredGender) return true;
         if (!marketGenderFilter) return true;
-        return (p.gender || "M")
-          .toUpperCase()
-          .startsWith(marketGenderFilter);
+        return (p.gender || "M").toUpperCase().startsWith(marketGenderFilter);
       })
       .filter((p) => !marketTeamFilter || p.club_id === marketTeamFilter)
       .filter(
@@ -1485,6 +1486,50 @@ export function FantasySquadBuilder() {
     toast.success("Moved to bench.");
   };
 
+  // Drag-and-drop on the pitch: move a starter into an empty slot, or swap two starters.
+  const handleSwapSlots = (from: FantasySlot, to: FantasySlot) => {
+    if (from === to) return;
+    const a = squad[from];
+    const b = squad[to];
+    const fromDef = SLOT_DEFINITIONS.find((d) => d.slot === from);
+    const toDef = SLOT_DEFINITIONS.find((d) => d.slot === to);
+    if (!a || !fromDef || !toDef) return;
+
+    // Validate with both slots lifted out, so nobody is "already selected"
+    // in the slot they are leaving.
+    const base: Record<FantasySlot, FantasyPlayerListItem | null> = {
+      ...squad,
+      [from]: null,
+      [to]: null,
+    };
+    const opts = { season, mySquad, isBuying: false };
+
+    let result = validateProposedStartingMove(base, toDef, a, opts);
+    if (result.valid && b) {
+      result = validateProposedStartingMove(
+        { ...base, [to]: a },
+        fromDef,
+        b,
+        opts,
+      );
+    }
+
+    if (!result.valid) {
+      const message = result.error || "This move violates squad rules.";
+      setViolationModal({ title: result.title || "Move Blocked", message });
+      toast.error(message);
+      return;
+    }
+
+    commitSquad((prev) => ({ ...prev, [to]: a, [from]: b }));
+    setActionSlot(null);
+    toast.success(
+      b
+        ? `Swapped ${a.player_name} and ${b.player_name}.`
+        : `${a.player_name} moved to ${toDef.label}.`,
+    );
+  };
+
   // "Swap with Reserve" — open the slot's picker (owned players first)
   const handleSwapWithReserve = (slot: FantasySlot) => {
     setActionSlot(null);
@@ -1601,6 +1646,65 @@ export function FantasySquadBuilder() {
     }));
     toast.success(`${reservePlayer.name} promoted to ${validSlot.label}.`);
   };
+
+  // Builds the pitch's player shape from an owned reserve.
+  const reserveToStarter = (r: SquadPlayer): FantasyPlayerListItem => {
+    const meta = playerMetadataLookup.get(r.player_id);
+    return {
+      player_id: r.player_id,
+      player_name: r.name,
+      player_image: r.image || meta?.image || "",
+      position: r.position,
+      gender: r.gender,
+      team_id: r.club_id,
+      team_name: r.club_name || meta?.team_name || "",
+      team_short_name: r.club_short_name || meta?.team_short_name || "",
+      team_logo: r.club_logo || meta?.team_logo || "",
+      price: r.purchase_price,
+      rating: 0,
+      total_points: 0,
+      owned_by: 0,
+      selected_by_pct: 0,
+      transfers_in: 0,
+      transfers_out: 0,
+    };
+  };
+
+  // Drag a reserve onto a slot: empty = start them there, filled = swap
+  // (the displaced starter simply returns to the bench).
+  const handleReserveDrop = (playerId: string, slot: FantasySlot) => {
+    const reserve = mySquad?.players.find((p) => p.player_id === playerId);
+    const toDef = SLOT_DEFINITIONS.find((d) => d.slot === slot);
+    if (!reserve || !toDef) return;
+
+    const displaced = squad[slot];
+    // Validate with the target slot emptied, so the starter being replaced
+    // doesn't count against the club limit, quotas or All-Rounder cap.
+    const result = validateProposedStartingMove(
+      { ...squad, [slot]: null },
+      toDef,
+      reserve,
+      { season, mySquad, isBuying: false },
+    );
+
+    if (!result.valid) {
+      const message = result.error || "This move violates squad rules.";
+      setViolationModal({ title: result.title || "Move Blocked", message });
+      toast.error(message);
+      return;
+    }
+
+    commitSquad((prev) => ({ ...prev, [slot]: reserveToStarter(reserve) }));
+    setActionSlot(null);
+    toast.success(
+      displaced
+        ? `${reserve.name} replaces ${displaced.player_name}.`
+        : `${reserve.name} promoted to ${toDef.label}.`,
+    );
+  };
+
+  const { drag: reserveDrag, startDrag: startReserveDrag } =
+    useReserveDrag(handleReserveDrop);
 
   // Market closed detection
   const marketClosed =
@@ -2058,7 +2162,10 @@ export function FantasySquadBuilder() {
           squad={squad}
           mode="builder"
           title="Starting 14 Lineup"
+          onSwapSlots={handleSwapSlots}
           selectedUnitTab={selectedUnitTab}
+          reserveDragActive={!!reserveDrag}
+          dropHighlightSlot={reserveDrag?.over ?? null}
           onUnitTabChange={setSelectedUnitTab}
           actionSlot={actionSlot}
           onSlotClick={(slot, player) => {
@@ -2398,7 +2505,8 @@ export function FantasySquadBuilder() {
               </span>
             </h2>
             <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
-              Bench depth. Score nothing until promoted to the starting 14.
+              Score nothing until promoted to the starting 14. Drag a reserve
+              onto the pitch to start them (hold first on touch).
             </p>
           </div>
           {mySquad &&
@@ -2465,13 +2573,26 @@ export function FantasySquadBuilder() {
               return (
                 <div
                   key={p.player_id}
-                  className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition ${
+                  onPointerDown={
+                    isReserveInactive
+                      ? undefined
+                      : (e) => startReserveDrag(e, p.player_id)
+                  }
+                  onDragStart={(e) => e.preventDefault()}
+                  onContextMenu={(e) => {
+                    if (!isReserveInactive) e.preventDefault();
+                  }}
+                  className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition select-none [-webkit-touch-callout:none] ${
                     isReserveInactive
                       ? "bg-red-50/40 dark:bg-red-950/20 opacity-80"
-                      : ""
+                      : reserveDrag?.playerId === p.player_id
+                        ? "opacity-40"
+                        : "cursor-grab"
                   }`}
                 >
-                  <div className={`relative ${isReserveInactive ? "filter grayscale opacity-60" : ""}`}>
+                  <div
+                    className={`relative ${isReserveInactive ? "filter grayscale opacity-60" : ""}`}
+                  >
                     <PlayerAvatar
                       name={p.name}
                       image={
@@ -2541,14 +2662,16 @@ export function FantasySquadBuilder() {
                       >
                         Inactive
                       </button>
-                    ) : hasOpenSlot && (
-                      <button
-                        type="button"
-                        onClick={() => handleStartReserve(p)}
-                        className="min-h-11 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-wider transition cursor-pointer shadow-sm"
-                      >
-                        Start
-                      </button>
+                    ) : (
+                      hasOpenSlot && (
+                        <button
+                          type="button"
+                          onClick={() => handleStartReserve(p)}
+                          className="min-h-11 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-wider transition cursor-pointer shadow-sm"
+                        >
+                          Start
+                        </button>
+                      )
                     )}
                     <button
                       type="button"
@@ -3415,6 +3538,41 @@ export function FantasySquadBuilder() {
             }}
             className="space-y-4"
           >
+            {reserveDrag &&
+              (() => {
+                const p = mySquad?.players.find(
+                  (x) => x.player_id === reserveDrag.playerId,
+                );
+                if (!p) return null;
+                return createPortal(
+                  <div
+                    aria-hidden="true"
+                    className="fixed z-100 pointer-events-none flex flex-col items-center gap-1"
+                    style={{
+                      left: reserveDrag.x,
+                      top: reserveDrag.y,
+                      transform: "translate(-50%, -50%) scale(1.15)",
+                    }}
+                  >
+                    <div className="rounded-full ring-2 ring-white/70 shadow-2xl">
+                      <PlayerAvatar
+                        name={p.name}
+                        image={
+                          p.image ||
+                          playerMetadataLookup.get(p.player_id)?.image ||
+                          undefined
+                        }
+                        gender={p.gender}
+                      />
+                    </div>
+                    <span className="text-[10px] font-bold text-white bg-black/60 rounded px-1.5 py-0.5">
+                      {p.name.split(" ").slice(-1)[0]}
+                    </span>
+                  </div>,
+                  document.body,
+                );
+              })()}
+
             <div>
               <label
                 htmlFor="edit-team-name-modal-input"
