@@ -1260,20 +1260,13 @@ func (s *FantasyService) GetMyLineup(ctx context.Context, userID, seasonID, game
 			item.TeamID = p.Player.TeamID
 			item.PlayerStatus = p.Player.Status
 			item.IsReserve = p.Player.IsReserve
-
-			var teamActive bool
 			if p.Player.Team != nil {
 				item.TeamName = p.Player.Team.Name
 				item.TeamShortName = p.Player.Team.ShortName
 				item.TeamLogo = p.Player.Team.Logo
-				teamActive = p.Player.Team.Status == "active"
-				item.TeamActive = &teamActive
-			} else {
-				teamActive = false
-				item.TeamActive = &teamActive
 			}
-
-			isEligible := p.Player.Status == "active" && !p.Player.IsReserve && p.Player.TeamID != "" && teamActive
+			teamActive, isEligible := domain.PickEligibility(p.Player)
+			item.TeamActive = &teamActive
 			item.IsEligible = &isEligible
 		}
 		picks = append(picks, item)
@@ -1418,20 +1411,13 @@ func (s *FantasyService) GetTeamLineup(ctx context.Context, requestingUserID, te
 			item.TeamID = p.Player.TeamID
 			item.PlayerStatus = p.Player.Status
 			item.IsReserve = p.Player.IsReserve
-
-			var teamActive bool
 			if p.Player.Team != nil {
 				item.TeamName = p.Player.Team.Name
 				item.TeamShortName = p.Player.Team.ShortName
 				item.TeamLogo = p.Player.Team.Logo
-				teamActive = p.Player.Team.Status == "active"
-				item.TeamActive = &teamActive
-			} else {
-				teamActive = false
-				item.TeamActive = &teamActive
 			}
-
-			isEligible := p.Player.Status == "active" && !p.Player.IsReserve && p.Player.TeamID != "" && teamActive
+			teamActive, isEligible := domain.PickEligibility(p.Player)
+			item.TeamActive = &teamActive
 			item.IsEligible = &isEligible
 		}
 		resp.Picks = append(resp.Picks, item)

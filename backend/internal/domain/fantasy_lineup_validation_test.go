@@ -256,3 +256,40 @@ func TestAllrounderDefenseRestriction(t *testing.T) {
 		}
 	})
 }
+
+// PickEligibility is what every lineup view uses to decide whether to grey a
+// starter out. It once required a TeamID the hydration query never filled in,
+// so every pick on every sheet read as ineligible — these pin each input.
+func TestPickEligibility(t *testing.T) {
+	activeClub := &Team{ID: "c1", Status: "active"}
+	inactiveClub := &Team{ID: "c2", Status: "inactive"}
+
+	cases := []struct {
+		name           string
+		pl             *Player
+		wantTeamActive bool
+		wantEligible   bool
+	}{
+		{"an active player at an active club is eligible",
+			&Player{Status: "active", TeamID: "c1", Team: activeClub}, true, true},
+		// A reserve can sit on the bench but cannot start.
+		{"a club reserve cannot start",
+			&Player{Status: "active", TeamID: "c1", Team: activeClub, IsReserve: true}, true, false},
+		{"a deactivated player is not",
+			&Player{Status: "inactive", TeamID: "c1", Team: activeClub}, true, false},
+		{"a player at an inactive club is not",
+			&Player{Status: "active", TeamID: "c2", Team: inactiveClub}, false, false},
+		{"a player with no club is not",
+			&Player{Status: "active", Team: &Team{}}, false, false},
+		{"a missing player is not", nil, false, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			teamActive, eligible := PickEligibility(c.pl)
+			if teamActive != c.wantTeamActive || eligible != c.wantEligible {
+				t.Errorf("got teamActive=%v eligible=%v, want %v %v",
+					teamActive, eligible, c.wantTeamActive, c.wantEligible)
+			}
+		})
+	}
+}

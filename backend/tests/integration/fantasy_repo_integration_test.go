@@ -1769,3 +1769,117 @@ func TestSyncRepairsALiveSeasonWithEmptyGameweeks(t *testing.T) {
 		}
 	})
 }
+
+// TestLineupPicksCarryEligibility guards the hydration every lineup view reads.
+//
+// Both GetLineup and GetLatestPriorLockedLineup (which serves rolled-over
+// squads) must fill in the player's club, the club's status and whether the
+// player is on the club's reserve list. When GetLineup left TeamID empty and
+// the rollover query skipped club status entirely, every pick on every manager's
+// sheet came back ineligible — a fake repository cannot catch that, because the
+// bug was in the SQL.
+func TestLineupPicksCarryEligibility(t *testing.T) {
+	f := setupFantasyFixture(t)
+	ctx := context.Background()
+	repo := ports.NewFantasyRepository(f.pool)
+
+	// The fixture's GW1 lineup is LOCKED, so it is also what a rollover into
+	// gameweek 2 would carry forward.
+	load := map[string]func(t *testing.T) *domain.FantasyLineup{
+		"GetLineup": func(t *testing.T) *domain.FantasyLineup {
+			l, err := repo.GetLineup(ctx, f.teamID, f.gameweekID)
+			if err != nil {
+				t.Fatalf("GetLineup: %v", err)
+			}
+			return l
+		},
+		"GetLatestPriorLockedLineup": func(t *testing.T) *domain.FantasyLineup {
+			l, err := repo.GetLatestPriorLockedLineup(ctx, f.teamID, 2)
+			if err != nil {
+				t.Fatalf("GetLatestPriorLockedLineup: %v", err)
+			}
+			return l
+		},
+	}
+
+	pickFor := func(t *testing.T, l *domain.FantasyLineup) *domain.Player {
+		t.Helper()
+		if l == nil {
+			t.Fatal("no lineup returned")
+		}
+		for _, p := range l.Picks {
+			if p.PlayerID == f.playerID {
+				return p.Player
+			}
+		}
+		t.Fatalf("fixture player missing from lineup")
+		return nil
+	}
+
+	for name, fetch := range load {
+		t.Run(name+": an active player at an active club is eligible", func(t *testing.T) {
+			pl := pickFor(t, fetch(t))
+			if pl.TeamID != f.clubID {
+				t.Errorf("TeamID not hydrated: got %q, want %q", pl.TeamID, f.clubID)
+			}
+			if teamActive, eligible := domain.PickEligibility(pl); !teamActive || !eligible {
+				t.Errorf("expected eligible, got teamActive=%v eligible=%v (club status %q)",
+					teamActive, eligible, pl.Team.Status)
+			}
+		})
+	}
+
+	// A club reserve is reported, and cannot start.
+	mustExec(t, f.pool, `INSERT INTO team_reserves (team_id, player_id) VALUES ($1, $2)`, f.clubID, f.playerID)
+	for name, fetch := range load {
+		t.Run(name+": a club reserve is flagged and cannot start", func(t *testing.T) {
+			pl := pickFor(t, fetch(t))
+			if !pl.IsReserve {
+				t.Error("expected the reserve flag to be hydrated")
+			}
+			if teamActive, eligible := domain.PickEligibility(pl); !teamActive || eligible {
+				t.Errorf("a reserve at an active club: want teamActive=true eligible=false, got %v %v", teamActive, eligible)
+			}
+		})
+	}
+
+	// The bench reads the squad, not the sheet, and must see the same flag so a
+	// reserve can be shown — and kept out of the "Start" action — there too.
+	t.Run("ListSquad flags a club reserve on the bench", func(t *testing.T) {
+		mustExec(t, f.pool,
+			`INSERT INTO fantasy_squad_players (team_id, player_id, purchase_price) VALUES ($1, $2, 10.00)`,
+			f.teamID, f.playerID)
+		t.Cleanup(func() {
+			f.pool.Exec(ctx, `DELETE FROM fantasy_squad_players WHERE team_id = $1 AND player_id = $2`, f.teamID, f.playerID)
+		})
+		squad, err := ports.NewFantasySquadRepository(f.pool).ListSquad(ctx, f.teamID, "")
+		if err != nil {
+			t.Fatalf("ListSquad: %v", err)
+		}
+		found := false
+		for _, sp := range squad {
+			if sp.PlayerID == f.playerID {
+				found = true
+				if !sp.IsReserve {
+					t.Error("expected the squad row to carry the reserve flag")
+				}
+			}
+		}
+		if !found {
+			t.Fatal("the squad row just inserted was not listed")
+		}
+	})
+	mustExec(t, f.pool, `DELETE FROM team_reserves WHERE player_id = $1`, f.playerID)
+
+	// A genuinely inactive club is still caught.
+	mustExec(t, f.pool, `UPDATE teams SET status = 'inactive' WHERE id = $1`, f.clubID)
+	t.Cleanup(func() { f.pool.Exec(ctx, `UPDATE teams SET status = 'active' WHERE id = $1`, f.clubID) })
+	for name, fetch := range load {
+		t.Run(name+": a player at an inactive club is ineligible", func(t *testing.T) {
+			pl := pickFor(t, fetch(t))
+			if _, eligible := domain.PickEligibility(pl); eligible {
+				t.Error("a player at an inactive club must be ineligible")
+			}
+		})
+	}
+}

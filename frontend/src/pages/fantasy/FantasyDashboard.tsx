@@ -895,7 +895,7 @@ export function FantasyDashboard() {
                             </p>
                             {isInvalidPick && (
                               <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800">
-                                Inactive
+                                {pick.is_reserve ? "Reserve" : "Inactive"}
                               </span>
                             )}
                           </div>

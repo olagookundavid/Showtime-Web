@@ -3719,6 +3719,8 @@ export interface SquadPlayer {
      * an inactive club, they cannot be fielded.
      */
     player_status?: string;
+    /** On their club's reserve list: can sit on the bench, cannot start. */
+    is_reserve?: boolean;
     sell_price: number;
     /** Always true — the squad carries no restrictions. */
     can_sell: boolean;

@@ -347,6 +347,28 @@ const BudgetEpsilon = 0.0001
 // unchanged.
 const budgetEpsilon = BudgetEpsilon
 
+// PickEligibility reports whether a player can be in the STARTING fourteen:
+// active, at an active club, and not on that club's reserve list.
+//
+// This is about where a player may sit, not whether they may be owned. A
+// reserve or an inactive player can stay in a squad on the bench; they just
+// cannot start. So "ineligible" here means "move to the bench or replace",
+// never "this player is invalid".
+//
+// This is the single rule both lineup views read from. It used to be written
+// out inline in GetMyLineup and GetTeamLineup, where it checked a TeamID the
+// hydration query never populated — so every pick on every sheet came back
+// ineligible.
+func PickEligibility(pl *Player) (teamActive, eligible bool) {
+	if pl == nil {
+		return false, false
+	}
+	hasClub := pl.TeamID != ""
+	teamActive = hasClub && pl.Team != nil && pl.Team.Status == "active"
+	eligible = pl.Status == "active" && teamActive && !pl.IsReserve
+	return teamActive, eligible
+}
+
 func displayName(p LineupCandidate) string {
 	if p.Name != "" {
 		return p.Name

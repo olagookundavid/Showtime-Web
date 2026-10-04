@@ -87,6 +87,9 @@ type SquadPlayer struct {
 	Starting bool `json:"starting"`
 	// TeamActive is true when the player's club is active and participating.
 	TeamActive bool `json:"team_active"`
+	// IsReserve is true when the player is on their club's reserve list. A
+	// reserve can sit on a fantasy bench but cannot be started.
+	IsReserve bool `json:"is_reserve"`
 
 	// SellPrice is what this player would fetch right now.
 	SellPrice float64 `json:"sell_price"`

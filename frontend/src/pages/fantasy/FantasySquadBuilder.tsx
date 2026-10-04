@@ -848,7 +848,8 @@ export function FantasySquadBuilder() {
         if (
           !squadMember ||
           squadMember.team_active === false ||
-          isDeletedPlayer({ status: squadMember.player_status })
+          isDeletedPlayer({ status: squadMember.player_status }) ||
+          squadMember.is_reserve
         ) {
           hasInactiveStartingPlayer = true;
           break;
@@ -960,8 +961,8 @@ export function FantasySquadBuilder() {
       },
       {
         ok: calculations.clubsActiveValid,
-        label: "Every starter is at an active club",
-        detail: calculations.clubsActiveValid ? "OK" : "Transfer them out",
+        label: "Every starter can start (no inactive or club-reserve players)",
+        detail: calculations.clubsActiveValid ? "OK" : "Bench or replace them",
       },
       {
         ok: calculations.duplicatePlayerValid,
@@ -1247,6 +1248,8 @@ export function FantasySquadBuilder() {
       "team_active" in candidate ? candidate.team_active : true;
     const playerStatus =
       "player_status" in candidate ? candidate.player_status : undefined;
+    const isClubReserve =
+      "is_reserve" in candidate ? !!candidate.is_reserve : false;
 
     // 1. Inactive Club or Deleted Player Check
     if (teamActive === false) {
@@ -1261,6 +1264,13 @@ export function FantasySquadBuilder() {
         valid: false,
         title: "Player Unavailable",
         error: `${candidateName} is no longer available in the league.`,
+      };
+    }
+    if (isClubReserve) {
+      return {
+        valid: false,
+        title: "Club Reserve",
+        error: `${candidateName} is on their club's reserve list — they can sit on your bench but cannot start.`,
       };
     }
 
@@ -1564,6 +1574,16 @@ export function FantasySquadBuilder() {
 
   // "Start" — promote a bench reserve into an open matching slot
   const handleStartReserve = (reservePlayer: SquadPlayer) => {
+    // Club reserves and inactive players may sit on the bench but never start.
+    if (
+      reservePlayer.is_reserve ||
+      reservePlayer.team_active === false ||
+      isDeletedPlayer({ status: reservePlayer.player_status })
+    ) {
+      toast.error(`${reservePlayer.name} can sit on the bench but cannot start.`);
+      return;
+    }
+
     // Find all empty slots that match position
     const eligibleSlots = SLOT_DEFINITIONS.filter((def) => {
       if (squad[def.slot] !== null) return false;
@@ -2202,6 +2222,9 @@ export function FantasySquadBuilder() {
               if (isDeletedPlayer({ status: squadMember.player_status })) {
                 return { invalid: true, reason: "Unavailable" };
               }
+              if (squadMember.is_reserve) {
+                return { invalid: true, reason: "Club reserve" };
+              }
             }
 
             return false;
@@ -2550,9 +2573,12 @@ export function FantasySquadBuilder() {
               const isReserveInactive =
                 p.team_active === false ||
                 isDeletedPlayer({ status: p.player_status });
+              // On the club's reserve list: fine on this bench, can't start.
+              const isClubReserve = !isReserveInactive && !!p.is_reserve;
               // Can this reserve be promoted into an open matching slot?
               const hasOpenSlot =
                 !isReserveInactive &&
+                !isClubReserve &&
                 SLOT_DEFINITIONS.some((def) => {
                   if (squad[def.slot] !== null) return false;
                   if (!positionFitsSlot(def, p.position)) return false;
@@ -2628,6 +2654,11 @@ export function FantasySquadBuilder() {
                           Inactive {p.team_active === false ? "Club" : "Player"}
                         </span>
                       )}
+                      {isClubReserve && (
+                        <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
+                          Club reserve
+                        </span>
+                      )}
                     </div>
                     {isFemale(p.gender) && !isReserveInactive && (
                       <div className="flex flex-wrap gap-1.5 mt-1">
@@ -2653,14 +2684,18 @@ export function FantasySquadBuilder() {
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
-                    {isReserveInactive ? (
+                    {isReserveInactive || isClubReserve ? (
                       <button
                         type="button"
                         disabled
-                        title="Cannot start an inactive or deleted player"
+                        title={
+                          isClubReserve
+                            ? "On their club's reserve list — can sit on the bench but not start"
+                            : "Cannot start an inactive or deleted player"
+                        }
                         className="min-h-11 px-3.5 py-2 rounded-xl bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 font-black text-[10px] uppercase tracking-wider cursor-not-allowed border border-gray-300 dark:border-gray-600"
                       >
-                        Inactive
+                        {isClubReserve ? "Bench only" : "Inactive"}
                       </button>
                     ) : (
                       hasOpenSlot && (

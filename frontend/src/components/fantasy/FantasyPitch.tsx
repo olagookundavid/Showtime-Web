@@ -391,14 +391,17 @@ export function FantasyPitch({
         const isInactiveClub = p.team_active === false;
         const isDeleted =
           p.player_status === "inactive" || p.player_status === "deleted";
+        // Reserves and inactive players may sit on the bench but not start, so
+        // in the starting fourteen they are flagged to move — each with its own
+        // reason rather than a blanket "ineligible".
         const isReserve = !!p.is_reserve;
         const isInvalid =
           p.is_eligible === false || isInactiveClub || isDeleted || isReserve;
         let invalidReason = "";
         if (isDeleted) invalidReason = "Player deactivated";
         else if (isInactiveClub) invalidReason = "Inactive club";
-        else if (isReserve) invalidReason = "On team reserves";
-        else if (isInvalid) invalidReason = "Ineligible to play";
+        else if (isReserve) invalidReason = "Club reserve";
+        else if (isInvalid) invalidReason = "Cannot start";
 
         map.set(p.slot, {
           slot: p.slot,
@@ -822,7 +825,7 @@ export function FantasyPitch({
                 aria-label={
                   empty
                     ? `${spot.role} — ${mode === "builder" ? "Tap to draft athlete" : "no player selected"}`
-                    : `${spot.role}: ${pick.player_name ?? "Unnamed player"}, ${positionLabel}, ${isFemale ? "female" : "male"}${isSpotInvalid ? `, INELIGIBLE: ${pick.invalidReason}` : ""} - ${mode === "builder" ? "click to manage" : "click to view details"}`
+                    : `${spot.role}: ${pick.player_name ?? "Unnamed player"}, ${positionLabel}, ${isFemale ? "female" : "male"}${isSpotInvalid ? `, cannot start: ${pick.invalidReason}` : ""} - ${mode === "builder" ? "click to manage" : "click to view details"}`
                 }
                 className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-0.5 sm:gap-1 w-14 min-[400px]:w-17 sm:w-21.5 px-0.5 py-0.5 select-none [-webkit-touch-callout:none] ${
                   canDrag && !empty ? "cursor-grab" : "cursor-pointer"
@@ -910,7 +913,7 @@ export function FantasyPitch({
                   {isSpotInvalid && (
                     <span
                       aria-hidden="true"
-                      title={pick.invalidReason || "Ineligible Player"}
+                      title={pick.invalidReason || "Cannot start"}
                       className="absolute -top-1.5 -left-1.5 z-20 flex items-center justify-center w-4.5 h-4.5 sm:w-5 sm:h-5 rounded-full border-2 border-white shadow-lg bg-red-600 text-white animate-pulse"
                     >
                       <ExclamationTriangleIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
@@ -940,7 +943,7 @@ export function FantasyPitch({
                   <span className="block max-w-full truncate px-1 py-0.5 rounded bg-red-600 text-white text-[7px] sm:text-[8px] font-black uppercase tracking-wider shadow leading-none border border-red-400/50 mt-0.5">
                     {pick.invalidReason
                       ? pick.invalidReason.replace(/player/i, "").trim()
-                      : "INACTIVE"}
+                      : "Cannot start"}
                   </span>
                 ) : (
                   <span
@@ -1011,7 +1014,7 @@ export function FantasyPitch({
             )}
             {activePick
               ? activePick.isInvalid
-                ? `${activePick.invalidReason || "Player or club is inactive"} — replace or transfer out.`
+                ? `${activePick.invalidReason || "Cannot start"} — can sit on the bench but not start. Move to bench or replace.`
                 : `${activeSpot.role} · ${activePick.team_short_name || activePick.team_name || "—"}`
               : mode === "builder"
                 ? `Empty slot · Tap here or on the pitch to draft an athlete`
