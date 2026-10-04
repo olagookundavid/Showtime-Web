@@ -141,7 +141,19 @@ func SetupUploadRoutes(r *gin.RouterGroup, app *api.Application) {
 	// player_pending is an unapproved account claimant. They need presign access to
 	// attach the photo their manager identifies them by; PresignUpload pins their folder
 	// to claim-photos so the grant cannot reach the rest of the bucket.
-	uploadRoutes.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.RolesAllowedMiddleware(app.AuthService, "admin", "team_head", "player_pending"))
+	//
+	// Every other staff role is allowed too: presigning alone doesn't let anyone attach
+	// the file anywhere — the feature it's used by (Hero Slides, News, Gallery, Store
+	// products, team logos, etc.) is separately gated by FeatureAccessMiddleware, so this
+	// is just "can this person reach the admin panel at all", not a per-feature check.
+	// Keeping this list narrower than that caused a real bug: a content_creator with
+	// full access to Hero Slides still got a 403 trying to upload the slide image,
+	// because this route never knew about the new roles.
+	uploadRoutes.Use(commonAuth.TokenMiddleware(app.TokenMaker), middlewares.RolesAllowedMiddleware(app.AuthService,
+		"admin", "team_head", "player_pending",
+		"broadcast", "referee", "stats", "ticketer", "seller",
+		"commissioner", "fantasy_commissioner", "head_referee", "news_head", "content_creator", "store_manager",
+	))
 	{
 		uploadRoutes.POST("/presign", app.Handlers.UploadHandler.PresignUpload)
 		uploadRoutes.DELETE("", app.Handlers.UploadHandler.DeleteUpload)
