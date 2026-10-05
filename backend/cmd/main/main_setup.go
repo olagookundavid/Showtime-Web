@@ -520,7 +520,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 	badgeHandler := transport.NewBadgeHandler(badgeService)
 	totwHandler := transport.NewTOTWHandler(totwService)
 
-	broadcastHub := broadcast.NewHub()
+	broadcastHub := broadcast.NewHub(ports.NewBroadcastStateRepository(pool))
 	broadcastHandler := broadcast.NewBroadcastHandler(broadcastHub, matchService, playService)
 
 	h := handlers.NewHandlers(

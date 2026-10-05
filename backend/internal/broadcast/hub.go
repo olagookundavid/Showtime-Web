@@ -1,6 +1,7 @@
 package broadcast
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -15,7 +16,19 @@ const (
 	pongWait       = 60 * time.Second
 	pingPeriod     = (pongWait * 9) / 10
 	maxMessageSize = 65536
+
+	// persistDebounce coalesces bursts of updates (e.g. rapid score taps) into
+	// one write per match. Live fan-out never waits on it.
+	persistDebounce = 250 * time.Millisecond
+	persistTimeout  = 5 * time.Second
 )
+
+// Store persists broadcast state so it survives a restart. Load returns nil
+// when nothing is stored for the match.
+type Store interface {
+	Load(ctx context.Context, matchID string) ([]byte, error)
+	Save(ctx context.Context, matchID string, state []byte) error
+}
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  2048,
@@ -36,19 +49,126 @@ type Client struct {
 }
 
 // Hub maintains the set of active clients and handles broadcasting state updates.
+// State lives in memory for fan-out; when a Store is set it is written behind
+// asynchronously and read back on a cache miss.
 type Hub struct {
 	mu        sync.RWMutex
 	states    map[string]*BroadcastState
 	producers map[string]map[*Client]bool
 	viewers   map[string]map[*Client]bool
+
+	store     Store
+	pendMu    sync.Mutex
+	pending   map[string][]byte // latest unsaved state per match
+	wake      chan struct{}
+	stop      chan struct{}
+	stopped   chan struct{}
+	closeOnce sync.Once
 }
 
-// NewHub initializes an in-memory broadcast hub.
-func NewHub() *Hub {
-	return &Hub{
+// NewHub initializes a broadcast hub. store may be nil for a memory-only hub.
+func NewHub(store Store) *Hub {
+	h := &Hub{
 		states:    make(map[string]*BroadcastState),
 		producers: make(map[string]map[*Client]bool),
 		viewers:   make(map[string]map[*Client]bool),
+		store:     store,
+		pending:   make(map[string][]byte),
+		wake:      make(chan struct{}, 1),
+		stop:      make(chan struct{}),
+		stopped:   make(chan struct{}),
+	}
+	if store != nil {
+		go h.persistLoop()
+	} else {
+		close(h.stopped)
+	}
+	return h
+}
+
+// LoadState returns the in-memory state, falling back to the store. A restored
+// state has its graphic cleared so a stale lower-third doesn't replay on air.
+func (h *Hub) LoadState(ctx context.Context, matchID string) (*BroadcastState, bool) {
+	if state, ok := h.GetState(matchID); ok {
+		return state, true
+	}
+	if h.store == nil {
+		return nil, false
+	}
+
+	data, err := h.store.Load(ctx, matchID)
+	if err != nil {
+		log.Printf("[BroadcastHub] load error for match %s: %v", matchID, err)
+		return nil, false
+	}
+	if data == nil {
+		return nil, false
+	}
+	var state BroadcastState
+	if err := json.Unmarshal(data, &state); err != nil {
+		log.Printf("[BroadcastHub] corrupt stored state for match %s: %v", matchID, err)
+		return nil, false
+	}
+	state.MatchID = matchID
+	state.Graphic = nil
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	// Another request may have loaded or set it while we were reading.
+	if existing, ok := h.states[matchID]; ok {
+		cp := *existing
+		return &cp, true
+	}
+	h.states[matchID] = &state
+	cp := state
+	return &cp, true
+}
+
+// Close flushes unsaved state to the store and stops the persister.
+func (h *Hub) Close(ctx context.Context) {
+	h.closeOnce.Do(func() {
+		if h.store != nil {
+			close(h.stop)
+		}
+	})
+	select {
+	case <-h.stopped:
+	case <-ctx.Done():
+		log.Printf("[BroadcastHub] close timed out before flushing state")
+	}
+}
+
+func (h *Hub) persistLoop() {
+	defer close(h.stopped)
+	for {
+		select {
+		case <-h.wake:
+		case <-h.stop:
+			h.flush()
+			return
+		}
+		select {
+		case <-time.After(persistDebounce):
+		case <-h.stop:
+			h.flush()
+			return
+		}
+		h.flush()
+	}
+}
+
+func (h *Hub) flush() {
+	h.pendMu.Lock()
+	batch := h.pending
+	h.pending = make(map[string][]byte)
+	h.pendMu.Unlock()
+
+	for matchID, data := range batch {
+		ctx, cancel := context.WithTimeout(context.Background(), persistTimeout)
+		if err := h.store.Save(ctx, matchID, data); err != nil {
+			log.Printf("[BroadcastHub] save error for match %s: %v", matchID, err)
+		}
+		cancel()
 	}
 }
 
@@ -71,9 +191,24 @@ func (h *Hub) SetState(state *BroadcastState) {
 	state.UpdatedAt = time.Now().UnixMilli()
 	cp := *state
 	h.states[state.MatchID] = &cp
+	data, err := json.Marshal(&cp)
+	if err == nil && h.store != nil {
+		// Queued under h.mu so the stored order matches the in-memory order.
+		h.pendMu.Lock()
+		h.pending[cp.MatchID] = data
+		h.pendMu.Unlock()
+		select {
+		case h.wake <- struct{}{}:
+		default:
+		}
+	}
 	h.mu.Unlock()
 
-	h.Broadcast(state.MatchID, state)
+	if err != nil {
+		log.Printf("[BroadcastHub] marshal error: %v", err)
+		return
+	}
+	h.broadcastData(cp.MatchID, data)
 }
 
 // Register registers a client with the hub.
@@ -132,14 +267,8 @@ func (h *Hub) Unregister(c *Client) {
 	}
 }
 
-// Broadcast sends the serialized state to all producers and viewers for the given match.
-func (h *Hub) Broadcast(matchID string, state *BroadcastState) {
-	data, err := json.Marshal(state)
-	if err != nil {
-		log.Printf("[BroadcastHub] marshal error: %v", err)
-		return
-	}
-
+// broadcastData sends the serialized state to all producers and viewers for the given match.
+func (h *Hub) broadcastData(matchID string, data []byte) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
