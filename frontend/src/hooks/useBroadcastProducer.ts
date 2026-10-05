@@ -28,39 +28,43 @@ export function useBroadcastProducer(matchId: string) {
 
   const token = localStorage.getItem('showtime_access_token') || '';
 
-  // Fetch initial state & players via REST
-  const fetchData = useCallback(async () => {
-    if (!matchId) return;
-    try {
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const [stateRes, playersRes] = await Promise.all([
-        axios.get(`${API_URL}/matches/${matchId}/broadcast/state`, { headers }),
-        axios.get(`${API_URL}/matches/${matchId}/broadcast/players`, { headers }),
-      ]);
-      setState(stateRes.data);
-      setPlayers(playersRes.data || []);
-      setError(null);
-    } catch (err) {
-      console.error('[useBroadcastProducer] fetch error:', err);
-      const message = axios.isAxiosError(err)
-        ? err.response?.data?.error || err.message
-        : 'Failed to load broadcast data';
-      setError(message || 'Failed to load broadcast data');
-    }
-  }, [matchId, token]);
+  // Producer routes live under the admin group (gated by the broadcast_studio feature).
+  const baseUrl = `${API_URL}/admin/matches/${matchId}/broadcast`;
 
-  // Connect WebSocket
+  // Fetch initial state & players via REST, then connect the WebSocket
   useEffect(() => {
     if (!matchId) return;
-    fetchData();
 
     let isMounted = true;
     let reconnectDelay = 1000;
 
+    async function fetchData() {
+      try {
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const [stateRes, playersRes] = await Promise.all([
+          axios.get(`${baseUrl}/state`, { headers }),
+          axios.get(`${baseUrl}/players`, { headers }),
+        ]);
+        if (!isMounted) return;
+        setState(stateRes.data);
+        setPlayers(playersRes.data || []);
+        setError(null);
+      } catch (err) {
+        console.error('[useBroadcastProducer] fetch error:', err);
+        if (!isMounted) return;
+        const message = axios.isAxiosError(err)
+          ? err.response?.data?.error || err.message
+          : 'Failed to load broadcast data';
+        setError(message || 'Failed to load broadcast data');
+      }
+    }
+
+    fetchData();
+
     function connectWS() {
       if (!isMounted) return;
 
-      const wsPath = `/api/v1/matches/${matchId}/broadcast/ws?token=${encodeURIComponent(token)}`;
+      const wsPath = `${new URL(baseUrl, window.location.origin).pathname}/ws?token=${encodeURIComponent(token)}`;
       const wsUrl = getWebSocketURL(wsPath);
 
       const ws = new WebSocket(wsUrl);
@@ -111,7 +115,7 @@ export function useBroadcastProducer(matchId: string) {
         wsRef.current.close();
       }
     };
-  }, [matchId, token, fetchData]);
+  }, [matchId, token, baseUrl]);
 
   // Send state update through WS or fallback REST PUT
   const sendState = useCallback(async (newState: BroadcastState) => {
@@ -123,12 +127,12 @@ export function useBroadcastProducer(matchId: string) {
       // Fallback REST PUT
       try {
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        await axios.put(`${API_URL}/matches/${matchId}/broadcast/state`, newState, { headers });
+        await axios.put(`${baseUrl}/state`, newState, { headers });
       } catch (err) {
         console.error('[useBroadcastProducer] REST sync error:', err);
       }
     }
-  }, [matchId, token]);
+  }, [baseUrl, token]);
 
   const updateField = useCallback(<K extends keyof BroadcastState>(key: K, value: BroadcastState[K]) => {
     if (!stateRef.current) return;
@@ -208,6 +212,5 @@ export function useBroadcastProducer(matchId: string) {
     setClock,
     fireGraphic,
     hideGraphic,
-    refresh: fetchData,
   };
 }

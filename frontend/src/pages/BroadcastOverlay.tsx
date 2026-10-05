@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useBroadcastViewer } from '../hooks/useBroadcastViewer';
 import { calculateClockNow, formatClock, type GraphicEvent } from '../types/broadcast';
@@ -11,14 +11,11 @@ export function BroadcastOverlay() {
   const { state } = useBroadcastViewer(id);
   const [scale, setScale] = useState({ k: 1, x: 0, y: 0 });
 
-  // Clock countdown timer state for smooth 1s updates
-  const [clockDisplay, setClockDisplay] = useState('12:00');
+  // Ticks while the clock runs so the countdown re-renders smoothly
+  const [now, setNow] = useState(() => Date.now());
 
-  // Graphic display state & animation timers
-  const [activeGraphic, setActiveGraphic] = useState<GraphicEvent | null>(null);
-  const [animClass, setAnimClass] = useState<'hidden' | 'enter' | 'out'>('hidden');
-  const lastGraphicIdRef = useRef<number>(0);
-  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Exit phase of the current graphic. A graphic whose id isn't recorded here is entering.
+  const [graphicExit, setGraphicExit] = useState<{ id: number; stage: 'out' | 'hidden' } | null>(null);
 
   // Set body to transparent overlay mode
   useEffect(() => {
@@ -47,55 +44,39 @@ export function BroadcastOverlay() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Update running clock display
+  // Tick the running clock
+  const clockRunning = state?.clock_running ?? false;
   useEffect(() => {
-    if (!state) return;
-    setClockDisplay(formatClock(calculateClockNow(state)));
-
-    if (!state.clock_running) return;
-
-    const interval = setInterval(() => {
-      setClockDisplay(formatClock(calculateClockNow(state)));
-    }, 250);
-
+    if (!clockRunning) return;
+    const interval = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(interval);
-  }, [state?.clock_running, state?.clock_seconds, state?.clock_stamp]);
+  }, [clockRunning]);
 
-  // Handle Graphic Events on graphic_id change
+  // Schedule the exit of each new graphic after its duration
+  const graphicId = state?.graphic ? state.graphic_id : 0;
+  const graphicDuration = state?.graphic?.duration || 5500;
   useEffect(() => {
-    if (!state) return;
-
-    if (state.graphic && state.graphic_id !== lastGraphicIdRef.current) {
-      lastGraphicIdRef.current = state.graphic_id;
-      const g = state.graphic;
-      setActiveGraphic(g);
-
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-
-      setAnimClass('hidden');
-      // Force repaint
-      requestAnimationFrame(() => {
-        setAnimClass('enter');
-
-        const duration = g.duration || 5500;
-        hideTimerRef.current = setTimeout(() => {
-          setAnimClass('out');
-          setTimeout(() => {
-            setAnimClass('hidden');
-            setActiveGraphic(null);
-          }, 350);
-        }, duration);
-      });
-    } else if (!state.graphic) {
-      setAnimClass('hidden');
-      setActiveGraphic(null);
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-    }
-  }, [state?.graphic, state?.graphic_id]);
+    if (!graphicId) return;
+    let hideTimer: ReturnType<typeof setTimeout> | undefined;
+    const outTimer = setTimeout(() => {
+      setGraphicExit({ id: graphicId, stage: 'out' });
+      hideTimer = setTimeout(() => setGraphicExit({ id: graphicId, stage: 'hidden' }), 350);
+    }, graphicDuration);
+    return () => {
+      clearTimeout(outTimer);
+      clearTimeout(hideTimer);
+    };
+  }, [graphicId, graphicDuration]);
 
   if (!state) {
     return <div className="broadcast-canvas" style={{ background: 'transparent' }} />;
   }
+
+  const clockDisplay = formatClock(calculateClockNow(state, now));
+
+  const exitStage = graphicExit?.id === graphicId ? graphicExit.stage : null;
+  const activeGraphic: GraphicEvent | null = state.graphic && exitStage !== 'hidden' ? state.graphic : null;
+  const animClass = exitStage ?? 'enter';
 
   const downText = state.down?.endsWith('G')
     ? `${['1ST', '2ND', '3RD', '4TH'][parseInt(state.down[0], 10) - 1] || '—'} & GOAL`
@@ -176,6 +157,7 @@ export function BroadcastOverlay() {
       {/* 2. Lower-Third Graphic Banner */}
       {activeGraphic && (
         <div
+          key={graphicId}
           className={`graphic-banner ${animClass} ${activeGraphic.compact ? 'compact-mode' : ''} ${
             !activeGraphic.player ? 'no-avatar' : ''
           }`}

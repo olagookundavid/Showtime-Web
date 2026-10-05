@@ -8,11 +8,14 @@ export default defineConfig({
   base: '/', // Ensures the app handles routing from the root
   server: {
     proxy: {
+      // ws: the producer studio's WebSocket lives under /api/v1/admin/...
       '/api': {
         target: 'http://localhost:8089',
         changeOrigin: true,
+        ws: true,
       },
-      '/broadcast': {
+      // Only the overlay's backend endpoints — /broadcast/:id/overlay itself is a SPA page.
+      '^/broadcast/[^/]+/overlay/(ws|state)$': {
         target: 'http://localhost:8089',
         changeOrigin: true,
         ws: true,

@@ -10,7 +10,7 @@ The Showtime broadcast system consists of two connected components:
 1. **Producer Control Studio (`/admin/broadcast/:matchId`):**
    - Web application loaded on the graphics operator's laptop or tablet.
    - Provides live controls for the score, countdown game clock, period, down/distance, timeout indicator dots, and lower-third graphics (touchdowns, interceptions, penalties, etc.).
-   - Authenticated: accessible to users with roles `broadcast`, `admin`, or `app_admin`.
+   - Authenticated: accessible to users with roles `broadcast`, `content_creator`, `admin`, or `app_admin`.
 2. **Transparent vMix Overlay (`/broadcast/:matchId/overlay`):**
    - Public, standalone 1920×1080 transparent canvas designed to be added directly into vMix as a **Web Browser Input**.
    - Streams live updates instantly (< 10ms) from the Go backend via WebSocket.
@@ -27,8 +27,8 @@ Follow these steps on the Windows machine running vMix:
 
 2. **Configure Browser Input Settings:**
    - **URL:** Enter your match's public overlay URL:
-     - **Production:** `https://showtimeflag.com/broadcast/<MATCH_ID>/overlay`
-     - **Local / LAN Testing:** `http://<IP_OF_SERVER>:5173/broadcast/<MATCH_ID>/overlay`
+     - **Production:** `https://www.showtimeflag.football/broadcast/<MATCH_ID>/overlay`
+     - **Local / LAN Testing:** `http://<IP_OF_DEV_MACHINE>:5173/broadcast/<MATCH_ID>/overlay` (run the frontend with `VITE_API_URL=/api/v1 npm run dev -- --host` so the vMix PC goes through the Vite proxy instead of its own `localhost`)
    - **Width:** `1920`
    - **Height:** `1080`
    - **Allow Transparency:** **CHECKED** (Critical: This allows the video cameras to show through behind the scorebug and graphic banners).
@@ -45,7 +45,7 @@ Follow these steps on the Windows machine running vMix:
 The broadcast operator/producer controls what appears on air:
 
 1. **Log In to Showtime:**
-   - Open a browser on a laptop or tablet and go to `https://showtimeflag.com/login`.
+   - Open a browser on a laptop or tablet and go to `https://www.showtimeflag.football/login`.
    - Log in with credentials having the `broadcast` (or `admin`/`app_admin`) role.
    - You will automatically land on the **Broadcast Studio** (`/admin/broadcast`).
 

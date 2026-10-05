@@ -61,7 +61,9 @@ interface PlayLogItem {
   play_type?: string;
   result?: string;
   notes?: string;
-  target?: { name: string; number?: number };
+  home_score_after?: number;
+  away_score_after?: number;
+  target?: { name: string; jersey_number?: number };
   off_qb?: { name: string };
   defender?: { name: string };
   offense_team?: { name: string };
@@ -85,34 +87,25 @@ export function AdminBroadcastStudio() {
   } = useBroadcastProducer(id);
 
   // Local controller form states
-  const [clockInput, setClockInput] = useState('12:00');
+  // clockDraft holds what the producer is typing; null means show the live clock.
+  const [clockDraft, setClockDraft] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const [selectedPlayerId, setSelectedPlayerId] = useState('');
   const [selectedTeam, setSelectedTeam] = useState('');
   const [statInput, setStatInput] = useState('TOUCHDOWN RECEPTION');
   const [selectedPenalty, setSelectedPenalty] = useState(PENALTIES[0]);
   const [recentPlays, setRecentPlays] = useState<PlayLogItem[]>([]);
+  // Score after the latest scored play; null until a play carries a score.
+  const [pbpScore, setPbpScore] = useState<{ home: number; away: number } | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Sync clock input with state when state loads or clock is edited
+  // Tick the clock display while running
+  const clockRunning = state?.clock_running ?? false;
   useEffect(() => {
-    if (state) {
-      if (!state.clock_running) {
-        setClockInput(formatClock(state.clock_seconds));
-      }
-      if (!selectedTeam) {
-        setSelectedTeam(state.home || 'Home Team');
-      }
-    }
-  }, [state?.match_id, state?.clock_seconds, state?.clock_running]);
-
-  // Tick clock input display while running
-  useEffect(() => {
-    if (!state || !state.clock_running) return;
-    const interval = setInterval(() => {
-      setClockInput(formatClock(calculateClockNow(state)));
-    }, 500);
+    if (!clockRunning) return;
+    const interval = setInterval(() => setNow(Date.now()), 500);
     return () => clearInterval(interval);
-  }, [state?.clock_running, state?.clock_seconds, state?.clock_stamp]);
+  }, [clockRunning]);
 
   // Fetch recent play-by-play events
   useEffect(() => {
@@ -120,8 +113,10 @@ export function AdminBroadcastStudio() {
     async function loadPlays() {
       try {
         const res = await axios.get(`${API_URL}/matches/${id}/plays`);
-        const plays = Array.isArray(res.data) ? res.data : [];
+        const plays: PlayLogItem[] = Array.isArray(res.data?.data) ? res.data.data : [];
         setRecentPlays(plays.slice(-5).reverse());
+        const scored = [...plays].reverse().find((p) => p.home_score_after != null && p.away_score_after != null);
+        setPbpScore(scored ? { home: scored.home_score_after!, away: scored.away_score_after! } : null);
       } catch {
         // Silently continue if no plays entered yet
       }
@@ -142,6 +137,13 @@ export function AdminBroadcastStudio() {
   }
 
   const overlayUrl = `${window.location.origin}/broadcast/${id}/overlay`;
+  const clockInput = clockDraft ?? formatClock(calculateClockNow(state, now));
+  const team = selectedTeam || state.home || 'Home Team';
+
+  const handleToggleClock = () => {
+    setClockDraft(null);
+    toggleClock();
+  };
 
   const copyUrl = () => {
     navigator.clipboard.writeText(overlayUrl);
@@ -156,6 +158,7 @@ export function AdminBroadcastStudio() {
       const secs = parseInt(parts[1], 10);
       if (!isNaN(mins) && !isNaN(secs) && secs >= 0 && secs < 60) {
         setClock(mins * 60 + secs);
+        setClockDraft(null);
         return;
       }
     }
@@ -179,7 +182,7 @@ export function AdminBroadcastStudio() {
       type: callType,
       number: noPlayer ? '' : playerObj ? String(playerObj.jersey_number) : '',
       player: noPlayer ? '' : playerObj ? playerObj.name : '',
-      team: selectedTeam,
+      team,
       stat: statText,
       photo: playerObj?.image || '',
       compact: /DOWN|GOAL|EXTRA POINT|FLAG PULL|PENALTY|BAT DOWN/.test(callType),
@@ -207,7 +210,10 @@ export function AdminBroadcastStudio() {
     }
   };
 
-  const isScoreAligned = state.manual_home === state.pbp_home && state.manual_away === state.pbp_away;
+  // Live score from the play log; falls back to the snapshot taken when the studio state was created.
+  const pbpHome = pbpScore?.home ?? state.pbp_home;
+  const pbpAway = pbpScore?.away ?? state.pbp_away;
+  const isScoreAligned = state.manual_home === pbpHome && state.manual_away === pbpAway;
 
   return (
     <div className="space-y-6">
@@ -354,12 +360,12 @@ export function AdminBroadcastStudio() {
                   <ExclamationTriangleIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                 )}
                 <span>
-                  <b>{isScoreAligned ? 'Scores Aligned' : 'Score Discrepancy'}:</b> Manual ({state.manual_home}–{state.manual_away}) vs PBP ({state.pbp_home}–{state.pbp_away})
+                  <b>{isScoreAligned ? 'Scores Aligned' : 'Score Discrepancy'}:</b> Manual ({state.manual_home}–{state.manual_away}) vs PBP ({pbpHome}–{pbpAway})
                 </span>
               </div>
               {!isScoreAligned && (
                 <button
-                  onClick={() => updateScore(state.pbp_home, state.pbp_away)}
+                  onClick={() => updateScore(pbpHome, pbpAway)}
                   className="font-bold underline text-amber-800 dark:text-amber-200 hover:opacity-80 ml-2"
                 >
                   Sync to PBP
@@ -396,7 +402,7 @@ export function AdminBroadcastStudio() {
                   <input
                     type="text"
                     value={clockInput}
-                    onChange={(e) => setClockInput(e.target.value)}
+                    onChange={(e) => setClockDraft(e.target.value)}
                     className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-sm font-black text-gray-900 dark:text-white text-center"
                     placeholder="12:00"
                   />
@@ -412,7 +418,7 @@ export function AdminBroadcastStudio() {
               {/* Clock Action Toggle */}
               <div className="flex flex-col justify-end">
                 <button
-                  onClick={toggleClock}
+                  onClick={handleToggleClock}
                   className={`w-full py-2.5 px-4 rounded-lg font-black text-xs uppercase flex items-center justify-center gap-1.5 shadow-sm transition-all ${
                     state.clock_running
                       ? 'bg-amber-600 hover:bg-amber-700 text-white'
@@ -520,7 +526,7 @@ export function AdminBroadcastStudio() {
                   Team
                 </label>
                 <select
-                  value={selectedTeam}
+                  value={team}
                   onChange={(e) => setSelectedTeam(e.target.value)}
                   className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-sm font-bold text-gray-900 dark:text-white"
                 >
