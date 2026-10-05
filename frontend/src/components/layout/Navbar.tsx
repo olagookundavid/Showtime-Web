@@ -14,8 +14,9 @@ import {
 import { useAuth } from "../../contexts/AuthContext";
 import { useCart } from "../../contexts/CartContext";
 import { useTheme } from "../../contexts/ThemeContext";
+import { NotificationBell } from "../common/NotificationBell";
 
-type Menu = "league" | "stats" | "store" | "user";
+type Menu = "league" | "stats" | "awards" | "store" | "user";
 
 const PORTAL_LINKS: Record<string, { to: string; label: string }> = {
   admin: { to: "/admin", label: "Admin" },
@@ -81,6 +82,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
 
   const leagueActive = ["/matches", "/standings", "/teams"].some(isActive);
   const statsActive = isActive("/stats");
+  const awardsActive = ["/totw", "/potw"].some(isActive);
   const storeActive = ["/tickets", "/store"].some(isActive);
 
   const openOnHover = (menu: Menu) => {
@@ -251,13 +253,44 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
               )}
             </div>
 
-            <Link
-              to="/totw"
-              aria-current={isActive("/totw") ? "page" : undefined}
-              className={navItem(isActive("/totw"))}
+            {/* Awards */}
+            <div
+              className="relative group"
+              onMouseEnter={() => openOnHover("awards")}
+              onMouseLeave={closeOnLeave}
             >
-              Team of the Week
-            </Link>
+              <button
+                type="button"
+                onClick={() => toggleMenu("awards")}
+                aria-expanded={openMenu === "awards"}
+                aria-haspopup="true"
+                className={`${navItem(awardsActive)} gap-1 uppercase aria-expanded:after:scale-x-100`}
+              >
+                Awards
+                <ChevronDownIcon className="w-3 h-3" aria-hidden="true" />
+              </button>
+
+              {openMenu === "awards" && (
+                <div className="absolute top-full left-0 w-52 z-50 pt-2">
+                  <div className="bg-white dark:bg-gray-800 text-sffl-navy dark:text-white rounded-lg shadow-2xl py-2 normal-case font-bold text-sm border border-gray-200 dark:border-gray-700">
+                    <Link
+                      to="/totw"
+                      aria-current={isActive("/totw") ? "page" : undefined}
+                      className={dropdownItem(isActive("/totw"))}
+                    >
+                      Team of the Week
+                    </Link>
+                    <Link
+                      to="/potw"
+                      aria-current={isActive("/potw") ? "page" : undefined}
+                      className={dropdownItem(isActive("/potw"))}
+                    >
+                      Player of the Week
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
             <Link
               to="/news"
               aria-current={isActive("/news") ? "page" : undefined}
@@ -360,6 +393,9 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                 <MoonIcon className="w-6 h-6" aria-hidden="true" />
               )}
             </button>
+
+            {/* Notifications (e.g. a Player of the Week vote opening) for signed-in fans */}
+            {isAuthenticated && <NotificationBell onDark />}
 
             {/* Account: sign-in buttons for guests, profile dropdown once signed in */}
             {isAuthenticated ? (
@@ -479,6 +515,8 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
 
           {/* Mobile Right Controls: Cart & Menu Button */}
           <div className="flex lg:hidden items-center gap-1 sm:gap-1.5">
+            {isAuthenticated && <NotificationBell onDark />}
+
             {/* Mobile Cart Icon */}
             <Link
               to="/store/cart"

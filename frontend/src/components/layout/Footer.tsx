@@ -30,6 +30,7 @@ export const Footer = () => {
                     <h4 className="font-bold uppercase text-sffl-red text-xs md:text-base mb-1 md:mb-2 tracking-widest">About</h4>
                     <Link to="/about/showtime-flag" className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start">About Showtime</Link>
                     <Link to="/totw" className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start">Team of the Week</Link>
+                    <Link to="/potw" className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start">Player of the Week</Link>
                     <Link to="/about/our-team" className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start">Our Team</Link>
                     <Link to="/about/arena" className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start">Showtime Arena</Link>
                     <Link to="/about/education" className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start">Education</Link>

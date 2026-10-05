@@ -575,3 +575,59 @@ func formatNaira(amount int) string {
 	}
 	return string(result)
 }
+
+// VerifyEmailHTML is the email carrying the 6-digit code that verifies an account's
+// email address (needed to vote in fan polls).
+func VerifyEmailHTML(code string) string {
+	return fmt.Sprintf(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Showtime — Verify your email</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f0f2f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="background-color: #f0f2f5; padding: 40px 20px;">
+<tr>
+<td align="center">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
+
+`+brandHeader()+`
+
+<tr>
+<td style="background: linear-gradient(135deg, #0f172a 0%%, #1e293b 100%%); padding: 48px 40px; text-align: center;">
+<h1 style="color: #ffffff; font-size: 24px; font-weight: 700; margin: 0 0 8px;">Verify your email</h1>
+<p style="color: `+sfflRed+`; font-size: 14px; font-weight: 600; margin: 0;">ONE STEP AWAY FROM VOTING</p>
+</td>
+</tr>
+
+<tr>
+<td style="padding: 32px 40px;">
+<p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
+Enter this code on the Showtime site to verify your email address. Verified fans can vote for Player of the Week. The code expires in <strong>15 minutes</strong>.
+</p>
+
+<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; border: 2px dashed #e2e8f0; border-radius: 12px;">
+<tr>
+<td style="padding: 32px; text-align: center;">
+<p style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; margin: 0 0 12px;">Verification Code</p>
+<p style="color: #0f172a; font-size: 42px; font-weight: 800; letter-spacing: 8px; margin: 0; font-family: 'Courier New', monospace;">%s</p>
+</td>
+</tr>
+</table>
+
+<p style="color: #64748b; font-size: 13px; line-height: 1.6; margin: 24px 0 0;">
+If you didn't ask for this, you can ignore this email.
+</p>
+</td>
+</tr>
+
+`+brandFooter()+`
+
+</table>
+</td>
+</tr>
+</table>
+</body>
+</html>`, code)
+}

@@ -15,6 +15,7 @@ type INotificationRepository interface {
 	MarkAsRead(ctx context.Context, id string, userID string) error
 	MarkAllAsRead(ctx context.Context, userID string) error
 	GetUnreadCount(ctx context.Context, userID string) (int, error)
+	CreateForAllUsers(ctx context.Context, nType, title, message, refType string, refID *string) (int64, error)
 }
 
 type PostgresNotificationRepository struct {
@@ -101,4 +102,17 @@ func (r *PostgresNotificationRepository) GetUnreadCount(ctx context.Context, use
 	var count int
 	err := r.db.QueryRow(ctx, query, userID).Scan(&count)
 	return count, err
+}
+
+// CreateForAllUsers sends the same notification to every account in one statement,
+// for league-wide announcements. Returns how many were created.
+func (r *PostgresNotificationRepository) CreateForAllUsers(ctx context.Context, nType, title, message, refType string, refID *string) (int64, error) {
+	tag, err := r.db.Exec(ctx, `
+		INSERT INTO notifications (user_id, type, title, message, reference_type, reference_id)
+		SELECT id, $1, $2, $3, NULLIF($4, ''), $5::uuid FROM users
+	`, nType, title, message, refType, refID)
+	if err != nil {
+		return 0, err
+	}
+	return tag.RowsAffected(), nil
 }

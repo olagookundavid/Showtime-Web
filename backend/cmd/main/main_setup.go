@@ -319,6 +319,28 @@ func cronjobs(app *api.Application, ctx context.Context, cancel context.CancelFu
 		return app.FantasyService.AutoLockGameweeks(ctx)
 	})
 
+	// Run every minute to close Player of the Week votes whose deadline has passed
+	// and crown the winner. Page loads also finalize the poll they show; this makes
+	// sure the badge and Team of the Week update even if nobody visits.
+	add("* * * * *", "Player of the Week finalize", func(ctx context.Context) error {
+		if app.POTWService == nil {
+			return nil
+		}
+		n, err := app.POTWService.FinalizeDuePolls(ctx)
+		if err != nil {
+			return err
+		}
+		if n > 0 {
+			app.Logger.Info(fmt.Sprintf("Finalized %d Player of the Week vote(s)", n), nil)
+		}
+		// Then tell fans about votes that just opened or were just decided.
+		sent, err := app.POTWService.AnnouncePolls(ctx)
+		if sent > 0 {
+			app.Logger.Info(fmt.Sprintf("Sent %d Player of the Week announcement(s)", sent), nil)
+		}
+		return err
+	})
+
 	// Run every 2 minutes to score live fantasy matches and auto-finalize completed gameweeks.
 	// Built-in smart guard: skips immediately (< 1ms) with zero work on weekdays when no match day is active.
 	add("*/2 * * * *", "Fantasy match-day ticker", func(ctx context.Context) error {
@@ -381,7 +403,7 @@ func ExampleQueueProducer(log *logger.Logger) queue.MessagePublisher {
 
 // wireDependencies initializes and injects all dependencies (Repository -> Service -> Handler)
 // returning the fully assembled Handlers struct, the AuditService, and the TicketService.
-func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Logger) (handlers.Handlers, services.IAuditService, services.IAuthService, services.ITeamManagerService, *services.TicketService, ports.StorageService, services.IContractService, services.ITransferService, services.INotificationService, services.ITransferWindowService, services.IFantasyService, services.IBadgeService, services.ITOTWService, *broadcast.Hub) {
+func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Logger) (handlers.Handlers, services.IAuditService, services.IAuthService, services.ITeamManagerService, *services.TicketService, ports.StorageService, services.IContractService, services.ITransferService, services.INotificationService, services.ITransferWindowService, services.IFantasyService, services.IBadgeService, services.ITOTWService, services.IPOTWService, *broadcast.Hub) {
 	// Infrastructure
 	auditRepo := ports.NewAuditRepository(pool)
 	authRepo := ports.NewAuthRepository(pool)
@@ -516,9 +538,13 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 
 	badgeService := services.NewBadgeService(badgeRepo)
 	totwService := services.NewTOTWService(totwRepo, badgeService, newsRepo)
+	potwRepo := ports.NewPOTWRepository(pool)
+	potwService := services.NewPOTWService(potwRepo, totwRepo, badgeService, authRepo, notifRepo)
+	totwService.SetPOTWPollChecker(potwRepo)
 
 	badgeHandler := transport.NewBadgeHandler(badgeService)
 	totwHandler := transport.NewTOTWHandler(totwService)
+	potwHandler := transport.NewPOTWHandler(potwService)
 
 	broadcastHub := broadcast.NewHub(ports.NewBroadcastStateRepository(pool))
 	broadcastHandler := broadcast.NewBroadcastHandler(broadcastHub, matchService, playService)
@@ -531,7 +557,7 @@ func wireDependencies(pool *pgxpool.Pool, tokenMaker token.Maker, log *logger.Lo
 		contractHandler, transferHandler, notifHandler, appSettingHandler,
 		claimHandler, commentHandler, discountHandler, liveHandler,
 		fantasyHandler, fantasyLeagueHandler, fantasyPayoutHandler, fantasySquadHandler,
-		badgeHandler, totwHandler, broadcastHandler,
+		badgeHandler, totwHandler, potwHandler, broadcastHandler,
 	)
-	return h, auditService, authService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService, fantasyService, badgeService, totwService, broadcastHub
+	return h, auditService, authService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService, fantasyService, badgeService, totwService, potwService, broadcastHub
 }

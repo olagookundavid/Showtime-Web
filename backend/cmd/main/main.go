@@ -136,7 +136,7 @@ func main() {
 	// examplePub := ExampleQueueProducer(log)
 	// defer examplePub.Close()
 
-	appHandlers, auditService, authService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService, fantasyService, badgeService, totwService, broadcastHub := wireDependencies(pool, tokenMaker, log)
+	appHandlers, auditService, authService, tmService, ticketService, storageService, contractService, transferService, notifService, windowService, fantasyService, badgeService, totwService, potwService, broadcastHub := wireDependencies(pool, tokenMaker, log)
 
 	// Orphaned-image GC. Off + dry-run by default so it can't delete in-use
 	// images before its candidate logs have been reviewed (see image_gc_service).
@@ -166,6 +166,7 @@ func main() {
 		FantasyService:        fantasyService,
 		BadgeService:          badgeService,
 		TOTWService:           totwService,
+		POTWService:           potwService,
 		BroadcastHub:          broadcastHub,
 	}
 	// Scheduled jobs share a cancellable context so shutdown can abort any

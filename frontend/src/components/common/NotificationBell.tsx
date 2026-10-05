@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BellIcon } from '@heroicons/react/24/outline';
+import { useNavigate } from 'react-router-dom';
 import { notificationsApi, type NotificationData } from '../../services/api';
 import toast from 'react-hot-toast';
 import { Spinner } from '../ui/Spinner';
@@ -10,7 +11,19 @@ import { Spinner } from '../ui/Spinner';
  * On phones the dropdown spans the screen under the top bar so it can't run off
  * the edge; from 640px up it hangs under the bell.
  */
-export const NotificationBell: React.FC = () => {
+/** Where a notification leads, if it is about something with its own page. */
+const notificationLink = (n: NotificationData): string | null => {
+    if (n.reference_type === 'potw_poll' && n.reference_id) return `/potw/${n.reference_id}`;
+    return null;
+};
+
+interface NotificationBellProps {
+    /** White icon for the navy public navbar; grey for light dashboard top bars. */
+    onDark?: boolean;
+}
+
+export const NotificationBell: React.FC<NotificationBellProps> = ({ onDark = false }) => {
+    const navigate = useNavigate();
     const [unreadCount, setUnreadCount] = useState<number>(0);
     const [notifications, setNotifications] = useState<NotificationData[]>([]);
     const [isOpen, setIsOpen] = useState<boolean>(false);
@@ -82,6 +95,17 @@ export const NotificationBell: React.FC = () => {
         }
     };
 
+    // A notification about something with its own page opens it; others are
+    // just marked read.
+    const handleOpen = (n: NotificationData) => {
+        if (!n.is_read) void handleMarkAsRead(n.id);
+        const target = notificationLink(n);
+        if (target) {
+            setIsOpen(false);
+            navigate(target);
+        }
+    };
+
     const handleMarkAllRead = async () => {
         try {
             await notificationsApi.markAllAsRead();
@@ -103,7 +127,11 @@ export const NotificationBell: React.FC = () => {
                 aria-haspopup="true"
                 aria-expanded={isOpen}
                 aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : 'Notifications'}
-                className="relative inline-flex items-center justify-center min-h-11 min-w-11 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-sffl-red dark:text-gray-300 dark:hover:bg-white/10 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sffl-red/40"
+                className={`relative inline-flex items-center justify-center min-h-11 min-w-11 rounded-lg transition-colors outline-none focus-visible:ring-2 ${
+                    onDark
+                        ? 'text-white hover:bg-white/10 hover:text-sffl-red focus-visible:ring-white/60'
+                        : 'text-gray-600 hover:bg-gray-100 hover:text-sffl-red dark:text-gray-300 dark:hover:bg-white/10 focus-visible:ring-sffl-red/40'
+                }`}
             >
                 <BellIcon className="w-5 h-5" aria-hidden="true" />
                 {unreadCount > 0 && (
@@ -148,7 +176,7 @@ export const NotificationBell: React.FC = () => {
                                 <button
                                     key={n.id}
                                     type="button"
-                                    onClick={() => !n.is_read && handleMarkAsRead(n.id)}
+                                    onClick={() => handleOpen(n)}
                                     className={`block w-full text-left p-4 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors outline-none focus-visible:bg-gray-50 dark:focus-visible:bg-gray-700/40 ${
                                         !n.is_read ? 'bg-sffl-red/5 dark:bg-sffl-red/10' : ''
                                     }`}

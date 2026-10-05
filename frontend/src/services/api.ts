@@ -55,6 +55,7 @@ export interface AuthUser {
     email: string;
     phone?: string;
     user_type: string; // 'admin' | 'user' | 'team_head' | 'ticketer'
+    email_verified?: boolean;
     created_at: string;
     updated_at: string;
     access_token?: string;
@@ -82,6 +83,16 @@ export const logoutUser = async (): Promise<void> => {
 export const getUserProfile = async (): Promise<AuthUser> => {
     const response = await api.get<AuthApiResponse>('/auth/profile');
     return response.data.data;
+};
+
+/** Emails the logged-in user a 6-digit code to verify their address. */
+export const sendEmailVerificationCode = async (): Promise<void> => {
+    await api.post('/auth/verify-email/send');
+};
+
+/** Confirms the emailed code; the account is then verified. */
+export const confirmEmailVerification = async (code: string): Promise<void> => {
+    await api.post('/auth/verify-email/confirm', { code });
 };
 
 export const updateOwnProfile = async (fullName: string, phone: string): Promise<void> => {
@@ -4285,6 +4296,132 @@ export const deleteAdminTOTW = async (id: string): Promise<void> => {
 
 export const publishAdminTOTW = async (id: string, is_published: boolean): Promise<TeamOfTheWeek> => {
     const res = await api.patch<{ data: TeamOfTheWeek }>(`/admin/totw/${id}/publish`, { is_published });
+    return res.data.data;
+};
+
+// ── Player of the Week fan vote ─────────────────────────────────────────────
+
+export type POTWPollStatus = 'scheduled' | 'open' | 'closed';
+
+export interface POTWNominee {
+    player_id: string;
+    name: string;
+    image?: string;
+    jersey_number: number;
+    position: string;
+    team_name?: string;
+    team_logo?: string;
+    display_order: number;
+    totw_position?: string;
+    rating: number;
+    stat1_value?: string;
+    stat1_label?: string;
+    stat2_value?: string;
+    stat2_label?: string;
+    stat3_value?: string;
+    stat3_label?: string;
+    /** Present only once results are visible (after the deadline, or for admins). */
+    votes?: number;
+    percent?: number;
+    is_winner: boolean;
+}
+
+export interface POTWPoll {
+    id: string;
+    totw_id: string;
+    week_title: string;
+    headline: string;
+    competition_id: string;
+    competition_name?: string;
+    totw_published: boolean;
+    status: POTWPollStatus;
+    opens_at: string;
+    closes_at: string;
+    /** Server clock at response time, so countdowns ignore a wrong device clock. */
+    server_time: string;
+    finalized_at?: string;
+    winner_player_id?: string;
+    winner_source?: 'VOTE' | 'ADMIN';
+    total_votes: number;
+    results_visible: boolean;
+    my_vote?: string;
+    nominees: POTWNominee[];
+    votes_by_day?: { day: string; votes: number }[];
+}
+
+export interface POTWPollSummary {
+    id: string;
+    totw_id: string;
+    week_title: string;
+    competition_name?: string;
+    status: POTWPollStatus;
+    opens_at: string;
+    closes_at: string;
+    total_votes: number;
+    winner_player_id?: string;
+    winner_name?: string;
+    winner_source?: 'VOTE' | 'ADMIN';
+}
+
+export interface SavePOTWPollPayload {
+    nominee_ids: string[];
+    opens_at?: string;
+    closes_at: string;
+}
+
+/** The newest open or closed vote; null when there has never been one. */
+export const getCurrentPOTWPoll = async (): Promise<POTWPoll | null> => {
+    try {
+        const res = await api.get<{ data: POTWPoll }>('/potw/current');
+        return res.data.data;
+    } catch (err) {
+        if (axios.isAxiosError(err) && err.response?.status === 404) return null;
+        throw err;
+    }
+};
+
+export const getPOTWPoll = async (pollId: string): Promise<POTWPoll> => {
+    const res = await api.get<{ data: POTWPoll }>(`/potw/${pollId}`);
+    return res.data.data;
+};
+
+export const getPOTWPolls = async (): Promise<POTWPollSummary[]> => {
+    const res = await api.get<{ data: POTWPollSummary[] }>('/potw');
+    return res.data.data || [];
+};
+
+export const voteForPOTW = async (pollId: string, playerId: string): Promise<POTWPoll> => {
+    const res = await api.post<{ data: POTWPoll }>(`/potw/${pollId}/vote`, { player_id: playerId });
+    return res.data.data;
+};
+
+/** The edition's vote with live counts; null when the edition has no vote yet. */
+export const getAdminPOTWPoll = async (totwId: string): Promise<POTWPoll | null> => {
+    try {
+        const res = await api.get<{ data: POTWPoll }>(`/admin/totw/${totwId}/potw`);
+        return res.data.data;
+    } catch (err) {
+        if (axios.isAxiosError(err) && err.response?.status === 404) return null;
+        throw err;
+    }
+};
+
+export const saveAdminPOTWPoll = async (totwId: string, payload: SavePOTWPollPayload): Promise<POTWPoll> => {
+    const res = await api.put<{ data: POTWPoll }>(`/admin/totw/${totwId}/potw`, payload);
+    return res.data.data;
+};
+
+export const deleteAdminPOTWPoll = async (totwId: string): Promise<void> => {
+    await api.delete(`/admin/totw/${totwId}/potw`);
+};
+
+export const overrideAdminPOTW = async (totwId: string, playerId: string): Promise<POTWPoll> => {
+    const res = await api.post<{ data: POTWPoll }>(`/admin/totw/${totwId}/potw/override`, { player_id: playerId });
+    return res.data.data;
+};
+
+export const clearAdminPOTWOverride = async (totwId: string): Promise<POTWPoll> => {
+    const res = await api.delete<{ data: POTWPoll }>(`/admin/totw/${totwId}/potw/override`);
     return res.data.data;
 };
 

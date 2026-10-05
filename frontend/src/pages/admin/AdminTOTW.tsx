@@ -1,9 +1,12 @@
 import { useState, useMemo, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
+import { AdminPOTWPanel } from "../../components/potw/AdminPOTWPanel";
+import { potwPollQueryKey } from "../../components/potw/potwUtils";
 import {
   getAdminTOTWs,
   getAdminTOTWById,
+  getAdminPOTWPoll,
   createAdminTOTW,
   updateAdminTOTW,
   deleteAdminTOTW,
@@ -512,6 +515,15 @@ export const AdminTOTW = () => {
   const [positionFilter, setPositionFilter] = useState<string>("ALL");
 
   // Queries
+  // The edition's fan vote, if any. While one exists the vote (or an override in
+  // the vote panel) decides Player of the Week, so the manual toggle is locked.
+  const { data: potwPoll } = useQuery({
+    queryKey: potwPollQueryKey(editingTotwId ?? ""),
+    queryFn: () => getAdminPOTWPoll(editingTotwId!),
+    enabled: Boolean(editingTotwId),
+  });
+  const potwDecidedByVote = Boolean(editingTotwId && potwPoll);
+
   const { data: competitionsData } = useQuery({
     queryKey: ["adminCompetitions"],
     queryFn: () => getCompetitions(1, 100),
@@ -2137,18 +2149,21 @@ export const AdminTOTW = () => {
                         {/* Player of the Week Toggle */}
                         <button
                           type="button"
+                          disabled={potwDecidedByVote}
                           onClick={() =>
                             handleTogglePlayerOfTheWeek(selectedSlotIndex)
                           }
-                          className={`px-3 min-h-11 rounded-lg text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-sm cursor-pointer ${
+                          className={`px-3 min-h-11 rounded-lg text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-sm cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
                             activeSlot.is_player_of_the_week
                               ? "bg-amber-400 hover:bg-amber-500 text-sffl-navy border border-amber-300 ring-2 ring-amber-400/50 shadow-amber-400/30"
                               : "bg-white hover:bg-amber-50 text-gray-700 hover:text-amber-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 border border-gray-300 dark:border-gray-600"
                           }`}
                           title={
-                            activeSlot.is_player_of_the_week
-                              ? "Remove Player of the Week designation"
-                              : "Designate as Player of the Week"
+                            potwDecidedByVote
+                              ? "Decided by the fan vote — use the Player of the Week panel below to override"
+                              : activeSlot.is_player_of_the_week
+                                ? "Remove Player of the Week designation"
+                                : "Designate as Player of the Week"
                           }
                         >
                           <StarIcon className="w-4 h-4" aria-hidden="true" />
@@ -2347,6 +2362,15 @@ export const AdminTOTW = () => {
               </div>
             )}
           </div>
+
+          {/* ── PLAYER OF THE WEEK FAN VOTE ─────────────────────────────── */}
+          {editingTotwId ? (
+            <AdminPOTWPanel totwId={editingTotwId} canManage={canManage} />
+          ) : (
+            <p className="rounded-xl border border-dashed border-gray-300 dark:border-gray-600 p-4 text-sm text-gray-500 dark:text-gray-400">
+              Save this Team of the Week first, then you can run a Player of the Week fan vote from its lineup.
+            </p>
+          )}
 
           {/* ── ATTACHED EDITORIAL STORY ACCORDION ───────────────────────── */}
           <div className="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden transition-all">

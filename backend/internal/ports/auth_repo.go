@@ -29,6 +29,10 @@ type IAuthRepository interface {
 	MarkOTPUsed(ctx context.Context, email, code, purpose string) error
 	InvalidateActiveOTPs(ctx context.Context, email, purpose string) error
 	DeleteExpiredOTPs(ctx context.Context) error
+
+	// Email verification
+	IsEmailVerified(ctx context.Context, userID string) (bool, error)
+	MarkEmailVerified(ctx context.Context, userID string) error
 }
 
 type AuthRepository struct {
@@ -293,5 +297,18 @@ func (m AuthRepository) InvalidateActiveOTPs(ctx context.Context, email, purpose
 func (m AuthRepository) DeleteExpiredOTPs(ctx context.Context) error {
 	query := `DELETE FROM otps WHERE expires_at < NOW() OR used = TRUE`
 	_, err := m.Db.Exec(ctx, query)
+	return err
+}
+
+// IsEmailVerified reports whether the user has confirmed their email address.
+func (m AuthRepository) IsEmailVerified(ctx context.Context, userID string) (bool, error) {
+	var verified bool
+	err := m.Db.QueryRow(ctx, `SELECT email_verified_at IS NOT NULL FROM users WHERE id = $1`, userID).Scan(&verified)
+	return verified, err
+}
+
+// MarkEmailVerified records that the user confirmed their email (first time only).
+func (m AuthRepository) MarkEmailVerified(ctx context.Context, userID string) error {
+	_, err := m.Db.Exec(ctx, `UPDATE users SET email_verified_at = COALESCE(email_verified_at, NOW()), updated_at = NOW() WHERE id = $1`, userID)
 	return err
 }

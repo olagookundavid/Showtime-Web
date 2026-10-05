@@ -27,10 +27,22 @@ type TOTWService struct {
 	totwRepo     ports.TOTWRepository
 	badgeService IBadgeService
 	newsRepo     ports.NewsRepository
+	potwPolls    potwPollChecker
+}
+
+// potwPollChecker reports whether an edition's Player of the Week is decided by a
+// fan vote.
+type potwPollChecker interface {
+	HasPoll(ctx context.Context, totwID string) (bool, error)
 }
 
 func NewTOTWService(totwRepo ports.TOTWRepository, badgeService IBadgeService, newsRepo ports.NewsRepository) *TOTWService {
 	return &TOTWService{totwRepo: totwRepo, badgeService: badgeService, newsRepo: newsRepo}
+}
+
+// SetPOTWPollChecker lets UpdateTOTW leave a fan-voted Player of the Week alone.
+func (s *TOTWService) SetPOTWPollChecker(c potwPollChecker) {
+	s.potwPolls = c
 }
 
 func (s *TOTWService) CreateTOTW(ctx context.Context, req dto.SaveTOTWRequest, createdBy *string) (*dto.TOTWResponse, error) {
@@ -151,6 +163,23 @@ func (s *TOTWService) UpdateTOTW(ctx context.Context, id string, req dto.SaveTOT
 				potwID = &cleaned
 				break
 			}
+		}
+	}
+
+	// When fans vote on this edition, the vote (or an admin override in the vote
+	// panel) owns the Player of the Week. Saving the lineup keeps the current one
+	// rather than whatever the editor form still holds.
+	if s.potwPolls != nil {
+		hasPoll, err := s.potwPolls.HasPoll(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if hasPoll {
+			current, err := s.totwRepo.GetTOTWByID(ctx, id)
+			if err != nil {
+				return nil, err
+			}
+			potwID = current.PlayerOfTheWeekID
 		}
 	}
 
