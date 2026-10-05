@@ -105,8 +105,9 @@ export const AdminKnockoutBracket = ({ competitionId, matches, isCompleted, onAd
             queryClient.invalidateQueries({ queryKey: ['adminMatches'] });
             queryClient.invalidateQueries({ queryKey: ['bracketTargets'] });
             queryClient.invalidateQueries({ queryKey: ['bracketMatches'] });
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to reset bracket');
+        } catch (err: unknown) {
+            const apiError = err as { response?: { data?: { error?: string; message?: string } } };
+            toast.error(apiError.response?.data?.error || apiError.response?.data?.message || 'Failed to reset bracket');
         }
         setResetting(false);
         setConfirmReset(false);

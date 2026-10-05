@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   NewspaperIcon,
   PencilSquareIcon,
@@ -6,12 +6,12 @@ import {
   UserIcon,
   ClockIcon,
   SparklesIcon,
-} from '@heroicons/react/24/outline';
-import type { TeamOfTheWeek } from '../../services/api';
-import { NewsContent } from '../news/NewsContent';
-import { YouTubeEmbed } from '../news/YouTubeEmbed';
-import { LightboxImage } from '../ui';
-import { parseYouTubeId } from '../../utils/newsContent';
+} from "@heroicons/react/24/outline";
+import type { TeamOfTheWeek } from "../../services/api";
+import { NewsContent } from "../news/NewsContent";
+import { YouTubeEmbed } from "../news/YouTubeEmbed";
+import { LightboxImage } from "../ui";
+import { parseYouTubeId } from "../../utils/newsContent";
 
 interface TOTWEditorialStoryProps {
   totw: TeamOfTheWeek;
@@ -27,12 +27,12 @@ export const TOTWEditorialStory: React.FC<TOTWEditorialStoryProps> = ({
   const news = totw.news;
 
   const formatDate = (dateString?: string) => {
-    if (!dateString) return '';
+    if (!dateString) return "";
     try {
-      return new Date(dateString).toLocaleDateString('en-GB', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
+      return new Date(dateString).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
       });
     } catch {
       return dateString;
@@ -40,14 +40,14 @@ export const TOTWEditorialStory: React.FC<TOTWEditorialStoryProps> = ({
   };
 
   const readingTime = (content?: string) => {
-    if (!content) return '1 min read';
+    if (!content) return "1 min read";
     const words = content.trim().split(/\s+/).length;
     const mins = Math.max(1, Math.ceil(words / 200));
     return `${mins} min read`;
   };
 
   const heroVideoId =
-    news?.featured_media_type === 'youtube' && news?.featured_youtube_url
+    news?.featured_media_type === "youtube" && news?.featured_youtube_url
       ? parseYouTubeId(news.featured_youtube_url)
       : null;
 
@@ -64,7 +64,8 @@ export const TOTWEditorialStory: React.FC<TOTWEditorialStoryProps> = ({
             GAMEWEEK BREAKDOWN
           </h2>
           <p className="text-xs md:text-sm text-gray-600 dark:text-gray-300">
-            Official editorial coverage, key takeaways, and matchup highlights for {totw.week_title}.
+            Official editorial coverage, key takeaways, and matchup highlights
+            for {totw.week_title}.
           </p>
         </div>
 
@@ -75,7 +76,9 @@ export const TOTWEditorialStory: React.FC<TOTWEditorialStoryProps> = ({
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sffl-navy hover:bg-sffl-navy/90 text-white dark:bg-gray-700 dark:hover:bg-gray-600 font-bold text-xs uppercase tracking-wider transition-all shadow-md shrink-0 self-start sm:self-auto border border-white/10"
           >
             <PencilSquareIcon className="w-4 h-4 text-sffl-red" />
-            <span>{news ? 'Edit Editorial Story' : 'Write Editorial Story'}</span>
+            <span>
+              {news ? "Edit Editorial Story" : "Write Editorial Story"}
+            </span>
           </button>
         )}
       </div>
@@ -88,23 +91,29 @@ export const TOTWEditorialStory: React.FC<TOTWEditorialStoryProps> = ({
             <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-sffl-red/10 text-sffl-red font-black uppercase tracking-wider text-[11px] border border-sffl-red/20">
                 <SparklesIcon className="w-3 h-3" />
-                <span>{news.category || 'Team of the Week'}</span>
+                <span>{news.category || "Team of the Week"}</span>
               </span>
-              <span className="hidden sm:inline text-gray-300 dark:text-gray-600">•</span>
+              <span className="hidden sm:inline text-gray-300 dark:text-gray-600">
+                •
+              </span>
               <span className="inline-flex items-center gap-1 font-semibold text-gray-700 dark:text-gray-300">
                 <UserIcon className="w-3.5 h-3.5 text-gray-400" />
-                <span>By {news.author || 'Showtime Editorial'}</span>
+                <span>By {news.author || "Showtime Editorial"}</span>
               </span>
               {news.created_at && (
                 <>
-                  <span className="hidden sm:inline text-gray-300 dark:text-gray-600">•</span>
+                  <span className="hidden sm:inline text-gray-300 dark:text-gray-600">
+                    •
+                  </span>
                   <span className="inline-flex items-center gap-1">
                     <CalendarDaysIcon className="w-3.5 h-3.5 text-gray-400" />
                     <span>{formatDate(news.created_at)}</span>
                   </span>
                 </>
               )}
-              <span className="hidden sm:inline text-gray-300 dark:text-gray-600">•</span>
+              <span className="hidden sm:inline text-gray-300 dark:text-gray-600">
+                •
+              </span>
               <span className="inline-flex items-center gap-1">
                 <ClockIcon className="w-3.5 h-3.5 text-gray-400" />
                 <span>{readingTime(news.content)}</span>
@@ -132,7 +141,7 @@ export const TOTWEditorialStory: React.FC<TOTWEditorialStoryProps> = ({
               <YouTubeEmbed videoId={heroVideoId} title={news.title} />
             </div>
           ) : news.featured_image ? (
-            <div className="rounded-2xl overflow-hidden shadow-md border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 max-h-[520px]">
+            <div className="rounded-2xl overflow-hidden shadow-md border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 max-h-130">
               <LightboxImage
                 src={news.featured_image}
                 alt={news.title}
@@ -157,7 +166,8 @@ export const TOTWEditorialStory: React.FC<TOTWEditorialStoryProps> = ({
               No Editorial Breakdown Attached Yet
             </h3>
             <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-              The official Showtime matchday analysis for this gameweek will be published here.
+              The official Showtime matchday analysis for this gameweek will be
+              published here.
             </p>
           </div>
           {isAdmin && (

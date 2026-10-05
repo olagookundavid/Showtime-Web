@@ -39,17 +39,14 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { uploadImage, deleteImage, isUploading, progress, error: uploadError } = useImageUpload();
-  const [preview, setPreview] = useState<string | null>(value || null);
+  const [previewState, setPreviewState] = useState({ value, preview: value || null });
+  const preview = previewState.value === value ? previewState.preview : value || null;
   const uncommittedUrlRef = useRef<string | null>(null);
   const isCommittedRef = useRef(isCommitted);
 
   useEffect(() => {
     isCommittedRef.current = isCommitted;
   }, [isCommitted]);
-
-  useEffect(() => {
-    setPreview(value || null);
-  }, [value]);
 
   useEffect(() => {
     return () => {
@@ -73,7 +70,7 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
 
     // Local preview
     const objectUrl = URL.createObjectURL(file);
-    setPreview(objectUrl);
+    setPreviewState({ value, preview: objectUrl });
 
     try {
       const publicUrl = await uploadImage(file, folder, compression);
@@ -90,19 +87,19 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
         // so the inline preview/picker should reset to empty for the next pick.
         if (mode === 'picker') {
           uncommittedUrlRef.current = null;
-          setPreview(null);
+          setPreviewState({ value, preview: null });
           if (fileInputRef.current) {
             fileInputRef.current.value = '';
           }
         }
       } else {
         toast.error(uploadError || 'Failed to upload image. Please try again.');
-        setPreview(value || null);
+        setPreviewState({ value, preview: value || null });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Upload caught error:', err);
-      toast.error(err?.message || 'An unexpected error occurred during upload');
-      setPreview(value || null);
+      toast.error(err instanceof Error ? err.message : 'An unexpected error occurred during upload');
+      setPreviewState({ value, preview: value || null });
     }
   };
 
@@ -111,7 +108,7 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
       deleteImage(uncommittedUrlRef.current);
       uncommittedUrlRef.current = null;
     }
-    setPreview(null);
+    setPreviewState({ value, preview: null });
     onChange('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';

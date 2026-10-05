@@ -16,7 +16,7 @@ export const PublicMatchStats = ({ matchId }: { matchId: string }) => {
         enabled: !!matchId,
     });
 
-    const derived = data?.derived || data?.current || [];
+    const derived = useMemo(() => data?.derived || data?.current || [], [data?.derived, data?.current]);
 
     // Extract unique teams involved in this match from derived player stats
     const teamsList = useMemo(() => {

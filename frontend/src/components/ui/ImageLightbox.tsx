@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import React, { useEffect } from "react";
+import { createPortal } from "react-dom";
+import { XMarkIcon } from "@heroicons/react/24/outline";
 
 interface ImageLightboxProps {
   src: string;
@@ -9,49 +9,63 @@ interface ImageLightboxProps {
   onClose: () => void;
 }
 
-export const ImageLightbox: React.FC<ImageLightboxProps> = ({ src, alt, isOpen, onClose }) => {
+export const ImageLightbox: React.FC<ImageLightboxProps> = ({
+  src,
+  alt,
+  isOpen,
+  onClose,
+}) => {
   // Prevent scrolling when lightbox is open
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = "unset";
     }
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = "unset";
     };
   }, [isOpen]);
 
   if (!isOpen) return null;
 
   return createPortal(
-    <div 
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 md:p-10 animate-in fade-in duration-300" data-dialog
+    <div
+      className="fixed inset-0 z-100 flex items-center justify-center bg-black/90 p-4 md:p-10 animate-in fade-in duration-300"
+      data-dialog
       onClick={onClose}
     >
       <button
         type="button"
         onClick={onClose}
         aria-label="Close image"
-        className="absolute top-[max(1rem,env(safe-area-inset-top))] right-4 p-2 min-h-11 min-w-11 flex items-center justify-center bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors z-[101]"
+        className="absolute top-[max(1rem,env(safe-area-inset-top))] right-4 p-2 min-h-11 min-w-11 flex items-center justify-center bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors z-101"
       >
         <XMarkIcon className="w-8 h-8" aria-hidden="true" />
       </button>
 
-      <div 
+      <div
         className="relative max-w-full max-h-full flex items-center justify-center animate-in zoom-in-95 duration-300"
         onClick={(e) => e.stopPropagation()}
       >
-        {src.includes('default_football.png') ? (
-          <div className="flex flex-col items-center justify-center p-12 bg-gray-900/80 rounded-[2rem] border border-white/10 backdrop-blur-xl max-w-sm text-center shadow-2xl">
-            <img src={src} className="w-40 h-40 object-contain mb-6 opacity-80" alt="No image" />
-            <p className="text-white font-black uppercase tracking-widest text-lg italic">No Image Selected</p>
-            <p className="text-gray-400 text-xs mt-3 font-medium">A profile or logo image has not been provided yet.</p>
+        {src.includes("default_football.png") ? (
+          <div className="flex flex-col items-center justify-center p-12 bg-gray-900/80 rounded-4xl border border-white/10 backdrop-blur-xl max-w-sm text-center shadow-2xl">
+            <img
+              src={src}
+              className="w-40 h-40 object-contain mb-6 opacity-80"
+              alt="No image"
+            />
+            <p className="text-white font-black uppercase tracking-widest text-lg italic">
+              No Image Selected
+            </p>
+            <p className="text-gray-400 text-xs mt-3 font-medium">
+              A profile or logo image has not been provided yet.
+            </p>
           </div>
         ) : (
           <img
             src={src}
-            alt={alt || 'Full view'}
+            alt={alt || "Full view"}
             className="max-w-full max-h-[85dvh] object-contain rounded-lg shadow-2xl transition-transform"
           />
         )}
@@ -62,6 +76,6 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({ src, alt, isOpen, 
         )}
       </div>
     </div>,
-    document.body
+    document.body,
   );
 };

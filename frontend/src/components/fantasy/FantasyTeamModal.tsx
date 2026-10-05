@@ -36,18 +36,10 @@ export function FantasyTeamModal({
     seasonId,
 }: FantasyTeamModalProps) {
     const [viewMode, setViewMode] = useState<'pitch' | 'list'>('pitch');
-    const [selectedGwId, setSelectedGwId] = useState<string>(initialGameweekId || '');
+    const [selectedGwIdOverride, setSelectedGwId] = useState<string>('');
     const [inspectingPlayer, setInspectingPlayer] = useState<FantasyPlayerModalData | null>(null);
-
-    useEffect(() => {
-        if (initialGameweekId) {
-            setSelectedGwId(initialGameweekId);
-        } else if (gameweeks && gameweeks.length > 0) {
-            // Find current active/locked/scheduled, or the first one
-            const current = gameweeks.find((g) => g.status === 'LIVE' || g.status === 'LOCKED' || g.status === 'SCHEDULED') || gameweeks[0];
-            setSelectedGwId(current.id);
-        }
-    }, [initialGameweekId, gameweeks, isOpen]);
+    const defaultGameweek = gameweeks.find((g) => g.status === 'LIVE' || g.status === 'LOCKED' || g.status === 'SCHEDULED') || gameweeks[0];
+    const selectedGwId = selectedGwIdOverride || initialGameweekId || defaultGameweek?.id || '';
 
     // Lineup query
     const { data, isLoading, isError, refetch } = useQuery({
@@ -67,13 +59,6 @@ export function FantasyTeamModal({
     });
 
     const activeGameweeks = gameweeks.length > 0 ? gameweeks : (fetchedGameweeks || []);
-
-    useEffect(() => {
-        if (!selectedGwId && activeGameweeks.length > 0) {
-            const current = activeGameweeks.find((g) => g.status === 'LIVE' || g.status === 'LOCKED' || g.status === 'SCHEDULED') || activeGameweeks[0];
-            setSelectedGwId(current.id);
-        }
-    }, [activeGameweeks, selectedGwId]);
 
     // Handle ESC key to dismiss
     useEffect(() => {

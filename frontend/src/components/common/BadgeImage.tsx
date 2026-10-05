@@ -23,7 +23,7 @@ interface BadgeImageProps {
     className?: string;
 }
 
-export const isBadgeImageUrl = (icon?: string): boolean => {
+const isBadgeImageUrl = (icon?: string): boolean => {
     if (!icon) return false;
     const trimmed = icon.trim();
     return (
