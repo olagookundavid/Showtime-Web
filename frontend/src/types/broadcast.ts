@@ -43,11 +43,12 @@ export interface BroadcastPlayer {
   image?: string;
 }
 
-export function calculateClockNow(state: BroadcastState): number {
+export function calculateClockNow(state: BroadcastState, now: number = Date.now()): number {
   if (!state.clock_running) {
     return Math.max(0, state.clock_seconds);
   }
-  const elapsed = Math.floor((Date.now() - state.clock_stamp) / 1000);
+  // A render-time `now` can trail a freshly stamped clock by one tick; never count up.
+  const elapsed = Math.max(0, Math.floor((now - state.clock_stamp) / 1000));
   return Math.max(0, state.clock_seconds - elapsed);
 }
 

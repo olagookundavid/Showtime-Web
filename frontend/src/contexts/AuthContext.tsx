@@ -6,6 +6,8 @@ export interface User {
     name: string;
     email: string;
     phone?: string;
+    /** Confirmed with a code; needed to vote in fan polls. */
+    emailVerified: boolean;
     // player_pending is an account claimant awaiting their team manager's approval. It
     // grants no portal access — only the claim status screen — so route guards must
     // treat it as distinct from 'player'.
@@ -34,6 +36,7 @@ function mapAuthUser(authUser: AuthUser): User {
         name: authUser.full_name || 'User',
         email: authUser.email,
         phone: authUser.phone,
+        emailVerified: Boolean(authUser.email_verified),
         role: authUser.user_type as User['role'],
     };
 }

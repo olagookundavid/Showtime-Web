@@ -25,6 +25,8 @@ type IAuthHandler interface {
 	UpdateUserInfo(c *gin.Context)
 	UpdateOwnProfile(c *gin.Context)
 	SendPasswordResetOTP(c *gin.Context)
+	SendEmailVerification(c *gin.Context)
+	ConfirmEmailVerification(c *gin.Context)
 }
 
 type AuthHandler struct {
@@ -367,4 +369,39 @@ func (h *AuthHandler) SendPasswordResetOTP(c *gin.Context) {
 
 	// Always return success to prevent email enumeration
 	helpers.SuccessOK(c, "If your email is registered, a code has been sent", nil)
+}
+
+// SendEmailVerification emails the logged-in user a code to verify their address.
+func (h *AuthHandler) SendEmailVerification(c *gin.Context) {
+	payload, err := helpers.GetTokenPayloadFromContext(c)
+	if err != nil {
+		helpers.ServerErrorResponse(c, err)
+		return
+	}
+	if err := h.AuthService.SendEmailVerificationCode(c.Request.Context(), payload.UserId); err != nil {
+		helpers.BadResponse(c, err.Error())
+		return
+	}
+	helpers.SuccessOK(c, "Verification code sent", gin.H{"sent": true})
+}
+
+// ConfirmEmailVerification checks the code and marks the account verified.
+func (h *AuthHandler) ConfirmEmailVerification(c *gin.Context) {
+	payload, err := helpers.GetTokenPayloadFromContext(c)
+	if err != nil {
+		helpers.ServerErrorResponse(c, err)
+		return
+	}
+	var req struct {
+		Code string `json:"code" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helpers.BadResponse(c, "enter the 6-digit code from the email")
+		return
+	}
+	if err := h.AuthService.VerifyEmail(c.Request.Context(), payload.UserId, req.Code); err != nil {
+		helpers.BadResponse(c, err.Error())
+		return
+	}
+	helpers.SuccessOK(c, "Email verified", gin.H{"email_verified": true})
 }

@@ -31,13 +31,14 @@ func NewBroadcastHandler(hub *Hub, matchService services.IMatchService, playServ
 	}
 }
 
-// ensureMatchState returns the current state or bootstraps one from the database if not yet in memory.
+// ensureMatchState returns the current state (from memory or the persisted copy)
+// or bootstraps a fresh one from the match data.
 func (h *BroadcastHandler) ensureMatchState(c *gin.Context, matchID string) (*BroadcastState, error) {
-	if state, ok := h.hub.GetState(matchID); ok {
+	if state, ok := h.hub.LoadState(c.Request.Context(), matchID); ok {
 		return state, nil
 	}
 
-	// Bootstrap from DB
+	// Bootstrap from match data
 	matchDetail, err := h.matchService.GetMatchDetail(c.Request.Context(), matchID)
 	if err != nil {
 		return nil, err
@@ -66,13 +67,14 @@ func (h *BroadcastHandler) ensureMatchState(c *gin.Context, matchID string) (*Br
 		pbpAway = *matchDetail.Match.AwayScore
 	}
 
-	if plays, err := h.playService.ListByMatch(c.Request.Context(), matchID); err == nil && len(plays) > 0 {
-		lastPlay := plays[len(plays)-1]
-		if lastPlay.HomeScoreAfter != nil {
-			pbpHome = *lastPlay.HomeScoreAfter
-		}
-		if lastPlay.AwayScoreAfter != nil {
-			pbpAway = *lastPlay.AwayScoreAfter
+	// Use the latest play that carries a score; non-scoring plays may leave it unset.
+	if plays, err := h.playService.ListByMatch(c.Request.Context(), matchID); err == nil {
+		for i := len(plays) - 1; i >= 0; i-- {
+			if plays[i].HomeScoreAfter != nil && plays[i].AwayScoreAfter != nil {
+				pbpHome = *plays[i].HomeScoreAfter
+				pbpAway = *plays[i].AwayScoreAfter
+				break
+			}
 		}
 	}
 

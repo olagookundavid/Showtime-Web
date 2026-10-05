@@ -92,6 +92,11 @@ const TeamOfTheWeekPage = lazy(() =>
     default: m.TeamOfTheWeekPage,
   })),
 );
+const PlayerOfTheWeekPage = lazy(() =>
+  import("./pages/potw/PlayerOfTheWeekPage").then((m) => ({
+    default: m.PlayerOfTheWeekPage,
+  })),
+);
 
 import { AboutShowtimeFlag } from "./pages/about/AboutShowtimeFlag";
 import { MediaGuidelines } from "./pages/about/MediaGuidelines";
@@ -381,6 +386,8 @@ function App() {
                       <Route path="/stats" element={<StatsPage />} />
                       <Route path="/totw" element={<TeamOfTheWeekPage />} />
                       <Route path="/totw/:id" element={<TeamOfTheWeekPage />} />
+                      <Route path="/potw" element={<PlayerOfTheWeekPage />} />
+                      <Route path="/potw/:id" element={<PlayerOfTheWeekPage />} />
                       <Route
                         path="/team-of-the-week"
                         element={<Navigate to="/totw" replace />}

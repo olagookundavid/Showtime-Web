@@ -26,6 +26,8 @@ type IAuthService interface {
 	UpdateUserInfo(ctx context.Context, userID, fullName, phone string) error
 	SendPasswordResetOTP(ctx context.Context, email string) error
 	CleanupExpiredOTPs(ctx context.Context) error
+	SendEmailVerificationCode(ctx context.Context, userID string) error
+	VerifyEmail(ctx context.Context, userID, code string) error
 }
 
 type AuthService struct {
@@ -174,6 +176,71 @@ func (s *AuthService) CleanupExpiredOTPs(ctx context.Context) error {
 	return s.AuthRepository.DeleteExpiredOTPs(ctx)
 }
 
+const emailVerifyPurpose = "email_verify"
+
+// SendEmailVerificationCode emails the logged-in user a 6-digit code that proves
+// they own their address. Verified accounts are needed to vote in fan polls, so
+// one person can't vote many times through throwaway sign-ups. Requesting a new
+// code cancels any earlier one.
+func (s *AuthService) SendEmailVerificationCode(ctx context.Context, userID string) error {
+	user, err := s.AuthRepository.GetUserByID(ctx, userID)
+	if err != nil || user == nil {
+		return errors.New("account not found")
+	}
+	verified, err := s.AuthRepository.IsEmailVerified(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if verified {
+		return nil
+	}
+
+	emailAddr := strings.ToLower(strings.TrimSpace(user.Email))
+	_ = s.AuthRepository.InvalidateActiveOTPs(ctx, emailAddr, emailVerifyPurpose)
+	code, err := generateOTP(6)
+	if err != nil {
+		return err
+	}
+	if err := s.AuthRepository.SaveOTP(ctx, emailAddr, code, emailVerifyPurpose, 15*time.Minute); err != nil {
+		return err
+	}
+
+	if s.EmailService != nil {
+		body := email.VerifyEmailHTML(code)
+		_ = SubmitJob(func() {
+			if err := s.EmailService.SendEmail(emailAddr, "Your Showtime verification code", body); err != nil {
+				fmt.Printf("WARNING: failed to send verification email to %s: %v\n", emailAddr, err)
+			}
+		})
+	}
+	return nil
+}
+
+// VerifyEmail checks the code and marks the account verified. A wrong code burns
+// the active one, so the 6 digits can't be brute-forced; the user asks for a new code.
+func (s *AuthService) VerifyEmail(ctx context.Context, userID, code string) error {
+	user, err := s.AuthRepository.GetUserByID(ctx, userID)
+	if err != nil || user == nil {
+		return errors.New("account not found")
+	}
+	emailAddr := strings.ToLower(strings.TrimSpace(user.Email))
+	code = strings.TrimSpace(code)
+
+	valid, err := s.AuthRepository.VerifyOTP(ctx, emailAddr, code, emailVerifyPurpose)
+	if err != nil {
+		return err
+	}
+	if !valid {
+		_ = s.AuthRepository.InvalidateActiveOTPs(ctx, emailAddr, emailVerifyPurpose)
+		return errors.New("that code is wrong or has expired — request a new one")
+	}
+	if err := s.AuthRepository.MarkEmailVerified(ctx, userID); err != nil {
+		return err
+	}
+	_ = s.AuthRepository.MarkOTPUsed(ctx, emailAddr, code, emailVerifyPurpose)
+	return nil
+}
+
 func (s *AuthService) Login(ctx context.Context, req dto.LoginRequest) (*dto.LoginResponse, error) {
 
 	// Return one generic error for both "no such account" and "wrong password"
@@ -201,7 +268,12 @@ func (s *AuthService) Login(ctx context.Context, req dto.LoginRequest) (*dto.Log
 		return nil, appErrors.ErrMustResetPassword
 	}
 
-	return loginUserWithTokens(s, user)
+	resp, err := loginUserWithTokens(s, user)
+	if err != nil {
+		return nil, err
+	}
+	resp.EmailVerified, _ = s.AuthRepository.IsEmailVerified(ctx, user.ID)
+	return resp, nil
 }
 
 func (s *AuthService) ReturnUserProfile(ctx context.Context, id string) (*dto.LoginResponse, error) {
@@ -211,14 +283,20 @@ func (s *AuthService) ReturnUserProfile(ctx context.Context, id string) (*dto.Lo
 		return nil, err
 	}
 
+	verified, err := s.AuthRepository.IsEmailVerified(ctx, user.ID)
+	if err != nil {
+		return nil, err
+	}
+
 	return &dto.LoginResponse{
-		ID:        user.ID,
-		FullName:  user.FullName,
-		Email:     user.Email,
-		Phone:     user.Phone,
-		UserType:  user.Role,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
+		ID:            user.ID,
+		FullName:      user.FullName,
+		Email:         user.Email,
+		Phone:         user.Phone,
+		UserType:      user.Role,
+		EmailVerified: verified,
+		CreatedAt:     user.CreatedAt,
+		UpdatedAt:     user.UpdatedAt,
 	}, nil
 }
 

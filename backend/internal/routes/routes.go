@@ -3,6 +3,7 @@ package routes
 import (
 	"expvar"
 	"os"
+	"time"
 
 	"pkg-common/commonAuth"
 
@@ -264,6 +265,13 @@ func SetupAdminRoutes(r *gin.RouterGroup, app *api.Application) {
 		totwAdminGroup.PUT("/:id/article", app.Handlers.TOTWHandler.SaveTOTWArticle)
 		totwAdminGroup.DELETE("/:id", app.Handlers.TOTWHandler.DeleteTOTW)
 		totwAdminGroup.PATCH("/:id/publish", app.Handlers.TOTWHandler.PublishTOTW)
+
+		// Player of the Week fan vote for an edition (:id is the TOTW edition)
+		totwAdminGroup.GET("/:id/potw", app.Handlers.POTWHandler.GetAdminPoll)
+		totwAdminGroup.PUT("/:id/potw", app.Handlers.POTWHandler.SaveAdminPoll)
+		totwAdminGroup.DELETE("/:id/potw", app.Handlers.POTWHandler.DeleteAdminPoll)
+		totwAdminGroup.POST("/:id/potw/override", app.Handlers.POTWHandler.OverrideWinner)
+		totwAdminGroup.DELETE("/:id/potw/override", app.Handlers.POTWHandler.ClearOverride)
 	}
 
 	// Badges & Honors — admin/app_admin managed
@@ -565,7 +573,10 @@ func SetupAuthRoutes(r *gin.RouterGroup, app *api.Application) {
 		}
 		limitedAuth := authRoutes.Group("", commonAuth.RateLimit(rls))
 		{
-			limitedAuth.POST("/register", app.Handlers.AuthHandler.Register)
+			// Sign-ups are also capped per IP per hour: each extra account is a way
+			// to vote again in fan polls. 10/hour leaves room for a family or a
+			// venue's wifi sharing one address.
+			limitedAuth.POST("/register", middlewares.WindowLimit("sign-up", 10, time.Hour, middlewares.ByIP), app.Handlers.AuthHandler.Register)
 			limitedAuth.POST("/login", app.Handlers.AuthHandler.Login)
 			limitedAuth.POST("/forgot-password", app.Handlers.AuthHandler.SendPasswordResetOTP)
 			// reset-password MUST be rate-limited — it's the OTP brute-force surface.
@@ -581,6 +592,17 @@ func SetupAuthRoutes(r *gin.RouterGroup, app *api.Application) {
 	{
 		authProtected.GET("/profile", app.Handlers.AuthHandler.ReturnUserProfile)
 		authProtected.PUT("/profile", app.Handlers.AuthHandler.UpdateOwnProfile)
+
+		// Email verification (needed to vote in fan polls). Codes are capped per
+		// account so the mailer can't be used to spam an inbox, and confirmations
+		// are capped on top of a wrong guess burning the code.
+		authProtected.POST("/verify-email/send",
+			middlewares.WindowLimit("verification code", 5, time.Hour, middlewares.ByUser),
+			middlewares.WindowLimit("verification code", 30, time.Hour, middlewares.ByIP),
+			app.Handlers.AuthHandler.SendEmailVerification)
+		authProtected.POST("/verify-email/confirm",
+			middlewares.WindowLimit("verification", 10, time.Hour, middlewares.ByUser),
+			app.Handlers.AuthHandler.ConfirmEmailVerification)
 	}
 }
 
@@ -965,6 +987,24 @@ func SetupTOTWRoutes(r *gin.RouterGroup, app *api.Application) {
 		totwRoutes.GET("/latest", app.Handlers.TOTWHandler.GetLatestPublishedTOTW)
 		totwRoutes.GET("/archive", app.Handlers.TOTWHandler.ListTOTWArchive)
 		totwRoutes.GET("/:id", app.Handlers.TOTWHandler.GetPublicTOTWByID)
+	}
+
+	// Player of the Week fan vote. Anyone can view (a logged-in viewer also sees
+	// their own vote); only logged-in users can vote.
+	potwRoutes := r.Group("/potw")
+	{
+		optional := commonAuth.OptionalTokenMiddleware(app.TokenMaker)
+		potwRoutes.GET("", app.Handlers.POTWHandler.ListPolls)
+		potwRoutes.GET("/current", optional, app.Handlers.POTWHandler.GetCurrentPoll)
+		potwRoutes.GET("/:id", optional, app.Handlers.POTWHandler.GetPoll)
+		// One vote per account is enforced in the database; these caps stop a
+		// single account or address hammering the endpoint. The IP cap is loose on
+		// purpose: mobile carriers put many fans behind one address.
+		potwRoutes.POST("/:id/vote",
+			commonAuth.TokenMiddleware(app.TokenMaker),
+			middlewares.WindowLimit("vote", 20, time.Hour, middlewares.ByUser),
+			middlewares.WindowLimit("vote", 300, time.Hour, middlewares.ByIP),
+			app.Handlers.POTWHandler.Vote)
 	}
 }
 

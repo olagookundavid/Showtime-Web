@@ -25,14 +25,16 @@ type ResetPasswordRequest struct {
 }
 
 type LoginResponse struct {
-	ID          string    `json:"id"`
-	FullName    string    `json:"full_name"`
-	Email       string    `json:"email"`
-	Phone       string    `json:"phone,omitempty"`
-	UserType    string    `json:"user_type"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-	AccessToken string    `json:"access_token,omitempty"`
+	ID       string `json:"id"`
+	FullName string `json:"full_name"`
+	Email    string `json:"email"`
+	Phone    string `json:"phone,omitempty"`
+	UserType string `json:"user_type"`
+	// EmailVerified is required to vote in fan polls (Player of the Week).
+	EmailVerified bool      `json:"email_verified"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+	AccessToken   string    `json:"access_token,omitempty"`
 }
 
 type UpdateUserRoleRequest struct {

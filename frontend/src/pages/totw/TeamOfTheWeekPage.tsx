@@ -6,6 +6,8 @@ import {
   getCompetitions,
   getTOTWById,
   getLatestTOTW,
+  getCurrentPOTWPoll,
+  type POTWPoll,
   type TOTWListItem,
   type TeamOfTheWeek,
 } from "../../services/api";
@@ -13,6 +15,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { TeamOfTheWeekModule } from "../../components/totw/TeamOfTheWeekModule";
 import { TOTWEditorialStory } from "../../components/totw/TOTWEditorialStory";
 import { TOTWStoryModal } from "../../components/totw/TOTWStoryModal";
+import { POTWCountdown } from "../../components/potw/POTWCountdown";
 import {
   CalendarDaysIcon,
   TrophyIcon,
@@ -71,6 +74,23 @@ export const TeamOfTheWeekPage: React.FC = () => {
       activeTotwId ? getTOTWById(activeTotwId) : getLatestTOTW(effectiveCompId),
     enabled: Boolean(activeTotwId || archive.length > 0),
   });
+
+  // The latest Player of the Week fan vote: a banner invites fans to vote while it
+  // is open, and credits the fans once they've picked this edition's winner.
+  const { data: potwPoll, refetch: refetchPOTW } = useQuery<POTWPoll | null>({
+    queryKey: ["potwPoll", "current", user?.id ?? "guest"],
+    queryFn: getCurrentPOTWPoll,
+  });
+  const potwOpen = potwPoll?.status === "open";
+  const potwForThisEdition =
+    potwPoll && potwPoll.totw_id === (totw?.id ?? activeTotwId)
+      ? potwPoll
+      : null;
+  const potwFanWinner =
+    potwForThisEdition?.status === "closed" &&
+    potwForThisEdition.winner_source === "VOTE"
+      ? potwForThisEdition.nominees.find((n) => n.is_winner)
+      : undefined;
 
   // Current edition index in archive list
   const currentIndex = useMemo(() => {
@@ -222,6 +242,57 @@ export const TeamOfTheWeekPage: React.FC = () => {
               </button>
             </div>
           </div>
+        )}
+
+        {/* Player of the Week fan vote */}
+        {potwPoll && potwOpen && (
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-xl md:rounded-2xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 p-4 md:p-5">
+            <div className="min-w-0 space-y-1">
+              <p className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                <TrophyIcon className="w-4 h-4" aria-hidden="true" />
+                Fan vote open · {potwPoll.week_title}
+              </p>
+              <p className="text-base md:text-lg font-black text-gray-900 dark:text-white">
+                Who's your Player of the Week?
+              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                {potwPoll.nominees.length} nominees from the Team of the Week.
+                Log in and cast your vote before it closes.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-end gap-4 shrink-0">
+              <POTWCountdown
+                target={potwPoll.closes_at}
+                serverTime={potwPoll.server_time}
+                label="Closes in"
+                onElapsed={() => void refetchPOTW()}
+              />
+              <Link
+                to="/potw"
+                className="inline-flex items-center justify-center gap-1.5 min-h-11 px-5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white text-sm font-bold shadow-md"
+              >
+                Vote now
+                <ChevronRightIcon className="w-4 h-4" aria-hidden="true" />
+              </Link>
+            </div>
+          </div>
+        )}
+        {potwFanWinner && potwForThisEdition && (
+          <Link
+            to={`/potw/${potwForThisEdition.id}`}
+            className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 min-h-11 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:border-sffl-red/60"
+          >
+            <TrophyIcon className="w-5 h-5 shrink-0 text-amber-600 dark:text-amber-300" aria-hidden="true" />
+            <span className="min-w-0">
+              Fans voted {potwFanWinner.name} Player of the Week with{" "}
+              {potwFanWinner.percent ?? 0}% of{" "}
+              {potwForThisEdition.total_votes.toLocaleString()} votes.
+            </span>
+            <span className="inline-flex items-center gap-1 text-sffl-red font-bold">
+              See the full results
+              <ChevronRightIcon className="w-4 h-4" aria-hidden="true" />
+            </span>
+          </Link>
         )}
 
         {/* Team of the Week Pitch Module */}

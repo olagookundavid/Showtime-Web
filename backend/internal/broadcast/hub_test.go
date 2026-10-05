@@ -7,7 +7,7 @@ import (
 )
 
 func TestHub_StateManagement(t *testing.T) {
-	hub := NewHub()
+	hub := NewHub(nil)
 
 	matchID := "test-match-1"
 
@@ -50,7 +50,7 @@ func TestHub_StateManagement(t *testing.T) {
 }
 
 func TestHub_Concurrency(t *testing.T) {
-	hub := NewHub()
+	hub := NewHub(nil)
 	matchID := "concurrent-match"
 
 	initial := &BroadcastState{

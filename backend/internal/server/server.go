@@ -82,6 +82,11 @@ func shutdown(app *api.Application, srv *http.Server, shutdownError chan error) 
 				app.AuditService.Close()
 			}
 
+			// Flush unsaved broadcast state before main's deferred pool.Close().
+			if app.BroadcastHub != nil {
+				app.BroadcastHub.Close(ctx)
+			}
+
 			shutdownError <- nil
 		})
 }

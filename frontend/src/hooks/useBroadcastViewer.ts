@@ -16,31 +16,16 @@ export function useBroadcastViewer(matchId: string) {
     let isMounted = true;
     let reconnectDelay = 1000;
 
-    // Fetch initial state via public REST endpoint
+    // Fetch initial state via the public overlay endpoint (served from the API host root)
     async function fetchInitialState() {
       try {
-        // First try the root public endpoint
-        let baseUrl = API_URL;
-        if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
-          baseUrl = `${window.location.origin}${baseUrl.startsWith('/') ? '' : '/'}${baseUrl}`;
-        }
-        const parsed = new URL(baseUrl);
-        const origin = `${parsed.protocol}//${parsed.host}`;
-
+        const origin = new URL(API_URL, window.location.origin).origin;
         const res = await axios.get(`${origin}/broadcast/${matchId}/overlay/state`);
         if (isMounted && res.data) {
           setState(res.data);
         }
       } catch {
-        // Fallback to /api/v1 endpoint
-        try {
-          const res = await axios.get(`${API_URL}/matches/${matchId}/broadcast/state`);
-          if (isMounted && res.data) {
-            setState(res.data);
-          }
-        } catch {
-          // Will be populated when WebSocket connects
-        }
+        // Will be populated when WebSocket connects
       }
     }
 

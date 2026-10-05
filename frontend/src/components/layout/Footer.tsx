@@ -44,6 +44,12 @@ export const Footer = () => {
             Team of the Week
           </Link>
           <Link
+            to="/potw"
+            className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start"
+          >
+            Player of the Week
+          </Link>
+          <Link
             to="/about/our-team"
             className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start"
           >
