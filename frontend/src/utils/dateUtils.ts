@@ -23,6 +23,14 @@ function isTBDTime(timeString?: string | null): boolean {
 }
 
 /**
+ * Today's date in Lagos time as "YYYY-MM-DD". Match days are dated in WAT, so
+ * a visitor in another timezone must not shift which day counts as today.
+ */
+export function lagosToday(): string {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Lagos' }).format(new Date());
+}
+
+/**
  * Formats a match start time to Lagos Time (WAT, UTC+1).
  * Example: "15:00:00" or "2026-08-27T15:00:00Z" -> "3:00 PM"
  * Handles "15:00:00", "2026-08-27T15:00:00Z", "15:00", and fallback "TBD".

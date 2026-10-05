@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 :root {
-    --app-font-family: Georgia, Cambria, "Times New Roman", Times, serif;
-    /* Height of the sticky navbar + scores strip, published by Layout as the
+  --app-font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+  /* Height of the sticky navbar + scores strip, published by Layout as the
        chrome resizes. Dialogs sit below it rather than under it. The 0px here
        is only the fallback for anything rendered outside Layout. */
-    --chrome-h: 0px;
+  --chrome-h: 0px;
 }
 
 /* While any dialog is on screen, the scores carousel folds away.
@@ -25,128 +25,144 @@
  * so no !important is needed. */
 body:has([data-dialog]) .chrome-carousel,
 body:has([role="dialog"]) .chrome-carousel {
-    grid-template-rows: 0fr;
-    opacity: 0;
+  grid-template-rows: 0fr;
+  opacity: 0;
 }
 
 /* While any dialog or modal is open, completely hide any fixed bottom navigation bar
  * so it never overlaps modal controls, buttons, or scrollable dialog bodies. */
 body:has([data-dialog]) nav.fixed.bottom-0,
 body:has([role="dialog"]) nav.fixed.bottom-0 {
-    display: none !important;
+  display: none !important;
 }
 
 /* Utility for double-height bottom clearance on mobile screens with fixed bottom nav */
 .pb-mobile-nav-2x {
-    padding-bottom: calc(9rem + 2 * env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(9rem + 2 * env(safe-area-inset-bottom, 0px));
 }
 
 /* Entrance for the newsletter popup with smooth spring curve */
 @keyframes newsletter-pop-in {
-    0% {
-        opacity: 0;
-        transform: translateY(-1.25rem) scale(0.96);
-    }
-    70% {
-        transform: translateY(0.15rem) scale(1.01);
-    }
-    100% {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
+  0% {
+    opacity: 0;
+    transform: translateY(-1.25rem) scale(0.96);
+  }
+  70% {
+    transform: translateY(0.15rem) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .animate-newsletter-in {
-    animation: newsletter-pop-in 400ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: newsletter-pop-in 400ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .animate-newsletter-in { animation: none; }
+  .animate-newsletter-in {
+    animation: none;
+  }
 }
 
 @theme {
-    --color-sffl-red: #C62828;
-    --color-sffl-navy: #001F3F;
-    --color-sffl-white: #FFFFFF;
-    --color-sffl-gray: #F5F5F5;
+  --color-sffl-red: #c62828;
+  --color-sffl-navy: #001f3f;
+  --color-sffl-white: #ffffff;
+  --color-sffl-gray: #f5f5f5;
 
-    --font-sans: var(--app-font-family);
+  --font-sans: var(--app-font-family);
 
-    /* Page CONTENT width — used by Layout's <main>. Every page inherits this
+  /* Page CONTENT width — used by Layout's <main>. Every page inherits this
        via Layout, so new pages don't need their own max-width. */
-    --max-width-page: 76rem; /* 1216px — a touch wider than 6xl, still narrower
+  --max-width-page: 76rem; /* 1216px — a touch wider than 6xl, still narrower
                                  than the shell so the letterbox stays visible. */
 
-    /* Chrome width — used by Navbar/Footer. Slightly wider than --max-width-page
+  /* Chrome width — used by Navbar/Footer. Slightly wider than --max-width-page
        so the header and footer extend past the content edges (Amazon-style
        letterbox effect — visually frames the narrower body). */
-    --max-width-shell: 80rem; /* 1280px (Tailwind's 7xl) */
+  --max-width-shell: 80rem; /* 1280px (Tailwind's 7xl) */
 }
 
 @variant dark (.dark &);
 
 html {
-    height: 100%;
-    overscroll-behavior: none;
-    font-family: var(--app-font-family);
+  height: 100%;
+  overscroll-behavior: none;
+  font-family: var(--app-font-family);
 }
 
 body {
-    @apply bg-transparent text-sffl-navy;
-    font-family: var(--app-font-family);
-    min-height: 100%;
-    overflow-x: hidden;
-    overscroll-behavior: none;
-    -webkit-overflow-scrolling: touch; /* smooth iOS scroll */
+  @apply bg-transparent text-sffl-navy;
+  font-family: var(--app-font-family);
+  min-height: 100%;
+  overflow-x: hidden;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch; /* smooth iOS scroll */
 }
 
-button, input, select, textarea {
-    font-family: inherit;
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
 }
 
 /* Ensure select dropdown options render crisp backgrounds and text in both light and dark mode */
 select option {
-    background-color: #FFFFFF;
-    color: #111827;
+  background-color: #ffffff;
+  color: #111827;
 }
 
 .dark select option {
-    background-color: #1F2937;
-    color: #FFFFFF;
+  background-color: #1f2937;
+  color: #ffffff;
 }
 
 /* Root container must also prevent overscroll on iOS */
 #root {
-    min-height: 100vh;
-    overscroll-behavior: none;
+  min-height: 100vh;
+  overscroll-behavior: none;
 }
 
 /* Hide scrollbar while keeping scroll functionality */
 .no-scrollbar::-webkit-scrollbar {
-    display: none;
+  display: none;
 }
 .no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Custom premium thin scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
-    height: 6px;
+  height: 6px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-    background: rgba(0, 31, 63, 0.1);
-    border-radius: 10px;
+  background: rgba(0, 31, 63, 0.1);
+  border-radius: 10px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #C62828;
-    border-radius: 10px;
+  background: #c62828;
+  border-radius: 10px;
 }
 .dark .custom-scrollbar::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.1);
 }
 .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #C62828;
+  background: #c62828;
+}
+
+/* The page's own scrollbar: a thin red thumb on a dark navy track, in both
+   modes. The dark class sits on <html> itself, hence html.dark rather than a
+   descendant selector. */
+html {
+  scrollbar-width: 1.2rem;
+  scrollbar-color: #c62828 #001f3f;
+}
+html.dark {
+  scrollbar-color: #c62828 #001f3f;
 }
 
 /* ─── Print rules ──────────────────────────────────────────────────────────
@@ -155,49 +171,51 @@ select option {
    theme toggle, the atmospheric background, and the "More" drawer — so the
    physical sheet only contains the receipt content. */
 @media print {
-    /* Strip the fixed atmospheric background so paper stays white */
-    body,
-    html,
-    #root {
-        background: white !important;
-    }
+  /* Strip the fixed atmospheric background so paper stays white */
+  body,
+  html,
+  #root {
+    background: white !important;
+  }
 
-    /* Hide layout chrome */
-    nav,
-    footer,
-    [data-print-hide] {
-        display: none !important;
-    }
+  /* Hide layout chrome */
+  nav,
+  footer,
+  [data-print-hide] {
+    display: none !important;
+  }
 
-    /* Anything fixed-position is overlay chrome (theme toggle, drawers,
+  /* Anything fixed-position is overlay chrome (theme toggle, drawers,
        background tints) — none of it belongs on paper. */
-    .fixed {
-        display: none !important;
-    }
+  .fixed {
+    display: none !important;
+  }
 
-    /* Cards in print mode shouldn't carry app shadows */
-    .shadow,
-    .shadow-md,
-    .shadow-lg,
-    .shadow-xl,
-    .shadow-2xl {
-        box-shadow: none !important;
-    }
+  /* Cards in print mode shouldn't carry app shadows */
+  .shadow,
+  .shadow-md,
+  .shadow-lg,
+  .shadow-xl,
+  .shadow-2xl {
+    box-shadow: none !important;
+  }
 
-    /* Reasonable physical margin */
-    @page {
-        margin: 0.5in;
-    }
+  /* Reasonable physical margin */
+  @page {
+    margin: 0.5in;
+  }
 
-    /* Keep section headings glued to their content across page breaks */
-    h1, h2, h3 {
-        page-break-after: avoid;
-    }
+  /* Keep section headings glued to their content across page breaks */
+  h1,
+  h2,
+  h3 {
+    page-break-after: avoid;
+  }
 
-    /* Don't split items mid-row */
-    .invoice-item,
-    .invoice-summary,
-    .invoice-header {
-        page-break-inside: avoid;
-    }
+  /* Don't split items mid-row */
+  .invoice-item,
+  .invoice-summary,
+  .invoice-header {
+    page-break-inside: avoid;
+  }
 }

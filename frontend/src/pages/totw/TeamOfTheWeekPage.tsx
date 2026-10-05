@@ -227,7 +227,7 @@ export const TeamOfTheWeekPage: React.FC = () => {
               </button>
               <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 px-1">
                 {currentIndex >= 0
-                  ? `${currentIndex + 1} of ${archive.length}`
+                  ? `${archive.length - currentIndex} of ${archive.length}`
                   : ""}
               </span>
               <button

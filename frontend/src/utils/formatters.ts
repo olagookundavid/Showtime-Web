@@ -37,3 +37,18 @@ export function formatStatDecimal(
         maximumFractionDigits: decimals,
     });
 }
+
+/**
+ * Avatar initials: the first letters of the first two words, in capitals.
+ * e.g., "John Doe" -> "JD", "Madonna" -> "M", "" or null -> "?"
+ */
+export function getInitials(name: string | null | undefined): string {
+    const initials = (name ?? '')
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((w) => w[0] ?? '')
+        .join('')
+        .toUpperCase();
+    return initials || '?';
+}

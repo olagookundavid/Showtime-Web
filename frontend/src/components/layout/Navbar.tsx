@@ -15,6 +15,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useCart } from "../../contexts/CartContext";
 import { useTheme } from "../../contexts/ThemeContext";
 import { NotificationBell } from "../common/NotificationBell";
+import { getInitials } from "../../utils/formatters";
 
 type Menu = "league" | "stats" | "awards" | "store" | "user";
 
@@ -69,7 +70,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
   const { count: cartCount } = useCart();
   const { isDarkMode, toggleDarkMode } = useTheme();
   const portalLink = user?.role ? PORTAL_LINKS[user.role] : undefined;
-  const initial = (user?.name?.trim()[0] ?? "?").toUpperCase();
+  const initials = getInitials(user?.name);
   const navigate = useNavigate();
   const location = useLocation();
   const closeTimeoutRef = useRef<number | null>(null);
@@ -412,7 +413,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                     className="w-9 h-9 rounded-full bg-sffl-red text-white font-black text-sm flex items-center justify-center ring-2 ring-white/30 shadow-md"
                     aria-hidden="true"
                   >
-                    {initial}
+                    {initials}
                   </span>
                   <ChevronDownIcon
                     className={`w-3 h-3 transition-transform ${openMenu === "user" ? "rotate-180" : ""}`}
@@ -428,7 +429,7 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
                           className="w-11 h-11 shrink-0 rounded-full bg-sffl-red font-black text-lg flex items-center justify-center ring-2 ring-white/30"
                           aria-hidden="true"
                         >
-                          {initial}
+                          {initials}
                         </span>
                         <div className="min-w-0">
                           <p className="truncate font-extrabold leading-tight">
@@ -500,18 +501,6 @@ export const Navbar = ({ onMoreClick }: NavbarProps) => {
               </div>
             )}
           </div>
-
-          {/* Mobile Center Greeting */}
-          {isAuthenticated && user?.name && (
-            <div className="lg:hidden absolute left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-none max-w-[45%] sm:max-w-[55%] text-center">
-              <span className="text-white/90 text-xs sm:text-sm font-bold truncate">
-                Hi{" "}
-                <span className="font-extrabold text-white">
-                  {user.name.split(" ")[0]}
-                </span>
-              </span>
-            </div>
-          )}
 
           {/* Mobile Right Controls: Cart & Menu Button */}
           <div className="flex lg:hidden items-center gap-1 sm:gap-1.5">

@@ -20,11 +20,17 @@ import { BracketView } from "../../components/matches/BracketView";
 import { CompactMatchesWidget } from "../../components/matches/CompactMatchesWidget";
 import { SeasonStageTabs } from "../../components/common/SeasonStageTabs";
 import { FootballIcon } from "../../components/icons/FootballIcon";
+import { lagosToday } from "../../utils/dateUtils";
 import {
   ChevronDownIcon,
   TrophyIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
+
+// The server returns an unfiltered match list oldest-first, so the newest
+// matches would sit on the last page of the infinite scroll. The "All" tab
+// loads the whole competition in one request and reorders it here instead.
+const ALL_TAB_LIMIT = 500;
 
 export const MatchHub = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -186,7 +192,7 @@ export const MatchHub = () => {
       getMatches(
         selectedCompetitionId,
         pageParam as number,
-        10,
+        statusFilter === "ALL" ? ALL_TAB_LIMIT : 10,
         statusFilter === "ALL" ? undefined : statusFilter,
         undefined,
         teamParam || undefined,
@@ -205,15 +211,31 @@ export const MatchHub = () => {
   // it here meant a club's fixtures were spread across pages that were never
   // fetched — and with the visible list too short to scroll, the infinite-scroll
   // observer never fired to fetch them.
-  const matches = useMemo(
-    () =>
+  //
+  // The "All" tab reads most-recent-first: today and past match days newest
+  // first, then upcoming fixtures soonest first.
+  const matches = useMemo(() => {
+    const loaded =
       infiniteMatchesData?.pages?.reduce(
         (acc: Match[], p: PaginatedResponse<Match>) =>
           acc.concat(p?.data || []),
         [],
-      ) || [],
-    [infiniteMatchesData],
-  );
+      ) || [];
+    if (statusFilter !== "ALL") return loaded;
+
+    const today = lagosToday();
+    const day = (m: Match) => m.date.substring(0, 10);
+    return [...loaded].sort((a, b) => {
+      const da = day(a);
+      const db = day(b);
+      const aUpcoming = da > today;
+      const bUpcoming = db > today;
+      if (aUpcoming !== bUpcoming) return aUpcoming ? 1 : -1;
+      // Same day: keep the server's kickoff order (sort is stable).
+      if (da === db) return 0;
+      return aUpcoming ? da.localeCompare(db) : db.localeCompare(da);
+    });
+  }, [infiniteMatchesData, statusFilter]);
   const hasMore = hasNextPage;
   const loading = loadingComps || initialMatchesLoading;
 
