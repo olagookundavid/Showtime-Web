@@ -1,5 +1,13 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
-import { Button } from "../ui";
+import { Button, Loader } from "../ui";
+import {
+  clearRefreshAttempt,
+  didRecentRefresh,
+  isReloadPending,
+  isStaleBuildError,
+  recordRefreshAttempt,
+  reloadForNewBuild,
+} from "../../utils/staleBuild";
 import {
   ArrowPathIcon,
   ArrowRightIcon,
@@ -22,42 +30,8 @@ interface State {
   error: Error | null;
   showDetails: boolean;
   stage: "refresh" | "developer_working";
-}
-
-const RETRY_STORAGE_KEY = "sffl_error_boundary_refresh_timestamp";
-
-/**
- * Checks if a reload was already attempted recently (< 60 seconds ago) for an error.
- * If so, subsequent crashes jump straight to Stage 2 ("It's not you, it's us").
- */
-function didRecentRefreshHappen(): boolean {
-  try {
-    const item = sessionStorage.getItem(RETRY_STORAGE_KEY);
-    if (!item) return false;
-    const timestamp = parseInt(item, 10);
-    if (!isNaN(timestamp) && Date.now() - timestamp < 60000) {
-      return true;
-    }
-  } catch {
-    // In case sessionStorage is blocked by security settings
-  }
-  return false;
-}
-
-function recordRefreshAttempt(): void {
-  try {
-    sessionStorage.setItem(RETRY_STORAGE_KEY, String(Date.now()));
-  } catch {
-    // ignore
-  }
-}
-
-function clearRefreshAttempt(): void {
-  try {
-    sessionStorage.removeItem(RETRY_STORAGE_KEY);
-  } catch {
-    // ignore
-  }
+  // A stale-build reload is underway: show the loader, not the dialog.
+  reloading: boolean;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -66,20 +40,32 @@ export class ErrorBoundary extends Component<Props, State> {
     error: null,
     showDetails: false,
     stage: "refresh",
+    reloading: false,
   };
 
+  // A stale build (the tab predates a deploy) is fixed by a reload, which
+  // main.tsx has usually already started on `vite:preloadError`. Until it lands,
+  // show the loader: the dialog would only ask for what is already happening.
+  // A refresh in the last minute that didn't help skips straight to stage 2.
   public static getDerivedStateFromError(error: Error): Partial<State> {
-    const hadRecentRefresh = didRecentRefreshHappen();
+    const hadRecentRefresh = didRecentRefresh();
     return {
       hasError: true,
       error,
       showDetails: false,
       stage: hadRecentRefresh ? "developer_working" : "refresh",
+      reloading:
+        isStaleBuildError(error) && (isReloadPending() || !hadRecentRefresh),
     };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("Uncaught error caught by ErrorBoundary:", error, errorInfo);
+    // Covers a stale chunk that failed without `vite:preloadError` firing. If no
+    // reload could start (storage blocked), fall back to the dialog.
+    if (this.state.reloading && !reloadForNewBuild()) {
+      this.setState({ reloading: false });
+    }
   }
 
   private handleReload = () => {
@@ -103,6 +89,7 @@ export class ErrorBoundary extends Component<Props, State> {
       error: null,
       showDetails: false,
       stage: "refresh",
+      reloading: false,
     });
   };
 
@@ -136,16 +123,15 @@ export class ErrorBoundary extends Component<Props, State> {
       return this.props.children;
     }
 
+    if (this.state.reloading) {
+      return <Loader />;
+    }
+
     if (this.props.fallback) {
       return this.props.fallback;
     }
 
-    const isChunkLoadError =
-      this.state.error?.name === "ChunkLoadError" ||
-      this.state.error?.message?.includes(
-        "Failed to fetch dynamically imported module",
-      ) ||
-      this.state.error?.message?.includes("Importing a module script failed");
+    const isChunkLoadError = isStaleBuildError(this.state.error);
 
     const { stage, showDetails, error } = this.state;
 
