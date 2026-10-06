@@ -48,11 +48,11 @@ export const HeroCarousel = () => {
     },
   ];
 
-  // Auto-advance every 5 seconds
+  // Auto-advance every 10 seconds
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 5000);
+    }, 10_000);
 
     return () => clearInterval(timer);
   }, [slides.length]);

@@ -85,7 +85,7 @@ body:has([role="dialog"]) nav.fixed.bottom-0 {
   --max-width-shell: 80rem; /* 1280px (Tailwind's 7xl) */
 }
 
-@variant dark (.dark &);
+@custom-variant dark (&:where(.dark, .dark *));
 
 html {
   height: 100%;
