@@ -13,7 +13,6 @@ import {
     ShieldCheckIcon,
     SparklesIcon,
     TrophyIcon,
-    UsersIcon,
 } from '@heroicons/react/24/outline';
 import {
     getCurrentPOTWPoll,
@@ -184,10 +183,6 @@ export const PlayerOfTheWeekPage = () => {
                                 Voting closes {formatDateTime(poll.closes_at)}. Results are revealed when it closes.
                             </p>
                         </div>
-                        <span className="inline-flex items-center gap-1.5 text-sm font-bold text-gray-700 dark:text-gray-200">
-                            <UsersIcon className="w-5 h-5" aria-hidden="true" />
-                            {poll.total_votes.toLocaleString()} {poll.total_votes === 1 ? 'fan has' : 'fans have'} voted
-                        </span>
                     </div>
 
                     {!user && (
@@ -400,7 +395,9 @@ export const PlayerOfTheWeekPage = () => {
                                         </span>
                                     </p>
                                     <p className="mt-auto pt-3 text-xs text-gray-500 dark:text-gray-400">
-                                        {p.total_votes.toLocaleString()} votes · closes {formatDate(p.closes_at)}
+                                        {p.status === 'open'
+                                            ? `Voting closes ${formatDate(p.closes_at)}`
+                                            : `${p.total_votes.toLocaleString()} votes · closed ${formatDate(p.closes_at)}`}
                                     </p>
                                 </Link>
                             </li>
