@@ -135,12 +135,21 @@ export const AdminHeroSlides = () => {
                     break;
                 case 'move': {
                     const index = sortedSlides.findIndex(s => s.id === action.slide.id);
-                    const other = sortedSlides[action.direction === 'up' ? index - 1 : index + 1];
-                    if (!other) break;
-                    await Promise.all([
-                        updateHeroSlide(action.slide.id, { display_order: other.display_order }),
-                        updateHeroSlide(other.id, { display_order: action.slide.display_order }),
-                    ]);
+                    const swapIndex = action.direction === 'up' ? index - 1 : index + 1;
+                    if (swapIndex < 0 || swapIndex >= sortedSlides.length) break;
+                    const reordered = [...sortedSlides];
+                    [reordered[index], reordered[swapIndex]] = [reordered[swapIndex], reordered[index]];
+                    // Renumber every slide to its new position rather than just
+                    // swapping the two display_order values: if display_order
+                    // ever ended up duplicated (e.g. a slide reused an order
+                    // still held by another after a delete), swapping two equal
+                    // values is a no-op and the move silently does nothing. A
+                    // full renumber always produces a unique, correct order.
+                    await Promise.all(
+                        reordered.map((s, i) =>
+                            s.display_order === i ? null : updateHeroSlide(s.id, { display_order: i }),
+                        ),
+                    );
                     toast.success('Slide order updated');
                     break;
                 }
