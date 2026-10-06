@@ -3,7 +3,7 @@ import {
   isDeletedPlayer,
   DeletedPlayerName,
   DELETED_TITLE,
-} from "../common/DeletedPlayer";
+} from "../domain/DeletedPlayer";
 import type { PlayerStat, TeamStat } from "../../services/api";
 import { Link } from "react-router-dom";
 import { LightboxImage, Spinner } from "../ui";

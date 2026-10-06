@@ -4,7 +4,7 @@ import {
   RocketLaunchIcon,
   TicketIcon,
 } from "@heroicons/react/24/outline";
-import { CopyableEmail } from "../../components/common/CopyableEmail";
+import { CopyableEmail } from "../../components/ui/CopyableEmail";
 import { FootballIcon } from "../../components/icons/FootballIcon";
 import { PitchIcon } from "../../components/icons/PitchIcon";
 

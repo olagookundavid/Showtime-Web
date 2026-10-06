@@ -28,7 +28,7 @@ import {
   type CheckoutPayload,
   type DiscountPreview,
 } from "../services/api";
-import { LazyImage } from "../components/common/LazyImage";
+import { LazyImage } from "../components/ui/LazyImage";
 import { DiscountCodeInput } from "../components/discounts/DiscountCodeInput";
 import { formatVariantLabel } from "../utils/storeStock";
 import { Button, Checkbox, Field, Input, Textarea } from "../components/ui";

@@ -45,7 +45,7 @@ import {
   DeletedPlayerName,
   deletedRowClass,
   isDeletedPlayer,
-} from "../../components/common/DeletedPlayer";
+} from "../../components/domain/DeletedPlayer";
 import { formatMatchDate, formatMatchTime } from "../../utils/dateUtils";
 
 type Result = "W" | "D" | "L";

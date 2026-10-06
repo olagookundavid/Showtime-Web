@@ -13,9 +13,9 @@ import {
 import { Loader } from "../../components/ui/Loader";
 import { Spinner } from "../../components/ui";
 import { useSearchParams } from "react-router-dom";
-import { SeasonStageTabs } from "../../components/common/SeasonStageTabs";
+import { SeasonStageTabs } from "../../components/domain/SeasonStageTabs";
 import { getStatsForPosition } from "../../utils/positionStatsMatrix";
-import { BackButton } from "../../components/common/BackButton";
+import { BackButton } from "../../components/ui/BackButton";
 import {
   ChartBarIcon,
   ListBulletIcon,
@@ -24,7 +24,7 @@ import {
   ShieldCheckIcon,
   TrophyIcon,
 } from "@heroicons/react/24/outline";
-import { BadgeImage } from "../../components/common/BadgeImage";
+import { BadgeImage } from "../../components/domain/BadgeImage";
 import { CrownIcon } from "../../components/icons/CrownIcon";
 import { SproutIcon } from "../../components/icons/SproutIcon";
 import { formatStatNumber } from "../../utils/formatters";

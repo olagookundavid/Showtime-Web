@@ -222,7 +222,11 @@ export const LatestMatchesCarousel = () => {
             aria-label="Scroll left"
           >
             <span className="bg-sffl-navy/95 dark:bg-gray-800/95 group-hover/arrow:bg-sffl-red text-white p-1.5 rounded-full shadow-lg border border-white/20 transition-all duration-200 group-hover/arrow:scale-110 group-active/arrow:scale-95">
-              <ChevronLeftIcon className="w-3 h-3" strokeWidth={2.5} aria-hidden="true" />
+              <ChevronLeftIcon
+                className="w-3 h-3"
+                strokeWidth={2.5}
+                aria-hidden="true"
+              />
             </span>
           </button>
 
@@ -382,7 +386,11 @@ export const LatestMatchesCarousel = () => {
             aria-label="Scroll right"
           >
             <span className="bg-sffl-navy/95 dark:bg-gray-800/95 group-hover/arrow:bg-sffl-red text-white p-1.5 rounded-full shadow-lg border border-white/20 transition-all duration-200 group-hover/arrow:scale-110 group-active/arrow:scale-95">
-              <ChevronRightIcon className="w-3 h-3" strokeWidth={2.5} aria-hidden="true" />
+              <ChevronRightIcon
+                className="w-3 h-3"
+                strokeWidth={2.5}
+                aria-hidden="true"
+              />
             </span>
           </button>
         </div>
@@ -409,7 +417,7 @@ export const LatestMatchesInfoStrip = () => {
 
   return (
     <div className="w-full bg-sffl-navy border-b border-white/10 dark:bg-black select-none">
-      <div className="max-w-shell mx-auto px-2 sm:px-8">
+      <div className="max-w-shell mx-auto px-2 sm:px-4">
         <div className="flex items-center justify-between border-t border-white/5 py-1.5 px-2 sm:px-4 w-full">
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="text-[10px] font-black tracking-widest text-white/95 uppercase whitespace-nowrap">
@@ -425,7 +433,10 @@ export const LatestMatchesInfoStrip = () => {
                 </span>
                 {latestMatch.date && (
                   <>
-                    <span className="text-white/20 text-[10px]" aria-hidden="true">
+                    <span
+                      className="text-white/20 text-[10px]"
+                      aria-hidden="true"
+                    >
                       •
                     </span>
                     <span className="hidden min-[400px]:inline text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider whitespace-nowrap">
@@ -446,7 +457,11 @@ export const LatestMatchesInfoStrip = () => {
               rel="noopener noreferrer"
               className="flex items-center gap-1 min-h-11 bg-[#FF0000] hover:bg-[#CC0000] text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded shadow-sm transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer whitespace-nowrap"
             >
-              <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24" aria-hidden="true">
+              <svg
+                className="w-3 h-3 fill-current"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
                 <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816-.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 4-8 4z" />
               </svg>
               <span>Watch Highlights</span>

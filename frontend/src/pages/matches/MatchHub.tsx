@@ -18,7 +18,7 @@ import { MatchCard } from "../../components/matches/MatchCard";
 import { MatchStandingsTable } from "../../components/matches/MatchStandingsTable";
 import { BracketView } from "../../components/matches/BracketView";
 import { CompactMatchesWidget } from "../../components/matches/CompactMatchesWidget";
-import { SeasonStageTabs } from "../../components/common/SeasonStageTabs";
+import { SeasonStageTabs } from "../../components/domain/SeasonStageTabs";
 import { FootballIcon } from "../../components/icons/FootballIcon";
 import { lagosToday } from "../../utils/dateUtils";
 import {

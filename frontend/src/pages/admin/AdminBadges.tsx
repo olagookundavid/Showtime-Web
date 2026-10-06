@@ -28,7 +28,7 @@ import { RowActions } from "../../components/ui/RowActions";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { ConfirmSummary } from "../../components/ui/ConfirmSummary";
 import { Button, Field, IconButton, Input, Modal, Select, Textarea } from "../../components/ui";
-import { BadgeImage } from "../../components/common/BadgeImage";
+import { BadgeImage } from "../../components/domain/BadgeImage";
 import { getApiErrorMessage } from "../../utils/apiError";
 import {
   CheckIcon,

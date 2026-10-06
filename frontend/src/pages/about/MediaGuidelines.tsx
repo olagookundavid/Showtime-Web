@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
-import { CopyableEmail } from "../../components/common/CopyableEmail";
+import { CopyableEmail } from "../../components/ui/CopyableEmail";
 
 interface GuidelineSection {
   id: number;

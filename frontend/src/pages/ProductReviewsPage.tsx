@@ -21,7 +21,7 @@ import {
 } from "../services/api";
 import { StarRating } from "../components/store/StarRating";
 import { Loader } from "../components/ui/Loader";
-import { BackButton } from "../components/common/BackButton";
+import { BackButton } from "../components/ui/BackButton";
 import { Button, Field, Input, Select, Textarea } from "../components/ui";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { ConfirmSummary } from "../components/ui/ConfirmSummary";

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   isDeletedPlayer,
   DELETED_TITLE,
-} from "../../components/common/DeletedPlayer";
+} from "../../components/domain/DeletedPlayer";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import {

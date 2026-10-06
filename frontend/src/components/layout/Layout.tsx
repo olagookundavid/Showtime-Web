@@ -148,7 +148,7 @@ export const Layout = () => {
       {/* Home-only info strip sits below the sticky chrome and scrolls
                 away with the rest of the page. */}
       {location.pathname === "/" && <LatestMatchesInfoStrip />}
-      <main className="grow w-full max-w-page mx-auto px-4 sm:px-6 lg:px-8 py-3 md:py-8 pb-[calc(9rem+2*env(safe-area-inset-bottom,0px))] lg:pb-8 relative z-10 overscroll-y-none">
+      <main className="grow w-full max-w-shell mx-auto px-4 py-3 md:py-8 pb-[calc(9rem+2*env(safe-area-inset-bottom,0px))] lg:pb-8 relative z-10 overscroll-y-none">
         <Outlet />
       </main>
 

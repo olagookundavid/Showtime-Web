@@ -46,7 +46,7 @@ export const MainHeroCarousel = () => {
 
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 10_000);
+    }, 20_000);
 
     return () => clearInterval(timer);
   }, [hasMultipleSlides, slides.length]);

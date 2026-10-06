@@ -8,7 +8,7 @@ import { NewsContent } from '../../components/news/NewsContent';
 import { YouTubeEmbed } from '../../components/news/YouTubeEmbed';
 import { parseYouTubeId } from '../../utils/newsContent';
 import { CommentSection } from '../../components/comments/CommentSection';
-import { BackButton } from '../../components/common/BackButton';
+import { BackButton } from '../../components/ui/BackButton';
 
 export const NewsDetail = () => {
     const { slug } = useParams<{ slug: string }>();

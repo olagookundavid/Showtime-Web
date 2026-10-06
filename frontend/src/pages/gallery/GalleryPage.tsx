@@ -8,7 +8,7 @@ import { FootballIcon } from '../../components/icons/FootballIcon';
 import { UserGroupIcon } from '@heroicons/react/24/outline';
 import { Pagination } from '../../components/ui/Pagination';
 import { Field, Select } from '../../components/ui';
-import { SeasonStageTabs } from '../../components/common/SeasonStageTabs';
+import { SeasonStageTabs } from '../../components/domain/SeasonStageTabs';
 
 const ALL = 'ALL';
 

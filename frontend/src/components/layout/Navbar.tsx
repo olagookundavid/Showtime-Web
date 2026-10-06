@@ -14,7 +14,7 @@ import {
 import { useAuth } from "../../contexts/AuthContext";
 import { useCart } from "../../contexts/CartContext";
 import { useTheme } from "../../contexts/ThemeContext";
-import { NotificationBell } from "../common/NotificationBell";
+import { NotificationBell } from "./NotificationBell";
 import { getInitials } from "../../utils/formatters";
 import { IconButton } from "../ui";
 

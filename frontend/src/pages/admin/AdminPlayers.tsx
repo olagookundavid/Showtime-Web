@@ -42,7 +42,7 @@ import {
   isDeletedPlayer,
   DeletedPlayerName,
   deletedRowClass,
-} from "../../components/common/DeletedPlayer";
+} from "../../components/domain/DeletedPlayer";
 import { DashboardPageHeader } from "../../components/dashboard/DashboardPageHeader";
 import { usePermissions } from "../../hooks/usePermissions";
 

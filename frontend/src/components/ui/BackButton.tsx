@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
-import { Button } from '../ui';
+import { Button } from './Button';
 
 export interface BackButtonProps {
     /** Fallback URL if opened directly or without in-app navigation history */

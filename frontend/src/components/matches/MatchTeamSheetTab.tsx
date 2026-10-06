@@ -7,7 +7,7 @@ import {
   type TeamSheetPlayer,
   getPublicMatchStats,
 } from "../../services/api";
-import { isDeletedPlayer, DELETED_TITLE } from "../common/DeletedPlayer";
+import { isDeletedPlayer, DELETED_TITLE } from "../domain/DeletedPlayer";
 import {
   ArrowDownIcon,
   ArrowPathIcon,

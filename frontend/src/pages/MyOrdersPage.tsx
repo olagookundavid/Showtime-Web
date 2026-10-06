@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import { getCustomerOrders } from '../services/api';
-import { BackButton } from '../components/common/BackButton';
+import { BackButton } from '../components/ui/BackButton';
 import { Button } from '../components/ui';
 
 const statusBadge = (kind: 'payment' | 'fulfillment', value: string) => {

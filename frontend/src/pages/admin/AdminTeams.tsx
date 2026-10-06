@@ -29,7 +29,7 @@ import {
 import { TeamActionDialogs } from "../../components/admin/TeamActionDialogs";
 import { TeamStatusBadge } from "../../components/admin/TeamStatusBadge";
 import { getApiErrorMessage } from "../../utils/apiError";
-import { isDeletedPlayer } from "../../components/common/DeletedPlayer";
+import { isDeletedPlayer } from "../../components/domain/DeletedPlayer";
 import { usePermissions } from "../../hooks/usePermissions";
 
 const NO_TEAMS: Team[] = [];

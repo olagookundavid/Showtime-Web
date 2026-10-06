@@ -13,7 +13,7 @@ import {
 } from "../../services/api";
 import { Loader } from "../../components/ui/Loader";
 import { Button, Field, Select } from "../../components/ui";
-import { BackButton } from "../../components/common/BackButton";
+import { BackButton } from "../../components/ui/BackButton";
 import { formatStatNumber } from "../../utils/formatters";
 import { Spinner } from "../../components/ui/Spinner";
 import { FootballIcon } from "../../components/icons/FootballIcon";

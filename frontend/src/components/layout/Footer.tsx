@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { CopyableEmail } from "../common/CopyableEmail";
+import { CopyableEmail } from "../ui/CopyableEmail";
 
 export const Footer = () => {
   // The footer carries the whole page's clearance for the fixed BottomNav, which
@@ -7,12 +7,12 @@ export const Footer = () => {
   // still on screen and 2rem of padding leaves it covering the copyright line
   // (iPad portrait is exactly 768px).
   return (
-    <footer className="bg-sffl-navy dark:bg-gray-950 text-white p-4 md:p-8 pb-[calc(9rem+2*env(safe-area-inset-bottom,0px))] lg:pb-8 mt-auto border-t border-gray-800 dark:border-gray-700">
+    <footer className="bg-sffl-navy dark:bg-gray-950 text-white p-4 pb-[calc(9rem+2*env(safe-area-inset-bottom,0px))] lg:pb-8 mt-auto border-t border-gray-800 dark:border-gray-700">
       {/* Mobile: 1-col stack. Tablet: 2-col grid. Desktop: flex row with
                 space evenly distributed between columns regardless of their
                 content width, so the Branding column's wider wordmark doesn't
                 visually distort the spacing of the link columns. */}
-      <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-8 text-center sm:text-left lg:flex lg:flex-row lg:justify-between lg:items-start">
+      <div className="max-w-shell mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 gap-8 text-center sm:text-left lg:flex lg:flex-row lg:justify-between lg:items-start">
         {/* Branding */}
         <div className="flex flex-col items-center sm:items-start group cursor-pointer">
           <div className="flex items-center mb-3 md:mb-4">
@@ -36,18 +36,6 @@ export const Footer = () => {
             className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start"
           >
             About Showtime
-          </Link>
-          <Link
-            to="/totw"
-            className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start"
-          >
-            Team of the Week
-          </Link>
-          <Link
-            to="/potw"
-            className="text-gray-300 hover:text-white text-sm min-h-11 flex items-center justify-center sm:justify-start"
-          >
-            Player of the Week
           </Link>
           <Link
             to="/about/our-team"

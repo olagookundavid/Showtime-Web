@@ -1,4 +1,4 @@
-import { NotificationBell } from '../../components/common/NotificationBell';
+import { NotificationBell } from '../../components/layout/NotificationBell';
 import { DashboardShell } from '../../components/dashboard/DashboardShell';
 import {
     PLAYER_PORTAL_BOTTOM_NAV,

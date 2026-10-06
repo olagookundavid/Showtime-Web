@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { isDeletedPlayer, deletedRowClass, DeletedPlayerName } from '../../components/common/DeletedPlayer';
+import { isDeletedPlayer, deletedRowClass, DeletedPlayerName } from '../../components/domain/DeletedPlayer';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import api, { moveToReserve, graduatePlayer, getTeamRosterSummary, type RosterSummary } from '../../services/api';

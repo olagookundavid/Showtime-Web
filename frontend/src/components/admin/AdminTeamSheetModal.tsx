@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { isDeletedPlayer, DELETED_TITLE } from "../common/DeletedPlayer";
+import { isDeletedPlayer, DELETED_TITLE } from "../domain/DeletedPlayer";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {

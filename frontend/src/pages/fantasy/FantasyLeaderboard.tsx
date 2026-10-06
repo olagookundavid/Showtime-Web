@@ -29,7 +29,7 @@ import {
   OVERALL,
 } from "../../hooks/useFantasyLeaderboard";
 import { FantasyTeamModal } from "../../components/fantasy/FantasyTeamModal";
-import { BackButton } from "../../components/common/BackButton";
+import { BackButton } from "../../components/ui/BackButton";
 import { Button, ButtonLink, IconButton, Select } from "../../components/ui";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { DataTable } from "../../components/ui/DataTable";

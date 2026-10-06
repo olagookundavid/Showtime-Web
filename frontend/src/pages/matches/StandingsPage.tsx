@@ -14,7 +14,7 @@ import { Field, Select } from "../../components/ui";
 import { StandingsTable } from "../../components/matches/StandingsTable";
 import { BracketView } from "../../components/matches/BracketView";
 import { MatchCard } from "../../components/matches/MatchCard";
-import { SeasonStageTabs } from "../../components/common/SeasonStageTabs";
+import { SeasonStageTabs } from "../../components/domain/SeasonStageTabs";
 import { Spinner } from "../../components/ui/Spinner";
 import { FootballIcon } from "../../components/icons/FootballIcon";
 import {

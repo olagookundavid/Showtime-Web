@@ -14,7 +14,7 @@ import {
   TruckIcon,
 } from "@heroicons/react/24/outline";
 import { getStoreProducts, type StoreProduct } from "../services/api";
-import { LazyImage } from "../components/common/LazyImage";
+import { LazyImage } from "../components/ui/LazyImage";
 import { getAvailableStock } from "../utils/storeStock";
 import { StarRating } from "../components/store/StarRating";
 import { Button, Input } from "../components/ui";

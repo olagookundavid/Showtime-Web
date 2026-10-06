@@ -17,7 +17,7 @@ import {
   type StoreProduct,
   type ProductVariant,
 } from "../services/api";
-import { LazyImage } from "../components/common/LazyImage";
+import { LazyImage } from "../components/ui/LazyImage";
 import { ProductDescription } from "../components/store/ProductDescription";
 import { StarRating } from "../components/store/StarRating";
 import { Button, IconButton } from "../components/ui";
@@ -29,7 +29,7 @@ import {
 } from "../components/store/PolicyContent";
 import { getVariantPrice, findVariantByValues } from "../utils/storeStock";
 import { useCart } from "../contexts/CartContext";
-import { BackButton } from "../components/common/BackButton";
+import { BackButton } from "../components/ui/BackButton";
 import { Spinner } from "../components/ui/Spinner";
 
 export const ProductDetailPage = () => {

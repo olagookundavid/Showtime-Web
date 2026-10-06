@@ -7,7 +7,7 @@ import { CartProvider } from "./contexts/CartContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { FeatureGuard } from "./components/admin/FeatureGuard";
 import { Layout } from "./components/layout/Layout";
-import { ScrollToTop } from "./components/common/ScrollToTop";
+import { ScrollToTop } from "./components/layout/ScrollToTop";
 import { LandingPage } from "./pages/LandingPage";
 import { Loader } from "./components/ui/Loader";
 
@@ -328,7 +328,7 @@ const SellerSales = lazy(() =>
   })),
 );
 
-import { ErrorBoundary } from "./components/common/ErrorBoundary";
+import { ErrorBoundary } from "./components/layout/ErrorBoundary";
 import { Toaster } from "react-hot-toast";
 import { AdSenseScript } from "./components/monetization";
 import { BrevoTracker } from "./components/analytics";

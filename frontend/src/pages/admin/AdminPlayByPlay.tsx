@@ -9,7 +9,7 @@ import {
 import {
   isDeletedPlayer,
   DELETED_TITLE,
-} from "../../components/common/DeletedPlayer";
+} from "../../components/domain/DeletedPlayer";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {

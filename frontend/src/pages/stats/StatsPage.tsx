@@ -13,7 +13,7 @@ import {
 import { Button, Field, IconButton, Input, Select, Tabs } from "../../components/ui";
 import { Loader } from "../../components/ui/Loader";
 import { StatsTable } from "../../components/stats/StatsTable";
-import { SeasonStageTabs } from "../../components/common/SeasonStageTabs";
+import { SeasonStageTabs } from "../../components/domain/SeasonStageTabs";
 import { useSearchParams } from "react-router-dom";
 import {
   ChevronDownIcon,

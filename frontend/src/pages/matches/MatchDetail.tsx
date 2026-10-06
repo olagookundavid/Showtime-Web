@@ -9,7 +9,7 @@ import { PublicMatchStats } from '../../components/matches/PublicMatchStats';
 import { MatchSummaryTab, getUnifiedMatchMvp } from '../../components/matches/MatchSummaryTab';
 import { MatchTeamSheetTab } from '../../components/matches/MatchTeamSheetTab';
 import { CommentSection } from '../../components/comments/CommentSection';
-import { BackButton } from '../../components/common/BackButton';
+import { BackButton } from '../../components/ui/BackButton';
 import { formatMatchTime, formatMatchDate } from '../../utils/dateUtils';
 import { FootballIcon } from '../../components/icons/FootballIcon';
 import { MapPinIcon, PlayIcon, TicketIcon } from '@heroicons/react/24/outline';
