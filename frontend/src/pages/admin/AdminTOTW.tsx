@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { AdminPOTWPanel } from "../../components/potw/AdminPOTWPanel";
 import { potwPollQueryKey } from "../../components/potw/potwUtils";
@@ -51,6 +52,7 @@ import {
   ArrowRightIcon,
   CheckIcon,
   EyeSlashIcon,
+  EyeIcon,
   NewspaperIcon,
   PhotoIcon,
   PlayCircleIcon,
@@ -1227,17 +1229,40 @@ export const AdminTOTW = () => {
     setEditingTotwId(null);
   };
 
+  // Opening an edition shows it the way fans see it. A draft isn't on the site
+  // yet, so it opens in the editor instead.
+  const navigate = useNavigate();
+  const openEdition = useCallback(
+    (item: TOTWListItem) => {
+      if (item.is_published) navigate(`/totw/${item.id}`);
+      else void handleEditTOTW(item.id);
+    },
+    [navigate, handleEditTOTW],
+  );
+
   const editionColumns = useMemo<Column<TOTWListItem>[]>(
     () => [
       {
         header: "Week Edition",
         accessor: "week_title",
         sortable: true,
-        cell: (item) => (
-          <div className="font-black text-sffl-navy dark:text-white wrap-break-word">
-            {item.week_title}
-          </div>
-        ),
+        cell: (item) =>
+          item.is_published ? (
+            <Link
+              to={`/totw/${item.id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="font-black text-sffl-navy dark:text-white wrap-break-word hover:text-sffl-red underline-offset-2 hover:underline"
+            >
+              {item.week_title}
+            </Link>
+          ) : (
+            <div className="font-black text-sffl-navy dark:text-white wrap-break-word">
+              {item.week_title}
+              <span className="block text-xs font-semibold text-gray-500 dark:text-gray-400">
+                Draft — opens in the editor
+              </span>
+            </div>
+          ),
       },
       {
         header: "Headline",
@@ -1280,53 +1305,63 @@ export const AdminTOTW = () => {
         header: "Actions",
         align: "right",
         cell: (item) => (
-          <RowActions
-            label={`Actions for ${item.week_title}`}
-            actions={[
-              {
-                label: "Edit",
-                icon: PencilSquareIcon,
-                onSelect: () => handleEditTOTW(item.id),
-              },
-              item.is_published
-                ? {
-                    label: "Unpublish",
-                    icon: EyeSlashIcon,
-                    disabled: !canManage,
-                    hint: canManage ? undefined : "View-only access to Team of the Week",
-                    onSelect: () =>
-                      setPendingAction({
-                        kind: "publish",
-                        item,
-                        publish: false,
-                      }),
-                  }
-                : {
-                    label: "Publish",
-                    icon: CheckCircleIcon,
-                    disabled: !canManage,
-                    hint: canManage ? undefined : "View-only access to Team of the Week",
-                    onSelect: () =>
-                      setPendingAction({
-                        kind: "publish",
-                        item,
-                        publish: true,
-                      }),
-                  },
-              {
-                label: "Delete",
-                icon: TrashIcon,
-                danger: true,
-                disabled: !canManage,
-                hint: canManage ? undefined : "View-only access to Team of the Week",
-                onSelect: () => setPendingAction({ kind: "delete", item }),
-              },
-            ]}
-          />
+          // Keep menu clicks from also opening the row.
+          <div onClick={(e) => e.stopPropagation()}>
+            <RowActions
+              label={`Actions for ${item.week_title}`}
+              actions={[
+                {
+                  label: "View Team of the Week",
+                  icon: EyeIcon,
+                  disabled: !item.is_published,
+                  hint: item.is_published ? undefined : "Drafts aren't on the site yet. Publish it first.",
+                  onSelect: () => navigate(`/totw/${item.id}`),
+                },
+                {
+                  label: "Edit",
+                  icon: PencilSquareIcon,
+                  onSelect: () => handleEditTOTW(item.id),
+                },
+                item.is_published
+                  ? {
+                      label: "Unpublish",
+                      icon: EyeSlashIcon,
+                      disabled: !canManage,
+                      hint: canManage ? undefined : "View-only access to Team of the Week",
+                      onSelect: () =>
+                        setPendingAction({
+                          kind: "publish",
+                          item,
+                          publish: false,
+                        }),
+                    }
+                  : {
+                      label: "Publish",
+                      icon: CheckCircleIcon,
+                      disabled: !canManage,
+                      hint: canManage ? undefined : "View-only access to Team of the Week",
+                      onSelect: () =>
+                        setPendingAction({
+                          kind: "publish",
+                          item,
+                          publish: true,
+                        }),
+                    },
+                {
+                  label: "Delete",
+                  icon: TrashIcon,
+                  danger: true,
+                  disabled: !canManage,
+                  hint: canManage ? undefined : "View-only access to Team of the Week",
+                  onSelect: () => setPendingAction({ kind: "delete", item }),
+                },
+              ]}
+            />
+          </div>
         ),
       },
     ],
-    [handleEditTOTW, canManage],
+    [handleEditTOTW, canManage, navigate],
   );
 
   const dialog = (() => {
@@ -1444,6 +1479,7 @@ export const AdminTOTW = () => {
           data={totwList}
           columns={editionColumns}
           getRowId={(item) => item.id}
+          onRowClick={openEdition}
           loading={loadingList}
           searchPlaceholder="Search editions"
           emptyMessage={

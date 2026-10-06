@@ -3,7 +3,6 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getTOTWArchive,
-  getCompetitions,
   getTOTWById,
   getLatestTOTW,
   getCurrentPOTWPoll,
@@ -16,7 +15,7 @@ import { TeamOfTheWeekModule } from "../../components/totw/TeamOfTheWeekModule";
 import { TOTWEditorialStory } from "../../components/totw/TOTWEditorialStory";
 import { TOTWStoryModal } from "../../components/totw/TOTWStoryModal";
 import { POTWCountdown } from "../../components/potw/POTWCountdown";
-import { Button, ButtonLink } from "../../components/ui";
+import { Button, ButtonLink, Field, Select } from "../../components/ui";
 import {
   CalendarDaysIcon,
   TrophyIcon,
@@ -45,12 +44,27 @@ export const TeamOfTheWeekPage: React.FC = () => {
   const [copied, setCopied] = useState<boolean>(false);
   const [isStoryModalOpen, setIsStoryModalOpen] = useState<boolean>(false);
 
-  // Fetch all competitions for filtering
-  const { data: compData } = useQuery({
-    queryKey: ["competitions"],
-    queryFn: () => getCompetitions(1, 100),
+  // Every published edition, unfiltered: the competition filter only offers
+  // competitions that actually have a Team of the Week.
+  const { data: allEditions = [] } = useQuery<TOTWListItem[]>({
+    queryKey: ["totwArchive", undefined],
+    queryFn: () => getTOTWArchive(undefined),
   });
-  const competitions = compData?.data || [];
+  const competitionOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const e of allEditions) {
+      if (e.competition_id && !seen.has(e.competition_id)) {
+        seen.set(e.competition_id, e.competition_name || "Showtime League");
+      }
+    }
+    return [...seen.entries()].map(([id, name]) => ({ id, name }));
+  }, [allEditions]);
+
+  // Switching competition shows that competition's latest edition.
+  const handleCompetitionChange = (compId: string) => {
+    setSelectedCompId(compId);
+    if (routeTotwId) navigate("/totw");
+  };
 
   // Fetch archive editions (pass competitionId if specific one selected)
   const effectiveCompId = selectedCompId === "ALL" ? undefined : selectedCompId;
@@ -190,6 +204,29 @@ export const TeamOfTheWeekPage: React.FC = () => {
 
       {/* ── Active Edition Spotlight & Pitch ──────────────────────────── */}
       <div ref={pitchRef} className="space-y-4">
+        {/* Competition filter */}
+        {competitionOptions.length > 0 && (
+          <Field
+            label="Competition"
+            htmlFor="totw-competition"
+            hint="Show Team of the Week editions from one competition, or all of them."
+            className="w-full sm:max-w-sm"
+          >
+            <Select
+              id="totw-competition"
+              value={selectedCompId}
+              onChange={(e) => handleCompetitionChange(e.target.value)}
+            >
+              <option value="ALL">All competitions</option>
+              {competitionOptions.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
+
         {/* Gameweek Stepper Controls */}
         {archive.length > 1 && (
           <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-gray-800 p-3.5 md:p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
@@ -262,13 +299,13 @@ export const TeamOfTheWeekPage: React.FC = () => {
                 label="Closes in"
                 onElapsed={() => void refetchPOTW()}
               />
-              <Link
+              <ButtonLink
                 to="/potw"
-                className="inline-flex items-center justify-center gap-1.5 min-h-11 px-5 rounded-xl bg-sffl-red hover:bg-[#A52323] text-white text-sm font-bold shadow-md"
+                icon={ChevronRightIcon}
+                iconPosition="right"
               >
                 Vote now
-                <ChevronRightIcon className="w-4 h-4" aria-hidden="true" />
-              </Link>
+              </ButtonLink>
             </div>
           </div>
         )}
@@ -341,32 +378,6 @@ export const TeamOfTheWeekPage: React.FC = () => {
             </p>
           </div>
 
-          {/* Competition Filter Pills */}
-          {competitions.length > 1 && (
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-2 md:pb-0 scrollbar-thin">
-              <Button
-                size="sm"
-                variant={selectedCompId === "ALL" ? "navy" : "secondary"}
-                className="shrink-0"
-                aria-pressed={selectedCompId === "ALL"}
-                onClick={() => setSelectedCompId("ALL")}
-              >
-                All Competitions
-              </Button>
-              {competitions.map((comp) => (
-                <Button
-                  key={comp.id}
-                  size="sm"
-                  variant={selectedCompId === comp.id ? "navy" : "secondary"}
-                  className="shrink-0"
-                  aria-pressed={selectedCompId === comp.id}
-                  onClick={() => setSelectedCompId(comp.id)}
-                >
-                  {comp.name}
-                </Button>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Archive Cards Grid */}
